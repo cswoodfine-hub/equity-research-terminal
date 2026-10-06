@@ -206,13 +206,20 @@ def _own(p, w):
 # ------------------------------------------------------------- control row and lead
 def status_line(p):
     """The right end of the control row: the close the page reads to, and the page's notes
-    behind a hover. The cohort and the company in focus are in the close's hover."""
+    behind a hover. The cohort and the company in focus are in the close's hover. A read
+    taken while the API was still valuing the group leads with how many are valued, in the
+    flag colour, and says the rest on hover, so the partial state costs the page no line."""
     n = (p.get("cohort") or {}).get("n") or len(_cos(p))
     f = _focal(p)
     who = (_cos(p).get(f) or {}).get("short") or f
     tip = (f"{n} {_cohort_noun(p)}, prices to the {dlong(p.get('price_date'))} close; "
            f"{who} in focus, set by the company picker")
-    return (f'<div class="uv-status"><span title="{esc(tip)}">closes to '
+    part = ""
+    if not p.get("complete", True):
+        valued, of = _valued(p)
+        part = (f'<span class="uv-nt uv-pt" tabindex="0">{valued} of {of} valued ▾'
+                f'<span class="uv-nt-c">{esc(incomplete_text(p))}</span></span>')
+    return (f'<div class="uv-status">{part}<span title="{esc(tip)}">closes to '
             f'{esc(dday(p.get("price_date")))}</span>'
             f'<span class="uv-nt" tabindex="0">notes ▾'
             f'<span class="uv-nt-c">{esc(notes_text(p))}</span></span></div>')
@@ -244,17 +251,30 @@ def lead_line(p, w=None):
             f'{LEAD_OVER[w]}</div>')
 
 
-def incomplete_note(p):
-    """A line under the lead when the API was still valuing the group as it built this
-    read (``complete`` false): how many of the cohort have a model value so far, and that
-    the page reads again rather than holding the gap. Empty on a complete read."""
+def _valued(p):
+    """How many of the cohort carry a model value on this read, and of how many."""
+    cos = _cos(p)
+    return (sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None),
+            len(cos))
+
+
+def incomplete_text(p):
+    """What a read taken while the API was still valuing the group (``complete`` false)
+    says: how many of the cohort have a model value so far, and that the page reads again
+    rather than holding the gap. Empty on a complete read."""
     if p.get("complete", True):
         return ""
-    cos = _cos(p)
-    n = sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None)
-    return (f'<div class="uv-partial">The API was still valuing the group when this page '
-            f'read it: {n} of {len(cos)} {esc(_cohort_noun(p))} have a model value so far. '
-            f'It is not held: reload in a minute for the full read.</div>')
+    n, of = _valued(p)
+    return (f"The API was still valuing the group when this page read it: {n} of {of} "
+            f"{_cohort_noun(p)} have a model value so far. It is not held: reload in a "
+            f"minute for the full read.")
+
+
+def incomplete_note(p):
+    """The incomplete read as a line of its own, for the company dialog. The tab says it
+    in the control row (``status_line``)."""
+    note = incomplete_text(p)
+    return f'<div class="uv-partial">{esc(note)}</div>' if note else ""
 
 
 # ------------------------------------------------- the company against the group (row 2)
@@ -555,7 +575,10 @@ def hero_map(p, w=None):
     while yv <= y1 - 5:
         o.append(f'<line x1="{ML}" y1="{Y(yv):.1f}" x2="{ML+pw}" y2="{Y(yv):.1f}" '
                  f'stroke="{T["rule_faint"]}"/>')
-        o.append(text(ML - 6, Y(yv) + 3.5, sgn(yv, 0), 9.5, T["muted"], "end", mono=True))
+        # A tick on the plot's foot would print into the corner the x axis's first label
+        # holds; its gridline stays and the label goes.
+        if MT + ph - Y(yv) >= 8:
+            o.append(text(ML - 6, Y(yv) + 3.5, sgn(yv, 0), 9.5, T["muted"], "end", mono=True))
         yv += 20
     o.append(f'<line x1="{X(0):.1f}" y1="{MT}" x2="{X(0):.1f}" y2="{MT+ph}" '
              f'stroke="{T["rule_strong"]}" stroke-width="1.2"/>')
@@ -839,7 +862,8 @@ def board_svg(p, w=None):
     """One row per company, the focal company pinned first and taller: the week's move
     and the window's move against XLV as heat cells, and the next 90 days as a radar of
     dated events. The week's news is in each row's hover. Asset labels are drawn on the
-    focal row only; another row's only label is a firm FDA date."""
+    focal row only; another row's only label is a firm FDA date. The radar's only rules
+    are today and the month starts, each named in the header."""
     w = _window(p, w)
     cos = _cos(p)
     f = _focal(p)
@@ -877,11 +901,6 @@ def board_svg(p, w=None):
         xx = rx((m - r0).days)
         o.append(f'<line x1="{xx:.1f}" y1="{top-4}" x2="{xx:.1f}" y2="{bottom:.1f}" '
                  f'stroke="{T["rule_faint"]}"/>')
-    x30 = rx(30)
-    d30 = dday((r0 + dt.timedelta(days=30)).isoformat())
-    o.append(f'<line x1="{x30:.1f}" y1="{top}" x2="{x30:.1f}" y2="{bottom:.1f}" '
-             f'stroke="{T["muted"]}" stroke-dasharray="2 3" opacity="0.45">'
-             f'<title>30 days, to {esc(d30)}</title></line>')
     o.append(f'<line x1="{rx(0):.1f}" y1="{top-4}" x2="{rx(0):.1f}" y2="{bottom:.1f}" '
              f'stroke="{T["rule_strong"]}" stroke-width="1.2"/>')
 

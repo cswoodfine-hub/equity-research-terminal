@@ -51,8 +51,10 @@
 [data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stElementContainer"]:has(.uv-sp)
   + [data-testid="stElementContainer"] { margin-top: 0; }
 /* Streamlit pulls a markdown block up by a line under its last paragraph; these blocks
-   end on a div, so the pull let the rankings run under the hero. */
-[data-testid="stMarkdownContainer"]:has(> .uv) { margin-bottom: 0; }
+   end on a div, so the pull let the rankings run under the hero. Scoped to the tab: the
+   company dialog's body is a .uv block too, and it keeps the spacing it was drawn with. */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stMarkdownContainer"]:has(> .uv) {
+  margin-bottom: 0; }
 /* The hero's frame is an inline element: as a block it loses the descender gap under it. */
 .st-key-uv_board iframe { display: block; }
 
@@ -102,7 +104,10 @@
   font-size: 11.5px; line-height: 1.45; color: var(--text); padding: 8px 10px;
   background: var(--panel); border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
 .uv-nt:hover .uv-nt-c, .uv-nt:focus .uv-nt-c { display: block; }
-/* A read taken while the API was still valuing the group says so under the control row. */
+/* A read taken while the API was still valuing the group: the control row leads its
+   status with the count valued, in the flag colour; the dialog says it in a line. */
+.uv-nt.uv-pt { color: var(--flag); border-bottom-color: var(--flag); }
+.uv-nt.uv-pt:hover, .uv-nt.uv-pt:focus { color: var(--flag); }
 .uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0; }
 
 /* ---------------------------------------------------------------------------------- */
@@ -110,20 +115,31 @@
 /* ---------------------------------------------------------------------------------- */
 .uv-sp { display: grid; grid-template-columns: minmax(0, 1.32fr) repeat(7, minmax(0, 1fr));
   border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+/* Each cell is a size container. One narrower than the 1440 design (a narrower window,
+   or the sidebar open) drops its value's unit before the value and its place can touch:
+   the label names the measure. If they would still meet, the place wraps under the value
+   rather than printing over it. A container is its own stacking context, so the hovered
+   cell is lifted for its card to sit over the cells beside it. */
 .uv-sp > div { position: relative; padding: 5px 8px;
-  border-left: 1px solid var(--rule); min-width: 0; }
+  border-left: 1px solid var(--rule); min-width: 0; container-type: inline-size; }
 .uv-sp > div:first-child { border-left: 0; padding-left: 2px; }
-.uv-sp > div:hover { background: var(--panel); }
+.uv-sp > div:hover { background: var(--panel); z-index: 2; }
 .uv-sp .k { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
   font-size: 10px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted); white-space: nowrap; }
 .uv-sp .k > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-/* The caret that says the cell opens a ranking of every company on hover. */
-.uv-sp .k .all { flex: 0 0 auto; font-size: 11px; line-height: 14px; letter-spacing: 0;
-  color: var(--muted); cursor: default; }
-.uv-sp > div:hover .k .all { color: var(--up); }
-.uv-sp .vr { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
-  min-width: 0; }
+/* The caret that says the cell opens a ranking of every company on hover. The glyph
+   printed about 4 by 3px in muted grey and read as a speck; it is drawn instead, 8 by
+   5px, halfway from muted to the text colour, and green while the card is open. A cell
+   with a card takes the help cursor, as the page's other hovers do. */
+.uv-sp .k .all { flex: 0 0 auto; align-self: center; width: 0; height: 0; overflow: hidden;
+  font-size: 0; line-height: 0; border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid color-mix(in oklab, var(--text) 50%, var(--muted)); }
+.uv-sp > div:hover .k .all { border-top-color: var(--up); }
+.uv-sp > div:has(> .uv-hc) { cursor: help; }
+.uv-sp .vr { display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: baseline; gap: 0 6px; min-width: 0; }
 .uv-sp .v { font-family: var(--font-mono); font-size: 19px; font-weight: 600;
   letter-spacing: -0.02em; line-height: 26px; white-space: nowrap; min-width: 0; }
 .uv-sp .c0 .v { font-size: 22px; }
@@ -132,14 +148,18 @@
 .uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
 .uv-sp .v .u { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px;
   letter-spacing: 0; }
-.uv-sp .r { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px;
-  color: var(--muted); white-space: nowrap; }
+.uv-sp .r { flex: 0 0 auto; margin-left: auto; font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .uv-sp .r b { color: var(--text); font-weight: 600; }
 .uv-sp .r.up { color: var(--up); }
 .uv-sp .r.down { color: var(--down); }
 .uv-sp .s { font-size: 10.5px; line-height: 14px; color: var(--muted); white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
 .uv-sp .uv-rng { display: block; width: 100%; max-width: 196px; height: 13px; margin-top: 1px; }
+/* The thresholds are the cells' content widths at 1440 (152px, and 213px for the price):
+   any narrower and the unit goes. */
+@container (max-width: 151.98px) { .uv-sp .v .u { display: none; } }
+@container (max-width: 211.98px) { .uv-sp .c0 .v .u { display: none; } }
 
 /* A cell's hover card: the whole cohort, ranked, the median where it falls. */
 .uv-hc { display: none; position: absolute; left: 0; top: calc(100% + 2px); z-index: 60;
@@ -184,7 +204,9 @@
   border-left: 5px solid transparent; border-right: 5px solid transparent;
   border-bottom: 8px solid var(--up); }
 .uv-leg i.tri.dn { border-bottom: 0; border-top: 8px solid var(--down); }
-.uv-leg .sp { margin-left: auto; }
+/* The closing hint gives way first, and ends in an ellipsis rather than a cut word. */
+.uv-leg .sp { display: block; flex: 0 1 auto; min-width: 0; margin-left: auto;
+  overflow: hidden; text-overflow: ellipsis; }
 
 /* The fallback when the click component is missing: a row of company pills. */
 .uv-fallback { font-size: 11px; color: var(--muted); margin-top: 4px; }
@@ -213,8 +235,10 @@
   column-gap: 32px; align-items: start; }
 .uv-wk2 > div { border-top: 1px solid var(--rule-strong); }
 .uv-wm { border-bottom: 1px solid var(--rule); --accent: var(--rule-strong); }
+/* The tag column holds the longest tag the API sends ("approval"), so none runs into the
+   headline beside it. */
 .uv-wm > summary { display: grid;
-  grid-template-columns: 12px 54px minmax(0, 1fr) 100px 54px; gap: 0 8px;
+  grid-template-columns: 12px 62px minmax(0, 1fr) 100px 54px; gap: 0 8px;
   align-items: center; padding: 4px 4px 4px 6px; min-height: 44px; cursor: pointer;
   list-style: none; transition: background-color 120ms linear; }
 .uv-wm > summary::-webkit-details-marker { display: none; }
@@ -317,8 +341,10 @@
 .uv-sm-h .v.down { color: var(--down); }
 .uv-sm-f { display: flex; justify-content: space-between; font-family: var(--font-mono);
   font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+/* The focal tile's wash bleeds 3px above, 4px either side and 2px below its cell; its
+   2px rule and padding put its text on the same lines as the tiles beside it. */
 .uv-sm.me { border-top: 2px solid var(--up); background: var(--active-wash);
-  padding: 3px 4px 2px; margin: -3px -4px 0; }
+  padding: 6px 4px 2px; margin: -3px -4px -2px; }
 .uv-sm.me .tk { color: var(--up); }
 
 /* Policy calendar: the two lanes, and the company events and open dockets beside them. */
@@ -436,6 +462,14 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   .uv-rates > :last-child { grid-column: 1 / -1; }
   .uv-exp, .uv-polg { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
   .uv-sms { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+/* The board's frame is the page less its gutters (17px and 16px), so inside the frame
+   the page's 1180px breakpoint falls at 1147px. Between the two the page is one screen,
+   and the frame keeps the hero's two columns and one-line legends rather than stacking
+   them under a page that does not. */
+@media (min-width: 1147px) and (max-width: 1179.98px) {
+  .uv-frame .uv-hero { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); row-gap: 0; }
+  .uv-frame .uv-leg { flex-wrap: nowrap; overflow: hidden; }
 }
 @media (max-width: 899.98px) {
   .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }

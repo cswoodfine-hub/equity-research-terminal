@@ -307,6 +307,128 @@ def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
     assert cols[3] == f"{UC.IW}px", cols
 
 
+def test_the_board_draws_no_unlabelled_rule(payload):
+    """Every vertical rule on the board's radar is a month start or today, each named in
+    the header: the dashed 30-day mark had lost its label and read as a stray gridline."""
+    for w in ("1m", "3m", "1y"):
+        svg = UC.board_svg(payload, w)
+        assert "stroke-dasharray" not in svg
+        assert "30 days" not in svg
+
+
+def test_the_focal_price_tile_keeps_its_row_lines():
+    """The washed AZN tile sits on the same text lines as its row: its bleed above is
+    given back in padding, after its rule's extra pixel, and its height is the others'."""
+    css = UNIVERSE_CSS.read_text()
+    base = re.search(r"\.uv-sm \{([^}]*)\}", css).group(1)
+    me = re.search(r"\.uv-sm\.me \{([^}]*)\}", css).group(1)
+
+    def num(decl, pattern):
+        return [float(v) for v in re.search(pattern, decl).group(1).split("px")[:-1]]
+
+    b_rule = num(base, r"border-top:\s*([\d.]+px)")[0]
+    b_top = num(base, r"padding-top:\s*([\d.]+px)")[0]
+    m_rule = num(me, r"border-top:\s*([\d.]+px)")[0]
+    m_top, _side, m_bot = num(me, r"padding:\s*([\d.]+px [\d.]+px [\d.]+px);")
+    mt, _ms, mb = num(me, r"margin:\s*(-?[\d.]+px -?[\d.]+px -?[\d.]+px);")
+    assert mt + m_rule + m_top == b_rule + b_top                 # its first line on the row's
+    assert mt + m_rule + m_top + m_bot + mb == b_rule + b_top    # and the row's height
+
+
+def _ink(markup):
+    """Each SVG label's box as the browser measures it: an advance of 0.6em, and the
+    font's ascent and descent (Plex Mono's run about 1em above the baseline and 0.3em
+    under it)."""
+    out = []
+    for m in re.finditer(r'<text x="([\d.-]+)" y="([\d.-]+)"[^>]*font-size="([\d.]+)"([^>]*)>'
+                         r'([^<]*)</text>', markup):
+        x, y, fs, rest, s = float(m[1]), float(m[2]), float(m[3]), m[4], m[5]
+        wd = len(html.unescape(s)) * fs * 0.6
+        x0 = x - wd if 'text-anchor="end"' in rest else (
+            x - wd / 2 if 'text-anchor="middle"' in rest else x)
+        out.append((html.unescape(s), (x0, y - fs, x0 + wd, y + fs * 0.3)))
+    return out
+
+
+def test_the_map_axes_keep_their_corner_apart(payload):
+    """The y axis's foot label and the x axis's first label do not share the corner: on a
+    scale whose foot is a tick, that tick keeps its gridline and drops its label."""
+    for w in ("1m", "3m", "1y"):
+        svg = UC.hero_map(payload, w)
+        ticks = [(s, b) for s, b in _ink(svg) if re.fullmatch(r"[−+]?\d+%?", s)]
+        for i, (sa, a) in enumerate(ticks):
+            for sb, b in ticks[i + 1:]:
+                assert not UC.rects_hit(a, b, 0), (w, sa, sb)
+
+
+def test_a_narrow_ranking_cell_drops_its_unit_before_its_place_meets_its_value():
+    """Under 1440 wide the value and its place collided ("−26.5 pts16th of 18" at 1366):
+    each cell is a size container that drops the value's unit below its 1440 width, and
+    wraps the place under the value rather than over it if they still meet. The hovered
+    cell is lifted so its card stays over the containers beside it."""
+    css = UNIVERSE_CSS.read_text()
+    assert re.search(r"\.uv-sp > div \{[^}]*container-type: inline-size", css)
+    assert re.search(r"\.uv-sp > div:hover \{[^}]*z-index: \d", css)
+    assert re.search(r"\.uv-sp \.vr \{[^}]*flex-wrap: wrap", css)
+    assert re.search(r"\.uv-sp \.r \{[^}]*margin-left: auto", css)
+    q = dict(re.findall(r"@container \(max-width: ([\d.]+)px\) \{ ([^{]+) \{ display: none; \} \}",
+                        css))
+    assert {v.strip() for v in q.values()} == {".uv-sp .v .u", ".uv-sp .c0 .v .u"}, q
+    # The thresholds sit just under the cells' content widths at 1440: 1408px over
+    # 1.32 + 7 shares, less each cell's padding (16px; the price cell 10px).
+    share = 1408 / 8.32
+    widths = {".uv-sp .v .u": share - 16 - 1, ".uv-sp .c0 .v .u": share * 1.32 - 10}
+    for px, sel in q.items():
+        assert 0 < widths[sel.strip()] - float(px) < 2, (sel, px, widths[sel.strip()])
+
+
+def test_the_board_frame_stacks_at_the_pages_breakpoint_not_its_own():
+    """The uvboard frame is the page's width less its 33px of gutters, so a media query
+    read inside it fires 33px of viewport later than the page's: from 1180 to 1212 wide
+    the frame stacked the hero under a one-screen page, which then scrolled. Inside the
+    frame the hero keeps two columns down to 1147px."""
+    css = UNIVERSE_CSS.read_text()
+    page = re.search(r"@media \(max-width: ([\d.]+)px\) \{\s*/\* The lead drops", css)
+    assert page and float(page.group(1)) == 1179.98
+    m = re.search(r"@media \(min-width: ([\d.]+)px\) and \(max-width: ([\d.]+)px\) \{([^@]*)\}",
+                  css)
+    assert m, "no frame breakpoint"
+    lo, hi, body = float(m.group(1)), float(m.group(2)), m.group(3)
+    assert (lo, hi) == (1180 - 33, 1179.98)
+    assert re.search(r"\.uv-frame \.uv-hero \{[^}]*grid-template-columns: minmax\(0, 7fr\) "
+                     r"minmax\(0, 5fr\)", body)
+    assert re.search(r"\.uv-frame \.uv-leg \{[^}]*flex-wrap: nowrap", body)
+    # It comes after the page's block, so it wins inside the frame.
+    assert css.index(m.group(0)) > page.start()
+
+
+def test_a_legend_hint_ends_in_an_ellipsis_not_a_cut_word():
+    """A one-line legend narrower than 1440 clipped its closing hint mid-word ("click a
+    b", "hover a row for its news, click fo"). The hint is the item that shrinks, and it
+    ends in an ellipsis."""
+    css = UNIVERSE_CSS.read_text()
+    sp = re.search(r"\.uv-leg \.sp \{([^}]*)\}", css).group(1)
+    for decl in ("display: block", "flex: 0 1 auto", "min-width: 0", "overflow: hidden",
+                 "text-overflow: ellipsis", "margin-left: auto"):
+        assert decl in sp, decl
+    assert re.search(r"\.uv-leg span \{[^}]*white-space: nowrap", css)
+
+
+def test_the_week_tag_column_holds_the_longest_tag():
+    """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
+    beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
+    css = UNIVERSE_CSS.read_text()
+    m = re.search(r"\.uv-wm > summary \{[^}]*grid-template-columns:\s*([^;]+);", css)
+    col = float(re.sub(r"\(([^)]*)\)", "", m.group(1)).split()[1].rstrip("px"))
+    src = (ROOT / "backend" / "universe_command.py").read_text()
+    tags = set(re.findall(r'"tag": "([a-z ]+)"', src)) | {"phase 3", "result"}
+    longest = max(tags, key=len)
+    assert longest == "approval", tags
+    need = len(longest) * 9.5 * (0.6 + 0.08) + 3 + 6
+    assert col >= need, (col, need)
+    assert re.search(r"\.uv-wm \.tag \{[^}]*font-size: 9\.5px[^}]*letter-spacing: 0\.08em", css)
+
+
 def _lane_rules_hold(placed, reserved=()):
     """No two labels overlap, none sits on a reserved box, and no leader runs through a
     nearer label: the rules place_lane_labels promises."""
@@ -501,6 +623,16 @@ def test_the_spotlight_has_no_line_comparison_and_says_it_ranks_all(payload):
         assert cell.split('<div class="uv-hc">')[0].count('<div class="s">') == 1
     n = len(payload["companies"])
     assert f"hover a cell for all {n}" in UC.spotlight_section(payload)
+    # The caret is drawn, not printed: the glyph read as a 4 by 3px speck. It is an 8 by
+    # 5px triangle brighter than muted, and a cell with a card takes the help cursor.
+    css = UNIVERSE_CSS.read_text()
+    caret = re.search(r"\.uv-sp \.k \.all \{([^}]*)\}", css).group(1)
+    assert "font-size: 0" in caret and "width: 0" in caret
+    assert "border-left: 4px solid transparent" in caret
+    assert "border-right: 4px solid transparent" in caret
+    assert re.search(r"border-top: 5px solid color-mix\(in oklab, var\(--text\) \d+%, "
+                     r"var\(--muted\)\)", caret)
+    assert re.search(r"\.uv-sp > div:has\(> \.uv-hc\) \{ cursor: help; \}", css)
 
 
 def test_the_board_drops_the_news_column_into_the_row_hover(payload):
@@ -578,8 +710,12 @@ def test_the_panel_scrolls_inside_never_the_page():
     assert "overflow-y: auto" in rule.group(1) and "overflow-x: hidden" in rule.group(1)
     narrow = css[css.index("@media (max-width: 1179.98px)"):]
     assert re.search(r'\[data-baseweb="tab-panel"\] \{ height: auto; overflow: visible; \}', narrow)
-    # The two pulls that let a block run under the next are taken back.
-    assert '[data-testid="stMarkdownContainer"]:has(> .uv) { margin-bottom: 0; }' in css
+    # The two pulls that let a block run under the next are taken back, on the tab only:
+    # the dialog's body is a .uv block too and keeps the spacing it was drawn with.
+    pull = re.search(r'([^{}]*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\) \{\s*'
+                     r'margin-bottom: 0; \}', css)
+    assert pull and '[data-baseweb="tab-panel"]:has(.st-key-uv_window)' in pull.group(1)
+    assert not re.search(r'(^|\}\s*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\)', css)
     assert ".st-key-uv_board iframe { display: block; }" in css
 
 
@@ -807,6 +943,14 @@ def test_an_incomplete_read_says_so_and_a_complete_one_does_not(payload):
     assert f"{n} of {len(q['companies'])} big pharma have a model value" in note
     _house_style(_visible(note))
     assert note in UC.dialog_html(q)
+    # On the tab the control row says it, so the partial read costs the page no line: the
+    # count leads the status in the flag colour and the sentence is its hover.
+    status = UC.status_line(q)
+    assert _visible(status.split('<span class="uv-nt-c">')[0]) == f"{n} of {len(q['companies'])} valued ▾"
+    assert UC.esc(UC.incomplete_text(q)) in status
+    assert "uv-pt" not in UC.status_line(payload) and "valued" not in UC.status_line(payload)
+    assert "incomplete_note" not in (FRONTEND / "universe_page.py").read_text()
+    assert re.search(r"\.uv-nt\.uv-pt \{[^}]*color: var\(--flag\)", UNIVERSE_CSS.read_text())
 
 
 def test_apply_goto_sets_the_picker_before_it_is_drawn():
