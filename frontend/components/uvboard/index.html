@@ -89,7 +89,11 @@ window.addEventListener("message", function (e) {
     function fire(target) {
       const hit = target.closest("[data-ticker]");
       if (!hit) return;
-      const where = hit.closest(".uv-map") ? "the map" : "the board";
+      // The part clicked names itself (data-from: the news, the board, the ribbon);
+      // the map and the old board say so by their class.
+      const zone = hit.closest("[data-from]");
+      const where = zone ? zone.getAttribute("data-from")
+                         : (hit.closest(".uv-map") ? "the map" : "the board");
       Streamlit.value({ ticker: hit.getAttribute("data-ticker"), from: where,
                         nonce: Date.now() });
     }

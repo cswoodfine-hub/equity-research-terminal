@@ -1301,10 +1301,12 @@ def spark(series, w=132, h=24, col=None, dot=True):
     return "".join(out)
 
 
-def rates_html(p):
+def rates_html(p, focal=True):
     """Four rates with their quarter's path and 30-day change (uncoloured: a rising rate is
     value-negative, so direction colour would mislead), the reporting currencies with who
-    reports in each, and what the discount rate means for the focal company's value."""
+    reports in each, and what the discount rate means for the focal company's value.
+    ``focal=False`` is the group's view: the rates and the currencies alone, the same
+    whichever company is picked."""
     mk = p.get("markets") or {}
     f = _focal(p)
     rows = []
@@ -1345,6 +1347,9 @@ def rates_html(p):
 
     def out_(box):
         return f'<div class="uv-rates">{left}{mid_col}<div>{box}</div></div>'
+
+    if not focal:
+        return f'<div class="uv-rates uv-rates2">{left}{mid_col}</div>'
 
     fv = (p.get("focal") or {}).get("fair_value") or {}
     rt = fv.get("rating") or {}
@@ -1457,11 +1462,12 @@ def col_chart(title, rows, focal, fmt, colour, tip, empty, W=680, H=152):
     return "".join(o)
 
 
-def exposure_html(p):
+def exposure_html(p, focal_caption=True):
     """Every company's Medicare Part D gross spend on negotiated drugs as a share of
     revenue, and its share of product revenue losing exclusivity in five years: two column
     charts side by side, each ranked on its own measure, the focal company washed in
-    both."""
+    both. ``focal_caption=False`` leaves the focal company's sentence off the caption, so
+    the tab reads the same whichever company is picked."""
     cos = _cos(p)
     f = _focal(p)
     year = _loe_year(p)
@@ -1482,7 +1488,9 @@ def exposure_html(p):
         lambda t, v: f"{t} {v * 100:.0f}% of tagged product revenue loses exclusivity by {year}",
         "n/a")
     ira = (cos.get(f) or {}).get("ira") or {}
-    if ira.get("selected"):
+    if not focal_caption:
+        cap = ""
+    elif ira.get("selected"):
         drugs = ", ".join(f'{s["brand"].title()} (price year {s["ipay"]}'
                           + (f', ceiling cut {s["ceiling_cut"]*100:.0f}%' if s.get("ceiling_cut") is not None else "")
                           + ")" for s in ira["selected"])
@@ -1506,12 +1514,14 @@ def exposure_html(p):
 
 
 # ------------------------------------------ panel tab: approvals and readouts (graft)
-def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
+def lanes_svg(p, width=1408, focal_h=20, row_h=9.5, pin=True):
     """FDA approvals since 1 January by application type and dated catalysts ahead, one
     lane per company with the focal company first and taller. The focal company's signed
     results of the year are drawn on its lane. Lanes are a text line tall, so the whole
     cohort fits the tabbed panel: the captions and today's date run along the top, the
-    months along the foot."""
+    months along the foot. ``pin=False`` is the group's view: every lane one height in
+    the order of its count, the focal company washed where it falls and nothing drawn on
+    its lane that another lane does not carry."""
     lanes = p.get("lanes") or {}
     a, b = _d(lanes.get("start")), _d(lanes.get("end"))
     today = _d(p.get("today"))
@@ -1526,8 +1536,12 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
         return L + (dd - a).days / (b - a).days * (width - L - R)
     events = [e for e in lanes.get("events") or []]
     count = {t: sum(1 for e in events if e["ticker"] == t) for t in cos}
-    order = ([f] if f in cos else []) + sorted([t for t in cos if t != f],
-                                               key=lambda t: (-count[t], t))
+    if pin:
+        order = ([f] if f in cos else []) + sorted([t for t in cos if t != f],
+                                                   key=lambda t: (-count[t], t))
+    else:
+        order = sorted(cos, key=lambda t: (-count[t], t))
+        focal_h = row_h
     top = 14
     rh = {t: (focal_h if t == f else row_h) for t in order}
     ys, y = {}, top
@@ -1560,7 +1574,7 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
     o.append(text(xt - 6, 9, f"today {dday(today.isoformat())}", 9.5, T["text"], "end", 600,
                   mono=True))
     appr = lanes.get("approvals") or []
-    readouts = (p.get("focal") or {}).get("readouts") or []
+    readouts = ((p.get("focal") or {}).get("readouts") or []) if pin else []
     maxc = max(count.values()) if count and max(count.values()) else 1
     for t in order:
         y0 = ys[t]
@@ -1571,15 +1585,15 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
             o.append(f'<rect x="0" y="{y0}" width="{width}" height="{h}" fill="{T["up"]}" '
                      f'fill-opacity="0.10"/><rect x="0" y="{y0}" width="2" height="{h}" fill="{T["up"]}"/>')
         o.append(f'<line x1="{L}" x2="{width-R}" y1="{y0+h:.1f}" y2="{y0+h:.1f}" stroke="{T["rule_faint"]}"/>')
-        o.append(text(8, cy + 3.5, t, 10.5 if t == f else 9, T["up"] if t == f else T["text"],
-                      weight=700 if t == f else 600, mono=True))
+        o.append(text(8, cy + 3.5, t, 10.5 if t == f and pin else 9,
+                      T["up"] if t == f else T["text"], weight=700 if t == f else 600, mono=True))
         n = count.get(t, 0)
         bw = 46 * n / maxc
         o.append(f'<rect x="{width-R+18}" y="{cy-2.5:.1f}" width="{bw:.1f}" height="5" '
                  f'fill="{T["p3"]}" fill-opacity="0.55"/>')
         o.append(text(width - R + 22 + bw, cy + 3.2, str(n), 9, T["text"], mono=True))
         lab_boxes = []
-        ya = cy + (5 if t == f else 0)
+        ya = cy + (5 if t == f and pin else 0)
         mine = [x for x in appr if x["ticker"] == t and _d(x.get("date"))]
         row_marks = [sx(x["date"]) for x in mine]
         for ap in mine:
@@ -1606,7 +1620,7 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
                         and bx[1] < xt - 2:
                     lab_boxes.append(bx)
                     o.append(text(x + 6, ya + 3, lab, 9, T["text"] if t == f else T["muted"]))
-        if t == f:
+        if t == f and pin:
             yr = cy - 5
             rb = []
             rmarks = [sx(r["date"]) for r in readouts if _d(r.get("date"))]
@@ -1630,7 +1644,7 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
                     o.append(text(x + 6, yr + 3, lab, 9, T["text"]))
         for e in [e for e in events if e["ticker"] == t]:
             tip = f"{t} {(e.get('title') or '')[:120]} · {e['date']} · {e.get('confidence')}"
-            yy = cy + (4 if t == f else 0)
+            yy = cy + (4 if t == f and pin else 0)
             big = e.get("phase") == "p3"
             if e.get("regulatory") and not e.get("month"):
                 x = sx(e["date"])
@@ -1655,14 +1669,16 @@ def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
     return "".join(o)
 
 
-def lanes_legend(p):
+def lanes_legend(p, pin=True):
     f = _focal(p)
+    mine = (f'<span><i class="tri" style="background:var(--up)"></i>{esc(f)} Phase 3 positive</span>'
+            '<span><i class="tri dn" style="background:var(--down)"></i>negative</span>'
+            if pin else "")
     return ('<div class="uv-leg uv-leg-lanes">'
             '<span><i style="background:var(--orange-book)"></i>NDA, small molecule</span>'
             '<span><i class="sq" style="background:var(--purple-book)"></i>BLA, biologic</span>'
             '<span><i class="ring" style="border-color:var(--muted)"></i>ANDA, generic</span>'
-            f'<span><i class="tri" style="background:var(--up)"></i>{esc(f)} Phase 3 positive</span>'
-            '<span><i class="tri dn" style="background:var(--down)"></i>negative</span>'
+            + mine +
             '<span><i class="ring" style="border-color:var(--phase-3)"></i>readout, Phase 3 (smaller: Phase 2)</span>'
             '<span><i class="bar" style="background:var(--phase-3)"></i>month only</span>'
             '<span><i class="dia" style="background:var(--phase-filed)"></i>firm FDA date</span></div>')
@@ -1972,7 +1988,12 @@ def notes_text(p):
     firm_txt = ("; ".join(f"{e['ticker']} {e.get('short') or ''}, {dlong(e['date'])}" for e in firm)
                 if firm else "none")
     left = p.get("events_left_off") or 0
-    return (f"Prices to the {dlong(p.get('price_date'))} close. Moves against XLV use XLV's total "
+    return (f"Prices to the {dlong(p.get('price_date'))} close. The week is ranked by kind, "
+            "then size, and never by the company picked: deals with a stated value, the rate "
+            "move, Phase 3 results, other deals, Phase 2 results, approvals, slips, then what "
+            "is due. Words in quotes, and the headlines marked as the source's, are the "
+            "source's own. Cheap to expensive is the model's 12-month upside to the close. "
+            "Moves against XLV use XLV's total "
             "return and each company's price, so they understate a company by its own dividend. "
             f"Firm dates on the board: {firm_txt}; every other date is a registry estimate. "
             + (f"{left} items dated only to a month that runs past the 90 days are left off. " if left else "")
@@ -2392,3 +2413,602 @@ def panel_tabs(p):
     return [("This week, ranked", week), ("Approvals and readouts", lane),
             ("Prices, 12 months", prices), (f"Rates and the {f} value", rates),
             ("Medicare and exclusivity", exposure), ("Policy calendar", policy)]
+
+
+# =========================================================================================
+# The week across the group: the news-first page. The control row's kicker, the lead story,
+# the ranked feed, the company board, the cheap to expensive ribbon and the grid of every
+# change. Every rule reads the group; the company in focus is washed where it falls and
+# nowhere else, so the page reads the same whichever company is picked.
+# =========================================================================================
+# The colour of each kind of news. Green and red mean up and down, and cheap and expensive,
+# and nothing else on the page, so the kinds take the other colours: deals purple, results
+# the phase ramp, anything at the FDA amber, a date running against a company orange
+# (a slip, an exclusivity ending), and the rest of the record grey.
+KIND_COLOUR = {
+    "deal": "var(--purple-book)", "readout": "var(--phase-3)", "readout2": "var(--phase-2)",
+    "notice": "var(--phase-1)", "due": "var(--phase-3)", "approval": "var(--flag)",
+    "regulatory": "var(--flag)", "slips": "var(--orange-book)", "loe": "var(--orange-book)",
+    "market": "var(--muted)", "earnings": "var(--muted)", "filing": "var(--muted)",
+    "labels": "var(--muted)",
+}
+# The grid's rows (backend GRID_KINDS) in the same colours.
+GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--flag)",
+               "slip": "var(--orange-book)", "company": "var(--muted)",
+               "routine": "var(--muted)"}
+# The kinds the live week_item draws; the rest are drawn by feed_item.
+_LIVE_KINDS = ("deal", "market", "readout", "readout2", "approval", "regulatory")
+# The ranked feed under the lead story: two columns of this many rows at 1440, ranks 2 on.
+RANK_ROWS = 4
+STAGE = {"p3": "Ph 3", "p2": "Ph 2", "p1": "Ph 1"}
+# What a lead story built from a verbatim headline says it is.
+LEAD_WORDS = {"deal": "deal announced, no value stated", "notice": "data to be presented",
+              "earnings": "results date set"}
+
+
+def week_kicker(p):
+    """The control row's first words: the week the band below covers."""
+    since, to = p.get("week_since"), p.get("today")
+    span = f"{dday(since)} to {dday(to)}" if since and to else NO_DATA
+    return (f'<div class="uw-kick0"><span class="lbl">The week</span>'
+            f'<span class="dt">{esc(span)}</span></div>')
+
+
+def bars_mini(rows, colour, fmt=lambda v: f"{v:,}"):
+    """Up to three labelled bars on one scale, drawn 1:1 at the mini's size: the week's
+    longest slips in days, or the companies with most labels revised."""
+    rows = [(t, v) for t, v in rows or [] if v][:3]
+    if not rows:
+        return ""
+    mx = max(v for _t, v in rows)
+    o = [_mini_open()]
+    for i, (t, v) in enumerate(rows):
+        y = 1 + i * 9
+        bw = max(30 * v / mx, 1)
+        o.append(text(0, y + 7, t, 9, T["muted"], mono=True))
+        o.append(f'<rect x="32" y="{y + 1.5}" width="{bw:.1f}" height="5" fill="{colour}"/>')
+        o.append(text(32 + bw + 3, y + 7, fmt(v), 9, T["text"], mono=True))
+    o.append("</svg>")
+    return "".join(o)
+
+
+def _ekey(e):
+    """A dated event's sort key: a month-only date sorts at its month's end."""
+    return e["date"] + ("-99" if e.get("month") else "")
+
+
+def vb(text, verbatim=True):
+    """A source's own words, marked so (a quoted headline or a filing's title); house
+    style governs every other string on the page."""
+    return f'<span class="vb">{esc(text)}</span>' if verbatim else esc(text)
+
+
+def _tk_marks(p, tickers, limit=4):
+    """The tickers an item names, each opening the company; ``ALL`` is the whole group."""
+    if tickers == ["ALL"]:
+        return f'<span class="uw-tks"><b class="all">All {len(_cos(p))}</b></span>'
+    f = _focal(p)
+    marks = [f'<b class="{"me" if t == f else ""}" data-ticker="{esc(t)}">{esc(t)}</b>'
+             for t in tickers[:limit]]
+    more = f'<b class="all">+{len(tickers) - limit}</b>' if len(tickers) > limit else ""
+    return f'<span class="uw-tks">{"<i>·</i>".join(marks)}{more}</span>'
+
+
+def feed_item(p, it):
+    """One item of the week's feed as its parts, for the group: the live week_item's
+    parts for the kinds it draws, this page's for the rest. No row names the company in
+    focus, so the item reads the same whichever company is picked."""
+    kind = it.get("kind")
+    if kind in _LIVE_KINDS:
+        x = week_item(p, it)
+        x["rows"] = [(k, v) for k, v in x["rows"] if not str(k).startswith("For ")]
+        if it.get("quote"):
+            x["rows"][:0] = [("Source title", it["quote"])] + (
+                [("Quoted from", it["quote_src"])] if it.get("quote_src") else [])
+        if kind == "deal" and not it.get("value_usd"):
+            x.update(fig="not stated", sub="value", fcls="none")
+        if kind == "approval":
+            x["head"] = "FDA label expansions: " + ", ".join(it.get("brands") or [])
+    else:
+        m = it.get("mini") or {}
+        mini = ""
+        if m.get("type") == "slipbars":
+            mini = bars_mini(m.get("rows"), T["orange"], lambda v: f"{v:,}d")
+        elif m.get("type") == "dates" and m.get("a") and m.get("b"):
+            mini = dates_mini(m.get("dates") or [], m.get("a"), m.get("b"))
+        tickers = it.get("tickers") or []
+        if kind == "notice" and tickers:
+            mini = stock_mini((p.get("closes") or {}).get(tickers[0]) or [], [it.get("date")])
+        elif kind == "earnings" and it.get("call"):
+            days = (_d(it["call"]) - _d(p.get("today"))).days if _d(p.get("today")) else None
+            if days is not None and 0 <= days <= 30:
+                mini = countdown_mini(days, 30)
+        elif kind == "labels":
+            mini = bars_mini([(t, len(str(v).split("; "))) for t, v in it.get("rows") or []],
+                             T["muted"])
+        rows = [(k, dlong(v) if _d(v) and len(str(v)) == 10 else v)
+                for k, v in it.get("rows") or []]
+        x = {"tag": it.get("tag") or kind, "head": it.get("head") or "", "mini": mini,
+             "fig": it.get("fig") or NO_DATA, "sub": it.get("fig_sub") or "", "fcls": "",
+             "rows": rows, "title": "", "url": it.get("url"), "src": it.get("src") or ""}
+    x["kind"] = kind
+    x["accent"] = KIND_COLOUR.get(kind, "var(--rule-strong)")
+    x["verbatim"] = bool(it.get("verbatim"))
+    x["focus"] = _focal(p) in (it.get("tickers") or [])
+    return x
+
+
+def _item_card(p, it, x, cls=""):
+    """An item's detail: the full headline, its rows, its note and its source, and whether
+    the headline is the source's own words. Opens on hover and holds on a click."""
+    rows = "".join(f'<div class="uv-kv"><span>{esc(k)}</span>'
+                   f'<span>{vb(v, str(k).startswith("Filed ") or k == "Source title")}</span></div>'
+                   for k, v in x["rows"])
+    note = f'<div class="nt">{esc(it["note"])}</div>' if it.get("note") else ""
+    title = f'<div class="nt">{vb(x["title"])}</div>' if x.get("title") else ""
+    link = (f'<a href="{esc(x["url"])}" target="_blank" rel="noopener">source</a>'
+            if x.get("url") else "")
+    words = "headline as the source wrote it" if x["verbatim"] else "in our words"
+    return (f'<div class="uw-card {cls}"><div class="ck"><span class="uw-tag" '
+            f'style="--accent:{x["accent"]}">{esc(x["tag"])}</span>'
+            f'{_tk_marks(p, it.get("tickers") or [], 8)}'
+            f'<span class="uw-dt">{esc(dlong(it.get("date")))}</span></div>'
+            f'<div class="hh">{vb(x["head"], x["verbatim"])}</div>{title}{rows}{note}'
+            f'<div class="src"><span>{esc(x["src"])} · {words}</span>{link}</div></div>')
+
+
+# ------------------------------------------------------------------------ the lead story
+def consideration_svg(up, ms, up_s, ms_s, w=220, h=38):
+    """A deal's announced value split on one bar: the upfront solid, the milestones pale,
+    each part named under its own end."""
+    total = up + ms
+    w1 = max((w - 2) * up / total, 2)
+    return (f'<svg class="uw-cons" width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" '
+            f'aria-label="Upfront {esc(up_s)}, milestones {esc(ms_s)}">'
+            f'<rect x="0" y="4" width="{w1:.1f}" height="14" fill="{T["purple"]}"/>'
+            f'<rect x="{w1 + 2:.1f}" y="4" width="{w - w1 - 2:.1f}" height="14" '
+            f'fill="{T["purple"]}" fill-opacity="0.32"/>'
+            + text(0, 32, f"{up_s} upfront", 10.5, T["text"], mono=True)
+            + text(w, 32, f"{ms_s} milestones", 10.5, T["muted"], "end", mono=True) + "</svg>")
+
+
+def day_spark(p, t, day, move, w=120, h=24, n=16):
+    """A company's last closes with the news day dashed and the day's move beside it. A
+    close not yet in prints as such, never as zero."""
+    rows = ((p.get("closes") or {}).get(t) or [])[-n:]
+    vals = [c for _d0, c in rows]
+    f = _focal(p)
+    lab = (f'<span class="mv {"down" if move < 0 else "up" if move > 0 else ""}">'
+           f'{esc(pc(move))}</span>' if move is not None
+           else '<span class="mv none">no close yet</span>')
+    tk = f'<b class="{"me" if t == f else ""}" data-ticker="{esc(t)}">{esc(t)}</b>'
+    if len(vals) < 2:
+        return f'<div class="uw-ds">{tk}<span class="mv none">{NO_DATA}</span>{lab}</div>'
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1
+
+    def sx(i):
+        return 2 + i / (len(vals) - 1) * (w - 6)
+
+    def sy(v):
+        return h - 3 - (v - lo) / span * (h - 6)
+    pts = " ".join(f"{sx(i):.1f},{sy(v):.1f}" for i, v in enumerate(vals))
+    k = next((i for i, (d0, _c) in enumerate(rows) if day and d0 >= day), None)
+    mark = ""
+    if k is not None:
+        mark = (f'<line x1="{sx(k):.1f}" x2="{sx(k):.1f}" y1="0" y2="{h}" stroke="{T["muted"]}" '
+                f'stroke-width="1" stroke-dasharray="2 2"/>'
+                f'<circle cx="{sx(k):.1f}" cy="{sy(vals[k]):.1f}" r="2.6" fill="{T["text"]}"/>')
+    svg = (f'<svg class="uw-spk" width="{w}" height="{h}" viewBox="0 0 {w} {h}" aria-hidden="true">'
+           f'<polyline points="{pts}" fill="none" stroke="{T["text"]}" stroke-width="1.3" '
+           f'stroke-opacity="0.85"/>{mark}</svg>')
+    return f'<div class="uw-ds">{tk}{svg}{lab}</div>'
+
+
+def rate_spark(vals, w=300, h=40):
+    """The 10-year's path over the quarter, its first and last levels at either end."""
+    vals = [v for v in vals or [] if v is not None]
+    if len(vals) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1
+    iw = w - 92
+    pts = " ".join(f"{46 + i / (len(vals) - 1) * iw:.1f},{h - 4 - (v - lo) / span * (h - 8):.1f}"
+                   for i, v in enumerate(vals))
+    ey = h - 4 - (vals[-1] - lo) / span * (h - 8)
+    return (f'<svg class="uw-spk" width="{w}" height="{h}" viewBox="0 0 {w} {h}" aria-hidden="true">'
+            f'<polyline points="{pts}" fill="none" stroke="{T["text"]}" stroke-width="1.4"/>'
+            f'<circle cx="{46 + iw:.1f}" cy="{ey:.1f}" r="2.4" fill="{T["text"]}"/>'
+            + text(40, h - 4 - (vals[0] - lo) / span * (h - 8) + 3.5, f"{vals[0] * 100:.2f}%",
+                   10.5, T["muted"], "end", mono=True)
+            + text(50 + iw + 2, ey + 3.5, f"{vals[-1] * 100:.2f}%", 10.5, T["text"], mono=True)
+            + "</svg>")
+
+
+def _lead_chart(p, it, x):
+    """The lead story's chart, by kind: a deal's consideration and each party's closes
+    either side of the day; a result's closes either side of its day; the rate's path; any
+    other kind its own mini at 1:1."""
+    kind = it.get("kind")
+    m = it.get("mini") or {}
+    day = it.get("date")
+    cap = f'<div class="uw-cap">last 16 closes, {esc(dday(day))} dashed; move on the day</div>'
+    if kind == "deal":
+        moves = next((v for k, v in it.get("rows") or [] if str(k).startswith("Day move")), [])
+        sparks = "".join(day_spark(p, t, day, mv) for t, mv in moves or [])
+        terms = it.get("terms") or {}
+        bar = ""
+        if m.get("type") == "deal" and m.get("upfront") and m.get("milestones"):
+            bar = consideration_svg(m["upfront"], m["milestones"],
+                                    terms.get("upfront") or f'${m["upfront"] / 1e9:.1f}bn',
+                                    terms.get("milestones") or f'${m["milestones"] / 1e9:.1f}bn')
+        return (f'<div class="uw-lbar">{bar}</div>' if bar else "") + \
+            (f'<div class="uw-lmv">{sparks}{cap}</div>' if sparks else "")
+    if kind in ("readout", "readout2", "notice") and (it.get("tickers") or []):
+        t = it["tickers"][0]
+        return (f'<div class="uw-lmv">{day_spark(p, t, day, it.get("fig_move"), w=260, h=34)}'
+                f'{cap}</div>')
+    if m.get("type") == "spark":
+        return (f'<div class="uw-lmv">{rate_spark(m.get("values"))}'
+                f'<div class="uw-cap">10-year Treasury, the quarter to {esc(dday(day))}</div></div>')
+    return f'<div class="uw-lmv">{x["mini"]}</div>' if x["mini"] else ""
+
+
+def lead_story(p, it):
+    """Rank 1 as the lead story: the kicker (kind, tickers, date), a headline built from
+    the item's own fields, the source's own title quoted as the deck and attributed, then
+    the figure and the kind's own chart. The detail rows open from the kicker."""
+    x = feed_item(p, it)
+    kind = it.get("kind")
+    tks = it.get("tickers") or []
+    who = _name(p, tks[0]) if tks and tks != ["ALL"] else ""
+    head, fig, sub, fcls = x["head"], x["fig"], x["sub"], x["fcls"]
+    deck, deck_by = it.get("quote"), it.get("quote_src")
+    if kind == "deal" and it.get("value_usd"):
+        terms = it.get("terms") or {}
+        parties = it.get("parties") or []
+        party = terms.get("counterparty") or (parties[1]["short"] if len(parties) > 1 else "")
+        lead = f"{who} and {party}" if party else who
+        head = (f'{lead}: {terms["upfront"]} upfront, up to {terms["milestones"]} in milestones'
+                if terms.get("upfront") and terms.get("milestones")
+                else f"{lead}: {fig} announced")
+        sub = "announced value"
+    elif kind in ("readout", "readout2"):
+        ph = it.get("phase")
+        head = f"{who}: Phase {ph} result" if ph else f"{who}: a result"
+        deck, deck_by = x["head"], "the company's announcement"
+        sub = f"on the day, {dday(it.get('date'))}"
+    elif x["verbatim"]:
+        head = f"{who}: {LEAD_WORDS.get(kind, x['tag'])}"
+        deck, deck_by = x["head"], "the company's announcement"
+    deck_html = (f'<p class="uw-deck">&ldquo;{vb(deck)}&rdquo;'
+                 f'<span class="by">{esc(deck_by or "")}</span></p>' if deck else "")
+    link = (f'<a class="uw-src" href="{esc(x["url"])}" target="_blank" rel="noopener">source</a>'
+            if x.get("url") else "")
+    return (f'<article class="uw-lead" tabindex="0" style="--accent:{x["accent"]}">'
+            f'<div class="uw-kick"><span class="uw-tag">{esc(x["tag"])}</span>'
+            f'{_tk_marks(p, tks)}<span class="uw-dt">{esc(dday(it.get("date")))}</span>'
+            f'<span class="uw-more">detail ▾</span>{link}</div>'
+            f'<h2 class="uw-hd" title="{esc(head)}">{esc(head)}</h2>{deck_html}'
+            f'<div class="uw-viz"><div class="uw-fig"><b class="{fcls}">{esc(fig)}</b>'
+            f'<small>{esc(sub)}</small></div>{_lead_chart(p, it, x)}</div>'
+            f'{_item_card(p, it, x, "uw-lc")}</article>')
+
+
+# --------------------------------------------------------------------- this week, ranked
+def _rank_row(p, it, n):
+    x = feed_item(p, it)
+    me = " me" if x["focus"] else ""
+    return (f'<div class="uw-it{me}" tabindex="0" style="--accent:{x["accent"]}">'
+            f'<span class="n">{n}</span>'
+            f'<div class="bd"><div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
+            f'{_tk_marks(p, it.get("tickers") or [], 3)}'
+            f'<span class="uw-dt">{esc(dday(it.get("date")))}</span></div>'
+            f'<div class="h">{vb(x["head"], x["verbatim"])}</div></div>'
+            f'<span class="ch">{x["mini"]}</span>'
+            f'<span class="f"><b class="{x["fcls"]}">{esc(x["fig"])}</b>'
+            f'<small>{esc(x["sub"])}</small></span>{_item_card(p, it, x)}</div>')
+
+
+def ranked_html(p, start=2, rows=RANK_ROWS):
+    """"This week, ranked" under the lead: the feed from rank ``start``, two columns of
+    ``rows``, read down the first and then the second. Each item has its kind, its
+    tickers, its headline, its small chart and its figure; a hover or a click opens its
+    detail. The ranks the column has no room for are one hover away in the head."""
+    items = p.get("week_items") or []
+    shown = items[start - 1:start - 1 + 2 * rows]
+    rest = items[start - 1 + 2 * rows:]
+    since, to = p.get("week_since"), p.get("today")
+    span = f"{dday(since)} to {dday(to)}" if since and to else ""
+    if not shown:
+        body = ('<div class="uv-empty">Nothing more across the group in the last seven '
+                'days.</div>' if items else "")
+        return (f'<section class="uw-rk"><div class="uw-rkh"><span class="lbl">This week, '
+                f'ranked</span><span class="c">{esc(span)}</span></div>{body}</section>')
+    cols = [shown[:rows], shown[rows:]]
+    html_cols = "".join(
+        f'<div class="col">{"".join(_rank_row(p, it, start + ci * rows + i) for i, it in enumerate(c))}</div>'
+        for ci, c in enumerate(cols))
+    more = ""
+    if rest:
+        lines = "".join(
+            f'<div class="uw-mr"><span class="n">{start + 2 * rows + i}</span>'
+            f'<span class="uw-tag" style="--accent:{KIND_COLOUR.get(it.get("kind"), "var(--rule-strong)")}">'
+            f'{esc(feed_item(p, it)["tag"])}</span>'
+            f'<span class="h">{_tk_marks(p, it.get("tickers") or [], 3)} '
+            f'{vb(feed_item(p, it)["head"], bool(it.get("verbatim")))}</span>'
+            f'<span class="f">{esc(feed_item(p, it)["fig"])}</span></div>'
+            for i, it in enumerate(rest))
+        more = (f'<span class="uw-moreh" tabindex="0">{len(rest)} more ▾'
+                f'<div class="uw-card uw-mc"><div class="ck"><b>Also ranked this week</b></div>'
+                f'{lines}</div></span>')
+    last = start - 1 + len(shown)
+    count = f"{span} · {start} to {last} of {len(items)}" if span else f"{start} to {last} of {len(items)}"
+    return (f'<section class="uw-rk"><div class="uw-rkh"><span class="lbl">This week, ranked'
+            f'</span><span class="c">{esc(count)}{more}</span></div>'
+            f'<div class="uw-rkc">{html_cols}</div></section>')
+
+
+# ----------------------------------------------------------------------- the company board
+def _event_words(e):
+    """A dated event in words: its stage (PDUFA, FDA, Ph 3) and its drug, or its
+    condition's study where the registry title names no drug."""
+    if e.get("regulatory"):
+        stage = "PDUFA" if (e.get("type") or "").upper() == "PDUFA" else "FDA"
+    else:
+        stage = STAGE.get(e.get("phase") or "", "")
+    name = e.get("name") or e.get("short") or ""
+    return " ".join(w for w in (stage, name) if w) or (e.get("type") or NO_DATA)
+
+
+def _event_date(e):
+    """A dated event's date as the board prints it: the day, or the month alone, which
+    the 90-day window makes unambiguous."""
+    if e.get("month"):
+        m = _d(str(e["date"])[:7] + "-01")
+        return f"{m:%b}" if m else str(e["date"])
+    return dday(e["date"])
+
+
+def _news_line(x):
+    kinds = {"deal": "deal", "result": "result", "fda": "FDA", "company": "filing",
+             "slip": "slip"}
+    return (f'<div class="bn"><span class="d">{esc(dday(x.get("date")))}</span>'
+            f'<span class="uw-tag" style="--accent:{GRID_COLOUR.get(x.get("kind"), "var(--muted)")}">'
+            f'{esc(kinds.get(x.get("kind"), x.get("kind")))}</span>'
+            f'<span class="t">{vb(x.get("text"), bool(x.get("verbatim")))}</span></div>')
+
+
+def board_html(p):
+    """The company board: one row per company, washed for the company in focus but not
+    pinned. The week's move as a tinted figure, the week's news count, the next dated event
+    in words (FDA dates in amber, a firm date marked, an estimate muted) and the count of
+    dated events in 90 days. Three sorts, switched in the browser; the week sort draws
+    XLV's week where it falls. A row's hover lists the company's news of the week; a click
+    opens the company."""
+    cos = _cos(p)
+    tks = _tickers(p)
+    f = _focal(p)
+    w = p.get("week") or {}
+    news = w.get("news") or {}
+    nxt = w.get("next") or {}
+    wk = {t: cos[t]["change_5d"] for t in tks if (cos.get(t) or {}).get("change_5d") is not None}
+    mx = max([abs(v) for v in wk.values()] or [0]) or 1
+    xlv = (p.get("xlv_week") or {}).get("change")
+    by_wk = sorted(tks, key=lambda t: (t not in wk, -wk.get(t, 0), t))
+    by_nw = sorted(tks, key=lambda t: (-len(news.get(t) or []), t not in wk, -wk.get(t, 0), t))
+    by_nx = sorted(tks, key=lambda t: (nxt.get(t) is None,
+                                       _ekey(nxt[t]) if nxt.get(t) else "", t))
+    o_wk = {t: 2 * i for i, t in enumerate(by_wk)}
+    o_nw = {t: 2 * i for i, t in enumerate(by_nw)}
+    o_nx = {t: 2 * i for i, t in enumerate(by_nx)}
+    rows = []
+    for t in tks:
+        c = cos.get(t) or {}
+        me = " me" if t == f else ""
+        if t in wk:
+            v = wk[t]
+            tone = "up" if v > 0 else "down" if v < 0 else ""
+            wcell = (f'<span class="wk {tone}" style="--uw-a:{10 + 48 * abs(v) / mx:.0f}%">'
+                     f'{esc(pc(v))}</span>')
+        else:
+            wcell = f'<span class="wk none">{NO_DATA}</span>'
+        mine = news.get(t) or []
+        ncell = f'<span class="nw{"" if mine else " z"}">{len(mine) if mine else "·"}</span>'
+        e = nxt.get(t)
+        if e:
+            fda = " fda" if e.get("regulatory") else ""
+            est = "" if e.get("firm") else " est"
+            firm = " firm" if e.get("firm") else ""
+            ecell = (f'<span class="nd{fda}{est}{firm}">{esc(_event_date(e))}</span>'
+                     f'<span class="nx{fda}">{esc(_event_words(e))}</span>')
+        else:
+            ecell = '<span class="nd est">·</span><span class="nx none">none dated in 90 days</span>'
+        n90 = c.get("n90")
+        cnt = f'<span class="c9{"" if n90 else " z"}">{n90 if n90 is not None else NO_DATA}</span>'
+        lines = "".join(_news_line(x) for x in mine[:6])
+        if len(mine) > 6:
+            lines += f'<div class="bn none">and {len(mine) - 6} more under Every change</div>'
+        if not lines:
+            lines = '<div class="bn none">No news this week: no deal, result, approval, filing or Phase 3 slip.</div>'
+        when = (f'{_event_date(e)} {_event_words(e)}, '
+                + ("a firm date" if e.get("firm") else "a month only" if e.get("month")
+                   else "a registry estimate") if e else "none dated")
+        move = (f"week {pc(wk[t])}" + (f", XLV {pc(xlv)}" if xlv is not None else "")
+                if t in wk else f"week: {NO_DATA}")
+        card = (f'<div class="uw-bcard"><div class="ck"><b>{esc(c.get("short") or t)}</b>'
+                f'<span>{esc(t)} · {esc(move)}</span></div>'
+                f'<div class="bs">This week, {len(mine)} news item{"" if len(mine) == 1 else "s"}</div>{lines}'
+                f'<div class="bs">Next dated event</div><div class="bn"><span class="t">{esc(when)}; '
+                f'{n90 if n90 is not None else NO_DATA} dated in 90 days</span></div>'
+                f'<div class="hint">Click the row for the company</div></div>')
+        rows.append(f'<div class="uw-br{me}" data-ticker="{esc(t)}" '
+                    f'style="--uw-ow:{o_wk[t]};--uw-on:{o_nw[t]};--uw-ox:{o_nx[t]}" '
+                    f'aria-label="{esc(c.get("short") or t)}"><span class="tk">{esc(t)}</span>'
+                    f'{wcell}{ncell}{ecell}{cnt}{card}</div>')
+    xrule = ""
+    if xlv is not None and wk:
+        k = sum(1 for v in wk.values() if v > xlv)
+        xrule = (f'<div class="uw-bx" style="--uw-ow:{2 * k - 1}" '
+                 f'title="XLV {esc(pc(xlv))} over the same week"></div>')
+    sorts = ('<input class="uw-r" type="radio" name="uwbs" id="uwbs-w" checked>'
+             '<input class="uw-r" type="radio" name="uwbs" id="uwbs-n">'
+             '<input class="uw-r" type="radio" name="uwbs" id="uwbs-x">')
+    head = ('<div class="uw-bh"><span class="lbl">Company board</span><span class="uw-sort">'
+            '<span>sort</span><label for="uwbs-w">week move</label><label for="uwbs-n">news</label>'
+            '<label for="uwbs-x">next date</label></span></div>')
+    span = (f'{dday((cos.get(tks[0]) or {}).get("close_5d_as_of"))} to {dday(p.get("price_date"))} close'
+            if tks else "")
+    key = (f'<div class="uw-bk"><span>week: {esc(span)}'
+           + (f'; dashed rule XLV {esc(pc(xlv))}' if xlv is not None else "")
+           + '</span><span><i class="dia"></i>firm date · <em>grey: estimate</em> · '
+             '<em class="fda">amber: FDA</em></span></div>')
+    cols = ('<div class="uw-bcols"><span>Co.</span><span class="r">Week</span>'
+            '<span class="c" title="News this week: deals, results, approvals, filings and '
+            'Phase 3 slips">News</span><span class="nh">Next dated event</span>'
+            '<span class="r" title="Dated events in the next 90 days">90d</span></div>')
+    return (f'<section class="uw-board" data-from="the board">{sorts}{head}{key}{cols}'
+            f'<div class="uw-bb">{"".join(rows)}{xrule}</div></section>')
+
+
+# ----------------------------------------------------------------- cheap to expensive
+def ribbon_html(p):
+    """The group from cheapest to most expensive on the model's 12-month upside, green for
+    cheap fading through to red for expensive, a rule where value meets the price, and any
+    company with no model value last as "no free data". The company in focus is outlined.
+    A tile's hover gives the close, the model's 12-month value and rating and the street
+    target; a click opens the company."""
+    cos = _cos(p)
+    f = _focal(p)
+    tks = _tickers(p)
+    up = {t: (cos[t].get("model") or {}).get("upside") for t in tks}
+    order = [t for t in ((p.get("week") or {}).get("value_order") or []) if t in cos] or \
+        sorted([t for t in tks if up[t] is not None], key=lambda t: -up[t])
+    have = [t for t in order if up.get(t) is not None]
+    miss = [t for t in tks if up.get(t) is None]
+    cells, placed = [], False
+    seq = have + miss
+    for i, t in enumerate(seq):
+        c = cos.get(t) or {}
+        m = c.get("model") or {}
+        s = c.get("street") or {}
+        u = up.get(t)
+        if u is not None and u < 0 and not placed and i:
+            cells.append('<div class="uw-zero"><span>value = price</span></div>')
+            placed = True
+        if u is None:
+            style, cls, v = "", " na", NO_DATA
+        else:
+            a = round(12 + 50 * min(abs(u) / 0.6, 1))
+            col = "var(--up)" if u > 0 else "var(--down)" if u < 0 else "var(--muted)"
+            style = f' style="--uw-bg:color-mix(in oklab, {col} {a}%, var(--ground))"'
+            cls, v = "", pc(u)
+        me = " me" if t == f else ""
+        side = " rt" if i >= len(seq) - 6 else ""
+        cur = c.get("currency") or ""
+        close = (f'Close {num(c.get("price"))} {esc(cur)}, {esc(dday(c.get("price_as_of")))}'
+                 if c.get("price") is not None else f"Close: {NO_DATA}")
+        model = (f'Model value in 12 months {num(m.get("forward_12m"))}, {pc(u)}, '
+                 f'{esc(m.get("rating") or "no rating")}' if u is not None
+                 else f"Model value: {NO_DATA}")
+        street = (f'Street target {num(s.get("value"))}, {pc(s.get("upside"))}; '
+                  + ", ".join(f'{s.get(k)} {k}' for k in ("buy", "hold", "sell")
+                              if s.get(k) is not None)
+                  if s.get("upside") is not None else f"Street target: {NO_DATA}")
+        card = (f'<div class="uw-rc"><div class="ck"><b>{esc(c.get("short") or t)}</b>'
+                f'<span>{esc(t)}</span></div><div>{close}</div><div>{model}</div>'
+                f'<div>{street}</div></div>')
+        cells.append(f'<div class="uw-tile{cls}{me}{side}" data-ticker="{esc(t)}"{style}>'
+                     f'<b class="tk">{esc(t)}</b><span class="v">{esc(v)}</span>{card}</div>')
+    return (f'<section class="uw-rib" data-from="the ribbon"><div class="lab"><b>Cheap to '
+            f'expensive</b><span>model 12-month upside</span></div>'
+            f'<div class="uw-cells">{"".join(cells)}</div></section>')
+
+
+def front_html(p):
+    """Everything the uvboard frame draws: the news and the board side by side, the ribbon
+    under them."""
+    items = p.get("week_items") or []
+    lead = (lead_story(p, items[0]) if items else
+            '<div class="uv-empty">Nothing material across the group in the last seven days.</div>')
+    return (f'<div class="uv uv-frame uw-front"><div class="uw-band">'
+            f'<div class="uw-news" data-from="the news">{lead}{ranked_html(p)}</div>'
+            f'{board_html(p)}</div>{ribbon_html(p)}</div>')
+
+
+# -------------------------------------------------------------------------- every change
+def changes_grid_html(p):
+    """Every change of the week, company by kind: a column per company, most changes
+    first, a row per kind with its total. A cell is its count, tinted in its kind's colour
+    by its share of the row's largest; a hover lists the cell's changes. Counts are feed
+    rows, not events: a deal's filings are each a change."""
+    w = p.get("week") or {}
+    grid = w.get("grid") or {}
+    if not grid:
+        return f'<div class="uv-empty">{NO_DATA}: no change feed for the week.</div>'
+    labels = w.get("kind_labels") or {}
+    kinds = list(labels) or list(GRID_COLOUR)
+    f = _focal(p)
+    tks = [t for t in _tickers(p) if t in grid]
+    tot = {t: sum(len(grid[t].get(k) or []) for k in kinds) for t in tks}
+    cols = sorted(tks, key=lambda t: (-tot[t], tks.index(t)))
+    total = sum(tot.values())
+    routine = w.get("routine_filings") or 0
+    half = len(cols) // 2
+    o = [f'<div class="uw-grid" style="--uw-n:{len(cols)}">'
+         f'<div class="gh lab"><b>Every change</b><span>{total} this week'
+         + (f', {routine} routine filings left out' if routine else "") + '</span></div>']
+    for t in cols:
+        o.append(f'<div class="gh{" me" if t == f else ""}" title="{esc(_name(p, t))}: '
+                 f'{tot[t]} changes this week"><span class="t">{esc(t)}</span>'
+                 f'<span class="v">{tot[t]}</span></div>')
+    for k in kinds:
+        n_k = (w.get("kinds") or {}).get(k, sum(len(grid[t].get(k) or []) for t in cols))
+        rmx = max([len(grid[t].get(k) or []) for t in cols] or [0]) or 1
+        o.append(f'<div class="gl" style="--accent:{GRID_COLOUR.get(k, "var(--muted)")}">'
+                 f'<span>{esc(labels.get(k, k))}</span><b>{n_k}</b></div>')
+        for i, t in enumerate(cols):
+            its = grid[t].get(k) or []
+            me = " me" if t == f else ""
+            if not its:
+                o.append(f'<div class="gc z{me}"></div>')
+                continue
+            a = round(12 + 40 * len(its) / rmx)
+            lines = "".join(
+                f'<div class="li"><span>{esc(dday(x.get("date")))}</span>'
+                f'<span>{vb(x.get("text"), bool(x.get("verbatim")))}</span></div>' for x in its[:8])
+            more = f'<div class="li mo">and {len(its) - 8} more</div>' if len(its) > 8 else ""
+            side = " lf" if i >= half else ""
+            o.append(f'<div class="gc{me}" tabindex="0" style="--accent:'
+                     f'{GRID_COLOUR.get(k, "var(--muted)")};--uw-a:{a}%"><span>{len(its)}</span>'
+                     f'<div class="uw-gcard{side}"><div class="ck"><b>{esc(t)}</b>'
+                     f'<span>{esc(labels.get(k, k))}, {len(its)}</span></div>{lines}{more}</div></div>')
+    o.append("</div>")
+    return "".join(o)
+
+
+def week_panel_tabs(p, w=None):
+    """The slim panel under the ribbon, as [(tab label, body markup)]: every change of the
+    week first, then the year's approvals and readouts, the prices, rates and currencies,
+    Medicare and exclusivity, the policy calendar and the company in focus against the
+    group. Only the last reads the company picked."""
+    f = _focal(p)
+    svg = lanes_svg(p, pin=False)
+    every = _tab("", changes_grid_html(p))
+    lane = _tab(tab_head(lanes_legend(p, pin=False), lanes_counts(p)),
+                f'<div class="chart-mount wide">{svg}</div>' if svg else
+                f'<div class="uv-empty">{NO_DATA}: no approval or dated catalyst on file.</div>')
+    sms = prices_html(p)
+    prices = _tab(tab_head(esc(prices_basis(p)) + ", one scale; XLV on total return, dashed",
+                           prices_count(p)),
+                  sms or f'<div class="uv-empty">{NO_DATA}: no closes on file.</div>')
+    rates = _tab(tab_head("30-day change", "FRED, ECB, Yahoo"), rates_html(p, focal=False))
+    exposure = _tab(tab_head("Share of revenue, each chart ranked on its own measure",
+                             "CMS, FDA books"), exposure_html(p, focal_caption=False))
+    policy = _tab(tab_head("Federal Register documents this year, by lane", policy_count(p)),
+                  policy_html(p))
+    strip = _tab(spotlight_section(p, w), spotlight_html(p, w))
+    return [("Every change", every), ("Approvals and readouts", lane),
+            ("Prices, 12 months", prices), ("Rates and FX", rates),
+            ("Medicare and exclusivity", exposure), ("Policy calendar", policy),
+            (f"{f} against the group", strip)]
