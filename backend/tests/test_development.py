@@ -482,3 +482,21 @@ def test_no_module_on_the_value_path_imports_development():
         source = backend / f"{name}.py"
         if source.exists():
             assert "development" not in _imports(source), name
+
+
+def test_loading_the_value_path_never_brings_development_in():
+    """The scan above reads each module's own imports. This loads the value path, and the
+    refresh that writes snapshots, in a fresh interpreter and checks the module never
+    arrives through anything they import in turn."""
+    import subprocess
+    import sys
+    backend = Path(__file__).resolve().parent.parent
+    code = ("import sys\n"
+            "import forecast, forecast_view, assumptions, pos_granular, company_score\n"
+            "import breakpoints, fair_value, comps_valuation, future_pipeline, valuation\n"
+            "import launch_timing, company_lines, insights, refresh, scheduled_refresh\n"
+            "print('development' in sys.modules)")
+    out = subprocess.run([sys.executable, "-c", code], cwd=backend, capture_output=True,
+                         text=True, timeout=300)
+    assert out.returncode == 0, out.stderr[-2000:]
+    assert out.stdout.strip().splitlines()[-1] == "False"
