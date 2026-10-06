@@ -34,6 +34,7 @@
   "file": {
    "status": "complete",
    "population": "prescribers with 11 or more claims for the drug (the file population)",
+   "why": null,
    "prescribers": 264286,
    "claims": 22996543,
    "claims_share": 0.956011,

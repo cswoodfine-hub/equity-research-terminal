@@ -181,11 +181,18 @@ def _prescribing(conn, asset_id: int, demand: dict) -> dict | None:
         return None
     latest = rows[-1]
     year = latest["data_year"]
+    status = latest["file_status"]
+    # The file figures stand only for a finished pull. A pending brand is one the run
+    # budget has not reached yet, or one whose year CMS revised, whose stored figures are
+    # the earlier version's; an incomplete one did not reconcile with CMS's row count.
+    # Either way they are held back, with the reason, rather than shown as current.
+    complete = status == "complete"
     deciles = json.loads(latest["claims_share_by_npi_decile"] or "null")
     specialties = [dict(r) for r in conn.execute(
         "SELECT specialty, prescribers, claims, claims_share"
         "  FROM partd_prescriber_specialties WHERE asset_id = ? AND data_year = ?"
-        " ORDER BY (specialty = 'Other'), claims DESC", (asset_id, year))]
+        " ORDER BY (specialty = 'Other'), claims DESC", (asset_id, year))] \
+        if complete else []
     share = latest["days_covered_share"]
     vaccine = conn.execute("SELECT 1 FROM asset_themes WHERE asset_id = ?"
                            " AND theme = 'Vaccine'", (asset_id,)).fetchone() is not None
@@ -207,8 +214,8 @@ def _prescribing(conn, asset_id: int, demand: dict) -> dict | None:
             "value": share, "label": PROXY_LABEL, "above_one": bool(share and share > 1),
             # Held, not dropped: the figure is CMS's, but it measures nothing here.
             "applies": not vaccine, "note": VACCINE_NOTE if vaccine else None,
-            "file_value": latest["days_covered_share_file"],
-            "file_note": latest["file_note"],
+            "file_value": latest["days_covered_share_file"] if complete else None,
+            "file_note": latest["file_note"] if complete else None,
         },
         "file": None,
         "volume_deciles": {"value": json.loads(latest["prescribers_by_volume_decile"]
@@ -222,21 +229,25 @@ def _prescribing(conn, asset_id: int, demand: dict) -> dict | None:
         "caveats": [PROXY_CAVEAT],
         "part_b_note": None,
     }
-    if latest["file_status"] is not None:
+    if status is not None:
+        def figure(column):
+            return latest[column] if complete else None
+
         out["file"] = {
-            "status": latest["file_status"],
+            "status": status,
             "population": FILE_POPULATION,
-            "prescribers": latest["file_prescribers"],
-            "claims": latest["file_claims"],
-            "claims_share": latest["file_claims_share"],
-            "deciles": deciles,
-            "top1pct": latest["top1pct_claims_share"],
-            "top10pct": latest["top10pct_claims_share"],
-            "prescribers_for_50pct": latest["prescribers_for_50pct"],
-            "prescribers_for_80pct": latest["prescribers_for_80pct"],
-            "hhi": latest["hhi"],
-            "median_claims": latest["median_claims_per_prescriber"],
-            "days_per_claim": latest["days_supply_per_claim"],
+            "why": None if complete else _file_why(status, year),
+            "prescribers": figure("file_prescribers"),
+            "claims": figure("file_claims"),
+            "claims_share": figure("file_claims_share"),
+            "deciles": deciles if complete else None,
+            "top1pct": figure("top1pct_claims_share"),
+            "top10pct": figure("top10pct_claims_share"),
+            "prescribers_for_50pct": figure("prescribers_for_50pct"),
+            "prescribers_for_80pct": figure("prescribers_for_80pct"),
+            "hhi": figure("hhi"),
+            "median_claims": figure("median_claims_per_prescriber"),
+            "days_per_claim": figure("days_supply_per_claim"),
             "note": latest["file_note"],
         }
         out["caveats"].append(FILE_CAVEAT)
@@ -247,6 +258,16 @@ def _prescribing(conn, asset_id: int, demand: dict) -> dict | None:
             f"{b / (b + d):.0%} of Medicare's spend on this drug, and these Part D files "
             f"do not cover it.")
     return out
+
+
+def _file_why(status: str, year: int) -> str:
+    """Why a brand's provider-file figures are held back: never 'too few prescribers',
+    which is a finished pull's answer."""
+    if status == "pending":
+        return (f"CMS's {year} provider file is not read for this brand yet; the next "
+                f"refresh continues the pull")
+    return (f"The {year} provider file did not match CMS's own row count for this brand, "
+            f"so its figures are not shown")
 
 
 def _prescribing_why(conn, asset: dict, demand: dict) -> str:

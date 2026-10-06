@@ -95,6 +95,32 @@ def test_file_figures_name_their_population_and_volume_deciles_stay_null(conn):
     assert any("leaves out any prescriber with fewer than 11" in c for c in p["caveats"])
 
 
+@pytest.mark.parametrize("status, why", [
+    ("pending", "CMS's 2024 provider file is not read for this brand yet"),
+    ("incomplete", "did not match CMS's own row count")])
+def test_an_unfinished_provider_pull_holds_its_file_figures_back_and_says_why(
+        conn, status, why):
+    # The stored figures are the last finished pull's (a revised year resets every brand
+    # to pending), so a pending or incomplete brand shows none of them.
+    conn.execute("UPDATE partd_prescribing SET file_status = ? WHERE asset_id = ?"
+                 " AND data_year = 2024", (status, ELIQUIS_BMY))
+    p = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]
+    f = p["file"]
+    assert f["status"] == status and why in f["why"]
+    assert "fewer than 10" not in f["why"].lower()
+    for key in ("prescribers", "claims", "claims_share", "deciles", "top1pct",
+                "top10pct", "prescribers_for_50pct", "prescribers_for_80pct", "hhi",
+                "median_claims", "days_per_claim"):
+        assert f[key] is None, key
+    assert p["specialties"] == []
+    assert p["days_covered"]["file_value"] is None
+    # The national figures are CMS's national row, read whatever the provider pull did.
+    assert p["national"]["prescribers"] == 556431
+    assert p["days_covered"]["value"] == pytest.approx(0.7202)
+    house = pa.for_asset(conn, ELIQUIS_PFE)["prescribing"]["file"]
+    assert house["status"] == "complete" and house["why"] is None
+
+
 def test_the_days_covered_proxy_is_labelled_and_never_capped(conn):
     dc = pa.for_asset(conn, ELIQUIS_BMY)["prescribing"]["days_covered"]
     assert dc["value"] == pytest.approx(0.7202) and dc["label"] == "a proxy, not a PDC"

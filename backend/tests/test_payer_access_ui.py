@@ -107,6 +107,39 @@ def test_a_vaccine_says_the_proxy_does_not_apply(view):
     assert "Days supplied cover" not in words
 
 
+def _unfinished(status: str, why: str) -> dict:
+    """Eliquis as the reader returns it while its provider pull is unfinished: every
+    file figure held back, the reason in ``why``."""
+    access = copy.deepcopy(load("eliquis"))
+    p = access["prescribing"]
+    p["file"] = {**{k: None for k in p["file"]}, "status": status,
+                 "population": p["file"]["population"], "why": why,
+                 "note": p["file"]["note"]}
+    p["specialties"] = []
+    p["days_covered"]["file_value"] = p["days_covered"]["file_note"] = None
+    return access
+
+
+@pytest.mark.parametrize("status, why", [
+    ("pending", "CMS's 2024 provider file is not read for this brand yet; the next "
+                "refresh continues the pull"),
+    ("incomplete", "The 2024 provider file did not match CMS's own row count for this "
+                   "brand, so its figures are not shown")])
+def test_an_unfinished_pull_says_why_and_never_blames_too_few_prescribers(
+        view, status, why):
+    access = _unfinished(status, why)
+    out = view["_payer_prescribing_html"](access)
+    words = text_of(out)
+    assert words.startswith("Medicare Part D only, 2024 556,431 prescribers")
+    assert f"{why}." in words and "Fewer than 10 prescribers" not in words
+    assert "Top 10% of the file population" not in words and "<svg" not in out
+    detail = text_of(view["_payer_detail_html"](access))
+    assert f"{why}." in detail
+    assert "file prescribers, 11 or more claims" not in detail
+    assert "no free data" not in detail
+    house_style(words + " " + detail)
+
+
 def test_formulary_reads_listing_restrictions_and_the_tier_mix(view):
     out = view["_payer_formulary_html"](load("eliquis"))
     words = text_of(out)

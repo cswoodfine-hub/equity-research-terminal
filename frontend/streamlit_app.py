@@ -733,7 +733,11 @@ def _payer_prescribing_html(access: dict) -> str:
         out.append(f'<div class="pa-sub">Top 10% of the file population write '
                    f'{_payer_pct(f["top10pct"])} of its claims</div>')
     deciles = f.get("deciles")
-    if deciles:
+    if f.get("why"):
+        # A pull the budget has not reached, or one that did not reconcile: the file
+        # figures are held back, and "fewer than 10 prescribers" would be a wrong reason.
+        out.append(f'<div class="byline">{html_escape(f["why"])}.</div>')
+    elif deciles:
         out.append(CH.bar_chart(
             [{"label": str(i + 1), "value": v * 100 if v is not None else None}
              for i, v in enumerate(deciles)], width=300, height=104,
@@ -825,6 +829,9 @@ def _payer_detail_html(access: dict) -> str:
     out = ['<details class="pa-more"><summary>Prescribers, plans and quarters</summary>']
     if p:
         nat, fl, dc = p.get("national") or {}, p.get("file") or {}, p["days_covered"]
+        held_back = fl.get("why")
+        if fl.get("status") != "complete":
+            fl = {}                 # no file figure to show; held_back says why
         out.append(f'<div class="prof-sub">Part D prescribing, {p["year"]}</div>')
         out.append(_payer_rows([
             ("beneficiaries", _payer_n(nat.get("beneficiaries"))),
@@ -844,7 +851,7 @@ def _payer_detail_html(access: dict) -> str:
              if fl.get("days_per_claim") is not None else None),
             ("file-based days covered", f'{dc["file_value"]:.3f}'
              if dc.get("file_value") is not None else None)]))
-        for line in (nat.get("note"), dc.get("file_note"),
+        for line in (nat.get("note"), held_back and f"{held_back}.", dc.get("file_note"),
                      (p.get("volume_deciles") or {}).get("note")):
             if line:
                 out.append(f'<div class="byline">{html_escape(line)}</div>')
