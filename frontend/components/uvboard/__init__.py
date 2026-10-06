@@ -26,5 +26,6 @@ def uv_board(markup: str, *, css: str, tokens: dict, key=None):
     """Render ``markup`` (elements carrying ``data-ticker`` are the hit areas).
 
     Returns ``{"ticker", "from", "nonce"}`` for the last click, or None: ``from`` names
-    the part clicked ("the map" or "the board")."""
+    the part clicked, read off the nearest ``data-from`` ("the news", "the board", "the
+    ribbon"), else "the map" or "the board"."""
     return _component(markup=markup, css=css, tokens=tokens, key=key, default=None)

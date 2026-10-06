@@ -4,13 +4,17 @@
 this module is the Streamlit glue around it, kept out of streamlit_app.py so the change
 there stays the switch and the calls.
 
-The tab fits one 1440 by 900 screen: a control row (the window, a one-line lead, the close
-and the view switch), the company against the group, the hero band (the map and the
-board) and one tabbed panel holding everything else. The control row and the two bands
-the window moves sit in one ``@st.fragment``, so a switch reruns only them. A click on a
-bubble or a board row comes back through the ``uvboard`` component and opens the company
-dialog inside the same fragment. The panel does not depend on the window; it is drawn
-once, and its tabs switch in the browser without a rerun.
+The tab is the week across the group on one 1440 by 780 screen: a control row (the week,
+the regions against the company picked over a window, the close and the view switch), the
+band (the lead story and the ranked feed beside the company board, the cheap to expensive
+ribbon under them) and a slim tabbed panel holding everything else. The page reads the same
+whichever company is picked: that company is washed where it falls, and only the control
+row's own figure and the panel's last tab are about it.
+
+The whole tab sits in one ``@st.fragment``, so the window switch reruns only the tab. A
+click on a story's ticker, a board row or a ribbon tile comes back through the ``uvboard``
+component and opens the company dialog inside the same fragment. The panel's tabs switch in
+the browser without a rerun.
 
 Every figure on the page comes from the payload; nothing here computes one.
 """
@@ -147,7 +151,7 @@ def _open_dialog(api_base: str, ticker: str, opened_from: str) -> None:
     _body()
 
 
-# -------------------------------------------------------------- the fragment: bands 1-4
+# ----------------------------------------------------------------------- the fragment
 def _window_label() -> str:
     label = st.session_state.get("uv_window")
     if label in WINDOW_KEYS:
@@ -158,24 +162,23 @@ def _window_label() -> str:
 
 @st.fragment
 def _command(api_base: str, p: dict) -> None:
-    # One control line. The last column is left empty: the view switch is drawn over it
+    # One control line: the week, the regions over a window and the window's switch, the
+    # close. The last column is left empty: the view switch is drawn over it
     # (universe.css).
-    left, mid, lead, right, _switch = st.columns([0.054, 0.174, 0.52, 0.09, 0.162],
-                                                 vertical_alignment="center",
-                                                 gap="small")
-    with left:
-        _show('<div class="uv"><div class="uv-moves">Moves over</div></div>')
-    with mid:
+    kick, lead, win, right, _switch = st.columns([0.13, 0.33, 0.17, 0.2, 0.17],
+                                                 vertical_alignment="center", gap="small")
+    with win:
         st.segmented_control("Moves over", list(WINDOW_KEYS), default=DEFAULT_WINDOW_LABEL,
                              key="uv_window", label_visibility="collapsed")
     w = WINDOW_KEYS[_window_label()]
+    with kick:
+        _show(f'<div class="uv">{UC.week_kicker(p)}</div>')
     with lead:
         _show(f'<div class="uv">{UC.lead_line(p, w)}</div>')
     with right:
         _show(f'<div class="uv">{UC.status_line(p)}</div>')
-    _show(f'<div class="uv">{UC.spotlight_section(p, w)}{UC.spotlight_html(p, w)}</div>')
 
-    band = UC.hero_html(p, w)
+    band = UC.front_html(p)
     clicked = None
     if _uvboard is not None:
         clicked = _uvboard.uv_board(band, css=_frame_css(), tokens=FRAME_TOKENS,
@@ -189,7 +192,8 @@ def _command(api_base: str, p: dict) -> None:
     if (isinstance(clicked, dict) and clicked.get("ticker")
             and clicked.get("nonce") != st.session_state.get("_uv_board_nonce")):
         st.session_state["_uv_board_nonce"] = clicked.get("nonce")
-        _open_dialog(api_base, clicked["ticker"], clicked.get("from") or "the map")
+        _open_dialog(api_base, clicked["ticker"], clicked.get("from") or "the board")
+    _panel(p, w)
 
 
 def _pill_picked() -> None:
@@ -197,16 +201,17 @@ def _pill_picked() -> None:
     if t:
         n = st.session_state.get("_uv_pill_n", 0) + 1
         st.session_state["_uv_pill_n"] = n
-        st.session_state["_uv_pill_click"] = {"ticker": t, "from": "the map",
+        st.session_state["_uv_pill_click"] = {"ticker": t, "from": "the board",
                                               "nonce": f"pill-{n}"}
 
 
 # ------------------------------------------------------------------ the tabbed panel
-def _panel(p: dict) -> None:
-    """Everything below the hero, one tab at a time. st.tabs switches in the browser, so
-    a tab click reruns nothing; each tab's body is one markdown block drawn to the
-    panel's fixed height, and anything taller or wider scrolls inside the panel."""
-    tabs = UC.panel_tabs(p)
+def _panel(p: dict, w: str) -> None:
+    """Everything below the ribbon, one tab at a time. st.tabs switches in the browser,
+    so a tab click reruns nothing; each tab's body is one markdown block drawn to the
+    panel's height, and anything taller scrolls inside the panel. Drawn inside the
+    fragment, so the last tab's ranking follows the window."""
+    tabs = UC.week_panel_tabs(p, w)
     with st.container(key="uv_panel"):
         for tab, (_label, body) in zip(st.tabs([label for label, _b in tabs]), tabs):
             with tab:
@@ -223,5 +228,4 @@ def render(api_base: str, ticker: str) -> bool:
     if not p or not p.get("companies"):
         return False
     _command(api_base, p)
-    _panel(p)
     return True

@@ -1,9 +1,11 @@
 """The redesigned Universe tab (frontend/universe_cc.py, universe_page.py, the uvboard
 component and the switch in streamlit_app.py).
 
-The tab fits one 1440 by 900 screen: a control row, the company against the group, the
-hero band (the map and the board) and one tabbed panel holding everything else. The parts
-that make it fit are pinned here; the fit itself was measured in a browser.
+The tab is the week across the group on one 1440 by 780 screen: a control row (the week,
+the regions against the company picked, the window and the close), the band (the lead
+story and the ranked feed beside the company board, the cheap to expensive ribbon under
+them) and a slim tabbed panel holding everything else. The parts that make it fit are
+pinned here; the fit itself was measured in a browser.
 
 Four layers.
 
@@ -12,9 +14,9 @@ The builders are pure functions of the payload of ``GET /universe/command``, sav
 with figures taken away: every block draws, a missing figure prints "no free data" or is
 named as left off, and nothing missing is drawn as a zero.
 
-The house style of every string a reader sees. Registry and release titles are quoted
-verbatim in hovers only, so <title> elements and title= attributes are left out of the
-check.
+The house style of every string a reader sees. A source's own words (a quoted headline, a
+filing's title) are marked as such and checked to be the source's; registry and release
+titles in hovers (<title> elements and title= attributes) are left out of the check.
 
 The switch: read out of the Streamlit script by name (it runs the whole app on import), so
 a company outside ``_REDESIGN_TICKERS`` provably takes today's overview, called as before.
@@ -65,18 +67,19 @@ def payload():
 def _all_blocks(p, w="1y"):
     """Every block the page draws, by name: the panel's tabs as "tab: <label>"."""
     blocks = {
-        "status": UC.status_line(p), "lead": UC.lead_line(p, w),
+        "status": UC.status_line(p), "lead": UC.lead_line(p, w), "kicker": UC.week_kicker(p),
+        "front": UC.front_html(p), "notes": UC.notes_text(p),
         "spotlight": UC.spotlight_section(p, w) + UC.spotlight_html(p, w),
-        "hero": UC.hero_html(p, w), "notes": UC.notes_text(p),
-        "dialog": UC.dialog_html(p, "the map"),
+        "dialog": UC.dialog_html(p, "the board"),
     }
-    for label, body in UC.panel_tabs(p):
+    for label, body in UC.week_panel_tabs(p, w):
         blocks[f"tab: {label}"] = body
     return blocks
 
 
-PANEL = ("This week, ranked", "Approvals and readouts", "Prices, 12 months",
-         "Rates and the AZN value", "Medicare and exclusivity", "Policy calendar")
+PANEL = ("Every change", "Approvals and readouts", "Prices, 12 months", "Rates and FX",
+         "Medicare and exclusivity", "Policy calendar", "AZN against the group")
+VB = re.compile(r'<span class="vb">([^<]*)</span>')
 
 
 def _visible(markup: str) -> str:
@@ -84,6 +87,7 @@ def _visible(markup: str) -> str:
     gone."""
     markup = re.sub(r"<title>.*?</title>", " ", markup, flags=re.S)
     markup = re.sub(r'\stitle="[^"]*"', " ", markup)
+    markup = VB.sub(" ", markup)                             # the source's own words
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", markup))).strip()
 
 
@@ -162,9 +166,9 @@ def test_house_style_of_every_visible_string(payload, window):
 def test_section_labels_are_sentence_case(payload):
     labels = re.findall(r'<span class="sec-label">([^<]+)</span>',
                         "".join(_all_blocks(payload).values()))
-    labels += [label for label, _body in UC.panel_tabs(payload)]
+    labels += [label for label, _body in UC.week_panel_tabs(payload)]
     assert len(labels) >= 10
-    names = {"AstraZeneca", "XLV", "AZN", "Medicare"}
+    names = {"AstraZeneca", "XLV", "AZN", "Medicare", "FX"}
     for label in labels:
         label = html.unescape(label)
         assert label[0].isupper(), label
@@ -199,19 +203,14 @@ def test_the_window_switch_changes_only_the_window_cells(payload):
     changed = [k for k, a, b in zip(keys, one, year) if a != b]
     assert changed == ["c-rel"]
     assert "Against XLV, 1 month" in one[keys.index("c-rel")]
-    assert UC.hero_map(payload, "1m") != UC.hero_map(payload, "1y")
-    # The tabbed panel takes no window: it is drawn once, outside the fragment.
-    assert list(inspect.signature(UC.panel_tabs).parameters) == ["p"]
+    # The week does not move with the window; the panel's last tab, the company against
+    # the group, is the one tab that does.
+    assert UC.front_html(payload) == UC.front_html({**payload, "window": "1m"})
+    a, b = UC.week_panel_tabs(payload, "1m"), UC.week_panel_tabs(payload, "1y")
+    assert [x[0] for x, y in zip(a, b) if x != y] == ["AZN against the group"]
 
 
 # ---------------------------------------------------------------- null is never zero
-def test_a_company_with_no_model_value_is_named_not_plotted(payload):
-    plotted = set(re.findall(r'<g class="b[^"]*" data-ticker="([A-Z]+)"',
-                             UC.hero_map(payload, "1y")))
-    missing = {t for t, c in payload["companies"].items() if c["model"]["upside"] is None}
-    assert missing and not plotted & missing
-    assert all(t in UC.map_counts(payload, "1y") for t in missing)
-    assert len(plotted) == len(payload["companies"]) - len(missing)
 
 
 def test_the_focal_company_with_nothing_on_file_still_draws(payload):
@@ -225,20 +224,15 @@ def test_the_focal_company_with_nothing_on_file_still_draws(payload):
     # The hover cards still rank the cohort; the focal company is not placed in them.
     assert out["spotlight"].count('class="r">not placed<') >= 6
     assert 'class="hc-r me"' not in out["spotlight"]
-    assert 'data-ticker="AZN"' not in UC.hero_map(q, "1y")
-    assert "AZN" in UC.map_counts(q, "1y")
-    assert "Nothing material across the group" in out["tab: This week, ranked"]
-    assert "no free data" in _visible(out["tab: Rates and the AZN value"])   # the value
+    # The band still draws the company: its tile says no free data, its row no move.
+    tile = out["front"].split('data-ticker="AZN"')[-1]
+    assert f'<span class="v">{UC.NO_DATA}</span>' in tile.split("</div>")[0]
+    row = re.search(r'data-ticker="AZN"[^>]*><span class="tk">AZN</span>(<span[^>]*>[^<]*</span>)',
+                    out["front"]).group(1)
+    assert UC.NO_DATA in row and "0.0%" not in row
+    assert "Nothing material across the group" in out["front"]
     assert UC.NO_DATA in _visible(out["dialog"])
     _house_style(_visible("".join(out.values())))
-
-
-def test_no_week_move_prints_na_not_zero(payload):
-    q = copy.deepcopy(payload)
-    q["companies"]["LLY"]["change_5d"] = None
-    board = UC.board_svg(q, "1y")
-    row = re.search(r'data-ticker="LLY">(.*?)</g>', board, re.S).group(1)
-    assert ">n/a<" in row and "0.0%" not in row
 
 
 def test_exposure_bars_only_where_a_share_is_on_file(payload):
@@ -265,25 +259,6 @@ def test_prices_leave_out_a_company_with_no_closes(payload):
 
 
 # ------------------------------------------------------------------------- the board
-def test_the_board_draws_every_event_in_the_90_days_and_marks_the_firm_one(payload):
-    board = UC.board_svg(payload, "1y")
-    events = payload["events"]
-    marks = len(re.findall(r"<(?:circle|path|rect)[^>]*><title>[^<]*(?:\(month only\)|\((?:estimated|confirmed|stated|month)\))", board))
-    assert marks == len(events)
-    firm = [e for e in events if e["firm"]]
-    assert firm and all(e["regulatory"] for e in firm)
-    for e in firm:
-        assert f"{'PDUFA' if (e['type'] or '').upper() == 'PDUFA' else 'FDA'} {UC.dday(e['date'])}" \
-            in board
-    xw = UC.pc(payload["xlv_week"]["change"])
-    assert UC.board_counts(payload) == f"{len(events)} dated, {len(firm)} firm · XLV week {xw}"
-
-
-def test_every_row_and_bubble_is_a_click_target(payload):
-    hero = UC.hero_html(payload, "1y")
-    rows = set(re.findall(r'<g class="row[^"]*" data-ticker="([A-Z]+)"', hero))
-    assert rows == set(payload["companies"])
-    assert re.search(r'<g class="b azn" data-ticker="AZN"', hero)
 
 
 # ---------------------------------------------------------------------- the stylesheet
@@ -300,20 +275,11 @@ def test_the_week_minis_are_drawn_at_the_width_their_column_gives_them():
     """The ranked list's small charts are drawn 1:1: an SVG wider than its grid column is
     scaled down, and its 9px axis words with it (they printed at 7.4px)."""
     css = UNIVERSE_CSS.read_text()
-    m = re.search(r"\.uv-wm > summary \{[^}]*grid-template-columns:\s*([^;]+);", css)
+    m = re.search(r"\.uw-it \{[^}]*grid-template-columns:\s*([^;]+);", css)
     assert m, "the ranked list's grid is not where the test reads it"
     cols = re.sub(r"\(([^)]*)\)", lambda x: "(" + x.group(1).replace(" ", "") + ")",
                   m.group(1)).split()
-    assert cols[3] == f"{UC.IW}px", cols
-
-
-def test_the_board_draws_no_unlabelled_rule(payload):
-    """Every vertical rule on the board's radar is a month start or today, each named in
-    the header: the dashed 30-day mark had lost its label and read as a stray gridline."""
-    for w in ("1m", "3m", "1y"):
-        svg = UC.board_svg(payload, w)
-        assert "stroke-dasharray" not in svg
-        assert "30 days" not in svg
+    assert cols[2] == f"{UC.IW}px", cols
 
 
 def test_the_focal_price_tile_keeps_its_row_lines():
@@ -350,17 +316,6 @@ def _ink(markup):
     return out
 
 
-def test_the_map_axes_keep_their_corner_apart(payload):
-    """The y axis's foot label and the x axis's first label do not share the corner: on a
-    scale whose foot is a tick, that tick keeps its gridline and drops its label."""
-    for w in ("1m", "3m", "1y"):
-        svg = UC.hero_map(payload, w)
-        ticks = [(s, b) for s, b in _ink(svg) if re.fullmatch(r"[−+]?\d+%?", s)]
-        for i, (sa, a) in enumerate(ticks):
-            for sb, b in ticks[i + 1:]:
-                assert not UC.rects_hit(a, b, 0), (w, sa, sb)
-
-
 def test_a_narrow_ranking_cell_drops_its_unit_before_its_place_meets_its_value():
     """Under 1440 wide the value and its place collided ("−26.5 pts16th of 18" at 1366):
     each cell is a size container that drops the value's unit below its 1440 width, and
@@ -395,9 +350,8 @@ def test_the_board_frame_stacks_at_the_pages_breakpoint_not_its_own():
     assert m, "no frame breakpoint"
     lo, hi, body = float(m.group(1)), float(m.group(2)), m.group(3)
     assert (lo, hi) == (1180 - 33, 1179.98)
-    assert re.search(r"\.uv-frame \.uv-hero \{[^}]*grid-template-columns: minmax\(0, 7fr\) "
-                     r"minmax\(0, 5fr\)", body)
-    assert re.search(r"\.uv-frame \.uv-leg \{[^}]*flex-wrap: nowrap", body)
+    assert re.search(r"\.uv-frame \.uw-band \{[^}]*grid-template-columns: minmax\(0, 1fr\) "
+                     r"470px", body)
     # It comes after the page's block, so it wins inside the frame.
     assert css.index(m.group(0)) > page.start()
 
@@ -415,18 +369,20 @@ def test_a_legend_hint_ends_in_an_ellipsis_not_a_cut_word():
 
 
 def test_the_week_tag_column_holds_the_longest_tag():
-    """Each ranked row's tag fits its grid column: "approval" ran 7px into the headline
-    beside it. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 6px of air."""
+    """A ranked item's tag sits on its kicker line; in the list of the ranks the column
+    has no room for, it has a column of its own, which holds the longest tag the API
+    sends. A tag is 9.5px mono capitals at 0.08em, after a 3px rule and 5px of air."""
     css = UNIVERSE_CSS.read_text()
-    m = re.search(r"\.uv-wm > summary \{[^}]*grid-template-columns:\s*([^;]+);", css)
+    m = re.search(r"\.uw-mr \{[^}]*grid-template-columns:\s*([^;]+);", css)
     col = float(re.sub(r"\(([^)]*)\)", "", m.group(1)).split()[1].rstrip("px"))
     src = (ROOT / "backend" / "universe_command.py").read_text()
-    tags = set(re.findall(r'"tag": "([a-z ]+)"', src)) | {"phase 3", "result"}
-    longest = max(tags, key=len)
-    assert longest == "approval", tags
-    need = len(longest) * 9.5 * (0.6 + 0.08) + 3 + 6
+    tags = set(re.findall(r'"tag": "([A-Za-z0-9 ]+)"', src)) | {"phase 3", "result", "PDUFA",
+                                                                 "FDA date"}
+    longest = max(len(t) for t in tags)
+    assert longest == 8, tags
+    need = longest * 9.5 * (0.6 + 0.08) + 3 + 5
     assert col >= need, (col, need)
-    assert re.search(r"\.uv-wm \.tag \{[^}]*font-size: 9\.5px[^}]*letter-spacing: 0\.08em", css)
+    assert re.search(r"\.uw-tag \{[^}]*font-size: 9\.5px[^}]*letter-spacing: 0\.08em", css)
 
 
 def _lane_rules_hold(placed, reserved=()):
@@ -506,41 +462,6 @@ def test_the_dialog_never_lists_a_condition_as_an_asset(payload):
     assert "no drug named" in oct27 and not oct27.split("no drug named")[0].strip().endswith(
         "Hepatocellular")
     assert any(c.startswith("○ 31 Oct Truqap") for c in cells)
-
-
-def test_a_quadrant_name_is_never_set_on_the_median_line(payload):
-    """With three model values (a read taken while the API was still valuing the group)
-    the median sits just under zero, and "Beat XLV, above model" was set across it."""
-    thin = copy.deepcopy(payload)
-    for t, c in thin["companies"].items():
-        if t not in ("AZN", "ABBV", "AMGN"):
-            c["model"]["upside"] = None
-    for q in (payload, thin):
-        for w in ("1m", "3m", "1y"):
-            svg = UC.hero_map(q, w)
-            med_y = float(re.search(r'<line x1="[\d.]+" y1="([\d.]+)" x2="[\d.]+" y2="[\d.]+" '
-                                    r'stroke="[^"]+" stroke-dasharray="2 4"', svg).group(1))
-            for m in re.finditer(r'<text x="[\d.]+" y="([\d.]+)"[^>]*class="cap halo"[^>]*>'
-                                 r'([^<]*)</text>', svg):
-                y = float(m.group(1))
-                assert not (y - 9 <= med_y <= y + 2), (w, m.group(2))
-
-
-def test_a_map_with_nothing_to_place_says_so(payload):
-    """On the first read after the API starts no company has a model value yet: the map
-    printed an empty column under its rule. It now says why, and the count stays short."""
-    none = copy.deepcopy(payload)
-    for c in none["companies"].values():
-        c["model"]["upside"] = None
-    band = UC.hero_html(none)
-    assert UC.NO_DATA + ": no company in the group has a model value" in band
-    assert 'class="uv-map"' not in band and "tint: the model" not in band
-    assert UC.map_counts(none) == "none plotted, no model value on file"
-    some = copy.deepcopy(payload)
-    for t in ("LLY", "JNJ", "MRK", "PFE"):
-        some["companies"][t]["model"]["upside"] = None
-    assert UC.map_counts(some) == "13 plotted, 5 have no model value"
-    _house_style(_visible(band))
 
 
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
@@ -635,62 +556,21 @@ def test_the_spotlight_has_no_line_comparison_and_says_it_ranks_all(payload):
     assert re.search(r"\.uv-sp > div:has\(> \.uv-hc\) \{ cursor: help; \}", css)
 
 
-def test_the_board_drops_the_news_column_into_the_row_hover(payload):
-    board = UC.board_svg(payload, "1y")
-    assert "NEWS 7D" not in board and 'width="8" height="8" rx="1"' not in board
-    news = payload["companies"]["AZN"]["news"]
-    row = re.search(r'data-ticker="AZN"><title>([^<]*)</title>', board).group(1)
-    assert f"{len(news)} news items in seven days" in html.unescape(row)
-    legend = _visible(UC.board_legend())
-    assert "news:" not in legend and "deal" not in legend
-
-
-def test_the_board_labels_the_focal_row_only(payload):
-    """Another row's text is its ticker, its two heat figures and its count; the one
-    label it may carry is a firm FDA date."""
-    board = UC.board_svg(payload, "1y")
-    firm = {e["ticker"] for e in payload["events"] if e["firm"]}
-    for m in re.finditer(r'<g class="row" data-ticker="([A-Z]+)">(.*?)</g>', board, re.S):
-        t, body = m.group(1), re.sub(r"<title>.*?</title>", "", m.group(2), flags=re.S)
-        words = re.findall(r"<text [^>]*>([^<]*)</text>", body)
-        extra = words[3:-1]                  # after the ticker and heat cells, before N
-        assert words[0] == t and len(words) >= 4, (t, words)
-        assert all(w.startswith(("PDUFA ", "FDA ")) for w in extra), (t, extra)
-        assert not extra or t in firm, t
-    me = re.search(r'<g class="row me" data-ticker="AZN">(.*?)</g>', board, re.S).group(1)
-    assert len(re.findall(r'class="halo"', me)) >= 3                   # asset labels
-
-
-def test_the_hero_is_one_height_and_bounded(payload):
-    """The map and the board are drawn 1:1 in their columns at 1440 and no taller than
-    the hero's share of the screen; the legends are one line each."""
-    for w in ("1m", "3m", "1y"):
-        mw, mh = _svg_size(UC.hero_map(payload, w), "uv-map")
-        bw, bh = _svg_size(UC.board_svg(payload, w), "uv-board")
-        assert (mw, bw) == (803, 573)
-        assert mh <= 312 and bh <= mh, (mh, bh)
-    css = UNIVERSE_CSS.read_text()
-    assert re.search(r"\.uv-leg \{[^}]*flex-wrap: nowrap", css)
-
-
-def test_the_panel_holds_the_rest_in_six_tabs(payload):
-    tabs = UC.panel_tabs(payload)
+def test_the_panel_holds_the_rest_in_seven_tabs(payload):
+    """Every change first; the company against the group last, the one tab about the
+    company picked."""
+    tabs = UC.week_panel_tabs(payload, "1y")
     assert [label for label, _b in tabs] == list(PANEL)
-    for label, body in tabs:
+    assert tabs[0][1].startswith('<div class="uv uv-tab"><div class="uw-grid"')
+    for label, body in tabs[1:-1]:
         assert body.startswith('<div class="uv uv-tab"><div class="uv-th">'), label
-    # This week first, two columns read down then across.
-    week = tabs[0][1]
-    cols = re.search(r'<div class="uv-wk2"><div>(.*?)</div><div>(.*)</div></div></div>$',
-                     week, re.S)
-    n = len(payload["week_items"])
-    assert cols and cols.group(1).count("<details") == (n + 1) // 2
-    assert cols.group(2).count("<details") == n // 2
+    assert 'class="uv-sp"' in tabs[-1][1] and "AstraZeneca against the group" in tabs[-1][1]
 
 
 def test_every_panel_tab_fits_the_panel(payload):
     """The tallest tab, the approvals lanes, is one text line a lane; its SVG and the
     tab's first line fit the panel's 236px at 900 tall. The prices are two rows of nine."""
-    lanes = UC.lanes_svg(payload)
+    lanes = UC.lanes_svg(payload, pin=False)
     h = float(re.search(r'<svg class="uv-svg uv-lanes" viewBox="0 0 [\d.]+ ([\d.]+)"', lanes).group(1))
     assert h + 20 <= 236, h
     assert 'style="--sm-cols:9"' in UC.prices_html(payload)
@@ -719,9 +599,10 @@ def test_the_panel_scrolls_inside_never_the_page():
     assert ".st-key-uv_board iframe { display: block; }" in css
 
 
-def test_the_panel_is_drawn_once_and_its_tabs_switch_without_a_rerun():
-    """The panel is outside the window's fragment and is a plain st.tabs (switched in the
-    browser), keyed so its stylesheet reaches it."""
+def test_the_panel_follows_the_window_and_its_tabs_switch_without_a_rerun():
+    """The panel is drawn inside the window's fragment, so its last tab follows the
+    window, and is a plain st.tabs (switched in the browser), keyed so its stylesheet
+    reaches it."""
     tree = ast.parse((FRONTEND / "universe_page.py").read_text(), feature_version=(3, 9))
     fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
     assert not fns["_panel"].decorator_list
@@ -729,12 +610,249 @@ def test_the_panel_is_drawn_once_and_its_tabs_switch_without_a_rerun():
     src = ast.unparse(fns["_panel"]) if hasattr(ast, "unparse") else \
         (FRONTEND / "universe_page.py").read_text()
     assert "st.container(key='uv_panel')" in src.replace('"', "'")
+    assert "UC.week_panel_tabs(p, w)" in src
     calls = [n for n in ast.walk(fns["_panel"]) if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "tabs"]
     assert calls and not any(k.arg == "on_change" for c in calls for k in c.keywords)
+    cmd = ast.unparse(fns["_command"]) if hasattr(ast, "unparse") else ""
+    assert "_panel(p, w)" in cmd and "UC.front_html(p)" in cmd
     body = [ast.unparse(n) if hasattr(ast, "unparse") else "" for n in fns["render"].body]
     assert any("_command(api_base, p)" in b for b in body)
-    assert any("_panel(p)" in b for b in body)
+
+
+# ------------------------------------------------------------ the week across the group
+def _as(payload, t):
+    """The payload as it would read with ``t`` picked: the week is the API's, the same
+    whichever company is in focus; only the focus moves."""
+    q = copy.deepcopy(payload)
+    q["ticker"] = t
+    q["focal"]["ticker"] = t
+    return q
+
+
+def _unwashed(markup):
+    """Markup with the wash taken off: the ``me`` class wherever it sits."""
+    return re.sub(r'class="([^"]*)"', lambda m: 'class="' + " ".join(
+        c for c in m.group(1).split() if c != "me") + '"', markup)
+
+
+def test_the_week_reads_the_same_whichever_company_is_picked(payload):
+    """Pick LLY instead of AZN and the band, the ribbon and every tab but the last read
+    the same: only the wash moves, and the lanes keep their order and their marks."""
+    lly = _as(payload, "LLY")
+    assert _unwashed(UC.front_html(payload)) == _unwashed(UC.front_html(lly))
+    assert UC.front_html(payload) != UC.front_html(lly)
+    a, b = UC.week_panel_tabs(payload, "1y"), UC.week_panel_tabs(lly, "1y")
+    for (la, ba), (lb, bb) in zip(a[:-1], b[:-1]):
+        # Inside an SVG the wash is drawn (a band under the picked lane or column, the
+        # picked line in the text colour), so the tabs are compared on what they say.
+        assert la == lb and _visible(ba) == _visible(bb), la
+    assert _unwashed(a[0][1]) == _unwashed(b[0][1])          # every change, to the mark
+    assert a[-1][0] == "AZN against the group" and b[-1][0] == "LLY against the group"
+    # Washed exactly where the company falls: its board row, its ribbon tile, its grid
+    # column, and the ranked items and ticker marks that name it.
+    for p_, t in ((payload, "AZN"), (lly, "LLY")):
+        front = UC.front_html(p_)
+        assert re.findall(r'class="uw-br me" data-ticker="([A-Z]+)"', front) == [t]
+        assert re.findall(r'class="uw-tile[^"]* me[^"]*" data-ticker="([A-Z]+)"', front) == [t]
+        named = [i for i in p_["week_items"][1:9] if t in i["tickers"]]
+        assert front.count('<div class="uw-it me"') == len(named)
+
+
+def test_the_lead_story_is_rank_one_with_its_source_quoted(payload):
+    it = payload["week_items"][0]
+    lead = UC.lead_story(payload, it)
+    assert '<h2 class="uw-hd"' in lead
+    head = re.search(r'<h2 class="uw-hd"[^>]*>([^<]*)</h2>', lead).group(1)
+    assert html.unescape(head) == "Sanofi and Regeneron: $1bn upfront, up to $7bn in milestones"
+    deck = re.search(r'<p class="uw-deck">&ldquo;<span class="vb">([^<]*)</span>&rdquo;'
+                     r'<span class="by">([^<]*)</span>', lead)
+    assert html.unescape(deck.group(1)) == it["quote"]
+    assert deck.group(2) == "the press release, filed as exhibit 99.1"
+    assert '<b class="">$8bn</b><small>announced value</small>' in lead
+    assert re.search(r'<svg class="uw-cons" width="220" height="38" viewBox="0 0 220 38"', lead)
+    sparks = re.findall(r'<div class="uw-ds"><b class="[^"]*" data-ticker="([A-Z]+)">', lead)
+    assert sparks == ["SNY", "REGN"]
+    assert ">−1.4%<" in lead and ">−3.1%<" in lead
+    # The detail rows open from the kicker: the terms, the source title, the day moves.
+    card = _visible(lead.split('<div class="uw-card uw-lc">')[1])
+    assert "Upfront $1bn" in card and "Day move, 1 Oct SNY −1.4% · REGN −3.1%" in card
+
+
+def test_a_lead_of_another_kind_draws_its_own_figure_and_chart(payload):
+    items = {i["kind"]: i for i in payload["week_items"]}
+    ro = UC.lead_story(payload, items["readout"])
+    assert ">Roche: Phase 3 result<" in ro
+    assert html.unescape(VB.search(ro).group(1)) == items["readout"]["head"]
+    assert "the company's announcement" in _visible(ro) and ">+0.9%<" in ro
+    assert re.search(r'<svg class="uw-spk" width="260" height="34"', ro)
+    mk = UC.lead_story(payload, items["market"])
+    assert ">+49bp<" in mk and "uw-deck" not in mk               # no source title: no deck
+    assert re.search(r'<svg class="uw-spk" width="300" height="40"', mk)
+    for kind in ("slips", "approval", "regulatory", "due", "loe", "notice", "earnings"):
+        out = UC.lead_story(payload, items[kind])
+        assert '<h2 class="uw-hd"' in out and "uw-fig" in out, kind
+        _house_style(_visible(out))
+
+
+def test_the_ranked_feed_continues_from_two_and_names_what_it_leaves(payload):
+    rk = UC.ranked_html(payload)
+    cols = rk.split('<div class="col">')[1:]
+    assert len(cols) == 2
+    ranks = [int(n) for n in re.findall(r'<div class="uw-it[^"]*"[^>]*><span class="n">(\d+)</span>', rk)]
+    assert ranks == list(range(2, 2 + 2 * UC.RANK_ROWS))
+    for col in cols:
+        assert col.count('<div class="uw-it') == UC.RANK_ROWS
+    rest = payload["week_items"][1 + 2 * UC.RANK_ROWS:]
+    assert f'{len(rest)} more ▾' in rk
+    assert re.findall(r'<div class="uw-mr"><span class="n">(\d+)</span>', rk) == \
+        [str(i["rank"]) for i in rest]
+    assert f"2 to {1 + 2 * UC.RANK_ROWS} of {len(payload['week_items'])}" in rk
+    # Every item has its figure and its detail; none prints a bare zero for a gap.
+    for it in payload["week_items"]:
+        x = UC.feed_item(payload, it)
+        assert x["fig"] and x["fig"] not in ("0", "0%", "+0.0%"), it["kind"]
+        assert not any(str(k).startswith("For ") for k, _v in x["rows"])  # no focal row
+
+
+def test_the_source_words_are_the_sources_and_the_rest_is_house_style(payload):
+    """Every string marked as a source's own words is one the payload carries as
+    verbatim; everything else a reader sees follows house style. Alexion's notice says
+    "showcase": it is quoted, never written."""
+    sources = set()
+    for it in payload["week_items"]:
+        if it.get("verbatim"):
+            sources.add(it["head"])
+        if it.get("quote"):
+            sources.add(it["quote"])
+        sources |= {v for k, v in it.get("rows") or [] if str(k).startswith("Filed ")}
+    for t, kinds in payload["week"]["grid"].items():
+        sources |= {x["text"] for k in kinds.values() for x in k if x["verbatim"]}
+    marked = [html.unescape(m) for b in _all_blocks(payload).values() for m in VB.findall(b)]
+    assert marked and set(marked) <= sources, set(marked) - sources
+    assert any("showcase" in m for m in marked)
+    for name, out in _all_blocks(payload).items():
+        _house_style(_visible(out))
+
+
+def test_the_board_names_every_company_with_its_week_news_and_next_date(payload):
+    board = UC.board_html(payload)
+    rows = re.findall(r'<div class="uw-br[^"]*" data-ticker="([A-Z]+)" style="--uw-ow:(\d+);'
+                      r'--uw-on:(\d+);--uw-ox:(\d+)"', board)
+    assert sorted(r[0] for r in rows) == sorted(payload["companies"])
+    for k in (1, 2, 3):                       # each sort is an order of all eighteen
+        assert sorted(int(r[k]) for r in rows) == list(range(0, 2 * len(rows), 2))
+    wk = {t: c["change_5d"] for t, c in payload["companies"].items()}
+    by_week = [r[0] for r in sorted(rows, key=lambda r: int(r[1]))]
+    assert by_week == sorted(wk, key=lambda t: (-wk[t], t))
+    # XLV's week sits between the last company above it and the first below.
+    xlv = payload["xlv_week"]["change"]
+    above = sum(1 for v in wk.values() if v > xlv)
+    assert f'class="uw-bx" style="--uw-ow:{2 * above - 1}"' in board
+    nxt = payload["week"]["next"]
+    gsk = re.search(r'data-ticker="GSK".*?<span class="nd([^"]*)">([^<]*)</span>'
+                    r'<span class="nx([^"]*)">([^<]*)</span>', board).groups()
+    assert gsk == (" fda firm", "26 Oct", " fda", "PDUFA Bepirovirsen")
+    assert nxt["BAYN"] is None and "none dated in 90 days" in board
+    est = [t for t, e in nxt.items() if e and not e["firm"]]
+    for t in est:
+        assert re.search(rf'data-ticker="{t}".*?<span class="nd[^"]* est', board), t
+    news = payload["week"]["news"]
+    for t in payload["companies"]:
+        cell = re.search(rf'data-ticker="{t}".*?<span class="nw([^"]*)">([^<]*)</span>', board)
+        assert cell.group(2) == (str(len(news[t])) if news[t] else "·"), t
+    # No valuation column: the ribbon carries cheap and expensive.
+    assert "Cheap or expensive" not in board and "upside" not in _visible(board).lower()
+    q = copy.deepcopy(payload)
+    q["companies"]["LLY"]["change_5d"] = None
+    row = re.search(r'data-ticker="LLY".*?<span class="wk([^"]*)">([^<]*)</span>',
+                    UC.board_html(q)).groups()
+    assert row == (" none", UC.NO_DATA)
+
+
+def test_the_ribbon_runs_cheap_to_expensive_with_no_value_last(payload):
+    rib = UC.ribbon_html(payload)
+    tiles = re.findall(r'<div class="uw-tile([^"]*)" data-ticker="([A-Z]+)"', rib)
+    order = [t for _c, t in tiles]
+    assert order == payload["week"]["value_order"]
+    up = {t: payload["companies"][t]["model"]["upside"] for t in order}
+    have = [t for t in order if up[t] is not None]
+    assert have == sorted(have, key=lambda t: -up[t])
+    assert [t for t in order if up[t] is None] == order[len(have):] == ["BAYN"]
+    assert "na" in tiles[-1][0].split() and UC.NO_DATA in rib.split('data-ticker="BAYN"')[1]
+    # The rule sits where value meets the price: after the last cheap, before the first dear.
+    seq = re.findall(r'<div class="uw-zero">|data-ticker="([A-Z]+)"', rib)
+    zero = seq.index("")
+    assert up[seq[zero - 1]] >= 0 > up[seq[zero + 1]]
+    assert [c for c, t in tiles if "me" in c.split()] == [" me"] or \
+        sum(1 for c, _t in tiles if "me" in c.split()) == 1
+    # A tile's hover: the close, the model's 12-month value and rating, the street target.
+    card = _visible(rib.split('data-ticker="SNY"')[1].split('</div></div>')[0])
+    assert "Close 39.51 EUR" in card and "Strong buy" in card and "Street target" in card
+
+
+def test_every_change_counts_each_kind_and_lists_its_rows(payload):
+    grid = UC.changes_grid_html(payload)
+    w = payload["week"]
+    total = sum(w["kinds"].values())
+    assert f"{total} this week, {w['routine_filings']} routine filings left out" in grid
+    for k, label in w["kind_labels"].items():
+        assert f'<span>{UC.esc(label)}</span><b>{w["kinds"][k]}</b>' in grid
+    cells = re.findall(r'<div class="gc[^"]*" tabindex="0"[^>]*><span>(\d+)</span>', grid)
+    assert sum(int(c) for c in cells) == total
+    heads = re.findall(r'<div class="gh[^"]*" title="[^"]*"><span class="t">([A-Z]+)</span>'
+                       r'<span class="v">(\d+)</span>', grid)
+    counts = [int(n) for _t, n in heads]
+    assert counts == sorted(counts, reverse=True) and len(heads) == len(payload["companies"])
+
+
+def test_the_52_week_range_keeps_its_labels_inside_its_cell():
+    """The range bar under the price ends where its labels need it to: LLY's 1,292.66 high
+    ran past the cell's right edge, and a four-figure low would have met "52 wk"."""
+    for lo, hi, price in ((153.41, 212.71, 156.53), (783.85, 1292.66, 1143.12),
+                          (1001.0, 1999.99, 1500.0)):
+        svg = UC.range_bar(price, lo, hi)
+        boxes = []
+        for x, anchor, s in re.findall(r'<text x="([\d.]+)"[^>]*?( text-anchor="end")?'
+                                       r' [^>]*>([^<]*)</text>', svg):
+            wd = UC.lab_w(s, 9.5, True) if s[0].isdigit() else UC.lab_w(s, 9)
+            x0 = float(x) - wd if anchor else float(x)
+            boxes.append((x0, x0 + wd))
+        assert all(0 <= a and b <= 196 for a, b in boxes), boxes
+        boxes.sort()
+        assert all(b <= c for (_a, b), (c, _d) in zip(boxes, boxes[1:])), boxes
+
+
+def test_the_kinds_keep_off_the_colours_of_up_and_down():
+    """Green and red mean up and down, and cheap and expensive; no kind of news is drawn
+    in either."""
+    for colours in (UC.KIND_COLOUR, UC.GRID_COLOUR):
+        assert not {"var(--up)", "var(--down)"} & set(colours.values())
+
+
+def test_every_company_mark_in_the_frame_opens_it(payload):
+    """Board rows, ribbon tiles and story tickers carry data-ticker, each inside a part
+    that names itself for the dialog's "opened from"."""
+    front = UC.front_html(payload)
+    marks = set(re.findall(r'data-ticker="([A-Z]+)"', front))
+    assert marks == set(payload["companies"])
+    for part in ("the news", "the board", "the ribbon"):
+        assert f'data-from="{part}"' in front
+    idx = (FRONTEND / "components" / "uvboard" / "index.html").read_text()
+    assert 'hit.closest("[data-from]")' in idx
+
+
+def test_the_band_is_one_height_and_the_panel_takes_the_rest():
+    """The news column and the board are drawn to one height: eighteen board rows and
+    their heads against the lead and four ranked rows a column. The panel's body is what
+    the screen leaves under the ribbon (measured: its top at 651px at 1440)."""
+    css = UNIVERSE_CSS.read_text()
+    assert re.search(r"--uw-row: 19px;", css)
+    assert re.search(r"\.uw-it \{[^}]*height: 60px;", css)
+    assert UC.RANK_ROWS == 4
+    m = re.search(r"--uv-panel-h: clamp\((\d+)px, calc\(100vh - (\d+)px\), (\d+)px\);", css)
+    lo, off, _hi = (int(v) for v in m.groups())
+    assert 780 - off >= 120 and lo <= 780 - off      # the default tab fits at 1440 by 780
 
 
 # ------------------------------------------------------------------------- the switch
@@ -804,7 +922,7 @@ def _universe_markdown(ticker):
 def test_live_app_azn_draws_the_command_centre():
     md = _universe_markdown("AZN")
     assert 'class="uv-sp"' in md and "AstraZeneca against the group" in md
-    assert 'class="uv-wk2"' in md and 'class="uv-svg uv-lanes"' in md
+    assert 'class="uw-grid"' in md and 'class="uv-svg uv-lanes"' in md
     assert "Headlines this week" not in md
 
 
@@ -862,9 +980,10 @@ def _md(test):
 def test_page_draws_every_band_and_the_window_switch_reruns_it():
     test = _page()
     md = _md(test)
-    for needle in ('class="uv-lead"', 'class="uv-status"', 'class="uv-sp"', 'class="uv-wk2"',
-                   'class="uv-svg uv-lanes"', 'class="uv-sms"', 'class="uv-rates"',
-                   'class="uv-exp"', 'class="uv-polg"'):
+    for needle in ('class="uw-kick0"', 'class="uv-lead"', 'class="uv-status"',
+                   'class="uw-grid"', 'class="uv-sp"', 'class="uv-svg uv-lanes"',
+                   'class="uv-sms"', 'class="uv-rates uv-rates2"', 'class="uv-exp"',
+                   'class="uv-polg"'):
         assert needle in md, needle
     assert [t.label for t in test.tabs] == list(PANEL)
     assert "Against XLV, 1 year" in md
@@ -878,7 +997,7 @@ def test_page_draws_every_band_and_the_window_switch_reruns_it():
 def test_page_without_the_component_falls_back_to_pills():
     test = _page("universe_page._uvboard = None")
     md = _md(test)
-    assert 'class="uv-map"' in md and 'class="uv-board"' in md     # the SVGs, drawn inline
+    assert 'class="uw-band"' in md and 'class="uw-rib"' in md      # the band, drawn inline
     pills = test.button_group(key="uv_pick")
     labels = [getattr(o, "content", o) for o in pills.options]
     assert sorted(labels) == sorted(json.loads(FIXTURE.read_text())["companies"])
