@@ -29,6 +29,7 @@ NO_DATA = "no free data"
 WINDOWS = (("1m", "1 month"), ("3m", "3 months"), ("1y", "1 year"))
 WIN_LABEL = dict(WINDOWS)
 WIN_WORDS = {"1m": "in a month", "3m": "in three months", "1y": "in a year"}
+LEAD_OVER = {"1m": "over a month", "3m": "over three months", "1y": "over a year"}
 
 T = dict(ground=TK.GROUND, panel=TK.PANEL, rule=TK.RULE, rule_strong=TK.RULE_STRONG,
          rule_faint=TK.RULE_FAINT, text=TK.TEXT, muted=TK.MUTED, up=TK.UP, down=TK.DOWN,
@@ -204,16 +205,21 @@ def _own(p, w):
 
 # ------------------------------------------------------------- control row and lead
 def status_line(p):
-    """The right side of the control row: cohort, close date, the company in focus."""
+    """The right end of the control row: the close the page reads to, and the page's notes
+    behind a hover. The cohort and the company in focus are in the close's hover."""
     n = (p.get("cohort") or {}).get("n") or len(_cos(p))
     f = _focal(p)
-    return (f'<div class="uv-status">{n} {esc(_cohort_noun(p))} · closes to '
-            f'{esc(dlong(p.get("price_date")))} · <b>{esc((_cos(p).get(f) or {}).get("short") or f)}'
-            f' in focus</b>, set by the company picker</div>')
+    who = (_cos(p).get(f) or {}).get("short") or f
+    tip = (f"{n} {_cohort_noun(p)}, prices to the {dlong(p.get('price_date'))} close; "
+           f"{who} in focus, set by the company picker")
+    return (f'<div class="uv-status"><span title="{esc(tip)}">closes to '
+            f'{esc(dday(p.get("price_date")))}</span>'
+            f'<span class="uv-nt" tabindex="0">notes ▾'
+            f'<span class="uv-nt-c">{esc(notes_text(p))}</span></span></div>')
 
 
 def lead_line(p, w=None):
-    """One sentence on the window: the two regions' medians and the focal company's move
+    """The window in one line: the two regions' median moves and the focal company's move
     and place. Empty when any figure it needs is missing."""
     w = _window(p, w)
     lead = (p.get("lead") or {}).get(w) or {}
@@ -222,18 +228,20 @@ def lead_line(p, w=None):
     f = _focal(p)
     if us is None or eu is None or f not in own or not lead.get("us_n") or not lead.get("eu_n"):
         return ""
-    words = WIN_WORDS[w]
 
-    def verb(v):
-        return ("rose" if v > 0 else "fell" if v < 0 else "held") + (
-            f" {abs(v) * 100:.1f}%" if v else "")
+    def fig(v):
+        tone = "up" if v > 0 else ("down" if v < 0 else "")
+        return f'<b class="{tone}">{esc(pc(v))}</b>'
     rank = 1 + sum(1 for v in own.values() if v > own[f])
-    noun = _cohort_noun(p)
-    who = (_cos(p).get(f) or {}).get("short") or f
     med = statistics.median(own.values())
-    tone = "up" if own[f] > med else ("even" if own[f] == med else "")
-    return (f'<div class="uv-lead">US {esc(noun)} {verb(us)} {words} while Europe {verb(eu)}; '
-            f'{esc(who)} {verb(own[f])}, <b class="{tone}">{ordinal(rank)} of {len(own)}</b>.</div>')
+    tone = "up" if own[f] > med else ("even" if own[f] == med else "down")
+    noun = _cohort_noun(p)
+    tip = (f"Median share price move of the US and the European {noun}, and "
+           f"{(_cos(p).get(f) or {}).get('short') or f}'s own move and place among the "
+           f"{len(own)}, {WIN_WORDS[w]} to the {dlong(p.get('price_date'))} close")
+    return (f'<div class="uv-lead" title="{esc(tip)}">US median {fig(us)}, Europe {fig(eu)}, '
+            f'{esc(f)} {fig(own[f])} <span class="rk {tone}">{ordinal(rank)} of {len(own)}</span> '
+            f'{LEAD_OVER[w]}</div>')
 
 
 def incomplete_note(p):
@@ -249,45 +257,7 @@ def incomplete_note(p):
             f'It is not held: reload in a minute for the full read.</div>')
 
 
-# --------------------------------------------------------------- spotlight band (row 1)
-def strip(vals, focal, better="higher", w=150, h=22, med=None):
-    """The cohort strip: right is always better, the median a tick, the focal company a
-    larger dot in its tone. Peers muted. Returns (svg, tone, median)."""
-    xs = list(vals.values())
-    if not xs:
-        return "", "", None
-    lo, hi = min(xs), max(xs)
-    span = (hi - lo) or 1
-
-    def X(v):
-        f = (v - lo) / span
-        if better == "lower":
-            f = 1 - f
-        return 6 + f * (w - 12)
-
-    m = statistics.median(xs) if med is None else med
-    tone = ""
-    out = [f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" '
-           f'aria-label="place among {len(xs)}">',
-           f'<line x1="4" y1="{h/2:.1f}" x2="{w-4}" y2="{h/2:.1f}" stroke="{T["rule_strong"]}"/>',
-           f'<line x1="{X(m):.1f}" y1="{h/2-6:.1f}" x2="{X(m):.1f}" y2="{h/2+6:.1f}" '
-           f'stroke="{T["muted"]}" stroke-width="1.2"/>']
-    for t, v in vals.items():
-        if t == focal:
-            continue
-        out.append(f'<circle cx="{X(v):.1f}" cy="{h/2:.1f}" r="2.4" fill="{T["muted"]}" '
-                   f'opacity="0.75"><title>{esc(t)}</title></circle>')
-    if focal in vals:
-        fv = vals[focal]
-        good = (fv > m) if better == "higher" else (fv < m)
-        tone = "" if fv == m else ("up" if good else "down")
-        col = {"up": T["up"], "down": T["down"]}.get(tone, T["text"])
-        out.append(f'<circle cx="{X(fv):.1f}" cy="{h/2:.1f}" r="5" fill="{col}" '
-                   f'stroke="{T["ground"]}" stroke-width="2"><title>{esc(focal)}</title></circle>')
-    out.append("</svg>")
-    return "".join(out), tone, m
-
-
+# ------------------------------------------------- the company against the group (row 2)
 def ranked_card(title, vals, fmt, focal, better="higher", note=None, med=None):
     """The hover card on a spotlight cell: all of the cohort, best first, the median
     drawn where it falls and the focal company washed."""
@@ -318,28 +288,52 @@ def _missing(p, vals):
 
 def _cell(key, label, vals, focal, value_html, sub, better="higher", fmt=None, note=None,
           med=None):
-    """One ranking cell: key, value in tone, the cohort strip, the place, a sub-line and
-    the hover card. A focal company with no figure prints "no free data" and no place."""
+    """One ranking cell on three lines: the label with a marker saying a hover lists the
+    cohort, the value in its tone with the place beside it, and one sub-line. The hover
+    card ranks every company. A focal company with no figure prints "no free data" and no
+    place."""
     fmt = fmt or (lambda v: f"{v:.0f}")
     if not vals:
-        return (f'<div class="c-{key}"><div class="k">{esc(label)}</div>'
-                f'<div class="v none">{NO_DATA}</div><div class="s">{esc(note or "")}</div></div>')
-    svg, tone, m = strip(vals, focal, better, med=med)
+        return (f'<div class="c-{key}"><div class="k"><span>{esc(label)}</span></div>'
+                f'<div class="vr"><div class="v none">{NO_DATA}</div></div>'
+                f'<div class="s">{esc(note or "")}</div></div>')
     card = ranked_card(label, vals, fmt, focal, better, note, med)
+    m = statistics.median(vals.values()) if med is None else med
+    head = (f'<div class="k"><span>{esc(label)}</span>'
+            f'<span class="all" title="Hover for all {len(vals)}, ranked">▾</span></div>')
     if focal not in vals:
-        return (f'<div class="c-{key}"><div class="k">{esc(label)}</div>'
-                f'<div class="v none">{NO_DATA}</div>{svg}<div class="p"><b>not placed</b></div>'
+        return (f'<div class="c-{key}">{head}<div class="vr"><div class="v none">{NO_DATA}</div>'
+                f'<span class="r">not placed</span></div>'
                 f'<div class="s">median {esc(fmt(m))}</div>{card}</div>')
+    fv = vals[focal]
+    good = (fv > m) if better == "higher" else (fv < m)
+    tone = "" if fv == m else ("up" if good else "down")
     p_, n = place(vals, focal, better)
-    return (f'<div class="c-{key}"><div class="k">{esc(label)}</div>'
-            f'<div class="v {tone}">{value_html}</div>{svg}'
-            f'<div class="p"><b>{ordinal(p_)} of {n}</b></div><div class="s">{sub}</div>'
-            f'{card}</div>')
+    return (f'<div class="c-{key}">{head}<div class="vr"><div class="v {tone}">{value_html}</div>'
+            f'<span class="r"><b>{ordinal(p_)}</b> of {n}</span></div>'
+            f'<div class="s">{sub}</div>{card}</div>')
+
+
+def range_bar(price, lo, hi, w=196):
+    """The share price on its own 52-week range: the low and the high either side of a
+    bar filled to the price. One text line tall."""
+    fr = min(max((price - lo) / (hi - lo), 0.0), 1.0)
+    x0, x1 = 64, w - 40
+    tip = (f"{pc(price / lo - 1)} above the 52-week low; 52-week range {lo:.2f} to {hi:.2f}")
+    return (f'<svg class="uv-rng" width="{w}" height="13" viewBox="0 0 {w} 13" role="img" '
+            f'aria-label="52-week range"><title>{esc(tip)}</title>'
+            + text(0, 10, "52 wk", 9, T["muted"])
+            + text(x0 - 4, 10, f"{lo:.2f}", 9.5, T["muted"], "end", mono=True)
+            + f'<rect x="{x0}" y="5" width="{x1 - x0}" height="3" fill="{T["rule"]}"/>'
+            f'<rect x="{x0}" y="5" width="{(x1 - x0) * fr:.1f}" height="3" fill="{T["down"]}"/>'
+            f'<line x1="{x0 + (x1 - x0) * fr:.1f}" y1="1" x2="{x0 + (x1 - x0) * fr:.1f}" y2="12" '
+            f'stroke="{T["flag"]}" stroke-width="2"/>'
+            + text(x1 + 4, 10, f"{hi:.2f}", 9.5, T["muted"], mono=True) + "</svg>")
 
 
 def spotlight_html(p, w=None):
     """"<Company> against the group": the share price and seven rankings, each with its
-    cohort strip and a hover card listing every company."""
+    place and a hover card ranking every company."""
     w = _window(p, w)
     cos = _cos(p)
     f = _focal(p)
@@ -351,29 +345,20 @@ def spotlight_html(p, w=None):
     price = me.get("price")
     rng = me.get("range_52w") or {}
     lo, hi = rng.get("low"), rng.get("high")
+    head = (f'<div class="k"><span>Share price, '
+            f'{esc(dday(me.get("price_as_of") or date))} close</span></div>')
     if price is None:
-        cells.append(f'<div class="c0"><div class="k">Share price</div>'
-                     f'<div class="v none">{NO_DATA}</div></div>')
+        cells.append(f'<div class="c0">{head}<div class="vr"><div class="v none">{NO_DATA}</div>'
+                     f'</div></div>')
     else:
-        bar, above = "", ""
-        if lo is not None and hi is not None and hi > lo:
-            fr = min(max((price - lo) / (hi - lo), 0.0), 1.0)
-            bar = (f'<svg width="196" height="22" viewBox="0 0 196 22" role="img" '
-                   f'aria-label="52-week range">'
-                   f'<rect x="40" y="9" width="116" height="4" fill="{T["rule"]}"/>'
-                   f'<rect x="40" y="9" width="{116*fr:.1f}" height="4" fill="{T["down"]}"/>'
-                   f'<line x1="{40+116*fr:.1f}" y1="3" x2="{40+116*fr:.1f}" y2="19" '
-                   f'stroke="{T["flag"]}" stroke-width="2"/>'
-                   + text(36, 14.5, f"{lo:.2f}", 9.5, T["muted"], "end", mono=True)
-                   + text(160, 14.5, f"{hi:.2f}", 9.5, T["muted"], mono=True) + "</svg>")
-            above = f'<div class="p"><b>{pc(price / lo - 1)} above the 52-week low</b></div>'
         d1 = me.get("change_1d")
-        day = (f'<span class="{"down" if d1 < 0 else "up"}">{pc(d1)}</span> on the day · '
+        day = (f'<span class="r {"down" if d1 < 0 else "up"}">{esc(pc(d1))} on the day</span>'
                if d1 is not None else "")
+        bar = (range_bar(price, lo, hi) if lo is not None and hi is not None and hi > lo
+               else f'<span>52-week range: {NO_DATA}</span>')
         cells.append(
-            f'<div class="c0"><div class="k">Share price, {esc(dday(me.get("price_as_of") or date))} close</div>'
-            f'<div class="v">{price:.2f}<span class="u">USD</span></div>'
-            f'{bar}{above}<div class="s">{day}52-week range</div></div>')
+            f'<div class="c0">{head}<div class="vr"><div class="v">{price:.2f}'
+            f'<span class="u">USD</span></div>{day}</div><div class="s">{bar}</div></div>')
 
     # 2. The window move against XLV.
     vals = _rel(p, w)
@@ -391,11 +376,10 @@ def spotlight_html(p, w=None):
           if (c.get("model") or {}).get("upside") is not None}
     mm = me.get("model") or {}
     upm = statistics.median(up.values()) if up else None
+    to = f'to {mm["forward_12m"]:.2f}, ' if mm.get("forward_12m") is not None else ""
     cells.append(_cell(
-        "up", "Model, 12 months", up, f,
-        (f'{sgn(up[f])}<span class="u">to {mm["forward_12m"]:.2f}</span>'
-         if f in up and mm.get("forward_12m") is not None else NO_DATA),
-        f'rated {esc(mm.get("rating") or "no rating")}, median {esc(sgn(upm))}',
+        "up", "Model, 12 months", up, f, sgn(up[f]) if f in up else NO_DATA,
+        f'{to}{esc(mm.get("rating") or "no rating")}, median {esc(sgn(upm))}',
         fmt=lambda v: sgn(v),
         note=("Upside to the model's 12-month value. " + _missing(p, up)).strip()))
 
@@ -404,10 +388,10 @@ def spotlight_html(p, w=None):
            if (c.get("street") or {}).get("upside") is not None}
     sm = me.get("street") or {}
     rated = ", ".join(f'{sm.get(k)} {k}' for k in ("buy", "hold", "sell") if sm.get(k) is not None)
+    sto = f'to {sm["value"]:.2f}, ' if f in st_ and sm.get("value") is not None else ""
     cells.append(_cell(
-        "st", "Street target", st_, f,
-        (f'{sgn(st_[f])}<span class="u">to {sm["value"]:.2f}</span>' if f in st_ else NO_DATA),
-        esc(rated or "no ratings on file"), fmt=lambda v: sgn(v),
+        "st", "Street target", st_, f, sgn(st_[f]) if f in st_ else NO_DATA,
+        sto + esc(rated or "no ratings on file"), fmt=lambda v: sgn(v),
         note=(f"Nasdaq consensus target over the {dday(date)} close. " + _missing(p, st_)).strip()))
 
     # 5. The scorecard.
@@ -441,8 +425,9 @@ def spotlight_html(p, w=None):
     most = f in slipped and slipped[f] == max(slipped.values()) and slipped[f] > 0
     cells.append(_cell(
         "sl", "Trial dates slipped", slipped, f,
-        (f'{slipped[f]}<span class="u">of {sl.get("moved")} moved</span>' if f in slipped else NO_DATA),
-        ("the most; " if most else "") + (f"median {slm:.0f}" if slm is not None else ""),
+        str(slipped[f]) if f in slipped else NO_DATA,
+        (f'of {sl.get("moved")} moved; ' if f in slipped and sl.get("moved") is not None else "")
+        + ("the most, " if most else "") + (f"median {slm:.0f}" if slm is not None else ""),
         better="lower", fmt=lambda v: f"{v:.0f}",
         note=("Primary completion dates moved later in snapshot history."
               + (f' {", ".join(absent)} {"has" if len(absent) == 1 else "have"} no moved trial on file.'
@@ -456,18 +441,21 @@ def spotlight_html(p, w=None):
     lmed = statistics.median(loe.values()) if loe else None
     risk = lm.get("at_risk_5y_usd")
     cells.append(_cell(
-        "lo", f"LOE by {year}" if year else "LOE in five years", loe, f,
-        f'{loe[f]:.0f}%<span class="u">of revenue</span>' if f in loe else NO_DATA,
-        (f'${risk / 1e9:.1f}bn, ' if risk is not None else "") + (f"median {lmed:.0f}%" if lmed is not None else ""),
+        "lo", f"Revenue LOE by {year}" if year else "Revenue LOE in five years", loe, f,
+        f'{loe[f]:.0f}%' if f in loe else NO_DATA,
+        (f'${risk / 1e9:.1f}bn; ' if f in loe and risk is not None else "")
+        + (f"median {lmed:.0f}%" if lmed is not None else ""),
         better="lower", fmt=lambda v: f"{v:.0f}%",
         note=f"Share of tagged product revenue whose exclusivity ends by {year or 'the fifth year'}."))
     return f'<div class="uv-sp">{"".join(cells)}</div>'
 
 
 # -------------------------------------------------------------- hero: price against value
-MAP_W, MAP_H = 803, 436
-ML, MR, MT, MB = 50, 14, 18, 40
-R_MAX = 34.0
+# Drawn 1:1 in the hero's 7fr column at 1440: the hero, with the board beside it, has to fit
+# one screen with the rankings above and the tabbed panel below.
+MAP_W, MAP_H = 803, 312
+ML, MR, MT, MB = 50, 14, 12, 32
+R_MAX = 30.0
 TINT = {"Strong buy": ("up", 0.42), "Buy": ("up", 0.26), "Hold": ("muted", 0.22),
         "Sell": ("down", 0.30), "Strong sell": ("down", 0.42)}
 
@@ -770,29 +758,33 @@ def hero_map(p, w=None):
 
 
 def map_legend(p):
+    """One line: the rating tints, the focal company's marks, the size key and the click."""
     f = _focal(p)
 
     def sw(var, a, border):
         return (f'<i style="background:color-mix(in oklab, var(--{var}) {a}%, var(--ground));'
                 f'border:1px solid {border}"></i>')
-    return (f'<div class="uv-leg">'
+    return (f'<div class="uv-leg" title="Above model: the price is over its 12-month value. '
+            f'Below the dashed line: less upside than the group median.">'
             f'<span>{sw("up", 42, "var(--up)")}Strong buy</span>'
             f'<span>{sw("up", 26, "color-mix(in oklab, var(--up) 85%, var(--ground))")}Buy</span>'
             f'<span>{sw("muted", 22, "var(--muted)")}Hold</span>'
             f'<span>{sw("down", 30, "var(--down)")}Sell</span>'
-            f"<span>tint: the model's rating</span>"
+            f"<span>the model's rating</span>"
             f'<span><i class="ring"></i>street target</span>'
             f'<span><i class="wh"></i>{esc(f)} 12-month range</span>'
-            f'<span>above model: price over its 12-month value</span>'
-            f'<span class="sp">area: market cap · click a bubble for its detail</span></div>')
+            f'<span>area: market cap</span>'
+            f'<span class="sp">click a bubble for its detail</span></div>')
 
 
 # ------------------------------------------------------------- the company board (right)
-BW, ROW_H, FOC_H, HEAD_H = 573, 20, 58, 30
-CX = dict(tk=6, wk=42, wk_w=54, rel=100, rel_w=54, news=158, rd0=214, rd1=544, n=571)
-NEWS_COL = {"deal": "up", "readout": "p3", "approval": "approved", "regulatory": "flag",
-            "slip": "down", "filing": "muted"}
+# Drawn 1:1 in the hero's 5fr column at 1440. The week's news is no longer a column of
+# chips: its count and its lines are in the row's hover, which leaves the radar the width.
+BW, ROW_H, FOC_H, HEAD_H, FOOT_H = 573, 14.5, 40, 20, 4
+CX = dict(tk=6, wk=42, wk_w=52, rel=98, rel_w=52, rd0=162, rd1=544, n=571)
 NEWS_ORDER = ("deal", "readout", "approval", "regulatory", "filing", "slip")
+# The focal row's asset labels: one tier over the dots and one under them.
+BOARD_TIERS = {-1: -8, 1: 15}
 
 
 def heat(v, clip, w, x, y, h, label):
@@ -803,22 +795,23 @@ def heat(v, clip, w, x, y, h, label):
     col = T["up"] if v > 0 else T["down"]
     fill = blend(col, T["panel"], 0.14 + 0.62 * t) if abs(v) > 1e-9 else T["panel"]
     return (f'<rect x="{x}" y="{y+1.5:.1f}" width="{w}" height="{h-3:.1f}" fill="{fill}"/>'
-            + text(x + w / 2, y + h / 2 + 3.5, label, 10.5, T["text"], "middle", 500, mono=True))
+            + text(x + w / 2, y + h / 2 + 3.5, label, 10, T["text"], "middle", 500, mono=True))
 
 
-def place_labels(marks, mid, x_min, x_max, size=9):
-    """Labels for the focal row's events, placed greedily: above the dots on two tiers or
-    below on one, centred, then leaning right or left, so no two overlap and none leaves
-    the radar. A mark that finds no clear spot keeps its hover only. Returns
+def place_labels(marks, mid, x_min, x_max, size=9, tiers=None):
+    """Labels for the focal row's events, placed greedily: on the tiers given (offsets
+    from the row's middle; above the dots on two tiers and below on one by default),
+    centred, then leaning right or left, so no two overlap and none leaves the radar. A
+    mark that finds no clear spot keeps its hover only. Returns
     [(x, y, anchor, label, tier, mark_x)]."""
-    tiers = {-1: mid - 9, 1: mid + 16, -2: mid - 19}
-    order = ((-1, "middle"), (1, "middle"), (-2, "middle"), (-1, "start"), (1, "start"),
-             (-2, "start"), (-1, "end"), (1, "end"), (-2, "end"))
+    offs = tiers or {-1: -9, 1: 16, -2: -19}
+    ys = {k: mid + v for k, v in offs.items()}
+    order = [(t, a) for a in ("middle", "start", "end") for t in (-1, 1, -2) if t in ys]
     taken, out = [], []
     for xx, label in sorted(marks, key=lambda m: m[0]):
         wd = lab_w(label, size)
         for tier, anc in order:
-            y = tiers[tier]
+            y = ys[tier]
             x0 = {"middle": xx - wd / 2, "start": xx - 3, "end": xx - wd + 3}[anc]
             # Cap height to descender: a 9px label inks about 7px above its baseline.
             rect = (x0, y - size * 0.8, x0 + wd, y + 2)
@@ -833,10 +826,20 @@ def place_labels(marks, mid, x_min, x_max, size=9):
     return out
 
 
+def _news_tip(items):
+    """The row hover's news: how many items in seven days and each one's line."""
+    if not items:
+        return "no news in seven days"
+    lines = "; ".join(f'{dday(n_["date"])} {n_["kind"]}: {(n_.get("text") or "").strip()}'
+                      for n_ in items)
+    return f'{len(items)} news {"item" if len(items) == 1 else "items"} in seven days: {lines}'
+
+
 def board_svg(p, w=None):
     """One row per company, the focal company pinned first and taller: the week's move
-    and the window's move against XLV as heat cells, the week's news as glyphs and the
-    next 90 days as a radar of dated events."""
+    and the window's move against XLV as heat cells, and the next 90 days as a radar of
+    dated events. The week's news is in each row's hover. Asset labels are drawn on the
+    focal row only; another row's only label is a firm FDA date."""
     w = _window(p, w)
     cos = _cos(p)
     f = _focal(p)
@@ -850,18 +853,17 @@ def board_svg(p, w=None):
     def rx(day):
         return CX["rd0"] + (day / span) * (CX["rd1"] - CX["rd0"])
 
-    H = HEAD_H + FOC_H + ROW_H * (len(rows) - 1) + 22
+    H = HEAD_H + (FOC_H if f in cos else ROW_H) + ROW_H * (len(rows) - 1) + FOOT_H
     clip = {"1m": 10, "3m": 25, "1y": 40}[w]
     rel = _rel(p, w)
-    o = [f'<svg class="uv-board" width="{BW}" height="{H}" viewBox="0 0 {BW} {H}" role="img" '
-         f'aria-label="Company board">']
-    hy = 20
+    o = [f'<svg class="uv-board" width="{BW}" height="{H:.0f}" viewBox="0 0 {BW} {H:.0f}" '
+         f'role="img" aria-label="Company board">']
+    hy = 13
     o.append(text(CX["wk"] + CX["wk_w"] / 2, hy, "WEEK", 9, T["muted"], "middle", cls="cap"))
     o.append(text(CX["rel"] + CX["rel_w"] / 2, hy, f"VS XLV {w.upper()}", 9, T["muted"],
                   "middle", cls="cap"))
-    o.append(text(CX["news"] + 2, hy, "NEWS 7D", 9, T["muted"], cls="cap"))
     o.append(text(CX["n"], hy, "N", 9, T["muted"], "end", cls="cap"))
-    o.append(text(rx(0) + 3, hy, f"{r0:%b}".upper(), 9, T["muted"], cls="cap"))
+    o.append(text(rx(0) + 3, hy, dday(r0.isoformat()).upper(), 9, T["text"], cls="cap"))
     month = (r0.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
     rules = []
     while month <= r1:
@@ -870,70 +872,59 @@ def board_svg(p, w=None):
             o.append(text(rx((month - r0).days) + 3, hy, f"{month:%b}".upper(), 9, T["muted"],
                           cls="cap"))
         month = (month.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
-    top, bottom = HEAD_H, H - 22
+    top, bottom = HEAD_H, H - FOOT_H
     for m in rules:
         xx = rx((m - r0).days)
-        o.append(f'<line x1="{xx:.1f}" y1="{top-6}" x2="{xx:.1f}" y2="{bottom}" '
-                 f'stroke="{T["rule"]}"/>')
+        o.append(f'<line x1="{xx:.1f}" y1="{top-4}" x2="{xx:.1f}" y2="{bottom:.1f}" '
+                 f'stroke="{T["rule_faint"]}"/>')
     x30 = rx(30)
-    o.append(f'<line x1="{x30:.1f}" y1="{top}" x2="{x30:.1f}" y2="{bottom}" '
-             f'stroke="{T["muted"]}" stroke-dasharray="2 3" opacity="0.55"/>')
-    o.append(f'<line x1="{rx(0):.1f}" y1="{top-6}" x2="{rx(0):.1f}" y2="{bottom}" '
+    d30 = dday((r0 + dt.timedelta(days=30)).isoformat())
+    o.append(f'<line x1="{x30:.1f}" y1="{top}" x2="{x30:.1f}" y2="{bottom:.1f}" '
+             f'stroke="{T["muted"]}" stroke-dasharray="2 3" opacity="0.45">'
+             f'<title>30 days, to {esc(d30)}</title></line>')
+    o.append(f'<line x1="{rx(0):.1f}" y1="{top-4}" x2="{rx(0):.1f}" y2="{bottom:.1f}" '
              f'stroke="{T["rule_strong"]}" stroke-width="1.2"/>')
-    o.append(text(rx(0), bottom + 13, dday(r0.isoformat()), 9, T["muted"], mono=True))
-    o.append(text(x30, bottom + 13, f"{dday((r0 + dt.timedelta(days=30)).isoformat())}, 30 days",
-                  9, T["muted"], "middle", mono=True))
-    o.append(text(rx(span), bottom + 13, dday(r1.isoformat()), 9, T["muted"], "end", mono=True))
-    xw = (p.get("xlv_week") or {}).get("change")
-    o.append(text(CX["wk"], bottom + 13, f"XLV week {pc(xw)}", 9, T["muted"], mono=True))
 
     events = p.get("events") or []
     y = top
     for t in rows:
         c = cos.get(t) or {}
-        h = FOC_H if t == f else ROW_H
-        mid = y + h / 2
         me = t == f
+        h = FOC_H if me else ROW_H
+        mid = y + h / 2
         mine = [e for e in events if e["ticker"] == t]
         wk = c.get("change_5d")
+        news = sorted(c.get("news") or [], key=lambda n_: NEWS_ORDER.index(n_["kind"])
+                      if n_["kind"] in NEWS_ORDER else 9)
         tip = (f"{c.get('name') or t}: week {pc(wk)}; "
                f"{sgn(rel.get(t), 1, ' pts') if t in rel else NO_DATA} against XLV over "
-               f"{WIN_LABEL[w]}; {len(mine)} dated in the next 90 days. Click for the detail.")
+               f"{WIN_LABEL[w]}; {len(mine)} dated in the next 90 days; {_news_tip(news)}. "
+               f"Click for the detail.")
         o.append(f'<g class="row{" me" if me else ""}" data-ticker="{esc(t)}"><title>{esc(tip)}</title>')
         if me:
-            o.append(f'<rect class="bg" x="0" y="{y}" width="{BW}" height="{h}" '
+            o.append(f'<rect class="bg" x="0" y="{y:.1f}" width="{BW}" height="{h}" '
                      f'fill="{blend(T["up"], T["panel"], 0.14)}"/>'
-                     f'<rect x="0" y="{y}" width="2" height="{h}" fill="{T["up"]}"/>')
+                     f'<rect x="0" y="{y:.1f}" width="2" height="{h}" fill="{T["up"]}"/>')
         else:
-            o.append(f'<rect class="bg" x="0" y="{y}" width="{BW}" height="{h}" fill="{T["ground"]}" '
-                     f'fill-opacity="0"/>')
-        o.append(f'<line x1="0" y1="{y+h}" x2="{BW}" y2="{y+h}" stroke="{T["rule"]}"/>')
-        o.append(text(CX["tk"], mid + 3.5, t, 11 if me else 10.5,
+            o.append(f'<rect class="bg" x="0" y="{y:.1f}" width="{BW}" height="{h}" '
+                     f'fill="{T["ground"]}" fill-opacity="0"/>')
+        o.append(f'<line x1="0" y1="{y+h:.1f}" x2="{BW}" y2="{y+h:.1f}" '
+                 f'stroke="{T["rule"] if me else T["rule_faint"]}"/>')
+        o.append(text(CX["tk"], mid + 3.5, t, 11 if me else 10,
                       T["up"] if me else T["text"], weight=700 if me else 600, mono=True))
         hh = ROW_H
         o.append(heat(wk * 100 if wk is not None else None, 8, CX["wk_w"], CX["wk"],
                       mid - hh / 2, hh, pc(wk)))
         o.append(heat(rel.get(t), clip, CX["rel_w"], CX["rel"], mid - hh / 2, hh,
                       sgn(rel.get(t), 1, "")))
-        items = sorted(c.get("news") or [], key=lambda n_: NEWS_ORDER.index(n_["kind"])
-                       if n_["kind"] in NEWS_ORDER else 9)
-        gx = CX["news"] + 2
-        for n_ in items[:5]:
-            col = T[NEWS_COL.get(n_["kind"], "muted")]
-            o.append(f'<rect x="{gx}" y="{mid-4:.1f}" width="8" height="8" rx="1" fill="{col}">'
-                     f'<title>{esc(dday(n_["date"]) + ", " + n_["kind"] + ": " + (n_.get("text") or ""))}'
-                     f'</title></rect>')
-            gx += 10
-        if not items:
-            o.append(text(CX["news"] + 2, mid + 3.5, "·", 10, T["muted"], mono=True))
         bars = [e for e in mine if e["month"]]
         for i, e in enumerate(bars):
             m0 = _d(e["date"] + "-01")
             m1 = (m0.replace(day=28) + dt.timedelta(days=4)).replace(day=1) - dt.timedelta(days=1)
             xa, xb = rx(max((m0 - r0).days, 0)), rx(min((m1 - r0).days, span))
             col = T.get(e.get("phase") or "", T["flag"])
-            yy = mid - 5 + (i % 4) * 3
-            o.append(f'<rect x="{xa+1:.1f}" y="{yy:.1f}" width="{max(xb-xa-2, 1):.1f}" height="2.2" '
+            yy = mid - 4 + (i % 3) * 3
+            o.append(f'<rect x="{xa+1:.1f}" y="{yy:.1f}" width="{max(xb-xa-2, 1):.1f}" height="2" '
                      f'fill="{col}" opacity="0.55"><title>{esc(e["date"] + " (month only): " + (e.get("title") or ""))}'
                      f'</title></rect>')
         dots = sorted([e for e in mine if not e["month"] and _d(e["date"])],
@@ -943,18 +934,19 @@ def board_svg(p, w=None):
             xx = rx((_d(e["date"]) - r0).days)
             k = k + 1 if xx - lastx < 4 else 0
             lastx = xx
-            yy = mid + ((-1) ** k) * (k and 3 + (k // 2) * 2)
-            r = 3.8 if me else 2.9
+            yy = mid + ((-1) ** k) * (k and 2.5 + (k // 2) * 1.5)
+            r = 3.8 if me else 2.6
             tip = (f'{dlong(e["date"])} ({e.get("confidence")}): {e.get("title") or ""}'
                    + (f' · {e["nct"]}' if e.get("nct") else ""))
             if e.get("regulatory"):
-                s = r + 1.8
+                s = r + 1.6
                 o.append(f'<path d="M{xx:.1f} {yy-s:.1f} L{xx+s:.1f} {yy:.1f} L{xx:.1f} {yy+s:.1f} '
                          f'L{xx-s:.1f} {yy:.1f}Z" fill="{T["flag"]}" stroke="{T["text"]}" '
-                         f'stroke-width="1.2"><title>{esc(tip)}</title></path>')
-                kind = "PDUFA" if (e.get("type") or "").upper() == "PDUFA" else "FDA"
-                late.append(text(xx + s + 3, yy + 3.2, f"{kind} {dday(e['date'])}", 9, T["flag"],
-                                 weight=600, cls="halo"))
+                         f'stroke-width="1.1"><title>{esc(tip)}</title></path>')
+                if me or e.get("firm"):
+                    kind = "PDUFA" if (e.get("type") or "").upper() == "PDUFA" else "FDA"
+                    late.append(text(xx + s + 3, yy + 3.2, f"{kind} {dday(e['date'])}", 9,
+                                     T["flag"], weight=600, cls="halo"))
             else:
                 col = T.get(e.get("phase") or "", T["flag"])
                 ring = (f' stroke="{T["text"]}" stroke-width="1.2"' if e.get("firm") else
@@ -964,11 +956,15 @@ def board_svg(p, w=None):
             placed_dots.append((xx, e))
         o.extend(late)
         if me:
+            # A study whose registry title names no drug has a condition or the title's
+            # first words for a short name: it keeps its hover rather than reading as an
+            # asset on the row.
             marks = [(xx, f'{e["short"]} Ph {e["phase"][1]}' if e.get("phase") else e["short"])
-                     for xx, e in placed_dots if e.get("short")]
+                     for xx, e in placed_dots
+                     if e.get("short") and e.get("short_basis") not in ("condition", "title")]
             # Leaders first, then the labels, so a label's halo covers any leader that
-            # runs behind it to a higher tier.
-            placed_labels = place_labels(marks, mid, CX["rd0"] - 2, BW - 30)
+            # runs behind it.
+            placed_labels = place_labels(marks, mid, CX["rd0"] - 2, BW - 30, tiers=BOARD_TIERS)
             for lx, ly, anc, label, tier, mx in placed_labels:
                 y_end = ly + 2 if tier < 0 else ly - 9
                 o.append(f'<line x1="{mx:.1f}" y1="{mid + (-5 if tier < 0 else 5):.1f}" '
@@ -976,7 +972,7 @@ def board_svg(p, w=None):
                          f'stroke-width="0.8" opacity="0.7"/>')
             for lx, ly, anc, label, tier, mx in placed_labels:
                 o.append(text(lx, ly, label, 9, T["text"], anc, 500, cls="halo"))
-        o.append(text(CX["n"], mid + 3.5, str(len(mine)), 10.5, T["text"] if me else T["muted"],
+        o.append(text(CX["n"], mid + 3.5, str(len(mine)), 10, T["text"] if me else T["muted"],
                       "end", 600 if me else 400, mono=True))
         o.append("</g>")
         y += h
@@ -987,7 +983,8 @@ def board_svg(p, w=None):
 def board_counts(p):
     ev = p.get("events") or []
     firm = sum(1 for e in ev if e.get("firm"))
-    return f"{len(ev)} dated, {firm} firm"
+    xw = (p.get("xlv_week") or {}).get("change")
+    return f"{len(ev)} dated, {firm} firm · XLV week {pc(xw)}"
 
 
 def board_legend():
@@ -997,12 +994,7 @@ def board_legend():
             '<span><i style="background:var(--text);box-shadow:0 0 0 1.5px var(--text)"></i>firm date</span>'
             '<span><i class="dia" style="background:var(--flag)"></i>regulatory</span>'
             '<span><i class="bar" style="background:var(--phase-3);opacity:.6"></i>month only</span>'
-            '<span>news:</span>'
-            '<span><i class="sq" style="background:var(--up)"></i>deal</span>'
-            '<span><i class="sq" style="background:var(--phase-3)"></i>readout</span>'
-            '<span><i class="sq" style="background:var(--phase-approved)"></i>approval</span>'
-            '<span><i class="sq" style="background:var(--muted)"></i>filing</span>'
-            '<span><i class="sq" style="background:var(--down)"></i>slip</span></div>')
+            '<span class="sp">hover a row for its news, click for the detail</span></div>')
 
 
 def section_html(label, basis="", count=""):
@@ -1237,9 +1229,9 @@ def week_item(p, it):
             "focus": _focal(p) in tickers, "url": it.get("url"), "src": it.get("src") or ""}
 
 
-def week_html(p):
-    """The week's material items, ranked by kind and then size, each with a small chart
-    and its lead figure. Every row opens in place (a native <details>)."""
+def week_rows(p):
+    """The week's material items as rows, ranked by kind and then size, each with a small
+    chart and its lead figure. Every row opens in place (a native <details>)."""
     rows = []
     for i, it in enumerate(p.get("week_items") or [], 1):
         x = week_item(p, it)
@@ -1257,9 +1249,18 @@ def week_html(p):
             f'<span class="f {x["fcls"]}">{esc(x["fig"])}<small>{esc(x["sub"])}</small></span>'
             f'</summary><div class="uv-wm-body">{body}<div class="uv-wm-src">{esc(x["src"])}{link}</div>'
             f'</div></details>')
+    return rows
+
+
+def week_html(p):
+    """The ranked rows in two columns, read down the first and then the second, so eight
+    items sit in four rows. An opened row pushes only its own column."""
+    rows = week_rows(p)
     if not rows:
         return '<div class="uv-empty">Nothing material across the group in the last seven days.</div>'
-    return "".join(rows)
+    half = (len(rows) + 1) // 2
+    return (f'<div class="uv-wk2"><div>{"".join(rows[:half])}</div>'
+            f'<div>{"".join(rows[half:])}</div></div>')
 
 
 def week_count(p):
@@ -1268,7 +1269,7 @@ def week_count(p):
     return f'{dday(since)} to {dday(p.get("today"))} · {n} items' if since else f"{n} items"
 
 
-# --------------------------------------------------------------- band 5: rates and value
+# ---------------------------------------------------------- panel tab: rates and value
 def spark(series, w=132, h=24, col=None, dot=True):
     vals = [v for _d, v in series or [] if v is not None]
     if len(vals) < 2:
@@ -1321,10 +1322,15 @@ def rates_html(p):
         bm.append(f'<span><b>{esc(name)}</b> {close} <i class="{cls}">{esc(pc(ch))}</i></span>')
         last = b.get("as_of") or last
     days = mk.get("days") or 30
-    out = ("".join(rows)
-           + '<div class="uv-sub">Currencies, 30 days <span>who reports in each</span></div>'
-           + f'<div class="uv-fxg">{"".join(fx)}</div>'
-           + f'<div class="uv-bm">{"".join(bm)} <em>{days} days to {esc(dday(last))}</em></div>')
+    left = ('<div><div class="uv-sub">Rates <span>line: the quarter; change: 30 days</span></div>'
+            + ("".join(rows) or f'<div class="uv-empty">{NO_DATA}</div>')
+            + f'<div class="uv-bm">{"".join(bm)} <em>{days} days to {esc(dday(last))}</em></div>'
+            '</div>')
+    mid_col = ('<div><div class="uv-sub">Currencies, 30 days <span>who reports in each</span></div>'
+               + f'<div class="uv-fxg">{"".join(fx) or NO_DATA}</div></div>')
+
+    def out_(box):
+        return f'<div class="uv-rates">{left}{mid_col}<div>{box}</div></div>'
 
     fv = (p.get("focal") or {}).get("fair_value") or {}
     rt = fv.get("rating") or {}
@@ -1333,9 +1339,9 @@ def rates_html(p):
     price = c.get("price")
     coe = rt.get("cost_of_equity")
     if None in (lo, mid, hi, coe):
-        return out + (f'<div class="uv-azn"><div class="hd"><b>{esc(f)}</b>: the model\'s value '
-                      f'at the discount rate a point either way has no free data on this read.'
-                      f'</div></div>')
+        return out_(f'<div class="uv-azn"><div class="hd"><b>{esc(f)}</b>: the model\'s value '
+                    f'at the discount rate a point either way has no free data on this read.'
+                    f'</div></div>')
     pts = [lo, mid, hi] + ([price] if price is not None else [])
     a0 = math.floor(min(pts) * 0.95 / 10) * 10
     a1 = math.ceil(max(pts) * 1.05 / 10) * 10
@@ -1386,7 +1392,7 @@ def rates_html(p):
     cur = c.get("currency")
     nt += (f'{esc(f)} reports in USD, so no currency row moves it directly.' if cur == "USD"
            else f'{esc(f)} reports in {esc(cur or NO_DATA)}, the currency row above moves its dollar value.')
-    return out + (
+    return out_(
         '<div class="uv-azn">'
         f'<div class="hd"><b>{esc(f)}</b> discounts at <b>{coe*100:.2f}%</b>'
         + (f' (beta {beta:.2f})' if beta is not None else "")
@@ -1395,61 +1401,73 @@ def rates_html(p):
         f'{"".join(sv)}<div class="nt">{nt}</div></div>')
 
 
-# ---------------------------------------------------- band 5: Medicare and exclusivity
+# --------------------------------------------- panel tab: Medicare and exclusivity
+def col_chart(title, rows, focal, fmt, colour, tip, empty, W=680, H=152):
+    """One measure across the cohort as columns, largest first: the value over each
+    column, the ticker under it, the focal company washed. ``rows`` is
+    [(ticker, value or None, why-empty)]; a company with no value prints ``empty`` (or its
+    own why-empty word) where its column would stand and is never drawn as a zero."""
+    rows = sorted(rows, key=lambda r: (r[1] is None, -(r[1] or 0), r[0]))
+    n = max(len(rows), 1)
+    x0, top, base = 4, 30, 136
+    pitch = (W - 2 * x0) / n
+    bw = min(pitch * 0.56, 22)
+    vmax = max([r[1] for r in rows if r[1] is not None] or [1.0]) or 1.0
+    o = [f'<svg class="uv-col" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
+         f'aria-label="{esc(title)}">', text(x0, 10, title.upper(), 9, T["muted"], cls="cap")]
+    o.append(f'<line x1="{x0}" y1="{base}" x2="{W - x0}" y2="{base}" stroke="{T["rule_strong"]}"/>')
+    for i, (t, v, why) in enumerate(rows):
+        cx = x0 + pitch * (i + 0.5)
+        me = t == focal
+        if me:
+            o.append(f'<rect x="{cx - pitch / 2:.1f}" y="{top - 14}" width="{pitch:.1f}" '
+                     f'height="{H - top + 14}" fill="{blend(T["up"], T["panel"], 0.14)}"/>'
+                     f'<rect x="{cx - pitch / 2:.1f}" y="{top - 14}" width="{pitch:.1f}" height="2" '
+                     f'fill="{T["up"]}"/>')
+        if v is None:
+            word = why or empty
+            say = ("no drug selected for Medicare negotiation" if word == "none"
+                   else NO_DATA)
+            o.append(f'<g><title>{esc(t)}: {esc(say)}</title>'
+                     + text(cx, base - 4, word, 9, T["muted"], "middle") + "</g>")
+        else:
+            h = max(v / vmax * (base - top), 0.5)
+            o.append(f'<rect x="{cx - bw / 2:.1f}" y="{base - h:.1f}" width="{bw:.1f}" '
+                     f'height="{h:.1f}" fill="{colour}" opacity="{1 if me else 0.55}">'
+                     f'<title>{esc(tip(t, v))}</title></rect>')
+            o.append(text(cx, base - h - 4, fmt(v), 9, T["text"], "middle",
+                          600 if me else None, mono=True))
+        o.append(text(cx, base + 12, t, 9.5 if me else 9, T["up"] if me else T["text"], "middle",
+                      700 if me else 500, mono=True))
+    o.append("</svg>")
+    return "".join(o)
+
+
 def exposure_html(p):
-    """Every company's Part D gross spend on negotiated drugs as a share of revenue beside
-    its share of product revenue losing exclusivity in five years, sorted by the first."""
+    """Every company's Medicare Part D gross spend on negotiated drugs as a share of
+    revenue, and its share of product revenue losing exclusivity in five years: two column
+    charts side by side, each ranked on its own measure, the focal company washed in
+    both."""
     cos = _cos(p)
     f = _focal(p)
-    rows = []
+    year = _loe_year(p)
+    med, loe = [], []
     for t in _tickers(p):
         c = cos[t]
         ira = c.get("ira") or {}
-        rows.append((t, ira.get("share"), (c.get("loe") or {}).get("share_5y"),
-                     bool(ira.get("selected"))))
-    rows.sort(key=lambda r: (r[1] is None, -(r[1] or 0)))
-    year = _loe_year(p)
-    W, RH, top = 431, 17, 34
-    H = top + RH * len(rows) + 6
-    xa0, xa1, xb0, xb1 = 46, 176, 248, 378
-    amax = max([0.5] + [r[1] for r in rows if r[1] is not None])
-    bmax = max([0.7] + [r[2] for r in rows if r[2] is not None])
-    o = [f'<svg class="uv-led" width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
-         f'aria-label="Medicare and exclusivity exposure">',
-         text(xa0, 12, "MEDICARE PART D SPEND", 9, T["muted"], cls="cap"),
-         text(xa0, 24, "negotiated drugs, share of revenue", 9, T["muted"]),
-         text(xb0, 12, f"EXCLUSIVITY LOST BY {year}" if year else "EXCLUSIVITY LOST IN FIVE YEARS", 9, T["muted"], cls="cap"),
-         text(xb0, 24, "share of product revenue", 9, T["muted"])]
-    for i, (t, a, b, sel) in enumerate(rows):
-        y = top + i * RH
-        me = t == f
-        if me:
-            o.append(f'<rect x="0" y="{y}" width="{W}" height="{RH}" '
-                     f'fill="{blend(T["up"], T["panel"], 0.14)}"/>'
-                     f'<rect x="0" y="{y}" width="2" height="{RH}" fill="{T["up"]}"/>')
-        o.append(f'<line x1="0" y1="{y+RH}" x2="{W}" y2="{y+RH}" stroke="{T["rule"]}"/>')
-        o.append(text(6, y + 12, t, 10.5, T["up"] if me else T["text"], weight=700 if me else 600,
-                      mono=True))
-        op = 1 if me else 0.55
-        if a is None:
-            o.append(text(xa0, y + 12, "none selected" if not sel else NO_DATA, 9.5, T["muted"]))
-        else:
-            bw = a / amax * (xa1 - xa0)
-            o.append(f'<rect x="{xa0}" y="{y+4.5}" width="{max(bw, 0.5):.1f}" height="8" '
-                     f'fill="{T["flag"]}" opacity="{op}"><title>{esc(t)} Part D gross spend '
-                     f'{a*100:.1f}% of revenue</title></rect>')
-            o.append(text(xa0 + bw + 5, y + 12, f"{a*100:.1f}%", 10, T["text"], mono=True))
-        if b is None:
-            o.append(text(xb0, y + 12, NO_DATA, 9.5, T["muted"]))
-        else:
-            bw = b / bmax * (xb1 - xb0)
-            o.append(f'<rect x="{xb0}" y="{y+4.5}" width="{max(bw, 0.5):.1f}" height="8" '
-                     f'fill="{T["orange"]}" opacity="{op}"><title>{esc(t)} {b*100:.0f}% of tagged '
-                     f'product revenue loses exclusivity by {year}</title></rect>')
-            o.append(text(xb0 + bw + 5, y + 12, f"{b*100:.0f}%", 10, T["text"], mono=True))
-    o.append("</svg>")
+        sel = bool(ira.get("selected"))
+        med.append((t, ira.get("share"), None if sel else "none"))
+        loe.append((t, (c.get("loe") or {}).get("share_5y"), "n/a"))
+    left = col_chart(
+        "Medicare Part D spend on negotiated drugs, share of revenue", med, f,
+        lambda v: f"{v * 100:.1f}%", T["flag"],
+        lambda t, v: f"{t} Part D gross spend {v * 100:.1f}% of revenue", "n/a")
+    right = col_chart(
+        (f"Exclusivity lost by {year}" if year else "Exclusivity lost in five years")
+        + ", share of product revenue", loe, f, lambda v: f"{v * 100:.0f}%", T["orange"],
+        lambda t, v: f"{t} {v * 100:.0f}% of tagged product revenue loses exclusivity by {year}",
+        "n/a")
     ira = (cos.get(f) or {}).get("ira") or {}
-    cap = ""
     if ira.get("selected"):
         drugs = ", ".join(f'{s["brand"].title()} (price year {s["ipay"]}'
                           + (f', ceiling cut {s["ceiling_cut"]*100:.0f}%' if s.get("ceiling_cut") is not None else "")
@@ -1462,18 +1480,24 @@ def exposure_html(p):
                + (f'${spend/1e9:.2f}bn of {yrs[-1] if yrs else ""} Part D gross spend, '
                   if spend is not None else "")
                + (f'{ira["share"]*100:.1f}% of revenue, {ordinal(most)} most exposed of {len(cos)}. '
-                  if ira.get("share") is not None else "")
-               + "Gross spend sizes the franchise; it is not revenue at risk.")
+                  if ira.get("share") is not None else ""))
     else:
-        cap = f'<b>{esc(f)}:</b> no drug CMS has selected belongs to this company.'
-    return "".join(o) + f'<div class="uv-cap">{cap}</div>'
+        cap = f'<b>{esc(f)}:</b> no drug CMS has selected belongs to this company. '
+    none = [t for t, v, why in med if v is None and why == "none"]
+    cap += ((f'None selected: {esc(", ".join(none))}. ' if none else "")
+            + "Medicare Part D only, gross of rebates: spend sizes the franchise, it is not "
+              "revenue at risk.")
+    return (f'<div class="uv-exp"><div class="chart-mount">{left}</div>'
+            f'<div class="chart-mount">{right}</div></div><div class="uv-cap">{cap}</div>')
 
 
-# ------------------------------------------------- band 6: approvals and readouts (graft)
-def lanes_svg(p, width=1408):
+# ------------------------------------------ panel tab: approvals and readouts (graft)
+def lanes_svg(p, width=1408, focal_h=20, row_h=9.5):
     """FDA approvals since 1 January by application type and dated catalysts ahead, one
     lane per company with the focal company first and taller. The focal company's signed
-    results of the year are drawn on its lane."""
+    results of the year are drawn on its lane. Lanes are a text line tall, so the whole
+    cohort fits the tabbed panel: the captions and today's date run along the top, the
+    months along the foot."""
     lanes = p.get("lanes") or {}
     a, b = _d(lanes.get("start")), _d(lanes.get("end"))
     today = _d(p.get("today"))
@@ -1490,35 +1514,37 @@ def lanes_svg(p, width=1408):
     count = {t: sum(1 for e in events if e["ticker"] == t) for t in cos}
     order = ([f] if f in cos else []) + sorted([t for t in cos if t != f],
                                                key=lambda t: (-count[t], t))
-    top = 40
-    rh = {t: (36 if t == f else 17) for t in order}
+    top = 14
+    rh = {t: (focal_h if t == f else row_h) for t in order}
     ys, y = {}, top
     for t in order:
         ys[t] = y
         y += rh[t]
-    height = y + 22
+    height = y + 12
     o = [f'<svg class="uv-svg uv-lanes" viewBox="0 0 {width} {height}" width="{width}" height="{height}" '
          f'role="img" aria-label="FDA approvals since 1 January and dated catalysts ahead, one row per company">']
     xt = sx(today)
-    o.append(f'<rect x="{xt:.1f}" y="{top-6}" width="{width-R-xt:.1f}" height="{y-top+8}" '
+    o.append(f'<rect x="{xt:.1f}" y="{top-2}" width="{width-R-xt:.1f}" height="{y-top+2}" '
              f'fill="{T["panel"]}" fill-opacity="0.7"/>')
     x30 = sx(today + dt.timedelta(days=30))
-    o.append(f'<rect x="{xt:.1f}" y="{top-6}" width="{x30-xt:.1f}" height="{y-top+8}" '
+    o.append(f'<rect x="{xt:.1f}" y="{top-2}" width="{x30-xt:.1f}" height="{y-top+2}" '
              f'fill="{T["flag"]}" fill-opacity="0.05"/>')
     m = dt.date(a.year, a.month, 1)
     while m < b:
         x = sx(m)
-        o.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{top-6}" y2="{y+2}" stroke="{T["rule"]}"/>')
+        o.append(f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{top-2}" y2="{y+2}" '
+                 f'stroke="{T["rule_faint"]}"/>')
         lab = f"{m:%b}" + (f" {m:%y}" if m.month == 1 else "")
-        o.append(text(x + 3, top - 10, lab, 9.5, T["muted"], mono=True))
+        o.append(text(x + 3, y + 10, lab, 9, T["muted"], mono=True))
         m = dt.date(m.year + (m.month // 12), m.month % 12 + 1, 1)
-    o.append(text(L, 11, f"FDA APPROVALS SINCE 1 JAN, BY APPLICATION TYPE", 9.5, T["muted"], cls="cap"))
-    o.append(text(xt + 6, 11, f"DATED AHEAD, TO {b:%b %Y}".upper(), 9.5, T["muted"], cls="cap"))
-    o.append(f'<line x1="{xt:.1f}" x2="{xt:.1f}" y1="{top-8}" y2="{y+6}" stroke="{T["text"]}" '
+    o.append(text(L, 9, "FDA APPROVALS SINCE 1 JAN, BY APPLICATION TYPE", 9, T["muted"], cls="cap"))
+    o.append(text(xt + 6, 9, f"DATED AHEAD, TO {b:%b %Y}".upper(), 9, T["muted"], cls="cap"))
+    o.append(text(xt + 6 + lab_w(f"DATED AHEAD, TO {b:%b %Y}", 9) * 1.18 + 10, 9,
+                  "next 30 days tinted", 9, T["flag"], mono=True))
+    o.append(f'<line x1="{xt:.1f}" x2="{xt:.1f}" y1="{top-4}" y2="{y+3}" stroke="{T["text"]}" '
              f'stroke-width="1.25"/>')
-    o.append(text(xt - 4, y + 16, f"today {dday(today.isoformat())}", 9.5, T["text"], "end", 600,
+    o.append(text(xt - 6, 9, f"today {dday(today.isoformat())}", 9.5, T["text"], "end", 600,
                   mono=True))
-    o.append(text(xt + 4, y + 16, "next 30 days tinted", 9.5, T["flag"], mono=True))
     appr = lanes.get("approvals") or []
     readouts = (p.get("focal") or {}).get("readouts") or []
     maxc = max(count.values()) if count and max(count.values()) else 1
@@ -1531,14 +1557,15 @@ def lanes_svg(p, width=1408):
             o.append(f'<rect x="0" y="{y0}" width="{width}" height="{h}" fill="{T["up"]}" '
                      f'fill-opacity="0.10"/><rect x="0" y="{y0}" width="2" height="{h}" fill="{T["up"]}"/>')
         o.append(f'<line x1="{L}" x2="{width-R}" y1="{y0+h:.1f}" y2="{y0+h:.1f}" stroke="{T["rule_faint"]}"/>')
-        o.append(text(8, cy + 3.5, t, 10.5, T["up"] if t == f else T["text"], weight=600, mono=True))
+        o.append(text(8, cy + 3.5, t, 10.5 if t == f else 9, T["up"] if t == f else T["text"],
+                      weight=700 if t == f else 600, mono=True))
         n = count.get(t, 0)
         bw = 46 * n / maxc
-        o.append(f'<rect x="{width-R+18}" y="{cy-3:.1f}" width="{bw:.1f}" height="6" '
+        o.append(f'<rect x="{width-R+18}" y="{cy-2.5:.1f}" width="{bw:.1f}" height="5" '
                  f'fill="{T["p3"]}" fill-opacity="0.55"/>')
-        o.append(text(width - R + 22 + bw, cy + 3.5, str(n), 9.5, T["text"], mono=True))
+        o.append(text(width - R + 22 + bw, cy + 3.2, str(n), 9, T["text"], mono=True))
         lab_boxes = []
-        ya = cy + (7 if t == f else 0)
+        ya = cy + (5 if t == f else 0)
         mine = [x for x in appr if x["ticker"] == t and _d(x.get("date"))]
         row_marks = [sx(x["date"]) for x in mine]
         for ap in mine:
@@ -1566,7 +1593,7 @@ def lanes_svg(p, width=1408):
                     lab_boxes.append(bx)
                     o.append(text(x + 6, ya + 3, lab, 9, T["text"] if t == f else T["muted"]))
         if t == f:
-            yr = cy - 8
+            yr = cy - 5
             rb = []
             rmarks = [sx(r["date"]) for r in readouts if _d(r.get("date"))]
             for rd in sorted([r for r in readouts if _d(r.get("date"))], key=lambda r: r["date"]):
@@ -1589,7 +1616,7 @@ def lanes_svg(p, width=1408):
                     o.append(text(x + 6, yr + 3, lab, 9, T["text"]))
         for e in [e for e in events if e["ticker"] == t]:
             tip = f"{t} {(e.get('title') or '')[:120]} · {e['date']} · {e.get('confidence')}"
-            yy = cy + (5 if t == f else 0)
+            yy = cy + (4 if t == f else 0)
             big = e.get("phase") == "p3"
             if e.get("regulatory") and not e.get("month"):
                 x = sx(e["date"])
@@ -1608,8 +1635,8 @@ def lanes_svg(p, width=1408):
                          f'r="{3.4 if big else 2.4}" fill="none" stroke="{T["p3"] if big else T["p2"]}" '
                          f'stroke-width="{1.4 if big else 1.1}"/></g>')
         o.append("</g>")
-    o.append(text(width - R + 18, top - 10, f"{(b.year - today.year) * 12 + b.month - today.month} months",
-                  9.5, T["muted"], mono=True))
+    o.append(text(width - R + 18, 9, f"{(b.year - today.year) * 12 + b.month - today.month} months",
+                  9, T["muted"], mono=True))
     o.append("</svg>")
     return "".join(o)
 
@@ -1633,8 +1660,8 @@ def lanes_counts(p):
             f'dated to {dday(lanes.get("end"))}')
 
 
-# -------------------------------------------------- band 7: prices, 12 months (graft)
-def prices_html(p, cols=6):
+# ------------------------------------------- panel tab: prices, 12 months (graft)
+def prices_html(p, cols=9):
     """A year of closes per company, indexed to 100 on one scale with XLV's total return
     dashed, sorted by the move against XLV. The focal panel is washed."""
     cos = _cos(p)
@@ -1727,7 +1754,7 @@ def prices_count(p):
     return f"sorted by move against XLV ({pc(b[-1] / b[0] - 1)}, dashed)"
 
 
-# --------------------------------------------------------- band 7: policy calendar
+# ------------------------------------------------------ panel tab: policy calendar
 LANE_TIERS = (-1, -2, 1)
 LANE_TIER_COST = {-1: 0.0, -2: 1.0, 1: 1.5}
 
@@ -1801,7 +1828,7 @@ def place_lane_labels(marks, y, reserved=(), x_min=0.0, x_max=1e9, size=9, budge
             for i, o_ in enumerate(best["pick"]) if o_ is not None]
 
 
-def policy_svg(p):
+def policy_svg(p, W=573):
     """Both policy lanes on this year's axis: a rule filled, a proposed rule open, a
     notice a dot, comment windows as bars with the open one bright and counted down."""
     pol = p.get("policy") or {}
@@ -1809,7 +1836,7 @@ def policy_svg(p):
     today = _d(p.get("today"))
     if not today:
         return ""
-    W, L, Rr = 573, 112, 14
+    L, Rr = 112, 14
     d0, d1 = dt.date(today.year, 1, 1), dt.date(today.year, 12, 31)
     span = (d1 - d0).days
 
@@ -1893,7 +1920,7 @@ def policy_svg(p):
     return "".join(o)
 
 
-def policy_html(p):
+def policy_html(p, W=840):
     pol = p.get("policy") or {}
     today = p.get("today") or ""
     rows = []
@@ -1915,8 +1942,8 @@ def policy_html(p):
         f'{esc(i.get("title"))}, closes {esc(dlong(i.get("comments_close_on")))}. ' for i in opened)
     foot += ("Section 232: which company imports what has no free data, so no company is "
              "ranked on tariff exposure.")
-    return (f'<div class="chart-mount">{policy_svg(p)}</div>{events}'
-            f'<div class="uv-pol-foot">{foot}</div>')
+    return (f'<div class="uv-polg"><div class="chart-mount">{policy_svg(p, W)}</div>'
+            f'<div>{events}<div class="uv-pol-foot">{foot}</div></div></div>')
 
 
 def policy_count(p):
@@ -2308,51 +2335,46 @@ def dialog_html(p, opened_from="the map"):
         '</div></div>')
 
 
-# ------------------------------------------------------------------ the page's bands
+# ------------------------------------------------------------------ the page's sections
 def spotlight_section(p, w=None):
     """The section rule over the rankings."""
     n = len(_cos(p))
     return section_html(f"{_name(p, _focal(p))} against the group",
-                        f"place of {n} · right is better", f"hover a cell for all {n}")
+                        f"place of {n}, 1st is best", f"hover a cell for all {n}")
 
 
-def _cell_block(label, basis, count, body):
-    return f'<div>{section_html(label, basis, count)}{body}</div>'
+def tab_head(left, right=""):
+    """A panel tab's first line: what the tab is measured on, and its counts."""
+    return (f'<div class="uv-th"><div class="b">{left}</div>'
+            f'<div class="c">{esc(right)}</div></div>')
 
 
-def band_week_rates_exposure(p):
-    """Three columns: the week ranked, rates against the focal company's value, and
-    Medicare and exclusivity exposure."""
+def _tab(head, body):
+    return f'<div class="uv uv-tab">{head}{body}</div>'
+
+
+def panel_tabs(p):
+    """The tabbed panel under the hero, as [(tab label, body markup)]: the week ranked
+    first, then the year's approvals and readouts, the prices, rates against the focal
+    company's value, Medicare and exclusivity, and the policy calendar. None of it moves
+    with the window."""
     f = _focal(p)
-    week = (week_html(p) + '<div class="uv-wm-foot">Deals, rates, results, approvals, slips and '
-            f'the next firm FDA date, ranked by kind, then size. Rows carrying {esc(f)} are '
-            'washed. Every row opens in place.</div>')
-    return ('<div class="uv uv-band c3">'
-            + _cell_block("This week, ranked", "kind, then size", week_count(p), week)
-            + _cell_block(f"Rates and the {f} value", "30-day change", "FRED, ECB, Yahoo",
-                          rates_html(p))
-            + _cell_block("Medicare and exclusivity", "share of revenue", "CMS, FDA books",
-                          exposure_html(p))
-            + '</div>')
-
-
-def band_lanes(p):
-    """Approvals since 1 January and dated catalysts ahead, one lane per company."""
     lanes = p.get("lanes") or {}
     svg = lanes_svg(p)
-    body = (f'{lanes_legend(p)}<div class="chart-mount stretch">{svg}</div>' if svg
-            else f'<div class="uv-empty">{NO_DATA}: no approval or dated catalyst on file.</div>')
-    end = _d(lanes.get("end"))
-    basis = "FDA approvals since 1 Jan · dated catalysts" + (f" to {end:%b %Y}" if end else "")
-    return ('<div class="uv uv-band c1">'
-            + _cell_block("Approvals and readouts", basis, lanes_counts(p), body) + '</div>')
-
-
-def band_prices_policy(p):
-    """Two columns: a year of prices as small multiples, and the policy calendar."""
+    week = _tab(tab_head(f"Ranked by kind, then size. Rows carrying {esc(f)} are washed; "
+                         "click a row to open it", week_count(p)), week_html(p))
+    lane = _tab(tab_head(lanes_legend(p), lanes_counts(p)),
+                f'<div class="chart-mount wide">{svg}</div>' if svg else
+                f'<div class="uv-empty">{NO_DATA}: no approval or dated catalyst on file.</div>')
     sms = prices_html(p)
-    return ('<div class="uv uv-band c75">'
-            + _cell_block("Prices, 12 months", prices_basis(p), prices_count(p),
-                          sms or f'<div class="uv-empty">{NO_DATA}: no closes on file.</div>')
-            + _cell_block("Policy calendar", "Federal Register", policy_count(p), policy_html(p))
-            + '</div>')
+    prices = _tab(tab_head(esc(prices_basis(p)) + ", one scale; XLV on total return, dashed",
+                           prices_count(p)),
+                  sms or f'<div class="uv-empty">{NO_DATA}: no closes on file.</div>')
+    rates = _tab(tab_head("30-day change", "FRED, ECB, Yahoo"), rates_html(p))
+    exposure = _tab(tab_head("Share of revenue, each chart ranked on its own measure",
+                             "CMS, FDA books"), exposure_html(p))
+    policy = _tab(tab_head("Federal Register documents this year, by lane",
+                           policy_count(p)), policy_html(p))
+    return [("This week, ranked", week), ("Approvals and readouts", lane),
+            ("Prices, 12 months", prices), (f"Rates and the {f} value", rates),
+            ("Medicare and exclusivity", exposure), ("Policy calendar", policy)]
