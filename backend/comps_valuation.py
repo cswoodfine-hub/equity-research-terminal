@@ -958,7 +958,7 @@ def _record(u: _Universe, co: dict, stage: dict) -> tuple:
         rec.reason("ev.ev_usd_m",
                    rec.na.get("market.market_cap_usd_m", "no_shares") if mcap is None
                    else rec.na.get("ev.net_debt_usd_m", "no_debt_line"))
-    claims = other_claims.for_company(conn, t)
+    claims = other_claims.for_company(conn, t, ev.get("balance_sheet_as_of"))
     lines = []
     for line in claims.get("lines") or []:
         unit = line.get("unit") or reporting

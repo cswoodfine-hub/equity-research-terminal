@@ -595,6 +595,14 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["other_claims_error"] = str(exc)
     finally:
         _conn.close()
+    # Closed acquisitions read from the acquirer's own filings, drafted into forecast rows
+    # from the target's filings for an analyst to approve. Nothing drafted reaches a
+    # valuation until it is accepted, and a filing read once is never read again.
+    try:
+        import input_drafts
+        mapped["input_drafts"] = input_drafts.run(db_path)
+    except Exception as exc:
+        mapped["input_drafts_error"] = str(exc)
     # R&D from before XBRL, so the productivity window can reach back towards the spend
     # that bought the launches. Insert-only: a year the filer has tagged is never
     # overwritten by one an analyst read out of a filing.

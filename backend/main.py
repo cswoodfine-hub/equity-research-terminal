@@ -25,6 +25,7 @@ import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
 import company_lines as company_lines_module
 import catalysts as catalysts_module
+import input_drafts as input_drafts_module
 import cashflow as cashflow_module
 import comps as comps_module
 import catalysts_command as catalysts_command_module
@@ -1555,6 +1556,76 @@ def accept_catalyst(catalyst_id: int) -> dict:
             detail=f"catalyst {catalyst_id} not found, already curated, or already "
                    f"resolved")
     return {"accepted": catalyst_id}
+
+
+class DraftEditIn(BaseModel):
+    asset_id: Optional[int] = None
+    key: Optional[str] = None
+    value: Optional[float] = None
+    text_value: Optional[str] = None
+    unit: Optional[str] = None
+    year: Optional[int] = None
+    source: Optional[str] = None
+    quote: Optional[str] = None
+    note: Optional[str] = None
+    evidence: Optional[str] = None
+
+
+@app.get("/drafts")
+def drafts_summary() -> list:
+    """Every company with a closed acquisition on file: closings, rows still open for
+    review, the latest closing and the targets."""
+    conn = db.get_connection()
+    try:
+        return input_drafts_module.summary(conn)
+    finally:
+        conn.close()
+
+
+@app.get("/companies/{ticker}/drafts")
+def company_drafts(ticker: str) -> dict:
+    """New revenue drafted from filed sources and waiting for review: every closed
+    acquisition with its rows, each row with its source, quote, grade and the book's own
+    value beside it. Nothing here is in a valuation until it is accepted."""
+    conn = db.get_connection()
+    try:
+        out = input_drafts_module.queue(conn, ticker)
+    finally:
+        conn.close()
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
+def _decide_draft(ticker: str, draft_id: int, action: str, edits: dict | None) -> dict:
+    conn = db.get_connection()
+    try:
+        owner = conn.execute(
+            "SELECT c.ticker FROM input_drafts d JOIN companies c ON c.id = d.company_id"
+            " WHERE d.id = ?", (draft_id,)).fetchone()
+        if owner is None or owner["ticker"] != ticker.upper():
+            raise HTTPException(status_code=404,
+                                detail=f"no drafted row {draft_id} for {ticker.upper()}")
+        try:
+            return input_drafts_module.decide(conn, draft_id, action, edits)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.post("/companies/{ticker}/drafts/{draft_id}/accept")
+def accept_draft(ticker: str, draft_id: int, body: Optional[DraftEditIn] = None) -> dict:
+    """Accept a drafted row, or edit then accept it when a body is sent. Writes the book
+    (assumptions or other claims) and the matching seed file under data/."""
+    edits = body.model_dump(exclude_unset=True) if body is not None else None
+    return _decide_draft(ticker, draft_id, "accept", edits or None)
+
+
+@app.post("/companies/{ticker}/drafts/{draft_id}/reject")
+def reject_draft(ticker: str, draft_id: int) -> dict:
+    """Reject a drafted row. It stays in the queue as rejected and is never redrafted."""
+    return _decide_draft(ticker, draft_id, "reject", None)
 
 
 @app.post("/companies/{ticker}/tearsheet")

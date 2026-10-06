@@ -2379,7 +2379,8 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     # A pension deficit, a deal instalment still owed, a minority's slice of a
     # consolidated subsidiary and a business held at equity are all filed, and all sit
     # outside net cash (other_claims).
-    claims = other_claims.for_company(conn, ticker)
+    claims = other_claims.for_company(conn, ticker,
+                                      balance["as_of"] if balance else None)
     claims_total = claims["total"] if not claims.get("reason") else 0.0
     equity = ((enterprise_today + net_cash + claims_total)
               if net_cash is not None else None)

@@ -265,15 +265,24 @@ def _lines(filing: dict | None, ticker: str, curated_rows: dict) -> list[dict]:
     return lines
 
 
-def for_company(conn, ticker: str) -> dict:
+def for_company(conn, ticker: str, balance_as_of: str | None = None) -> dict:
     """Every claim outside cash and debt for one company, and its net effect on equity.
 
     ``total`` is in the reporting currency's millions, signed the way net cash is:
     positive adds to equity. Read from the table ``store`` wrote, so this costs a query.
+
+    A ``pending_`` item is cash paid for an acquisition after the last filed balance
+    sheet (input_drafts.py). It stands only until a balance sheet dated on or after the
+    closing is on file, because from then the cash is gone from net cash already and
+    counting it again would take the price of the deal off twice.
     """
     rows = [dict(r) for r in conn.execute(
         """SELECT o.item, o.label, o.value, o.sign, o.unit, o.as_of, o.basis, o.source,
                   o.note FROM other_claims o JOIN companies c ON c.id = o.company_id
             WHERE c.ticker = ? ORDER BY o.sign, o.item""", (ticker,))]
+    absorbed = [r for r in rows if r["item"].startswith("pending_") and balance_as_of
+                and (r["as_of"] or "") <= str(balance_as_of)]
+    rows = [r for r in rows if r not in absorbed]
     return {"lines": rows, "total": sum(r["sign"] * r["value"] for r in rows),
+            "absorbed": absorbed,
             "reason": None if rows else "no claims outside cash and debt on file"}
