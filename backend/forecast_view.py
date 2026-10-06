@@ -981,6 +981,12 @@ def lever_specs(inputs, built) -> list:
         # A loss the record puts in the base does not erode again, and the engine keeps the
         # record's year whatever year is stated, so neither lever can move it.
         loe_year = None if built.get("loe_in_base") else built.get("loe_year")
+        # A cliff that takes nothing, no year-one drop and no decay, is worth the same in
+        # any year: Pfizer's Prevnar, whose seed says a vaccine's patent date is not a
+        # cliff, read the same at an LOE of 2027 or 2043, and the break-points named 2025
+        # as the nearest it came to the price, a bound the value never moved toward.
+        if not (built.get("erosion_year1_pct") or built.get("erosion_decay_pct")):
+            loe_year = None
         default = forecast.erosion_default(inputs)[0]
         year1 = scalars.get("erosion_year1_pct")
         if year1 is None and default:

@@ -220,6 +220,24 @@ def test_the_slider_and_the_loe_grid_say_a_loss_in_the_base_cannot_move(tmp_path
     assert "loe_year" not in keys and "erosion_year1_pct" not in keys
 
 
+def test_no_loe_lever_where_the_cliff_takes_nothing():
+    """A product whose cliff has no year-one drop and no decay (a vaccine whose patent
+    date its seed says is not a cliff) is worth the same at any LOE, so the tornado and
+    the break-points are not offered a year that moves nothing."""
+    import forecast_view as V
+    keys = lambda inputs: [lever[1] for lever in V.lever_specs(inputs, F.build(inputs))]
+    eroding = _product(record=2030)
+    assert "loe_year" in keys(eroding) and "erosion_year1_pct" in keys(eroding)
+    flat = _product(record=2030, erosion_year1_pct=0.0, erosion_decay_pct=0.0)
+    assert "loe_year" not in keys(flat) and "erosion_year1_pct" not in keys(flat)
+    values = {year: F.build({**flat, "scalars": {**flat["scalars"], "loe_year": year}})["rnpv"]
+              for year in (2027, 2030, 2043)}
+    assert len({round(v, 6) for v in values.values()}) == 1
+    # A decay alone still moves value with the year, so the lever stays.
+    decaying = _product(record=2030, erosion_year1_pct=0.0, erosion_decay_pct=0.1)
+    assert "loe_year" in keys(decaying)
+
+
 def test_the_slider_never_falls_as_the_year_moves_later(tmp_path):
     import forecast_view as V
     path = _db(tmp_path, "2016-06-01")
