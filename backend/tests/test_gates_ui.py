@@ -348,9 +348,21 @@ def test_the_ladder_and_the_studies_are_detail_on_demand(view):
     studies = view["_gate_studies_html"](dev)
     assert studies.count('href="https://clinicaltrials.gov/study/NCT07') == 5
     words = text_of(studies)
-    assert "NCT07282600 Phase 3 1,035 $49k 61% 31mm" in words
+    assert "NCT07282600 Phase 3 1,035 $49k 61% $31mm" in words
     assert "Outside the headline: 1 other open study, its cost already spent" in words
     assert "Sertkaya A, Beleche T" in words and "DiMasi JA" in words
+
+
+def test_the_studies_say_dollars_where_the_headline_is_in_another_currency(view):
+    dev = load("NVO_2337_development")
+    assert dev["currency"] == "DKK"
+    by = rows_by_key(view, summary(view, "NVO_2337"))
+    assert by["cost to reach"]["note"].startswith("725mm DKK after tax")
+    words = text_of(view["_gate_studies_html"](dev))
+    assert "cost ahead, before tax" in words
+    ahead = re.findall(r"NCT\d{8} Phase 3 [\d,]+ \$\d+k \d+% (\S+)", words)
+    assert ahead and all(x.startswith("$") and x.endswith("mm") for x in ahead), ahead
+    assert "Outside the headline: 4 other open studies, $83mm ahead before tax" in words
 
 
 def test_the_company_table_puts_failing_gates_first_and_reconciles_with_the_books_rd(view):

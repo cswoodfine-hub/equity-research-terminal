@@ -4028,14 +4028,16 @@ def _gate_ladder_html(dev: dict) -> str:
 
 def _gate_studies_html(dev: dict) -> str:
     """The studies behind each cost, the programme outside the headline as one figure,
-    and the sources. Costs here are before tax, at full enrolment, in 2018 dollars."""
+    and the sources. Costs here are before tax and in 2018 dollars, whatever currency
+    the headline is in, so each says "$": a Danish filer's cost to reach reads in kroner
+    after tax above them."""
     d = dev if isinstance(dev, dict) else {}
     if not d.get("ok"):
         return ""
     out = ['<table class="u-gate studies"><thead><tr><td class="k">study</td>'
            '<td class="k">phase</td><td class="k v">enrolled</td>'
            '<td class="k v">a patient</td><td class="k v">still ahead</td>'
-           '<td class="k v">cost ahead</td></tr></thead><tbody>']
+           '<td class="k v">cost ahead, before tax</td></tr></thead><tbody>']
     for stage in d.get("stages") or []:
         out.append(f'<tr><td class="t" colspan="6">{html_escape(stage.get("label") or "")}'
                    f'{": no free data" if stage.get("unread") else ""}</td></tr>')
@@ -4055,13 +4057,13 @@ def _gate_studies_html(dev: dict) -> str:
                 + ('<td class="v">·</td>' if share is None
                    else f'<td class="v">{share:.0%}</td>')
                 + ('<td class="v none">no free data</td>' if ahead is None
-                   else f'<td class="v">{_gate_mm(ahead)}</td>') + '</tr>')
+                   else f'<td class="v">${_gate_mm(ahead)}</td>') + '</tr>')
     out.append("</tbody></table>")
     o = d.get("outside") if isinstance(d.get("outside"), dict) else {}
     n = len(o.get("studies") or [])
     if n:
         left = o.get("cost_usd_mm")
-        ahead = (f"{_gate_mm(left)} ahead before tax" if left else
+        ahead = (f"${_gate_mm(left)} ahead before tax" if left else
                  "its cost already spent" if n == 1 else "their cost already spent")
         out.append(f'<div class="byline">Outside the headline: {n} other open '
                    f'{"study" if n == 1 else "studies"}, {ahead}. '
