@@ -1021,16 +1021,25 @@ def build(inputs: dict) -> dict:
                 f"exclusivity is not in this and is applied separately")
 
     # Erosion, only where the horizon runs past the LOE on file or assumed.
+    #
+    # The record says whether the cliff is already in the reported base: the exclusivity
+    # on file, a loss on file as past with no date, or, where neither exists, the
+    # statutory default below. A stated loe_year (a seed row, the slider, the LOE grid, a
+    # break-point search) only says when the cliff falls. The engine cannot tell a seed
+    # row from a slider, since both arrive as this one scalar, and when the stated year
+    # decided the base as well, moving it across the year before the window jumped the
+    # value back up: Orenitram was worth 83.89 a share more with its cliff a year earlier.
     loe = inputs.get("loe") or {}
-    loe_year = scalars.get("loe_year") or loe.get("year")
-    loe_basis = "assumed" if scalars.get("loe_year") else (loe.get("basis") or None)
+    record_year = loe.get("year")
+    record_basis = loe.get("basis") or None
+    default_note = None
     # A product that has not launched has no patent on file to lose, and running it to
     # the horizon and into a perpetuity values a molecule as though exclusivity never
     # ends. The default is the statute for a biologic and the Hatch-Waxman cap for a
     # small molecule, counted from the launch year, and it is labelled as a default
     # wherever it is read so an analyst can replace it with the patent when known.
-    known_past = bool(loe.get("in_base")) and loe_year is None
-    if loe_year is None and not known_past:
+    known_past = bool(loe.get("in_base")) and record_year is None
+    if record_year is None and not known_past:
         defaults = inputs.get("loe_defaults") or {}
         default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
         approved = inputs.get("approval_year")
@@ -1039,19 +1048,21 @@ def build(inputs: dict) -> dict:
         # and ran flat to the horizon and into a perpetuity, Novo's insulins among them,
         # which values a 2000 approval as though exclusivity never ended.
         if default and default.get("years_from_launch") and approved:
-            loe_year = approved + int(default["years_from_launch"])
-            loe_basis = (f"default: {default['years_from_launch']} years from the "
-                         f"{approved} approval, {default['source']}")
-            notes.append(f"no exclusivity on file, so LOE is taken as {loe_year}, "
-                         f"{default['years_from_launch']} years from the {approved} "
-                         f"approval ({default['source']})")
+            record_year = approved + int(default["years_from_launch"])
+            record_basis = (f"default: {default['years_from_launch']} years from the "
+                            f"{approved} approval, {default['source']}")
+            default_note = (f"no exclusivity on file, so LOE is taken as {record_year}, "
+                            f"{default['years_from_launch']} years from the {approved} "
+                            f"approval ({default['source']})")
         elif default and default.get("years_from_launch") and inputs.get("is_marketed") is False:
-            loe_year = start + int(default["years_from_launch"])
-            loe_basis = (f"default: {default['years_from_launch']} years from launch, "
-                         f"{default['source']}")
-            notes.append(f"no exclusivity on file for an unlaunched product, so LOE is "
-                         f"taken as {loe_year}, {default['years_from_launch']} years "
-                         f"from a {start} launch ({default['source']})")
+            record_year = start + int(default["years_from_launch"])
+            record_basis = (f"default: {default['years_from_launch']} years from launch, "
+                            f"{default['source']}")
+            default_note = (f"no exclusivity on file for an unlaunched product, so LOE is "
+                            f"taken as {record_year}, {default['years_from_launch']} years "
+                            f"from a {start} launch ({default['source']})")
+    if record_year is not None:
+        record_year = int(record_year)
     year1 = scalars.get("erosion_year1_pct")
     decay = scalars.get("erosion_decay_pct")
     # The second stage of the decay, where the modality has one on file. A seed may state
@@ -1069,8 +1080,32 @@ def build(inputs: dict) -> dict:
                 late_decay = default.get("late_decay_pct")
                 late_from = default.get("late_from_year")
             erosion_basis = f"curated default ({which}), {default['source']}"
-    if loe_year is not None:
-        loe_year = int(loe_year)
+    # An LOE whose cliff year is already behind the first forecast year is in the base:
+    # the reported revenue the forecast grows from was earned after it, and the growth
+    # rate read off the filing already carries the decline. Eroding it again compounded
+    # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
+    # years. The year-one drop still lands where the cliff falls inside the window.
+    record_in_base = known_past or (record_year is not None and record_year + 1 < years[0])
+    # A blank stated cell is no statement, as it always read here.
+    stated = scalars.get("loe_year") or None
+    if stated is not None and record_in_base:
+        # Nothing a lever says can take a loss the reported revenue already carries out
+        # of it, or put it in a second time, so the record's year stands.
+        loe_year, loe_basis, in_base = record_year, record_basis, True
+        if default_note:
+            notes.append(default_note)
+        notes.append(f"a stated LOE of {int(stated)} is not applied: the loss on file "
+                     f"({record_year or 'already past'}, {record_basis}) is already in the "
+                     "reported revenue, so moving its year changes nothing")
+    elif stated is not None:
+        # The record's cliff is still ahead, so a stated year moves it, and a year before
+        # the window sits further down the same curve rather than in the base: an earlier
+        # loss is never worth more than a later one.
+        loe_year, loe_basis, in_base = int(stated), "assumed", False
+    else:
+        loe_year, loe_basis, in_base = record_year, record_basis, record_in_base
+        if default_note:
+            notes.append(default_note)
     # The price decline stops at the cliff. Past it the erosion curve takes over, and
     # that curve is fitted to filers' printed United States net revenue lines, which have
     # already fallen partly on price. Compounding the decline through those years charged
@@ -1087,12 +1122,6 @@ def build(inputs: dict) -> dict:
         notes.append(f"the net price decline stops at the {loe_year} cliff and the "
                      f"erosion curve carries it from there, since that curve is measured "
                      f"on net revenue which already fell partly on price")
-    # An LOE whose cliff year is already behind the first forecast year is in the base:
-    # the reported revenue the forecast grows from was earned after it, and the growth
-    # rate read off the filing already carries the decline. Eroding it again compounded
-    # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
-    # years. The year-one drop still lands where the cliff falls inside the window.
-    in_base = known_past or (loe_year is not None and loe_year + 1 < years[0])
     # Exclusivity ends market by market. Ozempic's compound patent lapsed in China and
     # Canada in 2026 and runs to 2031 in Europe; Eliquis opens in Europe two years before
     # the US. A region the filer reports sales for, with a date of its own, is split off
@@ -1124,7 +1153,11 @@ def build(inputs: dict) -> dict:
             # date: Europe's ten years from first authorisation still stand.
             r_year = int(floor)
             r_basis = region.get("floor_basis") or "statutory protection, later than the US date"
-            r_in_base = r_year + 1 < years[0]
+            # With no record of its own the region's loss is in the base only when the US
+            # record's is and the floor is past as well. A past floor alone kept the region
+            # whole when a lever moved the US date before it, so the earlier date was worth
+            # more than the later one.
+            r_in_base = in_base and r_year + 1 < years[0]
         elif r_year is None and not r_known_past:
             # No date for the region: it keeps the US date, as the whole line did before.
             r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base

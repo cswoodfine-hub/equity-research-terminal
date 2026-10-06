@@ -323,6 +323,14 @@ def sensitivity(db_path, ticker: str, asset_id: int, scenario: str = "base",
         built = forecast.build(inputs)
     except forecast.ForecastError as err:
         return {"ok": False, "missing": err.missing}
+    if preset == "loe" and built.get("loe_in_base"):
+        # The record puts the loss in the reported revenue already, where neither its year
+        # nor its first-year fall can move the value, so a grid would be one figure
+        # repeated.
+        reason = (f"the loss of exclusivity on file ({built.get('loe_year') or 'already past'}) "
+                  "is already in the reported revenue, so neither its year nor the year-one "
+                  "erosion moves the value")
+        return {"ok": False, "missing": [reason], "reason": reason}
     if preset == "loe":
         loe_year = built["loe_year"] or (built["dcf_years"][-1])
         xs = [loe_year - offset for offset in (6, 4, 2, 0)]
@@ -451,9 +459,15 @@ def whatif(db_path, ticker: str, asset_id: int, scenario: str = "base",
     if terminal_growth is not None:
         scalars["terminal_growth_pct"] = terminal_growth
     if loe_year is not None:
-        # A scalar loe_year outranks the LOE map in the engine, which is the point: the
-        # slider asks what the product is worth if the cliff comes earlier or later.
+        # A scalar loe_year moves the cliff the record puts ahead, which is the point: the
+        # slider asks what the product is worth if the cliff comes earlier or later. A loss
+        # the record already puts in the reported revenue cannot be moved, and the engine
+        # keeps the record's year there, so the lever is named as one that did nothing.
         scalars["loe_year"] = int(loe_year)
+        if base.get("loe_in_base"):
+            ignored["loe_year"] = (f"the loss of exclusivity on file "
+                                   f"({base.get('loe_year') or 'already past'}) is already in "
+                                   "the reported revenue, so moving its year changes nothing")
     if erosion is not None:
         scalars["erosion_year1_pct"] = erosion
         if scalars.get("erosion_decay_pct") is None:
@@ -964,7 +978,8 @@ def lever_specs(inputs, built) -> list:
     fifth = "a fifth either way"
     levers = [("discount rate", "wacc", built["wacc"], "rate", fifth)]
     if mode in ("marketed", "franchise"):
-        # A loss already in the base does not erode again, so neither lever can move it.
+        # A loss the record puts in the base does not erode again, and the engine keeps the
+        # record's year whatever year is stated, so neither lever can move it.
         loe_year = None if built.get("loe_in_base") else built.get("loe_year")
         default = forecast.erosion_default(inputs)[0]
         year1 = scalars.get("erosion_year1_pct")
