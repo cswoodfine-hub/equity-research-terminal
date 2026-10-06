@@ -123,6 +123,9 @@ _TOKENS_CSS = (_ASSETS / "tokens.css").read_text()
 # Injected after the tokens it reads; the Comps valuation component receives the same
 # text as its shared_css arg, so both surfaces draw from one file.
 _RESEARCH_CSS = (_ASSETS / "research.css").read_text()
+# The redesigned Universe tab's own rules (.uv-), read the same way and injected after the
+# research primitives it builds on; its click component receives the same text.
+_UNIVERSE_CSS = (_ASSETS / "universe.css").read_text()
 
 
 def css() -> str:
@@ -136,6 +139,7 @@ def css() -> str:
 {_FONT_FACE_CSS}
 {tokens_root}
 {_RESEARCH_CSS}
+{_UNIVERSE_CSS}
 
 /* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{

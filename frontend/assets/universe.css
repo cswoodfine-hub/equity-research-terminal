@@ -1,0 +1,341 @@
+/* The redesigned Universe tab (frontend/universe_cc.py, the builders; universe_page.py,
+   the page). One root class, .uv, and every rule under a .uv- class.
+
+   Read by theme.py, which injects it into the Streamlit page after research.css, and by
+   components/uvboard, which receives it as its css arg, since an iframe inherits none of
+   the page's styles.
+
+   Rules for this file, the same as research.css:
+   - It reads only the custom properties of tokens.css and the :root of research.css. No
+     colour literal of any kind: every colour is a token or a color-mix() of tokens.
+   - No bare element selectors: a rule opts in through a .uv- class, or through the one
+     Streamlit dialog that holds a .uv-dg body.
+   - Sizes are the house scale (system/app.css, measured on the live page). */
+
+:root {
+  /* The company in focus: a wash and a rail, as on Key insights. */
+  --uv-rail: inset 2px 0 0 var(--up);
+  /* A floating card's shadow, mixed from the ground rather than a literal black. */
+  --uv-shadow: 0 10px 28px color-mix(in oklab, var(--ground) 70%, transparent);
+  /* Columns of the small multiples; the builder sets its own on the grid. */
+  --sm-cols: 6;
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Root: Archivo for text, Plex Mono for figures. Markdown blocks otherwise fall back  */
+/* to Streamlit's own sans, so the family is set here on the view's own root.          */
+/* ---------------------------------------------------------------------------------- */
+.uv { font-family: var(--font-ui); color: var(--text); }
+.uv svg text { font-family: var(--font-ui); }
+.uv svg text.m { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.uv svg text.cap { letter-spacing: 0.08em; }
+.uv svg text.halo { paint-order: stroke; stroke: var(--ground); stroke-width: 3px;
+  stroke-linejoin: round; }
+.uv .sec-label { font-family: var(--font-ui); }
+.uv-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Control row and lead line                                                          */
+/* ---------------------------------------------------------------------------------- */
+/* The window control's row: the theme clears every segmented control by most of a line
+   above and below, which here would push the lead away from the control that sets it. */
+.stApp [data-testid="stLayoutWrapper"]:has(.st-key-uv_window) { margin-top: 0;
+  margin-bottom: 0; }
+/* With the command centre drawn, the Universe view switch (Overview, Markets, Policy) moves
+   to the right end of the window control's row, so the page opens on one control line as
+   the mockup does. The row keeps an empty last column where it sits. Any other view, and
+   any other company, keeps the switch where it was. */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) { position: relative; }
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) .st-key-universe_view {
+  position: absolute; top: 6px; right: 0; width: auto; z-index: 3; }
+.uv-moves { font-family: var(--font-ui); font-size: 12px; color: var(--muted);
+  white-space: nowrap; }
+.uv-status { font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-status b { color: var(--up); font-weight: 600; }
+.uv-lead { font-family: var(--font-prose); font-weight: 500; font-size: 22px;
+  line-height: 1.25; letter-spacing: -0.008em; color: var(--text); margin: 2px 0 4px;
+  max-width: 62em; }
+.uv-lead b { font-weight: 500; padding: 0 3px;
+  background: color-mix(in oklab, var(--down) 26%, transparent); }
+.uv-lead b.up { background: color-mix(in oklab, var(--up) 22%, transparent); }
+.uv-lead b.even { background: color-mix(in oklab, var(--muted) 22%, transparent); }
+
+/* ---------------------------------------------------------------------------------- */
+/* The company against the group: eight cells on one hairline, a cohort strip in each */
+/* ---------------------------------------------------------------------------------- */
+.uv-sp { display: grid; grid-template-columns: minmax(0, 1.32fr) repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+.uv-sp > div { position: relative; padding: 7px 12px 7px; border-left: 1px solid var(--rule);
+  min-width: 0; }
+.uv-sp > div:first-child { border-left: 0; padding-left: 2px; }
+.uv-sp > div:hover { background: var(--panel); }
+.uv-sp .k { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-sp .v { font-family: var(--font-mono); font-size: 20px; font-weight: 600;
+  letter-spacing: -0.02em; line-height: 1.3; white-space: nowrap; }
+.uv-sp .c0 .v { font-size: 26px; }
+.uv-sp .v.up { color: var(--up); }
+.uv-sp .v.down { color: var(--down); }
+.uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); line-height: 2;
+  letter-spacing: 0; }
+.uv-sp .v .u { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px;
+  letter-spacing: 0; }
+.uv-sp svg { display: block; margin: 2px 0 1px; width: 100%; max-width: 190px; height: auto; }
+.uv-sp .p { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-sp .p b { color: var(--text); font-weight: 600; }
+.uv-sp .s { font-size: 10.5px; line-height: 14px; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.uv-sp .s .down { color: var(--down); font-family: var(--font-mono); }
+.uv-sp .s .up { color: var(--up); font-family: var(--font-mono); }
+
+/* A cell's hover card: the whole cohort, ranked, the median where it falls. */
+.uv-hc { display: none; position: absolute; left: 0; top: calc(100% + 2px); z-index: 60;
+  width: 236px; padding: 8px 10px; background: var(--panel);
+  border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
+.uv-sp > div:hover .uv-hc { display: block; }
+.uv-sp > div:nth-last-child(-n+2) .uv-hc { left: auto; right: 0; }
+.uv-hc .hc-t { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 4px; }
+.uv-hc .hc-r { display: grid; grid-template-columns: 22px 1fr auto; font-family: var(--font-mono);
+  font-size: 11px; line-height: 16px; color: var(--muted); }
+.uv-hc .hc-r.me { color: var(--up); font-weight: 600; background: var(--active-wash); }
+.uv-hc .hc-r span:last-child { text-align: right; color: var(--text); }
+.uv-hc .hc-med { font-family: var(--font-mono); font-size: 9.5px; color: var(--flag);
+  border-top: 1px dashed var(--flag); margin: 2px 0; padding-top: 1px; }
+.uv-hc .hc-n { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.35;
+  white-space: normal; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The hero band: the map and the board on the Key insights 7 to 5 seam                */
+/* ---------------------------------------------------------------------------------- */
+.uv-hero { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  column-gap: 32px; }
+.uv-hero .chart-mount { margin: 4px 0 0; }
+.uv-map g.b { cursor: pointer; }
+.uv-map g.b:hover circle { stroke: var(--text); stroke-width: 1.5; }
+.uv-board g.row { cursor: pointer; }
+.uv-board g.row:not(.me):hover rect.bg { fill: var(--panel); fill-opacity: 1; }
+.uv-board g.me text.halo { stroke: var(--active-wash); }
+.uv-leg { display: flex; align-items: center; gap: 4px 14px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.uv-leg span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.uv-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.uv-leg i.sq { border-radius: 1px; width: 8px; height: 8px; }
+.uv-leg i.ring { background: transparent; border: 1.5px solid var(--text); }
+.uv-leg i.bar { width: 14px; height: 3px; border-radius: 0; }
+.uv-leg i.dia { width: 8px; height: 8px; transform: rotate(45deg); border-radius: 0; }
+.uv-leg i.wh { width: 2px; height: 12px; border-radius: 0; background: var(--up); }
+.uv-leg i.tri { width: 0; height: 0; border-radius: 0; background: transparent;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--up); }
+.uv-leg i.tri.dn { border-bottom: 0; border-top: 8px solid var(--down); }
+.uv-leg .sp { margin-left: auto; }
+
+/* The fallback when the click component is missing: a row of company pills. */
+.uv-fallback { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Bands: three columns, then the lanes, then two columns                              */
+/* ---------------------------------------------------------------------------------- */
+.uv-band { display: grid; column-gap: 32px; align-items: start; margin-top: 0.3rem; }
+.uv-band.c3 { grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr) minmax(0, 1fr); }
+.uv-band.c75 { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.uv-band.c1 { grid-template-columns: minmax(0, 1fr); }
+.uv-band .chart-mount { margin: 4px 0 0; }
+.uv-band .chart-mount svg { display: block; max-width: 100%; height: auto; }
+.uv-band .chart-mount.stretch svg { width: 100%; }
+.uv-band .sec { margin-bottom: 4px; }
+
+/* This week, ranked: a <details> per row, the summary one grid. */
+.uv-wm { border-bottom: 1px solid var(--rule); --accent: var(--rule-strong); }
+.uv-wm > summary { display: grid;
+  grid-template-columns: 12px 54px minmax(0, 1fr) 84px 54px; gap: 0 8px;
+  align-items: center; padding: 6px 4px 6px 6px; min-height: 46px; cursor: pointer;
+  list-style: none; transition: background-color 120ms linear; }
+.uv-wm > summary::-webkit-details-marker { display: none; }
+.uv-wm > summary:hover { background: var(--panel); }
+.uv-wm .n { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.uv-wm .tag { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
+  border-left: 3px solid var(--accent); padding: 1px 0 1px 6px; white-space: nowrap; }
+.uv-wm .h { font-size: 12.5px; line-height: 1.32; color: var(--text); min-width: 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.uv-wm .h .tk { font-family: var(--font-mono); font-weight: 600; font-size: 11.5px;
+  margin-right: 2px; }
+.uv-wm .ch svg { display: block; max-width: 100%; height: auto; }
+.uv-wm .f { font-family: var(--font-mono); font-size: 14px; font-weight: 600; text-align: right;
+  color: var(--text); white-space: nowrap; line-height: 1.15; }
+.uv-wm .f.none { font-size: 11px; font-weight: 500; color: var(--muted); }
+.uv-wm .f small { display: block; font-size: 9.5px; font-weight: 400; color: var(--muted);
+  margin-top: 2px; }
+.uv-wm.me { background: var(--active-wash); box-shadow: var(--uv-rail); }
+.uv-wm.me .tk { color: var(--up); }
+.uv-wm[open] { background: var(--panel); }
+.uv-wm[open] .h { -webkit-line-clamp: unset; }
+.uv-wm-body { padding: 2px 10px 10px 82px; }
+.uv-wm-src { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted);
+  margin-top: 6px; display: flex; gap: 12px; }
+.uv-wm-src a { color: var(--up); }
+.uv-wm-foot { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+/* Key and value rows: an opened item, the dialog's exposure rows. */
+.uv-kv { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.6rem;
+  align-items: baseline; font-size: 12px; padding: 4px 0; border-top: 1px solid var(--rule); }
+.uv-kv > :first-child { color: var(--muted); font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; }
+.uv-kv > :last-child { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; }
+
+/* Rates and the company's value. */
+.uv-rt { display: grid; grid-template-columns: 104px minmax(0, 1fr) 54px 46px 40px;
+  column-gap: 8px; align-items: center; height: 30px; border-bottom: 1px solid var(--rule); }
+.uv-rt .n { font-size: 12px; white-space: nowrap; }
+.uv-rt svg { display: block; width: 100%; max-width: 132px; height: 24px; }
+.uv-rt .v { font-family: var(--font-mono); font-size: 14px; font-weight: 600; text-align: right; }
+.uv-rt .c { font-family: var(--font-mono); font-size: 11px; color: var(--text); text-align: right; }
+.uv-rt .a { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-align: right;
+  white-space: nowrap; }
+.uv-sub { display: flex; justify-content: space-between; align-items: baseline; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); margin: 12px 0 3px;
+  font-weight: 600; }
+.uv-sub span { font-family: var(--font-mono); letter-spacing: 0; text-transform: none;
+  color: var(--muted); font-size: 10.5px; font-weight: 400; }
+.uv-fxg { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.uv-fx { display: grid; grid-template-columns: 30px 52px 46px minmax(0, 1fr); column-gap: 6px;
+  align-items: center; height: 22px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11px; }
+.uv-fx .n { font-weight: 600; }
+.uv-fx .v, .uv-fx .c { text-align: right; }
+.uv-fx .c.down { color: var(--down); }
+.uv-fx .c.up { color: var(--up); }
+.uv-fx .w { color: var(--muted); text-align: right; font-size: 10.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.uv-bm { display: flex; gap: 16px; align-items: baseline; font-family: var(--font-mono);
+  font-size: 11px; margin: 6px 0 0; color: var(--text); }
+.uv-bm b { font-weight: 600; }
+.uv-bm i { font-style: normal; }
+.uv-bm i.down { color: var(--down); }
+.uv-bm i.up { color: var(--up); }
+.uv-bm em { font-style: normal; color: var(--muted); margin-left: auto; font-size: 10px; }
+.uv-azn { margin-top: 10px; padding: 8px 10px 8px 12px; background: var(--active-wash);
+  box-shadow: var(--uv-rail); }
+.uv-azn .hd { font-size: 12.5px; line-height: 1.45; }
+.uv-azn .hd b { font-family: var(--font-mono); font-weight: 600; }
+.uv-azn .hd b:first-child { color: var(--up); }
+.uv-azn svg { display: block; margin: 4px 0 2px; max-width: 100%; height: auto; }
+.uv-azn .nt { font-size: 11px; line-height: 1.45; color: var(--muted); }
+
+/* Medicare and exclusivity. */
+.uv-led { display: block; max-width: 100%; height: auto; }
+.uv-cap { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 6px; }
+.uv-cap b { color: var(--up); font-family: var(--font-mono); }
+
+/* Approvals and readouts. */
+.uv-lanes { display: block; }
+.uv-leg-lanes { margin: 0 0 4px; }
+
+/* Prices, 12 months: small multiples. */
+.uv-sms { display: grid; grid-template-columns: repeat(var(--sm-cols, 6), minmax(0, 1fr));
+  gap: 10px 12px; margin-top: 6px; }
+.uv-sm { display: block; color: var(--text); border-top: 1px solid var(--rule-strong);
+  padding-top: 4px; transition: transform 120ms ease-out; min-width: 0; }
+.uv-sm:hover { transform: translateY(-1px); border-top-color: var(--muted); }
+.uv-sm svg { display: block; width: 100%; height: auto; }
+.uv-sm-h { display: flex; justify-content: space-between; align-items: baseline; }
+.uv-sm-h .tk { font-family: var(--font-mono); font-weight: 600; font-size: 12px; }
+.uv-sm-h .v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.uv-sm-h .v.up { color: var(--up); }
+.uv-sm-h .v.down { color: var(--down); }
+.uv-sm-f { display: flex; justify-content: space-between; font-family: var(--font-mono);
+  font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+.uv-sm.me { border-top: 2px solid var(--up); background: var(--active-wash);
+  padding: 3px 4px 2px; margin: -3px -4px 0; }
+.uv-sm.me .tk { color: var(--up); }
+
+/* Policy calendar. */
+.uv-pol { display: block; max-width: 100%; height: auto; }
+.uv-am { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; font-size: 12px;
+  line-height: 21px; border-left: 2px solid var(--accent, var(--rule-strong)); padding-left: 8px;
+  border-bottom: 1px solid var(--rule); }
+.uv-am .d { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.uv-am .h { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-am .tk { font-family: var(--font-mono); font-weight: 600; margin-right: 4px; }
+.uv-pol-foot { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 8px; }
+.uv-pol-foot b { color: var(--flag); font-weight: 600; }
+
+/* The notes fold at the foot. */
+.uv-notes { font-size: 11px; line-height: 1.5; color: var(--muted); margin-top: 18px;
+  max-width: 120ch; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The company dialog (st.dialog, width large), squared                                */
+/* ---------------------------------------------------------------------------------- */
+div[role="dialog"]:has(.uv-dg) { border-radius: var(--radius) !important;
+  border: 1px solid var(--rule-strong); background: var(--ground); }
+div[role="dialog"]:has(.uv-dg) h2 { font-family: var(--font-ui); }
+/* The dialog's buttons sit on their own rule, under the grid. */
+div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
+  border-top: 1px solid var(--rule-strong); padding-top: 12px; margin-top: 10px; }
+.uv-dg-sub { font-size: 12px; color: var(--muted); margin: -6px 0 12px;
+  font-family: var(--font-mono); }
+.uv-dg-figs { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 18px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--rule-strong); }
+.uv-dg-figs .ki-f .v { font-size: 17px; }
+.uv-dg-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 32px; row-gap: 18px; }
+.uv-dg-grid .chart-mount { margin: 6px 0 0; }
+.uv-dg-grid .chart-mount svg { display: block; max-width: 100%; height: auto; }
+.uv-s2 { margin-top: 12px; }
+.uv-pns { margin-top: 8px; }
+.uv-pn { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px;
+  font-size: 12px; line-height: 21px; border-bottom: 1px solid var(--rule); }
+.uv-pn span { font-size: 9px; }
+.uv-pn.up span { color: var(--up); }
+.uv-pn.down span { color: var(--down); }
+.uv-pn em { font-style: normal; font-family: var(--font-mono); font-size: 9.5px;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; text-align: right; }
+.uv-evh, .uv-ev { display: grid;
+  grid-template-columns: 62px 96px 70px minmax(0, 1fr) 64px 72px; column-gap: 8px;
+  align-items: center; }
+.uv-evh { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); height: 20px; margin-top: 4px; white-space: nowrap; }
+.uv-evh span:nth-child(5), .uv-ev .e { text-align: right; }
+.uv-ev { height: 22px; border-bottom: 1px solid var(--rule); font-size: 12px; }
+.uv-ev .d { font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+.uv-ev .d i { font-style: normal; color: var(--muted); font-size: 9px; margin-right: 5px; }
+.uv-ev .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-ev .w { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.uv-ev .e { font-family: var(--font-mono); font-size: 11px; }
+.uv-ev .s { font-size: 10.5px; color: var(--muted); background-image: var(--hatch);
+  padding: 0 4px; white-space: nowrap; }
+.uv-ev .s.priced { background-image: none; color: var(--text); font-family: var(--font-mono);
+  font-size: 11px; text-align: right; }
+.uv-ph { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
+  color: var(--text); white-space: nowrap; }
+.uv-ph::before { content: ""; width: 8px; height: 8px; background: var(--c, var(--phase-filed)); }
+.uv-ph.p1 { --c: var(--phase-1); }
+.uv-ph.p2 { --c: var(--phase-2); }
+.uv-ph.p3 { --c: var(--phase-3); }
+.uv-ph.filed { --c: var(--phase-filed); }
+.uv-dg-foot { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Inside the uvboard frame. The iframe inherits nothing from the page, so the section */
+/* rule and the chart mount it draws are restated here, as the page draws them.        */
+/* ---------------------------------------------------------------------------------- */
+.uv-frame { font-size: 14px; -webkit-font-smoothing: antialiased; }
+.uv-frame .sec { display: flex; align-items: baseline; justify-content: flex-start;
+  border-bottom: 1px solid var(--rule-strong); padding: 0 0 0.2rem; margin: 0 0 4px; }
+.uv-frame .sec-label { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); flex: 0 0 auto; }
+.uv-frame .sec-count { font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+  text-align: right; min-width: 0; margin-left: auto; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; padding-left: 8px; }
+.uv-frame .sec-basis { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--text);
+  border: 1px solid var(--rule-strong); border-radius: var(--radius-small); padding: 1px 6px;
+  margin-left: 0.6rem; flex: 0 0 auto; position: relative; top: -1px; }
+.uv-frame .chart-mount svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.uv-frame .chart-mount.stretch svg { width: 100%; }
