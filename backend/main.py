@@ -27,6 +27,7 @@ import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
 import comps as comps_module
+import catalysts_command as catalysts_command_module
 import comps_context as comps_context_module
 import comps_valuation as comps_valuation_module
 import company_score as company_score_module
@@ -852,6 +853,20 @@ def company_catalyst_stakes(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
+
+
+@app.get("/companies/{ticker}/catalysts/view")
+def company_catalysts_view(ticker: str):
+    """The redesigned Catalysts tab in one read (backend/catalysts_command.py): every
+    pipeline line at its next gate with its legs, cost and launch floor, the dated events
+    by therapy area, the exclusivity losses, slips, crowding, the readout record and why
+    the rest carry no price. A body built before the scorecard it reads was warm is marked
+    incomplete and is never cached."""
+    payload = catalysts_command_module.build(ticker)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
 
 
 class ResolveIn(BaseModel):
