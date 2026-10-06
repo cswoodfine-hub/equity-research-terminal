@@ -178,11 +178,21 @@ day, which matters because each study's share ahead moves daily.
   unplaced), 4 `vaccine` (GSK varicella and mRNA flu, SNY PCV21, PFE VLA15 through its study
   title) and 3 `no_gate` (AZN Ceralasertib and Monalizumab at a stated nil, GSK Camlipixant
   after a negative Phase 3).
+- 12 lines read with the cost to the gate unread, since no open study at the gate sits in
+  an indication the forecast values: AZD0780, AZD2389, clazakizumab, denikitug, felzartamab,
+  GSK3862995B, IMGN151, LY3457263, PF-07868489, RO7795081, savolitinib and TOUR006. Until
+  6 October these read as free gates breaking even at 0%; AZD0780's open Phase 3s are a
+  15,100-patient outcome study and a 3,103-patient study in cardiovascular disease, which the
+  forecast does not value, and one with no MeSH terms.
 - 11 next gates fail at Sertkaya's cost and 25 at DiMasi's level. The failing eleven are
   AZD5335, AZD0120, ponsegromab, MORF-057, REGN7508, ibuzatrelvir, osivelotor, zilovertamab
   vedotin, AGN-151607-DP, KAE609 and EYU688; REGN7508 is the largest at -$0.21 a share. 19
   assets have a ladder stage that fails.
-- Risked development cost is a median 14.5% of an asset's rNPV.
+- Risked development cost is a median 14.6% of an asset's rNPV, over the lines whose cost
+  to the gate reads.
+- The separate figure, every open Phase 2 and 3 study outside the headline and the ladder,
+  holds about $6.4bn of remaining spend across the book in 2018 dollars, pre-tax; 52 of its
+  studies are Phase 2s in a modelled disease run beside a Phase 3 or FDA gate.
 - Routes: 192 registry stages, 58 peer, 25 benchmark, 5 seamless, 1 mixed peer and
   benchmark, and a review on every asset.
 - A year of named trial spend against the R&D the book charges its marketed lines in 2026
@@ -198,8 +208,9 @@ day, which matters because each study's share ahead moves daily.
 | NVO Cagrilintide | Phase 3 readout, NCT05567796, due since Oct 2024 | 61.0% published | DKK 725mm, $0.02 | $6.65 | $4.03 | 0.37% |
 
   Elecoglipron counts one study: of its eight other open Phase 3s, six are in indications
-  the forecast does not value and two carry MeSH terms that match no indication, about
-  $1.1bn of remaining spend in 2018 dollars, pre-tax, shown under `outside`. Cagrilintide's
+  the forecast does not value, one carries MeSH terms that match none of its conditions and
+  one has none on file, about $1.1bn of remaining spend in 2018 dollars, pre-tax, shown
+  under `outside`. Cagrilintide's
   gate study is past its completion, so its own cost is sunk, and seven other open Phase 3s
   in the modelled indication carry the cost to the gate.
 
@@ -215,6 +226,13 @@ day, which matters because each study's share ahead moves daily.
 - The trials table holds only active studies mapped to the asset under the owner's sponsor
   query, so a study run by a partner or missed by `trial_asset_map` is invisible and cost is
   understated.
+- `economics_share` also carries a royalty the owner pays, netted at its lowest filed tier,
+  since the engine has no royalty key. The cost follows that share by the settled rule, so
+  where the owner funds all development and owes a royalty on sales the cost is cut with
+  the revenue: about 17 read lines on the book copy by their sources, among them
+  GSK4532990 at 41.7% (Arrowhead's filing says GSK is wholly responsible for development),
+  PF-08634404 at 52.6% and salanersen at 51.4%. A cost-share key, or a royalty key, would
+  separate the two.
 - PoS is asset-level, so a multi-indication asset gets one gate chain while costs sum across
   its modelled indications (sac-TMT's four under one stated 73.5%).
 - Costs are timed from the registry and Sertkaya's durations while the success leg keeps
