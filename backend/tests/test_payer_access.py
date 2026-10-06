@@ -236,6 +236,27 @@ def test_a_row_outside_the_months_that_names_the_brand_is_kept():
     assert not pa._outside_rxnorm_months(2025, 3, "202509", "202610")
 
 
+def test_a_brand_whose_every_medicaid_count_is_suppressed_says_so(conn):
+    # 72 marketed brands on the copy had brand rows and no count in any quarter: their
+    # panel led on nothing, and the detail read "at least no free data".
+    conn.execute(
+        "UPDATE medicaid_utilization SET prescriptions = NULL, total_reimbursed = NULL,"
+        " packages_suppressed = packages WHERE ndc9 IN (SELECT code FROM drug_codes"
+        " WHERE asset_id = ? AND code_type = 'ndc9')", (VERZENIO,))
+    view = pa.for_asset(conn, VERZENIO)
+    assert view["medicaid"] is None
+    assert view["why_empty"]["medicaid"] == pa.MEDICAID_ALL_SUPPRESSED
+    assert "under 11" not in pa.MEDICAID_ALL_SUPPRESSED       # SDUD states no threshold
+
+
+def test_a_brand_with_only_unbranded_medicaid_rows_says_so(conn):
+    conn.execute("UPDATE drug_codes SET brand_specific = 0 WHERE asset_id = ?"
+                 " AND code_type = 'ndc9'", (VERZENIO,))
+    view = pa.for_asset(conn, VERZENIO)
+    assert view["medicaid"] is None
+    assert view["why_empty"]["medicaid"] == pa.MEDICAID_UNBRANDED_ONLY
+
+
 def test_a_vaccine_with_no_medicaid_rows_names_the_codes(conn):
     assert (pa.for_asset(conn, SHINGRIX)["why_empty"]["medicaid"]
             == "No Medicaid claims on file for this brand's NDCs")

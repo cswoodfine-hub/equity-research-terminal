@@ -212,6 +212,16 @@ def test_the_detail_holds_the_figures_behind_each_lead(view):
     assert view["_payer_detail_html"](load("comirnaty")) == ""
 
 
+def test_a_year_with_every_package_suppressed_reads_suppressed_not_no_free_data(view):
+    access = copy.deepcopy(load("eliquis"))
+    year = access["medicaid"]["years"][0]
+    year.update(prescriptions=None, reimbursed=None, lower_bound=True)
+    access["medicaid"]["years"][1]["growth"] = None
+    words = text_of(view["_payer_detail_html"](access))
+    assert "2024 suppressed by CMS" in words
+    assert "at least no free data" not in words
+
+
 def test_a_reused_code_is_named_in_the_detail(view):
     words = text_of(view["_payer_detail_html"](load("verzenio")))
     assert "665 prescriptions on 00002-4415" in words

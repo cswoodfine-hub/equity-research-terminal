@@ -894,6 +894,8 @@ def _payer_detail_html(access: dict) -> str:
         out.append('<div class="prof-sub">Medicaid prescriptions by year</div>')
         out.append(_payer_rows([
             (f'{y["year"]}{"" if y.get("full_year") else ", part year"}',
+             # A year whose every package CMS suppressed has no count, not "no free data".
+             "suppressed by CMS" if y["prescriptions"] is None else
              ("at least " if y.get("lower_bound") else "") + _payer_n(y["prescriptions"])
              + (f', {y["growth"]:+.1%}' if y.get("growth") is not None else ""))
             for y in m.get("years") or []]))

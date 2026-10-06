@@ -77,6 +77,13 @@ PART_B_ONLY = ("Given in the clinic under Part B, so the Part D files do not car
 PART_B_FORMULARY = ("Medicare pays for it mainly under Part B, as a drug given in the "
                     "clinic, so Part D plans do not list it")
 NOT_MARKETED = "Not marketed, so Medicare and Medicaid carry no claims for it"
+# A Medicaid block with no brand figure to lead on is empty, with the reason, rather than
+# a panel with no number in it.
+MEDICAID_ALL_SUPPRESSED = ("CMS suppressed every Medicaid count on this brand's product "
+                           "codes, as it does for small counts")
+MEDICAID_UNBRANDED_ONLY = ("Its Medicaid claims are on unbranded products under its own "
+                           "application, such as an authorised generic, which are kept "
+                           "apart from the brand")
 VACCINE_NOTE = ("A vaccine is given once or in a short series, so days covered says "
                 "nothing about adherence")
 
@@ -404,7 +411,10 @@ def _formulary_why(conn, asset: dict, demand: dict) -> str:
 
 
 # --- medicaid -------------------------------------------------------------------------
-def _medicaid(conn, asset: dict) -> dict | None:
+def _medicaid(conn, asset: dict) -> tuple:
+    """(block, reason): the brand's Medicaid prescriptions, or None and why there is no
+    brand figure when rows are on file but none can lead (the reason is None when there
+    are no rows at all, and _medicaid_why answers)."""
     names = _words(asset["brand_name"], asset["generic_name"])
     rows = [dict(r) for r in conn.execute(
         """
@@ -416,7 +426,7 @@ def _medicaid(conn, asset: dict) -> dict | None:
          WHERE d.asset_id = ?
         """, (asset["id"],))]
     if not rows:
-        return None
+        return None, None
     kept, dropped = [], {"rows": 0, "prescriptions": 0, "codes": set()}
     for r in rows:
         # A product code reused for another drug: outside the months RxNorm listed it
@@ -453,9 +463,13 @@ def _medicaid(conn, asset: dict) -> dict | None:
     brand = quarters(1)
     unbranded = quarters(0)
     if not brand and not unbranded:
-        return None
+        return None, None
     by_key = {(q["year"], q["quarter"]): q for q in brand}
     latest = next((q for q in reversed(brand) if q["prescriptions"] is not None), None)
+    if latest is None:
+        # Every brand quarter suppressed, or only unbranded products on file: no figure
+        # to lead on, and the panel says which.
+        return None, (MEDICAID_ALL_SUPPRESSED if brand else MEDICAID_UNBRANDED_ONLY)
     growth = None
     if latest:
         prior = by_key.get((latest["year"] - 1, latest["quarter"]))
@@ -499,7 +513,7 @@ def _medicaid(conn, asset: dict) -> dict | None:
                                   "name in quarters RxNorm does not list them for this "
                                   "brand"} if dropped["rows"] else None),
         "caveats": [MEDICAID_CAVEAT, SUPPRESSION_CAVEAT],
-    }
+    }, None
 
 
 def _medicaid_why(conn, asset: dict) -> str:
@@ -552,14 +566,16 @@ def for_asset(conn, asset_id: int) -> dict | None:
     if asset is None:
         return None
     demand = _demand_parts(conn, asset_id)
+    medicaid, medicaid_reason = _medicaid(conn, asset)
     blocks = {"prescribing": _prescribing(conn, asset_id, demand),
               "formulary": _formulary(conn, asset_id, demand),
-              "medicaid": _medicaid(conn, asset)}
+              "medicaid": medicaid}
     why = {"prescribing": None if blocks["prescribing"] else
            _prescribing_why(conn, asset, demand),
            "formulary": None if blocks["formulary"] else
            _formulary_why(conn, asset, demand),
-           "medicaid": None if blocks["medicaid"] else _medicaid_why(conn, asset)}
+           "medicaid": None if blocks["medicaid"] else
+           medicaid_reason or _medicaid_why(conn, asset)}
     co = _co_owners(conn, asset_id, asset["owner_company_id"])
     return {
         "asset_id": asset_id, "ticker": asset["ticker"], "brand": asset["brand_name"],
