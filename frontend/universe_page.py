@@ -173,9 +173,6 @@ def _command(api_base: str, p: dict) -> None:
         _show(f'<div class="uv">{UC.lead_line(p, w)}</div>')
     with right:
         _show(f'<div class="uv">{UC.status_line(p)}</div>')
-    note = UC.incomplete_note(p)
-    if note:
-        _show(f'<div class="uv">{note}</div>')
     _show(f'<div class="uv">{UC.spotlight_section(p, w)}{UC.spotlight_html(p, w)}</div>')
 
     band = UC.hero_html(p, w)

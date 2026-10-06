@@ -811,6 +811,14 @@ def test_an_incomplete_read_says_so_and_a_complete_one_does_not(payload):
     assert f"{n} of {len(q['companies'])} big pharma have a model value" in note
     _house_style(_visible(note))
     assert note in UC.dialog_html(q)
+    # On the tab the control row says it, so the partial read costs the page no line: the
+    # count leads the status in the flag colour and the sentence is its hover.
+    status = UC.status_line(q)
+    assert _visible(status.split('<span class="uv-nt-c">')[0]) == f"{n} of {len(q['companies'])} valued ▾"
+    assert UC.esc(UC.incomplete_text(q)) in status
+    assert "uv-pt" not in UC.status_line(payload) and "valued" not in UC.status_line(payload)
+    assert "incomplete_note" not in (FRONTEND / "universe_page.py").read_text()
+    assert re.search(r"\.uv-nt\.uv-pt \{[^}]*color: var\(--flag\)", UNIVERSE_CSS.read_text())
 
 
 def test_apply_goto_sets_the_picker_before_it_is_drawn():

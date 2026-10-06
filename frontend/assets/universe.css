@@ -104,7 +104,10 @@
   font-size: 11.5px; line-height: 1.45; color: var(--text); padding: 8px 10px;
   background: var(--panel); border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
 .uv-nt:hover .uv-nt-c, .uv-nt:focus .uv-nt-c { display: block; }
-/* A read taken while the API was still valuing the group says so under the control row. */
+/* A read taken while the API was still valuing the group: the control row leads its
+   status with the count valued, in the flag colour; the dialog says it in a line. */
+.uv-nt.uv-pt { color: var(--flag); border-bottom-color: var(--flag); }
+.uv-nt.uv-pt:hover, .uv-nt.uv-pt:focus { color: var(--flag); }
 .uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0; }
 
 /* ---------------------------------------------------------------------------------- */

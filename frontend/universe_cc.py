@@ -206,13 +206,20 @@ def _own(p, w):
 # ------------------------------------------------------------- control row and lead
 def status_line(p):
     """The right end of the control row: the close the page reads to, and the page's notes
-    behind a hover. The cohort and the company in focus are in the close's hover."""
+    behind a hover. The cohort and the company in focus are in the close's hover. A read
+    taken while the API was still valuing the group leads with how many are valued, in the
+    flag colour, and says the rest on hover, so the partial state costs the page no line."""
     n = (p.get("cohort") or {}).get("n") or len(_cos(p))
     f = _focal(p)
     who = (_cos(p).get(f) or {}).get("short") or f
     tip = (f"{n} {_cohort_noun(p)}, prices to the {dlong(p.get('price_date'))} close; "
            f"{who} in focus, set by the company picker")
-    return (f'<div class="uv-status"><span title="{esc(tip)}">closes to '
+    part = ""
+    if not p.get("complete", True):
+        valued, of = _valued(p)
+        part = (f'<span class="uv-nt uv-pt" tabindex="0">{valued} of {of} valued ▾'
+                f'<span class="uv-nt-c">{esc(incomplete_text(p))}</span></span>')
+    return (f'<div class="uv-status">{part}<span title="{esc(tip)}">closes to '
             f'{esc(dday(p.get("price_date")))}</span>'
             f'<span class="uv-nt" tabindex="0">notes ▾'
             f'<span class="uv-nt-c">{esc(notes_text(p))}</span></span></div>')
@@ -244,17 +251,30 @@ def lead_line(p, w=None):
             f'{LEAD_OVER[w]}</div>')
 
 
-def incomplete_note(p):
-    """A line under the lead when the API was still valuing the group as it built this
-    read (``complete`` false): how many of the cohort have a model value so far, and that
-    the page reads again rather than holding the gap. Empty on a complete read."""
+def _valued(p):
+    """How many of the cohort carry a model value on this read, and of how many."""
+    cos = _cos(p)
+    return (sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None),
+            len(cos))
+
+
+def incomplete_text(p):
+    """What a read taken while the API was still valuing the group (``complete`` false)
+    says: how many of the cohort have a model value so far, and that the page reads again
+    rather than holding the gap. Empty on a complete read."""
     if p.get("complete", True):
         return ""
-    cos = _cos(p)
-    n = sum(1 for c in cos.values() if (c.get("model") or {}).get("upside") is not None)
-    return (f'<div class="uv-partial">The API was still valuing the group when this page '
-            f'read it: {n} of {len(cos)} {esc(_cohort_noun(p))} have a model value so far. '
-            f'It is not held: reload in a minute for the full read.</div>')
+    n, of = _valued(p)
+    return (f"The API was still valuing the group when this page read it: {n} of {of} "
+            f"{_cohort_noun(p)} have a model value so far. It is not held: reload in a "
+            f"minute for the full read.")
+
+
+def incomplete_note(p):
+    """The incomplete read as a line of its own, for the company dialog. The tab says it
+    in the control row (``status_line``)."""
+    note = incomplete_text(p)
+    return f'<div class="uv-partial">{esc(note)}</div>' if note else ""
 
 
 # ------------------------------------------------- the company against the group (row 2)
