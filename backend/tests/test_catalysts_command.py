@@ -196,6 +196,20 @@ def test_events_say_why_the_rest_carry_no_price():
     assert out["unpriced_reasons"] == {"no_gate": 2}
 
 
+def test_the_area_page_finds_every_field_it_sums_and_counts():
+    """The Catalysts tab by therapy area sums each gate's legs within 24 months and counts
+    each event by its area and date: every gate and event is served with those fields, a
+    missing one as null, so the page never has to guess."""
+    out = cc.assemble(_src())
+    for g in out["gates"]:
+        for k in ("area", "now", "success", "failure", "date", "floor", "due", "held", "gate"):
+            assert k in g, k
+    for e in out["events"]:
+        for k in ("area", "date", "priced", "reason", "marketed", "gate_asset", "per_share"):
+            assert k in e, k
+    assert out["today"] and "close" in out and "close_date" in out
+
+
 def test_slips_put_the_one_on_a_priced_gate_first():
     out = cc.assemble(_src())
     assert [s["nct"] for s in out["slips"]] == ["NCT07775404", "NCT06455449"]
