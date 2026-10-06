@@ -325,6 +325,23 @@ def test_policy_label_rules_hold_on_crowded_lanes():
         _lane_rules_hold(placed)
 
 
+def test_the_policy_lanes_count_earlier_documents_by_their_own_years(payload):
+    """The read runs two years back: documents before this year are counted under the
+    years they carry, never all under last year."""
+    svg = UC.policy_svg(payload)
+    assert ">4 in 2025<" in svg and ">1 in 2025<" in svg
+    q = copy.deepcopy(payload)
+    q["policy"]["items"].append({"lane": "cms_ira", "published_on": "2024-11-04",
+                                 "doc_type": "Rule", "title": "Medicare Program; a rule",
+                                 "short": "A rule"})
+    assert ">5 in 2024 to 2025<" in UC.policy_svg(q)
+    q = copy.deepcopy(payload)
+    q["today"] = "2027-01-15"
+    svg = UC.policy_svg(q)
+    assert ">8 in 2025 to 2026<" in svg and ">4 in 2025 to 2026<" in svg
+    assert "in 2026<" not in svg.replace("2025 to 2026<", "")
+
+
 def test_universe_css_is_tokens_only_and_reaches_the_page_and_the_frame(monkeypatch):
     css = UNIVERSE_CSS.read_text()
     assert not HEX.findall(css), "a hex colour in universe.css"

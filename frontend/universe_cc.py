@@ -1821,7 +1821,11 @@ def policy_svg(p):
         o.append(text(0, y + 11, b_, 10.5, T["text"], weight=600))
         early = [i for i in items if i.get("lane") == lane and (i.get("published_on") or "") < d0.isoformat()]
         if early:
-            o.append(text(0, y + 24, f"{len(early)} in {today.year - 1}", 9, T["muted"], mono=True))
+            # The read spans two years back, so the earlier documents are counted by
+            # the years they carry, not assumed to fall in last year.
+            years = sorted({i["published_on"][:4] for i in early})
+            when = years[0] if len(years) == 1 else f"{years[0]} to {years[-1]}"
+            o.append(text(0, y + 24, f"{len(early)} in {when}", 9, T["muted"], mono=True))
     labels = {"cms_ira": [], "bis_pharma": []}
     reserved = {"cms_ira": [], "bis_pharma": []}
     for it in sorted(items, key=lambda i: i.get("published_on") or ""):
