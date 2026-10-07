@@ -925,12 +925,39 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   .st-key-sc_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
     width: 100% !important; min-width: 100% !important; }}
 }}
-/* Beside the chart on a laptop screen the table keeps its scores and gives up the four
-   regimen columns (dose, form, frequency, weeks), which "What every score rests on"
-   still lists; stacked under the chart, it has the width for all of them. */
-@media (min-width: 1100px) and (max-width: 1399.98px) {{
-  .st-key-sc_map .sc-table tr > *:nth-last-child(-n+4) {{ display: none; }}
+/* Beside the chart the table shows its scores up to N, its column fixed to that width,
+   and scrolls sideways to the four regimen columns. Fixed column widths make "up to N"
+   exact; a long name ends in an ellipsis with the whole of it in the score notes. */
+@media (min-width: 1100px) {{
+  .st-key-sc_map [data-testid="stColumn"]:last-child {{ flex: 0 0 686px !important;
+    width: 686px !important; min-width: 686px !important; }}
+  .st-key-sc_map [data-testid="stColumn"]:first-child {{ flex: 1 1 0 !important; min-width: 0; }}
 }}
+.st-key-sc_map .land.sc-table {{ table-layout: fixed; width: 1030px; min-width: 1030px; }}
+.st-key-sc_map .sc-table th, .st-key-sc_map .sc-table td {{ box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.st-key-sc_map .sc-table tr > :nth-child(1) {{ width: 60px; }}
+.st-key-sc_map .sc-table tr > :nth-child(2) {{ width: 190px; }}
+.st-key-sc_map .sc-table tr > :nth-child(3) {{ width: 78px; }}
+.st-key-sc_map .sc-table tr > :nth-child(4) {{ width: 104px; }}
+.st-key-sc_map .sc-table tr > :nth-child(5) {{ width: 64px; }}
+.st-key-sc_map .sc-table tr > :nth-child(6) {{ width: 60px; }}
+.st-key-sc_map .sc-table tr > :nth-child(7) {{ width: 68px; }}
+.st-key-sc_map .sc-table tr > :nth-child(8) {{ width: 56px; }}
+.st-key-sc_map .sc-table tr > :nth-child(9) {{ width: 120px; }}
+.st-key-sc_map .sc-table tr > :nth-child(10) {{ width: 58px; }}
+.st-key-sc_map .sc-table tr > :nth-child(11) {{ width: 92px; }}
+.st-key-sc_map .sc-table tr > :nth-child(12) {{ width: 80px; }}
+/* The readout cards under the chart, two by two: a card's detail is cut to three lines,
+   the whole of it on hover. */
+.sc-cards {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  margin-top: 6px; }}
+.sc-cards .vc {{ margin: 0; padding: 8px 10px; }}
+.sc-cards .vc-lead {{ grid-column: 1 / -1; }}
+.sc-cards .vc-lead .vc-head {{ font-size: 15px; }}
+.sc-cards .vc-head {{ font-size: 13px; line-height: 1.3; }}
+.sc-cards .vc-detail {{ font-size: 11.5px; line-height: 1.4; margin-top: 4px; cursor: help;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
              text-transform: uppercase; color: var(--muted);

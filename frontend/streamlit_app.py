@@ -2372,12 +2372,17 @@ def _how(text: str) -> None:
     st.markdown(f'<div class="how-read">{html_escape(text)}</div>', unsafe_allow_html=True)
 
 
-def _verdict_card(card: dict, lead: bool = False, meaning: bool = True) -> str:
-    detail = (f'<div class="vc-detail">{html_escape(card["detail"])}</div>'
+def _verdict_card(card: dict, lead: bool = False, meaning: bool = True,
+                  compact: bool = False) -> str:
+    """One verdict card. ``compact`` is the card beside the scorecard's table: its detail
+    is cut to a few lines and the whole of it is on hover."""
+    tip = (f' title="{html_escape(card["detail"])}"' if compact and card.get("detail") else "")
+    detail = (f'<div class="vc-detail"{tip}>{html_escape(card["detail"])}</div>'
               if card.get("detail") else "")
     mean = (f'<div class="vc-mean"><span>What this means</span>'
             f'{html_escape(card["meaning"])}</div>' if meaning and card.get("meaning") else "")
-    return (f'<div class="vc{" vc-lead" if lead else ""} vc-{html_escape(card["kind"])}">'
+    return (f'<div class="vc{" vc-lead" if lead else ""}{" vc-compact" if compact else ""} '
+            f'vc-{html_escape(card["kind"])}">'
             f'<div class="vc-title">{html_escape(card["title"])}</div>'
             f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}{mean}</div>')
 
@@ -2558,7 +2563,7 @@ def _score_method(method: dict) -> str:
             f'{terms}</div></div>')
 
 
-def _landscape_scorecard(sc: dict, ticker: str) -> None:
+def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None) -> None:
     """The primary figure of an indication, laid out as Comps > Companies: the clinical
     scorecard on the left, the ranked table on the right. What each score rests on, how it
     is scored and who is not on the chart are a click away, never printed under it."""
@@ -2574,8 +2579,9 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
             basis="efficacy, safety and weight of evidence, averaged · posted results only")
     # Keyed so the theme can stack the chart over the table on a narrow screen.
     with st.container(key="sc_map"):
-        # The chart takes the smaller share so the table runs beside it in full.
-        left, right = st.columns([0.82, 1.18], gap="medium")
+        # The table's column is fixed to show the scores up to N (theme.py, sc_map); the
+        # chart takes the rest of the width.
+        left, right = st.columns([1.4, 1], gap="medium")
     with left:
         chart = CH.score_map(
             [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
@@ -2583,12 +2589,19 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
               "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
               "nosize": a["efficacy"].get("size_basis") == "not comparable",
               "tip": _score_tip(a)} for a in placed],
-            620, 440, highlight=ticker,
+            720, 480, highlight=ticker,
             x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
                                                for a in placed)
                        else "efficacy score (strength and wins, no size)"))
         if chart:
             R.show(chart, css_class="chart-mount stretch")
+        # The bottom line and the readout cards fill the room under the chart, beside the
+        # table's length.
+        if lead or cards:
+            st.markdown('<div class="sc-cards">'
+                        + (_verdict_card(lead, lead=True, meaning=False) if lead else "")
+                        + "".join(_verdict_card(c, meaning=False, compact=True) for c in cards)
+                        + "</div>", unsafe_allow_html=True)
     with right:
         st.markdown(_score_rows(placed, ticker), unsafe_allow_html=True)
 
@@ -2625,14 +2638,20 @@ def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
         state("The overview did not load", str(exc), error=True)
         return
     cards = ov.get("cards") or []
+    placed = [a for a in ((ov.get("scorecard") or {}).get("assets") or []) if a.get("placed")]
     if ov.get("scorecard"):
-        _landscape_scorecard(ov["scorecard"], ticker)
+        # With a chart, the bottom line and the readout cards sit under it beside the
+        # table, and what each score rests on and how it is scored close the view.
+        _landscape_scorecard(ov["scorecard"], ticker, cards[1:] if placed else (),
+                             cards[0] if placed and cards else None)
     if not cards:
         if not ov.get("scorecard"):
             state("Not enough to read yet", "no candidate here has posted results or a model")
         return
+    if placed:
+        return
     st.markdown(_verdict_card(cards[0], lead=True, meaning=False), unsafe_allow_html=True)
-    rest = cards[1:]
+    rest = cards[1:] if not placed else []
     if rest:
         st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
                                                        for c in rest)
