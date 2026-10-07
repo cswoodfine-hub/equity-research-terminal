@@ -569,9 +569,10 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-it .n { align-self: start; padding-top: 8px; font-family: var(--font-mono); font-size: 10.5px;
   color: var(--muted); }
 .uw-it .bd { min-width: 0; }
-.uw-it .k { display: flex; align-items: baseline; gap: 8px; line-height: 13px; min-width: 0; }
+.uw-it .k { display: flex; align-items: baseline; gap: 8px; line-height: 13px; min-width: 0;
+  margin-top: 6px; }
 .uw-it .k .uw-dt { margin-left: auto; }
-.uw-it .h { font-size: 13.5px; line-height: 16px; font-weight: 600; margin-top: 4px; color: var(--text);
+.uw-it .h { font-size: 13.5px; line-height: 16px; font-weight: 600; color: var(--text);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .uw-it .ch svg { display: block; }
 .uw-it .f { text-align: right; white-space: nowrap; }

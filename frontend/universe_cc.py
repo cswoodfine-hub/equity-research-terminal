@@ -1968,10 +1968,10 @@ def _rank_row(p, it, n):
     me = ""
     return (f'<div class="uw-it{me}" tabindex="0" style="--accent:{x["accent"]}">'
             f'<span class="n">{n}</span>'
-            f'<div class="bd"><div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
+            f'<div class="bd"><div class="h">{esc(brief(it))}</div>'
+            f'<div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
             f'{_tk_marks(p, it.get("tickers") or [], 3)}'
-            f'<span class="uw-dt">{esc(dday(it.get("date")))}</span></div>'
-            f'<div class="h">{esc(brief(it))}</div></div>'
+            f'<span class="uw-dt">{esc(dday(it.get("date")))}</span></div></div>'
             f'<span class="ch">{x["mini"]}</span>'
             f'<span class="f"><b class="{x["fcls"]}">{esc(x["fig"])}</b>'
             f'<small>{esc(x["sub"])}</small></span>{_item_card(p, it, x)}</div>')
