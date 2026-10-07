@@ -177,15 +177,19 @@ header[data-testid="stHeader"] {{
 header[data-testid="stHeader"] * {{ pointer-events: auto; }}
 [data-testid="stAppDeployButton"] {{ display: none !important; }}
 /* Both controls sit level with the top bar, in the room its padding leaves them. */
-[data-testid="stToolbar"] {{ position: fixed !important; top: 22px !important; right: 6px !important;
+[data-testid="stToolbar"] {{ position: fixed !important; top: 12px !important; right: 6px !important;
   bottom: auto !important; left: auto !important; height: auto !important; width: auto !important; }}
-[data-testid="stExpandSidebarButton"] {{ position: fixed !important; top: 26px !important;
+[data-testid="stExpandSidebarButton"] {{ position: fixed !important; top: 20px !important;
   left: 6px !important; z-index: 130; }}
 
 /* Density: an instrument, not a landing page. 8px base scale. */
 [data-testid="stMainBlockContainer"], .block-container {{
-  padding: 0.3rem 16px 0.6rem !important; max-width: 100% !important;
+  padding: 0 16px 0.6rem !important; max-width: 100% !important;
 }}
+/* The stylesheet's own block at the top of the page draws nothing but still took a gap
+   above the top bar; a <style> applies whatever its container's display. */
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"]:first-child:has(style) {{ display: none; }}
 [data-testid="stVerticalBlock"] {{ gap: 8px; }}
 [data-testid="stHorizontalBlock"] {{ gap: 16px; }}
 
@@ -204,9 +208,13 @@ h3 {{ font-size: 0.9rem; }}
   position: sticky; top: 0; z-index: 120;
   background: var(--ground);
   border-bottom: 1px solid var(--rule-strong);
-  padding: 4px 40px 6px 34px;
+  padding: 6px 40px 6px 34px;
   align-items: center !important;
 }}
+/* The selector's column holds the bar's anchor and its wrapper, both empty: no gap for
+   them, so the selector sits at the top of the bar. */
+[data-testid="stHorizontalBlock"]:has(.topbar-anchor) > [data-testid="stColumn"]:first-child
+  [data-testid="stVerticalBlock"] {{ gap: 0; }}
 .topbar-name {{ display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }}
 .topbar-name .nm {{ font-size: 0.95rem; font-weight: 600; }}
 .topbar-name .meta {{ font-size: 11px; color: var(--muted); }}
