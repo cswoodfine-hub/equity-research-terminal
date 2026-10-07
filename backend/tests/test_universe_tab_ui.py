@@ -794,12 +794,17 @@ def switch():
     return space
 
 
-def test_only_azn_takes_the_redesign(switch):
-    assert switch["_REDESIGN_TICKERS"] == {"AZN"}
+BIG_PHARMA = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK", "JNJ",
+            "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
+
+
+def test_the_big_pharma_companies_take_the_redesign(switch):
+    assert switch["_REDESIGN_TICKERS"] == BIG_PHARMA
     on = switch["_universe_redesigned"]
-    assert on("AZN", "Overview")
+    for t in BIG_PHARMA:
+        assert on(t, "Overview")
     assert not on("AZN", "Markets") and not on("AZN", "Policy")
-    for t in ("LLY", "NVO", "JNJ", "ROG", "BAYN", "CRSP"):
+    for t in ("CRSP", "ABEO", "ADAPY"):
         assert not on(t, "Overview")
 
 

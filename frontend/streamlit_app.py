@@ -61,9 +61,10 @@ DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
 
 # The companies whose Universe overview is the redesigned command centre (universe_page,
-# universe_cc). Every other company keeps today's overview exactly; rolling out is one
-# edit to this set.
-_REDESIGN_TICKERS = {"AZN"}
+# universe_cc) and whose Catalysts tab is the by-area page: the eighteen big pharma
+# companies the command centre reads. Every other company keeps today's overview exactly.
+_REDESIGN_TICKERS = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK", "JNJ",
+                     "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
 
 
 def _universe_redesigned(ticker: str, view: str) -> bool:

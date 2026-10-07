@@ -641,11 +641,16 @@ def switch():
     return space
 
 
-def test_only_azn_takes_the_redesign(switch):
-    assert switch["_REDESIGN_TICKERS"] == {"AZN"}
+BIG_PHARMA = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK", "JNJ",
+            "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
+
+
+def test_the_big_pharma_companies_take_the_redesign(switch):
+    assert switch["_REDESIGN_TICKERS"] == BIG_PHARMA
     on = switch["_catalysts_redesigned"]
-    assert on("AZN")
-    for t in ("LLY", "NVO", "JNJ", "ROG", "BAYN", "CRSP"):
+    for t in BIG_PHARMA:
+        assert on(t)
+    for t in ("CRSP", "ABEO", "ADAPY"):
         assert not on(t)
 
 
@@ -661,8 +666,9 @@ def _tab_block():
 
 
 @pytest.mark.parametrize("ticker,drawn,want", [
-    ("LLY", True, ["today"]), ("NVO", True, ["today"]),
-    ("AZN", True, ["redesign"]), ("AZN", False, ["redesign", "today"])])
+    ("CRSP", True, ["today"]), ("ABEO", True, ["today"]),
+    ("AZN", True, ["redesign"]), ("LLY", True, ["redesign"]),
+    ("AZN", False, ["redesign", "today"])])
 def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
     calls = []
     page = types.SimpleNamespace(
