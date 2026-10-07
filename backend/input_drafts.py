@@ -242,11 +242,21 @@ def detect(conn, edgar=None, since: str = SINCE, limit: int | None = READS_PER_R
 
 # --- drafting ----------------------------------------------------------------------
 
+# First words of a descriptive asset name that are ordinary English, not a drug's name:
+# "Candidate UTI vaccine low dose formulation 1" is not named by a filing that says
+# "candidate".
+_COMMON_FIRST = {"candidate", "vaccine", "compound", "programme", "program", "product",
+                 "therapy", "investigational", "antibody", "molecule", "undisclosed",
+                 "unnamed", "novel", "oral", "injectable", "combination"}
+
+
 def _named(asset, text: str) -> bool:
     """Whether a filing's text names the asset, by brand or by its ingredient's first
-    word. Short names are left out, since four letters match too much."""
+    word. Short names are left out, since four letters match too much, and so is a first
+    word that is ordinary English."""
     text = (text or "").lower()
-    names = [asset["brand_name"], (asset["generic_name"] or "").split(" ")[0]]
+    first = (asset["generic_name"] or "").split(" ")[0]
+    names = [asset["brand_name"], None if first.lower() in _COMMON_FIRST else first]
     return any(n and len(n) >= 5 and re.search(rf"(?<![\w-]){re.escape(n.lower())}(?![\w-])",
                                                text) for n in names)
 
@@ -560,6 +570,16 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
                       f"projections")
             risk = (" Management's figures are risk-adjusted." if found["risk_adjusted"]
                     else " Management's figures are not risk-adjusted.") + case
+            if one and not _named(lead, label):
+                # A whole-company line taken as one product's: say so on the row.
+                others = [a for a in linked if a["id"] != lead["id"]]
+                why = (f"the only product of the target the book links to "
+                       f"{company['ticker']}" if not others else
+                       "the one product of the target the filing names")
+                whole = (f" The line is {name}'s whole business, taken as "
+                         f"{_asset_name(lead)}'s, {why}.")
+                risk += whole
+                notes.append(whole.strip().rstrip(".").replace("The line", "the projection line"))
             if lead["is_marketed"]:
                 # Drafted whatever the row holds: add() drops it where the book already
                 # says marketed, and shows the conflict where it says something else.
@@ -703,6 +723,9 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
             add("other_claims", f"pending_acquisition_{slug}", value=round(paid["cash"] / 1e6, 3),
                 text_value=f"cash paid for {target}", unit="mm USD",
                 source=f"{paid.get('form')} {paid.get('accession')}",
+                source_url=(closing["trigger_url"]
+                            if paid.get("accession") == closing["trigger_accession"]
+                            else None),
                 quote=paid["cash_quote"], grade="filed",
                 note=(f"carried as a liability from the closing on {date} until a filed "
                       f"balance sheet dated on or after it includes the deal (latest on "
@@ -778,9 +801,10 @@ def queue(conn, ticker: str) -> dict | None:
 
 
 def summary(conn) -> list[dict]:
-    """Per company: closings on file, rows still open, and the latest closing, for a
-    flag beside a company's news that the model does not hold a deal yet."""
-    return [dict(r) for r in conn.execute(
+    """Per company: closings on file, rows still open, the latest closing and the
+    targets, and each closing with its own open rows, so a story about one acquisition
+    can say the model does not hold it yet without marking the company out."""
+    out = [dict(r) for r in conn.execute(
         """SELECT c.ticker, COUNT(DISTINCT d.id) AS closings,
                   SUM(CASE WHEN i.status IN ('draft', 'incomplete') THEN 1 ELSE 0 END)
                       AS open_rows,
@@ -789,6 +813,21 @@ def summary(conn) -> list[dict]:
              FROM deal_closings d JOIN companies c ON c.id = d.company_id
              LEFT JOIN input_drafts i ON i.closing_id = d.id
             GROUP BY c.ticker ORDER BY latest_closing DESC""")]
+    by_ticker = {r["ticker"]: r for r in out}
+    for r in out:
+        r["deals"] = []
+    for d in conn.execute(
+            """SELECT c.ticker, d.id, d.target, d.target_key, d.closing_date,
+                      d.trigger_accession,
+                      SUM(CASE WHEN i.status IN ('draft', 'incomplete') THEN 1 ELSE 0 END)
+                          AS open_rows
+                 FROM deal_closings d JOIN companies c ON c.id = d.company_id
+                 LEFT JOIN input_drafts i ON i.closing_id = d.id
+                GROUP BY d.id ORDER BY d.closing_date DESC, d.id DESC"""):
+        by_ticker[d["ticker"]]["deals"].append(
+            {k: d[k] for k in ("id", "target", "target_key", "closing_date",
+                               "trigger_accession", "open_rows")})
+    return out
 
 
 def _seed_file(seed_dir: pathlib.Path, ticker: str, brand: str) -> pathlib.Path:
