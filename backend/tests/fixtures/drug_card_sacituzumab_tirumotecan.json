@@ -1,0 +1,611 @@
+{
+"ok": true,
+"as_of": "2026-10-07",
+"indication": {
+"id": 20,
+"name": "Carcinoma, Non-Small-Cell Lung"
+},
+"asset_id": 2258,
+"asset_ids": [
+2258
+],
+"head": {
+"name": "Sacituzumab tirumotecan",
+"brands": [],
+"ticker": "MRK",
+"company": "Merck & Co Inc",
+"stage": "Phase 3",
+"phase_here": "Phase 3",
+"is_marketed": false,
+"on_label": false,
+"phase_elsewhere": false,
+"modality": null,
+"molecule_type": [
+"Antibody drug conjugate"
+],
+"mechanisms": [],
+"targets": [],
+"classes": [],
+"route": [],
+"boxed_warning": null,
+"linked_by": [
+"pipeline",
+"model",
+"trial"
+],
+"pharmacology_source": [
+"chembl"
+]
+},
+"score": {
+"placed": false,
+"rank": null,
+"of": 23,
+"scored_of": 81,
+"rank_range": null,
+"overall": null,
+"why_not": "no posted results",
+"efficacy": {
+"score": null,
+"parts": {},
+"lines": [],
+"notes": [],
+"size_basis": null,
+"read_with_care": null,
+"pooled": []
+},
+"safety": {
+"score": null,
+"parts": {},
+"lines": [],
+"notes": [],
+"size_basis": null,
+"read_with_care": null,
+"pooled": []
+},
+"evidence": {
+"score": null,
+"participants": null,
+"phase": null,
+"confidence": null
+},
+"regimen": {
+"participants": null,
+"dose": null,
+"form": null,
+"frequency": null,
+"duration": null,
+"duration_span": null,
+"form_source": null,
+"why": {
+"dose": "no dose named for the drug in its arms",
+"form": "no route in the arms or on the label",
+"frequency": "no schedule named for the drug in its arms",
+"duration": "no primary time point posted"
+}
+}
+},
+"efficacy": {
+"groups": [],
+"rows": 0,
+"shown": 0
+},
+"safety": null,
+"trials": [
+{
+"nct_id": "NCT06312137",
+"phase": "Phase 3",
+"title": "A Study to Assess Efficacy and Safety of Pembrolizumab With or Without Sacituzumab Tirumotecan (MK- 2870) in Adult Participants With Resectable Non Small Cell Lung Cancer (NSCLC) Not Achieving Pathological Complete Response (pCR) (MK-2870-019)",
+"status": "Recruiting",
+"enrollment": 780,
+"completion": "2034-02-21",
+"has_results": false
+},
+{
+"nct_id": "NCT06305754",
+"phase": "Phase 3",
+"title": "Sacituzumab Tirumotecan (MK-2870) Versus Pemetrexed and Carboplatin Combination Therapy in Participants With Epidermal Growth Factor (EGFR)-Mutated, Advanced Nonsquamous Non-small Cell Lung Cancer (NSCLC) Who Have Progressed on Prior EGFR Tyrosine Kinase Inhibitors (MK-2870-009)",
+"status": "Active not recruiting",
+"enrollment": 550,
+"completion": "2028-08-17",
+"has_results": false
+},
+{
+"nct_id": "NCT06170788",
+"phase": "Phase 3",
+"title": "Sacituzumab Tirumotecan (MK-2870) in Combination With Pembrolizumab Versus Pembrolizumab Alone in Metastatic Non-small Cell Lung Cancer (NSCLC) With Programmed Cell Death Ligand 1 (PD-L1) Tumor Proportion Score (TPS) \u2265 50% (MK-2870-007)",
+"status": "Recruiting",
+"enrollment": 614,
+"completion": "2028-01-25",
+"has_results": false
+},
+{
+"nct_id": "NCT06049212",
+"phase": "Phase 1",
+"title": "Sacituzumab Tirumotecan (MK-2870) as Monotherapy and in Combination With Pembrolizumab in Participants With Advanced Solid Tumors (MK-2870-008)",
+"status": "Active not recruiting",
+"enrollment": 30,
+"completion": "2027-12-31",
+"has_results": false
+},
+{
+"nct_id": "NCT06074588",
+"phase": "Phase 3",
+"title": "Sacituzumab Tirumotecan (MK-2870) Versus Chemotherapy in Previously Treated Advanced or Metastatic Nonsquamous Non-small Cell Lung Cancer (NSCLC) With EGFR Mutations or Other Genomic Alterations (MK-2870-004)",
+"status": "Active not recruiting",
+"enrollment": 556,
+"completion": "2027-05-10",
+"has_results": false
+}
+],
+"with_results": 0,
+"readouts": [],
+"pool": {
+"indication": {
+"pool": 9786.619999999999,
+"indication": "Carcinoma, Non-Small-Cell Lung",
+"per_year": true,
+"claimants": 15,
+"pooled": 3,
+"peak_year": 2052,
+"uncrowded_share": 0.5671499989872317,
+"crowded_share": 0.5671499989872317
+},
+"own": {
+"peak_uncrowded": 1553.6259249074626,
+"peak_crowded": 1553.6259249074626,
+"ratio": 1.0,
+"pooled": true
+}
+},
+"pool_path": {
+"years": [
+2027,
+2028,
+2029,
+2030,
+2031,
+2032,
+2033,
+2034,
+2035,
+2036,
+2037,
+2038,
+2039,
+2040,
+2041,
+2042,
+2043,
+2044,
+2045,
+2046,
+2047,
+2048,
+2049,
+2050,
+2051,
+2052
+],
+"before": [
+47.526084206628354,
+132.09117173116906,
+333.77940914919316,
+693.2418347138499,
+1092.9691435885215,
+1359.0978643086937,
+1481.610182805195,
+1528.3974070572351,
+1544.9655597560275,
+1550.6740369636736,
+1552.622217610763,
+1553.2849249742596,
+1553.5101061290784,
+1553.5865914932028,
+1553.6125672937478,
+1553.621388756967,
+1553.6243845091924,
+1553.6254018558716,
+1553.6257473425553,
+1553.625864668322,
+1553.6259045116315,
+1553.6259180422412,
+1553.6259226371765,
+1553.6259241975956,
+1553.6259247275073,
+1553.6259249074626
+],
+"after": [
+47.526084206628354,
+132.09117173116906,
+333.77940914919316,
+693.2418347138499,
+1092.9691435885215,
+1359.0978643086937,
+1481.610182805195,
+1528.3974070572351,
+1544.9655597560275,
+1550.6740369636736,
+1552.622217610763,
+1553.2849249742596,
+1553.5101061290784,
+1553.5865914932028,
+1553.6125672937478,
+1553.621388756967,
+1553.6243845091924,
+1553.6254018558716,
+1553.6257473425553,
+1553.625864668322,
+1553.6259045116315,
+1553.6259180422412,
+1553.6259226371765,
+1553.6259241975956,
+1553.6259247275073,
+1553.6259249074626
+],
+"pooled": true,
+"pool": [
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999,
+9786.619999999999
+],
+"per_year": true
+},
+"patients": [
+{
+"asset_id": 2258,
+"indication": "Carcinoma, Non-Small-Cell Lung",
+"modelled_for": [
+"Breast Neoplasms",
+"Carcinoma, Non-Small-Cell Lung",
+"Endometrial Neoplasms",
+"Uterine Cervical Neoplasms"
+],
+"inputs": [
+{
+"key": "prevalence",
+"value": 192650.0,
+"unit": "patients",
+"source": "226,650 new US lung cancers in 2025 (SEER), about 85% of them non-small cell, the pool the volrustomig and savolitinib seeds use",
+"evidence": "measured"
+},
+{
+"key": "incidence",
+"value": 192650.0,
+"unit": "patients a year",
+"source": "lung cancer incidence is the pool: diagnosed and treated each year rather than accumulated",
+"evidence": "convention"
+},
+{
+"key": "eligible_pct",
+"value": 0.0508,
+"unit": "share of the pool",
+"source": "three filters multiplied: 55% advanced or metastatic at presentation (the volrustomig seed's share); 15.2% EGFR-mutated among tested US patients with advanced NSCLC (Subramanian et al., Lung Cancer 2025, doi:10.1016/j.lungcan.2025.108412: 1,914 of 12,577); and 60.6% going on to a second line after first-line osimertinib (Kodama et al., Thorac Cancer 2025, doi:10.1111/1759-7714.70192: 57 of 94). 0.55 x 0.152 x 0.606 = 0.0508, about 9,800 patients a year",
+"evidence": "published"
+},
+{
+"key": "penetration_peak_pct",
+"value": 0.15875,
+"unit": "share of the untreated pool per year",
+"source": "solved: the share that brings the build's unrisked peak to $4bn, the top of the $2bn to $4bn peak sales Bank of America Securities gives sacituzumab tirumotecan after its Phase 3 lung win (Yahoo Finance, 'Merck's Sacituzumab Tirumotecan Data Reframes Outlook For Oncology And Valuation')",
+"evidence": "analogue"
+},
+{
+"key": "exus_multiple",
+"value": 0.6804,
+"unit": "x US",
+"source": "Keytruda, Merck's own infused oncology medicine and its closest marketed analogue: FY2025 sales outside the US of $12,812mm against $18,829mm in the US (asset_revenue_regions, SEC financial statement data sets), a ratio of 0.680",
+"evidence": "analogue"
+}
+],
+"price": [
+{
+"key": "list_price_per_patient",
+"value": 0.082521,
+"unit": "mm USD",
+"source": "Trodelvy, CMS Medicare Part B 2024: $272,318,588 over 3,300 beneficiaries, $82,521 a beneficiary. Trodelvy is sacituzumab govitecan, the TROP2 ADC already sold in the US and the closest comparator on file",
+"evidence": "analogue"
+},
+{
+"key": "gross_to_net_pct",
+"value": 0.0566,
+"unit": "share off list",
+"source": "Social Security Act section 1847A: Medicare Part B pays 106% of average sales price, and ASP is already net of manufacturer discounts and rebates, so the manufacturer's price is the CMS figure divided by 1.06, which is 5.66% below it",
+"evidence": "convention"
+}
+],
+"net_price": 0.0778503114,
+"crowding": null
+}
+],
+"model": {
+"per_share": 0.8335019579380979,
+"pos": 0.7354,
+"peak_revenue": 1457.781197207054,
+"peak_year": 2040,
+"first_year": 2027,
+"counted": true,
+"currency": "USD",
+"brands_modelled": 1
+},
+"valuation": [
+{
+"ok": true,
+"asset_id": 2258,
+"name": "Sacituzumab Tirumotecan",
+"mode": "chronic",
+"per_share": 0.8335019579380979,
+"pct_of_price": 0.005872213214045652,
+"close": 141.94000244140625,
+"close_date": "2026-10-06",
+"rnpv": 2089.5894085508116,
+"peak_revenue": 1457.781197207054,
+"peak_year": 2040,
+"pos": 0.7354,
+"pos_basis": "stated",
+"loe_year": 2040,
+"loe_basis": "Merck FY2025 10-K (0000310158-26-000063), key U.S. patent protection for drug candidates in Phase 3 development, compound patent; the table notes these may be subject to a future PTE of up to five years, not taken (2040)",
+"wacc": 0.06977749146612,
+"gate": {
+"label": "Phase 3 readout",
+"date": "2027-05-10",
+"date_basis": "primary completion on the registry",
+"due": false,
+"why": null,
+"trial": {
+"nct_id": "NCT06074588",
+"indication": "Carcinoma, Non-Small-Cell Lung",
+"indications": [
+"Carcinoma, Non-Small-Cell Lung"
+],
+"phase": "Phase 3",
+"primary_completion": "2027-05-10"
+},
+"p_gate": 0.7728849185496585,
+"pos_now": 0.7354,
+"pos_success": 0.9515,
+"pos_failure": 0.0,
+"per_share_now": 0.8335019579380979,
+"per_share_success": 1.0784295797907262,
+"per_share_failure": 0.0,
+"basis": "implied, not published: the stated PoS of 73.5% over the 95.2% the asset carries if its Phase 3 readout passes gives gate odds of 77.3%, against 48.3% published; a failure is taken at nil, the model's convention for a failed programme",
+"held": {
+"open": 12,
+"ncts": [
+"NCT06966700",
+"NCT06312176",
+"NCT06841354",
+"NCT07318558",
+"NCT06312137",
+"NCT06824467",
+"NCT06132958",
+"NCT06459180",
+"NCT06170788",
+"NCT07419295",
+"NCT06305754",
+"NCT07829783"
+],
+"indications": [
+"Breast Neoplasms",
+"Carcinoma, Non-Small-Cell Lung",
+"Endometrial Neoplasms",
+"Fallopian Tube Neoplasms",
+"Lung Neoplasms",
+"Ovarian Neoplasms",
+"Triple Negative Breast Neoplasms",
+"Urinary Bladder Neoplasms",
+"Uterine Cervical Neoplasms"
+],
+"pos": 0.4388,
+"note": "A miss leaves 12 other Phase 3s open; the model's own rule would hold it at 44%, but the stated PoS governs until it is cleared.",
+"stated_governs": true,
+"per_share": 0.4973356800968689
+},
+"band": null,
+"evidence": {
+"p_gate": "implied",
+"success": "published",
+"failure": "convention"
+}
+},
+"next_catalyst": {
+"catalyst_type": "data readout",
+"expected_date": "2028-01-10",
+"title": "Phase 3, Sacituzumab Tirumotecan (MK-2870) in Post Platinum and Post Immunotherapy Endometrial Cancer (MK-2870-005)"
+},
+"launch_year": 2027,
+"launch_source": "Merck 8-K exhibit 99.1 of 4 August 2026 (0001104659-26-090045): the phase 3 TroFuse-005 trial met its primary endpoints of overall survival and progression-free survival in endometrial cancer after platinum and anti-PD-1/L1 therapy. The FDA had already awarded sac-TMT a Commissioner's National Priority Voucher, which Merck says gives an opportunity to expedite review (8-K exhibit 99.1 of 3 February 2026, 0001104659-26-009495). A 2026 readout plus the time to file and launch gives a first full year in 2027"
+}
+],
+"paths": [
+{
+"asset_id": 2258,
+"name": "Sacituzumab Tirumotecan",
+"years": [
+2027,
+2028,
+2029,
+2030,
+2031,
+2032,
+2033,
+2034,
+2035,
+2036,
+2037,
+2038,
+2039,
+2040,
+2041,
+2042,
+2043,
+2044,
+2045,
+2046
+],
+"revenue": [
+70.27383551507442,
+145.99757472861108,
+324.5346986866834,
+607.1897711900252,
+917.5000295283443,
+1162.2338117244726,
+1312.9321263552672,
+1391.9085591037556,
+1429.3567593839073,
+1446.0283741461183,
+1453.1478918425137,
+1456.1015768715463,
+1457.301458886387,
+1457.781197207054,
+1093.4779825075589,
+874.8268304303812,
+699.8752549398369,
+559.9044545144772,
+447.92486639899795,
+358.3402905233387
+],
+"pos": 0.7354,
+"risked": [
+51.67937863778574,
+107.3666164554206,
+238.66281741418697,
+446.5273577331446,
+674.7295217151444,
+854.7067451421772,
+965.5302857216635,
+1023.6095543649019,
+1051.1489608509255,
+1063.4092663470556,
+1068.6449596609846,
+1070.8170996313352,
+1071.6994928650493,
+1072.0522924260677,
+804.1437083360588,
+643.3476510985024,
+514.688262482756,
+411.7537358499465,
+329.4039467498231,
+263.5234496508633
+],
+"loe_year": 2040,
+"actuals": []
+}
+],
+"catalysts": [
+{
+"expected_date": "2027-01-04",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, A Study to Evaluate Sacituzumab Tirumotecan (MK-2870) in Advanced/Metastatic Gastroesophageal Adenocarcinoma (MK-2870-015)",
+"description": "NCT06356311",
+"source_url": "https://clinicaltrials.gov/study/NCT06356311",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "The study carries MeSH terms that match none of the conditions it lists, so it cannot be matched to an indication the forecast values and its result does not decide the modelled value."
+},
+{
+"expected_date": "2027-05-10",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Sacituzumab Tirumotecan (MK-2870) Versus Chemotherapy in Previously Treated Advanced or Metastatic Nonsquamous Non-small Cell Lung Cancer (NSCLC) With EGFR Mutations or Other Genomic Alterations (MK-2870-004)",
+"description": "NCT06074588",
+"source_url": "https://clinicaltrials.gov/study/NCT06074588",
+"priced": true,
+"gate_label": "Phase 3 readout",
+"per_share": 1.0784295797907262,
+"p_gate": 0.7728849185496585,
+"pos_success": 0.9515,
+"pos_failure": 0.0,
+"why": null
+},
+{
+"expected_date": "2027-07-11",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, A Study of Sacituzumab Tirumotecan (MK-2870) as a Single Agent and in Combination With Pembrolizumab (MK-3475) Versus Treatment of Physician's Choice in Participants With HR+/HER2- Unresectable Locally Advanced or Metastatic Breast Cancer (MK-2870-010)",
+"description": "NCT06312176",
+"source_url": "https://clinicaltrials.gov/study/NCT06312176",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "An earlier catalyst (2027-05-10) decides the same phase 3 readout, so this one is not priced twice."
+},
+{
+"expected_date": "2028-01-10",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Sacituzumab Tirumotecan (MK-2870) in Post Platinum and Post Immunotherapy Endometrial Cancer (MK-2870-005)",
+"description": "NCT06132958",
+"source_url": "https://clinicaltrials.gov/study/NCT06132958",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "An earlier catalyst (2027-05-10) decides the same phase 3 readout, so this one is not priced twice."
+},
+{
+"expected_date": "2028-01-25",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Sacituzumab Tirumotecan (MK-2870) in Combination With Pembrolizumab Versus Pembrolizumab Alone in Metastatic Non-small Cell Lung Cancer (NSCLC) With Programmed Cell Death Ligand 1 (PD-L1) Tumor Proportion Score (TPS) \u2265 50% (MK-2870-007)",
+"description": "NCT06170788",
+"source_url": "https://clinicaltrials.gov/study/NCT06170788",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "An earlier catalyst (2027-05-10) decides the same phase 3 readout, so this one is not priced twice."
+},
+{
+"expected_date": "2028-06-15",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, A Study to Compare Sacituzumab Tirumotecan (MK-2870) Monotherapy Versus Treatment of Physician's Choice as Second-line Treatment for Participants With Recurrent or Metastatic Cervical Cancer (MK-2870-020/TroFuse-020/Gog-3101/ENGOT-cx20)",
+"description": "NCT06459180",
+"source_url": "https://clinicaltrials.gov/study/NCT06459180",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "An earlier catalyst (2027-05-10) decides the same phase 3 readout, so this one is not priced twice."
+}
+],
+"commercial": null
+}

@@ -1,5 +1,6 @@
 {
 "ok": true,
+"as_of": "2026-10-07",
 "indication": {
 "id": 20,
 "name": "Carcinoma, Non-Small-Cell Lung"
@@ -59,7 +60,29 @@
 "Every endpoint is against an active comparator."
 ],
 "size_basis": null,
-"read_with_care": null
+"read_with_care": null,
+"pooled": [
+{
+"measure": "progression-free survival",
+"control": "Docetaxel",
+"scale": "log hazard ratio",
+"effect": 0.4109802887962745,
+"lo": -0.10029216640560606,
+"hi": 0.9222527439981552,
+"hazard_ratio": 0.663,
+"hazard_ratio_lo": 0.39762229016093104,
+"hazard_ratio_hi": 1.1054938590643189,
+"k": 1,
+"participants": 171,
+"weeks": [
+105.6,
+105.6
+],
+"trials": [
+"NCT04303780"
+]
+}
+]
 },
 "safety": {
 "score": 27.623535404992367,
@@ -74,7 +97,8 @@
 "Deaths, reported and not scored: 18.9 points more than control (63.7% against 44.8%) in one trial."
 ],
 "size_basis": null,
-"read_with_care": null
+"read_with_care": null,
+"pooled": []
 },
 "evidence": {
 "score": 53.31096149789013,
@@ -270,18 +294,22 @@
 "readouts": [],
 "pool": {
 "indication": {
-"pool": 0.0,
+"pool": 9786.619999999999,
 "indication": "Carcinoma, Non-Small-Cell Lung",
+"per_year": true,
 "claimants": 15,
-"peak_year": 2027,
-"uncrowded_share": 0.0,
-"crowded_share": 0.0
+"pooled": 3,
+"peak_year": 2052,
+"uncrowded_share": 0.5671499989872317,
+"crowded_share": 0.5671499989872317
 },
 "own": null
 },
+"pool_path": null,
 "patients": [],
 "model": null,
 "valuation": [],
+"paths": [],
 "catalysts": [],
 "commercial": null
 }

@@ -233,7 +233,7 @@ def test_each_table_row_carries_its_drug():
 def test_the_overview_listens_on_the_scorecard_and_opens_a_dialog():
     src = APP.read_text()
     body = src[src.index("def _drug_click("):src.index("def _stage_chip(")]
-    assert 'drugclick.drug_click(".st-key-sc_map"' in body
+    assert 'scope: str = ".st-key-sc_map"' in body and "drugclick.drug_click(scope" in body
     assert "@st.dialog(" in body and "DCV.card_html(card)" in body
     assert '/indications/{pick}/drug/{asset_id}' in body
     over = src[src.index("def _landscape_overview("):src.index("def _drug_click(")]
@@ -241,7 +241,124 @@ def test_the_overview_listens_on_the_scorecard_and_opens_a_dialog():
     frame = (FRONTEND / "components" / "drugclick" / "index.html").read_text()
     assert "[data-drug]" in frame and "window.parent" in frame and "Streamlit.height(0)" in frame
     css = (FRONTEND / "assets" / "drugcard.css").read_text()
-    assert ".st-key-sc_click { display: none !important; }" in css
+    assert ".st-key-sc_click, .st-key-cand_click { display: none !important; }" in css
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css), "a hex colour in drugcard.css"
     import theme
     assert ".st-key-sc_click" in theme.css()
+
+
+def test_a_candidates_row_opens_the_card_too():
+    src = APP.read_text()
+    body = src[src.index("def _landscape_candidates("):src.index("def _landscape_efficacy(")]
+    assert 'data-drug="{c["asset_id"]}" tabindex="0"' in body
+    assert 'with st.container(key="land_cands"):' in body
+    assert 'scope=".st-key-land_cands", box="cand_click"' in body
+    assert "_landscape_candidates(cands, api_base, pick)" in src
+    css = (FRONTEND / "assets" / "drugcard.css").read_text()
+    assert ".st-key-land_cands tr[data-drug] { cursor: pointer; }" in css
+
+
+# --- arms named by a code or a development name ----------------------------------------
+@pytest.mark.parametrize("name, codes", [
+    ("AZD9291 80 mg/40 mg", ["AZD9291", "AZD-9291", "AZD 9291"]),
+    ("PF-08634404", ["PF08634404", "PF-08634404", "PF 08634404"]),
+    ("LY3295668 Erbumine", ["LY3295668", "LY-3295668", "LY 3295668"]),
+    ("Osimertinib Mesylate", []),
+    ("NDA208065", []),                                            # an application number
+    ("AZD9291 in combination with AZD6094", []),                 # a combination's code
+    ("Pneumococcal Conjugate Vaccine (Diphtheria CRM197 Protein)", []),   # not its opener
+])
+def test_a_development_code_is_read_the_three_ways_a_registry_writes_it(name, codes):
+    assert L._codes(name) == codes
+
+
+def test_an_arm_named_by_a_code_or_development_name_is_the_drugs_arm(tmp_path, monkeypatch):
+    path = _book(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('LY3298176', 1, 'development code')")
+    for gid, title, value in (("OG000", "Placebo", -1.0), ("OG001", "LY3298176 15 mg", -9.0)):
+        conn.execute("INSERT INTO trial_result_outcomes (nct_id, outcome_index, outcome_type,"
+                     " title, time_frame, unit, param_type, group_id, group_title, value,"
+                     " n_analysed) VALUES ('NCT1', 1, 'PRIMARY', 'Change in Waist',"
+                     " 'Week 72', 'cm', 'MEAN', ?, ?, ?, 100)", (gid, title, value))
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(L, "_big_pharma_ids", lambda conn: {1, 2})
+    monkeypatch.setattr(L, "_model_lines", lambda db_path, tickers, verdict_for=None: {})
+    land = L.landscape(path, 1)
+    row = next(r for g in land["endpoints"] for r in g["rows"] if r["arm"] == "LY3298176 15 mg")
+    assert row["arm_is_drug"] and row["arm_names_drug"]
+    assert DCV.arm_tag(row) == ""
+    assert "other arm" in DCV.arm_tag({"arm": "Arm B"})
+    assert "control arm" in DCV.arm_tag({"arm_is_control": True})
+    # The Efficacy view tags its rows by the card's rule.
+    assert 'DCV.arm_tag(r, "tag")' in APP.read_text()
+
+
+# --- the card's charts ----------------------------------------------------------------
+def _svgs(markup: str) -> list:
+    return re.findall(r"<svg.*?</svg>", markup, flags=re.S)
+
+
+def _sizes(svg: str) -> list:
+    return [float(x) for x in re.findall(r'font-size="([\d.]+)"', svg)]
+
+
+def test_the_card_draws_its_charts_where_the_data_supports_them():
+    head, panes = DCV.card_html(load("osimertinib"))
+    pane = dict(panes)
+    clinical = _svgs(pane["Clinical"])
+    assert any("effects against their comparators" in x for x in clinical)        # forest
+    assert any("the drug's figures against its control" in x for x in clinical)   # safety
+    assert any("line chart" in x for x in _svgs(pane["Valuation"]))               # path
+    assert any("dated events" in x for x in _svgs(pane["Valuation"]))             # catalysts
+    assert len(_svgs(pane["Commercial"])) == 3        # revenue, Part D patients and claims
+    every = [x for m in pane.values() for x in _svgs(m)]
+    assert min(min(_sizes(x)) for x in every) >= 9                                # legible
+    for x in every:                                                               # drawn 1:1
+        w = re.search(r'viewBox="0 0 (\d+) \d+" width="(\d+)"', x)
+        assert w and w.group(1) == w.group(2) and int(w.group(1)) in (DCV.FULL, DCV.HALF)
+
+
+def test_no_chart_where_a_figure_is_missing():
+    _, panes = DCV.card_html(load("amg510"))
+    pane = dict(panes)
+    assert _svgs(pane["Valuation"]) == [] and _svgs(pane["Patient pool"]) == []
+    # A drug that does not share the pool gets no share chart; one that does, does.
+    c = load("sacituzumab_tirumotecan")
+    assert c["pool_path"]["pooled"] and _svgs(dict(DCV.card_html(c)[1])["Patient pool"])
+    c["pool_path"]["pooled"] = False
+    assert not _svgs(dict(DCV.card_html(c)[1])["Patient pool"])
+
+
+def test_a_pipeline_drugs_path_is_drawn_risked_beside_unrisked():
+    c = load("sacituzumab_tirumotecan")
+    path = c["paths"][0]
+    assert path["pos"] < 1
+    assert path["risked"] == pytest.approx([v * path["pos"] for v in path["revenue"]])
+    svg = _svgs(dict(DCV.card_html(c)[1])["Valuation"])[0]
+    assert ">risked<" in svg and ">unrisked<" in svg
+
+
+def test_the_chart_primitives_never_draw_a_missing_value():
+    assert charts.forest([{"label": "a", "value": None}], 500) == ""
+    hr = charts.forest([{"label": "PFS", "value": 0.46, "lo": 0.28, "hi": 0.75}], 700,
+                       ratio=True)
+    assert "0.46 (0.28 to 0.75)" in hr
+    one = charts.forest([{"label": "x", "value": 3.0}], 700)      # no interval: point alone
+    assert "to" not in re.sub(r"<title>.*?</title>", "", one).split("x</text>")[-1]
+    bars = charts.paired_bars([{"label": "deaths", "value": 46.0, "reference": None}])
+    assert "no control figure" in bars
+    strip = charts.date_strip([{"date": None, "label": "undated"},
+                               {"date": "2027-03-01", "label": "readout"}], "2026-10-07")
+    assert "undated" not in strip and "readout" in strip
+    assert charts.date_strip([], "2026-10-07") == ""
+
+
+def test_the_pool_figure_names_a_years_diagnoses():
+    c = load("sacituzumab_tirumotecan")
+    ind = c["pool"]["indication"]
+    assert ind["pool"] > 0 and ind["per_year"] and ind["pooled"] <= ind["claimants"]
+    text = text_of(dict(DCV.card_html(c)[1])["Patient pool"])
+    assert DCV.pool_size(ind["pool"]) in text and "a year" in text

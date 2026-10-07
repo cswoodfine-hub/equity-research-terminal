@@ -1,5 +1,6 @@
 {
 "ok": true,
+"as_of": "2026-10-07",
 "indication": {
 "id": 20,
 "name": "Carcinoma, Non-Small-Cell Lung"
@@ -74,7 +75,69 @@
 "3 posted endpoints not scored: no arm the book can read as its control (3)."
 ],
 "size_basis": null,
-"read_with_care": null
+"read_with_care": null,
+"pooled": [
+{
+"measure": "progression-free survival",
+"control": "Chemotherapy",
+"scale": "log hazard ratio",
+"effect": 1.2039728043259361,
+"lo": 0.6796162720165494,
+"hi": 1.7283293366353227,
+"hazard_ratio": 0.3,
+"hazard_ratio_lo": 0.177580840087264,
+"hazard_ratio_hi": 0.5068114327861812,
+"k": 1,
+"participants": 279,
+"weeks": [
+82.6,
+82.6
+],
+"trials": [
+"NCT02151981"
+]
+},
+{
+"measure": "progression-free survival",
+"control": "SoC EGFR-TKI",
+"scale": "log hazard ratio",
+"effect": 0.7765287894989963,
+"lo": 0.28858301202640607,
+"hi": 1.2644745669715864,
+"hazard_ratio": 0.46,
+"hazard_ratio_lo": 0.28238763295575003,
+"hazard_ratio_hi": 0.749324599612185,
+"k": 1,
+"participants": 279,
+"weeks": [
+78.2,
+78.2
+],
+"trials": [
+"NCT02296125"
+]
+},
+{
+"measure": "percentage of participants in progression free survival at 6, 12",
+"control": "SoC EGFR-TKI",
+"scale": "share",
+"effect": 12.118371581953808,
+"lo": 5.79521070402921,
+"hi": 18.441532459878406,
+"hazard_ratio": null,
+"hazard_ratio_lo": null,
+"hazard_ratio_hi": null,
+"k": 1,
+"participants": 350,
+"weeks": [
+78.2,
+78.2
+],
+"trials": [
+"NCT02296125"
+]
+}
+]
 },
 "safety": {
 "score": 81.50489107274599,
@@ -93,7 +156,8 @@
 "Deaths, reported and not scored: 2.1 points fewer than control (60.9% against 63.1%) across 2 trials."
 ],
 "size_basis": null,
-"read_with_care": null
+"read_with_care": null,
+"pooled": []
 },
 "evidence": {
 "score": 71.64882450784674,
@@ -107,7 +171,7 @@
 "form": "oral",
 "frequency": "daily",
 "duration": "~83 wk",
-"duration_span": "78 to 261 weeks",
+"duration_span": "48 to 261 weeks",
 "form_source": "arm descriptions",
 "why": {
 "dose": null,
@@ -130,8 +194,8 @@
 "phase": "Phase 2",
 "weeks": 47.8,
 "arm": "AZD9291 80mg",
-"arm_is_drug": false,
-"arm_names_drug": false,
+"arm_is_drug": true,
+"arm_names_drug": true,
 "arm_is_control": false,
 "category": null,
 "n": 199,
@@ -1242,15 +1306,18 @@
 "readouts": [],
 "pool": {
 "indication": {
-"pool": 0.0,
+"pool": 9786.619999999999,
 "indication": "Carcinoma, Non-Small-Cell Lung",
+"per_year": true,
 "claimants": 15,
-"peak_year": 2027,
-"uncrowded_share": 0.0,
-"crowded_share": 0.0
+"pooled": 3,
+"peak_year": 2052,
+"uncrowded_share": 0.5671499989872317,
+"crowded_share": 0.5671499989872317
 },
 "own": null
 },
+"pool_path": null,
 "patients": [
 {
 "asset_id": 315,
@@ -1298,6 +1365,73 @@
 },
 "launch_year": null,
 "launch_source": null
+}
+],
+"paths": [
+{
+"asset_id": 315,
+"name": "Tagrisso",
+"years": [
+2026,
+2027,
+2028,
+2029,
+2030,
+2031,
+2032,
+2033,
+2034,
+2035,
+2036,
+2037,
+2038,
+2039,
+2040,
+2041,
+2042,
+2043,
+2044,
+2045
+],
+"revenue": [
+7997.041728,
+8652.364110625998,
+9184.131486973783,
+9560.431069563265,
+9756.289884626764,
+9756.289884626764,
+9756.289884626764,
+3902.5159538507055,
+2536.6353700029586,
+1648.812990501923,
+1483.9316914517306,
+1335.5385223065578,
+1201.9846700759022,
+1081.7862030683118,
+973.6075827614807,
+876.2468244853326,
+788.6221420367992,
+709.7599278331195,
+638.7839350498076,
+574.9055415448269
+],
+"pos": 1.0,
+"risked": null,
+"loe_year": 2032,
+"actuals": [
+{
+"fiscal_year": 2023,
+"value": 5799.0
+},
+{
+"fiscal_year": 2024,
+"value": 6580.0
+},
+{
+"fiscal_year": 2025,
+"value": 7254.0
+}
+]
 }
 ],
 "catalysts": [
