@@ -58,9 +58,16 @@ def test_a_company_alone_with_a_figure_scores_50():
     assert D.percentile_scores({}) == {}
 
 
-def test_the_overall_is_the_mean_of_the_pillars_present_with_the_count():
-    assert D.overall({"value": 80, "pipeline": 40, "durability": None, "clinical": 60}) \
-        == (pytest.approx(60.0), 3)
+def test_the_overall_weights_value_first_renormalised_over_the_pillars_present():
+    assert D.WEIGHTS == {"value": 0.35, "pipeline": 0.25, "clinical": 0.25,
+                         "durability": 0.15}
+    assert sum(D.WEIGHTS.values()) == pytest.approx(1.0)
+    full = {"value": 80, "pipeline": 40, "durability": 20, "clinical": 60}
+    assert D.overall(full) == (pytest.approx(0.35 * 80 + 0.25 * 40 + 0.15 * 20
+                                             + 0.25 * 60), 4)
+    # Durability missing: the other three weights renormalised over 0.85.
+    three = dict(full, durability=None)
+    assert D.overall(three) == (pytest.approx((0.35 * 80 + 0.25 * 40 + 0.25 * 60) / 0.85), 3)
     assert D.overall({"value": None, "pipeline": None, "durability": None,
                       "clinical": None}) == (None, 0)
 
@@ -257,6 +264,13 @@ def test_clinical_quality_is_each_drugs_mean_then_the_companys():
     assert _row(page, "CCC")["scores"]["clinical"] is None
 
 
+def test_clinical_quality_is_the_mean_itself_not_a_percentile():
+    page = _page()
+    # The indication scorecard's 0 to 100 is comparable across companies as it stands.
+    assert _row(page, "AAA")["scores"]["clinical"] == pytest.approx(55.0)
+    assert _row(page, "BBB")["scores"]["clinical"] == pytest.approx(90.0)
+
+
 def test_readouts_are_data_readouts_within_24_months_on_area_assets():
     page = _page()
     a = _row(page, "AAA")
@@ -277,12 +291,46 @@ def test_every_pillar_runs_0_to_100_and_the_ranking_follows_the_overall():
     for r in rows:
         for v in r["scores"].values():
             assert v is None or 0.0 <= v <= 100.0
-        have = [v for v in r["scores"].values() if v is not None]
+        have = {k: v for k, v in r["scores"].items() if v is not None}
         assert r["pillars"] == len(have)
-        assert r["overall"] == pytest.approx(sum(have) / len(have))
-    overalls = [r["overall"] for r in rows]
+        if r["ranked"]:
+            w = sum(D.WEIGHTS[k] for k in have)
+            assert r["overall"] == pytest.approx(
+                sum(D.WEIGHTS[k] * v for k, v in have.items()) / w)
+    ranked = [r for r in rows if r["ranked"]]
+    overalls = [r["overall"] for r in ranked]
     assert overalls == sorted(overalls, reverse=True)
-    assert [r["rank"] for r in rows] == [1, 2, 3]
+    assert [r["rank"] for r in rows] == [1, 2, None]
+    assert page["weights"] == D.WEIGHTS and page["min_pillars"] == 3
+
+
+def test_fewer_than_3_pillars_is_too_little_on_file_and_never_a_pick():
+    page = _page()
+    c = _row(page, "CCC")
+    # Gamma: a pipeline score (nothing in it) and no value, durability or clinical figure.
+    assert c["pillars"] == 1
+    assert c["ranked"] is False and c["rank"] is None and c["overall"] is None
+    assert page["companies"][-1]["ticker"] == "CCC"
+    assert page["totals"]["ranked"] == 2 and page["totals"]["companies"] == 3
+    # Its pillar scores are still shown, never filled in.
+    assert c["scores"]["value"] is None and c["scores"]["pipeline"] is not None
+    # A strong but thin company is not the leader, nor any other card's pick.
+    rows = [dict(r) for r in page["companies"]]
+    thin = dict(rows[-1], overall=None, ranked=False,
+                pipeline=dict(rows[-1]["pipeline"], usd_bn=99.0, depth=40,
+                              top=[{"name": "Thin", "usd_bn": 99.0}]),
+                scores=dict(rows[-1]["scores"], pipeline=100.0),
+                durability=dict(rows[-1]["durability"], at_risk_usd_bn=500.0, share=0.9,
+                                products=[{"name": "Thin", "loe": "2027-01-01",
+                                           "usd_bn": 500.0}]),
+                readouts=dict(rows[-1]["readouts"], stake_usd_bn=999.0, priced=3,
+                              top=[{"asset": "Thin", "date": "2027-01-01",
+                                    "usd_bn": 999.0, "priced": True}],
+                              last="2027-01-01"))
+    cards = D.cards("Oncology", rows[:-1] + [thin], 2030)
+    for card in cards:
+        assert "Gamma" not in card["headline"], card
+    assert cards[0]["headline"].startswith(D.short_name(rows[0]["name"]))
 
 
 def test_the_area_totals_sum_the_companies_in_usd():
@@ -319,11 +367,16 @@ def test_the_cards_are_house_style_short_and_never_print_a_made_up_zero():
 def test_the_method_states_every_rule():
     m = D.METHOD
     for key in ("value", "pipeline", "durability", "clinical", "scale", "overall",
-                "assignment", "currency", "readouts"):
+                "ranking", "assignment", "currency", "readouts"):
         assert m[key]
         assert "—" not in m[key]
         assert not any(re.search(rf"\b{w}\b", m[key], re.I) for w in BANNED)
     assert "percentile" in m["scale"] and "50" in m["scale"]
+    assert "Clinical" not in m["scale"] and "score itself" in m["clinical"]
+    for part in ("value today 35%", "pipeline 25%", "clinical quality 25%",
+                 "durability 15%", "renormalised"):
+        assert part in m["overall"]
+    assert "3 of the 4" in m["ranking"] and "too little on file" in m["ranking"]
 
 
 # --- the book: area assignment and stage ----------------------------------------------

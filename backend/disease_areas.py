@@ -20,7 +20,7 @@ Stage
     indications has reached. Marketed products are counted by brand, so two rows of one
     product count once.
 
-The four pillars, each from 0 to 100 within the area among the companies present
+The four pillars, each from 0 to 100
     Value today: the risked value of the company's marketed products in the area, in USD
     bn, each product's whole value. The area's share of the company's total product value
     (marketed and pipeline, every area) is shown beside it and does not move the score.
@@ -40,16 +40,21 @@ The four pillars, each from 0 to 100 within the area among the companies present
     Clinical quality: the mean overall score of the company's scored drugs on the
     indication scorecard (``landscape_score``), across every indication the Indications
     view offers in this area: each drug's mean over the indications it is scored in, then
-    the mean over its drugs. A drug's clinical record counts in every area it is trialled
-    in, while its value counts once. No figure where none is scored.
+    the mean over its drugs. That mean is the pillar itself: it is already 0 to 100 and
+    comparable across companies, so it is not rescaled. A drug's clinical record counts in
+    every area it is trialled in, while its value counts once. No figure where none is
+    scored.
 
-    Each pillar is scaled by percentile rank among the companies with a figure: the share
-    of the others it beats, a tie counting half, so the best scores 100 and the weakest 0
-    whatever the spread. Raw values in this book span a hundredfold, and a min-max scale
-    would put every company but the leader near zero. A company alone with a figure
-    scores 50.
+    Value today, pipeline and durability are scaled by percentile rank among the companies
+    present with a figure: the share of the others it beats, a tie counting half, so the
+    best scores 100 and the weakest 0 whatever the spread. Raw values in this book span a
+    hundredfold, and a min-max scale would put every company but the leader near zero. A
+    company alone with a figure scores 50.
 
-    The overall is the mean of the pillars a company has, with the count shown. A missing
+    The overall weights value today 35%, pipeline 25%, clinical quality 25% and
+    durability 15%, renormalised over the pillars a company has. A company needs at least
+    three of the four to be ranked; one with fewer is listed below the ranked companies as
+    too little on file, with no rank and no overall, and is never a card's pick. A missing
     pillar is never filled in.
 
 Currency
@@ -77,6 +82,9 @@ import product_areas
 import therapeutic_areas
 
 PILLARS = ("value", "pipeline", "durability", "clinical")
+# Value-led: what a company holds today counts most, durability least.
+WEIGHTS = {"value": 0.35, "pipeline": 0.25, "clinical": 0.25, "durability": 0.15}
+MIN_PILLARS = 3
 PILLAR_NAMES = {"value": "value today", "pipeline": "pipeline", "durability": "durability",
                 "clinical": "clinical quality"}
 # Not a disease: an asset studied only in healthy volunteers sits in no area.
@@ -105,13 +113,18 @@ METHOD = {
     "clinical": ("the mean overall score of its drugs on the indication scorecard, across "
                  "the indications in this area the Indications view offers: each drug's "
                  "mean over the indications it is scored in, then the mean over its "
-                 "drugs. No figure where none is scored."),
-    "scale": ("Each pillar runs from 0 to 100 by percentile rank among the companies with "
-              "a figure: the share of the others it beats, a tie counting half. The best "
-              "scores 100 and the weakest 0 whatever the spread; a company alone with a "
-              "figure scores 50."),
-    "overall": ("The overall is the mean of the pillars a company has, the count shown "
-                "beside it. A missing pillar is never filled in."),
+                 "drugs. That mean is the score itself, already 0 to 100 and comparable "
+                 "across companies. No figure where none is scored."),
+    "scale": ("Value today, pipeline and durability run from 0 to 100 by percentile rank "
+              "among the companies with a figure: the share of the others it beats, a tie "
+              "counting half. The best scores 100 and the weakest 0 whatever the spread; "
+              "a company alone with a figure scores 50."),
+    "overall": ("The overall weights value today 35%, pipeline 25%, clinical quality 25% "
+                "and durability 15%, renormalised over the pillars a company has, the "
+                "count shown beside it. A missing pillar is never filled in."),
+    "ranking": ("A company needs at least 3 of the 4 pillars to be ranked. One with fewer "
+                "is listed below the ranked companies as too little on file, with no rank "
+                "and no overall, is left off the chart and is never a card's pick."),
     "assignment": ("A product counts in one area, the first indication on its label, else "
                    "the disease it is modelled in, else what its trials study, with its "
                    "whole value. A drug's clinical record counts in every area it is "
@@ -160,10 +173,14 @@ def percentile_scores(values: dict, higher_is_better: bool = True) -> dict:
     return out
 
 
-def overall(scores: dict):
-    """(mean of the pillars present or None, how many are present)."""
-    have = [scores.get(p) for p in PILLARS if scores.get(p) is not None]
-    return (mean(have) if have else None), len(have)
+def overall(scores: dict, weights: dict = WEIGHTS):
+    """(the weighted mean of the pillars present, renormalised over their weights, or
+    None; how many are present)."""
+    have = {p: scores[p] for p in PILLARS if scores.get(p) is not None}
+    total = sum(weights[p] for p in have)
+    if not have or total <= 0:
+        return None, len(have)
+    return sum(weights[p] * v for p, v in have.items()) / total, len(have)
 
 
 def usd(value, currency, rates: dict):
@@ -498,17 +515,22 @@ def assemble(area: str, companies: list, assets: list, verdicts: dict, revenue: 
     depth_s = percentile_scores({r["ticker"]: r["pipeline"]["depth"] for r in rows})
     dur_s = percentile_scores({r["ticker"]: r["durability"]["share"] for r in rows},
                               higher_is_better=False)
-    cl_s = percentile_scores({r["ticker"]: r["clinical"]["mean"] for r in rows})
     for r in rows:
         t = r["ticker"]
         parts = [s for s in (pv_s[t], depth_s[t]) if s is not None]
         r["pipeline"]["value_score"], r["pipeline"]["depth_score"] = pv_s[t], depth_s[t]
+        # Clinical quality is the indication scorecard's own 0 to 100, not rescaled.
         r["scores"] = {"value": value_s[t], "pipeline": mean(parts) if parts else None,
-                       "durability": dur_s[t], "clinical": cl_s[t]}
-        r["overall"], r["pillars"] = overall(r["scores"])
-    rows.sort(key=lambda r: (r["overall"] is None, -(r["overall"] or 0.0), r["ticker"]))
+                       "durability": dur_s[t], "clinical": r["clinical"]["mean"]}
+        weighted, r["pillars"] = overall(r["scores"])
+        r["ranked"] = r["pillars"] >= MIN_PILLARS
+        r["overall"] = weighted if r["ranked"] else None
+    # The ranked companies by overall, then those with too little on file, most pillars
+    # first.
+    rows.sort(key=lambda r: (not r["ranked"], -(r["overall"] or 0.0), -r["pillars"],
+                             r["ticker"]))
     for i, r in enumerate(rows, 1):
-        r["rank"] = i if r["overall"] is not None else None
+        r["rank"] = i if r["ranked"] else None
 
     def total(getter):
         vals = [getter(r) for r in rows]
@@ -536,7 +558,9 @@ def assemble(area: str, companies: list, assets: list, verdicts: dict, revenue: 
     a = totals["value_usd_bn"]
     b = totals["pipeline_usd_bn"]
     totals["risked_usd_bn"] = (None if a is None and b is None else (a or 0.0) + (b or 0.0))
+    totals["ranked"] = sum(1 for r in rows if r["ranked"])
     return {"area": area, "slug": slug(area), "as_of": today.isoformat(),
+            "weights": WEIGHTS, "min_pillars": MIN_PILLARS,
             "fx_as_of": rates.get("as_of"), "horizon_end": horizon_end,
             "readout_end": readout_end.isoformat(), "companies": rows, "totals": totals,
             "cards": cards(area, rows, horizon_end), "method": METHOD}
@@ -605,9 +629,12 @@ def _mon(day: str) -> str:
 
 def cards(area: str, rows: list, horizon_end: int) -> list:
     """Four findings for the area: its leader, its deepest pipeline, its biggest
-    exclusivity risk and its biggest readouts ahead. Each a title of one line, a headline
-    of at most two and a detail of at most three; the whole is the hover."""
+    exclusivity risk and its biggest readouts ahead, each picked among the ranked
+    companies. Each a title of one line, a headline of at most two and a detail of at most
+    three; the whole is the hover."""
     out = []
+    # A company with too little on file is never a pick.
+    everyone, rows = rows, [r for r in rows if r.get("ranked")]
     ranked = [r for r in rows if r["overall"] is not None]
     if ranked:
         r = ranked[0]
@@ -642,8 +669,12 @@ def cards(area: str, rows: list, horizon_end: int) -> list:
                     "detail": f"{pct(r['durability']['share'])} of its revenue here. "
                               f"{names}."})
     else:
+        unranked = any(r["durability"]["at_risk_usd_bn"] for r in everyone)
         out.append({"kind": "risk", "title": "Biggest exclusivity risk",
-                    "headline": f"No revenue on file here loses exclusivity by {horizon_end}",
+                    "headline": (f"No ranked company loses revenue to exclusivity by "
+                                 f"{horizon_end}" if unranked else
+                                 f"No revenue on file here loses exclusivity by "
+                                 f"{horizon_end}"),
                     "detail": "Read from each product's effective LOE, orphan exclusivity "
                               "left out."})
     staked = [r for r in rows if r["readouts"]["stake_usd_bn"]]
@@ -658,9 +689,11 @@ def cards(area: str, rows: list, horizon_end: int) -> list:
                                 f"{'s' if ro['priced'] != 1 else ''}",
                     "detail": f"{top}. {ro['count']} readouts due by {_mon(ro['last'])}."})
     else:
-        n = sum(r["readouts"]["count"] for r in rows)
+        n = sum(r["readouts"]["count"] for r in everyone)
+        unranked = any(r["readouts"]["stake_usd_bn"] for r in everyone)
         out.append({"kind": "readouts", "title": "Biggest readouts ahead",
-                    "headline": "No readout here is priced",
+                    "headline": ("No ranked company's readout is priced" if unranked
+                                 else "No readout here is priced"),
                     "detail": f"{n} readouts are due within 24 months; none carries a "
                               f"modelled swing."})
     return out
