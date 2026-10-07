@@ -5,6 +5,8 @@ all. A headline parser earns its keep by what it refuses: the commentary cases m
 more than the deal cases, since a false deal is worse than a missed one.
 """
 
+import pytest
+
 import db
 from fetchers.deals_news import (DealsNewsFetcher, parse_area, parse_deal,
                                  parse_feed, parse_value)
@@ -395,3 +397,44 @@ def test_a_cache_snapshot_leaves_the_ttl_unstarted(tmp_path):
     assert payload["fetch_kind"] == "cache"
     assert fetcher._last_live_fetch_at() is None
     assert fetcher._within_ttl() is False
+
+
+# --- the search names the press uses (2026-10-07: "Novartis AG" in quotes missed the
+# Abogen licence entirely) --------------------------------------------------------------
+def test_the_search_drops_the_legal_suffix():
+    from fetchers.deals_news import search_names
+    assert search_names("NVS", "Novartis AG") == ("Novartis",)
+    assert search_names("ROG", "Roche Holding AG") == ("Roche",)
+    assert search_names("NVO", "Novo Nordisk A/S") == ("Novo Nordisk",)
+    assert search_names("GSK", "GSK plc") == ("GSK",)
+    assert search_names("AMGN", "Amgen Inc") == ("Amgen",)
+    assert search_names("SNY", "Sanofi") == ("Sanofi",)
+
+
+def test_the_search_uses_the_press_name_where_it_differs():
+    from fetchers.deals_news import _feed_url, search_names
+    assert search_names("LLY", "Eli Lilly and Company") == ("Eli Lilly", "Lilly")
+    assert search_names("GILD", "Gilead Sciences Inc") == ("Gilead",)
+    url = _feed_url("Merck & Co Inc", "MRK")
+    assert "%22Merck%22" in url and "-KGaA" in url and "Co+Inc" not in url
+
+
+@pytest.mark.parametrize("headline,kind,value", [
+    ("Novartis strikes up to $7.8 billion mRNA deal with China's Abogen - Reuters",
+     "collaboration", "up to $7.8 billion"),
+    ("Novartis to License Drug From China’s Abogen in Up to $7.8 Billion Deal - WSJ",
+     "licensing", "up to $7.8 billion"),
+    ("Novartis signs licensing deal worth $7.2 B with China's Abogen for mRNA therapies"
+     " - BioSpectrum Asia", "licensing", "$7.2 billion"),
+    ("Novartis pens $7.8B deal for Abogen's in vivo autoimmune T-cell engager"
+     " - Fierce Biotech", "collaboration", "$7.8 billion"),
+])
+def test_a_deal_named_as_a_noun_or_through_a_possessive(headline, kind, value):
+    deal = parse_deal(headline, {"Novartis AG", "NVS", "Novartis"})
+    assert deal["counterparty"] == "Abogen"
+    assert deal["deal_type"] == kind and deal["announced_value"] == value
+
+
+def test_a_nationality_alone_names_no_party():
+    assert parse_deal("Novartis signs $7.8B mRNA deal with Chinese biotech - NJBIZ",
+                      {"Novartis AG", "NVS", "Novartis"}) is None

@@ -52,6 +52,15 @@ _DEAL_VERBS = (
     (r"collaborat(?:es?|ion) with", "collaboration"),
     (r"teams? up with", "collaboration"),
     (r"signs? (?:a )?(?:deal|agreement|pact) with", "collaboration"),
+    # The deal as a noun with the size or subject in front of it: "signs licensing deal
+    # worth $7.2 B with China's Abogen", "strikes up to $7.8 billion mRNA deal with
+    # China's Abogen", "pens $7.8B deal for Abogen's in vivo T-cell engager".
+    (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
+     r"licen[sc]ing (?:deal|agreement|pact)(?: worth \S+(?: \S+)?)? (?:with|for)",
+     "licensing"),
+    (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
+     r"(?:deal|agreement|pact|tie-up)(?: worth \S+(?: \S+)?)? (?:with|for)",
+     "collaboration"),
 )
 
 # A headline that asks a question or muses about the sector is commentary, not an
@@ -74,13 +83,13 @@ _VALUE = re.compile(
 # Case matters, so this part of the pattern is never matched with re.I. A headline says
 # "acquires cancer therapy developer Arcellx", and only the capitals separate the
 # company from the words describing it.
-_NAME = r"(?P<who>[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,4})"
+_NAME = r"(?P<who>[A-Z][\w&.'\u2019-]*(?:\s+[A-Z][\w&.'\u2019-]*){0,4})"
 
 # What a publisher puts in front of the name: sector, nationality, and the shape of the
 # thing bought. Trimmed from the front so "biotech Apogee Therapeutics" and "Apogee
 # Therapeutics" are recognised as one deal rather than two.
 _LEAD = {
-    "of", "the", "a", "an", "its", "us", "u.s.", "uk", "u.k.", "eu",
+    "of", "from", "the", "a", "an", "its", "us", "u.s.", "uk", "u.k.", "eu",
     "biotech", "biotechnology", "biopharma", "biopharmaceutical", "pharma",
     "pharmaceutical", "pharmaceuticals", "drugmaker", "drug", "maker", "developer",
     "company", "firm", "startup", "start-up", "group", "business", "unit", "division",
@@ -94,6 +103,9 @@ _LEAD = {
     "connecticut", "massachusetts", "california", "texas", "ai", "digital", "medical",
     "device", "obesity", "immunology", "inflammatory", "radiopharmaceutical",
 }
+
+_NATIONALITY = {"american", "british", "canadian", "chinese", "danish", "dutch", "french",
+                "german", "indian", "irish", "japanese", "korean", "swiss", "european"}
 
 # What a publisher hyphenates in front of a name, and the diseases it leads with.
 # "Prostate Cancer Treatment-Maker Halda" is Halda described, not a company called that.
@@ -202,7 +214,7 @@ def _clean_name(raw: str) -> str | None:
     rather than a title-cased ordinary word, since "Buys Shares" is not a counterparty.
     """
     def token(word: str) -> str:
-        return word.lower().strip(".,'\u2019")
+        return word.lower().replace("\u2019", "'").strip(".,'")
 
     def describes(word: str) -> bool:
         """Whether a leading word describes the company rather than naming it.
@@ -223,8 +235,13 @@ def _clean_name(raw: str) -> str | None:
         words.pop()
     if not words or token(words[0]) in _NOT_A_NAME:
         return None
-    # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it.
-    name = " ".join(words).strip(" ,;:-")
+    # A nationality alone is a description with no name after it: "deal with Chinese
+    # biotech" names nobody.
+    if len(words) == 1 and token(words[0]) in _NATIONALITY:
+        return None
+    # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it, and "deal
+    # for Abogen's T-cell engager" leaves the possessive.
+    name = re.sub(r"['\u2019]s$", "", " ".join(words)).strip(" ,;:-")
     return name if len(name) >= 3 else None
 
 
@@ -354,10 +371,42 @@ def parse_reported(headline: str, company_names) -> dict | None:
             "reported_value": parse_value(text), "reported_usd": usd, "quote": text}
 
 
-def _feed_url(company_name: str) -> str:
+# A legal suffix the press leaves off. "Novartis AG" in quotes found 88 headlines, the
+# newest five weeks old, and not one of the Abogen licence's dozen (2026-10-07): a headline
+# says Novartis.
+_LEGAL_SUFFIX = re.compile(
+    r"[,\s]+(?:Inc\.?|Incorporated|Corp\.?|Corporation|Co\.?|Company|PLC|plc|AG|A/S|"
+    r"S\.?A\.?|SE|N\.?V\.?|Ltd\.?|Limited|Holdings?|and|&)$")
+# Where the press name is not the legal name less its suffix: "Lilly" and "Gilead" lead a
+# headline, and Bristol Myers Squibb dropped its hyphen in 2020.
+SEARCH_NAMES = {
+    "LLY": ("Eli Lilly", "Lilly"), "GILD": ("Gilead",), "REGN": ("Regeneron",),
+    "BMY": ("Bristol Myers Squibb", "Bristol-Myers Squibb"), "MRK": ("Merck",),
+    "JNJ": ("Johnson & Johnson", "J&J"), "ROG": ("Roche",),
+}
+# Another company the press name also reads as: Merck KGaA is Merck in Germany.
+SEARCH_EXCLUDE = {"MRK": ("KGaA", "EMD")}
+
+
+def search_names(ticker: str, company_name: str) -> tuple:
+    """The names a headline calls the company by, most formal first."""
+    if ticker in SEARCH_NAMES:
+        return SEARCH_NAMES[ticker]
+    name = company_name.strip()
+    while True:
+        short = _LEGAL_SUFFIX.sub("", name).strip()
+        if short == name or not short:
+            break
+        name = short
+    return (name,)
+
+
+def _feed_url(company_name: str, ticker: str = "") -> str:
     # Merger and takeover terms ride along with the announced-deal words. Without them
     # the feed never returns a talks story, so the lane below would have nothing to read.
-    query = (f'"{company_name}" (acquires OR acquisition OR licensing OR '
+    names = " OR ".join(f'"{n}"' for n in search_names(ticker, company_name))
+    minus = "".join(f" -{w}" for w in SEARCH_EXCLUDE.get(ticker, ()))
+    query = (f'({names}){minus} (acquires OR acquisition OR licensing OR licenses OR deal OR '
              f'collaboration OR partnership OR merger OR takeover OR "in talks")')
     return FEED + "?" + urllib.parse.urlencode(
         {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"})
@@ -412,7 +461,8 @@ class DealsNewsFetcher(BaseFetcher):
         for company in companies:
             try:
                 request = urllib.request.Request(
-                    _feed_url(company["name"]), headers={"User-Agent": _USER_AGENT})
+                    _feed_url(company["name"], company["ticker"]),
+                    headers={"User-Agent": _USER_AGENT})
                 with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
                     feeds[company["ticker"]] = resp.read().decode("utf-8", "ignore")
             except Exception as exc:              # one company's feed, not the run
@@ -430,8 +480,8 @@ class DealsNewsFetcher(BaseFetcher):
             company = by_ticker[ticker]
             # The company's own names, so the passive voice is recognised rather than
             # read as a deal with itself.
-            names = {company["name"], ticker,
-                     company["name"].split()[0]} - {"The", "A"}
+            names = ({company["name"], ticker, company["name"].split()[0]}
+                     | set(search_names(ticker, company["name"]))) - {"The", "A"}
             try:
                 items = parse_feed(xml_text)
             except ET.ParseError:
