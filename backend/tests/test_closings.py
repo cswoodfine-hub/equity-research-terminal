@@ -176,8 +176,8 @@ def test_the_case_the_advisers_relied_on_is_taken_over_the_base_case():
 
 def test_without_reliance_the_base_case_is_taken_over_the_upside():
     found = closings.projections(_two_cases("Upside Case", "Base Case"))
-    assert found["case"] == "Base Case" and found["case_reason"].startswith(
-        "management's base case")
+    assert found["case"] == "Base Case" and found["case_reason"].endswith(
+        "management's base case, over the upside and downside cases")
     assert closings.revenue_rows(found)["Total Revenue"][2026] == (150.0, "150")
 
 
@@ -195,7 +195,7 @@ def test_a_product_in_development_takes_the_unadjusted_case():
     unrisked = closings.projections(html, prefer_unrisked=True)
     assert unrisked["case"] == "Unadjusted Projections"
     assert unrisked["risk_adjusted"] is False
-    assert "applies once" in unrisked["case_reason"]
+    assert "only risk applied" in unrisked["case_reason"]
 
 
 def test_the_targets_label_names_its_products_on_sale():

@@ -337,6 +337,34 @@ def _number(cell: str) -> float | None:
     return -value if negative else value
 
 
+def _table_rows(table_html: str) -> dict:
+    """{label: {year: (value, cell)}}: the year-headed rows of one table. A column headed
+    by a part year ("2H 2025", "Q4 2025") is read past rather than shifting the rest, and
+    a label printed twice keeps its first series."""
+    rows, header = {}, None
+    for row_html in _ROW.findall(table_html):
+        cells = _cells(row_html)
+        found = [_YEAR_CELL.match(c) for c in cells]
+        if sum(1 for f in found if f) >= 3:
+            header = [int(f.group(1)) if f else None for f in found]
+            continue
+        if not header or len(cells) < 2:
+            continue
+        label, values = cells[0], cells[1:]
+        if len(values) != len(header):
+            continue
+        pairs = [(year, (_number(v), v)) for year, v in zip(header, values)
+                 if year is not None]
+        if any(number is None for _year, (number, _cell) in pairs):
+            continue
+        entry = rows.setdefault(re.sub(r"\s*\(\d\)\s*$", "", label), {})
+        if any(year in entry for year, _ in pairs):
+            continue
+        for year, (number, cell) in pairs:
+            entry[year] = (number, cell)
+    return {label: series for label, series in rows.items() if series}
+
+
 def _year_tables(window: str) -> tuple[dict, int | None, int | None]:
     """(rows, first, last): the year-headed rows of the run of tables that starts first in
     the window, and where that run starts and ends."""
@@ -348,24 +376,12 @@ def _year_tables(window: str) -> tuple[dict, int | None, int | None]:
         # tables, and its "Revenue" is the Street's, not management's.
         if last_end is not None and table.start() - last_end > _GAP:
             break
-        years, took = None, False
-        for row_html in _ROW.findall(table.group(0)):
-            cells = _cells(row_html)
-            found = [_YEAR_CELL.match(c) for c in cells]
-            if sum(1 for f in found if f) >= 3:
-                years = [int(f.group(1)) for f in found if f]
-                continue
-            if not years or len(cells) < 2:
-                continue
-            label, values = cells[0], cells[1:]
-            numbers = [(_number(v), v) for v in values]
-            if any(n is None for n, _ in numbers) or len(numbers) != len(years):
-                continue
-            entry = rows.setdefault(re.sub(r"\s*\(\d\)\s*$", "", label), {})
-            if any(year in entry for year in years):
+        took = False
+        for label, series in _table_rows(table.group(0)).items():
+            entry = rows.setdefault(label, {})
+            if any(year in entry for year in series):
                 continue                        # the same label again is another table's
-            for year, (number, cell) in zip(years, numbers):
-                entry[year] = (number, cell)
+            entry.update(series)
             took = True
         if took:
             first = table.start() if first is None else first
@@ -373,9 +389,21 @@ def _year_tables(window: str) -> tuple[dict, int | None, int | None]:
     return rows, first, last_end
 
 
+_CASE_WORDS = r"(?:Projections?|Case|Forecasts?|Outlook|Plan|Scenario|Model)"
 _CASE_TERM = re.compile(
-    r"[“\"]\s*((?:[A-Z0-9][\w’'\-/]*\s+){0,6}?(?:Projections?|Case|Forecasts?|Plan|"
-    r"Scenario|Model))\s*[”\"]")
+    r"[“\"]\s*((?:[A-Z0-9][\w’'\-/]*\s+){0,6}?" + _CASE_WORDS
+    + r"(?:\s+(?:\d{1,2}|[A-C]))?)\s*[”\"]")
+# A case named without quotes: "The May 2025 Projections are summarized below".
+_CASE_PLAIN = re.compile(r"\b((?:[A-Z0-9][\w’'\-/]*\s+(?:[–-]\s+)?){0,8}" + _CASE_WORDS
+                         + r"(?:\s+(?:\d{1,2}|[A-C])\b|\s+\((?:Case|Scenario)\s+\w{1,2}\))?)")
+# Words a capitalised run picks up that are not the case's name: a sentence's first word
+# and a page break's "Table of Contents".
+_LEADING = re.compile(r"(?i)^(?:(?:\d{1,3}|the|our|these|such|its|table|of|contents)\s+)+")
+_NOT_A_CASE = re.compile(r"(?i)^(?:certain|unaudited|prospective|the\s+projections?\s*$)")
+_ADVISER = re.compile(r"(?i)\b(?:discounted\s+cash\s+flow|analys[ie]s|wall\s+street|"
+                      r"consensus|research\s+analysts?|street(?:\s+estimates|\s+case)?|"
+                      r"analysts?)\b")
+_CASE_READ = 1_500_000              # characters after the heading searched for later cases
 _RELIANCE = re.compile(r"(?i)\b(?:relied|reliance|rely|used|use)\b")
 _OPINION = re.compile(r"(?i)\bopinions?\b|financial\s+analys[ie]s|fairness")
 _NOT_RELIED = re.compile(r"(?i)\bnot\s+(?:\w+\s+){0,3}(?:rel[iy]|use)|\bno\s+reliance")
@@ -389,47 +417,52 @@ _LATER_CASE = re.compile(r"(?i)\b(?:updated|revised|refreshed|final|amended)\b")
 _SENTENCE_END = re.compile(r"(?<=[.;])\s+(?=[A-Z“\"(])")
 
 
+def _case_name(caption: str) -> str | None:
+    """The case the words just before a table name: a defined term in quotes near the
+    table, else a capitalised name ending in Projections, Forecasts, Case, Outlook, Plan,
+    Scenario or Model, else the last defined term anywhere before it."""
+    tail = caption[-600:]
+
+    def ok(name):
+        return not _NOT_A_CASE.search(name)
+    near = [m.group(1) for m in _CASE_TERM.finditer(tail) if ok(m.group(1))]
+    if near:
+        return near[0]
+    plain = [_LEADING.sub("", m.group(1)) for m in _CASE_PLAIN.finditer(tail)]
+    plain = [n for n in plain if ok(n) and (n[:1].isupper() or n[:1].isdigit())]
+    if plain:
+        return plain[-1]
+    terms = [m.group(1) for m in _CASE_TERM.finditer(caption) if ok(m.group(1))]
+    return terms[-1] if terms else None
+
+
 def _case_tables(window: str) -> list[dict]:
     """The year-headed tables of a projections section split into the cases they print.
 
     A table opens a new case where the words before it name one (a defined term such as
-    the "Base Case Projections"), or where it prints a year a row of the case before
-    already printed. Otherwise it continues the case before, which is how a long
-    projection runs over two tables. Each case keeps the words before its first table,
-    which is where a filing says what the case is."""
+    the "Base Case Projections", or "The May 2025 Projections are summarized below"),
+    or where it prints a year a row of the case before already printed. Otherwise it
+    continues the case before, which is how a long projection runs over two tables. A
+    table more than a few paragraphs past the last one is read only where its words name
+    a case not read yet and are not an adviser's analysis, since the advisers' tables
+    come later and print the Street's figures. Each case keeps the words before its first
+    table, which is where a filing says what the case is."""
     cases: list[dict] = []
     current, last_end = None, None
     for table in _TABLE.finditer(window):
-        if last_end is not None and table.start() - last_end > _GAP:
-            break
-        rows, years = {}, None
-        for row_html in _ROW.findall(table.group(0)):
-            cells = _cells(row_html)
-            found = [_YEAR_CELL.match(c) for c in cells]
-            if sum(1 for f in found if f) >= 3:
-                years = [int(f.group(1)) for f in found if f]
-                continue
-            if not years or len(cells) < 2:
-                continue
-            label, values = cells[0], cells[1:]
-            numbers = [(_number(v), v) for v in values]
-            if any(n is None for n, _ in numbers) or len(numbers) != len(years):
-                continue
-            entry = rows.setdefault(re.sub(r"\s*\(\d\)\s*$", "", label), {})
-            if any(year in entry for year in years):
-                continue
-            for year, (number, cell) in zip(years, numbers):
-                entry[year] = (number, cell)
+        rows = _table_rows(table.group(0))
         if not rows:
             continue
         before = window[last_end if last_end is not None else 0: table.start()]
         caption = _flat(_TAG.sub(" ", before))
-        # The case the words just before the table name, else the last one named.
-        terms = [m.group(1) for m in _CASE_TERM.finditer(caption)
-                 if not _SECTION.fullmatch(m.group(1))]
-        near = [m.group(1) for m in _CASE_TERM.finditer(caption[-600:])
-                if not _SECTION.fullmatch(m.group(1))]
-        name = near[0] if near else (terms[-1] if terms else None)
+        name = _case_name(caption)
+        if last_end is not None and table.start() - last_end > _GAP:
+            # Past the run: only a case named for the first time, outside an adviser's
+            # analysis, is read. A table with no name is an adviser's or another
+            # section's, and is passed over without moving the run on.
+            if (not name or any(c["name"] == name for c in cases)
+                    or _ADVISER.search(caption[-300:]) or _ADVISER.search(name)):
+                continue
         overlaps = current is not None and any(
             year in current["rows"].get(label, {})
             for label, series in rows.items() for year in series)
@@ -475,55 +508,88 @@ def _case_risk(case: dict, section_flag: bool) -> bool:
     return section_flag
 
 
+_RISK_WORDS = re.compile(r"(?i)\b(?:non-?)?(?:risk|probability|pos)[- ]adjusted\b|"
+                         r"\bun-?adjusted\b|\bunrisked\b|\brisked\b")
+_MONTH_NUMBER = {m: i + 1 for i, m in enumerate(_MONTHS)}
+
+
+def _stem(name: str | None) -> str:
+    return re.sub(r"\s+", " ", _RISK_WORDS.sub(" ", name or "")).strip().lower()
+
+
+def _dated(name: str | None) -> tuple | None:
+    """(year, month) a case's name carries, as "May 2025 Projections" does."""
+    m = re.search(rf"(?:({_MONTH})\s+)?(20\d\d)", name or "")
+    if not m:
+        return None
+    return int(m.group(2)), _MONTH_NUMBER.get((m.group(1) or "").lower(), 0)
+
+
+def _by_rule(cases: list[dict]) -> tuple:
+    """(case, reason) by the stated rule, before any preference about risk."""
+    if len(cases) == 1:
+        case = cases[0]
+        return case, ("the case the target's board and financial advisers relied on for "
+                      "the fairness opinion" if case.get("relied") else
+                      "the only case the filing prints")
+    relied = [c for c in cases if c.get("relied")]
+    if len(relied) == 1:
+        return relied[0], ("the case the target's board and financial advisers relied on "
+                           "for the fairness opinion, of the "
+                           f"{len(cases)} cases the filing prints")
+    pool = relied or cases
+    lead = (f"of the {len(relied)} cases the target's board and financial advisers relied on "
+            "for the fairness opinion, " if relied else
+            "no one case is named as the one the fairness opinion relied on, so ")
+    case, reason = _by_fallback(pool)
+    return case, lead + reason
+
+
+def _by_fallback(pool: list[dict]) -> tuple:
+    side = [c for c in pool if _SIDE_CASE.search(c["name"] or "")]
+    base = [c for c in pool if _BASE_CASE.search(c["name"] or "") and c not in side]
+    if len(base) == 1 or (side and len(pool) - len(side) == 1):
+        case = base[0] if len(base) == 1 else next(c for c in pool if c not in side)
+        return case, ("management's base case, over the upside and downside cases"
+                      if side else "management's own case, over the others")
+    dated = [c for c in pool if _dated(c["name"])]
+    if dated:
+        return (max(dated, key=lambda c: _dated(c["name"])),
+                "the most recent, by the date its name carries")
+    later = [c for c in pool if _LATER_CASE.search(c["name"] or "")]
+    if later:
+        return later[-1], "the most recent, as its name says"
+    return max(pool, key=lambda c: c["start"]), "the most recent, the last printed"
+
+
 def choose_case(found: dict, prefer_unrisked: bool = False) -> dict:
     """The case a draft takes, by a stated rule, with the reason in words.
 
     The case the target's board and financial advisers relied on for the fairness
     opinion; failing that, management's base case over an upside or a downside case;
-    failing that, the most recent. ``prefer_unrisked`` first narrows the field to the
-    unadjusted cases where the filing prints one, for a product in development: the
-    engine applies the probability for the product's stage itself, and a risk-adjusted
-    case would have it applied twice."""
+    failing that, the most recent. ``prefer_unrisked`` is for a product in development:
+    where the case taken is risk-adjusted and the filing also prints the same case
+    unadjusted, the unadjusted one is taken, since the engine applies the probability for
+    the product's stage itself. Where there is no such twin the risk-adjusted case
+    stands, and the draft carries a probability of 1 instead."""
     cases = found.get("cases") or []
     if not cases:
         return {}
-    pool, notes = list(cases), []
-    if prefer_unrisked and any(not c["risk_adjusted"] for c in cases) and any(
-            c["risk_adjusted"] for c in cases):
-        pool = [c for c in cases if not c["risk_adjusted"]]
-        notes.append("the filing also prints a risk-adjusted case, and the unadjusted one "
-                      "is taken so the engine's probability for the product's stage applies "
-                      "once")
-
-    def pick(case, reason):
-        return {**case, "reason": "; ".join([reason] + notes)}
-
-    if len(pool) == 1:
-        case = pool[0]
-        reason = ("the case the target's board and financial advisers relied on for the "
-                  "fairness opinion" if case.get("relied") else
-                  "the only case the filing prints" if len(cases) == 1 else
-                  "the only case left")
-        return pick(case, reason)
-    relied = [c for c in pool if c.get("relied")]
-    if len(relied) == 1:
-        return pick(relied[0], "the case the target's board and financial advisers relied "
-                               "on for the fairness opinion")
-    pool = relied or pool
-    side = [c for c in pool if _SIDE_CASE.search(c["name"] or "")]
-    base = [c for c in pool if _BASE_CASE.search(c["name"] or "") and c not in side]
-    if len(base) == 1 or (side and len(pool) - len(side) == 1):
-        case = base[0] if len(base) == 1 else next(c for c in pool if c not in side)
-        return pick(case, "management's base case, taken over the upside and downside "
-                          "cases")
-    later = [c for c in pool if _LATER_CASE.search(c["name"] or "")]
-    case = later[-1] if later else max(pool, key=lambda c: c["start"])
-    return pick(case, "the most recent of the cases the filing prints")
+    case, reason = _by_rule(cases)
+    if prefer_unrisked and case["risk_adjusted"]:
+        twin = [c for c in cases if c is not case and not c["risk_adjusted"]
+                and c["name"] and case["name"] and _stem(c["name"]) == _stem(case["name"])]
+        if twin:
+            case = twin[0]
+            reason += ("; its unadjusted version is taken, so the engine's probability for "
+                       "the product's stage is the only risk applied")
+    return {**case, "reason": reason}
 
 
 def with_case(found: dict, case: dict) -> dict:
     """``found`` read as one case: its rows, its caption and its risk."""
     return {**found, "rows": case["rows"], "caption": case["caption"][-300:].strip(),
+            "stated_unit": case.get("stated_unit") or found.get("stated_unit"),
             "risk_adjusted": case["risk_adjusted"], "case": case.get("name"),
             "case_reason": case.get("reason")}
 
@@ -560,6 +626,7 @@ def projections(html: str, prefer_unrisked: bool = False) -> dict | None:
         at = heading.start() + first
         if best is None or at < best[0] or (at == best[0] and heading.start() > best[1]):
             best = (at, heading.start(), window, first)
+            later = html[heading.start(): heading.start() + _CASE_READ]
     if best is None:
         # A table with no unit stated is reported as one, and nothing is read off it.
         return ({"rows": {}, "unit": None, "stated_unit": None, "caption": "",
@@ -567,20 +634,25 @@ def projections(html: str, prefer_unrisked: bool = False) -> dict | None:
                  "cases": [], "case": None, "case_reason": None}
                 if unitless else None)
     window, first = best[2], best[3]
-    cases = [c for c in _case_tables(window)
+    cases = [c for c in _case_tables(later)
              if any(len(v) >= 5 for v in revenue_rows(c).values())]
     if not cases:
         return None
-    end = max(c["end"] for c in cases)
-    text = _flat(_TAG.sub(" ", window[:end]))
+    # The section as phase one read it: the heading to the end of the first run.
+    text = _flat(_TAG.sub(" ", window[:cases[0]["end"]]))
     before = _flat(_TAG.sub(" ", window[:first]))
     stated = [u for u in _UNIT.finditer(before)] or list(_UNIT.finditer(text))
     word = next(g for g in stated[-1].groups() if g).lower()
-    scale = 1000.0 if word == "billions" else 1.0
     section_flag = bool(_RISK_ADJUSTED.search(text))
-    relied = _relied_names(_flat(_TAG.sub(" ", window)), [c["name"] for c in cases])
+    relied = _relied_names(_flat(_TAG.sub(" ", later)), [c["name"] for c in cases])
     for case in cases:
-        case["rows"] = {label: {year: (value * scale, cell)
+        # A case states its own unit where it prints one (Amicus printed one case in
+        # billions and the next in millions); else the section's stands.
+        own = list(_UNIT.finditer(case["caption"][-400:]))
+        unit = next(g for g in own[-1].groups() if g).lower() if own else word
+        factor = 1000.0 if unit == "billions" else 1.0
+        case["stated_unit"] = unit
+        case["rows"] = {label: {year: (value * factor, cell)
                                 for year, (value, cell) in series.items()}
                         for label, series in case["rows"].items()}
         case["risk_adjusted"] = _case_risk(case, section_flag)
