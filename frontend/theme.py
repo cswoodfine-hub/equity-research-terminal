@@ -1009,8 +1009,9 @@ details.prof-summary.long[open] > summary {{ display: none; }}
     width: 100% !important; min-width: 100% !important; }}
 }}
 /* --ar-h is --sc-h for this view: the same head, figures, scorecard head and card row,
-   measured to end inside the screen at 1366x768, 1440x780, 1440x840 and 1440x900. */
-:root {{ --ar-h: clamp(250px, calc(100vh - 390px), 660px); }}
+   measured to end inside the screen at 1366x768, 1440x780, 1440x840 and 1440x900 with
+   the company header at its taller height (every ticker but the default one). */
+:root {{ --ar-h: clamp(250px, calc(100vh - 402px), 660px); }}
 @media (min-width: 1100px) {{
   .st-key-area_map [data-testid="stColumn"]:first-child {{
     flex: 0 0 calc(var(--ar-h) * 1.5) !important; width: auto !important; min-width: 0; }}

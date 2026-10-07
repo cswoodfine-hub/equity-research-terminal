@@ -216,7 +216,7 @@ def test_disease_areas_sits_between_indications_and_pipelines_on_pharma_only():
 
 def test_the_theme_sizes_the_view_to_the_screen():
     css = (FRONTEND / "theme.py").read_text()
-    assert "--ar-h: clamp(250px, calc(100vh - 390px), 660px)" in css
+    assert "--ar-h: clamp(250px, calc(100vh - 402px), 660px)" in css
     assert ".st-key-area_map .land-wrap {{ height: var(--ar-h); overflow: auto; }}" in css
 
 
