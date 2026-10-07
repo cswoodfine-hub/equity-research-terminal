@@ -129,6 +129,9 @@ _UNIVERSE_CSS = (_ASSETS / "universe.css").read_text()
 # The redesigned Catalysts tab's own rules (.cx-), read and injected the same way; its click
 # component receives the same text.
 _CATALYSTS_CSS = (_ASSETS / "catalysts.css").read_text()
+# The drug card of Comps > Indications (.dc-) and the scorecard's click affordances, read
+# and injected the same way.
+_DRUGCARD_CSS = (_ASSETS / "drugcard.css").read_text()
 
 
 def css() -> str:
@@ -144,6 +147,7 @@ def css() -> str:
 {_RESEARCH_CSS}
 {_UNIVERSE_CSS}
 {_CATALYSTS_CSS}
+{_DRUGCARD_CSS}
 
 /* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{
