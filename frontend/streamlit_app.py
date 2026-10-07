@@ -27,6 +27,7 @@ import urllib.request
 import pandas as pd
 import streamlit as st
 
+import areas_view as AV
 import calendar_view
 import catalysts_page
 import price_chart
@@ -2736,6 +2737,82 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
         st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
                                                        for c in rest)
                     + "</div>", unsafe_allow_html=True)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _areas_index(api_base: str):
+    try:
+        return api_get(api_base, "/areas")
+    except (urllib.error.URLError, OSError):
+        return None
+
+
+def _disease_areas(api_base: str, ticker: str) -> None:
+    """Every big pharma company's assets in one disease area, scored on four pillars:
+    value today, pipeline, durability and clinical quality, each 0 to 100 within the area
+    and averaged (backend/disease_areas.py states the rules).
+
+    Laid out as an indication's overview, on one screen: the area and the two pop-outs on
+    one line, the area's figures, the scorecard (value today against pipeline beside the
+    ranked table) and one row of finding cards, the last the selected company's position.
+    Opens on the area where the company is present that most companies share.
+    """
+    index = _areas_index(api_base)
+    if not index:
+        state("No disease areas yet", "the API returned no area with a big pharma company "
+              "present")
+        return
+    by_slug = {a["slug"]: a for a in index}
+    options = AV.area_options(index, ticker)
+    with st.container(key="area_head"):
+        head_pick, head_why, head_how, head_basis = st.columns(
+            [0.36, 0.165, 0.165, 0.31], vertical_alignment="center")
+    with head_pick:
+        pick = st.selectbox("Disease area", options, key=f"area_pick_{ticker}",
+                            format_func=lambda s: by_slug[s]["area"],
+                            label_visibility="collapsed")
+    with st.spinner("Scoring every company in the area"):
+        try:
+            page = _get_long(api_base, f"/areas/{pick}")
+        except (urllib.error.URLError, OSError) as exc:
+            state("The area did not load", str(exc), error=True)
+            return
+    rows = page.get("companies") or []
+    if not rows:
+        state("No company here", "no big pharma company has an asset placed in this area")
+        return
+    with head_basis:
+        st.markdown(f'<div class="ar-basis">Big pharma only · USD at ECB rates of '
+                    f'{html_escape(page.get("fx_as_of") or "no date on file")}</div>',
+                    unsafe_allow_html=True)
+    st.markdown(AV.figures_html(AV.figure_cells(page, ticker)), unsafe_allow_html=True)
+    points = AV.map_points(rows)
+    with head_why:
+        with st.popover("What every score rests on", use_container_width=True):
+            st.markdown(AV.rests_on_html(rows, page.get("horizon_end")),
+                        unsafe_allow_html=True)
+    with head_how:
+        with st.popover("How it is scored", use_container_width=True):
+            st.markdown(AV.method_html(page.get("method") or {}, AV.off_chart(rows)),
+                        unsafe_allow_html=True)
+    with st.container(key="area_sc_head"):
+        section("Area scorecard", f"{len(points)} of {len(rows)} on the chart",
+                basis="value today, pipeline, durability and clinical quality, averaged")
+    with st.container(key="area_map"):
+        left, right = st.columns([1.4, 1], gap="medium")
+    with left:
+        chart = CH.area_map(points, 720, 480, highlight=ticker)
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        else:
+            state("Nothing to chart", "no company here has both a value today and a "
+                  "pipeline score")
+    with right:
+        st.markdown(AV.table_html(rows, ticker, page.get("horizon_end")),
+                    unsafe_allow_html=True)
+    cards = list(page.get("cards") or []) + [
+        AV.company_card(page, ticker, globals().get("names", {}).get(ticker))]
+    st.markdown(AV.cards_html(cards), unsafe_allow_html=True)
 
 
 def _stage_chip(stage: str) -> str:
@@ -10110,14 +10187,17 @@ with main:
         # analyst comes to the tab for: how the company compares with its peers, as one
         # chart of its cohort with the ranked table beside it, and the comparables table
         # one click away. The two cohort views keep their own tabs.
-        _views = ["Companies"] + (["Indications"] if _engine == "pharma" else []) + [
-            "Pipelines"]
+        _views = ["Companies"] + (["Indications", "Disease areas"]
+                                  if _engine == "pharma" else []) + ["Pipelines"]
         _vt = dict(zip(_views, st.tabs(_views, default="Companies")))
         with _vt["Companies"]:
             _comps_valuation_view(api_base, ticker, engine, not asof_state)
         if "Indications" in _vt:
             with _vt["Indications"]:
                 _indication_landscape(api_base, ticker)
+        if "Disease areas" in _vt:
+            with _vt["Disease areas"]:
+                _disease_areas(api_base, ticker)
 
         # --- R&D productivity and the phase matrix ----------------------------
         # Every frame the Pipelines view draws is fetched first, in one place, and the
