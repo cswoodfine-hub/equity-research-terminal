@@ -1069,6 +1069,56 @@ def company_map(points: Sequence[dict], width: int = 760, height: int = 480,
         leader_attr=' class="cm-leader"')
 
 
+def area_map(points: Sequence[dict], width: int = 720, height: int = 480,
+             highlight: str | None = None) -> str:
+    """A disease area's scorecard chart: one bubble per company present, its value today
+    score across and its pipeline score up, so top right holds the most value now and
+    the most to come.
+
+    Each point: {ticker, x, y, size (the clinical quality score, or None), rank,
+    complete, tip}. Bubble size is clinical quality, the smallest where no drug is
+    scored; a bubble is solid when all four pillars are scored and hollow when one is
+    missing, and carries its rank in the table. The highlighted company is drawn in the
+    accent with a gap ring. Every bubble is labelled with its ticker.
+    """
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    shaped = [{**p, "name": p.get("ticker") or "", "evidence": p.get("size")} for p in usable]
+
+    def draw(p, px_, py_, r, mine):
+        colour = TK.UP if mine else TK.MUTED
+        fill, opacity = (colour, "0.9") if p.get("complete") else ("none", "1")
+        out = []
+        if mine:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 1.6:.1f}" fill="none"'
+                       f' stroke="{TK.GROUND}" stroke-width="2.4"/>')
+        out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}" fill="{fill}"'
+                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4">'
+                   f'<title>{_esc(p.get("tip") or p["name"])}</title></circle>')
+        if p.get("rank") is not None:
+            out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine))
+        return out
+
+    keys = [
+        ("all four pillars scored", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                                   f' fill="{TK.MUTED}" fill-opacity="0.9"'
+                                                   f' stroke="{TK.MUTED}"/>'),
+        ("a pillar missing", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                            f' fill="none" stroke="{TK.MUTED}"'
+                                            f' stroke-width="1.4"/>'),
+        ("bigger: higher clinical quality", _key_bigger)]
+    return _bubble_map(
+        shaped, width, height, highlight=highlight, max_labels=len(shaped),
+        label=("value today score against pipeline score, one bubble per company, "
+               "sized by clinical quality"),
+        corners=("more value today, deeper pipeline", "more value today, thinner pipeline",
+                 "less value today, deeper pipeline", "less value today, thinner pipeline"),
+        x_title="value today score  →  more",
+        y_title="pipeline score  →  deeper",
+        draw=draw, keys=keys, label_of=lambda p: p["name"], reach=lambda p, r: r + 2)
+
+
 def _short_label(text: str, limit: int) -> str:
     text = text or ""
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"

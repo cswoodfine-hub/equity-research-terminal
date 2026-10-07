@@ -203,7 +203,7 @@ async def handle(request, call_next):
 # The reads a company page makes that cost more than a moment, in the form the page asks
 # for them, so a warmed entry is the one the page hits.
 GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?days=90",
-                "/indications")
+                "/indications", "/areas")
 # The last one embeds the company's verdict through ``cached_json`` (comps_context), so it
 # stays last: each company's verdict is warm before its context is built.
 COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
@@ -217,6 +217,13 @@ COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
 # Global reads that embed the company reads above through ``cached_json``, so they are
 # warmed after every one of them. Warmed first, they would be built from missing entries.
 LATE_GLOBAL_READS = ("/comps/valuation",)
+
+
+def _area_reads() -> list:
+    """Every disease area's page, which reads each company's verdict and stakes through
+    ``cached_json`` and so is warmed after them, like the late global reads."""
+    import disease_areas
+    return [f"/areas/{disease_areas.slug(a)}" for a in disease_areas.area_names()]
 WARM_EVERY_S = 30.0
 _warm_started = threading.Event()
 
@@ -245,6 +252,7 @@ def warm_forever(base: str) -> None:
                 for ticker in _tickers():
                     urls += [base + p.format(t=ticker) for p in COMPANY_READS]
                 urls += [base + p for p in LATE_GLOBAL_READS]
+                urls += [base + p for p in _area_reads()]
                 for url in urls:
                     try:
                         _fetch(url)
