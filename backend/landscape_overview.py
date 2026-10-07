@@ -332,19 +332,27 @@ def overview(land: dict, endpoint_key: str | None = None) -> dict:
                         "across companies.")})
 
     pool = land.get("pool") or {}
-    # Only where the forecasts together claim a real share of the pool: an oncology line
-    # of therapy claims a sliver of its population and "0% counted once" says nothing.
-    if (pool.get("claimants", 0) >= 2 and pool.get("pool")
+    # Only where two or more forecasts share the one pool and together claim a real share
+    # of it: "0% counted once" says nothing.
+    if ((pool.get("pooled") or pool.get("claimants", 0)) >= 2 and pool.get("pool")
             and (pool.get("uncrowded_share") or 0) >= 0.01):
         size = (f"{pool['pool'] / 1e6:,.1f}mm" if pool["pool"] >= 1e6
                 else f"{pool['pool']:,.0f}")
+        # The drugs that share the one pool, of those drawing on the disease; a line of
+        # therapy's pool is a year's eligible diagnoses.
+        n = pool.get("pooled") or pool["claimants"]
+        per_year = " a year" if pool.get("per_year") else ""
+        whose = "that year's eligible patients" if per_year else "patients"
         cards.append({
             "kind": "crowding", "title": "How crowded it is",
-            "headline": f"{pool['claimants']} drugs share {size} patients",
+            "headline": f"{n} drugs share {size} patients{per_year}",
             "detail": (f"Modelled one at a time, the drugs would treat "
-                       f"{pool['uncrowded_share'] * 100:.0f}% of patients in "
+                       f"{pool['uncrowded_share'] * 100:.0f}% of {whose} in "
                        f"{pool.get('peak_year')}; counted once, the pool supplies "
-                       f"{pool['crowded_share'] * 100:.0f}%."),
+                       f"{pool['crowded_share'] * 100:.0f}%."
+                       + (f" {pool['claimants'] - n} more drugs modelled on the disease "
+                          f"draw on populations of their own." if pool["claimants"] > n
+                          else "")),
             "meaning": ("Every forecast assumes its own share of the same patients. Where "
                         "those shares add up to more than the patients who exist, each drug "
                         "keeps less than its forecast says, and the Candidates view shows how "

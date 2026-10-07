@@ -513,7 +513,9 @@ def _pool(conn, members: list[dict]) -> dict:
             continue
         summary = pool_crowding.summary(got) if len(claims) > 1 else {}
         return {"pool": got.get("pool"), "indication": m["name"],
-                "claimants": len(claims),
+                # A pool of a year's diagnoses is a figure a year, not a standing count.
+                "per_year": bool(got.get("pool_per_year")),
+                "claimants": len(claims), "pooled": got.get("pooled"),
                 "assets": {a["asset_id"]: {"peak_uncrowded": max(a["uncrowded"] or [0]),
                                            "peak_crowded": max(a["crowded"] or [0]),
                                            "ratio": a["ratio"], "pooled": a["pooled"]}
