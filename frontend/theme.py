@@ -1237,6 +1237,42 @@ details.prof-summary.long[open] > summary {{ display: none; }}
               padding: 1px 6px; white-space: nowrap; }}
 .fc-id span.hot {{ color: var(--text); }}
 .fc-id span.warn {{ color: var(--flag); border-color: var(--flag); }}
+/* Drafts waiting: rows drafted from a closed acquisition, above the book. A closing is
+   a line in the section's own weight; each row is the drafted figure against the book's,
+   with its quote and source under it, in the chips' mono. */
+.dr-close {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem;
+  border-top: 1px solid var(--rule-strong); padding: 0.55rem 0 0.25rem; }}
+.dr-target {{ font-family: var(--font-ui); font-weight: 700; font-size: 13px;
+  color: var(--text); }}
+.dr-meta {{ font-size: 12px; color: var(--muted); }}
+.dr-meta a, .dr-src a {{ color: var(--muted); text-decoration: underline;
+  text-decoration-color: var(--rule-strong); }}
+.dr-meta a:hover, .dr-src a:hover {{ color: var(--text); }}
+.dr-tag {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  border: 1px solid var(--rule-strong); border-radius: var(--radius-small);
+  padding: 1px 6px; white-space: nowrap; }}
+.dr-tag.dr-new {{ color: var(--flag); border-color: var(--flag); }}
+.dr-row {{ border-bottom: 1px solid var(--rule); padding: 0.3rem 0; }}
+.dr-line {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem;
+  font-size: 12px; }}
+.dr-st {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  min-width: 5.6rem; }}
+.s-incomplete .dr-st {{ color: var(--flag); }}
+.s-accepted .dr-st, .s-edited .dr-st {{ color: var(--up); }}
+.s-rejected, .s-accepted, .s-edited {{ opacity: 0.6; }}
+.dr-prod {{ color: var(--text); font-weight: 600; }}
+.dr-key {{ color: var(--muted); }}
+.dr-val {{ font-family: var(--font-mono); color: var(--text); }}
+.dr-yr, .dr-book {{ font-family: var(--font-mono); color: var(--muted); }}
+.dr-grade {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+  border: 1px solid var(--rule); border-radius: var(--radius-small); padding: 0 5px; }}
+.dr-quote {{ font-family: var(--font-prose); font-size: 12.5px; color: var(--text);
+  margin: 0.2rem 0 0 6.2rem; }}
+.dr-src, .dr-note, .dr-why {{ font-size: 11px; color: var(--muted);
+  margin: 0.1rem 0 0 6.2rem; overflow-wrap: anywhere; }}
+.dr-why {{ color: var(--flag); }}
 /* Revenue by year, split: a small table in the tab's own mono, not a dataframe. */
 .rs {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 0.4rem;
   font-variant-numeric: tabular-nums; }}

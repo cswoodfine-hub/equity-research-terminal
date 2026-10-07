@@ -29,6 +29,7 @@ import streamlit as st
 
 import calendar_view
 import catalysts_page
+import drafts_panel
 import price_chart
 import revenue_mix
 import scorecard_chart
@@ -5286,6 +5287,14 @@ def _medicare_tile_sub(dem) -> str:
     return out
 
 
+def _drafts_decided() -> None:
+    """After a drafted row is accepted or rejected: every cached read is stale, here and
+    in the Universe tab's drafts, so both are cleared and the whole page reruns."""
+    api_get.clear()
+    universe_page.drafts_read.clear()
+    st.rerun()
+
+
 # A fragment: picking a product, a scenario or a lever reruns this tab alone. The page
 # renders every tab on every rerun, so a click here used to redraw all of them and refetch
 # whatever their cache had let go, which is where a product click spent its time. A save
@@ -5302,6 +5311,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
     the workbench, answering a question the figures above provoke.
     """
     st.markdown('<span class="no-rail fc-anchor"></span>', unsafe_allow_html=True)
+    # Rows drafted from a closed acquisition, waiting for review: one line with the count,
+    # and nothing at all where none waits. A decision reruns the page, since the book
+    # every tab reads has changed.
+    drafts_panel.render(api_base, ticker, api_get, api_post_json, _drafts_decided)
     try:
         overview = api_get(api_base, f"/companies/{ticker}/forecast")
     except (urllib.error.URLError, OSError) as exc:
