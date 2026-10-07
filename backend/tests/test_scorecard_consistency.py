@@ -759,9 +759,11 @@ def test_live_every_surface_prints_the_payloads_scorecard(page):
                         f'<span class="p {r.get("tone") or ""}">'
                         f'{html.escape(r["place_text"], quote=False)}</span>')
                 assert cell in body, (r["id"], cell)
+    # The rank is said in the note's sentence, "7th of 18 big pharma", and "right is
+    # better" once over the table (Key insights on one screen, 2026-10-05).
     if rec.get("rank") is not None:
-        assert (f"{CS.ordinal(rec['rank'])} of {rec['ranked_of']} · right is better"
-                in body)
+        assert f"{CS.ordinal(rec['rank'])} of {rec['ranked_of']}" in body
+        assert "right is better" in body
 
 
 # Readouts and decisions and Loss of exclusivity, as the tab draws their rows. An expiry's
@@ -770,7 +772,7 @@ KI_READOUT = re.compile(
     r'<div class="ki-ro" title="([^"]*)"><span class="d"><i>([●○])</i>([^<]*)</span>'
     r'<span class="n(?: pipeline)?">([^<]*)</span><span class="w">([^<]*)</span></div>')
 KI_EXPIRY = re.compile(
-    r'<div class="ki-ex" title="([^"]*)"><span class="d">([^<]*)</span>'
+    r'<div class="ki-ex" title="([^"]*)"><span class="d(?: near)?">([^<]*)</span>'
     r'<span class="n">([^<]*)</span><span class="w">([^<]*)</span>'
     r'<span class="v">([^<]*)</span></div>')
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -874,11 +876,15 @@ def test_live_the_first_exclusivity_risk_is_a_patent_expiry(page):
     risks = [text for kind, _lead, text in _dr_rows("".join(page["cat"]))
              if kind == "exclusivity"]
     want = D.exclusivity_rows(rec, sc["today"])
+    # A big pharma company's Catalysts tab is the readout list, with no Risks section:
+    # its exclusivity is one click away there, and only Key insights is checked here.
+    old_tab = "Drivers and risks" in "".join(page["cat"])
     if not want:
         assert not risks, (ticker, risks)
         return
     first = want[0]
-    assert risks and risks[0] == first["text"], (ticker, risks[:1], first["text"])
+    if old_tab:
+        assert risks and risks[0] == first["text"], (ticker, risks[:1], first["text"])
     rows = _expiry_rows(page)
     if "orphan" in str(first.get("basis") or "").lower():
         assert not any(r[0].lower() == first["asset"].lower() for r in rows), \

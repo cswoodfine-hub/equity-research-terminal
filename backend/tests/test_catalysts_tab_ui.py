@@ -91,8 +91,8 @@ def _open(ticker: str):
 
 
 @pytest.fixture(scope="module")
-def azn_app():
-    return _open("AZN")
+def today_app():
+    return _open("ALNY")
 
 
 @pytest.fixture(scope="module")
@@ -145,19 +145,19 @@ def _expected(ticker: str) -> dict:
 
 
 @needs_api
-def test_drivers_and_risks_is_first_on_the_tab(azn_app):
-    assert not azn_app.exception
-    first = _markdowns(_tab(azn_app))[0]
+def test_drivers_and_risks_is_first_on_the_tab(today_app):
+    assert not today_app.exception
+    first = _markdowns(_tab(today_app))[0]
     assert 'class="sec"' in first and "Drivers and risks" in first
     assert D.SECTION_BASIS in first
 
 
 @needs_api
-def test_the_rows_are_the_ranked_list(azn_app):
+def test_the_rows_are_the_ranked_list(today_app):
     """Drivers' five rows, the rest under "Show n more", and Risks, each as
     drivers.section words it: one list, so Key insights' Next is its first three."""
-    tab = _tab(azn_app)
-    want = _expected("AZN")
+    tab = _tab(today_app)
+    want = _expected("ALNY")
     assert want["state"] == "ok"
     body = "".join(_markdowns(tab))
     drawn = _rows(body)
@@ -178,8 +178,8 @@ def test_the_rows_are_the_ranked_list(azn_app):
 
 
 @needs_api
-def test_every_risk_row_starts_with_a_number_and_runs_under_15_words(azn_app):
-    for kind, lead, text, _m in _rows("".join(_markdowns(_tab(azn_app)))):
+def test_every_risk_row_starts_with_a_number_and_runs_under_15_words(today_app):
+    for kind, lead, text, _m in _rows("".join(_markdowns(_tab(today_app)))):
         if kind == "driver":
             continue
         assert re.match(r"[\d$]", lead), lead
@@ -198,8 +198,8 @@ def test_a_company_with_nothing_ahead_reads_one_muted_line(crsp_app):
 
 
 @needs_api
-def test_the_copy_keeps_the_house_style(azn_app, crsp_app):
-    for app in (azn_app, crsp_app):
+def test_the_copy_keeps_the_house_style(today_app, crsp_app):
+    for app in (today_app, crsp_app):
         tab = _tab(app)
         for markup in _markdowns(tab):
             if 'class="cal' in markup:
@@ -214,8 +214,8 @@ def test_the_copy_keeps_the_house_style(azn_app, crsp_app):
 
 
 @needs_api
-def test_at_stake_prints_no_unpriced_line(azn_app, crsp_app):
-    for ticker, app in (("AZN", azn_app), ("CRSP", crsp_app)):
+def test_at_stake_prints_no_unpriced_line(today_app, crsp_app):
+    for ticker, app in (("ALNY", today_app), ("CRSP", crsp_app)):
         body = " ".join(_markdowns(_tab(app)))
         assert "unpriced" not in body
         stakes = _get(f"/companies/{ticker}/catalysts/stakes")
@@ -229,14 +229,14 @@ def test_at_stake_prints_no_unpriced_line(azn_app, crsp_app):
 
 
 @needs_api
-def test_the_calendar_is_folded_and_its_caption_names_the_phases(azn_app):
-    tab = _tab(azn_app)
+def test_the_calendar_is_folded_and_its_caption_names_the_phases(today_app):
+    tab = _tab(today_app)
     folds = [e for e in _expanders(tab) if e.label.startswith("Calendar, 24 months · ")]
     assert len(folds) == 1
     fold = folds[0]
     assert not fold.proto.expanded
     assert "Catalyst calendar for" not in " ".join(_markdowns(tab))
-    cal = _get(f"/catalysts?within_days={24 * 31}&ticker=AZN")
+    cal = _get(f"/catalysts?within_days={24 * 31}&ticker=ALNY")
     n = len(calendar_view.within(cal, 24))
     assert fold.label == f"Calendar, 24 months · {n} dated {'event' if n == 1 else 'events'}"
     inside = " ".join(_markdowns(fold))
@@ -249,8 +249,8 @@ def test_the_calendar_is_folded_and_its_caption_names_the_phases(azn_app):
 
 
 @needs_api
-def test_competition_by_indication_is_not_on_the_tab(azn_app):
-    assert "Competition by indication" not in " ".join(_markdowns(_tab(azn_app)))
+def test_competition_by_indication_is_not_on_the_tab(today_app):
+    assert "Competition by indication" not in " ".join(_markdowns(_tab(today_app)))
 
 
 # --- 4. The copy, nothing running ---------------------------------------------------

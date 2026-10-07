@@ -155,7 +155,8 @@ def _strict_args(app) -> dict:
 @needs_api
 def test_the_pharma_comps_tab_opens_on_companies(pharma_app):
     assert not pharma_app.exception
-    assert _comps_subtabs(pharma_app) == ["Companies", "Indications", "Pipelines"]
+    assert _comps_subtabs(pharma_app) == ["Companies", "Indications", "Disease areas",
+                                          "Pipelines"]
 
 
 @needs_api
