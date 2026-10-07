@@ -8,13 +8,33 @@ filed sources and queues them:
 1. Detection (``detect``). A closing is read only from the acquirer's own filings
    (``closings.py``), never from the headline deals table. Every filing read is recorded in
    ``closing_reads`` and every closing in ``deal_closings``, one per company and target, so
-   a filing is read once and a closing drafted once.
+   a filing is read once and a closing drafted once. A one-off catch-up
+   (``catch_up``, or ``python input_drafts.py --catch-up``) reads every unread filing when
+   this goes live; each refresh after it reads only filings dated on or after the
+   company's newest read, with 40 fetches a run as a safety cap.
 2. Drafting (``draft``). The target's products are the book's assets its own registered
    trials map to, and the ones its projections name. A public target has filed revenue
    (its company facts) and usually management's projections (its merger proxy or 14D-9),
    which become a base, a peak and the growth between them in the engine's marketed mode.
    A private target has neither, and the draft says so rather than guess. The cash paid
    becomes a pending claim on equity until a filed balance sheet carries the deal.
+
+   Where a filing prints several projection cases, one is taken by a stated rule
+   (``closings.choose_case``): the case the target's board and financial advisers relied
+   on for the fairness opinion; failing that, management's base case over an upside or a
+   downside case; failing that, the most recent. Each drafted row's note names the case,
+   the reason and the filing's own caption.
+
+   Risk is applied once, and it belongs to the product. An unadjusted forecast is drafted
+   as it is and the engine applies the probability for the product's stage; where the
+   filing prints only a risk-adjusted forecast, it is drafted with a probability of 1 and
+   a note that the target's own adjustment is inside it. A product in development takes
+   the unadjusted case where one is printed. Its probability is its own whoever bought it
+   (``pos_granular.acquired``).
+
+   A product the book does not hold is named by the target's approved label (openFDA),
+   and accepting its first row adds it under the buyer, in the book and in
+   ``data/marketed_additions.csv``, so there is no separate step to add it.
 3. Review (``queue``, ``decide``). A row is accepted as drafted, edited then accepted, or
    rejected. Acceptance writes the row to the book (``assumptions.save`` or
    ``other_claims``) and to its seed file under data/, because the seeds bootstrap and never
@@ -44,6 +64,9 @@ READS_PER_RUN = 40
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 SEED_DIR = DATA_DIR / "assumptions"
 CLAIMS_PATH = DATA_DIR / "other_claims.csv"
+ADDITIONS_PATH = DATA_DIR / "marketed_additions.csv"
+ADDITIONS_HEADER = ["ticker", "brand", "generic", "internal_code", "modality",
+                    "licensed_on", "source"]
 
 _PERIODIC_SECTIONS = ("mdna", "financial_review")
 _TRIGGER_KIND = {"10-Q": "10-Q", "10-K": "10-K", "20-F": "20-F", "6-K": "6-K"}
@@ -105,9 +128,26 @@ def _kind(row: dict) -> str:
 
 def _record_read(conn, row: dict, verdict: str) -> None:
     conn.execute(
-        "INSERT OR IGNORE INTO closing_reads (accession, company_id, form_type, verdict)"
-        " VALUES (?, ?, ?, ?)", (row["accession"], row["company_id"], row["form_type"],
-                                 verdict))
+        "INSERT OR IGNORE INTO closing_reads (accession, company_id, form_type, filed_date,"
+        " verdict) VALUES (?, ?, ?, ?, ?)",
+        (row["accession"], row["company_id"], row["form_type"], row["filed_date"], verdict))
+
+
+def _stream(form_type: str) -> str:
+    return "periodic" if form_type in ("10-Q", "10-K", "20-F") else "current"
+
+
+def _floors(conn) -> dict:
+    """{(company_id, stream): the newest filing date read}. Current reports and periodic
+    reports keep separate floors, since a periodic report's text is stored later than the
+    current reports filed after it."""
+    out: dict = {}
+    for r in conn.execute("SELECT company_id, form_type, MAX(filed_date) AS newest"
+                          " FROM closing_reads GROUP BY company_id, form_type"):
+        key = (r["company_id"], _stream(r["form_type"]))
+        if r["newest"] and (key not in out or r["newest"] > out[key]):
+            out[key] = r["newest"]
+    return out
 
 
 def _existing_closing(conn, company_id: int, target: str):
@@ -118,28 +158,41 @@ def _existing_closing(conn, company_id: int, target: str):
     return None
 
 
-def detect(conn, edgar=None, since: str = SINCE, limit: int = READS_PER_RUN) -> dict:
-    """Read every unread candidate filing since ``since`` for a completed acquisition.
+def detect(conn, edgar=None, since: str = SINCE, limit: int | None = READS_PER_RUN,
+           catch_up: bool = False) -> dict:
+    """Read candidate filings for a completed acquisition.
 
-    Text already stored by the filing text fetcher is read in place; a current report that
-    is not stored is fetched, at most ``limit`` of them a run, and one left unread is
-    picked up by the next run rather than recorded. Returns counts and the new closings.
+    The one-off catch-up (``catch_up``) reads every unread candidate since ``since``, with
+    no cap, so the queue starts complete. A refresh then reads only the filings dated on
+    or after the company's newest read, fetching at most ``limit`` current reports a run
+    as a safety cap. Text already stored by the filing text fetcher is read in place. A
+    filing left unread, for the cap, a failed fetch or no EDGAR client, is not recorded,
+    and the company's later filings wait with it, so the floor never passes a filing that
+    was not read. Returns counts and the new closings.
     """
     names = _names(conn)
-    fetched, new, errors, verdicts = 0, [], [], {}
+    floors = {} if catch_up else _floors(conn)
+    cap = None if catch_up else limit
+    fetched, new, errors, verdicts, held = 0, [], [], {}, set()
     for row in _candidates(conn, since):
+        stream = (row["company_id"], _stream(row["form_type"]))
+        if stream in held or (row["filed_date"] or "") < floors.get(stream, ""):
+            continue
         periodic = row["form_type"] in ("10-Q", "10-K", "20-F")
         texts = _stored(conn, row["accession"], _PERIODIC_SECTIONS if periodic else None)
         if not texts and periodic:
             continue
         if not texts:
-            if edgar is None or fetched >= limit or not row.get("url"):
+            if (edgar is None or not row.get("url")
+                    or (cap is not None and fetched >= cap)):
+                held.add(stream)
                 continue
             try:
                 texts = edgar.current_report(row["url"])
                 fetched += 1
             except Exception as exc:          # a transient failure is retried next run
                 errors.append(f"{row['accession']}: {exc}")
+                held.add(stream)
                 continue
         kind = _kind(row)
         found, sale = [], False
@@ -226,6 +279,22 @@ def _linked_assets(conn, company_id: int, target: str, texts: list[str]) -> list
     return sorted(out.values(), key=lambda a: (-a["is_marketed"], a["id"]))
 
 
+def _proposed(label: dict, sponsor: str, texts: list[str]) -> dict:
+    """A product the book does not hold, as the target's approved label states it."""
+    proposed = {"brand": label["brand"], "generic": label.get("generic"),
+                "modality": label.get("modality"), "is_marketed": 1,
+                "internal_code": label.get("internal_code"),
+                "licensed_on": label.get("approval_date"),
+                "source": (f"openFDA drugsfda {label.get('application_number')}, sponsor "
+                           f"{sponsor}, first approved {label.get('approval_date')}")}
+    asset = {"id": None, "brand_name": label["brand"], "generic_name": label.get("generic"),
+             "is_marketed": 1, "modality": label.get("modality"),
+             "linked_by": "the target's approved label", "modelled_rows": 0, "mode": None,
+             "loe": None, "proposed": proposed}
+    asset["named"] = _named(asset, " ".join(texts))
+    return asset
+
+
 def _asset_name(asset: dict) -> str:
     return asset.get("brand_name") or asset.get("generic_name") or f"asset {asset['id']}"
 
@@ -251,7 +320,7 @@ def _sibling(conn, company_id: int, modality: str | None, exclude: int):
     return conn.execute(
         """SELECT a.id, a.brand_name, a.generic_name, COUNT(s.id) n
              FROM assets a JOIN assumptions s ON s.asset_id = a.id AND s.scenario = 'base'
-            WHERE a.owner_company_id = ? AND a.id != ? AND a.is_marketed = 1
+            WHERE a.owner_company_id = ? AND a.id != IFNULL(?, -1) AND a.is_marketed = 1
               AND EXISTS (SELECT 1 FROM assumptions m WHERE m.asset_id = a.id
                           AND m.key = 'therapy_mode' AND m.text_value = 'marketed')
             GROUP BY a.id
@@ -291,6 +360,14 @@ def _consideration(conn, closing, context: dict) -> dict:
             return {**found, "accession": r["accession"], "form": r["form_type"],
                     "cvr_quote": paid.get("cvr_quote") or found.get("cvr_quote")}
     return paid
+
+
+def _risk_sentence(text: str) -> str | None:
+    """The filing's own sentence saying its projections are risk-adjusted."""
+    for sentence in re.split(r"(?<=[.;])\s+", text or ""):
+        if closings._RISK_ADJUSTED.search(sentence) and len(sentence) < 600:
+            return sentence.strip()
+    return None
 
 
 def _projection_choice(revenue: dict, linked: list[dict]) -> tuple:
@@ -349,6 +426,16 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
     linked = _linked_assets(conn, company["id"], target, texts)
     for asset in linked:
         asset["loe"] = _loe(conn, asset["id"])
+    if public and not linked and hasattr(edgar, "labels"):
+        # The book holds none of the target's products: its approved labels name them,
+        # and accepting a row for one adds it to the book under the buyer.
+        phrase = re.sub(closings._LEGAL + r"\s*$", "", target).strip()
+        try:
+            labels = closings.marketed_labels(
+                edgar.labels(closings.target_key(target).split(" ")[0].upper()), target)
+        except Exception as exc:           # openFDA down is a gap, not a failed draft
+            labels, context["labels_error"] = [], str(exc)
+        linked = [_proposed(label, phrase, texts) for label in labels]
 
     blocked: list = []                  # why the rows drafted next cannot stand alone
 
@@ -356,7 +443,7 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
             asset=None, proposed=None, source=None, source_url=None, quote=None,
             grade=None, note=None, complete=True):
         existing = (_existing(conn, asset["id"], key, year)
-                    if destination == "assumptions" and asset else None)
+                    if destination == "assumptions" and asset and asset["id"] else None)
         if existing is not None and (
                 (value is not None and existing["value"] is not None
                  and abs(existing["value"] - value) < 1e-9)
@@ -370,7 +457,9 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
             note = f"Incomplete: {why}." + (f" {note}" if note else "")
         rows.append({"destination": destination, "key": key, "value": value,
                      "text_value": text_value, "unit": unit, "year": year,
-                     "asset_id": asset["id"] if asset else None, "proposed_asset": proposed,
+                     "asset_id": asset["id"] if asset else None,
+                     "proposed_asset": (json.dumps(asset["proposed"], sort_keys=True)
+                                        if asset and asset.get("proposed") else proposed),
                      "source": source, "source_url": source_url, "quote": quote,
                      "evidence": grade, "note": note, "status": status,
                      "existing_value": existing["value"] if existing else None,
@@ -436,6 +525,13 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
                           f"{last['end']}", grade="filed",
                     note=f"the target's own filed revenue, the year before the closing; "
                          f"history {prior}", complete=caveat is None)
+        if lead is not None and label and not lead["is_marketed"]:
+            # A product in development takes the unadjusted case where the filing prints
+            # one, so the engine's probability for its stage is the only risk applied.
+            found = closings.with_case(found, closings.choose_case(found,
+                                                                   prefer_unrisked=True))
+            revenue = closings.revenue_rows(found)
+            label = label if label in revenue else _projection_choice(revenue, [lead])[0]
         if lead is not None and label:
             series = revenue[label]
             years = sorted(series)
@@ -449,22 +545,28 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
                 "first_year": years[0], "last_year": years[-1], "peak_year": peak_year,
                 "peak": peak, "falls_by_half_in": fall,
                 "risk_adjusted": found["risk_adjusted"], "caption": found["caption"],
-                "stated_unit": found["stated_unit"],
+                "stated_unit": found["stated_unit"], "case": found.get("case"),
+                "case_reason": found.get("case_reason"),
+                "cases": [{"name": c["name"], "risk_adjusted": c["risk_adjusted"],
+                           "relied": c["relied"]} for c in found.get("cases") or []],
                 "values": {str(y): series[y][0] for y in years}}
             stated = found["stated_unit"]
-            # A filing can print several cases; the words before the table name the one read.
-            risk_note = f' The table read follows: "{found["caption"][-160:]}".'
+            # Which case was read and why, with the filing's own words before its table.
+            case = (f' Case taken: "{found.get("case") or "the projections"}", '
+                    f'{found.get("case_reason") or "the only case the filing prints"}. '
+                    f'The filing\'s caption: "{found["caption"][-160:]}".')
 
             source = (f"{name} {proxy['form']}, accession {proxy['accession']}, management "
                       f"projections")
             risk = (" Management's figures are risk-adjusted." if found["risk_adjusted"]
-                    else "") + risk_note
+                    else " Management's figures are not risk-adjusted.") + case
             if lead["is_marketed"]:
                 # Drafted whatever the row holds: add() drops it where the book already
                 # says marketed, and shows the conflict where it says something else.
                 add("assumptions", "therapy_mode", text_value="marketed", asset=lead,
                     source="approved and selling: an FDA approval is on file",
-                    quote=f"{_asset_name(lead)} is marketed in the book",
+                    quote=(f"{_asset_name(lead)} is marketed in the book" if lead["id"]
+                           else lead["proposed"]["source"]),
                     grade="convention")
                 anchor = next((r["value"] for r in rows if r["key"] == "base_revenue"), None)
                 held = _existing(conn, lead["id"], "base_revenue")
@@ -505,25 +607,33 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
                              "ceiling", complete=caveat is None and not below)
             else:
                 launch = next((y for y in years if series[y][0] > 0), years[0])
-                ready = caveat is None and not found["risk_adjusted"]
-                if found["risk_adjusted"] and not blocked:
-                    blocked[:] = ["the projections are risk-adjusted and the engine applies "
-                                  "its own probability, so taking them as they are would "
-                                  "count the risk twice"]
                 add("assumptions", "therapy_mode", text_value="launch", asset=lead,
                     source=f"{source}: a filed peak for a product not yet selling",
                     quote=f"{label}, {peak_year}: {peak_cell}", grade="convention",
                     note="launch mode climbs to a stated peak on the measured average "
-                         "launch", complete=ready)
+                         "launch", complete=caveat is None)
                 add("assumptions", "peak_revenue_musd", value=peak, unit="mm USD",
                     asset=lead, source=source, source_url=proxy_url,
                     quote=f"{label}, {peak_year}: {peak_cell} (amounts in {stated})",
-                    grade="filed", note=f"management's peak, {peak_year}." + risk,
-                    complete=caveat is None and not found["risk_adjusted"])
+                    grade="filed", note=f"management's peak, {peak_year}." + risk + (
+                        " Risk is applied once: by the target, inside these figures, so "
+                        "the probability is drafted at 1." if found["risk_adjusted"] else
+                        " Risk is applied once: by the engine, at the probability for the "
+                        "product's own stage, whoever owns it."),
+                    complete=caveat is None)
                 add("assumptions", "years_to_peak", value=float(peak_year - launch),
                     unit="years", asset=lead, source=source, source_url=proxy_url,
                     quote=f'{label}: first revenue {launch}, peak {peak_year}',
                     grade="filed", complete=caveat is None)
+                if found["risk_adjusted"]:
+                    said = _risk_sentence(found["section_text"])
+                    add("assumptions", "pos", value=1.0, asset=lead, source=source,
+                        source_url=proxy_url, quote=said or found["caption"][-300:],
+                        grade="filed",
+                        note="the filing prints only a risk-adjusted case, so the target's "
+                             "own risk adjustment is inside the peak drafted: the "
+                             "probability is 1, and the product's risk is applied once, "
+                             "not again by the engine", complete=caveat is None)
             if caveat:
                 notes.append(caveat)
             unnamed = [_asset_name(a) for a in linked
@@ -534,10 +644,8 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
                     f"the target's registered trials but not named in its projections: "
                     f"check whether each is a programme of its own or a second row for "
                     f"{_asset_name(lead)}")
-            if found["risk_adjusted"] and not lead["is_marketed"]:
-                notes.append("the projections are risk-adjusted and the engine applies its "
-                             "own probability to a pipeline product, so the peak is drafted "
-                             "incomplete: accepting it as is would count the risk twice")
+            notes.append(f'the projection case taken is "{found.get("case") or "the projections"}"'
+                         f', {found.get("case_reason") or "the only case the filing prints"}')
         elif public and not proxy:
             notes.append(f"{name} filed no merger proxy or 14D-9 the search found, so there "
                          "are no management projections to draft from")
@@ -571,7 +679,11 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
             if lead["is_marketed"] and _existing(conn, lead["id"], "pos") is None:
                 add("assumptions", "pos", value=1.0, asset=lead,
                     source="approved and selling", quote=f"{_asset_name(lead)} is marketed",
-                    grade="convention", note="no development phase applies")
+                    grade="convention",
+                    note="no development phase applies" + (
+                        "; the target's own risk adjustment of its unapproved uses is "
+                        "inside the projections, so risk is applied once"
+                        if found and found.get("risk_adjusted") else ""))
         context["target"] = {"cik": cik, "name": name, "proxy": proxy,
                              "revenue_history": [{"fiscal_year": h["fiscal_year"],
                                                   "value": h["value"],
@@ -605,7 +717,8 @@ def draft(conn, closing_id: int, edgar=None) -> dict:
 
     context["linked_assets"] = [
         {k: a.get(k) for k in ("id", "brand_name", "generic_name", "is_marketed",
-                               "linked_by", "named", "modelled_rows", "mode", "loe")}
+                               "linked_by", "named", "modelled_rows", "mode", "loe",
+                               "proposed")}
         for a in linked]
     context["consideration"] = paid
     conn.execute("DELETE FROM input_drafts WHERE closing_id = ? AND status IN "
@@ -650,6 +763,11 @@ def queue(conn, ticker: str) -> dict | None:
                  FROM input_drafts d LEFT JOIN assets a ON a.id = d.asset_id
                 WHERE d.closing_id = ? ORDER BY d.destination, d.asset_id, d.key""",
             (closing["id"],))]
+        for r in rows:
+            proposed = json.loads(r["proposed_asset"]) if r["proposed_asset"] else None
+            r["new_product"] = bool(proposed) and r["status"] in ("draft", "incomplete")
+            if proposed and not r["asset_name"]:
+                r["asset_name"] = proposed.get("brand") or proposed.get("generic")
         entry = dict(closing)
         entry["context"] = json.loads(closing["context"] or "{}")
         entry["rows"] = rows
@@ -743,7 +861,7 @@ CLAIMS_HEADER = ["ticker", "item", "label", "kind", "value", "as_of", "source", 
 
 
 def decide(conn, draft_id: int, action: str, edits: dict | None = None,
-           seed_dir=None, claims_path=None) -> dict:
+           seed_dir=None, claims_path=None, additions_path=None) -> dict:
     """Accept, edit then accept, or reject one drafted row.
 
     Accepting writes the book and the seed file, after a snapshot of what the book held,
@@ -780,13 +898,19 @@ def decide(conn, draft_id: int, action: str, edits: dict | None = None,
     status = "edited" if edits else "accepted"
     ticker = row["ticker"]
 
+    created = None
     if row["destination"] == "assumptions":
+        if merged.get("asset_id") is None and row["proposed_asset"]:
+            # A product the book does not hold is added under the buyer as its first row
+            # is accepted, book and seed file both, and its other drafted rows follow it.
+            merged["asset_id"], created = _add_product(
+                conn, row, json.loads(row["proposed_asset"]), additions_path)
+            edits = {k: v for k, v in edits.items() if k != "asset_id"}
         asset = conn.execute(
             "SELECT id, brand_name, generic_name, owner_company_id FROM assets WHERE id = ?",
             (merged.get("asset_id"),)).fetchone()
         if asset is None or asset["owner_company_id"] != row["company_id"]:
-            raise ValueError("an assumption row needs an asset the company owns; a proposed "
-                             "product has to be added to the book first")
+            raise ValueError("an assumption row needs an asset the company owns")
         conn.execute(
             "INSERT INTO snapshots (source, entity_type, entity_key, payload)"
             " VALUES ('input_drafts', 'asset', ?, ?)",
@@ -836,19 +960,91 @@ def decide(conn, draft_id: int, action: str, edits: dict | None = None,
                            "source": source, "note": merged.get("note")})
     else:
         raise ValueError(f"unknown destination {row['destination']}")
+    if created is not None:
+        edits["asset_id"] = created["asset_id"]
     assignments = ", ".join(["status = ?", "decided_at = datetime('now')"]
                             + [f"{k} = ?" for k in edits])
     conn.execute(f"UPDATE input_drafts SET {assignments} WHERE id = ?",
                  (status, *edits.values(), draft_id))
     conn.commit()
-    return {"id": draft_id, "status": status, "seed_file": str(path), "seed": seed}
+    out = {"id": draft_id, "status": status, "seed_file": str(path), "seed": seed}
+    if created is not None:
+        out["product"] = created
+    return out
+
+
+def _add_product(conn, row, proposed: dict, additions_path=None) -> tuple:
+    """(asset_id, what was done): the product a drafted row proposes, under the buyer.
+
+    The asset the book already holds under the buyer by the same application number,
+    brand or ingredient is used, so a second accepted row, or a fetcher that has since
+    caught up, never makes a second one. Otherwise the asset is written as the curated
+    register writes an acquired product (``curated_register.py``): marketed, keyed by
+    its application number, with the biologic floor where no exclusivity is on file, and
+    the same row added to ``data/marketed_additions.csv`` so a rebuilt book has it too.
+    The buyer's other drafted rows for the product are pointed at it."""
+    import curated_register
+    from assets_util import upsert_asset
+
+    code = (proposed.get("internal_code") or "").strip()
+    brand = (proposed.get("brand") or "").strip()
+    generic = (proposed.get("generic") or "").strip() or None
+    if not code or not brand or not proposed.get("is_marketed"):
+        raise ValueError("a proposed product needs a brand and the application number of "
+                         "its approval before it can be added")
+    held = conn.execute(
+        """SELECT id FROM assets WHERE owner_company_id = ?
+              AND (internal_code = ? OR LOWER(TRIM(brand_name)) = LOWER(?))
+            ORDER BY internal_code = ? DESC, id LIMIT 1""",
+        (row["company_id"], code, brand, code)).fetchone()
+    done = {"brand": brand, "internal_code": code}
+    if held is not None:
+        asset_id, done["action"] = held["id"], "found in the book"
+    else:
+        asset_id = upsert_asset(conn, row["company_id"], code, brand, generic,
+                                proposed.get("modality"))
+        done["action"] = "added to the book"
+        conn.execute(
+            "INSERT INTO snapshots (source, entity_type, entity_key, payload)"
+            " VALUES ('input_drafts', 'asset', ?, ?)",
+            (code, json.dumps({"asset_id": asset_id, "is_marketed": 1, "was": None,
+                               "draft_id": row["id"], "source": proposed.get("source")})))
+        expiry = (curated_register._floor(proposed.get("licensed_on") or "")
+                  if code.upper().startswith("BLA") else None)
+        if expiry and not conn.execute("SELECT 1 FROM exclusivities WHERE asset_id = ?"
+                                       " LIMIT 1", (asset_id,)).fetchone():
+            conn.execute(
+                """INSERT INTO exclusivities
+                       (asset_id, region, protection_type, identifier, expiry_date, source)
+                   VALUES (?, 'US', ?, ?, ?, ?)""",
+                (asset_id, curated_register.FLOOR_PROTECTION,
+                 curated_register.FLOOR_IDENTIFIER, expiry, curated_register.SOURCE))
+    done["asset_id"] = asset_id
+    done["seed"] = upsert_csv(
+        pathlib.Path(additions_path) if additions_path else ADDITIONS_PATH, ADDITIONS_HEADER,
+        ("ticker", "internal_code"),
+        {"ticker": row["ticker"], "brand": brand, "generic": generic or "",
+         "internal_code": code, "modality": proposed.get("modality") or "",
+         # The biologic floor is written from this date; a small molecule's exclusivity
+         # comes from the Orange Book under its application number instead.
+         "licensed_on": (proposed.get("licensed_on") or "")
+         if code.upper().startswith("BLA") else "",
+         "source": f"{proposed.get('source')}; acquired with the closing drafted as "
+                   f"{row['trigger_kind']} {row['trigger_accession']}"})
+    conn.execute(
+        "UPDATE input_drafts SET asset_id = ? WHERE company_id = ? AND asset_id IS NULL"
+        "   AND proposed_asset = ? AND id != ?",
+        (asset_id, row["company_id"], row["proposed_asset"], row["id"]))
+    return asset_id, done
 
 
 # --- the refresh step --------------------------------------------------------------
 
-def run(db_path=None, since: str = SINCE, limit: int = READS_PER_RUN, edgar=None) -> dict:
+def run(db_path=None, since: str = SINCE, limit: int | None = READS_PER_RUN, edgar=None,
+        catch_up: bool = False) -> dict:
     """Detect new closings and draft each one not drafted yet. Idempotent: a filing read
-    once is never read again and a closing drafted once is never drafted again."""
+    once is never read again and a closing drafted once is never drafted again. The
+    refresh step calls this as it is; ``catch_up`` is the one-off first run."""
     if edgar is None:
         try:
             from fetchers.closings_edgar import Edgar
@@ -857,7 +1053,7 @@ def run(db_path=None, since: str = SINCE, limit: int = READS_PER_RUN, edgar=None
             edgar = None                     # stored text only, and no drafting
     conn = db.get_connection(db_path)
     try:
-        found = detect(conn, edgar, since, limit)
+        found = detect(conn, edgar, since, limit, catch_up=catch_up)
         drafted, errors = 0, list(found["errors"])
         if edgar is not None:
             for closing in conn.execute(
@@ -873,3 +1069,22 @@ def run(db_path=None, since: str = SINCE, limit: int = READS_PER_RUN, edgar=None
                 "drafted": drafted, "errors": errors}
     finally:
         conn.close()
+
+
+def catch_up(db_path=None, edgar=None) -> dict:
+    """The one-off run for when this goes live: every unread filing since ``SINCE`` is
+    read, uncapped, so the queue starts complete and each refresh after it reads only new
+    filings."""
+    return run(db_path, edgar=edgar, catch_up=True)
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--catch-up", action="store_true",
+                        help="read every unread filing since %s, uncapped" % SINCE)
+    args = parser.parse_args()
+    import env
+    env.load()
+    print(json.dumps(catch_up() if args.catch_up else run(), indent=1, default=str))

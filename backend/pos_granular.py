@@ -40,7 +40,9 @@ name is not that. The cut applies only where a person has recorded on the asset 
 its pivotal trial selected patients on a biomarker, as a ``biomarker_selected`` row.
 
 Big pharma only, and Phase 2 or 3 only, by construction: everywhere else the book
-behaves as it did.
+behaves as it did. The one exception is a product bought in a closed acquisition and
+accepted from its draft (``acquired``): its probability is the one its own stage and
+evidence give, so it is placed at its gate whoever the buyer is.
 
 Beside the probability, and never inside it, it says what the next gate decides. The
 point splits by transition into ``gates`` that multiply back to it exactly;
@@ -653,6 +655,20 @@ def big_pharma(conn, company_id: int) -> bool:
     return engines.assign(conn, company_id, revenue) == engines.PHARMA
 
 
+def acquired(conn, asset_id: int) -> bool:
+    """Whether the asset came into the book through an accepted closing draft
+    (input_drafts.py). Its probability is its own: the stage and the evidence of the
+    product, whoever bought it, so it is placed at its gate whether or not its new owner
+    is read on the pharma engine. Risk is applied to the product once and does not
+    change because the product now sits in another portfolio."""
+    try:
+        return conn.execute(
+            "SELECT 1 FROM input_drafts WHERE asset_id = ? AND destination = 'assumptions'"
+            "   AND status IN ('accepted', 'edited') LIMIT 1", (asset_id,)).fetchone() is not None
+    except Exception:                       # a book without the drafts table
+        return False
+
+
 def _lead_indication(conn, asset_id: int):
     """The asset_indications row the forecast is built on, by the same rule
     assumptions.load uses for the phase. A filing for any other disease must not lift
@@ -704,7 +720,8 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
         "       is_marketed FROM assets WHERE id = ?", (asset_id,)).fetchone()
     if asset is None or asset["is_marketed"]:
         return None
-    if not (big if big is not None else big_pharma(conn, asset["owner_company_id"])):
+    if not (big if big is not None else big_pharma(conn, asset["owner_company_id"])) \
+            and not acquired(conn, asset_id):
         return None
     names = [n for n in (asset["generic_name"], asset["brand_name"],
                          asset["internal_code"]) if n]

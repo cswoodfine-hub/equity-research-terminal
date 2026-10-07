@@ -15,6 +15,12 @@ sends, and paced well under ten requests a second:
 - ``https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{file}`` for the proxy;
 - ``https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json`` for revenue.
 
+One read is not EDGAR: where the book holds none of the target's products, its approved
+labels are read from openFDA drugsfda by sponsor name
+(``https://api.fda.gov/drug/drugsfda.json?search=sponsor_name:"..."``), keyless, or with
+``OPENFDA_API_KEY`` where one is set. That is what names the product the buyer now owns,
+with its application number, ingredient and first approval.
+
 Parsing lives in ``closings.py``, so this module only reads.
 """
 
@@ -33,6 +39,7 @@ import filingtext
 _TIMEOUT_S = 60
 _SLEEP_S = 0.15                    # under ten requests a second
 SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
+DRUGSFDA_URL = "https://api.fda.gov/drug/drugsfda.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{folder}/{filename}"
 # The forms a target files that make it public, and the two that carry projections.
@@ -108,6 +115,22 @@ class Edgar:
 
     def companyfacts(self, cik: str) -> dict:
         return json.loads(self.get(FACTS_URL.format(cik=int(cik))))
+
+    def labels(self, sponsor: str) -> dict:
+        """openFDA drugsfda applications whose sponsor name holds ``sponsor``, a single
+        word: the register shortens names ("SOLENO" for Soleno Therapeutics), so the
+        caller searches the first word and keeps the sponsors its full name covers. No
+        match is an empty result, which openFDA answers with a 404."""
+        query = {"search": f'sponsor_name:"{sponsor}"', "limit": 100}
+        key = os.getenv("OPENFDA_API_KEY")
+        if key:
+            query["api_key"] = key
+        try:
+            return json.loads(self.get(f"{DRUGSFDA_URL}?{urllib.parse.urlencode(query)}"))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return {"results": []}
+            raise
 
 
 def document_url(cik: str, accession: str, filename: str) -> str:

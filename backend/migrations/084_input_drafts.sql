@@ -5,11 +5,13 @@
 -- other_claims) and to the matching seed file under data/.
 
 -- Every filing read for a closing, once, whatever it said, so a filing is never read or
--- drafted twice.
+-- drafted twice. A refresh reads only filings dated on or after the company's newest
+-- read, so filed_date is kept; the one-off catch-up reads every unread filing.
 CREATE TABLE closing_reads (
     accession  TEXT PRIMARY KEY,
     company_id INTEGER REFERENCES companies(id),
     form_type  TEXT,
+    filed_date TEXT,
     verdict    TEXT,               -- acquisition, disposition, none, unreadable
     read_at    TEXT DEFAULT (datetime('now'))
 );
