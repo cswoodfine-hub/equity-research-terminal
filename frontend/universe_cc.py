@@ -1474,8 +1474,9 @@ def football_svg(p):
 
 
 def vs_xlv_svg(p):
-    """The focal company against XLV over the year, both indexed to 100 on their first
-    shared close."""
+    """The focal company against the benchmark (PPH) over the year, both on price and
+    indexed to 100 on their first shared close. Each line's end figure is read off the
+    line itself, so the label and the drawing agree."""
     f = _focal(p)
     win = (p.get("windows") or {}).get("1y") or {}
     first, last = win.get("first"), win.get("last")
@@ -1499,17 +1500,16 @@ def vs_xlv_svg(p):
     def Y(v):
         return top + (hi - v) / (hi - lo or 1) * (H - top - bot)
     o = [f'<svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" role="img" '
-         f'aria-label="{esc(f)} against XLV, indexed">']
+         f'aria-label="{esc(f)} against {esc(p.get("benchmark_symbol") or "PPH")}, indexed">']
     v = lo
     while v <= hi:
         o.append(f'<line x1="{L}" y1="{Y(v):.1f}" x2="{W-Rr}" y2="{Y(v):.1f}" '
                  f'stroke="{T["rule_strong"] if v == 100 else T["rule_faint"]}"/>')
         o.append(text(L - 5, Y(v) + 3.5, str(v), 9, T["muted"], "end", mono=True))
         v += 10
-    me = ((_cos(p).get(f) or {}).get("rel") or {}).get("1y") or {}
     ends = []
-    for s, col, lab, val in ((sx_, T["muted"], "XLV", win.get("xlv")),
-                             (sa, T["up"], f, me.get("own"))):
+    for s, col, lab, val in ((sx_, T["muted"], p.get("benchmark_symbol") or "PPH", sx_[-1] / 100 - 1),
+                             (sa, T["up"], f, sa[-1] / 100 - 1)):
         d = "M" + " L".join(f"{X(i):.1f} {Y(v_):.1f}" for i, v_ in enumerate(s))
         o.append(f'<path d="{d}" fill="none" stroke="{col}" stroke-width="{2 if lab == f else 1.5}"/>')
         ends.append([Y(s[-1]) + 3.5, lab, val])
@@ -1721,8 +1721,9 @@ def exposure_kv(p):
 
 def dialog_html(p, opened_from="the map"):
     """The company dialog's body: six figures, then value against the price and the year
-    against XLV, the scorecard against the median, the next 90 days and exposure."""
+    against the benchmark (PPH, on price), the scorecard against the median, the next 90 days and exposure."""
     f = _focal(p)
+    sym = p.get("benchmark_symbol") or "PPH"
     c = _cos(p).get(f) or {}
     sc = c.get("score") or {}
     fo = p.get("focal") or {}
@@ -1748,7 +1749,7 @@ def dialog_html(p, opened_from="the map"):
         f'<div class="uv-dg-grid">'
         f'<div>{section_html("Value against the price", "USD a share", price_count)}'
         + (f'<div class="chart-mount">{fb}</div>' if fb else f'<div class="uv-empty">{NO_DATA}: the model has not valued this company on this read.</div>')
-        + f'<div class="uv-s2">{section_html("Against XLV, 1 year", "indexed to 100", "XLV on total return")}</div>'
+        + f'<div class="uv-s2">{section_html(f"Against {sym}, 1 year", "indexed to 100", f"{sym} on price")}</div>'
         + (f'<div class="chart-mount">{vx}</div>' if vx else f'<div class="uv-empty">{NO_DATA}</div>')
         + '</div>'
         f'<div>{section_html("Scorecard against the median", "0 to 100", count)}'
@@ -2050,7 +2051,7 @@ def board_html(p):
     """The company board: one row per company, none marked out. The week's move as a tinted figure, the week's news count, the next dated event
     in words (FDA dates in amber, a firm date marked, an estimate muted) and the count of
     dated events in 90 days. Three sorts, switched in the browser; the week sort draws
-    XLV's week where it falls. A row's hover lists the company's news of the week; a click
+    the benchmark's week (PPH, on price) where it falls. A row's hover lists the company's news of the week; a click
     opens the company."""
     cos = _cos(p)
     tks = _tickers(p)
@@ -2060,7 +2061,8 @@ def board_html(p):
     nxt = w.get("next") or {}
     wk = {t: cos[t]["change_5d"] for t in tks if (cos.get(t) or {}).get("change_5d") is not None}
     mx = max([abs(v) for v in wk.values()] or [0]) or 1
-    xlv = (p.get("xlv_week") or {}).get("change")
+    xlv = (p.get("bench_week") or {}).get("change")
+    sym = p.get("benchmark_symbol") or "PPH"
     by_wk = sorted(tks, key=lambda t: (t not in wk, -wk.get(t, 0), t))
     by_nw = sorted(tks, key=lambda t: (-len(news.get(t) or []), t not in wk, -wk.get(t, 0), t))
     by_nx = sorted(tks, key=lambda t: (nxt.get(t) is None,
@@ -2100,7 +2102,7 @@ def board_html(p):
         when = (f'{_event_date(e)} {_event_words(e)}, '
                 + ("a firm date" if e.get("firm") else "a month only" if e.get("month")
                    else "a registry estimate") if e else "none dated")
-        move = (f"week {pc(wk[t])}" + (f", XLV {pc(xlv)}" if xlv is not None else "")
+        move = (f"week {pc(wk[t])}" + (f", {sym} {pc(xlv)}" if xlv is not None else "")
                 if t in wk else f"week: {NO_DATA}")
         card = (f'<div class="uw-bcard"><div class="ck"><b>{esc(c.get("short") or t)}</b>'
                 f'<span>{esc(t)} · {esc(move)}</span></div>'
@@ -2116,7 +2118,7 @@ def board_html(p):
     if xlv is not None and wk:
         k = sum(1 for v in wk.values() if v > xlv)
         xrule = (f'<div class="uw-bx" style="--uw-ow:{2 * k - 1}" '
-                 f'title="XLV {esc(pc(xlv))} over the same week"></div>')
+                 f'title="{esc(sym)} {esc(pc(xlv))} over the same week"></div>')
     sorts = ('<input class="uw-r" type="radio" name="uwbs" id="uwbs-w" checked>'
              '<input class="uw-r" type="radio" name="uwbs" id="uwbs-n">'
              '<input class="uw-r" type="radio" name="uwbs" id="uwbs-x">')
@@ -2126,7 +2128,7 @@ def board_html(p):
     span = (f'{dday((cos.get(tks[0]) or {}).get("close_5d_as_of"))} to {dday(p.get("price_date"))} close'
             if tks else "")
     key = (f'<div class="uw-bk"><span>week: {esc(span)}'
-           + (f'; dashed rule XLV {esc(pc(xlv))}' if xlv is not None else "")
+           + (f'; dashed rule {esc(sym)} {esc(pc(xlv))}' if xlv is not None else "")
            + '</span><span><i class="dia"></i>firm date · <em>grey: estimate</em> · '
              '<em class="fda">amber: FDA</em></span></div>')
     cols = ('<div class="uw-bcols"><span>Co.</span><span class="r">Week</span>'
@@ -2200,23 +2202,28 @@ def front_html(p):
 
 
 # ------------------------------------------------------------- the equal-weighted index
-INDEX_DAYS = 91
+# A window's length when the payload carries no dates for it.
+WIN_DAYS = {"1m": 31, "3m": 91, "1y": 366}
 
 
-def ew_index(p, days=INDEX_DAYS):
-    """The group's equal-weighted index over the last ``days``: every company with a close
-    on the window's first trading day set to 100 there, the index the average of the
+def ew_index(p, w=None):
+    """The group's equal-weighted index over the window ``w`` (the page's 1 month,
+    3 months or 1 year, on the same first and last trading days as the control row's
+    line): every company with a close on the window's first trading day set to 100 there, the index the average of the
     rebased closes each day, so each starts the window at an equal weight and is held
     (a quarterly rebalance, made at the window's start). A company with no close on that
     day is left out and named. A day a company did not trade carries its last close. Each
     day also carries the middle half of the group (its quartiles), and the window's best
     and worst company. Returns None when there is nothing to draw."""
+    w = _window(p, w)
     today = _d(p.get("today"))
     closes = p.get("closes") or {}
     if not today:
         return None
-    start = (today - dt.timedelta(days=days)).isoformat()
-    series = {t: {d: c for d, c in closes.get(t) or [] if d >= start and c}
+    win = (p.get("windows") or {}).get(w) or {}
+    start = win.get("first") or (today - dt.timedelta(days=WIN_DAYS[w])).isoformat()
+    end = win.get("last") or today.isoformat()
+    series = {t: {d: c for d, c in closes.get(t) or [] if start <= d <= end and c}
               for t in _tickers(p)}
     dates = sorted({d for s_ in series.values() for d in s_})
     if len(dates) < 2:
@@ -2238,32 +2245,38 @@ def ew_index(p, days=INDEX_DAYS):
             q1.append(qs[0])
             q3.append(qs[2])
     moves = {t: last[t] / series[t][d0] - 1 for t in members}
-    bench = [(d, c) for d, c in p.get("benchmark") or [] if d >= d0 and c]
-    b = [(d, 100.0 * c / bench[0][1]) for d, c in bench] if bench else []
+    def rebased(rows):
+        rows = [(d, c) for d, c in rows or [] if d0 <= d <= end and c]
+        return [(d, 100.0 * c / rows[0][1]) for d, c in rows] if rows else []
     return {"dates": dates, "values": values, "members": members,
-            "left_out": [t for t in _tickers(p) if t not in members], "bench": b,
+            "left_out": [t for t in _tickers(p) if t not in members],
+            "bench": rebased(p.get("benchmark")), "market": rebased(p.get("market")),
             "q1": q1 if len(q1) == len(dates) else [], "q3": q3 if len(q3) == len(dates) else [],
             "best": max(moves, key=moves.get), "worst": min(moves, key=moves.get),
             "moves": moves}
 
 
-def index_html(p, days=INDEX_DAYS):
-    """The equal-weighted index of the group over the last three months, the top of the
-    tab: the level and its move in large type with XLV and the best and worst company
-    beside them; under them the index line over its gain or loss from 100 (green
-    above, red below, fading to the base), the middle half of the group as a faint band
-    and XLV on the same base, dashed. The lines stretch with the box and their strokes do
-    not scale; every label is HTML placed in percent, so no text is scaled. A hover on
-    any day shows that day's index and XLV."""
-    ix = ew_index(p, days)
-    sym = p.get("benchmark_symbol") or "XLV"
+def index_html(p, w=None):
+    """The equal-weighted index of the group over the page's window (1 month, 3 months
+    or 1 year, the control row's switch), the top of the tab: the level and its move in large type with the benchmark (PPH, global big
+    pharma) and the market (the S&P 500), and the best and worst company beside them;
+    under them the index line over its gain or loss from 100 (green above, red below,
+    fading to the base), the middle half of the group as a faint band, PPH on the same
+    base dashed and the S&P 500 fainter still, all on price. The lines stretch with the
+    box and their strokes do not scale; every label is HTML placed in percent, so no
+    text is scaled. A hover on any day shows that day's index, PPH and S&P 500."""
+    w = _window(p, w)
+    ix = ew_index(p, w)
+    sym = p.get("benchmark_symbol") or "PPH"
+    msym = p.get("market_symbol") or "S&P 500"
     if not ix:
         return (f'<section class="uv uw-idx"><div class="uw-ih"><span class="lbl">Equal-weighted '
                 f'index</span></div><div class="uv-empty">{NO_DATA}: no closes on file for '
                 f'the window.</div></section>')
-    dates, vals, bench = ix["dates"], ix["values"], ix["bench"]
-    bmap = dict(bench)
-    allv = vals + [v for _d0, v in bench] + ix["q1"] + ix["q3"] + [100.0]
+    dates, vals, bench, market = ix["dates"], ix["values"], ix["bench"], ix["market"]
+    bmap, mmap = dict(bench), dict(market)
+    allv = (vals + [v for _d0, v in bench] + [v for _d0, v in market] + ix["q1"] + ix["q3"]
+            + [100.0])
     lo, hi = min(allv), max(allv)
     step = next(s_ for s_ in (1, 2, 2.5, 5, 10, 20, 25, 50) if (hi - lo) / s_ <= 4)
     y0, y1 = math.floor(lo / step) * step, math.ceil(hi / step) * step
@@ -2320,6 +2333,9 @@ def index_html(p, days=INDEX_DAYS):
                f'<polygon class="dn" points="{area}" clip-path="url(#uwBelow)"/>'
                f'<line class="base" x1="0" x2="1000" y1="{base:.2f}" y2="{base:.2f}" '
                f'vector-effect="non-scaling-stroke"/>')
+    if market:
+        svg.append(f'<polyline class="mk" points="{pts(market)}" fill="none" '
+                   f'vector-effect="non-scaling-stroke"/>')
     if bench:
         svg.append(f'<polyline class="bm" points="{pts(bench)}" fill="none" '
                    f'vector-effect="non-scaling-stroke"/>')
@@ -2331,12 +2347,14 @@ def index_html(p, days=INDEX_DAYS):
         xa = (X(dates[i - 1]) + X(d)) / 20 if i else 0.0
         xb = (X(d) + X(dates[i + 1])) / 20 if i + 1 < len(dates) else 100.0
         side = " r" if X(d) > 700 else ""
-        bm = f" · {esc(sym)} {bmap[d]:.1f}" if d in bmap else ""
+        bm = (f" · {esc(sym)} {bmap[d]:.1f}" if d in bmap else "") + \
+             (f" · {esc(msym)} {mmap[d]:.1f}" if d in mmap else "")
         hv.append(f'<span class="hv{side}" style="left:{xa:.2f}%;width:{xb - xa:.2f}%;'
                   f'--x:{X(d) / 10 - xa:.2f}%;--y:{Y(vals[i]):.2f}%"><i></i>'
                   f'<em>{esc(dday(d))} · index {vals[i]:.1f}{bm}</em></span>')
     chg = vals[-1] / 100 - 1
     bchg = bench[-1][1] / 100 - 1 if bench else None
+    mchg = market[-1][1] / 100 - 1 if market else None
     tone = "up" if chg >= 0 else "down"
     n = len(ix["members"])
     mv = ix["moves"]
@@ -2344,6 +2362,9 @@ def index_html(p, days=INDEX_DAYS):
     if bchg is not None:
         kv.append(f'<span class="kv"><span class="k">{esc(sym)}</span>'
                   f'<b class="{"up" if bchg >= 0 else "down"}">{esc(pc(bchg))}</b></span>')
+    if mchg is not None:
+        kv.append(f'<span class="kv faint"><span class="k">{esc(msym)}</span>'
+                  f'<b class="{"up" if mchg >= 0 else "down"}">{esc(pc(mchg))}</b></span>')
     kv.append(f'<span class="kv"><span class="k">Best</span><b>{esc(ix["best"])} '
               f'<span class="{"up" if mv[ix["best"]] >= 0 else "down"}">{esc(pc(mv[ix["best"]]))}</span></b></span>')
     kv.append(f'<span class="kv"><span class="k">Worst</span><b>{esc(ix["worst"])} '
@@ -2351,14 +2372,23 @@ def index_html(p, days=INDEX_DAYS):
     out_ = (f"; {', '.join(ix['left_out'])} left out, no close on {dday(dates[0])}"
             if ix["left_out"] else "")
     basis = (f"the {n} on this page on their closes, each set to 100 on {dday(dates[0])} "
-             f"and held; {sym} on total return, dashed; the band is the middle half of the "
-             f"group{out_}")
+             f"and held; {sym} (global big pharma) dashed and the {msym} faint, both on "
+             f"price; the band is the middle half of the group{out_}")
     ya = Y(vals[-1])
     ends = [f'<span class="dot {tone}" style="top:{ya:.2f}%"></span>']
+    yb = Y(bench[-1][1]) if bench else None
+    ym = Y(market[-1][1]) if market else None
+    # Two end labels closer than 12% of the plot's height are pushed apart about their
+    # midpoint; the lines' own ends stay where they are.
+    if yb is not None and ym is not None and abs(yb - ym) < 12:
+        mid, half = (yb + ym) / 2, 6 if yb <= ym else -6
+        yb, ym = mid - half, mid + half
     if bench:
-        ends.append(f'<span class="end bm" style="top:{Y(bench[-1][1]):.2f}%">{esc(sym)}</span>')
+        ends.append(f'<span class="end bm" style="top:{yb:.2f}%">{esc(sym)}</span>')
+    if market:
+        ends.append(f'<span class="end mk" style="top:{ym:.2f}%">{esc(msym)}</span>')
     return (f'<section class="uv uw-idx"><div class="uw-ih"><span class="lbl">Equal-weighted '
-            f'index</span><span class="sub" title="{esc(basis)}">{n} big pharma · 3 months · '
+            f'index</span><span class="sub" title="{esc(basis)}">{n} big pharma · {esc(WIN_LABEL[w])} · '
             f'{esc(dday(dates[0]))} = 100</span><span class="kvs">{"".join(kv)}</span></div>'
             f'<div class="uw-ic"><div class="plot">{"".join(svg)}{"".join(ylab)}'
             f'{"".join(xlab)}{"".join(ends)}{"".join(hv)}</div></div></section>')

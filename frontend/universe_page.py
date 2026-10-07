@@ -6,7 +6,7 @@ there stays the switch and the calls.
 
 The tab is the week across the group on one 1440 by 780 screen: a control row (the week,
 the regions against the company picked over a window, the close and the view switch), the
-group's equal-weighted index over three months, then the band (the ranked feed beside the
+group's equal-weighted index over the same window, then the band (the ranked feed beside the
 company board, the cheap to expensive ribbon under them). The page reads the same whichever
 company is picked: that company is washed where it falls, and only the control row's own
 figure is about it.
@@ -179,7 +179,7 @@ def _command(api_base: str, p: dict) -> None:
 
     # The group's index heads the tab, outside the frame so its height can follow the
     # screen's (universe.css, .uw-idx).
-    _show(UC.index_html(p))
+    _show(UC.index_html(p, w))
     band = UC.front_html(p)
     clicked = None
     if _uvboard is not None:

@@ -71,7 +71,7 @@ def _all_blocks(p, w="1y"):
         "status": UC.status_line(p), "lead": UC.lead_line(p, w), "kicker": UC.week_kicker(p),
         "front": UC.front_html(p), "notes": UC.notes_text(p),
         "spotlight": UC.spotlight_section(p, w) + UC.spotlight_html(p, w),
-        "dialog": UC.dialog_html(p, "the board"), "index": UC.index_html(p),
+        "dialog": UC.dialog_html(p, "the board"), "index": UC.index_html(p, w),
     }
     return blocks
 
@@ -164,7 +164,7 @@ def test_section_labels_are_sentence_case(payload):
     labels = re.findall(r'<span class="sec-label">([^<]+)</span>',
                         "".join(_all_blocks(payload).values()))
     assert len(labels) >= 2
-    names = {"AstraZeneca", "XLV", "AZN", "Medicare", "FX"}
+    names = {"AstraZeneca", "XLV", "PPH", "AZN", "Medicare", "FX"}
     for label in labels:
         label = html.unescape(label)
         assert label[0].isupper(), label
@@ -201,7 +201,10 @@ def test_the_window_switch_changes_only_the_window_cells(payload):
     assert "Against XLV, 1 month" in one[keys.index("c-rel")]
     # The week and the index do not move with the window; only the control row's line does.
     assert UC.front_html(payload) == UC.front_html({**payload, "window": "1m"})
-    assert UC.index_html(payload) == UC.index_html({**payload, "window": "1m"})
+    # The index follows the window: its own first day and label move with the switch.
+    one, year = UC.index_html(payload, "1m"), UC.index_html(payload, "1y")
+    assert one != year and "· 1 month ·" in one and "· 1 year ·" in year
+    assert UC.ew_index(payload, "1m")["dates"][0] == payload["windows"]["1m"]["first"]
     assert UC.lead_line(payload, "1m") != UC.lead_line(payload, "1y")
 
 
@@ -559,7 +562,7 @@ def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
     assert "_panel" not in fns
     assert any(getattr(d, "attr", "") == "fragment" for d in fns["_command"].decorator_list)
     cmd = ast.unparse(fns["_command"]) if hasattr(ast, "unparse") else ""
-    assert cmd.index("UC.index_html(p)") < cmd.index("UC.front_html(p)")
+    assert cmd.index("UC.index_html(p, w)") < cmd.index("UC.front_html(p)")
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", "") == "tabs"]
     css = UNIVERSE_CSS.read_text()
@@ -567,8 +570,8 @@ def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
 
 
 def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload):
-    ix = UC.ew_index(payload)
-    start = (dt.date.fromisoformat(payload["today"]) - dt.timedelta(days=UC.INDEX_DAYS)).isoformat()
+    ix = UC.ew_index(payload, "3m")
+    start = payload["windows"]["3m"]["first"]
     first = {t: next((c for d, c in payload["closes"][t] if d >= start), None)
              for t in payload["tickers"]}
     assert ix["dates"][0] >= start and ix["left_out"] == [] and len(ix["members"]) == 18
@@ -578,28 +581,33 @@ def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload)
     assert ix["values"][0] == pytest.approx(100.0) and ix["values"][-1] == pytest.approx(want)
     b = [c for d, c in payload["benchmark"] if d >= d0]
     assert ix["bench"][-1][1] == pytest.approx(100 * b[-1] / b[0])
-    out = UC.index_html(payload)
+    out = UC.index_html(payload, "3m")
     assert f'<b>{want:.1f}</b><span class="chg ' in out and UC.pc(want / 100 - 1) in out
-    assert re.search(r'<span class="k">XLV</span><b class="(up|down)">'
+    assert re.search(r'<span class="k">PPH</span><b class="(up|down)">'
                      + re.escape(UC.pc(b[-1] / b[0] - 1)) + "</b>", out)
-    assert "vs XLV" not in out                              # no gap to XLV, by request
+    assert "vs PPH" not in out and "vs XLV" not in out      # no gap line, by request
+    m = [c for d, c in payload["market"] if d >= d0]
+    assert re.search(r'<span class="k">S&amp;P 500</span><b class="(up|down)">'
+                     + re.escape(UC.pc(m[-1] / m[0] - 1)) + "</b>", out)
+    assert 'class="mk"' in out and 'class="bm"' in out
     moves = {t: last[t] / first[t] - 1 for t in payload["tickers"]}
     best, worst = max(moves, key=moves.get), min(moves, key=moves.get)
     assert f"<b>{best} " in out and f"<b>{worst} " in out
     assert out.count('class="hv') == len(ix["dates"])       # a hover a trading day
-    assert "the 18 on this page on their closes" in out and "XLV on total return" in out
+    assert "the 18 on this page on their closes" in out
+    assert "PPH (global big pharma) dashed and the S&amp;P 500 faint, both on price" in out
     assert 'vector-effect="non-scaling-stroke"' in out
     assert not re.search(r"<text", out)                     # every label is HTML, never scaled
 
 
 def test_the_index_names_a_company_left_out_and_never_draws_from_nothing(payload):
     q = copy.deepcopy(payload)
-    start = (dt.date.fromisoformat(q["today"]) - dt.timedelta(days=UC.INDEX_DAYS)).isoformat()
+    start = q["windows"]["3m"]["first"]
     first = min(d for t in q["tickers"] for d, _c in q["closes"][t] if d >= start)
     q["closes"]["ABBV"] = [r for r in q["closes"]["ABBV"] if r[0] > first]
-    ix = UC.ew_index(q)
+    ix = UC.ew_index(q, "3m")
     assert ix["left_out"] == ["ABBV"] and len(ix["members"]) == 17
-    assert "ABBV left out, no close on" in UC.index_html(q)
+    assert "ABBV left out, no close on" in UC.index_html(q, "3m")
     empty = {**payload, "closes": {}, "benchmark": []}
     assert UC.ew_index(empty) is None
     assert UC.NO_DATA in UC.index_html(empty)
@@ -682,8 +690,8 @@ def test_the_board_names_every_company_with_its_week_news_and_next_date(payload)
     wk = {t: c["change_5d"] for t, c in payload["companies"].items()}
     by_week = [r[0] for r in sorted(rows, key=lambda r: int(r[1]))]
     assert by_week == sorted(wk, key=lambda t: (-wk[t], t))
-    # XLV's week sits between the last company above it and the first below.
-    xlv = payload["xlv_week"]["change"]
+    # The benchmark's week (PPH) sits between the last company above it and the first below.
+    xlv = payload["bench_week"]["change"]
     above = sum(1 for v in wk.values() if v > xlv)
     assert f'class="uw-bx" style="--uw-ow:{2 * above - 1}"' in board
     nxt = payload["week"]["next"]
