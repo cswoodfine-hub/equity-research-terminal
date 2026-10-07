@@ -7070,6 +7070,10 @@ def _ki_join(parts: list) -> str:
     return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
+_KI_BANNED = re.compile(r"\b(?:additionally|highlight\w*|underscor\w*|pivotal|showcas\w*|"
+                        r"testament)\b", re.I)
+
+
 def _ki_month_news(changes: list, ticker: str, limit: int = _KI_NEWS_SAID) -> dict:
     """The month's company news for the note: {"said": [clauses as shown], "full": [the
     same, headlines whole], "tones": [how each reads for the holder], "more", "slips": n,
@@ -7108,6 +7112,10 @@ def _ki_month_news(changes: list, ticker: str, limit: int = _KI_NEWS_SAID) -> di
             if m and any(m.group(1).lower() in p for p in press):
                 continue
         said = _ki_event_words(it, ticker)
+        # The note quotes a headline as published and cannot reword it, so one in a word
+        # the house style bars ("Alexion to showcase Phase III data") is passed over.
+        if _KI_BANNED.search(said):
+            continue
         key = re.sub(r" \(\d{1,2} [A-Z][a-z]{2}\)$", "", said)
         if key in seen:
             continue
