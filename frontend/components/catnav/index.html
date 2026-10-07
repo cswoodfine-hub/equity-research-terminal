@@ -10,9 +10,9 @@
     color: var(--text); font-family: var(--font-ui); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
-  [data-gate], [data-more], .ca-ar { cursor: pointer; }
-  [data-gate]:focus-visible, [data-more]:focus-visible { outline: 1px solid var(--muted);
-    outline-offset: 1px; }
+  [data-gate], [data-ev], [data-more], .cr-chip { cursor: pointer; }
+  [data-gate]:focus-visible, [data-ev]:focus-visible, [data-more]:focus-visible,
+  .cr-chip:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
 </style>
 <style id="frame"></style>
 </head>
@@ -30,10 +30,10 @@ const Streamlit = {
 };
 
 let wired = false;
+let areaFilter = "*";   // the area the list is filtered to; kept across reruns
 let fontsCopied = false;
 let lastHeight = 0;
 let lastMarkup = null;
-let openArea = null;      // the area row open in the table; kept across reruns
 
 function copyFontFaces() {
   // The host bundles its fonts as @font-face rules with base64 sources. The iframe is
@@ -67,7 +67,7 @@ function fit() {
 }
 
 function fill() {
-  // The area page fills the screen: its height is the room the app's scroller leaves
+  // The page fills the screen: its height is the room the app's scroller leaves
   // above and below the frame, read from the parent page (same origin). Narrower than
   // 1180 px, or when the parent cannot be read, the page takes its own height.
   const page = document.querySelector(".ca-page");
@@ -91,60 +91,65 @@ function fill() {
   fit();
 }
 
-function setOpen(name) {
-  // One area open at a time; the others fold to one line. Client side: no rerun.
-  openArea = name;
-  const rows = document.querySelector(".ca-rows");
-  if (!rows) return;
-  let any = false;
-  rows.querySelectorAll(".ca-row").forEach(function (r) {
-    const on = name !== null && r.getAttribute("data-area") === name;
-    r.classList.toggle("open", on);
-    const ar = r.querySelector(".ca-ar");
-    if (ar) ar.setAttribute("aria-expanded", on ? "true" : "false");
-    any = any || on;
+function setFilter(area) {
+  // The list shows one disease area, or all: rows of other areas hide, a quarter with
+  // nothing left hides, and each heading prints its own count and sums for the area,
+  // worked out by the page and carried on the heading. Client side: no rerun.
+  areaFilter = area || "*";
+  const b = document.getElementById("b");
+  b.querySelectorAll(".cr-chip").forEach(function (c) {
+    c.classList.toggle("on", c.getAttribute("data-af") === areaFilter);
   });
-  rows.classList.toggle("has-open", any);
-  if (!any) openArea = null;
-}
-
-function showView(btn) {
-  // The range chart's two views share one grid cell: the switch flips which is visible
-  // and never changes the frame's height.
-  const wrap = btn.closest(".cx-frame");
-  if (!wrap || btn.disabled) return;
-  const want = btn.getAttribute("data-view");
-  wrap.querySelectorAll(".cx-vb").forEach(function (b) {
-    b.classList.toggle("on", b.getAttribute("data-view") === want);
+  b.querySelectorAll(".cr-row").forEach(function (r) {
+    r.classList.toggle("off", areaFilter !== "*" && r.getAttribute("data-area") !== areaFilter);
   });
-  wrap.querySelectorAll(".cx-rv").forEach(function (v) {
-    v.classList.toggle("off", v.getAttribute("data-view") !== want);
+  b.querySelectorAll(".cr-gh").forEach(function (h) {
+    let st = {};
+    try { st = JSON.parse(h.getAttribute("data-st") || "{}"); } catch (e) { st = {}; }
+    const s = st[areaFilter];
+    h.classList.toggle("off", !s);
+    if (!s) return;
+    const sub = h.querySelector(".sub");
+    if (h.classList.contains("q") && sub) {
+      sub.textContent = s[0] + (s[0] === 1 ? " readout" : " readouts") + (s[1] ? " · " + s[1] + " priced" : "");
+    }
+    const sums = h.querySelectorAll(".s b");
+    if (sums.length === 2 && !h.classList.contains("later")) {
+      sums[0].textContent = s[2] || ""; sums[1].textContent = s[3] || "";
+    }
   });
+  const rows = b.querySelector(".cr-rows");
+  if (rows) rows.scrollTop = 0;
 }
 
 function fire(target, ev) {
-  const view = target.closest(".cx-vb");
-  if (view) { showView(view); return; }
+  const chip = target.closest(".cr-chip");
+  if (chip) {
+    if (ev) ev.preventDefault();
+    const want = chip.getAttribute("data-af");
+    setFilter(want === areaFilter ? "*" : want);
+    return;
+  }
   const gate = target.closest("[data-gate]");
   if (gate) {
     if (ev) ev.preventDefault();
-    const where = gate.closest(".cx-tl") ? "the timeline"
-      : gate.closest(".ca-nx") ? "next up"
-      : gate.closest(".ca-gl") ? "the open area" : "the bars";
-    Streamlit.value({ gate: gate.getAttribute("data-gate"), from: where, nonce: Date.now() });
+    Streamlit.value({ gate: gate.getAttribute("data-gate"), from: "the list", nonce: Date.now() });
+    return;
+  }
+  const row = target.closest("[data-ev]");
+  if (row) {
+    if (ev) ev.preventDefault();
+    Streamlit.value({ ev: row.getAttribute("data-ev"), nonce: Date.now() });
     return;
   }
   const more = target.closest("[data-more]");
   if (more) {
     if (ev) ev.preventDefault();
-    Streamlit.value({ more: more.getAttribute("data-more"),
-                      area: more.getAttribute("data-area"), nonce: Date.now() });
-    return;
-  }
-  const ar = target.closest(".ca-ar");
-  if (ar) {
-    const name = ar.closest(".ca-row").getAttribute("data-area");
-    setOpen(openArea === name ? null : name);
+    // The calendar opens on the area the list is filtered to.
+    const key = more.getAttribute("data-more");
+    Streamlit.value({ more: key,
+                      area: more.getAttribute("data-area") || (key === "cal" && areaFilter !== "*" ? areaFilter : null),
+                      nonce: Date.now() });
   }
 }
 
@@ -164,11 +169,15 @@ window.addEventListener("message", function (e) {
     lastMarkup = a.markup;
     document.getElementById("frame").textContent = a.css || "";
     b.innerHTML = a.markup || "";
-    b.querySelectorAll("[data-gate], [data-more], .ca-ar").forEach(function (el) {
+    b.querySelectorAll("[data-gate], [data-ev], [data-more], .cr-chip").forEach(function (el) {
       el.setAttribute("tabindex", "0");
       el.setAttribute("role", "button");
     });
-    if (openArea !== null) setOpen(openArea);
+    if (areaFilter !== "*") {
+      // A rerun keeps the filter while the area is still on the page.
+      const still = [...b.querySelectorAll(".cr-chip")].some(function (c) { return c.getAttribute("data-af") === areaFilter; });
+      setFilter(still ? areaFilter : "*");
+    }
   }
   requestAnimationFrame(fill);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fill);
