@@ -19,6 +19,12 @@ analyst who saves an assumption reads the new forecast on the very next call, ne
 one from before the edit. A read that writes (a note generated on request) is never
 cached, and nor are the health and freshness checks, which exist to be live.
 
+The responses are kept on disk as well (``backend/cache/responses-*.db``, one file per
+book), so a restarted API serves the page at once rather than recomputing the book for
+minutes. A response read back from disk is always served as stale and recomputed: the code
+that computed it may have changed since, which no stamp can see. Off with the rest, or alone
+with ``ER_TOOL_RESPONSE_CACHE_DISK=0``.
+
 Off when ``ER_TOOL_RESPONSE_CACHE=0``, which the test suite sets, since tests rewrite
 modules and databases between calls in ways no stamp can see. Not ``ER_TOOL_CACHE``:
 that names the directory the SEC revenue fetcher downloads into.
@@ -26,11 +32,15 @@ that names the directory the SEC revenue fetcher downloads into.
 
 from __future__ import annotations
 
+import hashlib
 import os
+import queue
+import sqlite3
 import threading
 import time
 import datetime as dt
 import urllib.request
+import zlib
 from collections import OrderedDict
 
 from starlette.responses import Response
@@ -53,14 +63,24 @@ REVALIDATE_FLOOR_S = 60.0
 # often rather than on every request.
 DATA_STAMP_TTL_S = 2.0
 
+# Where the responses are kept between processes. Outside data/, whose newest file is part
+# of the stamp, and ignored by git.
+DISK_DIR = db.BACKEND_DIR / "cache"
+
 _lock = threading.Lock()
 _entries: "OrderedDict[str, dict]" = OrderedDict()
 _inflight: set[str] = set()
 _data_stamp: list = [0.0, None]
+_disk_queue: "queue.Queue" = queue.Queue()
+_disk_state = {"loaded": False, "writer": False}
 
 
 def enabled() -> bool:
     return os.getenv("ER_TOOL_RESPONSE_CACHE", "1") != "0"
+
+
+def disk_enabled() -> bool:
+    return enabled() and os.getenv("ER_TOOL_RESPONSE_CACHE_DISK", "1") != "0"
 
 
 def cacheable(path: str, query: str) -> bool:
@@ -100,6 +120,7 @@ def stamp() -> tuple:
 def clear() -> None:
     with _lock:
         _entries.clear()
+    _disk_send(("clear",))
 
 
 def _store(key: str, entry: dict) -> None:
@@ -108,6 +129,99 @@ def _store(key: str, entry: dict) -> None:
         _entries.move_to_end(key)
         while len(_entries) > MAX_ENTRIES:
             _entries.popitem(last=False)
+    _disk_send(("put", key, entry["body"], entry["media_type"]))
+
+
+# --- the copy on disk -----------------------------------------------------------------
+def _disk_path():
+    tag = hashlib.sha1(str(db.DB_PATH).encode("utf-8")).hexdigest()[:12]
+    return DISK_DIR / f"responses-{tag}.db"
+
+
+def _disk_connect() -> sqlite3.Connection:
+    path = _disk_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(path), timeout=30)
+    conn.execute("CREATE TABLE IF NOT EXISTS responses (key TEXT PRIMARY KEY, body BLOB NOT"
+                 " NULL, media_type TEXT, stored REAL NOT NULL)")
+    return conn
+
+
+def load_from_disk() -> None:
+    """Once per process, before the first read is served: the responses the last process
+    stored, each with no stamp, so it is served at once as stale and recomputed."""
+    with _lock:
+        if _disk_state["loaded"]:
+            return
+        _disk_state["loaded"] = True
+    if not disk_enabled():
+        return
+    try:
+        conn = _disk_connect()
+        try:
+            rows = conn.execute("SELECT key, body, media_type FROM responses ORDER BY stored"
+                                " DESC LIMIT ?", (MAX_ENTRIES,)).fetchall()
+        finally:
+            conn.close()
+    except (sqlite3.Error, OSError):
+        return
+    with _lock:
+        for key, body, media_type in reversed(rows):
+            if key in _entries:
+                continue
+            try:
+                raw = zlib.decompress(body)
+            except zlib.error:
+                continue
+            _entries[key] = {"stamp": None, "body": raw, "checked": 0.0,
+                             "media_type": media_type or "application/json"}
+
+
+def _disk_send(op: tuple) -> None:
+    """Hand a write to the one writer thread, so a request never waits on the disk."""
+    if not disk_enabled():
+        return
+    with _lock:
+        if not _disk_state["writer"]:
+            _disk_state["writer"] = True
+            threading.Thread(target=_disk_writer, name="response-cache disk",
+                             daemon=True).start()
+    _disk_queue.put(op)
+
+
+def _disk_writer() -> None:
+    while True:
+        batch = [_disk_queue.get()]
+        while True:
+            try:
+                batch.append(_disk_queue.get_nowait())
+            except queue.Empty:
+                break
+        try:
+            conn = _disk_connect()
+            try:
+                with conn:
+                    for op in batch:
+                        if op[0] == "clear":
+                            conn.execute("DELETE FROM responses")
+                        else:
+                            conn.execute("INSERT OR REPLACE INTO responses VALUES (?, ?, ?, ?)",
+                                         (op[1], zlib.compress(op[2], 1), op[3], time.time()))
+                    conn.execute("DELETE FROM responses WHERE key NOT IN (SELECT key FROM"
+                                 " responses ORDER BY stored DESC LIMIT ?)", (MAX_ENTRIES,))
+            finally:
+                conn.close()
+        except Exception:          # a failed write loses only the copy, never a response
+            pass
+        finally:
+            for _ in batch:
+                _disk_queue.task_done()
+
+
+def flush() -> None:
+    """Wait until every write handed to the disk has landed (tests, shutdown)."""
+    if _disk_state["writer"]:
+        _disk_queue.join()
 
 
 def cached_json(path: str, query: str = ""):
@@ -116,6 +230,7 @@ def cached_json(path: str, query: str = ""):
     and would otherwise recompute every one of them cold, which is what the page itself
     would be served anyway."""
     import json
+    load_from_disk()
     with _lock:
         entry = _entries.get(f"{path}?{query}")
     if entry is None:
@@ -171,6 +286,7 @@ async def handle(request, call_next):
     path, query = request.url.path, request.url.query
     if not cacheable(path, query):
         return await call_next(request)
+    load_from_disk()
     key = f"{path}?{query}"
     current = stamp()
     bypass = request.headers.get(BYPASS) == "1"
@@ -211,12 +327,31 @@ COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",
                  # Before the context, which reads the stakes from here rather than
                  # pricing every big pharma gate again.
                  "/companies/{t}/catalysts/stakes",
+                 # What a change of company asks for on first paint; each was a fifth of
+                 # a second to most of one cold (2026-10-07).
+                 "/companies/{t}/catalysts/view", "/companies/{t}/street",
+                 "/companies/{t}/prices", "/changes?ticker={t}",
                  # Key insights reads the cost to each next gate; about 2 s cold.
                  "/companies/{t}/development",
                  "/companies/{t}/comps-context")
 # Global reads that embed the company reads above through ``cached_json``, so they are
 # warmed after every one of them. Warmed first, they would be built from missing entries.
 LATE_GLOBAL_READS = ("/comps/valuation",)
+
+
+# The Universe tab's read, for every company in its cohort. It embeds each company's value
+# and the comps valuation through ``cached_json``, so it is warmed after both. The cohort is
+# the companies the read itself names, taken from the first company's.
+UNIVERSE_READ = "/universe/command?ticker={t}&part=all"
+
+
+def _universe_reads(base: str, first: str) -> list:
+    import json
+    request = urllib.request.Request(base + UNIVERSE_READ.format(t=first),
+                                     headers={BYPASS: "1"})
+    with urllib.request.urlopen(request, timeout=600) as resp:
+        cohort = sorted((json.loads(resp.read()).get("companies") or {}).keys())
+    return [base + UNIVERSE_READ.format(t=t) for t in cohort if t != first]
 
 
 def _area_reads() -> list:
@@ -259,6 +394,16 @@ def warm_forever(base: str) -> None:
                     except Exception:
                         pass
                     time.sleep(0.05)      # let a reader's request in between
+                tickers = _tickers()
+                try:
+                    for url in _universe_reads(base, tickers[0]) if tickers else []:
+                        try:
+                            _fetch(url)
+                        except Exception:
+                            pass
+                        time.sleep(0.05)
+                except Exception:
+                    pass
                 warmed = current
             except Exception:
                 pass

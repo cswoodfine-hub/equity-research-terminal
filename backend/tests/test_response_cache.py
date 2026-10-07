@@ -18,9 +18,12 @@ def client(tmp_path, monkeypatch):
     data.mkdir()
     (data / "seed.csv").write_text("a,b\n")
     monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE", "1")
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE_DISK", "1")
     monkeypatch.setattr(db, "DB_PATH", database)
     monkeypatch.setattr(RC, "DATA_DIR", data)
     monkeypatch.setattr(RC, "DATA_STAMP_TTL_S", 0.0)
+    monkeypatch.setattr(RC, "DISK_DIR", tmp_path / "cache")
+    monkeypatch.setitem(RC._disk_state, "loaded", True)
     revalidated = []
     monkeypatch.setattr(RC, "_revalidate", lambda url, key: revalidated.append(key))
     RC.clear()
@@ -48,6 +51,7 @@ def client(tmp_path, monkeypatch):
 
     yield TestClient(app), calls, revalidated, database, data
     RC.clear()
+    RC.flush()
 
 
 def _bump(path):
@@ -121,3 +125,38 @@ def test_off_when_the_environment_says_so(client, monkeypatch):
     c.get("/value")
     c.get("/value")
     assert calls["n"] == 2
+
+
+def _restart():
+    """What a new API process sees: nothing in memory, the copy on disk not yet read."""
+    RC.flush()
+    with RC._lock:
+        RC._entries.clear()
+        RC._disk_state["loaded"] = False
+
+
+def test_a_restarted_process_serves_the_last_answer_and_recomputes_it(client):
+    test, calls, revalidated, _database, _data = client
+    assert test.get("/value").json() == {"n": 1}
+    _restart()
+    first = test.get("/value")
+    # Served from disk at once, but as stale: the code may have changed since it was stored.
+    assert first.json() == {"n": 1} and first.headers["x-cache"] == "stale"
+    assert calls["n"] == 1 and revalidated == ["/value?"]
+
+
+def test_a_write_through_the_api_clears_the_copy_on_disk_too(client):
+    test, calls, _revalidated, _database, _data = client
+    test.get("/value")
+    test.post("/edit")
+    _restart()
+    assert test.get("/value").headers["x-cache"] == "miss" and calls["n"] == 2
+
+
+def test_the_copy_on_disk_is_off_when_the_environment_says_so(client, monkeypatch):
+    test, calls, _revalidated, _database, _data = client
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE_DISK", "0")
+    test.get("/value")
+    _restart()
+    assert test.get("/value").headers["x-cache"] == "miss" and calls["n"] == 2
+
