@@ -1241,7 +1241,8 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    a line in the section's own weight; each row is the drafted figure against the book's,
    with its quote and source under it, in the chips' mono. */
 .dr-close {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem;
-  border-top: 1px solid var(--rule-strong); padding: 0.55rem 0 0.25rem; }}
+  border-top: 1px solid var(--rule-strong); padding: 0.55rem 0 0.25rem;
+  margin-bottom: 0.9rem; }}
 .dr-target {{ font-family: var(--font-ui); font-weight: 700; font-size: 13px;
   color: var(--text); }}
 .dr-meta {{ font-size: 12px; color: var(--muted); }}
@@ -1253,7 +1254,7 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   border: 1px solid var(--rule-strong); border-radius: var(--radius-small);
   padding: 1px 6px; white-space: nowrap; }}
 .dr-tag.dr-new {{ color: var(--flag); border-color: var(--flag); }}
-.dr-row {{ border-bottom: 1px solid var(--rule); padding: 0.3rem 0; }}
+.dr-row {{ border-bottom: 1px solid var(--rule); padding: 0.45rem 0 0.3rem; }}
 .dr-line {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem;
   font-size: 12px; }}
 .dr-st {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
