@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import datetime as dt
 import html
 import inspect
 import json
@@ -65,20 +66,16 @@ def payload():
 
 
 def _all_blocks(p, w="1y"):
-    """Every block the page draws, by name: the panel's tabs as "tab: <label>"."""
+    """Every block the page draws, by name, and the builders the dialog shares."""
     blocks = {
         "status": UC.status_line(p), "lead": UC.lead_line(p, w), "kicker": UC.week_kicker(p),
         "front": UC.front_html(p), "notes": UC.notes_text(p),
         "spotlight": UC.spotlight_section(p, w) + UC.spotlight_html(p, w),
-        "dialog": UC.dialog_html(p, "the board"),
+        "dialog": UC.dialog_html(p, "the board"), "index": UC.index_html(p),
     }
-    for label, body in UC.week_panel_tabs(p, w):
-        blocks[f"tab: {label}"] = body
     return blocks
 
 
-PANEL = ("Every change", "Approvals and readouts", "Prices, 12 months", "Rates and FX",
-         "Medicare and exclusivity", "Policy calendar", "AZN against the group")
 VB = re.compile(r'<span class="vb">([^<]*)</span>')
 
 
@@ -166,8 +163,7 @@ def test_house_style_of_every_visible_string(payload, window):
 def test_section_labels_are_sentence_case(payload):
     labels = re.findall(r'<span class="sec-label">([^<]+)</span>',
                         "".join(_all_blocks(payload).values()))
-    labels += [label for label, _body in UC.week_panel_tabs(payload)]
-    assert len(labels) >= 10
+    assert len(labels) >= 2
     names = {"AstraZeneca", "XLV", "AZN", "Medicare", "FX"}
     for label in labels:
         label = html.unescape(label)
@@ -203,11 +199,10 @@ def test_the_window_switch_changes_only_the_window_cells(payload):
     changed = [k for k, a, b in zip(keys, one, year) if a != b]
     assert changed == ["c-rel"]
     assert "Against XLV, 1 month" in one[keys.index("c-rel")]
-    # The week does not move with the window; the panel's last tab, the company against
-    # the group, is the one tab that does.
+    # The week and the index do not move with the window; only the control row's line does.
     assert UC.front_html(payload) == UC.front_html({**payload, "window": "1m"})
-    a, b = UC.week_panel_tabs(payload, "1m"), UC.week_panel_tabs(payload, "1y")
-    assert [x[0] for x, y in zip(a, b) if x != y] == ["AZN against the group"]
+    assert UC.index_html(payload) == UC.index_html({**payload, "window": "1m"})
+    assert UC.lead_line(payload, "1m") != UC.lead_line(payload, "1y")
 
 
 # ---------------------------------------------------------------- null is never zero
@@ -556,68 +551,58 @@ def test_the_spotlight_has_no_line_comparison_and_says_it_ranks_all(payload):
     assert re.search(r"\.uv-sp > div:has\(> \.uv-hc\) \{ cursor: help; \}", css)
 
 
-def test_the_panel_holds_the_rest_in_seven_tabs(payload):
-    """Every change first; the company against the group last, the one tab about the
-    company picked."""
-    tabs = UC.week_panel_tabs(payload, "1y")
-    assert [label for label, _b in tabs] == list(PANEL)
-    assert tabs[0][1].startswith('<div class="uv uv-tab"><div class="uw-grid"')
-    for label, body in tabs[1:-1]:
-        assert body.startswith('<div class="uv uv-tab"><div class="uv-th">'), label
-    assert 'class="uv-sp"' in tabs[-1][1] and "AstraZeneca against the group" in tabs[-1][1]
-
-
-def test_every_panel_tab_fits_the_panel(payload):
-    """The tallest tab, the approvals lanes, is one text line a lane; its SVG and the
-    tab's first line fit the panel's 236px at 900 tall. The prices are two rows of nine."""
-    lanes = UC.lanes_svg(payload, pin=False)
-    h = float(re.search(r'<svg class="uv-svg uv-lanes" viewBox="0 0 [\d.]+ ([\d.]+)"', lanes).group(1))
-    assert h + 20 <= 236, h
-    assert 'style="--sm-cols:9"' in UC.prices_html(payload)
-    for cls in ("uv-col",):
-        _w, ch = _svg_size(UC.exposure_html(payload), cls)
-        assert ch <= 160
-    assert 'width="840"' in UC.policy_html(payload)
-
-
-def test_the_panel_scrolls_inside_never_the_page():
-    """The panel's body has one height, what the screen leaves under the hero, and
-    scrolls inside it; under 1180px wide it grows to its content and the page scrolls."""
-    css = UNIVERSE_CSS.read_text()
-    assert re.search(r"--uv-panel-h: clamp\(\d+px, calc\(100vh - \d+px\), \d+px\);", css)
-    rule = re.search(r'\.st-key-uv_panel \.stTabs \[data-baseweb="tab-panel"\] \{([^}]*)\}', css)
-    assert rule and "height: var(--uv-panel-h)" in rule.group(1)
-    assert "overflow-y: auto" in rule.group(1) and "overflow-x: hidden" in rule.group(1)
-    narrow = css[css.index("@media (max-width: 1179.98px)"):]
-    assert re.search(r'\[data-baseweb="tab-panel"\] \{ height: auto; overflow: visible; \}', narrow)
-    # The two pulls that let a block run under the next are taken back, on the tab only:
-    # the dialog's body is a .uv block too and keeps the spacing it was drawn with.
-    pull = re.search(r'([^{}]*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\) \{\s*'
-                     r'margin-bottom: 0; \}', css)
-    assert pull and '[data-baseweb="tab-panel"]:has(.st-key-uv_window)' in pull.group(1)
-    assert not re.search(r'(^|\}\s*)\[data-testid="stMarkdownContainer"\]:has\(> \.uv\)', css)
-    assert ".st-key-uv_board iframe { display: block; }" in css
-
-
-def test_the_panel_follows_the_window_and_its_tabs_switch_without_a_rerun():
-    """The panel is drawn inside the window's fragment, so its last tab follows the
-    window, and is a plain st.tabs (switched in the browser), keyed so its stylesheet
-    reaches it."""
+def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
+    """The tabbed panel is gone: the index heads the tab, drawn before the frame and
+    outside it, so its height can follow the screen's."""
     tree = ast.parse((FRONTEND / "universe_page.py").read_text(), feature_version=(3, 9))
     fns = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
-    assert not fns["_panel"].decorator_list
+    assert "_panel" not in fns
     assert any(getattr(d, "attr", "") == "fragment" for d in fns["_command"].decorator_list)
-    src = ast.unparse(fns["_panel"]) if hasattr(ast, "unparse") else \
-        (FRONTEND / "universe_page.py").read_text()
-    assert "st.container(key='uv_panel')" in src.replace('"', "'")
-    assert "UC.week_panel_tabs(p, w)" in src
-    calls = [n for n in ast.walk(fns["_panel"]) if isinstance(n, ast.Call)
-             and getattr(n.func, "attr", "") == "tabs"]
-    assert calls and not any(k.arg == "on_change" for c in calls for k in c.keywords)
     cmd = ast.unparse(fns["_command"]) if hasattr(ast, "unparse") else ""
-    assert "_panel(p, w)" in cmd and "UC.front_html(p)" in cmd
-    body = [ast.unparse(n) if hasattr(ast, "unparse") else "" for n in fns["render"].body]
-    assert any("_command(api_base, p)" in b for b in body)
+    assert cmd.index("UC.index_html(p)") < cmd.index("UC.front_html(p)")
+    assert not [n for n in ast.walk(tree) if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", "") == "tabs"]
+    css = UNIVERSE_CSS.read_text()
+    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(130px, calc\(100vh - 646px\), 330px\);", css)
+
+
+def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload):
+    ix = UC.ew_index(payload)
+    start = (dt.date.fromisoformat(payload["today"]) - dt.timedelta(days=UC.INDEX_DAYS)).isoformat()
+    first = {t: next((c for d, c in payload["closes"][t] if d >= start), None)
+             for t in payload["tickers"]}
+    assert ix["dates"][0] >= start and ix["left_out"] == [] and len(ix["members"]) == 18
+    d0, dn = ix["dates"][0], ix["dates"][-1]
+    last = {t: [c for d, c in payload["closes"][t] if d <= dn][-1] for t in payload["tickers"]}
+    want = 100 * sum(last[t] / first[t] for t in payload["tickers"]) / 18
+    assert ix["values"][0] == pytest.approx(100.0) and ix["values"][-1] == pytest.approx(want)
+    b = [c for d, c in payload["benchmark"] if d >= d0]
+    assert ix["bench"][-1][1] == pytest.approx(100 * b[-1] / b[0])
+    out = UC.index_html(payload)
+    assert f'<b>{want:.1f}</b><span class="chg ' in out and UC.pc(want / 100 - 1) in out
+    assert re.search(r'<span class="k">XLV</span><b class="(up|down)">'
+                     + re.escape(UC.pc(b[-1] / b[0] - 1)) + "</b>", out)
+    assert "vs XLV" not in out                              # no gap to XLV, by request
+    moves = {t: last[t] / first[t] - 1 for t in payload["tickers"]}
+    best, worst = max(moves, key=moves.get), min(moves, key=moves.get)
+    assert f"<b>{best} " in out and f"<b>{worst} " in out
+    assert out.count('class="hv') == len(ix["dates"])       # a hover a trading day
+    assert "the 18 on this page on their closes" in out and "XLV on total return" in out
+    assert 'vector-effect="non-scaling-stroke"' in out
+    assert not re.search(r"<text", out)                     # every label is HTML, never scaled
+
+
+def test_the_index_names_a_company_left_out_and_never_draws_from_nothing(payload):
+    q = copy.deepcopy(payload)
+    start = (dt.date.fromisoformat(q["today"]) - dt.timedelta(days=UC.INDEX_DAYS)).isoformat()
+    first = min(d for t in q["tickers"] for d, _c in q["closes"][t] if d >= start)
+    q["closes"]["ABBV"] = [r for r in q["closes"]["ABBV"] if r[0] > first]
+    ix = UC.ew_index(q)
+    assert ix["left_out"] == ["ABBV"] and len(ix["members"]) == 17
+    assert "ABBV left out, no close on" in UC.index_html(q)
+    empty = {**payload, "closes": {}, "benchmark": []}
+    assert UC.ew_index(empty) is None
+    assert UC.NO_DATA in UC.index_html(empty)
 
 
 # ------------------------------------------------------------ the week across the group
@@ -637,77 +622,29 @@ def _unwashed(markup):
 
 
 def test_the_week_reads_the_same_whichever_company_is_picked(payload):
-    """Pick LLY instead of AZN and the band, the ribbon and every tab but the last read
-    the same: only the wash moves, and the lanes keep their order and their marks."""
+    """Pick LLY instead of AZN and the band, the ribbon and the index read exactly the
+    same: the Universe tab is the group, so no company is marked out on it."""
     lly = _as(payload, "LLY")
-    assert _unwashed(UC.front_html(payload)) == _unwashed(UC.front_html(lly))
-    assert UC.front_html(payload) != UC.front_html(lly)
-    a, b = UC.week_panel_tabs(payload, "1y"), UC.week_panel_tabs(lly, "1y")
-    for (la, ba), (lb, bb) in zip(a[:-1], b[:-1]):
-        # Inside an SVG the wash is drawn (a band under the picked lane or column, the
-        # picked line in the text colour), so the tabs are compared on what they say.
-        assert la == lb and _visible(ba) == _visible(bb), la
-    assert _unwashed(a[0][1]) == _unwashed(b[0][1])          # every change, to the mark
-    assert a[-1][0] == "AZN against the group" and b[-1][0] == "LLY against the group"
-    # Washed exactly where the company falls: its board row, its ribbon tile, its grid
-    # column, and the ranked items and ticker marks that name it.
-    for p_, t in ((payload, "AZN"), (lly, "LLY")):
-        front = UC.front_html(p_)
-        assert re.findall(r'class="uw-br me" data-ticker="([A-Z]+)"', front) == [t]
-        assert re.findall(r'class="uw-tile[^"]* me[^"]*" data-ticker="([A-Z]+)"', front) == [t]
-        named = [i for i in p_["week_items"][1:9] if t in i["tickers"]]
-        assert front.count('<div class="uw-it me"') == len(named)
+    assert UC.front_html(payload) == UC.front_html(lly)
+    assert UC.index_html(payload) == UC.index_html(lly)
+    for markup in (UC.front_html(payload), UC.index_html(payload)):
+        assert not re.search(r'class="[^"]*\bme\b', markup)
 
 
-def test_the_lead_story_is_rank_one_with_its_source_quoted(payload):
-    it = payload["week_items"][0]
-    lead = UC.lead_story(payload, it)
-    assert '<h2 class="uw-hd"' in lead
-    head = re.search(r'<h2 class="uw-hd"[^>]*>([^<]*)</h2>', lead).group(1)
-    assert html.unescape(head) == "Sanofi and Regeneron: $1bn upfront, up to $7bn in milestones"
-    deck = re.search(r'<p class="uw-deck">&ldquo;<span class="vb">([^<]*)</span>&rdquo;'
-                     r'<span class="by">([^<]*)</span>', lead)
-    assert html.unescape(deck.group(1)) == it["quote"]
-    assert deck.group(2) == "the press release, filed as exhibit 99.1"
-    assert '<b class="">$8bn</b><small>announced value</small>' in lead
-    assert re.search(r'<svg class="uw-cons" width="220" height="38" viewBox="0 0 220 38"', lead)
-    sparks = re.findall(r'<div class="uw-ds"><b class="[^"]*" data-ticker="([A-Z]+)">', lead)
-    assert sparks == ["SNY", "REGN"]
-    assert ">−1.4%<" in lead and ">−3.1%<" in lead
-    # The detail rows open from the kicker: the terms, the source title, the day moves.
-    card = _visible(lead.split('<div class="uw-card uw-lc">')[1])
-    assert "Upfront $1bn" in card and "Day move, 1 Oct SNY −1.4% · REGN −3.1%" in card
-
-
-def test_a_lead_of_another_kind_draws_its_own_figure_and_chart(payload):
-    items = {i["kind"]: i for i in payload["week_items"]}
-    ro = UC.lead_story(payload, items["readout"])
-    assert ">Roche: Phase 3 result<" in ro
-    assert html.unescape(VB.search(ro).group(1)) == items["readout"]["head"]
-    assert "the company's announcement" in _visible(ro) and ">+0.9%<" in ro
-    assert re.search(r'<svg class="uw-spk" width="260" height="34"', ro)
-    mk = UC.lead_story(payload, items["market"])
-    assert ">+49bp<" in mk and "uw-deck" not in mk               # no source title: no deck
-    assert re.search(r'<svg class="uw-spk" width="300" height="40"', mk)
-    for kind in ("slips", "approval", "regulatory", "due", "loe", "notice", "earnings"):
-        out = UC.lead_story(payload, items[kind])
-        assert '<h2 class="uw-hd"' in out and "uw-fig" in out, kind
-        _house_style(_visible(out))
-
-
-def test_the_ranked_feed_continues_from_two_and_names_what_it_leaves(payload):
+def test_the_ranked_feed_runs_from_one_at_one_size_and_names_what_it_leaves(payload):
     rk = UC.ranked_html(payload)
     cols = rk.split('<div class="col">')[1:]
     assert len(cols) == 2
     ranks = [int(n) for n in re.findall(r'<div class="uw-it[^"]*"[^>]*><span class="n">(\d+)</span>', rk)]
-    assert ranks == list(range(2, 2 + 2 * UC.RANK_ROWS))
+    assert ranks == list(range(1, 1 + 2 * UC.RANK_ROWS))
     for col in cols:
         assert col.count('<div class="uw-it') == UC.RANK_ROWS
-    rest = payload["week_items"][1 + 2 * UC.RANK_ROWS:]
+    rest = payload["week_items"][2 * UC.RANK_ROWS:]
     assert f'{len(rest)} more ▾' in rk
     assert re.findall(r'<div class="uw-mr"><span class="n">(\d+)</span>', rk) == \
         [str(i["rank"]) for i in rest]
-    assert f"2 to {1 + 2 * UC.RANK_ROWS} of {len(payload['week_items'])}" in rk
+    assert f"1 to {2 * UC.RANK_ROWS} of {len(payload['week_items'])}" in rk
+    assert 'class="uw-lead"' not in UC.front_html(payload) and 'uw-hd' not in UC.front_html(payload)
     # Every item has its figure and its detail; none prints a bare zero for a gap.
     for it in payload["week_items"]:
         x = UC.feed_item(payload, it)
@@ -784,26 +721,10 @@ def test_the_ribbon_runs_cheap_to_expensive_with_no_value_last(payload):
     seq = re.findall(r'<div class="uw-zero">|data-ticker="([A-Z]+)"', rib)
     zero = seq.index("")
     assert up[seq[zero - 1]] >= 0 > up[seq[zero + 1]]
-    assert [c for c, t in tiles if "me" in c.split()] == [" me"] or \
-        sum(1 for c, _t in tiles if "me" in c.split()) == 1
+    assert not [c for c, _t in tiles if "me" in c.split()]   # no company marked out
     # A tile's hover: the close, the model's 12-month value and rating, the street target.
     card = _visible(rib.split('data-ticker="SNY"')[1].split('</div></div>')[0])
     assert "Close 39.51 EUR" in card and "Strong buy" in card and "Street target" in card
-
-
-def test_every_change_counts_each_kind_and_lists_its_rows(payload):
-    grid = UC.changes_grid_html(payload)
-    w = payload["week"]
-    total = sum(w["kinds"].values())
-    assert f"{total} this week, {w['routine_filings']} routine filings left out" in grid
-    for k, label in w["kind_labels"].items():
-        assert f'<span>{UC.esc(label)}</span><b>{w["kinds"][k]}</b>' in grid
-    cells = re.findall(r'<div class="gc[^"]*" tabindex="0"[^>]*><span>(\d+)</span>', grid)
-    assert sum(int(c) for c in cells) == total
-    heads = re.findall(r'<div class="gh[^"]*" title="[^"]*"><span class="t">([A-Z]+)</span>'
-                       r'<span class="v">(\d+)</span>', grid)
-    counts = [int(n) for _t, n in heads]
-    assert counts == sorted(counts, reverse=True) and len(heads) == len(payload["companies"])
 
 
 def test_the_52_week_range_keeps_its_labels_inside_its_cell():
@@ -842,17 +763,13 @@ def test_every_company_mark_in_the_frame_opens_it(payload):
     assert 'hit.closest("[data-from]")' in idx
 
 
-def test_the_band_is_one_height_and_the_panel_takes_the_rest():
+def test_the_band_is_one_height_with_taller_ranked_rows():
     """The news column and the board are drawn to one height: eighteen board rows and
-    their heads against the lead and four ranked rows a column. The panel's body is what
-    the screen leaves under the ribbon (measured: its top at 651px at 1440)."""
+    their heads against two columns of five 72px ranked rows and their head."""
     css = UNIVERSE_CSS.read_text()
     assert re.search(r"--uw-row: 19px;", css)
-    assert re.search(r"\.uw-it \{[^}]*height: 60px;", css)
-    assert UC.RANK_ROWS == 4
-    m = re.search(r"--uv-panel-h: clamp\((\d+)px, calc\(100vh - (\d+)px\), (\d+)px\);", css)
-    lo, off, _hi = (int(v) for v in m.groups())
-    assert 780 - off >= 120 and lo <= 780 - off      # the default tab fits at 1440 by 780
+    assert re.search(r"\.uw-it \{[^}]*height: 72px;", css)
+    assert UC.RANK_ROWS == 5
 
 
 # ------------------------------------------------------------------------- the switch
@@ -981,17 +898,14 @@ def test_page_draws_every_band_and_the_window_switch_reruns_it():
     test = _page()
     md = _md(test)
     for needle in ('class="uw-kick0"', 'class="uv-lead"', 'class="uv-status"',
-                   'class="uw-grid"', 'class="uv-sp"', 'class="uv-svg uv-lanes"',
-                   'class="uv-sms"', 'class="uv-rates uv-rates2"', 'class="uv-exp"',
-                   'class="uv-polg"'):
+                   'class="uv uw-idx"'):
         assert needle in md, needle
-    assert [t.label for t in test.tabs] == list(PANEL)
-    assert "Against XLV, 1 year" in md
+    assert not test.tabs
+    assert "over a year" in md
     test.button_group(key="uv_window").set_value("3 months").run()
     assert not test.exception
     md = _md(test)
-    assert "Against XLV, 3 months" in md and "over three months" in md
-    assert [t.label for t in test.tabs] == list(PANEL)
+    assert "over three months" in md
 
 
 def test_page_without_the_component_falls_back_to_pills():
@@ -1009,7 +923,7 @@ def test_page_with_the_focal_company_stripped_still_draws():
              "import test_universe_tab_ui as T\n"
              "payload = T._stripped(payload)")
     md = _md(_page(tweak))
-    assert 'class="uv-sp"' in md and UC.NO_DATA in md
+    assert 'class="uv uw-idx"' in md and UC.NO_DATA in md
 
 
 def test_a_pick_opens_the_company_dialog_once():
