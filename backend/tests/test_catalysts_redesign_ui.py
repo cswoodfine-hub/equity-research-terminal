@@ -1,4 +1,4 @@
-"""The redesigned Catalysts tab (frontend/catalysts_area.py, the page by therapy area;
+"""The redesigned Catalysts tab (frontend/catalysts_readouts.py, the dated readout list;
 catalysts_view.py, the shared builders and the gate's full detail; catalysts_page.py, the
 catnav component and the switch in streamlit_app.py).
 
@@ -487,137 +487,273 @@ def test_the_svgs_read_colour_from_the_stylesheet_only(payload):
         r'url\(#[\w-]+\)|id="[\w-]+"|href="[^"]*"', "", markup)))
 
 
-# ---------------------------------------------------------- the page by therapy area
-AREA = FRONTEND / "catalysts_area.py"
-import catalysts_area as CA  # noqa: E402
+# ------------------------------------------------------------ the dated readout list
+READOUTS = FRONTEND / "catalysts_readouts.py"
+import catalysts_readouts as CR  # noqa: E402
 
 
-def _area_blocks(p):
-    """Every string the area page and its dialogs draw."""
-    rows = CA.area_rows(p)
-    out = {"page": CA.page_html(p)}
+def _list_blocks(p):
+    """Every string the readout list and its dialogs draw."""
+    rows = CR.readouts(p)
+    out = {"page": CR.page_html(p)}
     for g in p.get("gates") or []:
-        top, panes = CA.gate_dialog(p, g["asset_id"])
+        top, panes = CR.gate_dialog(p, g["asset_id"])
         out[f"gate {g['asset_id']}"] = top + "".join(m for _l, m in panes)
-    for key, *_ in CA.index_items(p, rows):
-        out[f"more {key}"] = CA.more_dialog_html(p, key)
-    for a in rows:
-        out[f"cal {a['area']}"] = CA.calendar_html(p, a["area"])
+    for r in rows:
+        if r["kind"] == "event" and r["gate"] is None:
+            out[f"card {r['id']}"] = CR.readout_card(p, r["id"])[0]
+    for key, *_ in CR.index_items(p, rows):
+        out[f"more {key}"] = CR.more_dialog_html(p, key)
+    for area, *_ in CR.area_counts(rows):
+        out[f"cal {area}"] = CR.calendar_html(p, area)
     return out
 
 
-def test_the_area_builders_touch_no_streamlit_network_or_clock():
-    tree = ast.parse(AREA.read_text(), feature_version=(3, 9))
+def _window(p):
+    today = dt.date.fromisoformat(p["today"])
+    return today, today + dt.timedelta(days=731)
+
+
+def _in_window(p, e):
+    today, h24 = _window(p)
+    d, month = CV.day_or_month(e.get("date"))
+    if d is None:
+        return False
+    end = (dt.date(d.year + (d.month == 12), d.month % 12 + 1, 1) - dt.timedelta(days=1)) if month else d
+    return end >= today and d <= h24
+
+
+def _near(p):
+    return [g for g in CR.priced_gates(p) if g["in24"]]
+
+
+def test_the_readout_builders_touch_no_streamlit_network_or_clock():
+    tree = ast.parse(READOUTS.read_text(), feature_version=(3, 9))
     names = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names |= {a.name.split(".")[0] for a in node.names}
         elif isinstance(node, ast.ImportFrom):
             names.add((node.module or "").split(".")[0])
-    assert names <= {"__future__", "datetime", "re", "collections", "catalysts_view"}, names
+    assert names <= {"__future__", "datetime", "re", "json", "catalysts_view"}, names
     for call in ("date.today(", "datetime.now(", "time.time(", "open("):
-        assert call not in AREA.read_text(), call
+        assert call not in READOUTS.read_text(), call
 
 
-def test_an_areas_figures_are_the_sums_of_its_gates_within_24_months(payload):
-    rows = CA.area_rows(payload)
-    today = dt.date.fromisoformat(payload["today"])
-    h24 = today + dt.timedelta(days=731)
-    seen = []
-    for a in rows:
-        inside = [g for g in payload["gates"] if (g.get("area") or "No area on file") == a["area"]
-                  and (g.get("due") or (CV._d(g.get("floor")) or CV._d(g.get("date")) or dt.date.max) <= h24)]
-        assert sorted(g["asset_id"] for g in a["gates"]) == sorted(g["asset_id"] for g in inside)
-        assert a["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in inside))
-        assert a["risk"] == pytest.approx(sum(g["now"] - g["failure"] for g in inside))
-        seen += [g["asset_id"] for g in a["gates"] + a["later"]]
-    # every priced gate is in one area, once: summed or listed later
-    assert sorted(seen) == sorted(g["asset_id"] for g in payload["gates"])
-    t = CA.totals(rows, payload)
-    assert t["gain"] == pytest.approx(sum(a["gain"] for a in rows))
-    assert t["n_gates"] + t["n_later"] == len(payload["gates"])
-    stakes = [a["stake"] for a in rows]
-    assert stakes == sorted(stakes, reverse=True)
+def test_every_readout_within_24_months_is_one_row_soonest_first(payload):
+    rows = CR.readouts(payload)
+    events = [str(e["id"]) for e in payload["events"] if _in_window(payload, e)]
+    listed = [r["id"] for r in rows if r["kind"] == "event"]
+    assert sorted(listed) == sorted(events) and len(set(listed)) == len(listed)
+    groups = []
+    for r in rows:
+        if not groups or groups[-1] != r["group"]:
+            groups.append(r["group"])
+    assert len(groups) == len(set(groups))                  # each group once, together
+    quarters = [g for g in groups if isinstance(g, tuple)]
+    assert quarters == sorted(quarters)
+    if CR.GROUP_OVERDUE in groups:
+        assert groups[0] == CR.GROUP_OVERDUE
+    if CR.GROUP_LATER in groups:
+        assert groups[-1] == CR.GROUP_LATER
+    for q in quarters:
+        inside = [r for r in rows if r["group"] == q]
+        assert [r["sort"] for r in inside] == sorted(r["sort"] for r in inside)
+        for r in inside:
+            assert CR._quarter(r["sort"][0]) == q
+    assert CR.group_label((2027, 1)) == "Q1 2027"
+
+
+def test_each_priced_gate_within_24_months_is_one_row_and_the_bars_add_up(payload):
+    rows = CR.readouts(payload)
+    near = _near(payload)
+    on_rows = [r["gate"]["asset_id"] for r in rows if r["gate"] is not None and not r["later"]]
+    assert sorted(on_rows) == sorted(g["asset_id"] for g in near)
+    t = CR.totals(rows, payload)
+    assert t["n_gates"] == len(near)
+    assert t["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in near))
+    assert t["risk"] == pytest.approx(sum(g["now"] - g["failure"] for g in near))
+    markup = CR.page_html(payload)
+    assert markup.count('class="ca-bar cr-bar"') == len(near)
+    later = [g for g in CR.priced_gates(payload) if not g["in24"]]
+    assert [r["gate"]["asset_id"] for r in rows if r["later"]] == [
+        r["gate"]["asset_id"] for r in rows if r["group"] == CR.GROUP_LATER]
+    assert sorted(r["gate"]["asset_id"] for r in rows if r["later"]) == sorted(g["asset_id"] for g in later)
+    assert t["n_rows"] == len(rows) - len(later)
+    # every gate is a click target that opens its dialog
+    for g in CR.priced_gates(payload):
+        assert f'data-gate="{g["asset_id"]}"' in markup
+
+
+def test_a_gate_rides_on_its_own_studys_row(payload):
+    """A gate whose study the calendar carries, on the same date, is that readout's row;
+    an FDA decision sits at the floor the launch floor allows, on a row of its own."""
+    rows = CR.readouts(payload)
+    for r in rows:
+        if r["kind"] == "event" and r["gate"] is not None:
+            g = r["gate"]
+            assert r["event"]["nct"] == g["trial"]["nct_id"]
+            assert r["event"]["date"] == g["date"]
+            assert not [x for x in rows if x["kind"] == "gate" and x["gate"]["asset_id"] == g["asset_id"]]
+    fda = [r for r in rows if r["kind"] == "gate" and r["ph"] == "filed" and not r["later"]]
+    assert fda
+    for r in fda:
+        assert r["ph_txt"] == "FDA" and r["when"].startswith("<i>≥</i>")
+        assert r["group"] == CR._quarter(max(r["gate"]["fl"], dt.date.fromisoformat(payload["today"])))
 
 
 def test_the_24_month_rule(payload):
-    """A gate landing within 24 months counts, a due readout as landing now; one later or
-    undated is listed in its area and never summed."""
+    """A gate landing within 24 months counts, a due readout as landing now under Overdue;
+    one later or undated is listed last and never summed."""
     q = copy.deepcopy(payload)
     today = dt.date.fromisoformat(q["today"])
     g0, g1, g2, g3 = q["gates"][:4]
     for g in (g0, g1, g2, g3):
-        g["area"], g["floor"], g["due"] = "Test area", None, False
+        g["floor"], g["due"] = None, False
     g0["date"] = (today + dt.timedelta(days=700)).isoformat()            # inside
     g1["date"] = (today + dt.timedelta(days=800)).isoformat()            # later
     g2["date"] = None                                                    # undated
     g3["date"], g3["due"] = (today - dt.timedelta(days=60)).isoformat(), True   # due: now
-    a = next(x for x in CA.area_rows(q) if x["area"] == "Test area")
-    assert {g["asset_id"] for g in a["gates"]} == {g0["asset_id"], g3["asset_id"]}
-    assert {g["asset_id"] for g in a["later"]} == {g1["asset_id"], g2["asset_id"]}
-    assert a["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in (g0, g3)))
-    assert [g["name"] for g in a["overdue"]] == [g3["name"]]
-    markup = CA.gates_html(q, a, CA.scale(CA.area_rows(q)))
-    later = markup[markup.index("Later or undated"):]
+    rows = CR.readouts(q)
+    where = {r["gate"]["asset_id"]: r for r in rows if r["gate"] is not None}
+    assert not where[g0["asset_id"]]["later"] and isinstance(where[g0["asset_id"]]["group"], tuple)
+    assert where[g1["asset_id"]]["later"] and where[g2["asset_id"]]["later"]
+    assert where[g3["asset_id"]]["group"] == CR.GROUP_OVERDUE
+    t = CR.totals(rows, q)
+    near = _near(q)
+    assert {g0["asset_id"], g3["asset_id"]} <= {g["asset_id"] for g in near}
+    assert not {g1["asset_id"], g2["asset_id"]} & {g["asset_id"] for g in near}
+    assert t["gain"] == pytest.approx(sum(g["gain"] for g in near))
+    markup = CR.page_html(q)
+    later = markup[markup.index('<div class="cr-gh later"'):]
     for g in (g1, g2):
         assert f'data-gate="{g["asset_id"]}"' in later
     for g in (g0, g3):
         assert f'data-gate="{g["asset_id"]}"' not in later
+    over = markup[markup.index('<div class="cr-gh od"'):markup.index('<div class="cr-gh q"')]
+    assert f'data-gate="{g3["asset_id"]}"' in over
+
+
+def test_a_readout_dated_to_the_month_is_listed_in_its_month(payload):
+    q = copy.deepcopy(payload)
+    today = dt.date.fromisoformat(q["today"])
+    nxt = dt.date(today.year + (today.month == 12), today.month % 12 + 1, 1)
+    last = dt.date(today.year - (today.month == 1), (today.month - 2) % 12 + 1, 1)
+    ev = [e for e in q["events"] if not e["priced"]][:3]
+    ev[0]["date"] = f"{nxt.year}-{nxt.month:02d}"
+    ev[1]["date"] = f"{today.year}-{today.month:02d}"     # this month: not yet passed
+    ev[2]["date"] = f"{last.year}-{last.month:02d}"       # last month: passed
+    rows = CR.readouts(q)
+    by_id = {r["id"]: r for r in rows}
+    r0, r1 = by_id[str(ev[0]["id"])], by_id[str(ev[1]["id"])]
+    assert str(ev[2]["id"]) not in by_id
+    assert re.sub("<[^>]+>", "", r0["when"]) == f"in {CV.MON[nxt.month - 1]}"
+    month = [r for r in rows if r["sort"][0].year == nxt.year and r["sort"][0].month == nxt.month
+             and not r["later"]]
+    assert month[-1]["sort"][1] == 32 and r0["sort"] == (nxt, 32)
+    assert all(r["sort"][1] < 32 for r in month if r["id"] != r0["id"] and not r["when"].startswith("<i>in</i>"))
+    assert r1["group"] == CR._quarter(today)
+    card = CR.readout_card(q, ev[0]["id"])[0]
+    assert f"{CV.mon(nxt)}, the registry gives the month" in _visible(card)
+
+
+def test_a_readout_on_no_priced_gate_reads_muted(payload):
+    rows = CR.readouts(payload)
+    sc = CR.scale(rows)
+    for r in rows:
+        markup = CR.row_html(r, sc)
+        if r["gate"] is None:
+            assert "no priced gate" in _visible(markup) and "ca-bar" not in markup
+            assert f'data-ev="{r["id"]}"' in markup and "data-gate" not in markup
+        elif not r["later"]:
+            text = _visible(markup)
+            assert CR._sgn_usd(r["gate"]["gain"]) in text and pct_in(r, text)
+
+
+def pct_in(r, text):
+    return CV.pct(r["gate"].get("p_gate")) in text
+
+
+def test_the_group_headings_sum_their_gates(payload):
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    gain = risk = 0.0
+    for grp in dict.fromkeys(r["group"] for r in rows):
+        inside = [r for r in rows if r["group"] == grp]
+        gates = [r["gate"] for r in inside if r["gate"] is not None and not r["later"]]
+        st = CR._group_stats(inside)
+        assert st["*"][0] == len(inside) and st["*"][1] == len(gates)
+        if gates:
+            assert st["*"][2] == CR._sgn_usd(sum(g["gain"] for g in gates))
+            assert st["*"][3] == CR._sgn_usd(-sum(g["risk"] for g in gates))
+        gain += sum(g["gain"] for g in gates)
+        risk += sum(g["risk"] for g in gates)
+        for area in {r["area"] for r in inside}:
+            assert st[area][0] == sum(1 for r in inside if r["area"] == area)
+    assert gain == pytest.approx(t["gain"]) and risk == pytest.approx(t["risk"])
+
+
+def test_the_area_filter_counts_the_list(payload):
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    counts = CR.area_counts(rows)
+    assert sum(c[1] for c in counts) == t["n_rows"]
+    assert sum(c[2] for c in counts) == t["n_gates"]
+    assert [c[1] for c in counts] == sorted((c[1] for c in counts), reverse=True)
+    chips = CR.chips_html(rows)
+    assert f'data-af="*" title="Every area">All <b class="m">{t["n_rows"]}</b>' in chips
+    for area, n, *_ in counts:
+        assert f'data-af="{html.escape(area)}"' in chips
+        assert sum(1 for r in rows if r["area"] == area and not r["later"]) == n
+    markup = CR.page_html(payload)
+    assert len(re.findall(r'class="cr-row[ "]', markup)) == len(rows)
+    assert len(re.findall(r'class="cr-row[^"]*" data-(?:gate|ev)="[^"]+" data-area="', markup)) == len(rows)
 
 
 def test_the_footnote_says_what_the_bars_count(payload):
-    rows = CA.area_rows(payload)
-    t = CA.totals(rows, payload)
-    note = CA.footnote(t)
-    assert f"{t['n_gates']} priced gates landing within 24 months" in note
-    assert "a due readout counts as landing now" in note
-    assert f"{t['n_later']} later or undated gates are listed in their area, not in the figures" in note
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    note = CR.footnote(t)
+    assert f"Totals sum the {t['n_gates']} priced gates landing within 24 months, one row each" in note
+    assert "an overdue readout counts as landing now" in note
+    assert f"{t['n_later']} later or undated gates are listed last, not in the totals" in note
     assert "adds to the count, not the value" in note
-    assert html.escape(note) in CA.page_html(payload)
+    assert html.escape(note) in CR.page_html(payload)
 
 
-def test_the_header_prints_the_area_sums(payload):
-    rows = CA.area_rows(payload)
-    t = CA.totals(rows, payload)
-    text = _visible(CA.header_html(payload, rows, t))
-    assert CA._sgn_usd(t["gain"]) in text and CA._sgn_usd(-t["risk"]) in text
+def test_the_header_prints_the_sums(payload):
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    text = _visible(CR.header_html(payload, t))
+    assert CR._sgn_usd(t["gain"]) in text and CR._sgn_usd(-t["risk"]) in text
     assert f"if all {t['n_gates']} priced gates pass" in text
     assert f"a lone study miss takes {CV.usd(t['risk'] - t['held'])}" in text
-    assert f"{t['n24']} readouts in 24 months · {t['n12']} in 12 · {t['priced24']} priced" in text
-    assert f"{rows[0]['area']} holds" in text
+    assert f"{t['n_rows']} readouts next 24 months · {t['n_gates']} priced · {t['n_overdue']} overdue" in text
+    assert "Upcoming readouts" in text and "soonest first" in text
 
 
-def test_every_area_opens_in_place_and_every_gate_is_a_click_target(payload):
-    markup = CA.page_html(payload)
-    rows = CA.area_rows(payload)
-    assert markup.count('class="ca-row"') == len(rows)
-    assert markup.count('class="ca-ar"') == len(rows)
-    blocks = re.split(r'<div class="ca-row" data-area="', markup)[1:]
-    for a, block in zip(rows, blocks):
-        assert block.startswith(html.escape(a["area"]))
-        gates = block[block.index('class="ca-gates"'):]
-        for g in a["gates"] + a["later"]:
-            assert f'class="ca-gl{" lt" if g in a["later"] else ""}" data-gate="{g["asset_id"]}"' in gates
-        if a["n24"]:
-            assert f'data-more="cal" data-area="{html.escape(a["area"])}"' in gates
-    for key, *_ in CA.index_items(payload, rows):
-        assert f'data-more="{key}"' in markup
-
-
-def test_the_area_page_never_draws_a_null_as_zero(payload):
+def test_the_list_never_draws_a_null_as_zero(payload):
     q = _stripped(payload)
-    rows = CA.area_rows(q)
-    assert all(a["gain"] == 0 and a["missing"] for a in rows if a["gates"])
-    text = _visible(CA.page_html(q))
+    rows = CR.readouts(q)
+    t = CR.totals(rows, q)
+    assert t["gain"] == 0 and len(t["missing"]) == t["n_gates"]
+    text = _visible(CR.page_html(q))
     assert "no free data" in text
     assert "None" not in re.findall(r"\bNone\b", text) and "nan" not in text.split()
+    for r in rows:
+        if r["gate"] is not None and not r["later"]:
+            bar = CR.bar_svg(r["gate"], CR.scale(rows))
+            assert NO_DATA_TEXT in bar and 'class="up"' not in bar
+
+
+NO_DATA_TEXT = "no free data"
 
 
 @pytest.mark.parametrize("variant", ["fixture", "stripped", "no_stakes", "empty"])
-def test_the_area_page_house_style_and_markdown_safe(payload, variant):
+def test_the_list_house_style_and_markdown_safe(payload, variant):
     p = {"fixture": payload, "stripped": _stripped(payload),
          "no_stakes": _no_stakes(payload), "empty": _empty(payload)}[variant]
-    for name, markup in _area_blocks(p).items():
+    for name, markup in _list_blocks(p).items():
         assert "\n\n" not in markup, name
         text = _visible(markup)
         _house_style(text)
@@ -628,17 +764,50 @@ def test_the_area_page_house_style_and_markdown_safe(payload, variant):
 
 def test_a_company_with_no_priced_gate_is_counted_not_valued(payload):
     q = _no_stakes(payload)
-    rows = CA.area_rows(q)
-    text = _visible(CA.page_html(q))
-    assert "carries a priced gate landing within 24 months" in text
-    assert sum(a["n24"] for a in rows) == sum(a["n24"] for a in CA.area_rows(payload))
-    assert "no priced gate · count only" in text
+    rows = CR.readouts(q)
+    t = CR.totals(rows, q)
+    text = _visible(CR.page_html(q))
+    assert "none to gain no priced gate within 24 months" in text
+    assert t["n_rows"] == sum(1 for e in q["events"] if _in_window(q, e)) and not t["n_gates"]
+    assert "ca-bar" not in CR.page_html(q)
+    assert text.count("no priced gate") >= t["n_rows"]
+
+
+def test_a_readouts_card_says_why_it_carries_no_price(payload):
+    rows = CR.readouts(payload)
+    gated = next(r for r in rows if r["kind"] == "event" and r["gate"] is None
+                 and r["event"].get("gate_asset") in {g["asset_id"] for g in CR.priced_gates(payload)})
+    markup, gid = CR.readout_card(payload, gated["id"])
+    e = gated["event"]
+    assert gid == e["gate_asset"]
+    text = _visible(markup)
+    for part in ("The trial", "Why it carries no price", e["nct"], e["why"], "The line's gate",
+                 f"{e['trial']['enrollment']:,}", "Line in the model"):
+        assert part in text, part
+    assert f'href="{html.escape(e["url"])}"' in markup
+    bare = next(r for r in rows if r["kind"] == "event" and r["gate"] is None
+                and not r["event"].get("gate_asset"))
+    assert CR.readout_card(payload, bare["id"])[1] is None
+    assert CR.readout_title(payload, bare["id"]).startswith(bare["drug"])
+    assert "not on file" in _visible(CR.readout_card(payload, "no-such-id")[0])
+
+
+def test_the_calendar_draws_the_lists_rows(payload):
+    rows = CR.readouts(payload)
+    cal = CR.calendar_rows(rows)
+    text = _visible(CR.calendar_html(payload))
+    assert f"Every area: {len(cal)} readouts" in text
+    area, n, *_ = CR.area_counts(rows)[0]
+    inside = sum(1 for r in cal if r["area"] == area)
+    assert f"{area}: {inside} readouts" in _visible(CR.calendar_html(payload, area))
+    assert CR.more_title("cal", area) == f"Calendar, 24 months · {area}"
+    assert CR.more_title("cal", "*") == "Calendar, 24 months"
 
 
 def test_the_gate_dialog_keeps_the_full_detail(payload):
     gid = CV.default_gate(payload)
-    top, panes = CA.gate_dialog(payload, gid)
-    assert [lab for lab, _m in panes] == list(CA.PANES)
+    top, panes = CR.gate_dialog(payload, gid)
+    assert [lab for lab, _m in panes] == list(CR.PANES)
     assert 'class="cx-svg fork"' in top
     whole = top + "".join(m for _l, m in panes)
     for part in ("Legs at the gate", "Chance of passing", "Cost to reach the gate",
@@ -646,7 +815,7 @@ def test_the_gate_dialog_keeps_the_full_detail(payload):
         assert part in whole, part
     parts = CV.dialog_parts(payload, gid)
     assert parts["legs"] in panes[0][1] and parts["dates"] in panes[2][1]
-    assert CA.gate_dialog(payload, -1) == (CV.DIALOG_NONE, [])
+    assert CR.gate_dialog(payload, -1) == (CV.DIALOG_NONE, [])
 
 
 # ------------------------------------------------------------------------- the switch
@@ -704,7 +873,7 @@ def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
 
 
 def test_the_calendar_fold_is_drawn_only_where_the_area_page_is_not():
-    """The area page's calendar is a click on its index, so the fold under the tab is
+    """The readout list's calendar is a click on its index, so the fold under the tab is
     drawn for every company the page does not draw, and only for those."""
     body = _tab_block()
     fold = body[2]
@@ -825,7 +994,7 @@ def _gid():
     return CV.default_gate(json.loads(FIXTURE.read_text()))
 
 
-def test_page_draws_the_area_table_and_the_rail_in_one_frame():
+def test_page_draws_the_list_and_the_rail_in_one_frame():
     seen = []
     tweak = ("catalysts_page._catnav = types.SimpleNamespace(cat_nav=lambda markup, **kw: "
              "st.session_state.__setitem__('_frame', markup))\n")
@@ -834,8 +1003,9 @@ def test_page_draws_the_area_table_and_the_rail_in_one_frame():
     markup = test.session_state["_frame"]
     seen.append(markup)
     payload = json.loads(FIXTURE.read_text())
-    assert markup == CA.page_html(payload)
-    assert 'class="cx ca-page"' in markup and "Next up" in markup and "More detail" in markup
+    assert markup == CR.page_html(payload)
+    assert 'class="cx ca-page cr-page"' in markup and 'class="cr-list"' in markup
+    assert "By area" in markup and "More detail" in markup
     assert not test.tabs and not _md(test)          # nothing drawn outside the frame
 
 
@@ -846,7 +1016,7 @@ def test_a_gate_click_opens_its_dialog_with_four_panes():
     md = _md(test)
     assert 'class="cx cx-dlg gd"' in md and "Legs at the gate" in md
     assert "Cost to reach the gate" in md and "Market and model" in md
-    assert [t.label for t in test.tabs] == list(CA.PANES)
+    assert [t.label for t in test.tabs] == list(CR.PANES)
 
 
 def test_a_closed_dialog_stays_closed_until_the_next_click():
@@ -859,9 +1029,11 @@ def test_a_closed_dialog_stays_closed_until_the_next_click():
 
 
 def test_an_index_click_opens_its_own_dialog():
+    payload = json.loads(FIXTURE.read_text())
+    n = sum(1 for r in CR.calendar_rows(CR.readouts(payload)) if r["area"] == "Oncology")
     test = _page(CLICK.format(click="{'more': 'cal', 'area': 'Oncology'}"))
     md = _md(test)
-    assert 'class="cx cx-dlg md ca-cal"' in md and "Oncology: 30 readouts" in md
+    assert 'class="cx cx-dlg md ca-cal"' in md and f"Oncology: {n} readouts" in md
     test = _page(state={"cx_open_AZN": {"more": "slip", "area": None}})
     assert 'class="cx cx-dlg md"' in _md(test) and "days" in _md(test)
 
@@ -893,15 +1065,47 @@ def test_arming_the_record_keeps_the_dialog_open():
     assert "sure?" in [b.label for b in test.button]
 
 
+def _readout(gated=True):
+    """A readout on no priced gate from the fixture, whose line has a priced gate or not."""
+    payload = json.loads(FIXTURE.read_text())
+    ids = {g["asset_id"] for g in payload["gates"]}
+    return next(r for r in CR.readouts(payload) if r["kind"] == "event" and r["gate"] is None
+                and (r["event"].get("gate_asset") in ids) == gated)
+
+
+def test_a_readout_click_opens_its_card_and_its_lines_gate():
+    r = _readout()
+    test = _page(CLICK.format(click=f"{{'ev': '{r['id']}'}}"))
+    assert test.session_state["cx_open_AZN"] == {"ev": r["id"]}
+    md = _md(test)
+    assert 'class="cx cx-dlg rd"' in md and "Why it carries no price" in md
+    (open_gate,) = [b for b in test.button if b.label == "Open the line's gate"]
+    open_gate.click().run()
+    assert not test.exception, test.exception
+    assert test.session_state["cx_open_AZN"] == {"gate": r["event"]["gate_asset"]}
+    assert 'class="cx cx-dlg gd"' in _md(test)
+
+
+def test_a_readout_with_no_gate_on_its_line_offers_none():
+    r = _readout(gated=False)
+    test = _page(state={"cx_open_AZN": {"ev": r["id"]}})
+    assert 'class="cx cx-dlg rd"' in _md(test)
+    assert not [b for b in test.button if b.label == "Open the line's gate"]
+
+
 def test_page_without_the_component_draws_inline_and_opens_by_list():
     test = _page("catalysts_page._catnav = None")
     md = _md(test)
-    assert 'class="cx ca-page"' in md
+    assert 'class="cx ca-page cr-page"' in md
     gid = _gid()
     test.selectbox(key="cx_pick_AZN").set_value(f"g{gid}").run()
     assert not test.exception, test.exception
     assert test.session_state["cx_open_AZN"] == {"gate": gid}
     assert 'class="cx cx-dlg gd"' in _md(test)
+    r = _readout()
+    test.selectbox(key="cx_pick_AZN").set_value(f"e{r['id']}").run()
+    assert test.session_state["cx_open_AZN"] == {"ev": r["id"]}
+    assert 'class="cx cx-dlg rd"' in _md(test)
 
 
 def test_a_model_not_read_hands_back_to_todays_tab():
@@ -916,7 +1120,8 @@ def test_a_company_with_no_priced_stakes_renders_the_page():
     test = _page(tweak)
     md = _md(test)
     assert "rendered True" in [c.value for c in test.caption]
-    assert "No pipeline line of" in md and "no priced gate · count only" in md
+    assert "no priced gate within 24 months" in md and "no priced gate</span>" in md
+    assert "ca-bar" not in md
 
 
 def test_an_incomplete_read_is_drawn_once_and_never_held(monkeypatch):

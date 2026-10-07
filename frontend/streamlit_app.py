@@ -61,7 +61,7 @@ DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
 
 # The companies whose Universe overview is the redesigned command centre (universe_page,
-# universe_cc) and whose Catalysts tab is the by-area page: the eighteen big pharma
+# universe_cc) and whose Catalysts tab is the dated readout list: the eighteen big pharma
 # companies the command centre reads. Every other company keeps today's overview exactly.
 _REDESIGN_TICKERS = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK", "JNJ",
                      "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
@@ -75,7 +75,8 @@ def _universe_redesigned(ticker: str, view: str) -> bool:
 
 def _catalysts_redesigned(ticker: str) -> bool:
     """True when the Catalysts tab draws the redesigned body for ``ticker`` (catalysts_page,
-    catalysts_area). The calendar fold under it stays for every company it does not draw."""
+    catalysts_readouts). The calendar fold under it stays for every company it does not
+    draw."""
     return ticker in _REDESIGN_TICKERS
 
 # The landing page renders inside a component iframe, which inherits none of the host
@@ -11131,16 +11132,16 @@ with main:
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
         # A company in the redesign set opens on what can move the share, on one screen:
-        # one row per therapy area with its readouts and its value at risk and to gain,
-        # each gate's full detail a click away, drawn with the Next gate block's own
-        # builders. Every other company keeps the tab below exactly, and so does this one
+        # every readout in the next 24 months, soonest first, each priced gate's odds and
+        # value at risk and to gain on its row, each row's full card a click away, the
+        # gate's drawn with the Next gate block's own builders. Every other company keeps the tab below exactly, and so does this one
         # when the view's read fails.
         drawn = (_catalysts_redesigned(ticker)
                  and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT))
         if not drawn:
             _catalysts_today(api_base, ticker, feed)
 
-        # The area page carries its own calendar, a click on its index, so the fold is
+        # The readout list carries its own calendar, a click on its index, so the fold is
         # drawn for every company it does not draw.
         if not drawn:
             # Derived only, and for the selected company alone, rebuilt on every refresh

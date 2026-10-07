@@ -1,13 +1,14 @@
-"""The Catalysts tab by therapy area, drawn: one read, the builders, the frame and the dialogs.
+"""The Catalysts tab as a dated readout list, drawn: one read, the builders, the frame and
+the dialogs.
 
-``catalysts_area`` builds the page as one string from the payload of
+``catalysts_readouts`` builds the page as one string from the payload of
 ``GET /companies/{t}/catalysts/view``; this module is the Streamlit glue around it, kept
 out of streamlit_app.py so the change there stays the switch and the calls. The page is
-one ``catnav`` frame: the header, the area table and the rail, filling the screen under
-the app's chrome. An area row opens in place inside the frame, with no rerun. A gate (a
-bar segment, an open area's line, a priced Next up row) or an index row comes back as a
-click, which sets the open dialog in the session; the dialog is drawn on every run while
-it is set, so the record control's arming rerun keeps it open, and closing it clears it.
+one ``catnav`` frame: the header, the list and the rail, filling the screen under the
+app's chrome. The area filter works inside the frame, with no rerun. A row on a priced
+gate, a readout's row or an index row comes back as a click, which sets the open dialog in
+the session; the dialog is drawn on every run while it is set, so the record control's
+arming rerun keeps it open, and closing it clears it.
 
 The gate dialog prints the Next gate block's facts and tables with the Forecast tab's own
 builders, passed in as ``kit`` (streamlit_app's ``_gate_*`` and ``_stake_*``), so the cost
@@ -26,7 +27,7 @@ import urllib.request
 
 import streamlit as st
 
-import catalysts_area as CA
+import catalysts_readouts as CR
 import catalysts_view as CV
 from components import tokens as TK
 
@@ -142,8 +143,8 @@ def _record(api_base: str, ticker: str, r, kit) -> None:
 
 # --------------------------------------------------------------------------- dialogs
 def open_key(ticker: str) -> str:
-    """The session key holding the open dialog: {"gate": asset id} or {"more": key,
-    "area": name or None}."""
+    """The session key holding the open dialog: {"gate": asset id}, {"ev": event id} or
+    {"more": key, "area": name or None}."""
     return f"cx_open_{ticker}"
 
 
@@ -162,6 +163,8 @@ def _take(ticker: str, clicked) -> None:
             st.session_state[open_key(ticker)] = {"gate": int(clicked["gate"])}
         except (TypeError, ValueError):
             pass
+    elif clicked.get("ev") is not None:
+        st.session_state[open_key(ticker)] = {"ev": str(clicked["ev"])}
     elif clicked.get("more"):
         st.session_state[open_key(ticker)] = {"more": str(clicked["more"]),
                                               "area": clicked.get("area") or None}
@@ -175,7 +178,7 @@ def _gate_dialog(api_base: str, ticker: str, p: dict, gid, kit) -> None:
         err = p.get("development_error")
         facts = fact_rows(kit, r, err) if kit is not None else []
         cost, ladder, studies = dialog_parts(kit, r, err)
-        top, panes = CA.gate_dialog(p, gid, facts, cost, ladder, studies,
+        top, panes = CR.gate_dialog(p, gid, facts, cost, ladder, studies,
                                     can_record=_resolvable(r, kit))
         _show(top)
         if panes:
@@ -187,24 +190,43 @@ def _gate_dialog(api_base: str, ticker: str, p: dict, gid, kit) -> None:
     _body()
 
 
+def _readout_dialog(ticker: str, p: dict, ev_id) -> None:
+    """A readout on no priced gate: the trial's card, and where the line has a priced gate,
+    a button that opens the gate's own dialog in its place."""
+    @st.dialog(CR.readout_title(p, ev_id), width="large", on_dismiss=lambda: _close(ticker))
+    def _body():
+        markup, gid = CR.readout_card(p, ev_id)
+        _show(markup)
+        if gid is not None and st.button("Open the line's gate", key=f"cx_ev_gate_{ticker}"):
+            st.session_state[open_key(ticker)] = {"gate": gid}
+            st.rerun()
+
+    _body()
+
+
 def _more_dialog(ticker: str, p: dict, key: str, area=None) -> None:
-    @st.dialog(CA.more_title(key, area), width="large" if key == "cal" else "medium",
+    @st.dialog(CR.more_title(key, area), width="large" if key == "cal" else "medium",
                on_dismiss=lambda: _close(ticker))
     def _body():
-        _show(CA.more_dialog_html(p, key, area))
+        _show(CR.more_dialog_html(p, key, area))
 
     _body()
 
 
 def _picker(p: dict, ticker: str) -> None:
     """Without the click component: one list of what the frame would open."""
+    rows = CR.readouts(p)
     opts = {f"g{r['asset_id']}": f"{r.get('name')} · {r['glabel']}" for r in CV.gate_rows(p)}
-    opts.update({f"m{k}": label for k, label, *_ in CA.index_items(p, CA.area_rows(p))})
+    opts.update({f"e{r['id']}": f"{r['drug']} · {r['ph_txt']} · {CR.group_label(r['group'])}"
+                 for r in rows if r["kind"] == "event" and r["gate"] is None})
+    opts.update({f"m{k}": label for k, label, *_ in CR.index_items(p, rows)})
 
     def pick():
         v = st.session_state.get(f"cx_pick_{ticker}")
         if v and v.startswith("g"):
             st.session_state[open_key(ticker)] = {"gate": int(v[1:])}
+        elif v and v.startswith("e"):
+            st.session_state[open_key(ticker)] = {"ev": v[1:]}
         elif v:
             st.session_state[open_key(ticker)] = {"more": v[1:], "area": None}
 
@@ -215,7 +237,7 @@ def _picker(p: dict, ticker: str) -> None:
 # ------------------------------------------------------------------- the fragment
 @st.fragment
 def _body(api_base: str, ticker: str, p: dict, kit) -> None:
-    markup = CA.page_html(p)
+    markup = CR.page_html(p)
     with st.container(key="cx_body"):
         if _catnav is not None:
             _take(ticker, _catnav.cat_nav(markup, css=_frame_css(), tokens=FRAME_TOKENS,
@@ -226,6 +248,8 @@ def _body(api_base: str, ticker: str, p: dict, kit) -> None:
     want = st.session_state.get(open_key(ticker))
     if isinstance(want, dict) and want.get("gate") is not None:
         _gate_dialog(api_base, ticker, p, want["gate"], kit)
+    elif isinstance(want, dict) and want.get("ev") is not None:
+        _readout_dialog(ticker, p, want["ev"])
     elif isinstance(want, dict) and want.get("more"):
         _more_dialog(ticker, p, want["more"], want.get("area"))
 
