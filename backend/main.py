@@ -56,6 +56,7 @@ import marketmap as marketmap_module
 import labels as labels_module
 import launch_timing
 import development
+import disease_areas
 import landscape as landscape_module
 import landscape_overview
 import landscape_score
@@ -784,6 +785,30 @@ def indication_overview(indication_id: int, endpoint: Optional[str] = None) -> d
         raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
     return {"indication": land["indication"], **landscape_overview.overview(land, endpoint),
             "scorecard": landscape_score.scorecard(land)}
+
+
+@app.get("/areas")
+def areas_list() -> list:
+    """The disease areas the big pharma cohort is present in, most companies first, with
+    the tickers present in each."""
+    return disease_areas.index(None)
+
+
+@app.get("/areas/{area_slug}")
+def area_detail(area_slug: str) -> dict:
+    """One disease area: every big pharma company present scored on value today,
+    pipeline, durability and clinical quality, the area's figures and its findings."""
+    def scorecard_for(indication_id):
+        ov = response_cache.cached_json(f"/indications/{indication_id}/overview")
+        return (ov or {}).get("scorecard")
+    out = disease_areas.area(
+        None, area_slug,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"),
+        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"),
+        scorecard_for=scorecard_for)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown disease area {area_slug}")
+    return out
 
 
 @app.get("/companies/{ticker}/fair-value")
