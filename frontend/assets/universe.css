@@ -80,7 +80,10 @@
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
   > [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; }
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
-  > [data-testid="stColumn"]:nth-child(3) { flex: 1 1 0 !important; min-width: 0; }
+  > [data-testid="stColumn"]:nth-child(2) { flex: 1 1 0 !important; min-width: 0; }
+/* The window switch keeps its three buttons on one line; the regional line beside it is
+   the column that gives way (it ends in an ellipsis, its full text on hover). */
+.st-key-uv_window div { flex-wrap: nowrap !important; }
 [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
   > [data-testid="stColumn"]:last-child { flex: 0 0 212px !important; }
 .uv-lead { font-family: var(--font-ui); font-size: 13px; line-height: 20px; color: var(--text);
