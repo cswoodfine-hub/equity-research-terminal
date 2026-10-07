@@ -1,0 +1,1802 @@
+{
+"ok": true,
+"indication": {
+"id": 20,
+"name": "Carcinoma, Non-Small-Cell Lung"
+},
+"asset_id": 315,
+"asset_ids": [
+315,
+6531
+],
+"head": {
+"name": "Osimertinib",
+"brands": [
+"Tagrisso"
+],
+"ticker": "AZN",
+"company": "AstraZeneca PLC",
+"stage": "Marketed",
+"phase_here": "Phase 4",
+"is_marketed": true,
+"on_label": true,
+"phase_elsewhere": false,
+"modality": "small molecule",
+"molecule_type": [
+"Small molecule"
+],
+"mechanisms": [
+{
+"value": "Epidermal growth factor receptor erbB1 inhibitor",
+"action": "INHIBITOR"
+}
+],
+"targets": [
+"Epidermal growth factor receptor"
+],
+"classes": [],
+"route": [],
+"boxed_warning": null,
+"linked_by": [
+"pipeline",
+"trial"
+],
+"pharmacology_source": [
+"chembl"
+]
+},
+"score": {
+"placed": true,
+"rank": 1,
+"of": 23,
+"scored_of": 81,
+"rank_range": [
+1,
+8
+],
+"overall": 78.0138391213609,
+"why_not": null,
+"efficacy": {
+"score": 80.88780178348998,
+"parts": {
+"strength": 100.0,
+"wins": 61.77560356697994
+},
+"lines": [
+"Won 3 of 3 endpoints in 2 trials, allowing for the number each trial tested; 1 of 3 tested here from the posted counts, spread or interval, where the sponsor posted no test.",
+"12.1 percentage points better than SoC EGFR-TKI on percentage of participants in progression free survival at 6, 12, in one trial of 78 weeks (95% interval 5.8 to 18.4)."
+],
+"notes": [
+"Strength, how far past chance its average trial result is: z of 4.6 across 2 trials, where 1.96 is p = 0.05 and 3.29 (p = 0.001) scores 100.",
+"Wins counted at 62 of 100, from 100: moved 68% of the way to the average of the drugs here (44), since its 2 trials say less on their own.",
+"Every endpoint is against an active comparator.",
+"1 result from trials of several doses: tested on all doses together, sized on the best dose, trimmed for having picked the best. Several doses against one placebo arm: the placebo is counted once.",
+"3 posted endpoints not scored: no arm the book can read as its control (3)."
+],
+"size_basis": null,
+"read_with_care": null
+},
+"safety": {
+"score": 81.50489107274599,
+"parts": {
+"staying_on": 97.43424445590512,
+"serious": 65.57553768958687
+},
+"lines": [
+"Serious adverse events: 1.9 points more than active comparators (29.0% against 27.1%), averaged across 2 of its 5 trials and 629 of 1,164 people treated (95% interval 8.4 fewer to 12.2 more)."
+],
+"notes": [
+"Stopped for side effects: 4.5 points fewer than active comparators (14.3% against 18.8%), in 1 of its 5 trials and 350 of 1,164 people treated (95% interval 15.0 fewer to 6.0 more).",
+"63% of the figure for serious adverse events rests on one trial (NCT02296125).",
+"Stopped for side effects and serious adverse events count equally.",
+"Counts are people with an event over each arm's whole follow-up; an arm followed for longer reports more.",
+"Deaths, reported and not scored: 2.1 points fewer than control (60.9% against 63.1%) across 2 trials."
+],
+"size_basis": null,
+"read_with_care": null
+},
+"evidence": {
+"score": 71.64882450784674,
+"participants": 1164,
+"phase": "Phase 3",
+"confidence": "high"
+},
+"regimen": {
+"participants": 1164,
+"dose": "80 mg",
+"form": "oral",
+"frequency": "daily",
+"duration": "~83 wk",
+"duration_span": "78 to 261 weeks",
+"form_source": "arm descriptions",
+"why": {
+"dose": null,
+"form": null,
+"frequency": null,
+"duration": null
+}
+}
+},
+"efficacy": {
+"groups": [
+{
+"title": "Objective Response Rate (ORR)",
+"unit": "% of participants",
+"param_type": "NUMBER",
+"n_assets": 4,
+"rows": [
+{
+"nct_id": "NCT02094261",
+"phase": "Phase 2",
+"weeks": 47.8,
+"arm": "AZD9291 80mg",
+"arm_is_drug": false,
+"arm_names_drug": false,
+"arm_is_control": false,
+"category": null,
+"n": 199,
+"value": 70.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+}
+]
+},
+{
+"title": "Median Progression Free Survival (PFS) in Months",
+"unit": "Months",
+"param_type": "MEDIAN",
+"n_assets": 2,
+"rows": [
+{
+"nct_id": "NCT02296125",
+"phase": "Phase 3",
+"weeks": 78.2,
+"arm": "Osimertinib 80 mg (China Cohort)",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": null,
+"n": 71,
+"value": 17.8,
+"spread": null,
+"placebo": 10.2,
+"reference_kind": "control",
+"reference_arm": "SoC EGFR-TKI (Global Cohort)",
+"delta": 7.600000000000001,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT02296125",
+"phase": "Phase 3",
+"weeks": 78.2,
+"arm": "Osimertinib 80 mg (Global Cohort)",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": null,
+"n": 279,
+"value": 18.9,
+"spread": null,
+"placebo": 10.2,
+"reference_kind": "control",
+"reference_arm": "SoC EGFR-TKI (Global Cohort)",
+"delta": 8.7,
+"estimate": 0.46,
+"ci": [
+0.37,
+0.57
+],
+"p_value": "<0.0001"
+},
+{
+"nct_id": "NCT02296125",
+"phase": "Phase 3",
+"weeks": 78.2,
+"arm": "SoC EGFR-TKI (China Cohort)",
+"arm_is_drug": false,
+"arm_names_drug": false,
+"arm_is_control": true,
+"category": null,
+"n": 65,
+"value": 9.8,
+"spread": null,
+"placebo": 10.2,
+"reference_kind": "control",
+"reference_arm": "SoC EGFR-TKI (Global Cohort)",
+"delta": -0.3999999999999986,
+"estimate": null,
+"ci": null,
+"p_value": null
+}
+]
+},
+{
+"title": "Progression-Free Survival (PFS) by Investigator Assessment",
+"unit": "months",
+"param_type": "MEDIAN",
+"n_assets": 2,
+"rows": [
+{
+"nct_id": "NCT02151981",
+"phase": "Phase 3",
+"weeks": 82.6,
+"arm": "Osimertinib 80mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": null,
+"n": 279,
+"value": 10.1,
+"spread": null,
+"placebo": 4.4,
+"reference_kind": "comparator",
+"reference_arm": "Chemotherapy",
+"delta": 5.699999999999999,
+"estimate": 0.3,
+"ci": [
+0.23,
+0.41
+],
+"p_value": "<0.001"
+}
+]
+},
+{
+"title": "Proportion of Patients With a Given Tumour Genetic and Proteomic Marker at the Point of Disease Progression",
+"unit": "Percentage of participants",
+"param_type": "NUMBER",
+"n_assets": 1,
+"rows": [
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "AKT2; Copy Number Alteration: Type; amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "ALK; Rearrangement",
+"n": 51,
+"value": 3.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "APC; Copy Number Alteration; Type: loss",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "ARAF; Copy Number Alteration; Type: amplification",
+"n": 51,
+"value": 3.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "ASXL1; Short Variant; Type: Q588*",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "ATRX; Short Variant; Type: P599fs*22",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "AXL; Copy Number Alteration; Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "BCL2L2; Copy Number Alteration; Type: amplification",
+"n": 51,
+"value": 3.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "BRAF; Rearrangement",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "BRAF; Short variant; Type: G469A",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "BRAF; Short variant Type: V600E",
+"n": 51,
+"value": 3.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CBL; Short Variant; Type: R149Q",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CCND1 Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 3.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CCNE1 Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 5.9,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDK4 Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDK6 Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDKN1B Short Variant Type: S2*",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDKN2A Copy Number Alteration Type: loss",
+"n": 51,
+"value": 15.7,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDKN2A; Short Variant Type: P38L",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CDKN2B Copy Number Alteration Type: loss",
+"n": 51,
+"value": 15.7,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CRKL Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "CUL4A Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "DIS3 Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "EGFR Copy Number Alteration Type: amplification",
+"n": 51,
+"value": 11.8,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"weeks": 260.9,
+"arm": "Osimertinib 80 mg",
+"arm_is_drug": false,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": "EGFR Rearrangement",
+"n": 51,
+"value": 2.0,
+"spread": null,
+"placebo": null,
+"reference_kind": null,
+"reference_arm": null,
+"delta": null,
+"estimate": null,
+"ci": null,
+"p_value": null
+}
+]
+}
+],
+"rows": 91,
+"shown": 30
+},
+"safety": {
+"asset_id": 315,
+"name": "Osimertinib",
+"ticker": "AZN",
+"trials": 5,
+"control_kind": "mixed",
+"participants": 1164,
+"placebo_participants": 413,
+"serious_rate": 0.27491408934707906,
+"withdrawn_rate": 0.14285714285714285,
+"deaths_rate": 0.46016771488469604,
+"any_rate": 0.9639175257731959,
+"placebo_serious_rate": 0.2711864406779661,
+"placebo_withdrawn_rate": 0.18772563176895307,
+"placebo_deaths_rate": 0.6271186440677966,
+"placebo_any_rate": 0.9806295399515739,
+"top_events": [
+{
+"term": "Diarrhoea",
+"serious": false,
+"organ_system": "Gastrointestinal disorders",
+"rate": 0.43900343642611683,
+"placebo_rate": 0.4261501210653753
+},
+{
+"term": "Dry skin",
+"serious": false,
+"organ_system": "Skin and subcutaneous tissue disorders",
+"rate": 0.22164948453608246,
+"placebo_rate": 0.23728813559322035
+},
+{
+"term": "Leukopenia",
+"serious": false,
+"organ_system": "Blood and lymphatic system disorders",
+"rate": 0.21052631578947367,
+"placebo_rate": null
+},
+{
+"term": "Paronychia",
+"serious": false,
+"organ_system": "Infections and infestations",
+"rate": 0.20876288659793815,
+"placebo_rate": 0.20823244552058112
+},
+{
+"term": "Rash",
+"serious": false,
+"organ_system": "Skin and subcutaneous tissue disorders",
+"rate": 0.20604395604395603,
+"placebo_rate": null
+},
+{
+"term": "Cough",
+"serious": false,
+"organ_system": "Respiratory, thoracic and mediastinal disorders",
+"rate": 0.20017182130584193,
+"placebo_rate": 0.1694915254237288
+}
+],
+"boxed_warning": null,
+"strata": [
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"kind": null,
+"arms": 1,
+"control_title": null,
+"control_is_drug": false,
+"control": null,
+"arm_rows": [
+{
+"title": "Osimertinib 80 mg",
+"is_control": false,
+"serious": [
+53,
+154
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+40,
+154
+]
+}
+]
+},
+{
+"nct_id": "NCT02151981",
+"phase": "Phase 3",
+"kind": "comparator",
+"arms": 1,
+"control_title": "Chemotherapy",
+"control_is_drug": false,
+"control": {
+"serious": [
+36,
+136
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+93,
+136
+]
+},
+"arm_rows": [
+{
+"title": "Osimertinib 80 mg",
+"is_control": false,
+"serious": [
+84,
+279
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+188,
+279
+]
+}
+]
+},
+{
+"nct_id": "NCT02094261",
+"phase": "Phase 2",
+"kind": null,
+"arms": 1,
+"control_title": null,
+"control_is_drug": false,
+"control": null,
+"arm_rows": [
+{
+"title": "AZD9291 80mg",
+"is_control": false,
+"serious": [
+42,
+210
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+0,
+0
+]
+}
+]
+},
+{
+"nct_id": "NCT02296125",
+"phase": "Phase 3",
+"kind": "control",
+"arms": 2,
+"control_title": "SoC EGFR-TKI (Global Cohort)",
+"control_is_drug": false,
+"control": {
+"serious": [
+76,
+277
+],
+"withdrawn": [
+52,
+277
+],
+"deaths": [
+166,
+277
+]
+},
+"arm_rows": [
+{
+"title": "Osimertinib 80 mg (Global Cohort)",
+"is_control": false,
+"serious": [
+74,
+279
+],
+"withdrawn": [
+41,
+279
+],
+"deaths": [
+155,
+279
+]
+},
+{
+"title": "Osimertinib 80 mg (China Cohort)",
+"is_control": false,
+"serious": [
+25,
+71
+],
+"withdrawn": [
+9,
+71
+],
+"deaths": [
+45,
+71
+]
+}
+]
+},
+{
+"nct_id": "NCT02442349",
+"phase": "Phase 2",
+"kind": null,
+"arms": 1,
+"control_title": null,
+"control_is_drug": false,
+"control": null,
+"arm_rows": [
+{
+"title": "AZD9291 80mg",
+"is_control": false,
+"serious": [
+42,
+171
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+11,
+171
+]
+}
+]
+}
+]
+},
+"trials": [
+{
+"nct_id": "NCT07279935",
+"phase": "Phase 4",
+"title": "Osimertinib Combined With Chemotherapy in Patients Who Had Distant Recurrence After Adjuvant Osimertinib for EGFRm Resectable SIB-IIIA NSCLC.",
+"status": "Recruiting",
+"enrollment": 100,
+"completion": "2030-05-18",
+"has_results": false
+},
+{
+"nct_id": "NCT05526755",
+"phase": "Phase 2",
+"title": "A Study of 5 Years of Adjuvant Osimertinib in Completely Resected Epidermal Growth Factor Receptor Mutation (EGFRm) Non-small Cell Lung Carcinoma (NSCLC)",
+"status": "Active not recruiting",
+"enrollment": 188,
+"completion": "2029-11-22",
+"has_results": false
+},
+{
+"nct_id": "NCT05546866",
+"phase": "Phase 2",
+"title": "Study to Assess the Efficacy and Safety of Adjuvant Osimertinib in NSCLC With Uncommon EGFRm",
+"status": "Active not recruiting",
+"enrollment": 51,
+"completion": "2029-06-30",
+"has_results": false
+},
+{
+"nct_id": "NCT06350097",
+"phase": "Phase 3",
+"title": "Phase III, Open-label Study of First-line Osimertinib With or Without Datopotamab Deruxtecan for EGFRm Locally Advanced or Metastatic Non-small Cell Lung Cancer",
+"status": "Recruiting",
+"enrollment": 582,
+"completion": "2028-03-21",
+"has_results": false
+},
+{
+"nct_id": "NCT05801029",
+"phase": "Phase 2",
+"title": "A Study to Investigate Safety and Efficacy of Osimertinib and Amivantamab in Participants With Non-small Cell Lung Cancer With Common Epidermal Growth Factor Receptor Mutations",
+"status": "Active not recruiting",
+"enrollment": 60,
+"completion": "2027-10-01",
+"has_results": false
+},
+{
+"nct_id": "NCT05120349",
+"phase": "Phase 3",
+"title": "A Global Study to Assess the Effects of Osimertinib in Participants With EGFRm Stage IA2-IA3 NSCLC Following Complete Tumour Resection",
+"status": "Active not recruiting",
+"enrollment": 390,
+"completion": "2027-08-02",
+"has_results": false
+},
+{
+"nct_id": "NCT02442349",
+"phase": "Phase 2",
+"title": "Phase II Single Arm Study of AZD9291 to Treat NSCLC Patients in Asia Pacific",
+"status": "COMPLETED",
+"enrollment": 171,
+"completion": "2025-11-28",
+"has_results": true
+},
+{
+"nct_id": "NCT02296125",
+"phase": "Phase 3",
+"title": "AZD9291 Versus Gefitinib or Erlotinib in Patients With Locally Advanced or Metastatic Non-small Cell Lung Cancer",
+"status": "COMPLETED",
+"enrollment": 674,
+"completion": "2025-11-20",
+"has_results": true
+},
+{
+"nct_id": "NCT03944772",
+"phase": "Phase 2",
+"title": "Phase 2 Platform Study in Patients With Advanced Non-Small Lung Cancer Who Progressed on First-Line Osimertinib Therapy (ORCHARD)",
+"status": "Active not recruiting",
+"enrollment": 247,
+"completion": "2025-05-06",
+"has_results": false
+},
+{
+"nct_id": "NCT04765059",
+"phase": "Phase 3",
+"title": "A Study to Evaluate Chemotherapy Plus Osimertinib Against Chemotherapy Plus Placebo in Patients With Non-small Cell Lung Cancer (NSCLC)",
+"status": "Active not recruiting",
+"enrollment": 98,
+"completion": "2024-10-28",
+"has_results": false
+},
+{
+"nct_id": "NCT04351555",
+"phase": "Phase 3",
+"title": "A Study of Osimertinib With or Without Chemotherapy Versus Chemotherapy Alone as Neoadjuvant Therapy for Patients With EGFRm Positive Resectable Non-Small Cell Lung Cancer",
+"status": "Active not recruiting",
+"enrollment": 358,
+"completion": "2024-10-15",
+"has_results": false
+},
+{
+"nct_id": "NCT02197234",
+"phase": "Phase 1",
+"title": "Study to Assess the Effect of AZD9291 on the Blood Levels of Simvastatin in Patients With EGFRm+ NSCLC",
+"status": "COMPLETED",
+"enrollment": 52,
+"completion": "2024-06-03",
+"has_results": false
+},
+{
+"nct_id": "NCT03521154",
+"phase": "Phase 3",
+"title": "A Global Study to Assess the Effects of Osimertinib Following Chemoradiation in Patients With Stage III Unresectable Non-small Cell Lung Cancer (LAURA)",
+"status": "Active not recruiting",
+"enrollment": 216,
+"completion": "2024-01-05",
+"has_results": false
+},
+{
+"nct_id": "NCT02151981",
+"phase": "Phase 3",
+"title": "AZD9291 (Osimertinib) Versus Platinum-Based Doublet-Chemotherapy in Locally Advanced or Metastatic Non-Small Cell Lung Cancer",
+"status": "COMPLETED",
+"enrollment": 421,
+"completion": "2023-12-15",
+"has_results": true
+},
+{
+"nct_id": "NCT01802632",
+"phase": "Phase 1/2",
+"title": "AZD9291 First Time In Patients Ascending Dose Study",
+"status": "COMPLETED",
+"enrollment": 603,
+"completion": "2023-12-11",
+"has_results": false
+},
+{
+"nct_id": "NCT02094261",
+"phase": "Phase 2",
+"title": "Phase II AZD9291 Open Label Study in NSCLC After Previous EGFR TKI Therapy in EGFR and T790M Mutation Positive Tumours",
+"status": "COMPLETED",
+"enrollment": 210,
+"completion": "2023-11-07",
+"has_results": true
+},
+{
+"nct_id": "NCT03239340",
+"phase": "Phase 2",
+"title": "A Molecular Profiling Study of Patients With EGFR Mutation-positive Locally Advanced or Metastatic NSCLC Treated With Osimertinib",
+"status": "COMPLETED",
+"enrollment": 154,
+"completion": "2023-09-19",
+"has_results": true
+},
+{
+"nct_id": "NCT02157883",
+"phase": "Phase 1",
+"title": "Study to Assess the Effect of Itraconazole (a CYP3A4 Inhibitor) on the Pharmacokinetics of AZD9291, in Patients With EGFR Positive Non-small Cell Lung Cancer. Patients Will be Chosen From Those Who Have Already Been Prescribed an EGFR TKI Medicine (Such as Iressa or Tarceva)",
+"status": "COMPLETED",
+"enrollment": 39,
+"completion": "2023-05-17",
+"has_results": false
+},
+{
+"nct_id": "NCT04035486",
+"phase": "Phase 3",
+"title": "A Study of Osimertinib With or Without Chemotherapy as 1st Line Treatment in Patients With Mutated Epidermal Growth Factor Receptor Non-Small Cell Lung Cancer (FLAURA2)",
+"status": "Active not recruiting",
+"enrollment": 587,
+"completion": "2023-04-03",
+"has_results": false
+},
+{
+"nct_id": "NCT02163733",
+"phase": "Phase 1",
+"title": "Study to Determine the Effect of Food on the Blood Levels of AZD9291 Following Oral Dosing of a Tablet Formulation in Patients With Non-Small Cell Lung Cancer",
+"status": "COMPLETED",
+"enrollment": 38,
+"completion": "2023-01-24",
+"has_results": false
+},
+{
+"nct_id": "NCT02511106",
+"phase": "Phase 3",
+"title": "AZD9291 Versus Placebo in Patients With Stage IB-IIIA Non-small Cell Lung Carcinoma, Following Complete Tumour Resection With or Without Adjuvant Chemotherapy.",
+"status": "Active not recruiting",
+"enrollment": 682,
+"completion": "2022-04-11",
+"has_results": false
+},
+{
+"nct_id": "NCT02197247",
+"phase": "Phase 1",
+"title": "Study to Assess the Effect of Rifampicin on Blood Levels and Safety of AZD9291, in Patients With EGFRm+ NSCLC",
+"status": "COMPLETED",
+"enrollment": 41,
+"completion": "2021-05-26",
+"has_results": false
+},
+{
+"nct_id": "NCT03463525",
+"phase": "Phase 1",
+"title": "Open-label PET Study With [11C]Osimertinib in Patients With EGFRm NSCLC and Brain Metastases",
+"status": "COMPLETED",
+"enrollment": 4,
+"completion": "2020-10-05",
+"has_results": false
+},
+{
+"nct_id": "NCT03853551",
+"phase": "Phase 4",
+"title": "Osimertinib Study in Indian Patients",
+"status": "COMPLETED",
+"enrollment": 60,
+"completion": "2020-04-15",
+"has_results": false
+},
+{
+"nct_id": "NCT02529995",
+"phase": "Phase 1",
+"title": "Phase I, Study in Chinese NSCLC Patients",
+"status": "COMPLETED",
+"enrollment": 31,
+"completion": "2019-09-27",
+"has_results": false
+},
+{
+"nct_id": "NCT02317016",
+"phase": "Phase 1",
+"title": "Study to Assess the Effect of AZD9291 on the Blood Levels of Rosuvastatin, in Patients With EGFRm+ Non-small Cell Lung Cancer",
+"status": "COMPLETED",
+"enrollment": 44,
+"completion": "2018-05-22",
+"has_results": false
+}
+],
+"with_results": 5,
+"readouts": [],
+"pool": {
+"indication": {
+"pool": 0.0,
+"indication": "Carcinoma, Non-Small-Cell Lung",
+"claimants": 15,
+"peak_year": 2027,
+"uncrowded_share": 0.0,
+"crowded_share": 0.0
+},
+"own": null
+},
+"patients": [
+{
+"asset_id": 315,
+"indication": null,
+"modelled_for": [],
+"inputs": [],
+"price": [],
+"net_price": null,
+"crowding": null
+}
+],
+"model": {
+"per_share": 10.307964551056154,
+"pos": 1.0,
+"peak_revenue": 9756.289884626764,
+"peak_year": 2030,
+"first_year": 2026,
+"counted": true,
+"currency": "USD",
+"brands_modelled": 1
+},
+"valuation": [
+{
+"ok": true,
+"asset_id": 315,
+"name": "Tagrisso",
+"mode": "marketed",
+"per_share": 10.307964551056154,
+"pct_of_price": 0.06498937337740236,
+"close": 158.61000061035156,
+"close_date": "2026-10-06",
+"rnpv": 16128.654625528688,
+"peak_revenue": 9756.289884626764,
+"peak_year": 2030,
+"pos": 1.0,
+"pos_basis": "stated",
+"loe_year": 2032,
+"loe_basis": "drug substance patent",
+"wacc": 0.07487567683895999,
+"gate": null,
+"next_catalyst": {
+"catalyst_type": "data readout",
+"expected_date": "2027-08-02",
+"title": "Phase 3, Tagrisso"
+},
+"launch_year": null,
+"launch_source": null
+}
+],
+"catalysts": [
+{
+"expected_date": "2027-02-22",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Tagrisso",
+"description": "NCT05629234",
+"source_url": "https://clinicaltrials.gov/study/NCT05629234",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "No success and failure legs are on file, and the asset is outside the gate model: marketed, outside Phase 2 or 3, or not a big pharma asset."
+},
+{
+"expected_date": "2027-08-02",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Tagrisso",
+"description": "NCT05120349",
+"source_url": "https://clinicaltrials.gov/study/NCT05120349",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "No success and failure legs are on file, and the asset is outside the gate model: marketed, outside Phase 2 or 3, or not a big pharma asset."
+},
+{
+"expected_date": "2028-03-21",
+"date_confidence": "estimated",
+"catalyst_type": "data readout",
+"title": "Phase 3, Tagrisso",
+"description": "NCT06350097",
+"source_url": "https://clinicaltrials.gov/study/NCT06350097",
+"priced": false,
+"gate_label": null,
+"per_share": null,
+"p_gate": null,
+"pos_success": null,
+"pos_failure": null,
+"why": "No success and failure legs are on file, and the asset is outside the gate model: marketed, outside Phase 2 or 3, or not a big pharma asset."
+}
+],
+"commercial": {
+"brand": "Tagrisso",
+"generic": "Osimertinib Mesylate",
+"first_approval": "2015-11-13",
+"revenue": [
+{
+"fiscal_year": 2023,
+"period": "FY",
+"period_end": null,
+"value": 5799000000.0,
+"unit": "USD",
+"source": "sec_fsds",
+"reported_value": 5799000000.0,
+"reported_unit": "USD"
+},
+{
+"fiscal_year": 2024,
+"period": "FY",
+"period_end": null,
+"value": 6580000000.0,
+"unit": "USD",
+"source": "sec_fsds",
+"reported_value": 6580000000.0,
+"reported_unit": "USD"
+},
+{
+"fiscal_year": 2025,
+"period": "FY",
+"period_end": null,
+"value": 7254000000.0,
+"unit": "USD",
+"source": "sec_fsds",
+"reported_value": 7254000000.0,
+"reported_unit": "USD"
+}
+],
+"quarterly_revenue": [],
+"loe": {
+"loe": "2032-08-08",
+"basis": "drug substance patent",
+"loe_year": 2032,
+"loe_identifier": "8946235",
+"loe_past": false,
+"loe_earliest_year": 2027,
+"use_patent_year": 2042,
+"last_listed_year": 2042,
+"later_substance_year": null
+},
+"demand": {
+"year": 2024,
+"spend": 1627109177.4,
+"prior_year": 2023,
+"spend_growth": 0.32074601973746925,
+"parts": [
+{
+"part": "D",
+"year": 2024,
+"spend": 1627109177.4,
+"claims": 96403,
+"beneficiaries": 12370,
+"prior_year": 2023,
+"spend_growth": 0.3207460197374692,
+"patient_growth": 0.3177799083839352,
+"like_for_like": true
+}
+]
+},
+"access": {
+"asset_id": 315,
+"ticker": "AZN",
+"brand": "Tagrisso",
+"generic": "Osimertinib Mesylate",
+"prescribing": {
+"year": 2024,
+"scope_label": "Medicare Part D only, 2024",
+"source": "CMS Medicare Part D Prescribers, by Geography and Drug (national) and by Provider and Drug",
+"cms_brands": [
+[
+"Tagrisso",
+"Osimertinib Mesylate"
+]
+],
+"national": {
+"upper_bound": false,
+"prescribers": 6481,
+"claims": 96370,
+"fills_30d": 97523.6,
+"beneficiaries": 12366,
+"beneficiaries_65_plus": 11661,
+"drug_cost": 1626595417.7,
+"note": null
+},
+"days_covered": {
+"value": 0.6482,
+"label": "a proxy, not a PDC",
+"above_one": false,
+"applies": true,
+"note": null,
+"file_value": null,
+"file_note": "file-based days covered held back: the file carries 82.5% of national claims, under the 95% it needs"
+},
+"file": {
+"status": "complete",
+"population": "prescribers with 11 or more claims for the drug (the file population)",
+"why": null,
+"prescribers": 2794,
+"claims": 79546,
+"claims_share": 0.825423,
+"deciles": [
+0.355203,
+0.151912,
+0.10575,
+0.0837,
+0.070475,
+0.058331,
+0.049317,
+0.044452,
+0.042089,
+0.03877
+],
+"top1pct": 0.078395,
+"top10pct": 0.355203,
+"prescribers_for_50pct": 542,
+"prescribers_for_80pct": 1548,
+"hhi": 7.78,
+"median_claims": 18.0,
+"days_per_claim": 30.23,
+"note": "file-based days covered held back: the file carries 82.5% of national claims, under the 95% it needs"
+},
+"volume_deciles": {
+"value": null,
+"note": "Not computed: CMS does not say whether its national prescriber count includes prescribers with fewer than 11 claims, so the prescribers missing from the file cannot be ranked"
+},
+"specialties": [
+{
+"specialty": "Hematology-Oncology",
+"prescribers": 1556,
+"claims": 39356,
+"claims_share": 0.494758
+},
+{
+"specialty": "Medical Oncology",
+"prescribers": 532,
+"claims": 17943,
+"claims_share": 0.225568
+},
+{
+"specialty": "Nurse Practitioner",
+"prescribers": 304,
+"claims": 9611,
+"claims_share": 0.120823
+},
+{
+"specialty": "Internal Medicine",
+"prescribers": 209,
+"claims": 6482,
+"claims_share": 0.081487
+},
+{
+"specialty": "Physician Assistant",
+"prescribers": 107,
+"claims": 3340,
+"claims_share": 0.041988
+},
+{
+"specialty": "Hematology",
+"prescribers": 49,
+"claims": 1327,
+"claims_share": 0.016682
+},
+{
+"specialty": "Pharmacist",
+"prescribers": 14,
+"claims": 839,
+"claims_share": 0.010547
+},
+{
+"specialty": "Other",
+"prescribers": 23,
+"claims": 648,
+"claims_share": 0.008146
+}
+],
+"series": [
+{
+"year": 2020,
+"prescribers": 4305,
+"claims": 49737,
+"beneficiaries": 7013,
+"days_covered": 0.5895
+},
+{
+"year": 2021,
+"prescribers": 4724,
+"claims": 56014,
+"beneficiaries": 7776,
+"days_covered": 0.599
+},
+{
+"year": 2022,
+"prescribers": 5185,
+"claims": 64666,
+"beneficiaries": 8628,
+"days_covered": 0.6243
+},
+{
+"year": 2023,
+"prescribers": 5422,
+"claims": 70781,
+"beneficiaries": 9373,
+"days_covered": 0.629
+},
+{
+"year": 2024,
+"prescribers": 6481,
+"claims": 96370,
+"beneficiaries": 12366,
+"days_covered": 0.6482
+}
+],
+"caveats": [
+"Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses. It can pass 1 where supplies overlap, as when two strengths are filled together or a refill comes early, and where fills run under 30 days, since CMS counts each as one 30-day fill, as for a drug given every week or two.",
+"The provider file leaves out any prescriber with fewer than 11 claims for the drug, so its figures, the deciles among them, describe that population and not every prescriber."
+],
+"part_b_note": null
+},
+"formulary": {
+"release_date": "2026-09-16",
+"contract_year": 2026,
+"scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026; excludes employer, PACE and demonstration plans",
+"source": "CMS Monthly Prescription Drug Plan Formulary and Pharmacy Network Information",
+"formularies_total": 328,
+"formularies_listing": 328,
+"pa_formularies": 326,
+"st_formularies": 0,
+"ql_formularies": 312,
+"listed_share": 1.0,
+"pa_share": 0.9939024390243902,
+"st_share": 0.0,
+"plans_total": 5496,
+"plans_listing": 5496,
+"mapd": {
+"plans": 5129,
+"listing": 5129
+},
+"pdp": {
+"plans": 367,
+"listing": 367
+},
+"pa_plans": 5396,
+"st_plans": 0,
+"ql_plans": 5199,
+"by_plan_type": {
+"MA-PD": {
+"plans": 5129,
+"listing": 5129,
+"pa": 5029,
+"st": 0,
+"ql": 4834
+},
+"PDP": {
+"plans": 367,
+"listing": 367,
+"pa": 367,
+"st": 0,
+"ql": 365
+}
+},
+"tiers": [
+{
+"tier": 1,
+"formularies": 59
+},
+{
+"tier": 2,
+"formularies": 2
+},
+{
+"tier": 4,
+"formularies": 7
+},
+{
+"tier": 5,
+"formularies": 259
+},
+{
+"tier": 6,
+"formularies": 1
+}
+],
+"specialty_plans_listing": 5188,
+"selected_drug": false,
+"rxcuis_known": 2,
+"rxcuis_listed": 2,
+"note": null,
+"zero_reason": null,
+"history": [
+{
+"release_date": "2026-09-16",
+"contract_year": 2026,
+"listed_share": 1.0,
+"pa_share": 0.9939024390243902,
+"st_share": 0.0
+}
+],
+"caveats": [
+"Excludes employer, PACE and demonstration plans. Counts formularies and plans, not people: the file carries no enrolment. Tiers are each plan's own, so only the specialty tier count compares across plans."
+]
+},
+"medicaid": {
+"scope_label": "Medicaid only, before rebates",
+"source": "Medicaid State Drug Utilization Data",
+"quarters": [
+{
+"year": 2024,
+"quarter": 1,
+"prescriptions": 2434,
+"ffsu": 1403,
+"mcou": 1031,
+"reimbursed": 41306763.900000006,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2024,
+"quarter": 2,
+"prescriptions": 2429,
+"ffsu": 1268,
+"mcou": 1161,
+"reimbursed": 41693599.32000001,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2024,
+"quarter": 3,
+"prescriptions": 2666,
+"ffsu": 1502,
+"mcou": 1164,
+"reimbursed": 46424824.269999996,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2024,
+"quarter": 4,
+"prescriptions": 2563,
+"ffsu": 1478,
+"mcou": 1085,
+"reimbursed": 45466843.64,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2025,
+"quarter": 1,
+"prescriptions": 2422,
+"ffsu": 1402,
+"mcou": 1020,
+"reimbursed": 43845390.25,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2025,
+"quarter": 2,
+"prescriptions": 2408,
+"ffsu": 1343,
+"mcou": 1065,
+"reimbursed": 42920396.82,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2025,
+"quarter": 3,
+"prescriptions": 2476,
+"ffsu": 1444,
+"mcou": 1032,
+"reimbursed": 44314297.85,
+"lower_bound": false,
+"codes": 2
+},
+{
+"year": 2025,
+"quarter": 4,
+"prescriptions": 2326,
+"ffsu": 1327,
+"mcou": 999,
+"reimbursed": 41865625.24,
+"lower_bound": false,
+"codes": 2
+}
+],
+"latest": {
+"year": 2025,
+"quarter": 4,
+"prescriptions": 2326,
+"growth": -0.092469761997659,
+"growth_bound": null,
+"lower_bound": false
+},
+"years": [
+{
+"year": 2024,
+"full_year": true,
+"quarters": 4,
+"prescriptions": 10092,
+"reimbursed": 174892031.13,
+"lower_bound": false,
+"growth": null,
+"growth_bound": null
+},
+{
+"year": 2025,
+"full_year": true,
+"quarters": 4,
+"prescriptions": 9632,
+"reimbursed": 172945710.16,
+"lower_bound": false,
+"growth": -0.04558065794688859,
+"growth_bound": null
+}
+],
+"unbranded": [],
+"unbranded_note": null,
+"reused_codes": null,
+"caveats": [
+"Fee-for-service and managed care prescriptions. Amounts are before Medicaid rebates, so this is volume, not revenue.",
+"CMS suppresses small package rows, so a quarter that has any is a lower bound."
+]
+},
+"codes": {
+"source": "RxNav, U.S. National Library of Medicine",
+"brand_rxcuis": 2,
+"brand_ndc9s": 4,
+"unbranded_ndc9s": 0,
+"basis": "rxnav_application",
+"rxnorm_version": "05-Oct-2026",
+"looked_up_at": "2026-10-06 12:40:12",
+"attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+},
+"why_empty": {
+"prescribing": null,
+"formulary": null,
+"medicaid": null
+},
+"co_marketed": null,
+"attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+},
+"supplement_count": 6
+}
+}
