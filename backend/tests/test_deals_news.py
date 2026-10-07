@@ -438,3 +438,41 @@ def test_a_deal_named_as_a_noun_or_through_a_possessive(headline, kind, value):
 def test_a_nationality_alone_names_no_party():
     assert parse_deal("Novartis signs $7.8B mRNA deal with Chinese biotech - NJBIZ",
                       {"Novartis AG", "NVS", "Novartis"}) is None
+
+
+# --- the wider search reads more headlines; these are the misreads it surfaced
+# (2026-10-07). A missed deal is better than a wrong party. -----------------------------
+@pytest.mark.parametrize("headline,names", [
+    ("Tempus Announces Multi-Year Collaboration with Moderna and Merck", {"Merck"}),
+    ("Trump Inks Reduced Drug Pricing Deal With Nine Pharmaceutical Giants", {"Amgen"}),
+    ("Shine On: DISCO Licenses Novel AND-Gated Cancer Target to Amgen", {"Amgen"}),
+    ("Sino Biopharm Strikes Drug Licensing Deal With AstraZeneca, Deepens GSK Partnership",
+     {"GSK"}),
+    ("AstraZeneca PLC (AZN) vs. Bristol-Myers Squibb Company (BMY): Wall Street Doesn't Buy"
+     " This Merger Talk", {"Bristol-Myers Squibb"}),
+    ("Merck, Protillion Launch AI Drug Discovery Collaboration with Up-to-$510M in Milestone"
+     " Payments", {"Merck"}),
+    ("Roche Strikes $2.3B Nurix Deal for BTK Degrader", {"Roche"}),
+    ("Gilead acquires German ADC specialist Tubulis in US$5bn deal", {"Gilead"}),
+    ("Novo Nordisk Buys Time With Nanexa Deal and US Job Cuts as Shares Stay Under Pressure",
+     {"Novo Nordisk"}),
+    ("Vertex spending $10B to buy San Diego biotech in largest-ever acquisition", {"Vertex"}),
+])
+def test_a_misread_party_is_refused(headline, names):
+    assert parse_deal(headline, names) is None
+
+
+@pytest.mark.parametrize("headline,names,party,value", [
+    ("Lilly Acquires Centessa for Up to $7.8B; Biogen Buys Apellis for Up to $6.1B",
+     {"Biogen"}, "Apellis", "up to $6.1 billion"),
+    ("GSK to Acquire Experimental Blood Cancer Therapy From Chimagen in $750 Million Deal",
+     {"GSK"}, "Chimagen", "$750 million"),
+    ("Gilead Enters $5 Billion Agreement to Acquire Tubulis, Further Strengthening Oncology"
+     " Pipeline", {"Gilead"}, "Tubulis", "$5 billion"),
+    ("Lilly pens $1.2B deal for Hanmi’s GLP-2 drug being aimed at short bowel syndrome",
+     {"Lilly"}, "Hanmi", "$1.2 billion"),
+    ("Novo Nordisk Licenses Nanexa Drug Delivery Technology", {"Novo Nordisk"}, "Nanexa", None),
+])
+def test_the_party_inside_a_roundup_a_from_or_a_run_on(headline, names, party, value):
+    deal = parse_deal(headline, names)
+    assert deal["counterparty"] == party and deal["announced_value"] == value

@@ -37,6 +37,10 @@ _TIMEOUT_S = 30
 _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
 FEED = "https://news.google.com/rss/search"
 
+# "deal with X", or "deal for X's drug". "Deal for" with no possessive names what is bought
+# ("Nurix Deal for BTK Degrader"), not who sells it.
+_WITH_OR_FOR = (r"(?:with|for(?=\s+(?:[A-Z][\w&.-]*\s+){0,3}[A-Z][\w&.-]*['\u2019]s\b))")
+
 # The verbs that state a deal, with the type each implies. Ordered longest first so
 # "agrees to acquire" is read before "acquire".
 _DEAL_VERBS = (
@@ -56,10 +60,10 @@ _DEAL_VERBS = (
     # worth $7.2 B with China's Abogen", "strikes up to $7.8 billion mRNA deal with
     # China's Abogen", "pens $7.8B deal for Abogen's in vivo T-cell engager".
     (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
-     r"licen[sc]ing (?:deal|agreement|pact)(?: worth \S+(?: \S+)?)? (?:with|for)",
+     r"licen[sc]ing (?:deal|agreement|pact)(?: worth \S+(?: \S+)?)? " + _WITH_OR_FOR,
      "licensing"),
     (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
-     r"(?:deal|agreement|pact|tie-up)(?: worth \S+(?: \S+)?)? (?:with|for)",
+     r"(?:deal|agreement|pact|tie-up)(?: worth \S+(?: \S+)?)? " + _WITH_OR_FOR,
      "collaboration"),
 )
 
@@ -68,7 +72,7 @@ _DEAL_VERBS = (
 _COMMENTARY = re.compile(
     r"\?|\bcould\b|\bmight\b|\bwhy\b|\brumou?r|\breportedly\b|\bexplores?\b"
     r"|\bweighs?\b|\bmulls?\b|\btalks\b|\bnears?\b|\bbid for\b|\banalysis\b|\bopinion\b"
-    r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b", re.I)
+    r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b|\bvs\.?(?=\s)", re.I)
 
 # Public names for readers outside the fetcher (company_score's deal gate), so they do not
 # reach into its private ones.
@@ -102,6 +106,8 @@ _LEAD = {
     "china-based", "based", "swiss-based", "boston", "houston", "waltham", "plano",
     "connecticut", "massachusetts", "california", "texas", "ai", "digital", "medical",
     "device", "obesity", "immunology", "inflammatory", "radiopharmaceutical",
+    "korean", "european", "u.n.", "u.n", "adc", "car-t", "api", "sirna", "mrna", "oxford",
+    "cambridge", "spinout", "spin-out", "san", "diego", "raleigh",
 }
 
 _NATIONALITY = {"american", "british", "canadian", "chinese", "danish", "dutch", "french",
@@ -110,7 +116,8 @@ _NATIONALITY = {"american", "british", "canadian", "chinese", "danish", "dutch",
 # What a publisher hyphenates in front of a name, and the diseases it leads with.
 # "Prostate Cancer Treatment-Maker Halda" is Halda described, not a company called that.
 _DESCRIPTOR = re.compile(
-    r"^(?:[\w']+-(?:maker|based|focused|backed|owned|led|stage|listed)|"
+    r"^(?:[\w']+-(?:maker|based|focused|backed|owned|led|stage|listed|rooted|born)|"
+    r"[a-z]{2,}-\d+[a-z]?|[a-z]{2,4}-(?:beta|alpha|t)|"
     r"prostate|breast|lung|kidney|liver|skin|blood|brain|rare|orphan|"
     r"weight[- ]loss|anti[- ]obesity|treatment|therapy|drug|medicine|vaccine|"
     r"antibody|radiopharma|neuro|cardio|derma|respiratory|autoimmune)$")
@@ -133,7 +140,8 @@ _TAIL = {"worth", "for", "in", "to", "with", "and", "over", "at", "as", "on", "u
          # leads with the party, "Summit Is in Talks for a $15 Billion Partnership",
          # and the capital on the verb made it part of the company's name.
          "is", "are", "was", "were", "has", "have", "had", "said", "says", "will",
-         "could", "may", "might", "reportedly", "eyes", "eyeing", "nears", "nearing"}
+         "could", "may", "might", "reportedly", "eyes", "eyeing", "nears", "nearing",
+         "ai"}
 
 # Title case makes an ordinary word look like a company. None of these is one.
 _NOT_A_NAME = {
@@ -144,6 +152,16 @@ _NOT_A_NAME = {
     "agreement", "collaboration", "licensing", "partnership", "acquisition", "buy",
     "approaches", "approach", "advise", "advises", "advised", "explores", "explore",
     "weighs", "weigh", "mulls", "mull", "considers", "consider", "talks", "merger",
+    "time", "science", "this", "that", "up-to", "trump", "white", "parkinson", "alzheimer",
+    "crohn", "huntington", "hodgkin",
+}
+# Where a captured name runs on into what is being bought: "Chimagen Multiple Myeloma
+# T-Cell Engager", "Nanexa Drug Delivery Technology". The name ends before the first.
+_PRODUCT_WORD = {
+    "multiple", "myeloma", "t-cell", "engager", "drug", "drugs", "therapy", "blood-cancer",
+    "inhibitor", "candidate", "platform", "technology", "delivery", "asset", "antibody",
+    "vaccine", "program", "programme", "portfolio", "rights", "glp-1", "glp-2",
+    "further", "strengthening", "expanding", "boosting", "advancing", "bolstering",
 }
 
 
@@ -214,7 +232,7 @@ def _clean_name(raw: str) -> str | None:
     rather than a title-cased ordinary word, since "Buys Shares" is not a counterparty.
     """
     def token(word: str) -> str:
-        return word.lower().replace("\u2019", "'").strip(".,'")
+        return word.lower().replace("\u2019", "'").strip(".,'-")
 
     def describes(word: str) -> bool:
         """Whether a leading word describes the company rather than naming it.
@@ -235,13 +253,28 @@ def _clean_name(raw: str) -> str | None:
         words.pop()
     if not words or token(words[0]) in _NOT_A_NAME:
         return None
-    # A nationality alone is a description with no name after it: "deal with Chinese
-    # biotech" names nobody.
-    if len(words) == 1 and token(words[0]) in _NATIONALITY:
+    # The name ends at its possessive ("Chimagen's T cell engager") or where it runs on
+    # into the thing bought ("Nanexa Drug Delivery Technology").
+    cut = False
+    for i, word in enumerate(words):
+        if re.search(r"['\u2019]s$", word):
+            words = words[:i] + [re.sub(r"['\u2019]s$", "", word)]
+            break
+        if i and token(word) in _PRODUCT_WORD:
+            words, cut = words[:i], True
+            break
+    # A descriptor alone is a description with no name after it: "deal with Chinese
+    # biotech", "acquires German ADC specialist Tubulis" names nobody in its capitals.
+    if len(words) == 1 and (token(words[0]) in _NATIONALITY or describes(words[0])):
         return None
-    # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it, and "deal
-    # for Abogen's T-cell engager" leaves the possessive.
-    name = re.sub(r"['\u2019]s$", "", " ".join(words)).strip(" ,;:-")
+    if token(words[0]) in _NOT_A_NAME:
+        return None
+    # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it.
+    name = " ".join(words).strip(" ,;:-")
+    # What is left of a product once its noun is cut is a description ("Selective PDE10A
+    # Inhibitor"), unless it is one word or carries a corporate marker.
+    if cut and len(words) > 1 and not deals._ORGANISATION.search(name):
+        return None
     return name if len(name) >= 3 else None
 
 
@@ -256,13 +289,45 @@ def parse_deal(headline: str, company_names) -> dict | None:
     text = _clean_title(headline)
     if not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text):
         return None
+    # A roundup carries several deals: each clause is read on its own, so a value is
+    # never taken from another company's deal.
+    for clause in re.split(r";\s*", text):
+        deal = _parse_clause(clause, company_names)
+        if deal:
+            return {**deal, "quote": text}
+    return None
+
+
+def _subject(before: str, company_names) -> bool:
+    """Whether the searched company is the one doing the deal: named before the verb, and
+    alone. "Tempus announces collaboration with Moderna and Merck" is Tempus's deal, and
+    "Halozyme and Vertex sign deal for Hypercon" names its party before the verb, where
+    the reader does not look."""
+    low = before.lower()
+    if not any(re.search(rf"(?<![\w-]){re.escape(n.lower())}(?![\w-])", low)
+               for n in company_names if n):
+        return False
+    return not re.search(r"\b(?:and|&)\s+[A-Z]|,\s*[A-Z][\w-]*(?:\s+[A-Z][\w-]*)?\s+"
+                         r"(?i:launch|sign|enter|announce|partner|team)", before)
+
+
+def _parse_clause(text: str, company_names) -> dict | None:
     for verb, deal_type in _DEAL_VERBS:
         # The verb is read whatever its case; the name is not, so the capitals stay
         # meaningful. Hence the scoped flag rather than re.I over the whole pattern.
         match = re.search(rf"(?i:\b{verb})\s+{_NAME}", text)
         if not match:
             continue
+        if not _subject(text[:match.start()], company_names):
+            continue
         who = match.group("who")
+        # "Acquire Experimental Blood Cancer Therapy From Chimagen": the party follows the
+        # "from", past the description of what is bought.
+        source = re.search(r"\bFrom\s+", text[match.start("who"):])
+        if source:
+            after = re.match(_NAME, text[match.start("who") + source.end():])
+            if after:
+                who = after.group("who")
         # The captured name can be the holder rather than the party: "acquire BIOG
         # portfolio company, Forte Biosciences". Step over the phrase and take the name
         # after it, which is the company actually changing hands.
@@ -282,8 +347,7 @@ def parse_deal(headline: str, company_names) -> dict | None:
         if any(n.lower() in counterparty.lower() for n in company_names):
             return None
         return {"deal_type": deal_type, "counterparty": counterparty,
-                "announced_value": parse_value(text), "area": parse_area(text),
-                "quote": text}
+                "announced_value": parse_value(text), "area": parse_area(text)}
     return None
 
 
