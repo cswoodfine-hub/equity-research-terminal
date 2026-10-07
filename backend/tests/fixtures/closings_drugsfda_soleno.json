@@ -1,0 +1,158 @@
+{
+  "meta": {
+    "disclaimer": "Do not rely on openFDA to make decisions regarding medical care. While we make every effort to ensure that data is accurate, you should assume all results are unvalidated. We may limit or otherwise restrict your access to the API in line with our Terms of Service.",
+    "terms": "https://open.fda.gov/terms/",
+    "license": "https://open.fda.gov/license/",
+    "last_updated": "2026-10-06",
+    "results": {
+      "skip": 0,
+      "limit": 100,
+      "total": 1
+    }
+  },
+  "results": [
+    {
+      "submissions": [
+        {
+          "submission_type": "ORIG",
+          "submission_number": "1",
+          "submission_status": "AP",
+          "submission_status_date": "20250326",
+          "review_priority": "PRIORITY",
+          "submission_class_code": "TYPE 2",
+          "submission_class_code_description": "Type 2 - New Active Ingredient",
+          "submission_property_type": [
+            {
+              "code": "Orphan"
+            }
+          ],
+          "application_docs": [
+            {
+              "id": "81747",
+              "url": "http://www.accessdata.fda.gov/drugsatfda_docs/label/2025/216665s000lbl.pdf",
+              "date": "20250327",
+              "type": "Label"
+            },
+            {
+              "id": "81760",
+              "url": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2025/216665s000lbl.pdf#page=17",
+              "date": "20250327",
+              "type": "Medication Guide"
+            },
+            {
+              "id": "81766",
+              "url": "https://www.accessdata.fda.gov/drugsatfda_docs/appletter/2025/216665Orig1s000ltr.pdf",
+              "date": "20250328",
+              "type": "Letter"
+            },
+            {
+              "id": "85734",
+              "url": "https://www.accessdata.fda.gov/drugsatfda_docs/nda/2026/216665Orig1s000TOC.html",
+              "date": "20260427",
+              "type": "Review"
+            }
+          ]
+        }
+      ],
+      "application_number": "NDA216665",
+      "sponsor_name": "SOLENO",
+      "openfda": {
+        "application_number": [
+          "NDA216665"
+        ],
+        "brand_name": [
+          "VYKAT XR"
+        ],
+        "generic_name": [
+          "DIAZOXIDE CHOLINE"
+        ],
+        "manufacturer_name": [
+          "Soleno Therapeutics, Inc."
+        ],
+        "product_ndc": [
+          "83860-025",
+          "83860-075",
+          "83860-150"
+        ],
+        "product_type": [
+          "HUMAN PRESCRIPTION DRUG"
+        ],
+        "route": [
+          "ORAL"
+        ],
+        "substance_name": [
+          "DIAZOXIDE CHOLINE"
+        ],
+        "rxcui": [
+          "2711548",
+          "2711556",
+          "2711559",
+          "2711562",
+          "2711565",
+          "2711568"
+        ],
+        "spl_id": [
+          "b8413ebc-f835-4c45-9524-91bda45bd35f"
+        ],
+        "spl_set_id": [
+          "0e745e85-9512-e360-e063-6394a90aebf1"
+        ],
+        "package_ndc": [
+          "83860-025-01",
+          "83860-075-01",
+          "83860-150-01"
+        ],
+        "unii": [
+          "2U8NRZ7P8L"
+        ]
+      },
+      "products": [
+        {
+          "product_number": "002",
+          "reference_drug": "Yes",
+          "brand_name": "VYKAT XR",
+          "active_ingredients": [
+            {
+              "name": "DIAZOXIDE CHOLINE",
+              "strength": "75MG"
+            }
+          ],
+          "reference_standard": "No",
+          "dosage_form": "TABLET, EXTENDED RELEASE",
+          "route": "ORAL",
+          "marketing_status": "Prescription"
+        },
+        {
+          "product_number": "003",
+          "reference_drug": "Yes",
+          "brand_name": "VYKAT XR",
+          "active_ingredients": [
+            {
+              "name": "DIAZOXIDE CHOLINE",
+              "strength": "150MG"
+            }
+          ],
+          "reference_standard": "Yes",
+          "dosage_form": "TABLET, EXTENDED RELEASE",
+          "route": "ORAL",
+          "marketing_status": "Prescription"
+        },
+        {
+          "product_number": "001",
+          "reference_drug": "Yes",
+          "brand_name": "VYKAT XR",
+          "active_ingredients": [
+            {
+              "name": "DIAZOXIDE CHOLINE",
+              "strength": "25MG"
+            }
+          ],
+          "reference_standard": "No",
+          "dosage_form": "TABLET, EXTENDED RELEASE",
+          "route": "ORAL",
+          "marketing_status": "Prescription"
+        }
+      ]
+    }
+  ]
+}

@@ -144,3 +144,64 @@ def test_annual_revenue_is_the_target_s_own_full_years():
     assert round(history[-1]["value"] / 1e6, 3) == 190.405
     assert history[-1]["accession"]
     assert all(h["tag"] == history[-1]["tag"] for h in history)
+
+
+def _case_table(years, values, label="Total Revenue"):
+    head = "<tr><td></td>" + "".join(f"<td>{y}</td>" for y in years) + "</tr>"
+    row = (f"<tr><td>{label}</td>" + "".join(f"<td>{v:,}</td>" for v in values)
+           + "</tr>")
+    return f"<table>{head}{row}</table>"
+
+
+def _two_cases(first: str, second: str, relied_sentence: str = "") -> str:
+    years = list(range(2026, 2033))
+    return ("<p>Certain Financial Projections</p><p>Management prepared two cases, the "
+            f"&#8220;{first}&#8221; and the &#8220;{second}&#8221; (dollars in millions). "
+            f"{relied_sentence}</p><p>The following table summarizes the "
+            f"&#8220;{first}&#8221;:</p>" + _case_table(years, [100 * (i + 1) for i in range(7)])
+            + f"<p>The following table summarizes the &#8220;{second}&#8221;:</p>"
+            + _case_table(years, [150 * (i + 1) for i in range(7)]))
+
+
+def test_the_case_the_advisers_relied_on_is_taken_over_the_base_case():
+    found = closings.projections(_two_cases(
+        "Base Case", "Upside Case",
+        "At the direction of the Board, Centerview used the Upside Case in performing its "
+        "financial analyses and rendering its opinion."))
+    assert [c["name"] for c in found["cases"]] == ["Base Case", "Upside Case"]
+    assert found["case"] == "Upside Case"
+    assert "relied on for the fairness opinion" in found["case_reason"]
+    assert closings.revenue_rows(found)["Total Revenue"][2032] == (1050.0, "1,050")
+
+
+def test_without_reliance_the_base_case_is_taken_over_the_upside():
+    found = closings.projections(_two_cases("Upside Case", "Base Case"))
+    assert found["case"] == "Base Case" and found["case_reason"].startswith(
+        "management's base case")
+    assert closings.revenue_rows(found)["Total Revenue"][2026] == (150.0, "150")
+
+
+def test_without_reliance_or_a_base_case_the_most_recent_is_taken():
+    found = closings.projections(_two_cases("Initial Projections", "Updated Projections"))
+    assert found["case"] == "Updated Projections"
+    assert "most recent" in found["case_reason"]
+
+
+def test_a_product_in_development_takes_the_unadjusted_case():
+    html = _two_cases("Risk-Adjusted Projections", "Unadjusted Projections",
+                      "Centerview relied on the Risk-Adjusted Projections for its opinion.")
+    found = closings.projections(html)
+    assert found["case"] == "Risk-Adjusted Projections" and found["risk_adjusted"] is True
+    unrisked = closings.projections(html, prefer_unrisked=True)
+    assert unrisked["case"] == "Unadjusted Projections"
+    assert unrisked["risk_adjusted"] is False
+    assert "applies once" in unrisked["case_reason"]
+
+
+def test_the_targets_label_names_its_products_on_sale():
+    payload = json.loads((FIXTURES / "closings_drugsfda_soleno.json").read_text())
+    found = closings.marketed_labels(payload, "Soleno Therapeutics, Inc.")
+    assert [(r["brand"], r["internal_code"], r["approval_date"]) for r in found] == [
+        ("Vykat Xr", "NDA216665", "2025-03-26")]
+    # A sponsor whose words the target's name does not hold is someone else's.
+    assert closings.marketed_labels(payload, "Sol Therapeutics") == []
