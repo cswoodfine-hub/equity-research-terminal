@@ -600,6 +600,11 @@ class DealsNewsFetcher(BaseFetcher):
                     seen["quote"] = row["quote"]
                 if len(row["counterparty"]) > len(seen["counterparty"]):
                     seen["counterparty"] = row["counterparty"]
+                # "Strikes a deal with" is the vaguest telling: where another says it is a
+                # licence or a takeover, that is what it is.
+                if seen["deal_type"] == "collaboration" and row["deal_type"] in (
+                        "licensing", "acquisition"):
+                    seen["deal_type"] = row["deal_type"]
                 if seen["announced_value"] is None:
                     seen["announced_value"] = row["announced_value"]
                 if seen["area"] is None:

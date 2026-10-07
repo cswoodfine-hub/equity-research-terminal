@@ -516,3 +516,36 @@ def test_a_result_older_than_the_lookback_is_not_this_week(tmp_path):
     conn.close()
     assert not [r for r in headlines.build(path, today=TODAY)
                 if r["kind"] == "readout"]
+
+
+def _announced(conn, ticker, name, counterparty, date, value, quote):
+    conn.execute("UPDATE companies SET name = ? WHERE ticker = ?", (name, ticker))
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()[0]
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+        "  announced_value, quote) VALUES (?, 'licensing', ?, ?, ?, ?)",
+        (cid, counterparty, date, value, quote))
+    conn.commit()
+
+
+def test_a_deal_known_from_headlines_leads_on_the_value_it_announced(tmp_path):
+    """Novartis and Abogen (2026-10-02): a licence by press release, no filing behind it,
+    up to $7.8 billion in every headline. The figure is the headline's, and says so."""
+    path, conn = _seed(tmp_path)
+    _announced(conn, "MRK", "Merck & Co Inc", "SciBrunch", "2026-07-28",
+               "up to $2.13 billion",
+               "Merck Licenses SciBrunch’s SPR2015 In Deal Worth Up To $2.13 Billion")
+    conn.close()
+    rows = headlines.build(path, today=TODAY)
+    assert rows[0]["kind"] == "deal" and rows[0]["figure"] == "$2.13bn"
+    assert rows[0]["detail"] == "up to $2.13 billion announced; terms not filed"
+
+
+def test_a_headline_deal_the_reader_no_longer_reads_is_not_shown(tmp_path):
+    """A row an older, looser reading stored ("deal with AFib") is read again, and a
+    headline that does not name the party as the reader now would is left out."""
+    path, conn = _seed(tmp_path)
+    _announced(conn, "JNJ", "Johnson & Johnson", "AFib", "2026-07-28", "$1 billion",
+               "J&J bets $1 billion on AFib as Tempus Announces Collaboration With Merck")
+    conn.close()
+    assert [r for r in headlines.build(path, today=TODAY) if r["kind"] == "deal"] == []
