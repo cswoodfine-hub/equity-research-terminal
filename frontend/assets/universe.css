@@ -548,6 +548,10 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
    figure. A card covers the other column, so it never leaves the frame. */
 .uw-rk { position: relative; flex: 1 1 auto; display: flex; flex-direction: column;
   min-height: 0; }
+/* The two band heads are one height with their labels on one line, so "This week,
+   ranked" and "Company board" and their rules sit level whatever the board's sort
+   chips need. */
+.uw-rkh, .uw-bh { box-sizing: border-box; height: 22px; align-items: center !important; }
 .uw-rkh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
   border-bottom: 1px solid var(--rule-strong); padding: 0 0 3px; }
 .uw-rkh .lbl, .uw-bh .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
@@ -604,14 +608,14 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-bk { display: flex; justify-content: space-between; gap: 8px; font-size: 9.5px;
   color: var(--muted); line-height: 14px; margin-top: 3px; white-space: nowrap; }
 .uw-bk em { font-style: normal; }
-.uw-bk em.fda { color: var(--flag); }
+.uw-bk em.fda { color: var(--fda); }
 .uw-bk i.dia { display: inline-block; width: 6px; height: 6px; background: var(--text);
   transform: rotate(45deg); margin: 0 5px 1px 1px; }
 /* A firm date's diamond sits in the date's own gutter, so every date starts on one line. */
 .uw-br .nd { position: relative; padding-left: 11px; }
 .uw-br .nd.firm::before { content: ""; position: absolute; left: 1px; top: 50%; width: 6px;
   height: 6px; margin-top: -3px; background: var(--text); transform: rotate(45deg); }
-.uw-br .nd.firm.fda::before { background: var(--flag); }
+.uw-br .nd.firm.fda::before { background: var(--fda); }
 .uw-bcols, .uw-br { display: grid; grid-template-columns: 40px 64px 32px 58px minmax(0, 1fr) 26px;
   column-gap: 8px; align-items: center; padding: 0 4px 0 6px; }
 .uw-bcols { height: 18px; border-bottom: 1px solid var(--rule); font-size: 9.5px;
@@ -639,7 +643,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-br .nx { min-width: 0; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }
 .uw-br .nx.none { color: var(--muted); }
-.uw-br .fda { color: var(--flag); }
+.uw-br .fda { color: var(--fda); }
 .uw-bx { order: var(--uw-ow); height: 0; border-top: 1px dashed var(--muted); margin-top: -1px;
   position: relative; z-index: 1; }
 .uw-board:has(#uwbs-n:checked) .uw-bx, .uw-board:has(#uwbs-x:checked) .uw-bx { display: none; }
@@ -810,10 +814,10 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-fda .lab .key { display: flex; align-items: center; gap: 4px; font-size: 9.5px; }
 .uw-fda .key i { display: inline-block; width: 7px; height: 7px; margin-left: 3px; }
 .uw-fda .key i:first-child { margin-left: 0; }
-.uw-fda .key i.nda { border-radius: 50%; background: var(--flag); }
-.uw-fda .key i.bla { background: var(--flag); transform: rotate(45deg) scale(0.85); }
+.uw-fda .key i.nda { border-radius: 50%; background: var(--fda); }
+.uw-fda .key i.bla { background: var(--fda); transform: rotate(45deg) scale(0.85); }
 .uw-fda .key i.anda { border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; }
-.uw-fda .key i.ahead { border-radius: 50%; border: 1.5px dashed var(--flag); box-sizing: border-box; }
+.uw-fda .key i.ahead { border-radius: 50%; border: 1.5px dashed var(--fda); box-sizing: border-box; }
 .uw-fda .tl { position: relative; height: 52px; }
 .uw-fda .ax { position: absolute; left: 0; right: 0; top: 22px; border-top: 1px solid var(--rule-strong); }
 .uw-fda .mo { position: absolute; bottom: 0; height: 10px; line-height: 10px; padding-left: 3px;
@@ -822,18 +826,18 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-fda .today { position: absolute; top: 4px; bottom: 12px; border-left: 1px dashed var(--muted); }
 .uw-fda .fm { position: absolute; top: 22px; width: 8px; height: 8px; box-sizing: border-box;
   transform: translate(-50%, -50%); cursor: pointer; z-index: 2; }
-.uw-fda .fm.nda { border-radius: 50%; background: var(--flag); }
-.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--flag);
+.uw-fda .fm.nda { border-radius: 50%; background: var(--fda); }
+.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--fda);
   transform: translate(-50%, -50%) rotate(45deg); }
 .uw-fda .fm.anda { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--muted);
   background: var(--ground); }
-.uw-fda .fm.ahead { width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--flag);
+.uw-fda .fm.ahead { width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--fda);
   background: var(--ground); }
-.uw-fda .fm:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--flag) 35%, transparent); }
+.uw-fda .fm:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--fda) 35%, transparent); }
 .uw-fda .fl { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px;
   line-height: 12px; color: var(--text); cursor: pointer; }
 .uw-fda .fl.t0 { top: 3px; }
 .uw-fda .fl.t1 { top: 28px; }
 .uw-fda .fl i { font-style: normal; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); }
-.uw-fda .fl.ahead { color: var(--flag); }
+.uw-fda .fl.ahead { color: var(--fda); }
 .uw-fda .fl b { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; }

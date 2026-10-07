@@ -38,7 +38,7 @@ T = dict(ground=TK.GROUND, panel=TK.PANEL, rule=TK.RULE, rule_strong=TK.RULE_STR
          flag=TK.FLAG, pre=TK.PHASE_RAMP["preclinical"], p1=TK.PHASE_RAMP["Phase 1"],
          p2=TK.PHASE_RAMP["Phase 2"], p3=TK.PHASE_RAMP["Phase 3"],
          filed=TK.PHASE_RAMP["filed"], approved=TK.PHASE_RAMP["approved"],
-         orange=TK.ORANGE_BOOK, purple=TK.PURPLE_BOOK)
+         orange=TK.ORANGE_BOOK, purple=TK.PURPLE_BOOK, fda=TK.FDA)
 
 
 # ------------------------------------------------------------------------------ helpers
@@ -548,9 +548,9 @@ def countdown_mini(days, of=30):
         return ""
     x = 4 + min(max(days, 0), of) / of * (IW - 8)
     return (_mini_open() + f'<line x1="4" x2="{IW-4}" y1="13" y2="13" stroke="{T["rule_strong"]}"/>'
-            f'<line x1="4" x2="{x:.1f}" y1="13" y2="13" stroke="{T["flag"]}" stroke-width="2"/>'
+            f'<line x1="4" x2="{x:.1f}" y1="13" y2="13" stroke="{T["fda"]}" stroke-width="2"/>'
             f'<circle cx="4" cy="13" r="2.5" fill="{T["text"]}"/>'
-            f'<path d="M{x:.1f},8 L{x+5:.1f},13 L{x:.1f},18 L{x-5:.1f},13 Z" fill="{T["flag"]}"/>'
+            f'<path d="M{x:.1f},8 L{x+5:.1f},13 L{x:.1f},18 L{x-5:.1f},13 Z" fill="{T["fda"]}"/>'
             + text(4, 26, "today", 9, T["muted"], mono=True)
             + text(IW - 4, 26, f"+{of}d", 9, T["muted"], "end", mono=True) + "</svg>")
 
@@ -1780,17 +1780,17 @@ def spotlight_section(p, w=None):
 # =========================================================================================
 # The colour of each kind of news. Green and red mean up and down, and cheap and expensive,
 # and nothing else on the page, so the kinds take the other colours: deals purple, results
-# the phase ramp, anything at the FDA amber, a date running against a company orange
+# the phase ramp, anything at the FDA blue-violet, a date running against a company orange
 # (a slip, an exclusivity ending), and the rest of the record grey.
 KIND_COLOUR = {
     "deal": "var(--purple-book)", "readout": "var(--phase-3)", "readout2": "var(--phase-2)",
-    "notice": "var(--phase-1)", "due": "var(--phase-3)", "approval": "var(--flag)",
-    "regulatory": "var(--flag)", "slips": "var(--orange-book)", "loe": "var(--orange-book)",
+    "notice": "var(--phase-1)", "due": "var(--phase-3)", "approval": "var(--fda)",
+    "regulatory": "var(--fda)", "slips": "var(--orange-book)", "loe": "var(--orange-book)",
     "market": "var(--muted)", "earnings": "var(--muted)", "filing": "var(--muted)",
     "labels": "var(--muted)",
 }
 # The grid's rows (backend GRID_KINDS) in the same colours.
-GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--flag)",
+GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--fda)",
                "slip": "var(--orange-book)", "company": "var(--muted)",
                "routine": "var(--muted)"}
 # The kinds the live week_item draws; the rest are drawn by feed_item.
@@ -2049,7 +2049,7 @@ def _news_line(x):
 
 def board_html(p):
     """The company board: one row per company, none marked out. The week's move as a tinted figure, the week's news count, the next dated event
-    in words (FDA dates in amber, a firm date marked, an estimate muted) and the count of
+    in words (FDA dates in blue-violet, a firm date marked, an estimate muted) and the count of
     dated events in 90 days. Three sorts, switched in the browser; the week sort draws
     the benchmark's week (PPH, on price) where it falls. A row's hover lists the company's news of the week; a click
     opens the company."""
@@ -2130,7 +2130,7 @@ def board_html(p):
     key = (f'<div class="uw-bk"><span>week: {esc(span)}'
            + (f'; dashed rule {esc(sym)} {esc(pc(xlv))}' if xlv is not None else "")
            + '</span><span><i class="dia"></i>firm date · <em>grey: estimate</em> · '
-             '<em class="fda">amber: FDA</em></span></div>')
+             '<em class="fda">blue: FDA</em></span></div>')
     cols = ('<div class="uw-bcols"><span>Co.</span><span class="r">Week</span>'
             '<span class="c" title="News this week: deals, results, approvals, filings and '
             'Phase 3 slips">News</span><span class="nh">Next dated event</span>'
@@ -2208,7 +2208,7 @@ def fda_row_html(p):
     """The year's FDA approvals across the group on one line, 1 January to 31 December:
     each approval a marker on the day it came, shaped by its application (a small
     molecule's NDA a disc, a biologic's BLA a diamond, a generic's ANDA a small ring),
-    the FDA decisions dated ahead this year as hollow amber rings, and today's line.
+    the FDA decisions dated ahead this year as hollow blue-violet rings, and today's line.
     Brand names sit above and below the line where they fit, never over each other; a
     marker's hover gives its company, application and date, and a click opens the
     company. A generic carries no name on the line."""

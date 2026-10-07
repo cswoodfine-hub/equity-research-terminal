@@ -23,6 +23,9 @@
   /* Modality, the two FDA book colours retuned into the palette. */
   --orange-book: #C98A4B;
   --purple-book: #8B7FC7;
+  /* The FDA on the Universe tab (approvals, PDUFA and decision dates): a blue-violet,
+     clear of the deals' purple. */
+  --fda: #7A8CF2;
 
   /* Spacing base and radii. */
   --space: 8px;
