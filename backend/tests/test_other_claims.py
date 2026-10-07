@@ -99,6 +99,26 @@ def test_store_writes_the_rows_and_clears_what_a_filer_no_longer_reports(tmp_pat
     conn.close()
 
 
+def test_a_company_with_no_cik_takes_its_curated_claims(tmp_path, cache):
+    """Bayer is not an SEC registrant, so nothing is read from the data sets for it, but
+    the provisions its own annual report states are still claims on its equity."""
+    path = str(tmp_path / "claims.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name, cik) VALUES"
+                 " ('JNJ', 'J&J', 200406), ('BAYN', 'Bayer', NULL), ('ROG', 'Roche', NULL)")
+    conn.commit()
+    curated_path = tmp_path / "c.csv"
+    curated_path.write_text("ticker,item,label,kind,value,as_of,source,note\n"
+                            "BAYN,litigation_provisions,litigation,liability,10811,"
+                            "2025-12-31,Annual Report 2025 note 23,\n")
+    got = OC.store(conn, cache, curated_path)
+    assert got["companies"] == 2            # JNJ by its CIK, Bayer by its curated row
+    assert OC.for_company(conn, "BAYN")["total"] == -10811.0
+    assert OC.for_company(conn, "ROG")["reason"]
+    conn.close()
+
+
 def test_a_filer_outside_the_book_is_not_indexed(cache):
     assert "999999" not in OC.build([200406], cache)
 
