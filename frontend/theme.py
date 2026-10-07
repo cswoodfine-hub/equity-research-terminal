@@ -929,12 +929,14 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    and the table once the head line, the figures, the scorecard's head and the card row
    are drawn; the chart keeps its own shape at that height and the table fills the rest of
    the width, scrolling inside it, down and across, its head held at the top. */
-:root {{ --sc-h: clamp(260px, calc(100vh - 425px), 620px); }}
+:root {{ --sc-h: clamp(250px, calc(100vh - 432px), 620px); }}
 @media (min-width: 1100px) {{
   .st-key-sc_map [data-testid="stColumn"]:first-child {{
     flex: 0 0 calc(var(--sc-h) * 1.5) !important; width: auto !important; min-width: 0; }}
   .st-key-sc_map [data-testid="stColumn"]:last-child {{ flex: 1 1 0 !important;
     width: auto !important; min-width: 0; }}
+  .st-key-sc_map .chart-mount {{ margin: 0 !important; height: var(--sc-h); line-height: 0;
+    overflow: hidden; }}
   .st-key-sc_map .chart-mount svg {{ width: 100% !important; height: var(--sc-h) !important; }}
   .st-key-sc_map .land-wrap {{ height: var(--sc-h); overflow: auto; }}
 }}
@@ -958,14 +960,16 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* The bottom line and the readout cards: one row of equal boxes under the chart and the
    table, each cut to a few lines with the whole of it on hover. */
 .sc-cards {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px;
-  margin-top: 4px; }}
-.sc-cards .vc {{ margin: 0; padding: 7px 10px; height: 112px; box-sizing: border-box;
-  overflow: hidden; cursor: help; }}
+  margin-top: 12px; position: relative; z-index: 1; }}
+/* A card holds its title on one line, a headline of at most two lines (the bottom line's
+   five) and a detail of at most three, so its text always ends inside the box. */
+.sc-cards .vc {{ margin: 0; padding: 7px 10px 8px; height: 124px; box-sizing: border-box;
+  overflow: hidden; cursor: help; display: flex; flex-direction: column; }}
 .sc-cards .vc-title {{ margin-bottom: 2px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; }}
 .sc-cards .vc-head {{ font-size: 12.5px; line-height: 1.3; display: -webkit-box;
   -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }}
-.sc-cards .vc-lead .vc-head {{ font-size: 13px; -webkit-line-clamp: 4; }}
+.sc-cards .vc-lead .vc-head {{ font-size: 13px; -webkit-line-clamp: 5; }}
 .sc-cards .vc-lead .vc-title {{ color: var(--text); }}
 .sc-cards .vc-detail {{ font-size: 11px; line-height: 1.35; margin-top: 3px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
