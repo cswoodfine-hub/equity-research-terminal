@@ -2291,9 +2291,9 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     # value draws a warning.
     pick = st.selectbox(
         "Indication", options, key=f"land_pick_{ticker}",
-        format_func=lambda i: (f'{by_id[i]["name"]} · {by_id[i]["companies"]} companies '
-                               f'in development'
-                               + (f" · {ticker} in it" if i in mine else "")),
+        # The indication alone; how many companies develop it, and whether this one does,
+        # are the first figure under it.
+        format_func=lambda i: by_id[i]["name"],
         label_visibility="collapsed")
     with st.spinner("Reading every candidate's trials and safety record"):
         try:
@@ -2313,6 +2313,8 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     cov = land.get("coverage") or {}
     pool = land.get("pool") or {}
     cells = [
+        ("in development", str(by_id[pick]["companies"]), "",
+         f'companies · {ticker} {"in it" if pick in mine else "not in it"}'),
         ("candidates", str(cov.get("candidates", len(cands))), "",
          f'{len(land.get("companies") or [])} companies'),
         ("marketed", str(sum(1 for c in cands if c["stage"] == "Marketed")), "",
@@ -10016,10 +10018,6 @@ with main:
             _comps_valuation_view(api_base, ticker, engine, not asof_state)
         if "Indications" in _vt:
             with _vt["Indications"]:
-                _intro("Every drug the big pharma companies hold for one disease, whatever "
-                       "its modality or mechanism: what it is, what its trials posted "
-                       "against their comparators, its safety record, and what the model "
-                       "says it is worth.")
                 _indication_landscape(api_base, ticker)
 
         # --- R&D productivity and the phase matrix ----------------------------
