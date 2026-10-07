@@ -34,6 +34,7 @@ REVISION = 1
 
 # --------------------------------------------------------------------------- layout
 BAR_W = 380          # the diverging bar column, drawn 1:1
+AXIS_LABEL_W = 118   # "0.25% of price, $1.25" at the axis's 9.5px mono
 BAR_PAD = 60         # room each side of the bars for the printed figure
 ROW_BAR_H = 16
 GATE_BAR_H = 8
@@ -266,9 +267,14 @@ def axis_svg(sc, close) -> str:
              f'<text class="hk up" x="{x0 + 7:.1f}" y="10">A pass adds ▸</text>'
              f'<line class="z" x1="{x0:.1f}" x2="{x0:.1f}" y1="0" y2="{H}"/>')
     if close:
-        w = close * 0.01 * k
+        # The largest of 1%, 0.5%, 0.25% and 0.1% of the price whose bar and label fit the
+        # column, so a high share price on small bars never runs into the next column.
+        share = next((f for f in (0.01, 0.005, 0.0025, 0.001)
+                      if x0 + close * f * k + 5 + AXIS_LABEL_W <= W), 0.001)
+        w = close * share * k
         o.append(f'<path class="br" d="M{x0:.1f} 18 v5 h{w:.1f} v-5"/>'
-                 f'<text class="tk" x="{x0 + w + 5:.1f}" y="25">1% of price, {usd(close * 0.01)}</text>')
+                 f'<text class="tk" x="{x0 + w + 5:.1f}" y="25">{share * 100:g}% of price, '
+                 f'{usd(close * share)}</text>')
     o.append("</svg>")
     return "".join(o)
 
@@ -541,7 +547,7 @@ def next_html(p, n=NEXT_N) -> str:
     if not out:
         out.append('<div class="cx-empty">No dated readout on file.</div>')
     return (f'<div class="ca-sec"><span class="h">Next up</span>'
-            f'<span class="c m">{len(rows)} of {in12} in 12 months · est. dates</span></div>'
+            f'<span class="c m">next {len(rows)} · {in12} in 12 months · est. dates</span></div>'
             f'<div class="ca-next">{"".join(out)}</div>')
 
 
