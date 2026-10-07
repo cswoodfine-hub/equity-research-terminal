@@ -929,7 +929,7 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    and the table once the head line, the figures, the scorecard's head and the card row
    are drawn; the chart keeps its own shape at that height and the table fills the rest of
    the width, scrolling inside it, down and across, its head held at the top. */
-:root {{ --sc-h: clamp(260px, calc(100vh - 435px), 620px); }}
+:root {{ --sc-h: clamp(260px, calc(100vh - 425px), 620px); }}
 @media (min-width: 1100px) {{
   .st-key-sc_map [data-testid="stColumn"]:first-child {{
     flex: 0 0 calc(var(--sc-h) * 1.5) !important; width: auto !important; min-width: 0; }}
@@ -978,7 +978,7 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .st-key-land_head [data-testid="stColumn"]:last-child [data-testid="stVerticalBlock"] {{
   align-items: flex-end; }}
 .pos.land-pos {{ gap: 0.3rem 1.7rem; padding: 0; flex-wrap: wrap; justify-content: space-between; }}
-.st-key-land_head {{ margin-top: -12px; }}
+.st-key-land_head {{ margin-top: -12px; margin-bottom: -10px; }}
 .pos.land-pos .v {{ font-size: 1.02rem; line-height: 1.25; }}
 .pos.land-pos .sub {{ margin-top: 0; white-space: nowrap; }}
 .st-key-sc_head .sec {{ margin: 0; }}

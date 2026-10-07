@@ -2356,7 +2356,8 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
             "View", ["Overview", "Candidates", "Efficacy", "Safety"], default="Overview",
             key=f"land_view_{pick}", label_visibility="collapsed") or "Overview"
     if view == "Overview":
-        _landscape_overview(api_base, pick, ticker, (head_why, head_how))
+        _landscape_overview(api_base, pick, ticker, (head_why, head_how), cands,
+                            _decap(by_id[pick]["name"]))
     elif view == "Candidates":
         _landscape_candidates(cands)
     elif view == "Efficacy":
@@ -2649,7 +2650,60 @@ def _decap(text) -> str:
     return text[:1].lower() + text[1:] if text else text
 
 
-def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None) -> None:
+_CO_SUFFIX = re.compile(r"\s*(,?\s*(PLC|plc|Inc\.?|AG|A/S|SA|S\.A\.|SE|N\.V\.|Ltd\.?|Co\.?|"
+                        r"& Co\.?|Corporation|Corp\.?|Company|Holdings?))+$")
+
+
+def _company_card(ticker: str, cands: list, indication: str) -> dict:
+    """The selected company's own assets in this indication as a verdict card: how many,
+    by stage, which, and what the model puts on the modelled ones a share. A product's
+    value is its whole value, every use of it, and the card says so; a product the model
+    does not value is counted, never given a figure."""
+    mine = [c for c in cands or [] if c.get("ticker") == ticker]
+    full = (mine[0].get("company") if mine else None) or globals().get("names", {}).get(ticker)
+    name = re.sub(r"\s+(and|&)$", "", _CO_SUFFIX.sub("", full or "").strip()) or ticker
+    # The indication is the selector's; the card names whose assets these are.
+    title = f"{name}' assets" if name.endswith("s") else f"{name}'s assets"
+    if not mine:
+        return {"kind": "company", "title": title,
+                "headline": f"{name} has no candidate in this indication",
+                "detail": "Nothing it markets or develops is linked to this disease."}
+
+    def stage_of(c):
+        st_ = c.get("stage") or ""
+        return ("marketed" if st_.startswith("Marketed") else
+                "Phase 3" if st_.startswith("Phase 3") or st_ == "Phase 2/3" else
+                "Phase 2" if st_.startswith("Phase 2") else "earlier")
+    groups: dict = {}
+    for c in mine:
+        groups.setdefault(stage_of(c), []).append(c)
+    order = ("marketed", "Phase 3", "Phase 2", "earlier")
+    counts = ", ".join(f"{len(groups[g])} {'in ' + g if g.startswith('Phase') else g}"
+                       for g in order if groups.get(g))
+    label = lambda c: (c.get("brands") or [None])[0] or c.get("name") or ""
+    lists = "; ".join(f"{_cap(g)}: {', '.join(label(c) for c in groups[g])}"
+                      for g in order if groups.get(g))
+    valued = [c for c in mine if (c.get("model") or {}).get("per_share") is not None]
+    cur = {(c.get("model") or {}).get("currency") or "USD" for c in valued}
+    value = ""
+    if valued and len(cur) == 1:
+        unit = "$" if cur == {"USD"} else f"{next(iter(cur))} "
+        top = max(valued, key=lambda c: c["model"]["per_share"])
+        total = sum(c["model"]["per_share"] for c in valued)
+        value = (f" The model puts {unit}{total:,.2f} a share on the {len(valued)} it values, "
+                 f"each product across all its uses; {label(top)} the most at "
+                 f"{unit}{top['model']['per_share']:,.2f}.")
+    unvalued = len(mine) - len(valued)
+    if unvalued:
+        value += f" {unvalued} carr{'ies' if unvalued == 1 else 'y'} no model value."
+    n = len(mine)
+    return {"kind": "company", "title": title,
+            "headline": f"{n} candidate{'s' if n != 1 else ''}: {counts}",
+            "detail": f"{lists}.{value}"}
+
+
+def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands=None,
+                        indication: str = "") -> None:
     """The landscape read for you: the clinical scorecard beside its ranked table, then the
     verdict cards, each its headline and its evidence."""
     try:
@@ -2658,6 +2712,12 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None) -> No
         state("The overview did not load", str(exc), error=True)
         return
     cards = ov.get("cards") or []
+    # The selected company's own assets in place of "closest to market".
+    if cands is not None:
+        mine = _company_card(ticker, cands, indication)
+        cards = [mine if c.get("kind") == "stage" else c for c in cards]
+        if not any(c.get("kind") == "company" for c in cards):
+            cards.append(mine)
     placed = [a for a in ((ov.get("scorecard") or {}).get("assets") or []) if a.get("placed")]
     if ov.get("scorecard"):
         # With a chart, the bottom line and the readout cards sit under it beside the
