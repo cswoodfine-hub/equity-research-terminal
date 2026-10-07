@@ -287,7 +287,8 @@ def parse_deal(headline: str, company_names) -> dict | None:
     round, and only one of them is the counterparty.
     """
     text = _clean_title(headline)
-    if not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text):
+    if (not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text)
+            or _NOT_BD.search(text)):
         return None
     # A roundup carries several deals: each clause is read on its own, so a value is
     # never taken from another company's deal.
@@ -296,6 +297,13 @@ def parse_deal(headline: str, company_names) -> dict | None:
         if deal:
             return {**deal, "quote": text}
     return None
+
+
+# A partnership a pharma company announces that is not business development: carbon
+# removal, wellness apps, relief work. Stated plainly, and still not a deal for this page.
+_NOT_BD = re.compile(
+    r"\b(?:carbon|emissions?|sustainab\w*|net[- ]zero|climate|renewable|wellness|"
+    r"hunger|migration|humanitarian|philanthrop\w*|sponsorship)\b", re.I)
 
 
 def _subject(before: str, company_names) -> bool:
@@ -336,6 +344,10 @@ def _parse_clause(text: str, company_names) -> dict | None:
             after = re.match(_NAME, text[match.end() + holder.end():])
             if after:
                 who = after.group("who")
+        # "pact with Langer startup": a founder's name in front of the company's.
+        if re.match(r"\s+(?:startup|start-up|lab|spinout|spin-out)\b",
+                    text[match.start("who") + len(who):], re.I):
+            continue
         counterparty = _clean_name(who)
         # An organisation, not the thing being bought. The capital-letter match takes
         # whatever follows the verb, which for "Acquires Selective PDE10A Inhibitor" is

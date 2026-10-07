@@ -457,6 +457,11 @@ def test_a_nationality_alone_names_no_party():
     ("Novo Nordisk Buys Time With Nanexa Deal and US Job Cuts as Shares Stay Under Pressure",
      {"Novo Nordisk"}),
     ("Vertex spending $10B to buy San Diego biotech in largest-ever acquisition", {"Vertex"}),
+    ("GSK Signs 600,000-Tonne Carbon Removal Deal with Varaha", {"GSK"}),
+    ("Gilead partners with Calm to roll out disease-specific emotional wellness support",
+     {"Gilead"}),
+    ("Novo Nordisk inks $2.1B pact with Langer startup to boost oral drug delivery prowess",
+     {"Novo Nordisk"}),
 ])
 def test_a_misread_party_is_refused(headline, names):
     assert parse_deal(headline, names) is None
