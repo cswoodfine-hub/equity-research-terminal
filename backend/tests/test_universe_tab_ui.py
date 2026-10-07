@@ -566,7 +566,7 @@ def test_the_page_has_no_panel_and_draws_the_index_under_the_frame():
     assert not [n for n in ast.walk(tree) if isinstance(n, ast.Call)
                 and getattr(n.func, "attr", "") == "tabs"]
     css = UNIVERSE_CSS.read_text()
-    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(130px, calc\(100vh - 646px\), 330px\);", css)
+    assert re.search(r"\.uw-idx \{[^}]*height: clamp\(100px, calc\(100vh - 668px\), 330px\);", css)
 
 
 def test_the_index_is_the_average_of_closes_set_to_100_on_the_first_day(payload):
@@ -772,11 +772,12 @@ def test_every_company_mark_in_the_frame_opens_it(payload):
 
 
 def test_the_band_is_one_height_with_taller_ranked_rows():
-    """The news column and the board are drawn to one height: eighteen board rows and
-    their heads against two columns of five 72px ranked rows and their head."""
+    """The news column and the board are drawn to one height: eighteen 17px board rows and
+    their heads against two columns of five 66px ranked rows and their head, which leaves
+    room under them for the FDA row."""
     css = UNIVERSE_CSS.read_text()
-    assert re.search(r"--uw-row: 19px;", css)
-    assert re.search(r"\.uw-it \{[^}]*height: 72px;", css)
+    assert re.search(r"--uw-row: 17px;", css)
+    assert re.search(r"\.uw-it \{[^}]*height: 66px;", css)
     assert UC.RANK_ROWS == 5
 
 
@@ -1024,3 +1025,33 @@ def test_a_ranked_row_says_its_item_in_a_few_words_and_its_card_keeps_the_headli
     row = rk.split(f'<span class="n">{deal["rank"]}</span>')[1].split('<div class="uw-it')[0]
     assert '<div class="h">Summit stake and collaboration</div>' in row
     assert html.escape(deal["head"])[:60] in row  # the full headline is in its card
+
+
+def test_the_fda_row_marks_every_approval_of_the_year_and_names_never_overlap(payload):
+    out = UC.fda_row_html(payload)
+    today = dt.date.fromisoformat(payload["today"])
+    year = [a for a in payload["lanes"]["approvals"]
+            if f"{today.year}-01-01" <= a["date"] <= payload["today"]]
+    marks = re.findall(r'<span class="fm (nda|bla|anda)" data-ticker="([A-Z]+)"', out)
+    assert len(marks) == len(year) and len(year) > 0
+    assert {m[1] for m in marks} <= set(payload["tickers"])
+    assert f"{len(year)} this year" in out and f"FDA approvals {today.year}" in out
+    # A generic carries no name on the line; every name sits on one of two tiers and
+    # none overlaps another on its tier (by the row's own spacing estimate).
+    generics = {_a["label"] for _a in year if _a["application_type"] == "ANDA"}
+    for tier in ("t0", "t1"):
+        spans = re.findall(r'<span class="fl ' + tier + r'[^"]*" data-ticker="[A-Z]+" '
+                           r'style="left:([\d.]+)%">([^<]*) <i>([A-Z]+)</i>', out)
+        ends = []
+        for left, name, tk in spans:
+            assert html.unescape(name) not in generics
+            w = len(f"{html.unescape(name)} {tk}") * UC.FDA_LABEL_PX / UC.FDA_ROW_PX * 100
+            ends.append((float(left) - w / 2, float(left) + w / 2))
+        for (a0, a1), (b0, _b1) in zip(ends, ends[1:]):
+            assert b0 > a1, tier
+    ahead = [e for e in payload["lanes"]["events"] if e.get("regulatory") and not e.get("month")
+             and payload["today"] < e["date"] <= f"{today.year}-12-31"]
+    assert out.count('class="fm ahead"') == len(ahead)
+    assert out.count('class="mo"') == 12 and 'class="today"' in out
+    assert '<section class="uw-fda"' in UC.front_html(payload)
+    _house_style(_visible(out))

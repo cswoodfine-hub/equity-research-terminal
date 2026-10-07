@@ -445,7 +445,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 :root {
   /* The band's height at 1440: the board's eighteen rows and its heads. The news column
      and the board are both drawn to it; the ribbon sits under them. */
-  --uw-row: 19px;
+  --uw-row: 17px;
   /* What each row, tile and cell sets on itself: a tint's strength, a tile's colour, the
      grid's column count and a board row's place in each sort. */
   --uw-a: 0%;
@@ -565,7 +565,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-rkc { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   column-gap: 28px; }
 .uw-it { display: grid; grid-template-columns: 14px minmax(0, 1fr) 100px 62px; column-gap: 10px;
-  align-items: center; box-sizing: border-box; height: 72px; padding: 0 4px 0 6px;
+  align-items: center; box-sizing: border-box; height: 66px; padding: 0 4px 0 6px;
   border-bottom: 1px solid var(--rule); outline: none; transition: background-color 120ms linear; }
 .uw-it:hover, .uw-it:focus-within { background: var(--panel); }
 .uw-it.me { background: var(--active-wash); box-shadow: var(--uv-rail); }
@@ -735,7 +735,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 
 /* The group's equal-weighted index, the head of the tab: as tall as the screen leaves
    above the frame. The lines stretch with the box; every label is HTML, never scaled. */
-.uw-idx { display: flex; flex-direction: column; height: clamp(130px, calc(100vh - 646px), 330px);
+.uw-idx { display: flex; flex-direction: column; height: clamp(100px, calc(100vh - 668px), 330px);
   margin: 2px 0 6px; padding: 8px 12px 0; box-sizing: border-box;
   background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, transparent),
     transparent 80%);
@@ -798,3 +798,42 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   white-space: nowrap; background: var(--panel); border: 1px solid var(--rule-strong);
   padding: 2px 6px; z-index: 2; }
 .uw-ic .hv.r:hover em { left: auto; right: calc(100% - var(--x) + 8px); }
+
+/* The year's FDA approvals on one line, between the band and the ribbon: markers by
+   application on 1 January to 31 December, names above and below where they fit. */
+.uw-fda { display: grid; grid-template-columns: 150px minmax(0, 1fr); column-gap: 12px;
+  margin: 6px 0 2px; }
+.uw-fda .lab { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.uw-fda .lab b { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.uw-fda .lab span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.uw-fda .lab .key { display: flex; align-items: center; gap: 4px; font-size: 9.5px; }
+.uw-fda .key i { display: inline-block; width: 7px; height: 7px; margin-left: 3px; }
+.uw-fda .key i:first-child { margin-left: 0; }
+.uw-fda .key i.nda { border-radius: 50%; background: var(--flag); }
+.uw-fda .key i.bla { background: var(--flag); transform: rotate(45deg) scale(0.85); }
+.uw-fda .key i.anda { border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; }
+.uw-fda .key i.ahead { border-radius: 50%; border: 1.5px dashed var(--flag); box-sizing: border-box; }
+.uw-fda .tl { position: relative; height: 52px; }
+.uw-fda .ax { position: absolute; left: 0; right: 0; top: 22px; border-top: 1px solid var(--rule-strong); }
+.uw-fda .mo { position: absolute; bottom: 0; height: 10px; line-height: 10px; padding-left: 3px;
+  border-left: 1px solid var(--rule); font-family: var(--font-mono); font-size: 9.5px;
+  color: var(--muted); }
+.uw-fda .today { position: absolute; top: 4px; bottom: 12px; border-left: 1px dashed var(--muted); }
+.uw-fda .fm { position: absolute; top: 22px; width: 8px; height: 8px; box-sizing: border-box;
+  transform: translate(-50%, -50%); cursor: pointer; z-index: 2; }
+.uw-fda .fm.nda { border-radius: 50%; background: var(--flag); }
+.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--flag);
+  transform: translate(-50%, -50%) rotate(45deg); }
+.uw-fda .fm.anda { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--muted);
+  background: var(--ground); }
+.uw-fda .fm.ahead { width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--flag);
+  background: var(--ground); }
+.uw-fda .fm:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--flag) 35%, transparent); }
+.uw-fda .fl { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px;
+  line-height: 12px; color: var(--text); cursor: pointer; }
+.uw-fda .fl.t0 { top: 3px; }
+.uw-fda .fl.t1 { top: 28px; }
+.uw-fda .fl i { font-style: normal; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); }
+.uw-fda .fl.ahead { color: var(--flag); }
+.uw-fda .fl b { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; }

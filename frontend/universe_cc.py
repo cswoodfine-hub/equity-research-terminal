@@ -2193,12 +2193,101 @@ def ribbon_html(p):
             f'<div class="uw-cells">{"".join(cells)}</div></section>')
 
 
+# --------------------------------------------------------------- the FDA approvals row
+FDA_SHAPE = {"NDA": "nda", "BLA": "bla", "ANDA": "anda"}
+FDA_LABEL_PX = 6.3          # an average character at the row's 10.5px label size
+FDA_ROW_PX = 1240           # the row's plot width at 1440, for spacing labels
+
+
+def _fda_label(name):
+    name = (name or "").strip()
+    return name if not name.isupper() else name.title()
+
+
+def fda_row_html(p):
+    """The year's FDA approvals across the group on one line, 1 January to 31 December:
+    each approval a marker on the day it came, shaped by its application (a small
+    molecule's NDA a disc, a biologic's BLA a diamond, a generic's ANDA a small ring),
+    the FDA decisions dated ahead this year as hollow amber rings, and today's line.
+    Brand names sit above and below the line where they fit, never over each other; a
+    marker's hover gives its company, application and date, and a click opens the
+    company. A generic carries no name on the line."""
+    today = _d(p.get("today"))
+    if not today:
+        return ""
+    y0, y1 = dt.date(today.year, 1, 1), dt.date(today.year, 12, 31)
+    span = (y1 - y0).days
+    lanes = p.get("lanes") or {}
+    apprs = sorted([a for a in lanes.get("approvals") or []
+                    if _d(a.get("date")) and y0 <= _d(a["date"]) <= today],
+                   key=lambda a: a["date"])
+    ahead = sorted([e for e in lanes.get("events") or []
+                    if e.get("regulatory") and not e.get("month") and _d(e.get("date"))
+                    and today < _d(e["date"]) <= y1], key=lambda e: e["date"])
+
+    def X(d):
+        return (_d(d) - y0).days / span * 100
+    marks, labels = [], []
+    last_end = {0: -99.0, 1: -99.0}
+    for a in apprs:
+        x = X(a["date"])
+        kind = FDA_SHAPE.get(a.get("application_type") or "", "nda")
+        tip = (f'{a["ticker"]} {_fda_label(a.get("label"))}: {a.get("application_type") or "FDA"} '
+               f'{a.get("application_number") or ""} approved {dlong(a["date"])}')
+        marks.append(f'<span class="fm {kind}" data-ticker="{esc(a["ticker"])}" '
+                     f'style="left:{x:.2f}%" title="{esc(tip)}"></span>')
+        if kind == "anda":
+            continue
+        text = f'{_fda_label(a.get("label"))} {a["ticker"]}'
+        w = len(text) * FDA_LABEL_PX / FDA_ROW_PX * 100
+        for tier in (0, 1):
+            if x - w / 2 > last_end[tier] + 0.6:
+                left = min(max(x, w / 2), 100 - w / 2)
+                labels.append(f'<span class="fl t{tier}" data-ticker="{esc(a["ticker"])}" '
+                              f'style="left:{left:.2f}%">{esc(_fda_label(a.get("label")))} '
+                              f'<i>{esc(a["ticker"])}</i></span>')
+                last_end[tier] = left + w / 2
+                break
+    for e in ahead:
+        x = X(e["date"])
+        name = e.get("short") or e.get("title") or ""
+        tip = f'{e["ticker"]} {name}: {e.get("type") or "FDA decision"} {dlong(e["date"])}'
+        marks.append(f'<span class="fm ahead" data-ticker="{esc(e["ticker"])}" '
+                     f'style="left:{x:.2f}%" title="{esc(tip)}"></span>')
+        text = f'{name} {e["ticker"]}'
+        w = len(text) * FDA_LABEL_PX / FDA_ROW_PX * 100
+        for tier in (0, 1):
+            if x - w / 2 > last_end[tier] + 0.6:
+                left = min(max(x, w / 2), 100 - w / 2)
+                labels.append(f'<span class="fl t{tier} ahead" data-ticker="{esc(e["ticker"])}" '
+                              f'style="left:{left:.2f}%">{esc(name)} <i>{esc(e["ticker"])}</i> '
+                              f'<b>{esc(dday(e["date"]))}</b></span>')
+                last_end[tier] = left + w / 2
+                break
+    months = "".join(f'<span class="mo" style="left:{X(dt.date(today.year, m, 1).isoformat()):.2f}%">'
+                     f'{dt.date(today.year, m, 1):%b}</span>' for m in range(1, 13))
+    by = {}
+    for a in apprs:
+        by[a.get("application_type") or "other"] = by.get(a.get("application_type") or "other", 0) + 1
+    split = ", ".join(f"{by[k]} {k}" for k in ("NDA", "BLA", "ANDA") if by.get(k))
+    count = f"{len(apprs)} this year" + (f" · {len(ahead)} dated ahead" if ahead else "")
+    return (f'<section class="uw-fda" data-from="the FDA row"><div class="lab"><b>FDA approvals '
+            f'{today.year}</b><span title="{esc(split)}">{esc(count)}</span>'
+            f'<span class="key"><i class="nda"></i>NDA <i class="bla"></i>BLA '
+            f'<i class="anda"></i>generic <i class="ahead"></i>ahead</span></div>'
+            f'<div class="tl"><span class="ax"></span>{months}'
+            f'<span class="today" style="left:{X(today.isoformat()):.2f}%" '
+            f'title="Today, {esc(dlong(today.isoformat()))}"></span>'
+            f'{"".join(marks)}{"".join(labels)}</div></section>')
+
+
 def front_html(p):
-    """Everything the uvboard frame draws: the ranked news and the board side by side, the
-    ribbon under them. Every story is drawn at one size, rank 1 included."""
+    """Everything the uvboard frame draws: the ranked news and the board side by side,
+    then the year's FDA approvals on one line and the ribbon. Every story is drawn at one
+    size, rank 1 included."""
     return (f'<div class="uv uv-frame uw-front"><div class="uw-band">'
             f'<div class="uw-news" data-from="the news">{ranked_html(p)}</div>'
-            f'{board_html(p)}</div>{ribbon_html(p)}</div>')
+            f'{board_html(p)}</div>{fda_row_html(p)}{ribbon_html(p)}</div>')
 
 
 # ------------------------------------------------------------- the equal-weighted index
