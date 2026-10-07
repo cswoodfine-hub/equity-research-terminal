@@ -1043,6 +1043,13 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land.ar-table .sc {{ width: 30px; margin-right: 5px; }}
 .land.ar-table td.ar-nd {{ font-family: var(--font-ui); font-size: 10px; cursor: help; }}
 .land.ar-table .ar-pc {{ color: var(--muted); font-size: 10px; margin-left: 5px; cursor: help; }}
+/* A pillar's weight under its name in the head, and the rule above the companies with
+   too little on file to rank. */
+.land.ar-table th .ar-w {{ display: block; font-size: 9px; letter-spacing: 0.04em;
+  color: var(--muted); opacity: 0.8; margin-top: 1px; text-transform: none; }}
+.land.ar-table tr.ar-thin td {{ font-family: var(--font-ui); font-size: 9.5px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  padding-top: 6px; background: var(--ground); }}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
              text-transform: uppercase; color: var(--muted);

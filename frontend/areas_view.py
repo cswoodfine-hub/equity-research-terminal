@@ -20,6 +20,9 @@ import re
 NO_DATA = "no free data"
 PILLARS = (("value", "value today"), ("pipeline", "pipeline"),
            ("durability", "durability"), ("clinical", "clinical quality"))
+# The overall's weights when the payload does not carry them (backend/disease_areas.py).
+WEIGHTS = {"value": 0.35, "pipeline": 0.25, "clinical": 0.25, "durability": 0.15}
+THIN = "too little on file"
 # A card holds its text inside its box (theme.py, .sc-cards): the title on one line, a
 # headline of two and a detail of three at the narrowest the row is drawn (1366 wide).
 CARD_TITLE_MAX = 30
@@ -133,13 +136,19 @@ def tip(r: dict) -> str:
     return head + parts + f". {cap(marketed_text(r))}, {pipeline_text(r)}."
 
 
+def ranked(r: dict) -> bool:
+    """Ranked: at least three of the four pillars scored (the payload says so)."""
+    return bool(r.get("ranked", r.get("rank") is not None))
+
+
 def map_points(rows: list) -> list:
-    """One bubble a company with a value today and a pipeline score: value across,
-    pipeline up, sized by clinical quality, solid when all four pillars are scored."""
+    """One bubble a ranked company with a value today and a pipeline score: value across,
+    pipeline up, sized by clinical quality, solid when all four pillars are scored. A
+    company with too little on file is left off and counted beside the chart."""
     out = []
     for r in rows:
         s = r.get("scores") or {}
-        if s.get("value") is None or s.get("pipeline") is None:
+        if not ranked(r) or s.get("value") is None or s.get("pipeline") is None:
             continue
         out.append({"ticker": r["ticker"], "x": s["value"], "y": s["pipeline"],
                     "size": s.get("clinical"), "rank": r.get("rank"),
@@ -148,10 +157,15 @@ def map_points(rows: list) -> list:
 
 
 def off_chart(rows: list) -> list:
-    """The companies the chart cannot place, each with the pillar it lacks."""
+    """The companies the chart cannot place: too little on file to rank, or no value
+    today or pipeline score to place by."""
     out = []
     for r in rows:
         s = r.get("scores") or {}
+        if not ranked(r):
+            out.append(f'{short_name(r.get("name"), r["ticker"])} ({r["ticker"]}): {THIN}, '
+                       f'{r.get("pillars", 0)} of 4 pillars')
+            continue
         missing = [label for key, label in PILLARS[:2] if s.get(key) is None]
         if missing:
             out.append(f'{short_name(r.get("name"), r["ticker"])} ({r["ticker"]}): '
@@ -175,18 +189,32 @@ def _raw_cell(text, why: str = "", plain: bool = False) -> str:
     return f'<td class="{cls}"{hover}>{esc(text)}</td>'
 
 
-def table_html(rows: list, ticker: str, horizon_end) -> str:
+def _weight(weights: dict, key: str) -> str:
+    return f'<span class="ar-w">{weights.get(key, 0) * 100:.0f}%</span>'
+
+
+def table_html(rows: list, ticker: str, horizon_end, weights: dict | None = None) -> str:
     """The ranked table: rank, company, overall with its pillar count, the four pillar
-    scores, then the raw figures behind them, which the table scrolls sideways to."""
+    scores with their weights in the head, then the raw figures behind them, which the
+    table scrolls sideways to. The companies with too little on file follow the ranked
+    ones under a rule of their own, with no rank and no overall."""
+    weights = weights or WEIGHTS
     body = ""
+    thin_started = False
     for r in rows:
+        if not ranked(r) and not thin_started:
+            thin_started = True
+            body += (f'<tr class="grp ar-thin"><td colspan="13">{THIN.capitalize()} to rank: '
+                     f'fewer than 3 of the 4 pillars</td></tr>')
         focal = r["ticker"] == ticker
         s = r.get("scores") or {}
         v, p, d, c = (r.get(k) or {} for k in ("value", "pipeline", "durability", "clinical"))
         name = esc(short_name(r.get("name"), r["ticker"]))
         name = f"<b>{name}</b>" if focal else name
         ov = r.get("overall")
-        overall = (f'<td class="n m ar-nd">{NO_DATA}</td>' if ov is None else
+        overall = (f'<td class="n m ar-nd" title="{r.get("pillars", 0)} of 4 pillars scored">'
+                   f'{THIN}</td>' if not ranked(r) else
+                   f'<td class="n m ar-nd">{NO_DATA}</td>' if ov is None else
                    f'<td class="n"><span class="sc{" sc-f" if focal else ""}"><i style="width:'
                    f'{max(0.0, min(100.0, ov)):.0f}%"></i></span>{ov:.0f}'
                    f'<span class="ar-pc" title="pillars scored">{r.get("pillars", 0)}/4</span>'
@@ -228,13 +256,18 @@ def table_html(rows: list, ticker: str, horizon_end) -> str:
             + _raw_cell(str(len(c.get("drugs") or [])),
                         ", ".join(f'{x["name"]} {x["mean"]:.0f}' for x in c.get("drugs") or []))
             + "</tr>")
+    w = lambda k: _weight(weights, k)
     head = ('<th>#</th><th>company</th>'
-            '<th title="Mean of the pillars it has, and how many">overall</th>'
-            '<th title="Risked value of its marketed products here">value today</th>'
-            '<th title="Risked pipeline value and Phase 3 or filed depth">pipeline</th>'
-            '<th title="Less revenue losing exclusivity within 5 years scores higher">'
-            'durability</th>'
-            '<th title="Mean indication score of its scored drugs here">clinical</th>'
+            '<th title="Weighted mean of the pillars it has, renormalised, and how many; '
+            'at least 3 of 4 to be ranked">overall<span class="ar-w">weighted</span></th>'
+            '<th title="Risked value of its marketed products here, percentile rank">'
+            f'value today{w("value")}</th>'
+            '<th title="Risked pipeline value and Phase 3 or filed depth, percentile rank">'
+            f'pipeline{w("pipeline")}</th>'
+            '<th title="Less revenue losing exclusivity within 5 years scores higher, '
+            f'percentile rank">durability{w("durability")}</th>'
+            '<th title="Mean indication score of its scored drugs here, as scored">'
+            f'clinical{w("clinical")}</th>'
             '<th class="sc-reg" title="Risked value of marketed products, USD">value</th>'
             '<th class="sc-reg" title="This area\'s share of the company\'s product value">'
             'of co.</th>'
@@ -256,11 +289,12 @@ def method_html(method: dict, off: list) -> str:
              ("Clinical quality", method.get("clinical"))]
     body = "".join(f'<div><span class="k">{k}:</span> {esc(v)}</div>' for k, v in parts if v)
     rest = "".join(f"<div>{esc(method[k])}</div>" for k in
-                   ("scale", "overall", "assignment", "currency", "readouts") if method.get(k))
+                   ("scale", "overall", "ranking", "assignment", "currency", "readouts")
+                   if method.get(k))
     gone = (f'<div class="sc-terms"><div>Not on the chart, because a score is never '
             f'guessed.</div><div>{esc("; ".join(off))}.</div></div>' if off else "")
     return (f'<div class="how-read sc-how"><div>How it is scored, each pillar from 0 to '
-            f'100 within the area.</div>{body}{rest}{gone}</div>')
+            f'100.</div>{body}{rest}{gone}</div>')
 
 
 def rests_on_html(rows: list, horizon_end) -> str:
@@ -301,7 +335,8 @@ def rests_on_html(rows: list, horizon_end) -> str:
                  + (f', {ro.get("priced")} priced, {money(ro.get("stake_usd_bn"))} at stake.'
                     if ro.get("stake_usd_bn") is not None else ", none priced."))
         meta = (f'{r["ticker"]} · overall {r["overall"]:.0f} on {r["pillars"]} of 4 pillars'
-                if r.get("overall") is not None else r["ticker"])
+                if r.get("overall") is not None else
+                f'{r["ticker"]} · {THIN}, {r.get("pillars", 0)} of 4 pillars')
         lines = [(f'Value today {score(s.get("value"))}', value),
                  (f'Pipeline {score(s.get("pipeline"))}', pipe),
                  (f'Durability {score(s.get("durability"))}', dur),
@@ -329,10 +364,10 @@ def company_card(page: dict, ticker: str, name: str | None = None) -> dict:
                 "detail": "No marketed product, Phase 2 or later asset or modelled line "
                           "of its sits here."}
     s = mine.get("scores") or {}
-    ranked = sum(1 for r in rows if r.get("rank"))
-    head = (f'Ranks {mine["rank"]} of {ranked} at {mine["overall"]:.0f}, on '
+    n_ranked = sum(1 for r in rows if r.get("rank"))
+    head = (f'Ranks {mine["rank"]} of {n_ranked} at {mine["overall"]:.0f}, on '
             f'{mine["pillars"]} of 4 pillars' if mine.get("rank") else
-            f"{who} is present with no pillar scored")
+            f'{cap(THIN)} to rank: {mine.get("pillars", 0)} of 4 pillars')
     d = mine.get("durability") or {}
     detail = (f'Value today {score(s.get("value"))}, pipeline {score(s.get("pipeline"))}, '
               f'durability {score(s.get("durability"))}, clinical {score(s.get("clinical"))}. '

@@ -89,8 +89,34 @@ def test_every_block_draws_on_the_saved_pages(page):
     for key, markup in out.items():
         assert markup, key
     rows = page["companies"]
-    assert out["table"].count("<tr") == len(rows) + 1
+    thin = any(not r["ranked"] for r in rows)
+    # The head, a row a company, and one rule above those with too little on file.
+    assert out["table"].count("<tr") == len(rows) + 1 + (1 if thin else 0)
     assert out["cards"].count('<div class="vc ') == 5
+
+
+def test_the_table_lists_the_ranked_then_those_with_too_little_on_file(page):
+    rows = page["companies"]
+    ranks = [r["rank"] for r in rows]
+    n = sum(1 for r in rows if r["ranked"])
+    assert ranks[:n] == list(range(1, n + 1)) and all(x is None for x in ranks[n:])
+    table = AV.table_html(rows, "AZN", page["horizon_end"], page["weights"])
+    if n < len(rows):
+        rule = table.index("Too little on file to rank")
+        first_thin = rows[n]["ticker"]
+        assert rule < table.index(f'<span class="m">{first_thin}</span>')
+        assert table.count(">too little on file</td>") == len(rows) - n
+
+
+def test_the_table_head_and_the_method_state_the_weights(page):
+    head = AV.table_html(page["companies"], "AZN", page["horizon_end"],
+                         page["weights"]).split("</thead>")[0]
+    for label, w in (("value today", "35%"), ("pipeline", "25%"), ("durability", "15%"),
+                     ("clinical", "25%")):
+        assert re.search(rf">{label}<span class=\"ar-w\">{w}</span>", head), label
+    how = _visible(AV.method_html(page["method"], AV.off_chart(page["companies"])))
+    assert "value today 35%, pipeline 25%, clinical quality 25% and durability 15%" in how
+    assert "at least 3 of the 4 pillars" in how
 
 
 def test_the_selected_companys_areas_come_first_most_assets_first():
@@ -107,7 +133,7 @@ def test_the_selected_companys_areas_come_first_most_assets_first():
 def test_the_chart_places_every_company_with_both_scores_and_labels_each(page):
     rows = page["companies"]
     points = AV.map_points(rows)
-    on = [r for r in rows if r["scores"]["value"] is not None
+    on = [r for r in rows if r["ranked"] and r["scores"]["value"] is not None
           and r["scores"]["pipeline"] is not None]
     assert len(points) == len(on)
     svg = CH.area_map(points, 720, 480, highlight="AZN")
@@ -166,6 +192,20 @@ def test_the_card_text_fits_its_box(page):
     # The whole of each card is its hover.
     markup = AV.card_html(cards[0])
     assert html.escape(cards[0]["headline"], quote=True) in markup.split('title="')[1]
+
+
+def test_the_company_card_of_a_company_with_too_little_on_file():
+    p = _load("oncology")
+    thin = next(r for r in p["companies"] if not r["ranked"])
+    c = AV.company_card(p, thin["ticker"])
+    assert c["headline"] == f'Too little on file to rank: {thin["pillars"]} of 4 pillars'
+    assert len(c["headline"]) <= AV.CARD_HEAD_MAX
+
+
+def test_no_card_picks_a_company_with_too_little_on_file(page):
+    thin = {AV.short_name(r["name"]) for r in page["companies"] if not r["ranked"]}
+    for c in page["cards"]:
+        assert not any(c["headline"].startswith(t) for t in thin), c
 
 
 def test_the_company_card_names_a_company_with_nothing_here():

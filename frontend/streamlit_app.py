@@ -2795,9 +2795,19 @@ def _disease_areas(api_base: str, ticker: str) -> None:
         with st.popover("How it is scored", use_container_width=True):
             st.markdown(AV.method_html(page.get("method") or {}, AV.off_chart(rows)),
                         unsafe_allow_html=True)
+    thin = sum(1 for r in rows if not AV.ranked(r))
+    weights = page.get("weights") or AV.WEIGHTS
     with st.container(key="area_sc_head"):
-        section("Area scorecard", f"{len(points)} of {len(rows)} on the chart",
-                basis="value today, pipeline, durability and clinical quality, averaged")
+        # A company with too little on file to rank is left off the chart and counted.
+        section("Area scorecard",
+                f"{len(points)} of {len(rows)} on the chart"
+                + (f" · {thin} with {AV.THIN}" if thin else ""),
+                basis=", ".join(f"{label} {weights.get(key, 0) * 100:.0f}%"
+                                for key, label in (("value", "value today"),
+                                                   ("pipeline", "pipeline"),
+                                                   ("clinical", "clinical quality"),
+                                                   ("durability", "durability")))
+                + ", weighted")
     with st.container(key="area_map"):
         left, right = st.columns([1.4, 1], gap="medium")
     with left:
@@ -2808,7 +2818,7 @@ def _disease_areas(api_base: str, ticker: str) -> None:
             state("Nothing to chart", "no company here has both a value today and a "
                   "pipeline score")
     with right:
-        st.markdown(AV.table_html(rows, ticker, page.get("horizon_end")),
+        st.markdown(AV.table_html(rows, ticker, page.get("horizon_end"), weights),
                     unsafe_allow_html=True)
     cards = list(page.get("cards") or []) + [
         AV.company_card(page, ticker, globals().get("names", {}).get(ticker))]
