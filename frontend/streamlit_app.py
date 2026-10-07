@@ -44,6 +44,11 @@ from components import clicklist
 from components import compsval
 from components import prodcards
 from components import drawchart
+try:                                    # the drug card's click listener
+    from components import drugclick
+except Exception:                       # pragma: no cover - a broken install only
+    drugclick = None
+import drug_card_view as DCV
 from components import render as R
 from components import tokens as TK
 
@@ -2498,7 +2503,11 @@ def _score_rows(placed: list, ticker: str) -> str:
         reg = a.get("regimen") or {}
         why = reg.get("why") or {}
         n = reg.get("participants")
-        rows += (f'<tr class="{"sc-mine" if focal else ""}">'
+        # A row with an id opens the drug's card (_drug_click).
+        label = html_escape(a["name"]).replace('"', "&quot;")
+        hit = (f' data-drug="{a["asset_id"]}" tabindex="0" title="Open the card for {label}"'
+               if a.get("asset_id") is not None else "")
+        rows += (f'<tr class="{"sc-mine" if focal else ""}"{hit}>'
                  f'<td class="n m sc-rk">{rank}</td>'
                  f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
                  f'<td class="m sc-txt">{html_escape(_stage_short(a["stage"]))}</td>'
@@ -2627,7 +2636,8 @@ def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None, slots=None)
               "y": a["safety"]["score"], "evidence": a["evidence"].get("score"),
               "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
               "nosize": a["efficacy"].get("size_basis") == "not comparable",
-              "tip": _score_tip(a)} for a in placed],
+              "tip": _score_tip(a) + " Click for its card.", "id": a.get("asset_id")}
+             for a in placed],
             720, 480, highlight=ticker,
             x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
                                                for a in placed)
@@ -2724,6 +2734,8 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
         # table, and what each score rests on and how it is scored close the view.
         _landscape_scorecard(ov["scorecard"], ticker, cards[1:] if placed else (),
                              cards[0] if placed and cards else None, slots)
+        if placed:
+            _drug_click(api_base, pick, {a.get("asset_id"): a["name"] for a in placed})
     if not cards:
         if not ov.get("scorecard"):
             state("Not enough to read yet", "no candidate here has posted results or a model")
@@ -2736,6 +2748,47 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
         st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
                                                        for c in rest)
                     + "</div>", unsafe_allow_html=True)
+
+
+# --- The drug card ---------------------------------------------------------
+# A click on a drug's bubble in the clinical scorecard or its row in the ranked table opens
+# its card: everything the book holds on the drug in this indication (backend/drug_card.py,
+# drawn by drug_card_view.py). The chart and the table stay markdown in the page, sized by
+# the stylesheet; a hidden frame listens for the click and returns the drug, so the
+# session reruns on the same tab rather than a link reloading the page.
+def _drug_click(api_base: str, pick: int, names: dict) -> None:
+    """Hear a click on a drug in the overview and open its card, once per click."""
+    if drugclick is None:
+        return
+    with st.container(key="sc_click"):
+        got = drugclick.drug_click(".st-key-sc_map", key=f"sc_click_{pick}")
+    if not (isinstance(got, dict) and got.get("asset") is not None
+            and got.get("nonce") != st.session_state.get("_sc_click_seen")):
+        return
+    st.session_state["_sc_click_seen"] = got.get("nonce")
+    try:
+        asset_id = int(got["asset"])
+    except (TypeError, ValueError):
+        return
+    _drug_dialog(api_base, pick, asset_id, names.get(asset_id) or "The drug")
+
+
+def _drug_dialog(api_base: str, pick: int, asset_id: int, name: str) -> None:
+    @st.dialog(name, width="large")
+    def _body():
+        try:
+            with st.spinner("Reading its trials, model and market"):
+                card = _get_long(api_base, f"/indications/{pick}/drug/{asset_id}")
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            state("The card did not load", html_escape(str(exc)), error=True)
+            return
+        head, panes = DCV.card_html(card)
+        st.markdown(head, unsafe_allow_html=True)
+        for tab, (_label, markup) in zip(st.tabs([p[0] for p in panes]), panes):
+            with tab:
+                st.markdown(markup, unsafe_allow_html=True)
+
+    _body()
 
 
 def _stage_chip(stage: str) -> str:

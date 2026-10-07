@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }</style>
+</head>
+<body>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let scope = "";
+
+function hit(target) {
+  if (!scope || !target || !target.closest) return null;
+  return target.closest(scope + " [data-drug]");
+}
+
+function send(el) {
+  const asset = el.getAttribute("data-drug");
+  if (!asset) return;
+  const from = (el.ownerSVGElement || el.tagName.toLowerCase() === "svg") ? "chart" : "table";
+  Streamlit.value({ asset: asset, from: from, nonce: Date.now() + Math.random() });
+}
+
+function onClick(ev) {
+  const el = hit(ev.target);
+  if (!el) return;
+  ev.preventDefault();
+  send(el);
+}
+
+function onKey(ev) {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  const el = hit(ev.target);
+  if (!el) return;
+  ev.preventDefault();
+  send(el);
+}
+
+function install() {
+  // One listener on the parent document whatever the number of reruns: a frame replaced
+  // by a rerun hands the listener to its successor, so a dead frame never answers.
+  try {
+    const pw = window.parent;
+    const prev = pw.__erDrugClick;
+    if (prev && prev.win !== window) {
+      pw.document.removeEventListener("click", prev.click, true);
+      pw.document.removeEventListener("keydown", prev.key, true);
+    }
+    if (!prev || prev.win !== window) {
+      pw.document.addEventListener("click", onClick, true);
+      pw.document.addEventListener("keydown", onKey, true);
+      pw.__erDrugClick = { win: window, click: onClick, key: onKey };
+    }
+  } catch (e) { /* not same-origin: the chart and the table stay read-only */ }
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  scope = (d.args || {}).scope || "";
+  install();
+  Streamlit.height(0);
+});
+window.addEventListener("unload", function () {
+  try {
+    const pw = window.parent, prev = pw.__erDrugClick;
+    if (prev && prev.win === window) {
+      pw.document.removeEventListener("click", prev.click, true);
+      pw.document.removeEventListener("keydown", prev.key, true);
+      pw.__erDrugClick = null;
+    }
+  } catch (err) { /* gone */ }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>

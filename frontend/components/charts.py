@@ -753,10 +753,12 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
     tolerability up, so top right is where a drug wants to be.
 
     Each point: {name, ticker, x, y, evidence (0 to 100, or None), stage, boxed, rank,
-    tip, nosize}. Bubble size is the weight of evidence, so a position resting on one
-    small trial looks small, and each bubble carries its rank in the table, so the two
-    read together without a label. The focal company's drugs (``highlight`` ticker) are
-    drawn in the accent with a gap ringed round each, so two that overlap stay two. The
+    tip, nosize, id}. A point with an ``id`` is drawn as a hit area: its bubble and
+    label carry ``data-drug``, which the page's click listener reads. Bubble size is the
+    weight of evidence, so a position resting on one small trial looks small, and each
+    bubble carries its rank in the table, so the two read together without a label. The
+    focal company's drugs (``highlight`` ticker) are drawn in the accent with a gap
+    ringed round each, so two that overlap stay two. The
     top five by rank are labelled first, then the focal company's drugs, then peers best
     first as far as there is room; a label that cannot sit beside its bubble is drawn in
     free space with a thin leader line to it, or left off. Stage is the fill: solid for a
@@ -775,6 +777,14 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
             fill, opacity = "none", "1"
         tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
         out = []
+        # A point with an id is a hit area: grouped under data-drug, with a ring the page's
+        # stylesheet shows on hover and focus (theme.py, the drug card block).
+        if p.get("id") is not None:
+            out.append(f'<g class="sc-pt" data-drug="{_esc(str(p["id"]))}" tabindex="0"'
+                       f' role="button" aria-label="{_esc(p["name"])}: open its card">')
+            out.append(f'<circle class="sc-ring" cx="{px_:.1f}" cy="{py_:.1f}"'
+                       f' r="{r + 4:.1f}" fill="none" stroke="{TK.TEXT}"'
+                       f' stroke-width="1.4" opacity="0"/>')
         if p.get("boxed"):
             out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 3:.1f}" fill="none"'
                        f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="2 2"/>')
@@ -787,6 +797,8 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
                    f'{tip}</circle>')
         if p.get("rank") is not None:
             out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine))
+        if p.get("id") is not None:
+            out.append("</g>")
         return out
 
     keys = [
@@ -816,7 +828,9 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
         y_title="safety and tolerability score  →  better",
         draw=draw, keys=keys,
         label_of=lambda p: p["name"] + (" †" if p.get("nosize") else ""),
-        reach=lambda p, r: r + (3 if p.get("boxed") else 0))
+        reach=lambda p, r: r + (3 if p.get("boxed") else 0),
+        label_attr=lambda p: (f' class="sc-label" data-drug="{_esc(str(p["id"]))}"'
+                              if p.get("id") is not None else ""))
 
 
 def _bubble_rank(rank, px_: float, py_: float, opacity: str, mine: bool) -> str:
