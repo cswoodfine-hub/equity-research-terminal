@@ -925,15 +925,22 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   .st-key-sc_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
     width: 100% !important; min-width: 100% !important; }}
 }}
-/* Beside the chart the table shows its scores up to N, its column fixed to that width,
-   and scrolls sideways to the four regimen columns. Fixed column widths make "up to N"
-   exact; a long name ends in an ellipsis with the whole of it in the score notes. */
+/* An indication's overview on one screen. --sc-h is the height the screen leaves the chart
+   and the table once the head line, the figures, the scorecard's head and the card row
+   are drawn; the chart keeps its own shape at that height and the table fills the rest of
+   the width, scrolling inside it, down and across, its head held at the top. */
+:root {{ --sc-h: clamp(260px, calc(100vh - 435px), 620px); }}
 @media (min-width: 1100px) {{
-  .st-key-sc_map [data-testid="stColumn"]:last-child {{ flex: 0 0 686px !important;
-    width: 686px !important; min-width: 686px !important; }}
-  .st-key-sc_map [data-testid="stColumn"]:first-child {{ flex: 1 1 0 !important; min-width: 0; }}
+  .st-key-sc_map [data-testid="stColumn"]:first-child {{
+    flex: 0 0 calc(var(--sc-h) * 1.5) !important; width: auto !important; min-width: 0; }}
+  .st-key-sc_map [data-testid="stColumn"]:last-child {{ flex: 1 1 0 !important;
+    width: auto !important; min-width: 0; }}
+  .st-key-sc_map .chart-mount svg {{ width: 100% !important; height: var(--sc-h) !important; }}
+  .st-key-sc_map .land-wrap {{ height: var(--sc-h); overflow: auto; }}
 }}
-.st-key-sc_map .land.sc-table {{ table-layout: fixed; width: 1030px; min-width: 1030px; }}
+.st-key-sc_map .land.sc-table {{ table-layout: fixed; width: 1030px; min-width: 1030px; margin: 0; }}
+.st-key-sc_map .sc-table thead th {{ position: sticky; top: 0; z-index: 1;
+  background: var(--ground); }}
 .st-key-sc_map .sc-table th, .st-key-sc_map .sc-table td {{ box-sizing: border-box;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 .st-key-sc_map .sc-table tr > :nth-child(1) {{ width: 60px; }}
@@ -948,13 +955,36 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .st-key-sc_map .sc-table tr > :nth-child(10) {{ width: 58px; }}
 .st-key-sc_map .sc-table tr > :nth-child(11) {{ width: 92px; }}
 .st-key-sc_map .sc-table tr > :nth-child(12) {{ width: 80px; }}
-/* The readout cards under the chart, two by two: a card's detail is cut to three lines,
-   the whole of it on hover. */
-.sc-cards {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
-  margin-top: 6px; }}
-.sc-cards .vc {{ margin: 0; padding: 8px 10px; }}
-.sc-cards .vc-lead {{ grid-column: 1 / -1; }}
-.sc-cards .vc-lead .vc-head {{ font-size: 15px; }}
+/* The bottom line and the readout cards: one row of equal boxes under the chart and the
+   table, each cut to a few lines with the whole of it on hover. */
+.sc-cards {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px;
+  margin-top: 4px; }}
+.sc-cards .vc {{ margin: 0; padding: 7px 10px; height: 112px; box-sizing: border-box;
+  overflow: hidden; cursor: help; }}
+.sc-cards .vc-title {{ margin-bottom: 2px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }}
+.sc-cards .vc-head {{ font-size: 12.5px; line-height: 1.3; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }}
+.sc-cards .vc-lead .vc-head {{ font-size: 13px; -webkit-line-clamp: 4; }}
+.sc-cards .vc-lead .vc-title {{ color: var(--text); }}
+.sc-cards .vc-detail {{ font-size: 11px; line-height: 1.35; margin-top: 3px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+@media (max-width: 1099.98px) {{
+  .sc-cards {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .sc-cards .vc {{ height: auto; }}
+}}
+/* The overview's head: the indication beside the view switch, the figures tight under it,
+   the scorecard's head with its two pop-outs. */
+.st-key-land_head [data-testid="stColumn"]:last-child [data-testid="stVerticalBlock"] {{
+  align-items: flex-end; }}
+.pos.land-pos {{ gap: 0.3rem 1.7rem; padding: 0; flex-wrap: wrap; justify-content: space-between; }}
+.st-key-land_head {{ margin-top: -12px; }}
+.pos.land-pos .v {{ font-size: 1.02rem; line-height: 1.25; }}
+.pos.land-pos .sub {{ margin-top: 0; white-space: nowrap; }}
+.st-key-sc_head .sec {{ margin: 0; }}
+.st-key-sc_head [data-testid="stPopover"] button,
+.st-key-land_head [data-testid="stPopover"] button {{ min-height: 30px; padding: 1px 8px;
+  font-size: 11.5px; }}
 .sc-cards .vc-head {{ font-size: 13px; line-height: 1.3; }}
 .sc-cards .vc-detail {{ font-size: 11.5px; line-height: 1.4; margin-top: 4px; cursor: help;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}

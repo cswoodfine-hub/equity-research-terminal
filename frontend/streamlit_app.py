@@ -2278,7 +2278,6 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     efficacy their trials posted against placebo, and their safety record against placebo
     in the same trials.
     """
-    section("Indication landscape")
     index = _landscape_index(api_base)
     if not index:
         state("No landscape yet", "the API returned no indications with a big pharma "
@@ -2287,14 +2286,22 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
     by_id = {i["id"]: i for i in index}
     mine = [i["id"] for i in index if ticker in (i.get("tickers") or [])]
     options = mine + [i["id"] for i in index if i["id"] not in mine]
+    # One line: the indication beside the view switch, so the overview fits one screen
+    # (theme.py, land_head).
+    with st.container(key="land_head"):
+        # The indication, the scorecard's two pop-outs (drawn by the overview) and the
+        # view switch, on one line.
+        head_pick, head_why, head_how, head_view = st.columns(
+            [0.36, 0.165, 0.165, 0.31], vertical_alignment="center")
     # No index is passed: the first option is the default, and a default beside a session
     # value draws a warning.
-    pick = st.selectbox(
-        "Indication", options, key=f"land_pick_{ticker}",
-        # The indication alone; how many companies develop it, and whether this one does,
-        # are the first figure under it.
-        format_func=lambda i: by_id[i]["name"],
-        label_visibility="collapsed")
+    with head_pick:
+        pick = st.selectbox(
+            "Indication", options, key=f"land_pick_{ticker}",
+            # The indication alone; how many companies develop it, and whether this one does,
+            # are the first figure under it.
+            format_func=lambda i: by_id[i]["name"],
+            label_visibility="collapsed")
     with st.spinner("Reading every candidate's trials and safety record"):
         try:
             # Longer than the page's usual 30 seconds: a landscape whose companies have
@@ -2334,7 +2341,7 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
                       + (f' · {_pct(pool.get("uncrowded_share"), 0)} claimed, '
                          f'{_pct(pool.get("crowded_share"), 0)} after crowding'
                          if pool.get("uncrowded_share") is not None else "")))
-    st.markdown('<div class="pos">' + "".join(
+    st.markdown('<div class="pos land-pos">' + "".join(
         f'<span><span class="k">{html_escape(k)}</span><span class="v {cls}">{html_escape(v)}'
         f'</span><span class="sub">{html_escape(sub)}</span></span>'
         for k, v, cls, sub in cells) + "</div>", unsafe_allow_html=True)
@@ -2344,11 +2351,12 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
 
     # A switch, not a third level of tabs: this sits inside the Comps tab's own views,
     # and tabs inside tabs inside tabs read as three navigations at once.
-    view = st.segmented_control(
-        "View", ["Overview", "Candidates", "Efficacy", "Safety"], default="Overview",
-        key=f"land_view_{pick}", label_visibility="collapsed") or "Overview"
+    with head_view:
+        view = st.segmented_control(
+            "View", ["Overview", "Candidates", "Efficacy", "Safety"], default="Overview",
+            key=f"land_view_{pick}", label_visibility="collapsed") or "Overview"
     if view == "Overview":
-        _landscape_overview(api_base, pick, ticker)
+        _landscape_overview(api_base, pick, ticker, (head_why, head_how))
     elif view == "Candidates":
         _landscape_candidates(cands)
     elif view == "Efficacy":
@@ -2376,13 +2384,14 @@ def _verdict_card(card: dict, lead: bool = False, meaning: bool = True,
                   compact: bool = False) -> str:
     """One verdict card. ``compact`` is the card beside the scorecard's table: its detail
     is cut to a few lines and the whole of it is on hover."""
-    tip = (f' title="{html_escape(card["detail"])}"' if compact and card.get("detail") else "")
-    detail = (f'<div class="vc-detail"{tip}>{html_escape(card["detail"])}</div>'
+    tip = (f' title="{html_escape(" ".join(x for x in (card.get("headline"), card.get("detail")) if x))}"'
+           if compact else "")
+    detail = (f'<div class="vc-detail">{html_escape(card["detail"])}</div>'
               if card.get("detail") else "")
     mean = (f'<div class="vc-mean"><span>What this means</span>'
             f'{html_escape(card["meaning"])}</div>' if meaning and card.get("meaning") else "")
     return (f'<div class="vc{" vc-lead" if lead else ""}{" vc-compact" if compact else ""} '
-            f'vc-{html_escape(card["kind"])}">'
+            f'vc-{html_escape(card["kind"])}"{tip}>'
             f'<div class="vc-title">{html_escape(card["title"])}</div>'
             f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}{mean}</div>')
 
@@ -2563,7 +2572,7 @@ def _score_method(method: dict) -> str:
             f'{terms}</div></div>')
 
 
-def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None) -> None:
+def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None, slots=None) -> None:
     """The primary figure of an indication, laid out as Comps > Companies: the clinical
     scorecard on the left, the ranked table on the right. What each score rests on, how it
     is scored and who is not on the chart are a click away, never printed under it."""
@@ -2575,12 +2584,41 @@ def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None) -> None:
               "A score needs a posted result against a comparator and a safety figure "
               "against a control, and no candidate in this indication has both.")
         return
-    section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
-            basis="efficacy, safety and weight of evidence, averaged · posted results only")
-    # Keyed so the theme can stack the chart over the table on a narrow screen.
+    # The two explanations are pop-outs on the view's head line (``slots``), so nothing
+    # hangs under the view; without the slots they sit at the scorecard's head.
+    with st.container(key="sc_head"):
+        if slots:
+            h_why, h_how = slots
+            section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
+                    basis="efficacy, safety and weight of evidence, averaged · posted results only")
+        else:
+            h_sec, h_why, h_how = st.columns([0.7, 0.15, 0.15], vertical_alignment="center")
+            with h_sec:
+                section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
+                        basis="efficacy, safety and weight of evidence, averaged · "
+                              "posted results only")
+    with h_why:
+        with st.popover("What every score rests on", use_container_width=True):
+            st.markdown("".join(_score_why(a, numbered=True, notes=True) for a in placed),
+                        unsafe_allow_html=True)
+    with h_how:
+        with st.popover("How it is scored", use_container_width=True):
+            if rest:
+                by_reason: dict = {}
+                for a in rest:
+                    by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
+                parts = []
+                for reason, group in by_reason.items():
+                    names = ", ".join(f'{a["name"]} ({a["ticker"]})' for a in group[:8])
+                    more = f" and {len(group) - 8} more" if len(group) > 8 else ""
+                    parts.append(f"{_cap(reason)} ({len(group)}): {names}{more}.")
+                st.markdown('<div class="how-read">Not on the chart, because a score is never '
+                            f'guessed. {html_escape(" ".join(parts))}</div>',
+                            unsafe_allow_html=True)
+            st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
+    # The chart at its own shape and the table beside it, both as tall as the screen leaves
+    # (theme.py, --sc-h): the table scrolls inside, down and across.
     with st.container(key="sc_map"):
-        # The table's column is fixed to show the scores up to N (theme.py, sc_map); the
-        # chart takes the rest of the width.
         left, right = st.columns([1.4, 1], gap="medium")
     with left:
         chart = CH.score_map(
@@ -2595,33 +2633,15 @@ def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None) -> None:
                        else "efficacy score (strength and wins, no size)"))
         if chart:
             R.show(chart, css_class="chart-mount stretch")
-        # The bottom line and the readout cards fill the room under the chart, beside the
-        # table's length.
-        if lead or cards:
-            st.markdown('<div class="sc-cards">'
-                        + (_verdict_card(lead, lead=True, meaning=False) if lead else "")
-                        + "".join(_verdict_card(c, meaning=False, compact=True) for c in cards)
-                        + "</div>", unsafe_allow_html=True)
     with right:
         st.markdown(_score_rows(placed, ticker), unsafe_allow_html=True)
-
-    with st.expander("What every score rests on", expanded=False):
-        st.markdown("".join(_score_why(a, numbered=True, notes=True) for a in placed),
-                    unsafe_allow_html=True)
-    with st.expander("How it is scored", expanded=False):
-        if rest:
-            by_reason: dict = {}
-            for a in rest:
-                by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
-            parts = []
-            for reason, group in by_reason.items():
-                names = ", ".join(f'{a["name"]} ({a["ticker"]})' for a in group[:8])
-                more = f" and {len(group) - 8} more" if len(group) > 8 else ""
-                parts.append(f"{_cap(reason)} ({len(group)}): {names}{more}.")
-            st.markdown('<div class="how-read">Not on the chart, because a score is never '
-                        f'guessed. {html_escape(" ".join(parts))}</div>',
-                        unsafe_allow_html=True)
-        st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
+    # The bottom line and the readout cards: one row of equal boxes under both.
+    if lead or cards:
+        st.markdown('<div class="sc-cards">'
+                    + (_verdict_card(lead, lead=True, meaning=False, compact=True)
+                       if lead else "")
+                    + "".join(_verdict_card(c, meaning=False, compact=True) for c in cards)
+                    + "</div>", unsafe_allow_html=True)
 
 
 def _decap(text) -> str:
@@ -2629,7 +2649,7 @@ def _decap(text) -> str:
     return text[:1].lower() + text[1:] if text else text
 
 
-def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
+def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None) -> None:
     """The landscape read for you: the clinical scorecard beside its ranked table, then the
     verdict cards, each its headline and its evidence."""
     try:
@@ -2643,7 +2663,7 @@ def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
         # With a chart, the bottom line and the readout cards sit under it beside the
         # table, and what each score rests on and how it is scored close the view.
         _landscape_scorecard(ov["scorecard"], ticker, cards[1:] if placed else (),
-                             cards[0] if placed and cards else None)
+                             cards[0] if placed and cards else None, slots)
     if not cards:
         if not ov.get("scorecard"):
             state("Not enough to read yet", "no candidate here has posted results or a model")
