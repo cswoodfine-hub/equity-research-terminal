@@ -289,12 +289,13 @@ def test_the_focal_block_and_exposure():
     assert lane_types == {"NDA", "ANDA"}
 
 
-def test_the_xlv_week_is_read_on_the_same_five_sessions():
+def test_the_benchmark_week_is_read_on_the_same_five_sessions():
     bench = [[f"2026-09-{d:02d}", 100.0 + d] for d in (24, 25, 28, 29, 30)] + \
             [["2026-10-01", 140.0], ["2026-10-02", 141.0], ["2026-10-05", 142.0]]
     out = uc.assemble(_src(benchmark=bench), "AZN")
-    assert out["xlv_week"]["from"] == "2026-09-28" and out["xlv_week"]["to"] == "2026-10-05"
-    assert out["xlv_week"]["change"] == pytest.approx(142.0 / 128.0 - 1)
+    assert out["bench_week"]["from"] == "2026-09-28" and out["bench_week"]["to"] == "2026-10-05"
+    assert out["bench_week"]["change"] == pytest.approx(142.0 / 128.0 - 1)
+    assert out["benchmark_symbol"] == "PPH" and out["market_symbol"] == "S&P 500"
 
 
 def test_part_focal_skips_the_cohort_blocks():

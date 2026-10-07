@@ -53,7 +53,12 @@ RATE_SERIES = ("DGS10", "DFII10", "T10YIE", "BAMLC0A3CAEY")
 RATE_LABEL = {"DGS10": "10-year Treasury", "DFII10": "10-year real",
               "T10YIE": "Breakeven", "BAMLC0A3CAEY": "Single-A yield"}
 FX_BASES = ("CHF", "DKK", "EUR", "GBP")
-BENCHMARK = "XLV"
+# The Universe tab reads the group against global big pharma (PPH) and the market (the
+# S&P 500), both on closes: the group's own figures are price moves, so a benchmark on
+# total return would charge its dividends against the group.
+BENCHMARK = "PPH"
+MARKET = "^GSPC"
+MARKET_LABEL = "S&P 500"
 # The ranked feed keeps this many items; the page shows as many as fit its column.
 WEEK_ITEMS = 16
 # The ranked feed's look-ahead items: Phase 3 primary completions due inside 14 days and
@@ -352,12 +357,13 @@ def _closes(conn, tickers, start: str, end: str) -> dict:
     return out
 
 
-def _benchmark(conn, start: str, end: str) -> list:
-    return [[r["d"], round(r["adjclose"], 4)] for r in conn.execute(
-        """SELECT substr(as_of, 1, 10) AS d, adjclose FROM benchmark_prices
-            WHERE symbol = ? AND adjclose IS NOT NULL
+def _benchmark(conn, start: str, end: str, symbol: str = BENCHMARK) -> list:
+    """A benchmark's closes over the window, on price (see BENCHMARK)."""
+    return [[r["d"], round(r["close"], 4)] for r in conn.execute(
+        """SELECT substr(as_of, 1, 10) AS d, close FROM benchmark_prices
+            WHERE symbol = ? AND close IS NOT NULL
               AND substr(as_of, 1, 10) > ? AND substr(as_of, 1, 10) <= ?
-            ORDER BY as_of""", (BENCHMARK, start, end))]
+            ORDER BY as_of""", (symbol, start, end))]
 
 
 def _paths(conn, since: str) -> dict:
@@ -464,6 +470,7 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
     try:
         src["closes"] = _closes(conn, cohort, start, today.isoformat())
         src["benchmark"] = _benchmark(conn, start, today.isoformat())
+        src["market"] = _benchmark(conn, start, today.isoformat(), MARKET)
         src["relative"] = comps.relative_performance(conn=conn, ticker=ticker)
         src["fair_value"] = _fair_value(ticker)
         src["rar_focal"] = asset_revenue.build_revenue_at_risk(db_path, ticker)
@@ -1364,11 +1371,11 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
     bench = src.get("benchmark") or []
     price_date = max((c["price_as_of"] for c in companies.values() if c.get("price_as_of")),
                      default=None)
-    # XLV over the week, on its adjusted close: the same five sessions as change_5d.
-    xlv_week = None
+    # The benchmark over the week, on its close: the same five sessions as change_5d.
+    bench_week = None
     xb = [r for r in bench if price_date and r[0] <= price_date]
     if len(xb) > 5 and xb[-6][1]:
-        xlv_week = {"change": xb[-1][1] / xb[-6][1] - 1.0, "from": xb[-6][0], "to": xb[-1][0]}
+        bench_week = {"change": xb[-1][1] / xb[-6][1] - 1.0, "from": xb[-6][0], "to": xb[-1][0]}
 
     trials = src.get("trials") or {}
     start, end = today, today + dt.timedelta(days=AHEAD_DAYS - 1)
@@ -1449,9 +1456,10 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
                    "noun": cohort_meta.get("noun"), "n": len(cohort),
                    "medians": cohort_meta.get("medians") or {}},
         "tickers": sorted(cohort, key=lambda t: -(companies[t]["cap_usd_bn"] or 0)),
-        "companies": companies, "focal": focal, "xlv_week": xlv_week,
+        "companies": companies, "focal": focal, "bench_week": bench_week,
         "closes": {t: closes.get(t) or [] for t in cohort}, "benchmark": bench,
-        "benchmark_symbol": BENCHMARK,
+        "benchmark_symbol": BENCHMARK, "market": src.get("market") or [],
+        "market_symbol": MARKET_LABEL,
     }
     rar = {r["ticker"]: r for r in src.get("rar") or []}
     for t, c in companies.items():
