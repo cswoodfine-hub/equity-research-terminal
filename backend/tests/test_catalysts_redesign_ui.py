@@ -951,5 +951,5 @@ def test_live_app_azn_draws_the_redesign():
 
 @needs_api
 def test_live_app_another_company_keeps_todays_tab():
-    md = _catalysts_markdown("LLY")
+    md = _catalysts_markdown("CRSP")
     assert 'class="cx' not in md

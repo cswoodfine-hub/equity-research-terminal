@@ -851,16 +851,15 @@ def _universe_markdown(ticker):
 
 @needs_api
 def test_live_app_azn_draws_the_command_centre():
+    # The control row and the group's index are page markdown; the band is in the frame.
     md = _universe_markdown("AZN")
-    assert 'class="uv-sp"' in md and "AstraZeneca against the group" in md
-    assert 'class="uw-grid"' in md and 'class="uv-svg uv-lanes"' in md
-    assert "Headlines this week" not in md
+    assert 'class="uv uw-idx"' in md and "Headlines this week" not in md
 
 
 @needs_api
 def test_live_app_another_company_keeps_todays_overview():
-    md = _universe_markdown("LLY")
-    assert "uv-sp" not in md and "Headlines this week" in md
+    md = _universe_markdown("CRSP")
+    assert "uw-idx" not in md and "Headlines this week" in md
 
 
 # ------------------------------------------------------------- the page, offline
