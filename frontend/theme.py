@@ -992,6 +992,64 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .sc-cards .vc-head {{ font-size: 13px; line-height: 1.3; }}
 .sc-cards .vc-detail {{ font-size: 11.5px; line-height: 1.4; margin-top: 4px; cursor: help;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+/* A disease area's overview (frontend/areas_view.py): the indication overview's layout and
+   classes under its own keys, so the two read as one view. The table is the area's own:
+   the four pillar scores in view, the raw figures behind them a scroll across. */
+.st-key-area_head [data-testid="stColumn"]:last-child [data-testid="stVerticalBlock"] {{
+  align-items: flex-end; }}
+.st-key-area_head {{ margin-top: -12px; margin-bottom: -10px; }}
+.st-key-area_head [data-testid="stPopover"] button {{ min-height: 30px; padding: 1px 8px;
+  font-size: 11.5px; }}
+.ar-basis {{ font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-align: right; }}
+.st-key-area_sc_head .sec {{ margin: 0; }}
+@media (max-width: 1099.98px) {{
+  .st-key-area_map [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  .st-key-area_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
+    width: 100% !important; min-width: 100% !important; }}
+}}
+/* --ar-h is --sc-h for this view: the same head, figures, scorecard head and card row,
+   measured to end inside the screen at 1366x768, 1440x780, 1440x840 and 1440x900 with
+   the company header at its taller height (every ticker but the default one). */
+:root {{ --ar-h: clamp(250px, calc(100vh - 402px), 660px); }}
+@media (min-width: 1100px) {{
+  .st-key-area_map [data-testid="stColumn"]:first-child {{
+    flex: 0 0 calc(var(--ar-h) * 1.5) !important; width: auto !important; min-width: 0; }}
+  .st-key-area_map [data-testid="stColumn"]:last-child {{ flex: 1 1 0 !important;
+    width: auto !important; min-width: 0; }}
+  .st-key-area_map .chart-mount {{ margin: 0 !important; height: var(--ar-h); line-height: 0;
+    overflow: hidden; }}
+  .st-key-area_map .chart-mount svg {{ width: 100% !important; height: var(--ar-h) !important; }}
+  .st-key-area_map .land-wrap {{ height: var(--ar-h); overflow: auto; }}
+}}
+.st-key-area_map .land.ar-table {{ table-layout: fixed; width: 992px; min-width: 992px; margin: 0; }}
+.st-key-area_map .ar-table thead th {{ position: sticky; top: 0; z-index: 1;
+  background: var(--ground); }}
+.st-key-area_map .ar-table th, .st-key-area_map .ar-table td {{ box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.st-key-area_map .ar-table tr > :nth-child(1) {{ width: 30px; }}
+.st-key-area_map .ar-table tr > :nth-child(2) {{ width: 150px; }}
+.st-key-area_map .ar-table tr > :nth-child(3) {{ width: 112px; }}
+.st-key-area_map .ar-table tr > :nth-child(4) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(5) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(6) {{ width: 80px; }}
+.st-key-area_map .ar-table tr > :nth-child(7) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(8) {{ width: 84px; }}
+.st-key-area_map .ar-table tr > :nth-child(9) {{ width: 56px; }}
+.st-key-area_map .ar-table tr > :nth-child(10) {{ width: 76px; }}
+.st-key-area_map .ar-table tr > :nth-child(11) {{ width: 84px; }}
+.st-key-area_map .ar-table tr > :nth-child(12) {{ width: 58px; }}
+.st-key-area_map .ar-table tr > :nth-child(13) {{ width: 60px; }}
+.land.ar-table .sc {{ width: 30px; margin-right: 5px; }}
+.land.ar-table td.ar-nd {{ font-family: var(--font-ui); font-size: 10px; cursor: help; }}
+.land.ar-table .ar-pc {{ color: var(--muted); font-size: 10px; margin-left: 5px; cursor: help; }}
+/* A pillar's weight under its name in the head, and the rule above the companies with
+   too little on file to rank. */
+.land.ar-table th .ar-w {{ display: block; font-size: 9px; letter-spacing: 0.04em;
+  color: var(--muted); opacity: 0.8; margin-top: 1px; text-transform: none; }}
+.land.ar-table tr.ar-thin td {{ font-family: var(--font-ui); font-size: 9.5px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  padding-top: 6px; background: var(--ground); }}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
              text-transform: uppercase; color: var(--muted);
