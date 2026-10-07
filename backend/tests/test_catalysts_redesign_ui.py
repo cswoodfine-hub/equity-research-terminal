@@ -427,6 +427,27 @@ def test_resolve_text_is_the_rows_own_note(payload):
             assert CV.resolve_text(r).startswith("No catalyst row on file")
 
 
+def test_a_gate_dated_to_the_month_is_placed_not_undated(payload):
+    """The registry dates some studies to the month ("2026-11"), and the gate carries that
+    date as served. It reads as the month: placed, counted within 24 months, and printed
+    without a day the registry never gave."""
+    q = copy.deepcopy(payload)
+    today = dt.date.fromisoformat(q["today"])
+    g = q["gates"][0]
+    g["floor"], g["due"], g["move"] = None, False, None
+    m = today + dt.timedelta(days=60)
+    g["date"] = f"{m.year}-{m.month:02d}"
+    r = next(x for x in CV.gate_rows(q) if x["asset_id"] == g["asset_id"])
+    assert r["d"] == dt.date(m.year, m.month, 1) and r["dmonth"]
+    assert r["view"] == "near"
+    assert CV.date_text(r)[0] == f"est. {CV.mon(r['d'])}"
+    assert CV.day_text(r) == CV.mon(r["d"]) and CV._when_long(r) == f"est. {CV.mon(r['d'])}"
+    assert f"{CV.mon(r['d'])} · " in CV.dialog_parts(q, g["asset_id"])["dates"]
+    for bad in ("2026-13", "2026", None, ""):
+        assert CV.day_or_month(bad) == (None, False)
+    assert CV.day_or_month("2026-11-05") == (dt.date(2026, 11, 5), False)
+
+
 def test_catalysts_css_is_tokens_only_and_reaches_the_page_and_the_frame():
     css = CSS.read_text()
     assert not HEX.findall(css), "a hex colour in catalysts.css"

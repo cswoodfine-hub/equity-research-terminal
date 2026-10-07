@@ -118,6 +118,28 @@ def _d(iso):
         return None
 
 
+_MONTH_ONLY = re.compile(r"(\d{4})-(\d{2})")
+
+
+def day_or_month(iso) -> tuple:
+    """(date, month only) for a registry date: a day, or a month alone ("2026-11") read as
+    the first of that month, so a study the registry dates to the month is placed and
+    counted rather than taken as undated. (None, False) for none."""
+    d = _d(iso)
+    if d is not None:
+        return d, False
+    m = _MONTH_ONLY.fullmatch(str(iso or "").strip())
+    if m and 1 <= int(m[2]) <= 12:
+        return dt.date(int(m[1]), int(m[2]), 1), True
+    return None, False
+
+
+def day_text(r) -> str:
+    """A gate's registry date as precise as the registry gives it: "11 Feb 2027" or "Nov
+    2026"."""
+    return mon(r["d"]) if r.get("dmonth") else dmy(r["d"])
+
+
 def mon(x) -> str:
     """ "Apr 2028" from a date or an ISO string."""
     x = x if isinstance(x, dt.date) else _d(x)
@@ -192,7 +214,7 @@ def gate_rows(p) -> list:
     rows = []
     for g in p.get("gates") or []:
         ph, label, short = GATES.get(g.get("gate"), ("p3", g.get("label") or "next gate", "gate"))
-        date, floor = _d(g.get("date")), _d(g.get("floor"))
+        (date, dmonth), floor = day_or_month(g.get("date")), _d(g.get("floor"))
         key = floor or date
         if g.get("due") or (key and key <= h12):
             grp = 0
@@ -207,7 +229,7 @@ def gate_rows(p) -> list:
         held_ps = _num(held.get("per_share"))
         swing = (success - failure) if None not in (success, failure) else None
         rows.append({**g, "ph": ph, "glabel": g.get("label") or label, "short": short,
-                     "d": date, "fl": floor, "grp": grp, "view": GROUPS[grp][1],
+                     "d": date, "dmonth": dmonth, "fl": floor, "grp": grp, "view": GROUPS[grp][1],
                      "now": now, "success": success, "failure": failure, "swing": swing,
                      "held_ps": held_ps, "up": (success - now) if None not in (success, now) else None,
                      "priced": bool(g.get("stake"))})
@@ -260,11 +282,11 @@ def miss_move(r) -> tuple:
 
 def _when_long(r) -> str:
     if r.get("due") and r.get("d"):
-        return f"due {dmy(r['d'])}, no result on file"
+        return f"due {day_text(r)}, no result on file"
     if r.get("fl"):
         return f"no date on file, earliest {dmy(r['fl'])}"
     if r.get("d"):
-        return f"est. {dmy(r['d'])}"
+        return f"est. {day_text(r)}"
     return "no date on file"
 
 
@@ -2196,7 +2218,7 @@ def dialog_parts(p, gid, cost_html="", ladder_html="", studies_html="", can_reco
                                       f'{_plural(abs(move["days"]), "day")} {later}</b>, seen '
                                       f'{dmy(move.get("seen"))}'))
     elif r.get("d"):
-        dates.append(_kv("Gate date", f'{dmy(r["d"])} · {esc(r.get("date_basis") or "registry")}'
+        dates.append(_kv("Gate date", f'{day_text(r)} · {esc(r.get("date_basis") or "registry")}'
                                       + (" · due, no result on file" if r.get("due") else "")))
     else:
         dates.append(_kv("Gate date", esc(r.get("why") or "no date on file")))
