@@ -1,13 +1,14 @@
 /* The drug card of Comps > Indications (drug_card_view.py) and the clinical scorecard's
    click affordances. Tokens only: every colour is a var() from tokens.css. Scoped to the
-   scorecard's keyed containers (.st-key-sc_map, .st-key-sc_click) or the one Streamlit
-   dialog that holds a .dc body. */
+   scorecard's and the Candidates table's keyed containers (.st-key-sc_map,
+   .st-key-land_cands and the listeners' hidden .st-key-sc_click, .st-key-cand_click) or
+   the one Streamlit dialog that holds a .dc body. */
 
 /* ---------------------------------------------------------------------------------- */
 /* The scorecard: a drug's bubble and its table row open its card                      */
 /* ---------------------------------------------------------------------------------- */
 /* The listener's frame draws nothing and takes no room, so the overview keeps its fit. */
-.st-key-sc_click { display: none !important; }
+.st-key-sc_click, .st-key-cand_click { display: none !important; }
 .st-key-sc_map [data-drug] { cursor: pointer; }
 .st-key-sc_map g.sc-pt { outline: none; }
 .st-key-sc_map g.sc-pt:hover .sc-ring,
@@ -18,6 +19,12 @@
 .st-key-sc_map .sc-table tbody tr[data-drug]:hover td:nth-child(2) { color: var(--text);
   text-decoration: underline; text-decoration-color: var(--muted); }
 .st-key-sc_map .sc-table tbody tr[data-drug]:focus-visible { outline: 1px solid var(--muted);
+  outline-offset: -1px; }
+/* The Candidates view's rows open the card the same way. */
+.st-key-land_cands tr[data-drug] { cursor: pointer; }
+.st-key-land_cands tbody tr[data-drug]:hover td,
+.st-key-land_cands tbody tr[data-drug]:focus-visible td { background: var(--panel); }
+.st-key-land_cands tbody tr[data-drug]:focus-visible { outline: 1px solid var(--muted);
   outline-offset: -1px; }
 
 /* ---------------------------------------------------------------------------------- */
@@ -86,3 +93,9 @@ div[role="dialog"]:has(.dc) [data-baseweb="tab-panel"] { padding-top: 4px; }
 .dc-tag { display: inline-block; font-size: 9.5px; color: var(--muted); border: 1px solid var(--rule);
   padding: 0 4px; margin-left: 3px; vertical-align: 1px; }
 .dc-attr { margin-top: 10px; font-size: 10px; }
+/* The card's charts, drawn at the width the dialog gives them (drug_card_view FULL, HALF). */
+.dc-chart { margin: 4px 0 6px; line-height: 0; }
+.dc-chart svg { display: block; max-width: 100%; height: auto; }
+.dc-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px;
+  align-items: start; }
+@media (max-width: 1099.98px) { .dc-2 { grid-template-columns: minmax(0, 1fr); } }

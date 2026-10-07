@@ -2341,8 +2341,11 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
          f'of {cov.get("trials", 0)} linked'),
     ]
     if pool.get("pool"):
-        cells.append(("shared pool", f'{pool["pool"] / 1e6:,.1f}mm', "",
-                      f'{pool.get("claimants")} claimants'
+        # A line of therapy's pool is a year's eligible diagnoses, not a standing count.
+        shared = (f'{pool["pooled"]} of {pool.get("claimants")} claimants'
+                  if pool.get("pooled") is not None else f'{pool.get("claimants")} claimants')
+        cells.append(("shared pool", DCV.pool_size(pool["pool"]), "",
+                      ("a year, " if pool.get("per_year") else "") + shared
                       + (f' · {_pct(pool.get("uncrowded_share"), 0)} claimed, '
                          f'{_pct(pool.get("crowded_share"), 0)} after crowding'
                          if pool.get("uncrowded_share") is not None else "")))
@@ -2364,7 +2367,7 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
         _landscape_overview(api_base, pick, ticker, (head_why, head_how), cands,
                             _decap(by_id[pick]["name"]))
     elif view == "Candidates":
-        _landscape_candidates(cands)
+        _landscape_candidates(cands, api_base, pick)
     elif view == "Efficacy":
         _landscape_efficacy(land.get("endpoints") or [], cands, pick)
     else:
@@ -2756,12 +2759,14 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
 # drawn by drug_card_view.py). The chart and the table stay markdown in the page, sized by
 # the stylesheet; a hidden frame listens for the click and returns the drug, so the
 # session reruns on the same tab rather than a link reloading the page.
-def _drug_click(api_base: str, pick: int, names: dict) -> None:
-    """Hear a click on a drug in the overview and open its card, once per click."""
+def _drug_click(api_base: str, pick: int, names: dict, scope: str = ".st-key-sc_map",
+                box: str = "sc_click") -> None:
+    """Hear a click on a drug under ``scope`` (the overview's scorecard, or the Candidates
+    table) and open its card, once per click. ``box`` keys the listener's hidden frame."""
     if drugclick is None:
         return
-    with st.container(key="sc_click"):
-        got = drugclick.drug_click(".st-key-sc_map", key=f"sc_click_{pick}")
+    with st.container(key=box):
+        got = drugclick.drug_click(scope, key=f"{box}_{pick}")
     if not (isinstance(got, dict) and got.get("asset") is not None
             and got.get("nonce") != st.session_state.get("_sc_click_seen")):
         return
@@ -2798,10 +2803,13 @@ def _stage_chip(stage: str) -> str:
     return f'<span class="stage {cls}">{html_escape(stage)}</span>'
 
 
-def _landscape_candidates(cands: list) -> None:
+def _landscape_candidates(cands: list, api_base: str | None = None,
+                          pick: int | None = None) -> None:
     """One row a drug, eight columns in reading order: which drug, how far along, what it
     is, how it is given, what it is worth, its share of the pool, its evidence and any
-    boxed warning. Thirteen equal columns made every row a wall of the same weight."""
+    boxed warning. Thirteen equal columns made every row a wall of the same weight. A row
+    opens the drug's card, as the scorecard's rows do, so a drug with no posted result is
+    reachable too."""
     head = ("compound", "stage", "what it is", "given", "value a share", "pool kept",
             "evidence", "")
     rows = ""
@@ -2828,8 +2836,10 @@ def _landscape_candidates(cands: list) -> None:
         how = " ".join(f'<span class="tag">{html_escape(x)}</span>' for x in c["linked_by"])
         warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
                 if boxed else "")
+        label = html_escape(c["name"] or "").replace('"', "&quot;")
         rows += (
-            f'<tr><td>{html_escape(c["name"] or "")} '
+            f'<tr data-drug="{c["asset_id"]}" tabindex="0" title="Open the card for {label}">'
+            f'<td>{html_escape(c["name"] or "")} '
             f'<span class="m">{html_escape(c["ticker"])}</span>'
             + (f'<span class="sub">sold as {html_escape(", ".join(c["brands"]))}</span>'
                if c.get("brands") else "") + '</td>'
@@ -2844,9 +2854,13 @@ def _landscape_candidates(cands: list) -> None:
             f'<td class="n">{c["with_results"]}/{len(c["trials"])} posted'
             f'<span class="sub">{how}</span></td>'
             f'<td>{warn}</td></tr>')
-    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
-                f'{"".join(f"<th>{h}</th>" for h in head)}'
-                f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    with st.container(key="land_cands"):
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                    f'{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    if api_base is not None and pick is not None:
+        _drug_click(api_base, pick, {c["asset_id"]: c["name"] for c in cands},
+                    scope=".st-key-land_cands", box="cand_click")
     note("Value a share is the drug's modelled value per share of its own company, so it "
          "ranks a drug within its company, not across companies. Pool kept is the share of "
          "its own forecast a drug keeps once the patients every claimant draws on are "
@@ -2914,7 +2928,7 @@ def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
                      f'{html_escape(r["phase"] or "")}</span></td>'
                      f'<td class="n">{_land_num(r.get("weeks"), 0)}</td>'
                      f'<td>{html_escape(_short(r["arm"] or "", 48))}'
-                     + ('' if r["arm_is_drug"] else ' <span class="tag">other arm</span>')
+                     + DCV.arm_tag(r, "tag")
                      + f'</td><td class="n">{r["n"] or "·"}</td>'
                      f'<td class="n">{_land_num(r["value"], 2)}{html_escape(spread)}</td>'
                      f'<td class="n">{_land_num(r["placebo"], 2)}'
@@ -2929,8 +2943,9 @@ def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
         note(f'{g["title"]} ({g["unit"] or "no unit"}, {g["param_type"] or "measure"}). '
              "Trials differ in population, duration and background therapy, so read a "
              "difference against its own placebo before reading it against another trial's. "
-             "An arm tagged other arm names none of the drug's names: an active comparator "
-             "or an arm the sponsor labelled by letter.")
+             "An arm tagged other arm names none of the drug's names, codes or development "
+             "names: an active comparator or an arm the sponsor labelled by letter. A "
+             "control arm is the trial's own control, posted beside the drug's arms.")
     quotes = [(c, q) for c in cands for q in (c.get("readouts") or [])]
     if quotes:
         section("Readouts from the press", len(quotes), "the sentence each was read from")

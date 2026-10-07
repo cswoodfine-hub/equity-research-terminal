@@ -806,7 +806,10 @@ def indication_drug(indication_id: int, asset_id: int) -> dict:
         verdict_of=lambda t, a: (
             response_cache.cached_json(f"/companies/{t}/forecast/{a}/verdict")
             or forecast_view_module.verdict(None, t, a)),
-        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"))
+        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"),
+        forecast_of=lambda t, a: (
+            response_cache.cached_json(f"/companies/{t}/forecast/{a}")
+            or forecast_view_module.asset_forecast(None, t, a)))
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no candidate {asset_id} in indication {indication_id}")

@@ -18,6 +18,7 @@ import epidemiology
 import forecast
 import forecast_view
 import landscape as landscape_module
+import pool_crowding
 import product_profile as product_profile_module
 
 # The inputs of a patient build, in the order the engine multiplies them.
@@ -59,7 +60,13 @@ def _score(scorecard: dict | None, rep: int) -> dict | None:
         d = d or {}
         return {"score": d.get("score"), "parts": d.get("parts"), "lines": d.get("lines") or [],
                 "notes": d.get("notes") or [], "size_basis": d.get("size_basis"),
-                "read_with_care": d.get("read_with_care")}
+                "read_with_care": d.get("read_with_care"),
+                # Each measure's effect against its control with its 95% interval, as the
+                # scorecard averaged it: what the card's forest plot draws.
+                "pooled": [{k: p.get(k) for k in (
+                    "measure", "control", "scale", "effect", "lo", "hi", "hazard_ratio",
+                    "hazard_ratio_lo", "hazard_ratio_hi", "k", "participants", "weeks",
+                    "trials")} for p in d.get("pooled") or []]}
     ev = a.get("evidence") or {}
     return {"placed": bool(a.get("placed")), "rank": a.get("rank"),
             "of": len(placed), "scored_of": len(assets),
@@ -173,6 +180,52 @@ def _patients(conn, aid: int, land: dict) -> dict:
     return out
 
 
+def _path(f: dict | None, aid: int) -> dict | None:
+    """One modelled asset's revenue path: the modelled years after its loss of
+    exclusivity, risked by its probability of success where that is below one (the book's
+    own rule for pipeline revenue, forecast_view.company_verdict), and the full years it
+    reported. None where the forecast does not build."""
+    if not f or not f.get("ok") or not (f.get("result") or {}).get("years"):
+        return None
+    r = f["result"]
+    pos = r.get("pos")
+    revenue = list(r.get("revenue_after_loe") or [])
+    return {"asset_id": aid, "name": f.get("name"), "years": list(r["years"]),
+            "revenue": revenue, "pos": pos,
+            "risked": ([v * pos for v in revenue] if pos is not None and pos < 1 else None),
+            "loe_year": r.get("loe_year"),
+            "actuals": [a for a in f.get("actuals") or [] if a.get("value") is not None]}
+
+
+def _pool_path(conn, land: dict, ids: list) -> dict | None:
+    """The drug's patients started a year before and after the pool is counted once,
+    beside the pool each year, from the same solve the landscape's pool figure comes
+    from. None where the drug is not one of the pool's claimants."""
+    try:
+        members = landscape_module._members(conn, (land.get("indication") or {}).get("id"))
+    except Exception:
+        return None
+    for m in members or []:
+        claims = pool_crowding.claimants(conn, m["id"])
+        if not claims:
+            continue
+        mine = next((c for c in claims if c["asset_id"] in ids), None)
+        if mine is None:
+            return None
+        starts = [c["start"] for c in claims if c["start"]]
+        first = int(min(starts)) if starts else 0
+        last = int(max(starts)) if starts else 0
+        got = pool_crowding.solve(claims, years=(last - first) + 22, first_year=first)
+        a = next((x for x in got["assets"] if x["asset_id"] == mine["asset_id"]), None)
+        if a is None:
+            return None
+        return {"years": got["years"], "before": a["uncrowded"], "after": a["crowded"],
+                "pooled": bool(a["pooled"]),
+                "pool": [row["pool"] for row in got.get("shared") or []],
+                "per_year": bool(got.get("pool_per_year"))}
+    return None
+
+
 def _valuation(v: dict | None) -> dict | None:
     if not v:
         return None
@@ -215,13 +268,15 @@ def _commercial(profile: dict | None) -> dict | None:
 
 
 def card(db_path, land: dict, asset_id: int, *, scorecard: dict | None = None,
-         verdict_for=None, verdict_of=None, stakes_for=None, today: str | None = None):
+         verdict_for=None, verdict_of=None, stakes_for=None, forecast_of=None,
+         today: str | None = None):
     """The card for ``asset_id`` in the landscape ``land``; None when the drug is not a
     candidate here.
 
     ``verdict_for(ticker)`` hands the landscape the company verdict it reads the modelled
     lines from, ``verdict_of(ticker, asset_id)`` one asset's verdict and
-    ``stakes_for(ticker)`` the company's catalyst stakes; each falls back to computing
+    ``stakes_for(ticker)`` the company's catalyst stakes and ``forecast_of(ticker,
+    asset_id)`` one asset's forecast (its revenue path); each falls back to computing
     the read here, so the API passes its response cache and a test passes fixtures."""
     c = _candidate(land, asset_id)
     if c is None:
@@ -240,6 +295,16 @@ def card(db_path, land: dict, asset_id: int, *, scorecard: dict | None = None,
             values.append(_valuation(verdict_of(ticker, aid)))
         except Exception as exc:  # one asset's read failing leaves the rest of the card
             values.append({"ok": False, "asset_id": aid, "missing": [str(exc)]})
+    forecast_of = forecast_of or (
+        lambda t, a: forecast_view.asset_forecast(db_path, t, a))
+    paths = []
+    for aid in modelled:
+        try:
+            got = _path(forecast_of(ticker, aid), aid)
+        except Exception:
+            got = None
+        if got:
+            paths.append(got)
     try:
         stakes = (stakes_for(ticker) if stakes_for else None) or \
             forecast_view.catalyst_stakes(db_path, ticker)
@@ -249,6 +314,10 @@ def card(db_path, land: dict, asset_id: int, *, scorecard: dict | None = None,
     conn = db.get_connection(db_path)
     try:
         trials = _trials(conn, c)
+        try:
+            pool_path = _pool_path(conn, land, ids)
+        except Exception:
+            pool_path = None
         patients = []
         for aid in modelled:
             try:
@@ -265,7 +334,7 @@ def card(db_path, land: dict, asset_id: int, *, scorecard: dict | None = None,
     pool = land.get("pool") or None
     safety = next((s for s in land.get("safety") or [] if s.get("asset_id") == rep), None)
     return {
-        "ok": True,
+        "ok": True, "as_of": today,
         "indication": {k: (land.get("indication") or {}).get(k) for k in ("id", "name")},
         "asset_id": rep, "asset_ids": ids,
         "head": _head(c),
@@ -276,9 +345,11 @@ def card(db_path, land: dict, asset_id: int, *, scorecard: dict | None = None,
         "with_results": c.get("with_results"),
         "readouts": c.get("readouts") or [],
         "pool": {"indication": pool, "own": c.get("pool")} if (pool or c.get("pool")) else None,
+        "pool_path": pool_path,
         "patients": patients,
         "model": c.get("model"),
         "valuation": values,
+        "paths": paths,
         "catalysts": _catalysts(stakes, ids, today),
         "commercial": commercial,
     }

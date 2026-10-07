@@ -14,7 +14,13 @@ from __future__ import annotations
 import datetime as dt
 import html
 
+from components import charts as CH
+from components import tokens as TK
+
 NO_DATA = "no free data"
+# The card's charts are drawn at the width the large dialog gives them, so they show 1:1:
+# the whole of the pane, or half of it beside a table or another chart.
+FULL, HALF = 1076, 528
 DOT = "·"
 MAX_TRIALS = 12
 
@@ -70,6 +76,13 @@ def millions(v, cur: str) -> str | None:
     return f"${v:,.0f}mm" if cur == "USD" else f"{v:,.0f}mm {cur}"
 
 
+def pool_size(v) -> str | None:
+    """A count of patients: 107.6mm, or 9,787 below a million."""
+    if v is None:
+        return None
+    return f"{v / 1e6:,.1f}mm" if v >= 1e6 else f"{v:,.0f}"
+
+
 def _fig(key: str, value, sub: str = "", cls: str = "") -> str:
     """One figure: the value over its label and a short basis. A null reads no free data."""
     shown = value if value not in (None, "") else NO_DATA
@@ -86,6 +99,17 @@ def _figs(cells: list) -> str:
 def _h(title: str, aside: str = "") -> str:
     return (f'<div class="dc-h2">{_e(title)}'
             + (f'<span class="w">{_e(aside)}</span>' if aside else "") + "</div>")
+
+
+def _chart(svg: str) -> str:
+    return f'<div class="dc-chart">{svg}</div>' if svg else ""
+
+
+def _two(left: str, right: str) -> str:
+    """Two blocks side by side, or the one there is across the pane."""
+    if left and right:
+        return f'<div class="dc-2"><div>{left}</div><div>{right}</div></div>'
+    return left or right
 
 
 def _none(text: str) -> str:
@@ -251,15 +275,48 @@ def _score_block(c: dict) -> str:
             + figs + body + regimen + more)
 
 
-def _arm_tag(r: dict) -> str:
+def arm_tag(r: dict, cls: str = "dc-tag") -> str:
     """What an arm is when it is not plainly the drug's: the trial's control, or an arm
-    whose title names none of the drug's names (an active comparator, or an arm labelled
-    by a code or a letter)."""
+    that names none of the drug's names, codes or development names (an active
+    comparator, or an arm the sponsor labelled by letter). The Efficacy view tags its
+    rows with the same rule."""
     if r.get("arm_is_control"):
-        return ' <span class="dc-tag">control arm</span>'
+        return f' <span class="{cls}">control arm</span>'
     if r.get("arm_is_drug") or r.get("arm_names_drug"):
         return ""
-    return ' <span class="dc-tag">other arm</span>'
+    return f' <span class="{cls}">other arm</span>'
+
+
+def _forest_block(c: dict) -> str:
+    """Each measure's effect against its control with its 95% interval, as the scorecard
+    averaged it: hazard ratios on a log axis, differences in percentage points on their
+    own. Other scales carry their own units and are left to the table."""
+    pooled = ((c.get("score") or {}).get("efficacy") or {}).get("pooled") or []
+
+    def label(p):
+        return _clip(f'{p.get("measure") or "measure"} vs {p.get("control") or "control"}', 52)
+
+    def note(p):
+        k, n = p.get("k"), p.get("participants")
+        return ", ".join(x for x in (f"{k} trial{'s' if k != 1 else ''}" if k else "",
+                                     f"{n:,} people" if n else "") if x)
+    hr = [{"label": label(p), "value": p.get("hazard_ratio"), "lo": p.get("hazard_ratio_lo"),
+           "hi": p.get("hazard_ratio_hi"), "note": note(p)}
+          for p in pooled if p.get("scale") == "log hazard ratio" and p.get("hazard_ratio")]
+    pts = [{"label": label(p), "value": p.get("effect"), "lo": p.get("lo"),
+            "hi": p.get("hi"), "note": note(p)}
+           for p in pooled if p.get("scale") == "share" and p.get("effect") is not None]
+    charts = [CH.forest(hr, FULL, ratio=True,
+                        caption="Hazard ratio with its 95% interval; below 1 favours the "
+                                "drug.") if hr else "",
+              CH.forest(pts, FULL, value_fmt=lambda v: f"{v:,.1f}",
+                        caption="Percentage points better than the control, with its 95% "
+                                "interval; above 0 favours the drug.") if pts else ""]
+    charts = [x for x in charts if x]
+    if not charts:
+        return ""
+    return (_h("Effect against each comparator", "averaged across trials, as scored")
+            + "".join(_chart(x) for x in charts))
 
 
 def _efficacy_block(c: dict) -> str:
@@ -283,7 +340,7 @@ def _efficacy_block(c: dict) -> str:
             rows.append([
                 _nct(r.get("nct_id")), _td(r.get("phase"), muted=True),
                 _td(_num(r.get("weeks")), num=True),
-                f'<td>{_e(_clip(r.get("arm"), 44))}' + _arm_tag(r) + "</td>",
+                f'<td>{_e(_clip(r.get("arm"), 44))}' + arm_tag(r) + "</td>",
                 _td(_num(r.get("n")) if r.get("n") else None, num=True),
                 _td(_num(r.get("value"), 2), num=True),
                 f'<td class="n">{_e(comp) if comp else DOT}'
@@ -330,8 +387,16 @@ def _safety_block(c: dict) -> str:
               for ev in (r.get("top_events") or [])[:5]]
     table = (_table(["commonest events", "drug", "control"], events, "dc-ev")
              if events else "")
+    pct = lambda v: None if v is None else v * 100  # noqa: E731
+    bars = CH.paired_bars(
+        [{"label": label, "value": pct(r.get(f"{key}_rate")),
+          "reference": pct(r.get(f"placebo_{key}_rate"))}
+         for key, label in (("serious", "serious adverse events"),
+                            ("withdrawn", "stopped for side effects"),
+                            ("deaths", "deaths"), ("any", "any adverse event"))],
+        HALF, value_fmt=lambda v: f"{v:.1f}%")
     return (_h("Safety against control", r.get("control_kind") or "")
-            + figs + table)
+            + figs + _two(_chart(bars), table))
 
 
 def _trials_block(c: dict) -> str:
@@ -367,7 +432,8 @@ def _readouts_block(c: dict) -> str:
 
 
 def clinical_html(c: dict) -> str:
-    return ('<div class="dc">' + _score_block(c) + _efficacy_block(c) + _safety_block(c)
+    return ('<div class="dc">' + _score_block(c) + _forest_block(c) + _efficacy_block(c)
+            + _safety_block(c)
             + _trials_block(c) + _readouts_block(c) + "</div>")
 
 
@@ -389,14 +455,40 @@ def _input_value(key: str, value, unit: str | None, cur_unit: str | None = None)
     return f"{value:,.4g}" + (f" {unit}" if unit else "")
 
 
+def _pool_chart(c: dict) -> str:
+    """The drug's share of each year's pool before and after the pool is counted once.
+    Drawn only for a drug that shares the pool, and only for years with a pool."""
+    p = c.get("pool_path") or {}
+    years, pool = p.get("years") or [], p.get("pool") or []
+    if not p.get("pooled") or not years or not any(pool):
+        return ""
+    share = lambda xs: [(v / q * 100) if q else None  # noqa: E731
+                        for v, q in zip(xs or [], pool)]
+    before, after = share(p.get("before")), share(p.get("after"))
+    if not any(v for v in before if v):
+        return ""
+    svg = CH.line_chart([{"name": "before", "values": before, "colour": TK.MUTED},
+                         {"name": "after", "values": after, "colour": TK.UP}],
+                        [str(y) for y in years], FULL, 200,
+                        y_fmt=lambda v: f"{v:.1f}%", zero=True)
+    basis = ("of each year's eligible diagnoses" if p.get("per_year")
+             else "of the eligible pool left each year")
+    return (_h("Its share of the pool, by year, before and after crowding", basis)
+            + _chart(svg))
+
+
 def patients_html(c: dict) -> str:
     pool = c.get("pool") or {}
     ind, own = pool.get("indication") or {}, pool.get("own") or {}
     out = [_h("The indication's pool", ind.get("indication") or "")]
     if ind.get("pool"):
         out.append(_figs([
-            _fig("shared pool", f'{ind["pool"] / 1e6:,.2f}mm', "patients the claimants share"),
-            _fig("claimants", ind.get("claimants"), "modelled drugs drawing on it"),
+            _fig("shared pool", pool_size(ind["pool"]),
+                 "eligible patients a year, the year's diagnoses" if ind.get("per_year")
+                 else "eligible patients the claimants share"),
+            _fig("claimants", (f'{ind["pooled"]} of {ind.get("claimants")}'
+                               if ind.get("pooled") is not None else ind.get("claimants")),
+                 "modelled drugs sharing it, of those drawing on the disease"),
             _fig("claimed at peak", _pct(ind.get("uncrowded_share")),
                  f'of the pool in {ind["peak_year"]}' if ind.get("peak_year") else ""),
             _fig("after crowding", _pct(ind.get("crowded_share")), "the pool counted once"),
@@ -421,6 +513,7 @@ def patients_html(c: dict) -> str:
     else:
         out.append(_none("Not one of the pool's modelled claimants."))
 
+    out.append(_pool_chart(c))
     out.append(_h("The patient build", "the model's inputs, base case"))
     builds = c.get("patients") or []
     vals = {v.get("asset_id"): v for v in c.get("valuation") or [] if v}
@@ -521,8 +614,46 @@ def _catalyst_block(c: dict, cur: str) -> str:
                      _nct(r.get("description") if (r.get("description") or "").startswith("NCT")
                           else None),
                      _td(stake, muted=not r.get("priced"))])
-    return (_h("Dated catalysts", "every indication, next first")
-            + _table(["date", "type", "trial", "at stake"], rows, "dc-cat"))
+    strip = CH.date_strip(
+        [{"date": r.get("expected_date"), "label": _clip(r.get("catalyst_type"), 18),
+          "filled": bool(r.get("priced") and r.get("per_share") is not None),
+          "note": r.get("description")} for r in cats], c.get("as_of"), FULL) \
+        if c.get("as_of") else ""
+    return (_h("Dated catalysts", "every indication, next first; filled where priced")
+            + _chart(strip) + _table(["date", "type", "trial", "at stake"], rows, "dc-cat"))
+
+
+def _path_chart(p: dict, cur: str, named: bool = False) -> str:
+    """The modelled revenue path: risked by the probability of success beside the
+    unrisked path where the two differ, the reported years as dots, the loss of
+    exclusivity as a rule."""
+    years = p.get("years") or []
+    if not years or not any(p.get("revenue") or []):
+        return ""
+    hist = [(a["fiscal_year"], a["value"]) for a in p.get("actuals") or []
+            if a.get("fiscal_year") is not None and a["fiscal_year"] < years[0]][-4:]
+    labels = [str(y) for y, _ in hist] + [str(y) for y in years]
+    pad = [None] * len(hist)
+    if p.get("risked"):
+        series = [{"name": "unrisked", "values": pad + list(p["revenue"]), "colour": TK.MUTED},
+                  {"name": "risked", "values": pad + list(p["risked"]), "colour": TK.UP}]
+    else:
+        series = [{"name": "modelled", "values": pad + list(p["revenue"]), "colour": TK.UP}]
+    points = ([{"name": "reported", "colour": TK.TEXT,
+                "values": [v for _, v in hist] + [None] * len(years)}] if hist else [])
+    markers, shade = [], None
+    if p.get("loe_year") and str(p["loe_year"]) in labels:
+        i = labels.index(str(p["loe_year"]))
+        markers, shade = [{"index": i, "label": f'LOE {p["loe_year"]}', "colour": TK.MUTED}], \
+            (i, len(labels) - 1)
+    svg = CH.line_chart(series, labels, FULL, 220, y_fmt=lambda v: f"{v:,.0f}",
+                        markers=markers, points=points, shade=shade, zero=True,
+                        marker_size=9)
+    title = "Modelled revenue" + (f', {p["name"]}' if named and p.get("name") else "")
+    unit = "$mm" if cur == "USD" else f"mm {cur}"
+    risk = (f', risked at its {_pct(p.get("pos"))} probability of success'
+            if p.get("risked") else "")
+    return _h(title, f"{unit} a year, base case, every use{risk}") + _chart(svg)
 
 
 def valuation_html(c: dict) -> str:
@@ -562,6 +693,8 @@ def valuation_html(c: dict) -> str:
         if v.get("launch_source"):
             out.append(_kv("Launch basis", v.get("launch_source")))
         out.append(_gate_block(v, cur))
+    for path in c.get("paths") or []:
+        out.append(_path_chart(path, cur, len(c.get("paths") or []) > 1))
     if len(values) > 1:
         out.insert(0, '<p class="dc-p">The compound is valued brand by brand; the head sums '
                       f'them to {per_share(model.get("per_share"), cur)} a share.</p>')
@@ -575,6 +708,10 @@ def commercial_html(c: dict) -> str:
     out = []
     revenue = [r for r in m.get("revenue") or [] if r.get("period") in (None, "FY")]
     out.append(_h("Reported revenue", "full years, $mm"))
+    rev_bars = CH.bar_chart(
+        [{"label": str(r.get("fiscal_year")), "value": r["value"] / 1e6, "colour": TK.UP,
+          "show_value": True} for r in revenue[-6:] if r.get("value") is not None],
+        HALF, 180, value_fmt=lambda v: f"{v:,.0f}") if revenue else ""
     if revenue:
         rows = [[_td(r.get("fiscal_year"), num=True),
                  _td(_num(r["value"] / 1e6) if r.get("value") is not None else None, num=True),
@@ -583,7 +720,8 @@ def commercial_html(c: dict) -> str:
                      and r.get("reported_value") is not None else None, num=True, muted=True),
                  _td(r.get("source"), muted=True)]
                 for r in revenue[-6:]]
-        out.append(_table(["year", "revenue", "as filed", "source"], rows, "dc-rev"))
+        out.append(_two(_chart(rev_bars),
+                        _table(["year", "revenue", "as filed", "source"], rows, "dc-rev")))
     else:
         out.append(_none("No product revenue on file: " + NO_DATA + "."))
     loe = m.get("loe") or {}
@@ -598,6 +736,15 @@ def commercial_html(c: dict) -> str:
     pres = access.get("prescribing") or {}
     nat = pres.get("national") or {}
     out.append(_h("Medicare Part D use", pres.get("scope_label") or "Medicare Part D only"))
+    series = [s for s in pres.get("series") or [] if s.get("beneficiaries") is not None]
+    use_bars = CH.bar_chart(
+        [{"label": str(s.get("year")), "value": s["beneficiaries"], "colour": TK.UP,
+          "show_value": True} for s in series], HALF, 180,
+        value_fmt=lambda v: f"{v:,.0f}") if len(series) > 1 else ""
+    claims_bars = CH.bar_chart(
+        [{"label": str(s.get("year")), "value": s.get("claims"), "colour": TK.MUTED,
+          "show_value": True} for s in series if s.get("claims") is not None], HALF, 180,
+        value_fmt=lambda v: f"{v:,.0f}") if len(series) > 1 else ""
     if nat:
         out.append(_figs([
             _fig("prescribers", _num(nat.get("prescribers"))),
@@ -606,6 +753,11 @@ def commercial_html(c: dict) -> str:
             _fig("Part D cost", f'${nat["drug_cost"] / 1e6:,.0f}mm'
                  if nat.get("drug_cost") is not None else None, "gross of rebates, not revenue"),
         ]))
+        if use_bars:
+            out.append(_two(
+                '<p class="dc-p mut">Part D patients a year</p>' + _chart(use_bars),
+                ('<p class="dc-p mut">Part D claims a year</p>' + _chart(claims_bars))
+                if claims_bars else ""))
     else:
         out.append(_none(why.get("prescribing") or "No Part D prescribing on file: "
                          + NO_DATA + "."))
