@@ -49,8 +49,21 @@ WORKBOOKS = {
     "ROG": {"reader": roche, "note": roche.NOTE, "products": roche.PRODUCT_SHEET,
             "aliases": {}},
     "BAYN": {"reader": bayer, "note": bayer.NOTE, "products": bayer.PRODUCT_SHEET,
-             "aliases": bayer.PRODUCT_ALIASES},
+             "aliases": bayer.PRODUCT_ALIASES,
+             # The half-year report's product table, for the latest first halves.
+             "interim": {"urls": bayer.half_year_urls, "read": bayer.read_half_year,
+                         "note": bayer.HALF_YEAR_NOTE},
+             # A best-selling product with no row of Bayer's own gets one. Eylea and
+             # Xarelto are Bayer's sales outside the US of molecules the book holds under
+             # Regeneron and Johnson & Johnson, and Adalat, Aspirin Cardio and Glucobay
+             # were never in an FDA register, so without this their revenue had nowhere
+             # to land. The row is Bayer's, never the partner's.
+             "create_unmatched": True},
 }
+
+# The note a row this fetcher creates carries, as the SEC revenue fetcher marks its own.
+CREATED_NOTE = ("created from product revenue the company publishes in its own annual "
+                "report workbook; no Orange Book or openFDA entry under this company")
 
 # Roche's own region names, mapped to the codes the rest of the book uses. "International"
 # is everything outside the three named markets, which is what ROW means here.
@@ -74,6 +87,7 @@ class FinancialsIrFetcher(BaseFetcher):
         self.ticker = ticker.upper()
         self.spec = WORKBOOKS[self.ticker]
         self._notes: list[str] = []
+        self._created: list[str] = []
 
     @property
     def entity_key(self) -> str:
@@ -91,7 +105,8 @@ class FinancialsIrFetcher(BaseFetcher):
             request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
             try:
                 with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
-                    return [{"bytes": response.read(), "url": url}]
+                    annual = {"bytes": response.read(), "url": url}
+                return [annual] + self.fetch_interim()
             except urllib.error.HTTPError as exc:
                 if exc.code != 404:
                     raise
@@ -100,6 +115,30 @@ class FinancialsIrFetcher(BaseFetcher):
                                    f"was read")
         raise last_error or RuntimeError(f"no workbook address for {self.ticker}")
 
+    def fetch_interim(self) -> list[dict]:
+        """The interim workbook, where the company publishes one. Optional: a missing or
+        failing interim report is a note, never a failed run, because the annual
+        statements stand without it."""
+        spec = self.spec.get("interim")
+        if not spec:
+            return []
+        for url in spec["urls"]():
+            request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+            try:
+                with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
+                    return [{"bytes": response.read(), "url": url, "interim": True}]
+            except urllib.error.HTTPError as exc:
+                if exc.code != 404:
+                    self._notes.append(f"{url} answered {exc.code}, so no interim "
+                                       f"figures were read")
+                    return []
+            except (urllib.error.URLError, TimeoutError) as exc:
+                self._notes.append(f"{url} could not be read ({exc}), so no interim "
+                                   f"figures were read")
+                return []
+        self._notes.append("no interim report is published yet")
+        return []
+
     def normalise(self, raw) -> list[dict]:
         import openpyxl
         if not raw or not raw[0].get("bytes"):
@@ -107,6 +146,14 @@ class FinancialsIrFetcher(BaseFetcher):
         book = openpyxl.load_workbook(io.BytesIO(raw[0]["bytes"]), data_only=True)
         records, notes = self.spec["reader"].read_book(book)
         self._notes.extend(notes)
+        interim = self.spec.get("interim")
+        for item in raw[1:]:
+            if not (item.get("interim") and item.get("bytes") and interim):
+                continue
+            book = openpyxl.load_workbook(io.BytesIO(item["bytes"]), data_only=True)
+            found, notes = interim["read"](book)
+            self._notes.extend(notes)
+            records += [{**r, "note_source": interim["note"]} for r in found]
         return records
 
     def snapshot(self, rows: list[dict]) -> None:
@@ -150,6 +197,17 @@ class FinancialsIrFetcher(BaseFetcher):
                 (company["id"],)):
             out.setdefault(row["brand_name"].strip().lower(), row["id"])
         return out
+
+    def _create(self, conn, company_id: int, product: str, brands: dict) -> int:
+        """A marketed row of the company's own for a product it reports and the book
+        does not hold, named as the company names it. Never a partner's row: the brand
+        index is this company's assets only."""
+        cur = conn.execute(
+            "INSERT INTO assets (owner_company_id, brand_name, is_marketed, notes)"
+            " VALUES (?, ?, 1, ?)", (company_id, product.strip(), CREATED_NOTE))
+        brands[product.strip().lower()] = cur.lastrowid
+        self._created.append(product.strip())
+        return cur.lastrowid
 
     def _match(self, product: str, brands: dict):
         """The asset a product line belongs to, or None.
@@ -205,26 +263,31 @@ class FinancialsIrFetcher(BaseFetcher):
                     written += 1
                     continue
                 asset_id = self._match(row["product"], brands)
+                if (asset_id is None and self.spec.get("create_unmatched")
+                        and row["product"].strip().lower() not in _RESIDUAL):
+                    asset_id = self._create(conn, company["id"], row["product"], brands)
                 if asset_id is None:
                     if row["product"].strip().lower() not in _RESIDUAL:
                         missing.add(row["product"])
                         unmatched += 1
                     continue
                 if row["region"] is None:
+                    period = row.get("period") or "FY"
                     conn.execute(
                         """
                         INSERT INTO asset_revenue
                             (asset_id, fiscal_year, period, value, unit, source, note,
                              is_curated)
-                        VALUES (?, ?, 'FY', ?, ?, ?, ?, 0)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, 0)
                         ON CONFLICT(asset_id, fiscal_year, period) DO UPDATE SET
                             value=excluded.value, unit=excluded.unit,
                             source=excluded.source, note=excluded.note,
                             updated_at=datetime('now')
                         """,
-                        (asset_id, row["fiscal_year"], row["value"], row["unit"],
-                         self.spec["note"], f'{self.spec["products"]} sheet, '
-                                            f'{row["product"]} global sales'))
+                        (asset_id, row["fiscal_year"], period, row["value"], row["unit"],
+                         row.get("note_source") or self.spec["note"],
+                         f'{self.spec["products"]} sheet, {row["product"]} global sales'
+                         + ("" if period == "FY" else f", {period}")))
                     written += 1
                     continue
                 code, label = REGIONS.get(row["region"], (None, None))
@@ -249,6 +312,9 @@ class FinancialsIrFetcher(BaseFetcher):
         finally:
             conn.close()
         notes = list(self._notes)
+        if self._created:
+            notes.append(f"{len(self._created)} products had no row of this company's own "
+                         f"and were given one: {', '.join(sorted(self._created))}")
         if missing:
             notes.append(f"{len(missing)} product lines matched no asset and were not "
                          f"written: {', '.join(sorted(missing))}")

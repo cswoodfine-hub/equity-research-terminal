@@ -184,7 +184,7 @@ def test_a_52_week_year_is_matched_to_the_year_it_falls_in():
     assert statements.fiscal_year_of("2025-06-30") == 2025
 
 
-def _not_a_medicine_trial(tmp_path, monkeypatch, ticker, rd_segment):
+def _not_a_medicine_trial(tmp_path, monkeypatch, ticker, rd_segment, counted=True):
     """The future pipeline's spend and book for a drug beside a line that sells no
     medicine, with the filer's launch rate measured on segment or company R&D."""
     import db
@@ -198,7 +198,7 @@ def _not_a_medicine_trial(tmp_path, monkeypatch, ticker, rd_segment):
         return {"value": 1.0, "flows": [], "first_launch_year": 2030, "cohorts": 0,
                 "replacement": None, "renewal": None, "credited_share": None}
     filer = {"ticker": ticker, "rate": 0.3, "blended": 0.3, "launch_count": 5,
-             "credibility": 0.5, "counted": True, "rd_segment": rd_segment}
+             "credibility": 0.5, "counted": counted, "rd_segment": rd_segment}
     monkeypatch.setattr(FP, "simulate", fake_simulate)
     monkeypatch.setattr(FP, "pooled", lambda db_path=None: {"rate": 0.3, "filers": [filer], "n": 1, "credibility": {}})
     monkeypatch.setattr(V, "_launch_record", lambda *a, **k: {"history_rd": {}, "launched": set()})
@@ -234,6 +234,16 @@ def test_a_line_that_sells_no_medicine_still_spends_the_rd_the_rate_divides_by(
     assert seen["book"][2026] == pytest.approx(100.0)
     assert seen["ratios"]["cogs"] == pytest.approx(0.20)
     assert seen["ratios"]["rd"] == pytest.approx(0.15)
+
+
+def test_a_filer_whose_record_does_not_count_buys_nothing_with_a_line_that_sells_no_medicine(
+        tmp_path, monkeypatch):
+    """Bayer's own record is a year long, so its rate is the pool's, which divides other
+    filers' launches by their R&D. Crop Science's research is in no part of that rate, so
+    it buys no drug launches, whatever the company R&D would say."""
+    seen = _not_a_medicine_trial(tmp_path, monkeypatch, "BAYN", False, counted=False)
+    assert seen["book_rd"][2026] == 15.0
+    assert set(seen["book_rd"].values()) == {15.0}
 
 
 def test_a_named_launch_comes_off_the_cohorts_for_as_long_as_the_book_carries_it(

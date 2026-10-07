@@ -2120,7 +2120,12 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
     # R&D buys, the asymmetry the future pipeline exists to remove. Only where the rate
     # divides by a medicines segment's R&D (Johnson & Johnson, whose MedTech R&D is
     # outside it) does such a line's R&D buy nothing.
-    if not (own and own.get("rd_segment")):
+    # Nor where the filer's own record is too short to count in the pool. Its rate is
+    # then the pool's in all but a sliver of credibility, and the pool divides other
+    # filers' launches by their R&D, which holds no seed or consumer research: crediting
+    # Bayer's Crop Science R&D, EUR 2.0bn a year, with drug launches at the pooled rate
+    # would buy medicines with money spent on corn traits.
+    if own and own.get("counted") and not own.get("rd_segment"):
         for part, rows, entry, rd_ratio in not_medicines:
             for year, row in zip(part.get("dcf_years") or [], rows):
                 book_rd[year] = book_rd.get(year, 0.0) + (row.get("rd") or 0.0)
