@@ -58,6 +58,7 @@ import launch_timing
 import development
 import disease_areas
 import landscape as landscape_module
+import drug_card
 import landscape_overview
 import landscape_score
 import fx as fx_module
@@ -785,6 +786,35 @@ def indication_overview(indication_id: int, endpoint: Optional[str] = None) -> d
         raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
     return {"indication": land["indication"], **landscape_overview.overview(land, endpoint),
             "scorecard": landscape_score.scorecard(land)}
+
+
+@app.get("/indications/{indication_id}/drug/{asset_id}")
+def indication_drug(indication_id: int, asset_id: int) -> dict:
+    """One drug's card in one indication: what it is, its scorecard place and the results,
+    safety and trials behind it, the patient pool and the build it is valued on, its value
+    and next gate, and for a marketed product its revenue and Medicare use. Assembled from
+    the landscape, the scorecard, the forecast and the product profile; nothing new."""
+    verdict_for = lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict")
+    land = landscape_module.landscape(None, indication_id, verdict_for=verdict_for)
+    if land is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
+    # The overview the page has just drawn carries the scorecard; computed only when it
+    # has not been read yet.
+    scorecard = (response_cache.cached_json(f"/indications/{indication_id}/overview")
+                 or {}).get("scorecard") or landscape_score.scorecard(land)
+    out = drug_card.card(
+        None, land, asset_id, scorecard=scorecard, verdict_for=verdict_for,
+        verdict_of=lambda t, a: (
+            response_cache.cached_json(f"/companies/{t}/forecast/{a}/verdict")
+            or forecast_view_module.verdict(None, t, a)),
+        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"),
+        forecast_of=lambda t, a: (
+            response_cache.cached_json(f"/companies/{t}/forecast/{a}")
+            or forecast_view_module.asset_forecast(None, t, a)))
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no candidate {asset_id} in indication {indication_id}")
+    return out
 
 
 @app.get("/areas")

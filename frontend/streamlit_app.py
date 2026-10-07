@@ -45,6 +45,11 @@ from components import clicklist
 from components import compsval
 from components import prodcards
 from components import drawchart
+try:                                    # the drug card's click listener
+    from components import drugclick
+except Exception:                       # pragma: no cover - a broken install only
+    drugclick = None
+import drug_card_view as DCV
 from components import render as R
 from components import tokens as TK
 
@@ -2338,8 +2343,11 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
          f'of {cov.get("trials", 0)} linked'),
     ]
     if pool.get("pool"):
-        cells.append(("shared pool", f'{pool["pool"] / 1e6:,.1f}mm', "",
-                      f'{pool.get("claimants")} claimants'
+        # A line of therapy's pool is a year's eligible diagnoses, not a standing count.
+        shared = (f'{pool["pooled"]} of {pool.get("claimants")} claimants'
+                  if pool.get("pooled") is not None else f'{pool.get("claimants")} claimants')
+        cells.append(("shared pool", DCV.pool_size(pool["pool"]), "",
+                      ("a year, " if pool.get("per_year") else "") + shared
                       + (f' · {_pct(pool.get("uncrowded_share"), 0)} claimed, '
                          f'{_pct(pool.get("crowded_share"), 0)} after crowding'
                          if pool.get("uncrowded_share") is not None else "")))
@@ -2361,7 +2369,7 @@ def _indication_landscape(api_base: str, ticker: str) -> None:
         _landscape_overview(api_base, pick, ticker, (head_why, head_how), cands,
                             _decap(by_id[pick]["name"]))
     elif view == "Candidates":
-        _landscape_candidates(cands)
+        _landscape_candidates(cands, api_base, pick)
     elif view == "Efficacy":
         _landscape_efficacy(land.get("endpoints") or [], cands, pick)
     else:
@@ -2500,7 +2508,11 @@ def _score_rows(placed: list, ticker: str) -> str:
         reg = a.get("regimen") or {}
         why = reg.get("why") or {}
         n = reg.get("participants")
-        rows += (f'<tr class="{"sc-mine" if focal else ""}">'
+        # A row with an id opens the drug's card (_drug_click).
+        label = html_escape(a["name"]).replace('"', "&quot;")
+        hit = (f' data-drug="{a["asset_id"]}" tabindex="0" title="Open the card for {label}"'
+               if a.get("asset_id") is not None else "")
+        rows += (f'<tr class="{"sc-mine" if focal else ""}"{hit}>'
                  f'<td class="n m sc-rk">{rank}</td>'
                  f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
                  f'<td class="m sc-txt">{html_escape(_stage_short(a["stage"]))}</td>'
@@ -2629,7 +2641,8 @@ def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None, slots=None)
               "y": a["safety"]["score"], "evidence": a["evidence"].get("score"),
               "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
               "nosize": a["efficacy"].get("size_basis") == "not comparable",
-              "tip": _score_tip(a)} for a in placed],
+              "tip": _score_tip(a) + " Click for its card.", "id": a.get("asset_id")}
+             for a in placed],
             720, 480, highlight=ticker,
             x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
                                                for a in placed)
@@ -2726,6 +2739,8 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
         # table, and what each score rests on and how it is scored close the view.
         _landscape_scorecard(ov["scorecard"], ticker, cards[1:] if placed else (),
                              cards[0] if placed and cards else None, slots)
+        if placed:
+            _drug_click(api_base, pick, {a.get("asset_id"): a["name"] for a in placed})
     if not cards:
         if not ov.get("scorecard"):
             state("Not enough to read yet", "no candidate here has posted results or a model")
@@ -2738,6 +2753,49 @@ def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands
         st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
                                                        for c in rest)
                     + "</div>", unsafe_allow_html=True)
+
+
+# --- The drug card ---------------------------------------------------------
+# A click on a drug's bubble in the clinical scorecard or its row in the ranked table opens
+# its card: everything the book holds on the drug in this indication (backend/drug_card.py,
+# drawn by drug_card_view.py). The chart and the table stay markdown in the page, sized by
+# the stylesheet; a hidden frame listens for the click and returns the drug, so the
+# session reruns on the same tab rather than a link reloading the page.
+def _drug_click(api_base: str, pick: int, names: dict, scope: str = ".st-key-sc_map",
+                box: str = "sc_click") -> None:
+    """Hear a click on a drug under ``scope`` (the overview's scorecard, or the Candidates
+    table) and open its card, once per click. ``box`` keys the listener's hidden frame."""
+    if drugclick is None:
+        return
+    with st.container(key=box):
+        got = drugclick.drug_click(scope, key=f"{box}_{pick}")
+    if not (isinstance(got, dict) and got.get("asset") is not None
+            and got.get("nonce") != st.session_state.get("_sc_click_seen")):
+        return
+    st.session_state["_sc_click_seen"] = got.get("nonce")
+    try:
+        asset_id = int(got["asset"])
+    except (TypeError, ValueError):
+        return
+    _drug_dialog(api_base, pick, asset_id, names.get(asset_id) or "The drug")
+
+
+def _drug_dialog(api_base: str, pick: int, asset_id: int, name: str) -> None:
+    @st.dialog(name, width="large")
+    def _body():
+        try:
+            with st.spinner("Reading its trials, model and market"):
+                card = _get_long(api_base, f"/indications/{pick}/drug/{asset_id}")
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            state("The card did not load", html_escape(str(exc)), error=True)
+            return
+        head, panes = DCV.card_html(card)
+        st.markdown(head, unsafe_allow_html=True)
+        for tab, (_label, markup) in zip(st.tabs([p[0] for p in panes]), panes):
+            with tab:
+                st.markdown(markup, unsafe_allow_html=True)
+
+    _body()
 
 
 @st.cache_data(ttl=600, show_spinner=False)
@@ -2833,10 +2891,13 @@ def _stage_chip(stage: str) -> str:
     return f'<span class="stage {cls}">{html_escape(stage)}</span>'
 
 
-def _landscape_candidates(cands: list) -> None:
+def _landscape_candidates(cands: list, api_base: str | None = None,
+                          pick: int | None = None) -> None:
     """One row a drug, eight columns in reading order: which drug, how far along, what it
     is, how it is given, what it is worth, its share of the pool, its evidence and any
-    boxed warning. Thirteen equal columns made every row a wall of the same weight."""
+    boxed warning. Thirteen equal columns made every row a wall of the same weight. A row
+    opens the drug's card, as the scorecard's rows do, so a drug with no posted result is
+    reachable too."""
     head = ("compound", "stage", "what it is", "given", "value a share", "pool kept",
             "evidence", "")
     rows = ""
@@ -2863,8 +2924,10 @@ def _landscape_candidates(cands: list) -> None:
         how = " ".join(f'<span class="tag">{html_escape(x)}</span>' for x in c["linked_by"])
         warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
                 if boxed else "")
+        label = html_escape(c["name"] or "").replace('"', "&quot;")
         rows += (
-            f'<tr><td>{html_escape(c["name"] or "")} '
+            f'<tr data-drug="{c["asset_id"]}" tabindex="0" title="Open the card for {label}">'
+            f'<td>{html_escape(c["name"] or "")} '
             f'<span class="m">{html_escape(c["ticker"])}</span>'
             + (f'<span class="sub">sold as {html_escape(", ".join(c["brands"]))}</span>'
                if c.get("brands") else "") + '</td>'
@@ -2879,9 +2942,13 @@ def _landscape_candidates(cands: list) -> None:
             f'<td class="n">{c["with_results"]}/{len(c["trials"])} posted'
             f'<span class="sub">{how}</span></td>'
             f'<td>{warn}</td></tr>')
-    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
-                f'{"".join(f"<th>{h}</th>" for h in head)}'
-                f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    with st.container(key="land_cands"):
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                    f'{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    if api_base is not None and pick is not None:
+        _drug_click(api_base, pick, {c["asset_id"]: c["name"] for c in cands},
+                    scope=".st-key-land_cands", box="cand_click")
     note("Value a share is the drug's modelled value per share of its own company, so it "
          "ranks a drug within its company, not across companies. Pool kept is the share of "
          "its own forecast a drug keeps once the patients every claimant draws on are "
@@ -2949,7 +3016,7 @@ def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
                      f'{html_escape(r["phase"] or "")}</span></td>'
                      f'<td class="n">{_land_num(r.get("weeks"), 0)}</td>'
                      f'<td>{html_escape(_short(r["arm"] or "", 48))}'
-                     + ('' if r["arm_is_drug"] else ' <span class="tag">other arm</span>')
+                     + DCV.arm_tag(r, "tag")
                      + f'</td><td class="n">{r["n"] or "·"}</td>'
                      f'<td class="n">{_land_num(r["value"], 2)}{html_escape(spread)}</td>'
                      f'<td class="n">{_land_num(r["placebo"], 2)}'
@@ -2964,8 +3031,9 @@ def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
         note(f'{g["title"]} ({g["unit"] or "no unit"}, {g["param_type"] or "measure"}). '
              "Trials differ in population, duration and background therapy, so read a "
              "difference against its own placebo before reading it against another trial's. "
-             "An arm tagged other arm names none of the drug's names: an active comparator "
-             "or an arm the sponsor labelled by letter.")
+             "An arm tagged other arm names none of the drug's names, codes or development "
+             "names: an active comparator or an arm the sponsor labelled by letter. A "
+             "control arm is the trial's own control, posted beside the drug's arms.")
     quotes = [(c, q) for c in cands for q in (c.get("readouts") or [])]
     if quotes:
         section("Readouts from the press", len(quotes), "the sentence each was read from")

@@ -1,0 +1,101 @@
+/* The drug card of Comps > Indications (drug_card_view.py) and the clinical scorecard's
+   click affordances. Tokens only: every colour is a var() from tokens.css. Scoped to the
+   scorecard's and the Candidates table's keyed containers (.st-key-sc_map,
+   .st-key-land_cands and the listeners' hidden .st-key-sc_click, .st-key-cand_click) or
+   the one Streamlit dialog that holds a .dc body. */
+
+/* ---------------------------------------------------------------------------------- */
+/* The scorecard: a drug's bubble and its table row open its card                      */
+/* ---------------------------------------------------------------------------------- */
+/* The listener's frame draws nothing and takes no room, so the overview keeps its fit. */
+.st-key-sc_click, .st-key-cand_click { display: none !important; }
+.st-key-sc_map [data-drug] { cursor: pointer; }
+.st-key-sc_map g.sc-pt { outline: none; }
+.st-key-sc_map g.sc-pt:hover .sc-ring,
+.st-key-sc_map g.sc-pt:focus-visible .sc-ring { opacity: 1; }
+.st-key-sc_map text.sc-label:hover { fill: var(--text); text-decoration: underline; }
+.st-key-sc_map .sc-table tbody tr[data-drug]:hover td,
+.st-key-sc_map .sc-table tbody tr[data-drug]:focus-visible td { background: var(--panel); }
+.st-key-sc_map .sc-table tbody tr[data-drug]:hover td:nth-child(2) { color: var(--text);
+  text-decoration: underline; text-decoration-color: var(--muted); }
+.st-key-sc_map .sc-table tbody tr[data-drug]:focus-visible { outline: 1px solid var(--muted);
+  outline-offset: -1px; }
+/* The Candidates view's rows open the card the same way. */
+.st-key-land_cands tr[data-drug] { cursor: pointer; }
+.st-key-land_cands tbody tr[data-drug]:hover td,
+.st-key-land_cands tbody tr[data-drug]:focus-visible td { background: var(--panel); }
+.st-key-land_cands tbody tr[data-drug]:focus-visible { outline: 1px solid var(--muted);
+  outline-offset: -1px; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The card (st.dialog, width large)                                                  */
+/* ---------------------------------------------------------------------------------- */
+div[role="dialog"]:has(.dc) { border-radius: var(--radius) !important; }
+div[role="dialog"]:has(.dc) h2 { font-family: var(--font-ui); }
+div[role="dialog"]:has(.dc) [data-baseweb="tab-list"] { gap: 18px; }
+div[role="dialog"]:has(.dc) [data-baseweb="tab"] { height: 30px; padding: 0 0 2px; font-size: 12px; }
+div[role="dialog"]:has(.dc) [data-baseweb="tab-panel"] { padding-top: 4px; }
+.dc { font-family: var(--font-ui); color: var(--text); font-size: 12px; }
+.dc-head { border-bottom: 1px solid var(--rule-strong); padding-bottom: 8px; margin-top: -6px; }
+.dc-kick { font-size: 11px; color: var(--muted); }
+.dc-line { display: flex; gap: 8px; align-items: baseline; margin-top: 3px; flex-wrap: wrap; }
+.dc-stage { font-size: 13px; font-weight: 600; }
+.dc-in { font-size: 12px; color: var(--muted); }
+.dc-what { display: flex; flex-wrap: wrap; gap: 2px 16px; margin-top: 4px; font-size: 11.5px;
+  line-height: 1.4; }
+.dc-wi .k { color: var(--muted); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; }
+.dc-wi i { color: var(--muted); font-style: normal; }
+.dc-warn { margin-top: 6px; padding: 5px 9px; border: 1px solid var(--rule);
+  border-left: 2px solid var(--flag); font-size: 11px; line-height: 1.4; color: var(--muted); }
+.dc-warn b { color: var(--flag); font-weight: 600; }
+.dc-figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px 14px; margin: 8px 0 4px; }
+.dc-f { min-width: 0; }
+.dc-f .v { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 600;
+  line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-f .v.none { color: var(--muted); font-family: var(--font-ui); font-size: 12px;
+  font-weight: 400; padding-top: 3px; }
+.dc-f .v.up { color: var(--up); }
+.dc-f .v.down { color: var(--down); }
+.dc-f .k { display: block; font-size: 11px; color: var(--muted); line-height: 1.3; }
+.dc-f .s { display: block; font-size: 10.5px; color: var(--muted); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; }
+.dc-h2 { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
+  font-weight: 700; margin: 12px 0 4px; padding-bottom: 3px; border-bottom: 1px solid var(--rule);
+  display: flex; gap: 10px; align-items: baseline; }
+.dc-h2 .w { font-family: var(--font-mono); font-weight: 500; letter-spacing: 0; text-transform: none;
+  color: var(--muted); font-size: 10.5px; margin-left: auto; text-align: right; }
+.dc-p { font-size: 11.5px; line-height: 1.45; margin: 4px 0; }
+.dc-p.mut { color: var(--muted); font-size: 11px; }
+.dc-none { padding: 6px 10px; background-image: var(--hatch); border: 1px solid var(--rule);
+  font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+.dc-kv { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 0.6rem;
+  align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rule); }
+.dc-kv > :first-child { color: var(--muted); font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; }
+.dc-kv > :last-child { font-size: 11px; line-height: 1.4; }
+.dc-more { margin-top: 4px; border: 1px solid var(--rule); }
+.dc-more > summary { cursor: pointer; font-size: 11.5px; padding: 4px 8px; }
+.dc-more[open] > summary { border-bottom: 1px solid var(--rule); }
+.dc-more .dc-p { padding: 0 8px; }
+.dc-tw { overflow-x: auto; }
+.dc-t { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.dc-t th { text-align: left; font-weight: 500; color: var(--muted); font-size: 10.5px;
+  padding: 3px 6px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }
+.dc-t td { padding: 3px 6px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.dc-t td.n { font-family: var(--font-mono); text-align: right; white-space: nowrap; }
+.dc-t td.m { color: var(--muted); }
+.dc-t td a { color: var(--text); text-decoration: underline; text-decoration-color: var(--muted); }
+.dc-t td.dc-grp { padding-top: 7px; font-weight: 600; border-bottom-color: var(--rule-strong); }
+.dc-t td.dc-grp .m { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.dc-t td.dc-src { color: var(--muted); font-size: 10.5px; line-height: 1.35; }
+.dc-tag { display: inline-block; font-size: 9.5px; color: var(--muted); border: 1px solid var(--rule);
+  padding: 0 4px; margin-left: 3px; vertical-align: 1px; }
+.dc-attr { margin-top: 10px; font-size: 10px; }
+/* The card's charts, drawn at the width the dialog gives them (drug_card_view FULL, HALF). */
+.dc-chart { margin: 4px 0 6px; line-height: 0; }
+.dc-chart svg { display: block; max-width: 100%; height: auto; }
+.dc-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 20px;
+  align-items: start; }
+@media (max-width: 1099.98px) { .dc-2 { grid-template-columns: minmax(0, 1fr); } }

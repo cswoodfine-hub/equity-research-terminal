@@ -475,7 +475,10 @@ def _pool(conn, members: list) -> dict:
         held["crowded"] += peaks["peak_crowded"]
         held["claimants"] += 1
     order = sorted(companies, key=lambda t: (-companies[t]["crowded"], t or ""))
-    patients = _num(pool.get("pool"))
+    # A line of therapy's pool is a year's eligible diagnoses (landscape._pool, per_year):
+    # no population stands, so this read states no standing count and no crowding for
+    # it, as it did when the solve reported the nil opening stock.
+    patients = 0.0 if pool.get("per_year") else _num(pool.get("pool"))
     uncrowded, crowded = _num(pool.get("uncrowded_share")), _num(pool.get("crowded_share"))
     na: dict = {}
     crowding = None

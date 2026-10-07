@@ -161,6 +161,21 @@ def test_an_asset_that_has_not_launched_claims_nothing():
     assert late["uncrowded"][0] == 0.0
 
 
+def test_a_pool_of_the_years_own_diagnoses_reports_a_years_eligible_patients():
+    """Lung cancer read a shared pool of nil with fifteen claimants: a line of therapy
+    has no opening stock, and the stock was what the solve reported. The pool is then a
+    year's eligible diagnoses, and the shares of it are measured against that."""
+    cohort = dict(prevalence=192_650, incidence=192_650, eligible=0.0508, midpoint=3.0)
+    got = PC.solve([_claim("a", 0.20, **cohort), _claim("b", 0.20, **cohort)], years=20)
+    assert got["pool"] == pytest.approx(192_650 * 0.0508)
+    assert got["pool_per_year"] is True and got["pooled"] == 2
+    s = PC.summary(got)
+    assert 0 < s["crowded_share"] <= s["uncrowded_share"]
+    # A standing pool still reports its stock.
+    stock = PC.solve([_claim("c", 0.04), _claim("d", 0.04)], years=20)
+    assert stock["pool"] == pytest.approx(100e6) and stock["pool_per_year"] is False
+
+
 def test_summary_reports_what_was_claimed_against_what_one_pool_supplies():
     claims = [_claim(f"a{i}", 0.12) for i in range(5)]
     got = PC.solve(claims, years=20)

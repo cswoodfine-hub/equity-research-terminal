@@ -1,0 +1,315 @@
+{
+"ok": true,
+"as_of": "2026-10-07",
+"indication": {
+"id": 20,
+"name": "Carcinoma, Non-Small-Cell Lung"
+},
+"asset_id": 3007,
+"asset_ids": [
+3007
+],
+"head": {
+"name": "Amg 510",
+"brands": [],
+"ticker": "AMGN",
+"company": "Amgen Inc",
+"stage": "Phase 3",
+"phase_here": "Phase 3",
+"is_marketed": false,
+"on_label": false,
+"phase_elsewhere": false,
+"modality": null,
+"molecule_type": [],
+"mechanisms": [],
+"targets": [],
+"classes": [],
+"route": [],
+"boxed_warning": null,
+"linked_by": [
+"trial"
+],
+"pharmacology_source": []
+},
+"score": {
+"placed": true,
+"rank": 11,
+"of": 23,
+"scored_of": 81,
+"rank_range": [
+2,
+20
+],
+"overall": 49.09795797889703,
+"why_not": null,
+"efficacy": {
+"score": 66.35937703380858,
+"parts": {
+"strength": 76.47558855144185,
+"wins": 56.24316551617534
+},
+"lines": [
+"Won 1 of 1 endpoint in 1 trial.",
+"Hazard ratio 0.66 against Docetaxel on progression-free survival, in one trial (95% interval 0.51 to 0.86).",
+"Size against peers not known: how far trials differ on progression-free survival rests on too few trials to compare drugs, so efficacy is strength and wins alone."
+],
+"notes": [
+"Strength, how far past chance its one trial's result is: z of 3.0, where 1.96 is p = 0.05 and 3.29 (p = 0.001) scores 100.",
+"Strength counted at z 2.5: moved 49% of the way to the average of the 23 drugs here (2.0), since its one trial says less on its own.",
+"Wins counted at 56 of 100, from 100: moved 78% of the way to the average of the drugs here (44), since its one trial says less on its own.",
+"Every endpoint is against an active comparator."
+],
+"size_basis": null,
+"read_with_care": null,
+"pooled": [
+{
+"measure": "progression-free survival",
+"control": "Docetaxel",
+"scale": "log hazard ratio",
+"effect": 0.4109802887962745,
+"lo": -0.10029216640560606,
+"hi": 0.9222527439981552,
+"hazard_ratio": 0.663,
+"hazard_ratio_lo": 0.39762229016093104,
+"hazard_ratio_hi": 1.1054938590643189,
+"k": 1,
+"participants": 171,
+"weeks": [
+105.6,
+105.6
+],
+"trials": [
+"NCT04303780"
+]
+}
+]
+},
+"safety": {
+"score": 27.623535404992367,
+"parts": {
+"serious": 27.623535404992367
+},
+"lines": [
+"Serious adverse events: 9.5 points more than active comparators (53.8% against 44.4%), in its one trial of 169 people (95% interval 10.7 fewer to 29.6 more)."
+],
+"notes": [
+"Counts are people with an event over each arm's whole follow-up; an arm followed for longer reports more.",
+"Deaths, reported and not scored: 18.9 points more than control (63.7% against 44.8%) in one trial."
+],
+"size_basis": null,
+"read_with_care": null,
+"pooled": []
+},
+"evidence": {
+"score": 53.31096149789013,
+"participants": 215,
+"phase": "Phase 3",
+"confidence": "medium"
+},
+"regimen": {
+"participants": 215,
+"dose": null,
+"form": "oral",
+"frequency": "daily",
+"duration": "106 wk",
+"duration_span": "106 to 106 weeks",
+"form_source": "arm descriptions",
+"why": {
+"dose": "no dose named for the drug in its arms",
+"form": null,
+"frequency": null,
+"duration": null
+}
+}
+},
+"efficacy": {
+"groups": [
+{
+"title": "Progression Free Survival (PFS)",
+"unit": "months",
+"param_type": "MEDIAN",
+"n_assets": 9,
+"rows": [
+{
+"nct_id": "NCT04303780",
+"phase": "Phase 3",
+"weeks": 105.6,
+"arm": "AMG 510",
+"arm_is_drug": true,
+"arm_names_drug": true,
+"arm_is_control": false,
+"category": null,
+"n": 171,
+"value": 5.62,
+"spread": null,
+"placebo": 4.47,
+"reference_kind": "comparator",
+"reference_arm": "Docetaxel",
+"delta": 1.1500000000000004,
+"estimate": 0.663,
+"ci": [
+0.509,
+0.864
+],
+"p_value": "0.002"
+}
+]
+}
+],
+"rows": 1,
+"shown": 1
+},
+"safety": {
+"asset_id": 3007,
+"name": "Amg 510",
+"ticker": "AMGN",
+"trials": 1,
+"control_kind": "comparator",
+"participants": 215,
+"placebo_participants": 151,
+"serious_rate": 0.5441860465116279,
+"withdrawn_rate": null,
+"deaths_rate": 0.5806451612903226,
+"any_rate": 0.8651162790697674,
+"placebo_serious_rate": 0.44370860927152317,
+"placebo_withdrawn_rate": null,
+"placebo_deaths_rate": 0.4482758620689655,
+"placebo_any_rate": 0.8543046357615894,
+"top_events": [
+{
+"term": "Diarrhoea",
+"serious": true,
+"organ_system": "Gastrointestinal disorders",
+"rate": 0.2069767441860465,
+"placebo_rate": 0.1291390728476821
+},
+{
+"term": "Decreased appetite",
+"serious": false,
+"organ_system": "Metabolism and nutrition disorders",
+"rate": 0.20465116279069767,
+"placebo_rate": 0.19205298013245034
+},
+{
+"term": "Fatigue",
+"serious": false,
+"organ_system": "General disorders",
+"rate": 0.15348837209302327,
+"placebo_rate": 0.2847682119205298
+},
+{
+"term": "Arthralgia",
+"serious": false,
+"organ_system": "Musculoskeletal and connective tissue disorders",
+"rate": 0.13953488372093023,
+"placebo_rate": 0.1390728476821192
+},
+{
+"term": "Non-small cell lung cancer",
+"serious": true,
+"organ_system": "Neoplasms benign, malignant and unspecified (incl cysts and polyps)",
+"rate": 0.12558139534883722,
+"placebo_rate": 0.033112582781456956
+},
+{
+"term": "Nausea",
+"serious": true,
+"organ_system": "Gastrointestinal disorders",
+"rate": 0.12325581395348838,
+"placebo_rate": 0.12251655629139073
+}
+],
+"boxed_warning": null,
+"strata": [
+{
+"nct_id": "NCT04303780",
+"phase": "Phase 3",
+"kind": "comparator",
+"arms": 2,
+"control_title": "Docetaxel",
+"control_is_drug": false,
+"control": {
+"serious": [
+67,
+151
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+78,
+174
+]
+},
+"arm_rows": [
+{
+"title": "AMG 510",
+"is_control": false,
+"serious": [
+91,
+169
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+109,
+171
+]
+},
+{
+"title": "Docetaxel, Then Switched to AMG 510",
+"is_control": false,
+"serious": [
+26,
+46
+],
+"withdrawn": [
+0,
+0
+],
+"deaths": [
+17,
+46
+]
+}
+]
+}
+]
+},
+"trials": [
+{
+"nct_id": "NCT04303780",
+"phase": "Phase 3",
+"title": "Study to Compare AMG 510 \"Proposed INN Sotorasib\" With Docetaxel in Non Small Cell Lung Cancer (NSCLC) (CodeBreak 200).",
+"status": "COMPLETED",
+"enrollment": 345,
+"completion": "2026-06-24",
+"has_results": true
+}
+],
+"with_results": 1,
+"readouts": [],
+"pool": {
+"indication": {
+"pool": 9786.619999999999,
+"indication": "Carcinoma, Non-Small-Cell Lung",
+"per_year": true,
+"claimants": 15,
+"pooled": 3,
+"peak_year": 2052,
+"uncrowded_share": 0.5671499989872317,
+"crowded_share": 0.5671499989872317
+},
+"own": null
+},
+"pool_path": null,
+"patients": [],
+"model": null,
+"valuation": [],
+"paths": [],
+"catalysts": [],
+"commercial": null
+}

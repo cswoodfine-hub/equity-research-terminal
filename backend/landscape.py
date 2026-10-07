@@ -344,13 +344,38 @@ def indications(db_path=None, limit: int = 250) -> list[dict]:
 
 
 # --- candidates ---------------------------------------------------------------------
-def _names(asset: dict) -> list[str]:
+# A development code opening a name, as sponsors write it: letters then digits, with or
+# without a hyphen or a space ("AZD9291", "MK-3475", "PF 06463922").
+_CODE = re.compile(r"([A-Z]{2,6})[- ]?(\d{3,8}[A-Z]?)(?![\w-])")
+_COMBINATION = re.compile(r"\+|\bplus\b|\bwith\b|\band\b|combination", re.I)
+
+
+def _codes(name: str) -> list[str]:
+    """The development code a name opens with, written the three ways a registry arm
+    writes it: "AZD9291 80 mg/40 mg" gives AZD9291, AZD-9291 and AZD 9291, so an arm
+    titled "AZD9291 80mg" names osimertinib. Only a code the name opens with, so a
+    vaccine's carrier protein ("... Diphtheria CRM197 Protein") is not read as its code,
+    and never from a combination's name, whose code would be one component's alone."""
+    m = _CODE.match((name or "").strip())
+    if not m or m.group(1).upper() in ("NDA", "BLA", "ANDA") or _COMBINATION.search(name):
+        return []
+    a, b = m.group(1), m.group(2)
+    return [f"{a}{b}", f"{a}-{b}", f"{a} {b}"]
+
+
+def _names(asset: dict, aliases=()) -> list[str]:
+    """The names an asset's trial arms may call it: brand, generic, code and active
+    ingredients, the development names it is known by (``aliases``, from asset_aliases),
+    and the code any of them opens with in each way a registry writes it."""
     names = [asset.get("brand_name"), asset.get("generic_name"), asset.get("internal_code")]
     try:
         names += json.loads(asset.get("active_ingredients") or "[]")
     except (TypeError, ValueError):
         pass
-    return [n for n in dict.fromkeys(n.strip() for n in names if n and n.strip())
+    names += list(aliases)
+    names = [n.strip() for n in names if n and n.strip()]
+    names += [c for n in names for c in _codes(n)]
+    return [n for n in dict.fromkeys(names)
             if not re.fullmatch(r"(NDA|BLA|ANDA)\s*\d+", n, re.I)]
 
 
@@ -418,6 +443,12 @@ def candidates(conn, members: list[dict]) -> dict:
     if not found:
         return {}
     am = ",".join("?" * len(found))
+    # The development names an asset is known by beyond its own row (asset_aliases: a
+    # code absorbed by a merge, a programme name from the filings).
+    aliases = defaultdict(list)
+    for r in conn.execute(f"SELECT asset_id, internal_code FROM asset_aliases"
+                          f" WHERE asset_id IN ({am})", tuple(found)):
+        aliases[r["asset_id"]].append(r["internal_code"])
     for r in conn.execute(
             f"""SELECT a.id, a.generic_name, a.brand_name, a.internal_code, a.active_ingredients,
                        a.modality, a.is_marketed, a.molecule_id, c.ticker, c.name AS company
@@ -429,7 +460,8 @@ def candidates(conn, members: list[dict]) -> dict:
                   "code": r["internal_code"], "molecule_id": r["molecule_id"],
                   "ticker": r["ticker"],
                   "company": r["company"], "is_marketed": bool(r["is_marketed"]),
-                  "modality": r["modality"], "_names": _names(dict(r))})
+                  "modality": r["modality"],
+                  "_names": _names(dict(r), aliases.get(r["id"], ()))})
     # Where nothing on this indication stages the asset (a seed alone links it), its
     # furthest phase anywhere, marked as such.
     for aid, c in found.items():
@@ -513,7 +545,9 @@ def _pool(conn, members: list[dict]) -> dict:
             continue
         summary = pool_crowding.summary(got) if len(claims) > 1 else {}
         return {"pool": got.get("pool"), "indication": m["name"],
-                "claimants": len(claims),
+                # A pool of a year's diagnoses is a figure a year, not a standing count.
+                "per_year": bool(got.get("pool_per_year")),
+                "claimants": len(claims), "pooled": got.get("pooled"),
                 "assets": {a["asset_id"]: {"peak_uncrowded": max(a["uncrowded"] or [0]),
                                            "peak_crowded": max(a["crowded"] or [0]),
                                            "ratio": a["ratio"], "pooled": a["pooled"]}

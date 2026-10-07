@@ -162,7 +162,8 @@ def sparkline(values: Sequence[Optional[float]], width: int = 140,
 def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900,
                height: int = 300, y_fmt: Callable[[float], str] = None,
                hover: bool = True, y_span=None, markers: Sequence[dict] = (),
-               points: Sequence[dict] = (), shade=None, zero: bool = False) -> str:
+               points: Sequence[dict] = (), shade=None, zero: bool = False,
+               marker_size: float = 8.5) -> str:
     """Multi-series line. Each series: {name, values, colour, axis: left|right}.
 
     Series marked axis=right scale on their own zero-free domain; both ends are
@@ -183,7 +184,8 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
     to_index), a tint behind the plot for the years after it. All three share the left
     axis, and the dots count toward its domain so a reported year is never clipped.
     ``zero`` holds the left axis to zero: a revenue path has no negative years, and an
-    axis that pads below zero prints a figure nothing can take.
+    axis that pads below zero prints a figure nothing can take. ``marker_size`` is the
+    marker labels' type size.
     """
     y_fmt = y_fmt or (lambda v: _fmt(v, 1))
     pad_l, pad_r, top, bottom = 54, 54, 12, 24
@@ -226,7 +228,7 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
                    f' stroke="{colour}" stroke-width="1" stroke-dasharray="3,3"'
                    ' class="marker"/>')
         if m.get("label"):
-            out.append(_text(mx, top - 3, m["label"], 8.5, colour, "middle", MONO,
+            out.append(_text(mx, top - 3, m["label"], marker_size, colour, "middle", MONO,
                              "600"))
     for pt in points:
         for i, v in enumerate(pt["values"]):
@@ -753,10 +755,12 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
     tolerability up, so top right is where a drug wants to be.
 
     Each point: {name, ticker, x, y, evidence (0 to 100, or None), stage, boxed, rank,
-    tip, nosize}. Bubble size is the weight of evidence, so a position resting on one
-    small trial looks small, and each bubble carries its rank in the table, so the two
-    read together without a label. The focal company's drugs (``highlight`` ticker) are
-    drawn in the accent with a gap ringed round each, so two that overlap stay two. The
+    tip, nosize, id}. A point with an ``id`` is drawn as a hit area: its bubble and
+    label carry ``data-drug``, which the page's click listener reads. Bubble size is the
+    weight of evidence, so a position resting on one small trial looks small, and each
+    bubble carries its rank in the table, so the two read together without a label. The
+    focal company's drugs (``highlight`` ticker) are drawn in the accent with a gap
+    ringed round each, so two that overlap stay two. The
     top five by rank are labelled first, then the focal company's drugs, then peers best
     first as far as there is room; a label that cannot sit beside its bubble is drawn in
     free space with a thin leader line to it, or left off. Stage is the fill: solid for a
@@ -775,6 +779,14 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
             fill, opacity = "none", "1"
         tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
         out = []
+        # A point with an id is a hit area: grouped under data-drug, with a ring the page's
+        # stylesheet shows on hover and focus (theme.py, the drug card block).
+        if p.get("id") is not None:
+            out.append(f'<g class="sc-pt" data-drug="{_esc(str(p["id"]))}" tabindex="0"'
+                       f' role="button" aria-label="{_esc(p["name"])}: open its card">')
+            out.append(f'<circle class="sc-ring" cx="{px_:.1f}" cy="{py_:.1f}"'
+                       f' r="{r + 4:.1f}" fill="none" stroke="{TK.TEXT}"'
+                       f' stroke-width="1.4" opacity="0"/>')
         if p.get("boxed"):
             out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 3:.1f}" fill="none"'
                        f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="2 2"/>')
@@ -787,6 +799,8 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
                    f'{tip}</circle>')
         if p.get("rank") is not None:
             out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine))
+        if p.get("id") is not None:
+            out.append("</g>")
         return out
 
     keys = [
@@ -816,7 +830,9 @@ def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
         y_title="safety and tolerability score  →  better",
         draw=draw, keys=keys,
         label_of=lambda p: p["name"] + (" †" if p.get("nosize") else ""),
-        reach=lambda p, r: r + (3 if p.get("boxed") else 0))
+        reach=lambda p, r: r + (3 if p.get("boxed") else 0),
+        label_attr=lambda p: (f' class="sc-label" data-drug="{_esc(str(p["id"]))}"'
+                              if p.get("id") is not None else ""))
 
 
 def _bubble_rank(rank, px_: float, py_: float, opacity: str, mine: bool) -> str:
@@ -2314,5 +2330,182 @@ def share_strip(segments: Sequence[dict], width: int = 300, height: int = 26,
             out.append(_text(x + w / 2, height / 2 + 3.5, text, 9.5, TK.GROUND, "middle",
                              MONO, extra=' class="seg-label"'))
         x += w
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- forest ---------------------------------------------------------------------------
+def forest(rows: Sequence[dict], width: int = 760, ratio: bool = False,
+           value_fmt: Callable[[float], str] = None, label_width: int = 300,
+           caption: str = "") -> str:
+    """Each row an effect against its comparator with its interval, on one shared axis.
+
+    Each row: {label, value, lo, hi, note?}. ``ratio`` draws a hazard or odds ratio on a
+    log axis with its reference rule at 1; otherwise a difference on a linear axis with
+    the rule at 0. A row with no value is left off, and a row with no interval is drawn
+    as its point alone, never with an invented spread. The estimate and its interval are
+    printed at the right, so the geometry is never the only signal. ``caption`` says
+    which side favours the drug.
+    """
+    usable = [r for r in rows if r.get("value") is not None
+              and (not ratio or r["value"] > 0)]
+    if not usable:
+        return ""
+    value_fmt = value_fmt or (lambda v: _fmt(v, 2))
+    row_h, pad_t, pad_r, pad_b = 22, 22, 150, 24 if caption else 10
+    height = int(pad_t + row_h * len(usable) + pad_b)
+    t = (lambda v: math.log(v)) if ratio else (lambda v: v)
+    ends = [r["value"] for r in usable] + [x for r in usable for x in (r.get("lo"), r.get("hi"))
+                                           if x is not None and (not ratio or x > 0)]
+    ends.append(1.0 if ratio else 0.0)
+    lo_d, hi_d = _domain([t(v) for v in ends], pad=0.08)
+    x = _scale((lo_d, hi_d), (label_width, width - pad_r))
+    out = [_svg_open(width, height, "effects against their comparators, with intervals")]
+    ref = x(t(1.0 if ratio else 0.0))
+    if ratio:
+        ticks = [v for v in (0.1, 0.2, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0)
+                 if lo_d <= math.log(v) <= hi_d]
+    else:
+        # Round steps of 1, 2 or 5 a power of ten, about four of them across the axis.
+        raw = (hi_d - lo_d) / 5 or 1.0
+        mag = 10 ** math.floor(math.log10(raw))
+        step = next(m * mag for m in (1, 2, 5, 10) if m * mag >= raw)
+        ticks = [step * k for k in range(math.ceil(lo_d / step), math.floor(hi_d / step) + 1)]
+    for tv in ticks:
+        gx = x(t(tv)) if ratio else x(tv)
+        out.append(f'<line x1="{gx:.1f}" y1="{pad_t - 4}" x2="{gx:.1f}"'
+                   f' y2="{height - pad_b}" stroke="{TK.RULE}"/>')
+        out.append(_text(gx, pad_t - 9, value_fmt(tv) if ratio else _fmt(tv, 0 if step >= 1
+                                                                       else 1), 9,
+                         TK.MUTED, "middle", MONO))
+    out.append(f'<line x1="{ref:.1f}" y1="{pad_t - 4}" x2="{ref:.1f}" y2="{height - pad_b}"'
+               f' stroke="{TK.MUTED}" stroke-dasharray="2 3"/>')
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        lo, hi = r.get("lo"), r.get("hi")
+        if lo is not None and hi is not None and (not ratio or (lo > 0 and hi > 0)):
+            out.append(f'<line x1="{x(t(lo)):.1f}" y1="{cy:.1f}" x2="{x(t(hi)):.1f}"'
+                       f' y2="{cy:.1f}" stroke="{TK.TEXT}" stroke-width="1.4"/>')
+            for e in (lo, hi):
+                out.append(f'<line x1="{x(t(e)):.1f}" y1="{cy - 4:.1f}" x2="{x(t(e)):.1f}"'
+                           f' y2="{cy + 4:.1f}" stroke="{TK.TEXT}" stroke-width="1.2"/>')
+            span = f" ({value_fmt(lo)} to {value_fmt(hi)})"
+        else:
+            span = ""
+        tip = f'{r["label"]}: {value_fmt(r["value"])}{span}' + (
+            f'. {r["note"]}' if r.get("note") else "")
+        out.append(f'<rect x="{x(t(r["value"])) - 4:.1f}" y="{cy - 4:.1f}" width="8"'
+                   f' height="8" fill="{TK.UP}"><title>{_esc(tip)}</title></rect>')
+        out.append(_text(width - pad_r + 10, cy + 3.5, value_fmt(r["value"]) + span, 9.5,
+                         TK.TEXT, "start", MONO))
+    if caption:
+        out.append(_text(label_width, height - 6, caption, 9.5, TK.MUTED, "start"))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- paired bars ----------------------------------------------------------------------
+def paired_bars(rows: Sequence[dict], width: int = 520,
+                value_fmt: Callable[[float], str] = None, label_width: int = 170,
+                names: tuple = ("drug", "control")) -> str:
+    """Each row the drug's figure over its control's, two bars on one axis from zero.
+
+    Each row: {label, value, reference?}. The drug's bar is in the measured colour and
+    the control's in the muted one, each with its figure at its end, so colour is never
+    the only signal. A row with no drug figure is left off; a missing control draws no
+    bar and says so, never a zero.
+    """
+    usable = [r for r in rows if r.get("value") is not None]
+    if not usable:
+        return ""
+    value_fmt = value_fmt or (lambda v: _fmt(v, 1))
+    bar_h, gap, row_h, pad_t, pad_r = 9, 2, 30, 20, 70
+    height = int(pad_t + row_h * len(usable) + 4)
+    top = max([r["value"] for r in usable]
+              + [r["reference"] for r in usable if r.get("reference") is not None])
+    x = _scale((0.0, top * 1.05 or 1.0), (label_width, width - pad_r))
+    out = [_svg_open(width, height, "the drug's figures against its control's")]
+    lx = label_width
+    for colour, word in ((TK.UP, names[0]), (TK.MUTED, names[1])):
+        out.append(f'<rect x="{lx:.1f}" y="5" width="9" height="9" fill="{colour}"/>')
+        out.append(_text(lx + 13, 13, word, 9.5, TK.MUTED))
+        lx += 13 + len(word) * 5.4 + 16
+    for i, r in enumerate(usable):
+        y0 = pad_t + row_h * i + (row_h - 2 * bar_h - gap) / 2
+        out.append(_text(label_width - 10, y0 + bar_h + 4, r["label"], 10, TK.TEXT, "end"))
+        for j, (v, colour) in enumerate(((r["value"], TK.UP),
+                                         (r.get("reference"), TK.MUTED))):
+            yy = y0 + j * (bar_h + gap)
+            if v is None:
+                out.append(_text(label_width + 4, yy + bar_h - 1, f"no {names[1]} figure",
+                                 9, TK.MUTED))
+                continue
+            w = max(x(v) - label_width, 1.2)
+            out.append(f'<rect x="{label_width}" y="{yy:.1f}" width="{w:.1f}"'
+                       f' height="{bar_h}" fill="{colour}"><title>{_esc(r["label"])},'
+                       f' {_esc(names[j])}: {_esc(value_fmt(v))}</title></rect>')
+            out.append(_text(label_width + w + 5, yy + bar_h - 1, value_fmt(v), 9,
+                             TK.TEXT if j == 0 else TK.MUTED, "start", MONO))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- date strip -----------------------------------------------------------------------
+def date_strip(items: Sequence[dict], start: str, width: int = 760) -> str:
+    """Dated events on one horizontal time axis from ``start`` (an ISO date, the day the
+    page reads as today) to the last event, with a tick at each year.
+
+    Each item: {date (ISO), label, filled?, note?}. A filled diamond is an event with a
+    figure on it, a hollow one an event without; the label sits above or below its mark,
+    on whichever of two rows leaves it clear of its neighbour. An item with no date is
+    left off.
+    """
+    import datetime as _dt
+
+    def day(s):
+        try:
+            return _dt.date.fromisoformat(str(s)[:10])
+        except (TypeError, ValueError):
+            return None
+    t0 = day(start)
+    usable = sorted(((day(i.get("date")), i) for i in items if day(i.get("date"))),
+                    key=lambda p: p[0])
+    if not usable or t0 is None:
+        return ""
+    t1 = max(usable[-1][0], t0 + _dt.timedelta(days=180))
+    pad_l, pad_r, axis_y, height = 16, 16, 58, 112
+    x = _scale((0.0, float((t1 - t0).days) or 1.0), (pad_l, width - pad_r))
+    px = lambda d: x(float((d - t0).days))  # noqa: E731
+    out = [_svg_open(width, height, "dated events on a time axis")]
+    out.append(f'<line x1="{pad_l}" y1="{axis_y}" x2="{width - pad_r}" y2="{axis_y}"'
+               f' stroke="{TK.RULE_STRONG}"/>')
+    for year in range(t0.year + 1, t1.year + 1):
+        gx = px(_dt.date(year, 1, 1))
+        out.append(f'<line x1="{gx:.1f}" y1="{axis_y - 4}" x2="{gx:.1f}" y2="{axis_y + 4}"'
+                   f' stroke="{TK.MUTED}"/>')
+        out.append(_text(gx, height - 4, str(year), 9, TK.MUTED, "middle", MONO))
+    out.append(_text(pad_l, height - 4, "today", 9, TK.MUTED, "start"))
+    ends = {-1: -1e9, 1: -1e9}          # the right edge of the last label on each row
+    for i, (d, it) in enumerate(usable):
+        cx = px(d)
+        filled = bool(it.get("filled"))
+        tip = f'{d.strftime("%-d %b %Y")}: {it.get("label") or ""}' + (
+            f'. {it["note"]}' if it.get("note") else "")
+        out.append(f'<path d="M{cx:.1f},{axis_y - 5} l5,5 l-5,5 l-5,-5 z"'
+                   f' fill="{TK.UP if filled else TK.GROUND}" stroke="{TK.UP if filled else TK.MUTED}"'
+                   f' stroke-width="1.3"><title>{_esc(tip)}</title></path>')
+        text = f'{d.strftime("%b %Y")} {it.get("label") or ""}'.strip()
+        w = len(text) * 5.3
+        lx = min(max(cx - w / 2, pad_l), width - pad_r - w)
+        side = -1 if ends[-1] <= ends[1] else 1
+        if ends[side] > lx - 6:
+            side = -side
+        ends[side] = lx + w
+        ly = axis_y - 14 if side == -1 else axis_y + 22
+        out.append(f'<line x1="{cx:.1f}" y1="{axis_y + (-5 if side == -1 else 5)}"'
+                   f' x2="{cx:.1f}" y2="{ly + (4 if side == -1 else -10):.1f}"'
+                   f' stroke="{TK.RULE_STRONG}"/>')
+        out.append(_text(lx, ly, text, 9.5, TK.TEXT if filled else TK.MUTED))
     out.append("</svg>")
     return "".join(out)

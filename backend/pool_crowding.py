@@ -302,7 +302,13 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
                        "uncrowded": up, "crowded": cp if in_pool else up,
                        "pooled": in_pool,
                        "ratio": (max(cp) / max(up)) if (in_pool and max(up)) else 1.0})
-    return {"years": calendar, "assets": assets, "shared": shared, "pool": pool,
+    # The population the pooled claimants draw on: the standing pool where there is one,
+    # else, for a pool of the year's own diagnoses (every cancer line), a year's eligible
+    # diagnoses. That pool has no opening stock, and reporting the stock gave every
+    # oncology landscape a pool of nil and every share of it nil with it.
+    size, per_year = (pool, False) if pool > 0 else (inc, True)
+    return {"years": calendar, "assets": assets, "shared": shared, "pool": size,
+            "pool_per_year": per_year, "pooled": len(claims_in),
             "unpooled": [{"name": c["name"], "ticker": c["ticker"],
                           "pool": round(c["prevalence"] * c["eligible_pct"], 2)}
                          for c in unpooled],
