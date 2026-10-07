@@ -815,7 +815,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-fda .key i { display: inline-block; width: 7px; height: 7px; margin-left: 3px; }
 .uw-fda .key i:first-child { margin-left: 0; }
 .uw-fda .key i.nda { border-radius: 50%; background: var(--fda); }
-.uw-fda .key i.bla { background: var(--fda); transform: rotate(45deg) scale(0.85); }
+.uw-fda .key i.bla { background: var(--fda-bio); transform: rotate(45deg) scale(0.85); }
 .uw-fda .key i.anda { border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; }
 .uw-fda .key i.ahead { border-radius: 50%; border: 1.5px dashed var(--fda); box-sizing: border-box; }
 .uw-fda .tl { position: relative; height: 52px; }
@@ -827,7 +827,7 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-fda .fm { position: absolute; top: 22px; width: 8px; height: 8px; box-sizing: border-box;
   transform: translate(-50%, -50%); cursor: pointer; z-index: 2; }
 .uw-fda .fm.nda { border-radius: 50%; background: var(--fda); }
-.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--fda);
+.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--fda-bio);
   transform: translate(-50%, -50%) rotate(45deg); }
 .uw-fda .fm.anda { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--muted);
   background: var(--ground); }

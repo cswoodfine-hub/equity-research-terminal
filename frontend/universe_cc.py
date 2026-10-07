@@ -1780,14 +1780,14 @@ def spotlight_section(p, w=None):
 # =========================================================================================
 # The colour of each kind of news. Green and red mean up and down, and cheap and expensive,
 # and nothing else on the page, so the kinds take the other colours: deals purple, results
-# the phase ramp, anything at the FDA blue-violet, a date running against a company orange
+# the phase ramp, anything at the FDA blue, a date running against a company orange
 # (a slip, an exclusivity ending), and the rest of the record grey.
 KIND_COLOUR = {
     "deal": "var(--purple-book)", "readout": "var(--phase-3)", "readout2": "var(--phase-2)",
     "notice": "var(--phase-1)", "due": "var(--phase-3)", "approval": "var(--fda)",
     "regulatory": "var(--fda)", "slips": "var(--orange-book)", "loe": "var(--orange-book)",
     "market": "var(--muted)", "earnings": "var(--muted)", "filing": "var(--muted)",
-    "labels": "var(--muted)",
+    "labels": "var(--fda-bio)",
 }
 # The grid's rows (backend GRID_KINDS) in the same colours.
 GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--fda)",
@@ -2049,7 +2049,7 @@ def _news_line(x):
 
 def board_html(p):
     """The company board: one row per company, none marked out. The week's move as a tinted figure, the week's news count, the next dated event
-    in words (FDA dates in blue-violet, a firm date marked, an estimate muted) and the count of
+    in words (FDA dates in blue, a firm date marked, an estimate muted) and the count of
     dated events in 90 days. Three sorts, switched in the browser; the week sort draws
     the benchmark's week (PPH, on price) where it falls. A row's hover lists the company's news of the week; a click
     opens the company."""
@@ -2207,8 +2207,9 @@ def _fda_label(name):
 def fda_row_html(p):
     """The year's FDA approvals across the group on one line, 1 January to 31 December:
     each approval a marker on the day it came, shaped by its application (a small
-    molecule's NDA a disc, a biologic's BLA a diamond, a generic's ANDA a small ring),
-    the FDA decisions dated ahead this year as hollow blue-violet rings, and today's line.
+    molecule's NDA a blue disc, a biologic's BLA a teal diamond, a generic's ANDA a small grey
+    ring),
+    the FDA decisions dated ahead this year as hollow blue rings, and today's line.
     Brand names sit above and below the line where they fit, never over each other; a
     marker's hover gives its company, application and date, and a click opens the
     company. A generic carries no name on the line."""

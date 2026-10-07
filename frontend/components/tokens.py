@@ -45,9 +45,11 @@ PHASE_RAMP["Phase 2/3"] = PHASE_RAMP["Phase 3"]
 # Always paired with a label; never gradients.
 ORANGE_BOOK = "#C98A4B"
 PURPLE_BOOK = "#8B7FC7"
-# The FDA on the Universe tab (approvals, PDUFA and decision dates): a blue-violet, clear
-# of the deals' purple.
-FDA = "#7A8CF2"
+# The FDA on the Universe tab: a clear blue for approvals, PDUFA and decision dates (a
+# small molecule's NDA on the FDA row), a teal-cyan for a biologic's BLA, both clear of
+# the deals' purple.
+FDA = "#5B9BE6"
+FDA_BIO = "#4FB3BF"
 
 # --- Spacing and radius ---------------------------------------------------
 SPACE = 8                 # px base unit; every gap is a multiple
