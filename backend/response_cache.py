@@ -253,6 +253,14 @@ def _fetch(url: str) -> None:
         resp.read()
 
 
+# Stale reads are recomputed one at a time, oldest request first. A thread each starved the
+# API after a restart: one change of company served 56 stale reads, set 56 recomputes
+# running at once, and the next stale read, which needs no computing at all, took 34
+# seconds to come back (2026-10-07).
+_revalidate_queue: "queue.Queue" = queue.Queue()
+_revalidator = {"started": False}
+
+
 def _revalidate(url: str, key: str) -> None:
     with _lock:
         entry = _entries.get(key)
@@ -262,8 +270,16 @@ def _revalidate(url: str, key: str) -> None:
         _inflight.add(key)
         if entry:
             entry["checked"] = time.monotonic()
+        if not _revalidator["started"]:
+            _revalidator["started"] = True
+            threading.Thread(target=_revalidate_worker, name="response-cache revalidate",
+                             daemon=True).start()
+    _revalidate_queue.put((url, key))
 
-    def run():
+
+def _revalidate_worker() -> None:
+    while True:
+        url, key = _revalidate_queue.get()
         try:
             _fetch(url)
         except Exception:          # a failed recompute leaves the last good response
@@ -271,8 +287,7 @@ def _revalidate(url: str, key: str) -> None:
         finally:
             with _lock:
                 _inflight.discard(key)
-
-    threading.Thread(target=run, name=f"revalidate {key}", daemon=True).start()
+            _revalidate_queue.task_done()
 
 
 async def handle(request, call_next):

@@ -160,3 +160,25 @@ def test_the_copy_on_disk_is_off_when_the_environment_says_so(client, monkeypatc
     _restart()
     assert test.get("/value").headers["x-cache"] == "miss" and calls["n"] == 2
 
+
+
+def test_stale_reads_are_recomputed_one_at_a_time(monkeypatch):
+    import threading
+    import time as _time
+    running, peak, done = [0], [0], []
+    gate = threading.Lock()
+
+    def fetch(url):
+        with gate:
+            running[0] += 1
+            peak[0] = max(peak[0], running[0])
+        _time.sleep(0.02)
+        with gate:
+            running[0] -= 1
+        done.append(url)
+
+    monkeypatch.setattr(RC, "_fetch", fetch)
+    for i in range(5):
+        RC._revalidate(f"http://api/r{i}", f"/r{i}?")
+    RC._revalidate_queue.join()
+    assert sorted(done) == [f"http://api/r{i}" for i in range(5)] and peak[0] == 1
