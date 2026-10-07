@@ -2572,7 +2572,8 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
             basis="efficacy, safety and weight of evidence, averaged · posted results only")
     # Keyed so the theme can stack the chart over the table on a narrow screen.
     with st.container(key="sc_map"):
-        left, right = st.columns([1, 1.15], gap="medium")
+        # The chart takes the smaller share so the table runs beside it in full.
+        left, right = st.columns([0.82, 1.18], gap="medium")
     with left:
         chart = CH.score_map(
             [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
@@ -2580,7 +2581,7 @@ def _landscape_scorecard(sc: dict, ticker: str) -> None:
               "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
               "nosize": a["efficacy"].get("size_basis") == "not comparable",
               "tip": _score_tip(a)} for a in placed],
-            760, 500, highlight=ticker,
+            620, 440, highlight=ticker,
             x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
                                                for a in placed)
                        else "efficacy score (strength and wins, no size)"))
@@ -2631,7 +2632,7 @@ def _landscape_overview(api_base: str, pick: int, ticker: str) -> None:
     st.markdown(_verdict_card(cards[0], lead=True, meaning=False), unsafe_allow_html=True)
     rest = cards[1:]
     if rest:
-        st.markdown('<div class="vc-grid">' + "".join(_verdict_card(c, meaning=False)
+        st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
                                                        for c in rest)
                     + "</div>", unsafe_allow_html=True)
 

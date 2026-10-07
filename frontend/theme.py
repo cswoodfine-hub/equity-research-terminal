@@ -920,10 +920,16 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* A narrow screen stacks the chart over the table: side by side the chart's text shrinks
    past reading and the table is cut off. Scoped to the scorecard's own keyed container,
    which holds no other columns. */
-@media (max-width: 1439px) {{
+@media (max-width: 1099.98px) {{
   .st-key-sc_map [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
   .st-key-sc_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
     width: 100% !important; min-width: 100% !important; }}
+}}
+/* Beside the chart on a laptop screen the table keeps its scores and gives up the four
+   regimen columns (dose, form, frequency, weeks), which "What every score rests on"
+   still lists; stacked under the chart, it has the width for all of them. */
+@media (min-width: 1100px) and (max-width: 1399.98px) {{
+  .st-key-sc_map .sc-table tr > *:nth-last-child(-n+4) {{ display: none; }}
 }}
 .land a:hover {{ text-decoration: underline; }}
 .land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
@@ -955,6 +961,16 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .vc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
            gap: 10px; margin-bottom: 8px; }}
 .vc-grid .vc {{ margin: 0; }}
+/* An indication's verdict cards under the scorecard: one row, equal widths and heights,
+   two to a row on a narrow screen. */
+.vc-grid.vc-row {{ grid-template-columns: none; grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr); align-items: stretch; }}
+@media (max-width: 1099.98px) {{
+  .vc-grid.vc-row {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
+@media (max-width: 700px) {{
+  .vc-grid.vc-row {{ grid-template-columns: minmax(0, 1fr); }}
+}}
 .vc-title {{ font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
             color: var(--muted); margin-bottom: 4px; }}
 .vc-head {{ font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35; }}
