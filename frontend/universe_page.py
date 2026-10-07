@@ -80,6 +80,22 @@ def fetch(api_base: str, ticker: str, part: str = "all") -> dict:
         return exc.payload
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def drafts_read(api_base: str) -> list:
+    """``GET /drafts``: every company with a closed acquisition on file and its closings
+    with rows still open. A story about one of them says the model does not hold it yet.
+    The Forecast tab clears this when a draft is decided."""
+    with urllib.request.urlopen(api_base.rstrip("/") + "/drafts", timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _drafts(api_base: str) -> list:
+    try:
+        return drafts_read(api_base)
+    except (urllib.error.URLError, OSError, ValueError):
+        return []                        # no tag is drawn, which says nothing either way
+
+
 def _md(markup: str) -> str:
     """Markup for st.markdown: a dollar sign is written as an entity, so a pair of them can
     never be read as a formula."""
@@ -215,5 +231,5 @@ def render(api_base: str, ticker: str) -> bool:
         return False
     if not p or not p.get("companies"):
         return False
-    _command(api_base, p)
+    _command(api_base, {**p, "drafts": _drafts(api_base)})
     return True

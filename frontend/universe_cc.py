@@ -1963,13 +1963,51 @@ def _item_card(p, it, x, cls=""):
 
 
 # --------------------------------------------------------------------- this week, ranked
+NOT_IN_MODEL = "not in the model"
+
+
+def _distinct(target_key: str) -> str | None:
+    """The word of a target's name a story about it uses: its first, where that is long
+    enough not to match other words."""
+    first = (target_key or "").split(" ")[0]
+    return first if len(first) >= 4 else None
+
+
+def not_in_model(p, it) -> bool:
+    """Whether a deal story is an acquisition the model does not hold yet: one of its
+    companies has a closing on file (``p["drafts"]``, from ``GET /drafts``) with rows still
+    waiting for review, and the story names that closing's target. The tag belongs to the
+    story, not the company, so the board marks no company out."""
+    if it.get("kind") != "deal":
+        return False
+    text = " ".join(str(v) for v in (
+        it.get("head"), it.get("quote"), (it.get("terms") or {}).get("counterparty"),
+        " ".join(str(c) for row in it.get("rows") or [] for c in row if c))).lower()
+    tickers = set(it.get("tickers") or [])
+    for company in p.get("drafts") or []:
+        if company.get("ticker") not in tickers:
+            continue
+        for deal in company.get("deals") or []:
+            word = _distinct(deal.get("target_key"))
+            if deal.get("open_rows") and word and re.search(
+                    rf"(?<![\w-]){re.escape(word)}(?![\w-])", text):
+                return True
+    return False
+
+
+def _nim(p, it) -> str:
+    return (f'<span class="uw-nim" title="An acquisition with forecast rows drafted from '
+            f'the target\'s filings and not yet accepted: the valuation does not include it '
+            f'yet">{NOT_IN_MODEL}</span>' if not_in_model(p, it) else "")
+
+
 def _rank_row(p, it, n):
     x = feed_item(p, it)
     me = ""
     return (f'<div class="uw-it{me}" tabindex="0" style="--accent:{x["accent"]}">'
             f'<span class="n">{n}</span>'
             f'<div class="bd"><div class="k"><span class="uw-tag">{esc(x["tag"])}</span>'
-            f'{_tk_marks(p, it.get("tickers") or [], 3)}'
+            f'{_nim(p, it)}{_tk_marks(p, it.get("tickers") or [], 3)}'
             f'<span class="uw-dt">{esc(dday(it.get("date")))}</span></div>'
             f'<div class="h">{esc(brief(it))}</div></div>'
             f'<span class="ch">{x["mini"]}</span>'
@@ -2002,7 +2040,7 @@ def ranked_html(p, start=1, rows=RANK_ROWS):
             f'<div class="uw-mr"><span class="n">{start + 2 * rows + i}</span>'
             f'<span class="uw-tag" style="--accent:{KIND_COLOUR.get(it.get("kind"), "var(--rule-strong)")}">'
             f'{esc(feed_item(p, it)["tag"])}</span>'
-            f'<span class="h">{_tk_marks(p, it.get("tickers") or [], 3)} '
+            f'<span class="h">{_nim(p, it)}{_tk_marks(p, it.get("tickers") or [], 3)} '
             f'{esc(brief(it))}</span>'
             f'<span class="f">{esc(feed_item(p, it)["fig"])}</span></div>'
             for i, it in enumerate(rest))

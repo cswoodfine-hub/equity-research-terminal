@@ -472,6 +472,12 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
 .uw-tag { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; line-height: 12px;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); white-space: nowrap;
   border-left: 3px solid var(--accent, var(--rule-strong)); padding-left: 5px; }
+/* An acquisition the model does not hold yet: its drafted rows wait for review. The
+   story carries it, never the company. */
+.uw-nim { font-family: var(--font-mono); font-size: 9px; font-weight: 600; line-height: 11px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--flag); white-space: nowrap;
+  border: 1px solid var(--flag); border-radius: var(--radius-small); padding: 0 4px;
+  margin-right: 4px; }
 .uw-tks { font-family: var(--font-mono); font-size: 10.5px; white-space: nowrap; }
 .uw-tks b { font-weight: 600; color: var(--text); }
 .uw-tks b.all { color: var(--muted); font-weight: 500; }
