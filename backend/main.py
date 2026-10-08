@@ -57,6 +57,7 @@ import labels as labels_module
 import launch_timing
 import development
 import disease_areas
+import call_log
 import landscape as landscape_module
 import drug_card
 import landscape_overview
@@ -899,6 +900,20 @@ def company_street(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
+
+
+@app.get("/calls/scores")
+def calls_scores(cohort: str | None = None) -> dict:
+    """The model's recorded calls scored against what followed (backend/call_log.py): its
+    12-month upside against the return over PPH at 1, 3, 6 and 12 months, beside the
+    analysts' targets on the same days, and the gate odds against the readouts."""
+    return call_log.score(None, cohort=cohort)
+
+
+@app.get("/calls/{ticker}")
+def calls_for(ticker: str) -> list:
+    """Every call recorded for one company, oldest first."""
+    return call_log.history(None, ticker)
 
 
 @app.get("/companies/{ticker}/catalysts/stakes")
