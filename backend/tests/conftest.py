@@ -8,6 +8,8 @@ import sqlite3
 os.environ.setdefault("ER_TOOL_RESPONSE_CACHE", "0")
 # Nor does a test that switches it on write the copy on disk, beside the app's own.
 os.environ.setdefault("ER_TOOL_RESPONSE_CACHE_DISK", "0")
+# Nor does a test that runs the scheduled refresh record the day's calls on the book.
+os.environ.setdefault("ER_TOOL_CALL_LOG", "0")
 
 import pytest
 

@@ -110,6 +110,18 @@ def wait_for_network(probe=None, attempts: int = NETWORK_ATTEMPTS,
     return False
 
 
+def _record_calls(db_path, run_id) -> None:
+    """The day's calls, valued on the book the run just refreshed (call_log.py). A failure
+    here is logged and never fails the run: the refresh has already done its work."""
+    try:
+        import call_log
+        out = call_log.record(db_path, run_id=run_id)
+        _log(f"calls recorded: {json.dumps({k: v for k, v in out.items() if k != 'errors'})}"
+             + (f"; {len(out.get('errors') or [])} errors" if out.get("errors") else ""))
+    except Exception as exc:
+        _log(f"calls not recorded: {type(exc).__name__}: {exc}")
+
+
 def run(refresh_fn=None, db_path=None) -> int:
     """Run one scheduled refresh. ``refresh_fn`` is injectable for tests."""
     # A scheduled run fetches. Left to the TTLs it would skip everything a rebuilt
@@ -136,6 +148,8 @@ def run(refresh_fn=None, db_path=None) -> int:
         detail = result.get("detail", {}) if isinstance(result, dict) else {}
         changes = detail.get("changes") if isinstance(detail, dict) else None
         _log(f"run {result.get('id')} {status}; changes={json.dumps(changes)}")
+        if status in ("complete", "partial"):
+            _record_calls(db_path, result.get("id"))
         return 0 if status in ("complete", "partial") else 1
     except Exception as exc:                       # a hard failure to run at all
         _log(f"failed: {type(exc).__name__}: {exc}")
