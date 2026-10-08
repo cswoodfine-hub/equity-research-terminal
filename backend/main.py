@@ -903,7 +903,7 @@ def company_street(ticker: str) -> dict:
 
 
 @app.get("/calls/scores")
-def calls_scores(cohort: str | None = None) -> dict:
+def calls_scores(cohort: Optional[str] = None) -> dict:
     """The model's recorded calls scored against what followed (backend/call_log.py): its
     12-month upside against the return over PPH at 1, 3, 6 and 12 months, beside the
     analysts' targets on the same days, and the gate odds against the readouts."""
