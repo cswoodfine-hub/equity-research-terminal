@@ -151,3 +151,26 @@ def test_the_users_grouping_wins_over_the_sector(monkeypatch):
     groups = {"Rare earths": ["MP_US_EQ"]}
     assert my_portfolio._theme("MP_US_EQ", "X", False, groups) == "Rare earths"
     assert my_portfolio._theme("AZNl_EQ", "Y", True, groups) == "Healthcare"
+
+
+def test_the_table_groups_by_theme_and_details_only_the_covered():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "frontend"))
+    import holdings_view as H
+    mine = {"currency": "GBP", "exposure": {"invested": 1000.0, "themes": [
+                {"theme": "Healthcare", "value": 600.0, "share": 0.6, "return": 0.1},
+                {"theme": "Rare earths", "value": 400.0, "share": 0.4, "return": -0.2}]},
+            "rows": [
+                {"t212_ticker": "AZNl_EQ", "name": "AstraZeneca", "theme": "Healthcare",
+                 "value": 600.0, "return": 0.1, "market": 0.05, "pick": 0.05, "covered": True,
+                 "model": {"rating": "Buy", "upside_12m": 0.2},
+                 "next_catalyst": {"expected_date": "2026-10-27", "catalyst_type": "data readout"},
+                 "gates": [], "flags": {"count": 0, "high": []}},
+                {"t212_ticker": "MP_US_EQ", "name": "MP Materials", "theme": "Rare earths",
+                 "value": 400.0, "return": -0.2, "market": 0.02, "pick": -0.22, "covered": False}]}
+    html = H._table(mine)
+    assert html.index("Healthcare") < html.index("AstraZeneca") < html.index("Rare earths") \
+        < html.index("MP Materials")
+    assert html.count('class="d"') == 1 and "27 Oct 2026" in html
+    assert "Currency" not in html and "60.0%" in html

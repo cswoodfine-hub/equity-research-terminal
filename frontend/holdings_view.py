@@ -32,7 +32,7 @@ _CSS = """<style>
 .hd .hd-e .k i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
 .hd .hd-e .k em{font-style:normal}
 .hd .hd-c{margin:0 0 8px}
-.hd .hd-c .plot{position:relative;height:130px;margin:0 150px 18px 34px}
+.hd .hd-c .plot{position:relative;height:104px;margin:0 150px 18px 34px}
 .hd .hd-c svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .hd .hd-c path{fill:none;stroke-width:1.8;vector-effect:non-scaling-stroke}
 .hd .hd-c path.v{stroke:var(--text)} .hd .hd-c path.s{stroke:var(--up);stroke-dasharray:6 4}
@@ -46,15 +46,35 @@ _CSS = """<style>
   font-size:10px;color:var(--muted)}
 .hd .hd-c .xl{position:absolute;top:calc(100% + 4px);font-size:10px;color:var(--muted)}
 .hd .hd-c .cap{font-size:11px;color:var(--muted)}
-.hd .hd-t{max-height:calc(100vh - 556px);overflow:auto;border-top:1px solid var(--rule)}
-.hd table{border-collapse:collapse;width:100%}
-.hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
-  text-align:right;font-weight:500;padding:4px 8px;border-bottom:1px solid var(--rule)}
+.hd .hd-t{max-height:calc(100vh - 530px);overflow:auto;border-top:1px solid var(--rule)}
+.hd table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;
+  table-layout:fixed;border:none}
+.hd table th,.hd table td{border-left:none;border-right:none;border-top:none}
+.hd table td{border-bottom:none}
+.hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:500;
+  text-align:right;padding:6px 12px;border-bottom:1px solid var(--rule-strong)}
 .hd th:first-child,.hd td:first-child{text-align:left}
-.hd td{padding:6px 8px;border-bottom:1px solid var(--rule);text-align:right;vertical-align:top}
-.hd td .sub{display:block;font-size:11px;color:var(--muted)}
-.hd tr.out td{color:var(--muted)}
-.hd td.up,.hd tr.out td.up{color:var(--up)} .hd td.down,.hd tr.out td.down{color:var(--down)}
+.hd td{padding:5px 12px;text-align:right;vertical-align:middle;white-space:nowrap}
+.hd tr.h td{border-top:1px solid var(--rule-faint)}
+.hd tr.h:hover td{background:var(--panel)}
+.hd td .nm{color:var(--text)} .hd td .tk{color:var(--muted);font-size:10.5px;margin-left:7px}
+.hd td.up{color:var(--up)} .hd td.down{color:var(--down)} .hd td.mut{color:var(--muted)}
+.hd tr.g td{padding:12px 12px 4px;font-size:10.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule)}
+.hd tr.g td b{color:var(--text);font-weight:600;letter-spacing:.04em}
+.hd tr.g td .dot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;
+  vertical-align:0}
+.hd tr.g td.sum{text-transform:none;letter-spacing:0;font-size:11.5px}
+.hd .w{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end;width:100%}
+.hd .w .trk{width:64px;height:5px;background:var(--rule);border-radius:3px;overflow:hidden}
+.hd .w .trk i{display:block;height:100%;border-radius:3px}
+.hd tr.d td{padding:0 12px 8px 12px;text-align:left;white-space:normal;font-size:11.5px;
+  color:var(--muted)}
+.hd tr.d .chip{display:inline-block;padding:0 6px;border:1px solid var(--rule-strong);
+  border-radius:3px;color:var(--text);margin-right:6px;font-size:11px}
+.hd tr.d .sep{margin:0 8px;color:var(--rule-strong)}
+.hd tr.d b.up{color:var(--up);font-weight:500} .hd tr.d b.down{color:var(--down);font-weight:500}
 .hd .hd-n{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5}
 </style>"""
 
@@ -218,52 +238,93 @@ def dt_label(day: str) -> str:
     return f"{int(day[8:10])} {months[int(day[5:7]) - 1]}"
 
 
-def _gate_cell(row: dict, cur: str) -> str:
+def _detail(row: dict, cur: str) -> str:
+    """The line under a holding the model covers: its call, next catalyst, the biggest
+    priced gate in pounds for this holding, and the week's changes. Empty for the rest."""
+    if not row.get("covered"):
+        return ""
+    parts = []
+    m = row.get("model") or {}
+    if m:
+        moved = (f" (was {escape(row['previous_rating'])})" if row.get("previous_rating")
+                 and row["previous_rating"] != m.get("rating") else "")
+        parts.append(f'<span class="chip">{escape(str(m.get("rating") or ""))}{moved}</span>'
+                     f'model {_pct(m.get("upside_12m"))} 12-month upside')
+    nxt = row.get("next_catalyst") or {}
+    if nxt:
+        what = nxt.get("asset") or nxt.get("catalyst_type") or ""
+        parts.append(f"next {escape(str(what))} {escape(_day(nxt.get('expected_date')))}")
     gates = [g for g in row.get("gates") or [] if g.get("pass_adds") is not None]
-    if not gates:
-        return "no priced gate" if row.get("covered") else ""
-    g = max(gates, key=lambda x: abs(x.get("miss_takes") or 0) + abs(x.get("pass_adds") or 0))
-    return (f'{escape(str(g.get("asset") or ""))} {escape(str(g.get("date") or "")[:7])}'
-            f'<span class="sub">{g["odds"]:.0%} odds · pass {_money(g["pass_adds"], cur, True, True)} '
-            f'({_pct(g.get("pass_pct"), dp=2)}) · miss {_money(g["miss_takes"], cur, True, True)} '
-            f'({_pct(g.get("miss_pct"), dp=2)})</span>')
+    if gates:
+        g = max(gates, key=lambda x: abs(x.get("miss_takes") or 0) + abs(x.get("pass_adds") or 0))
+        parts.append(f'{escape(str(g.get("asset") or ""))} {escape(_day(g.get("date")))}, '
+                     f'{g["odds"]:.0%} odds: pass <b class="up">{_money(g["pass_adds"], cur, True, True)}</b> '
+                     f'· miss <b class="down">{_money(g["miss_takes"], cur, True, True)}</b>')
+    flags = row.get("flags") or {}
+    if flags.get("count"):
+        lead = "; ".join(escape(h) for h in flags.get("high") or [])
+        parts.append(f'{flags["count"]} changes this week' + (f": {lead}" if lead else ""))
+    return '<span class="sep">·</span>'.join(parts)
+
+
+def _day(iso) -> str:
+    """'2026-10-27' as 27 Oct 2026; a month alone as Oct 2026."""
+    text = str(iso or "")
+    months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+    try:
+        mon = months[int(text[5:7]) - 1]
+    except (ValueError, IndexError):
+        return text
+    return f"{int(text[8:10])} {mon} {text[:4]}" if len(text) >= 10 else f"{mon} {text[:4]}"
 
 
 def _table(mine: dict) -> str:
+    """The holdings under their themes, largest theme first and the same colour as the
+    exposure bar: each theme's total, then each holding's weight, value, return and the
+    difference from the S&P 500 over the same days, with a detail line under the ones the
+    model covers."""
     cur = mine.get("currency") or "GBP"
-    head = ("<tr><th>Holding</th><th>Value</th><th>Return</th><th>S&amp;P 500, same days</th>"
-            "<th>Pick</th><th>Currency</th><th>Model view</th><th>Next catalyst</th>"
-            "<th>Biggest priced gate, for this holding</th><th>This week</th></tr>")
-    rows = []
+    e = mine.get("exposure") or {}
+    order = [t["theme"] for t in e.get("themes") or []]
+    colour = {t: _THEME_COLOURS[i % len(_THEME_COLOURS)] for i, t in enumerate(order)}
+    invested = e.get("invested") or sum(r.get("value") or 0 for r in mine.get("rows") or [])
+    themes = {t["theme"]: t for t in e.get("themes") or []}
+    head = ('<colgroup><col><col style="width:200px"><col style="width:110px">'
+            '<col style="width:100px"><col style="width:150px"><col style="width:110px">'
+            '</colgroup>'
+            "<thead><tr><th>Holding</th><th>Weight</th><th>Value</th><th>Return</th>"
+            "<th>S&amp;P 500, same days</th><th>Against it</th></tr></thead>")
+    body = []
+    groups: dict = {}
     for r in mine.get("rows") or []:
-        m = r.get("model") or {}
-        model = ""
-        if m:
-            moved = (f" (was {escape(r['previous_rating'])})"
-                     if r.get("previous_rating") and r["previous_rating"] != m.get("rating") else "")
-            model = (f'{escape(str(m.get("rating") or ""))}{moved}'
-                     f'<span class="sub">{_pct(m.get("upside_12m"))} 12-month upside</span>')
-        nxt = r.get("next_catalyst") or {}
-        nxt_html = (f'{escape(str(nxt.get("expected_date") or "")[:10])}'
-                    f'<span class="sub">{escape(str(nxt.get("asset") or nxt.get("catalyst_type") or ""))}</span>'
-                    if nxt else "")
-        flags = r.get("flags") or {}
-        week = ""
-        if flags.get("count"):
-            lead = "; ".join(escape(h) for h in flags.get("high") or [])
-            week = f'{flags["count"]} changes' + (f'<span class="sub">{lead}</span>' if lead else "")
-        rows.append(
-            f'<tr class="{"" if r.get("covered") else "out"}">'
-            f'<td>{escape(str(r.get("name") or r.get("t212_ticker")))}'
-            f'<span class="sub">{escape(str(r.get("t212_ticker") or ""))}</span></td>'
-            f'<td>{_money(r.get("value"), cur)}</td>'
-            f'<td class="{_tone(r.get("return"))}">{_pct(r.get("return"))}</td>'
-            f'<td>{_pct(r.get("market"))}</td>'
-            f'<td class="{_tone(r.get("pick"))}">{_pct(r.get("pick"))}</td>'
-            f'<td class="{_tone(r.get("fx_effect"))}">'
-            f'{_money(r.get("fx_effect"), cur, True) if r.get("fx_effect") is not None else "in pounds"}</td>'
-            f'<td>{model}</td><td>{nxt_html}</td><td>{_gate_cell(r, cur)}</td><td>{week}</td></tr>')
-    return f'<div class="hd-t"><table>{head}{"".join(rows)}</table></div>'
+        groups.setdefault(r.get("theme") or "Unclassified", []).append(r)
+    for theme in order + [t for t in groups if t not in order]:
+        rows = sorted(groups.get(theme) or [], key=lambda r: -(r.get("value") or 0))
+        if not rows:
+            continue
+        t = themes.get(theme) or {}
+        c = colour.get(theme, "var(--muted)")
+        body.append(
+            f'<tr class="g"><td colspan="3"><span class="dot" style="background:{c}"></span>'
+            f'<b>{escape(theme)}</b>{f" · {len(rows)}" if len(rows) > 1 else ""}</td>'
+            f'<td class="sum {_tone(t.get("return"))}" colspan="3">'
+            f'{_money(t.get("value"), cur)} · {_pct(t.get("share"), signed=False, dp=0)} of invested'
+            f' · {_pct(t.get("return"))}</td></tr>')
+        for r in rows:
+            weight = (r.get("value") or 0) / invested if invested else 0
+            body.append(
+                f'<tr class="h"><td><span class="nm">{escape(str(r.get("name") or r.get("t212_ticker")))}'
+                f'</span><span class="tk">{escape(str(r.get("t212_ticker") or "").split("_")[0])}</span></td>'
+                f'<td><span class="w"><span class="trk"><i style="width:{min(weight / 0.25, 1) * 100:.0f}%;'
+                f'background:{c}"></i></span>{weight:.1%}</span></td>'
+                f'<td>{_money(r.get("value"), cur)}</td>'
+                f'<td class="{_tone(r.get("return"))}">{_pct(r.get("return"))}</td>'
+                f'<td class="mut">{_pct(r.get("market"))}</td>'
+                f'<td class="{_tone(r.get("pick"))}">{_pct(r.get("pick"))}</td></tr>')
+            detail = _detail(r, cur)
+            if detail:
+                body.append(f'<tr class="d"><td colspan="6">{detail}</td></tr>')
+    return f'<div class="hd-t"><table>{head}<tbody>{"".join(body)}</tbody></table></div>'
 
 
 def render(api_base: str) -> None:
@@ -282,7 +343,8 @@ def render(api_base: str) -> None:
     covered = mine.get("covered") or 0
     note = (f"{mine.get('positions')} positions, {covered} in the universe the model covers. "
             "Return is since each holding was first bought, in pounds; the S&amp;P 500 column is "
-            "its return over the same days in pounds, and Pick is the difference. A gate's "
+            "its return over the same days in pounds, and Against it is the difference. Weight is "
+            "the share of what is invested; the bar is full at 25%. A gate's "
             "pounds scale the model's swing a share to this holding's value. The model's view "
             "is the model's, not a recommendation to buy or sell. Read live from your Trading "
             "212 account, read only.")
