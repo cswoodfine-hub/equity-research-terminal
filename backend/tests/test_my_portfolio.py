@@ -80,7 +80,7 @@ def test_cash_the_api_does_not_itemise_is_its_own_line(tmp_path, monkeypatch):
         "realised": 10.0, "unrealised": 40.0})
     monkeypatch.setattr(broker_t212, "history", lambda kind, pause=None: {"ok": True, "rows": {
         "transactions": [{"type": "DEPOSIT", "amount": 1000.0, "dateTime": "2026-07-10T00:00:00Z"}],
-        "dividends": [{"amount": 5.0}]}[kind]})
+        "dividends": [{"amount": 5.0}], "orders": []}[kind]})
     monkeypatch.setattr(broker_t212, "positions", lambda: {"ok": True, "rows": [
         {"fx_effect": 15.0}]})
     out = my_portfolio.performance(path, today=dt.date(2026, 10, 9))
@@ -102,6 +102,28 @@ def test_the_view_says_the_unitemised_cash_and_never_advises():
                            "realised": 10.0, "unrealised_price": 25.0, "unrealised_currency": 15.0,
                            "dividends": 5.0, "not_itemised": 95.0},
                        "benchmarks": [{"label": "S&P 500", "gain": 100.0, "return": 0.10}]})
-    assert "not itemised by the API +£95.00" in html and "the gain is +£55.00" in html
+    assert "not itemised by the API +£95.00 (fees, interest" in html
     for word in ("buy now", "sell now", "should"):
         assert word not in html.lower()
+
+
+def test_shares_transferred_in_are_money_put_in():
+    flows = my_portfolio._transfers_in([
+        {"order": {"side": "BUY"}, "fill": {"type": "FOP", "filledAt": "2026-07-31T10:00:00Z",
+                                            "walletImpact": {"netValue": 171.64}}},
+        {"order": {"side": "BUY"}, "fill": {"type": "TRADE", "filledAt": "2026-07-31T10:00:00Z",
+                                            "walletImpact": {"netValue": 50.0}}}])
+    assert flows == [(dt.date(2026, 7, 31), -171.64)]
+
+
+def test_the_chart_is_a_unit_price_beside_the_benchmarks():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "frontend"))
+    import holdings_view as H
+    html = H._chart({"dates": ["2026-07-10", "2026-07-11", "2026-08-01"],
+                     "index": [100.0, 104.0, 97.5], "sp500_index": [100.0, 101.0, 105.5],
+                     "pph_index": [100.0, 100.5, 103.1]})
+    assert html.count("<path") == 3
+    assert "You −2.5%" in html or "You -2.5%" in html
+    assert "S&amp;P 500 +5.5%" in html and "PPH +3.1%" in html

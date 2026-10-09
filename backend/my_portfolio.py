@@ -256,6 +256,21 @@ def _cash_flows(transactions: list) -> list:
     return sorted(out)
 
 
+def _transfers_in(orders: list) -> list:
+    """(date, amount) for shares transferred into the account: a fill of type FOP, free of
+    payment, is money put in at the value Trading 212 booked, never a gain (2026-10-09: five
+    holdings moved in on 31 July, 573.01, read at first as cash the API did not itemise)."""
+    out = []
+    for it in orders:
+        fill, order = it.get("fill") or {}, it.get("order") or {}
+        if fill.get("type") != "FOP":
+            continue
+        value = abs((fill.get("walletImpact") or {}).get("netValue") or 0)
+        sign = -1 if (order.get("side") or "").upper() == "BUY" else 1
+        out.append((dt.date.fromisoformat(str(fill.get("filledAt"))[:10]), sign * value))
+    return out
+
+
 def _replicate(conn, db_path, symbol, currency, flows, today):
     """The same deposits and withdrawals bought and sold in ``symbol`` on the same days at
     that day's exchange rate: (value today in ``currency``, its money-weighted return)."""
@@ -281,9 +296,10 @@ def performance(db_path=None, today: dt.date | None = None) -> dict:
         return {"ok": False, "reason": summary.get("reason") or "Trading 212 did not answer"}
     tx = broker_t212.history("transactions")
     dividends = broker_t212.history("dividends")
+    orders = broker_t212.history("orders")
     held = broker_t212.positions()
     currency = summary.get("currency") or "GBP"
-    flows = _cash_flows(tx.get("rows") or [])
+    flows = sorted(_cash_flows(tx.get("rows") or []) + _transfers_in(orders.get("rows") or []))
     total = summary.get("total") or 0.0
     net_in = -sum(a for _d, a in flows)
     paid = sum((d.get("amount") or 0) for d in dividends.get("rows") or [])
@@ -296,7 +312,8 @@ def performance(db_path=None, today: dt.date | None = None) -> dict:
            "split": {"realised": summary.get("realised"),
                      "unrealised_price": unrealised - fx_effect,
                      "unrealised_currency": fx_effect, "dividends": paid},
-           "benchmarks": [], "history_complete": bool(tx.get("ok") and dividends.get("ok"))}
+           "benchmarks": [],
+           "history_complete": bool(tx.get("ok") and dividends.get("ok") and orders.get("ok"))}
     # Cash the trade, transaction and dividend lists do not account for (interest on cash,
     # promotions): said as a figure, never given a cause the API does not state.
     out["split"]["not_itemised"] = out["gain"] - sum(v or 0 for v in out["split"].values())
