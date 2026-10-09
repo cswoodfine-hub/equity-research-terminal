@@ -58,6 +58,7 @@ import launch_timing
 import development
 import disease_areas
 import call_log
+import my_portfolio
 import landscape as landscape_module
 import drug_card
 import landscape_overview
@@ -900,6 +901,13 @@ def company_street(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
+
+
+@app.get("/portfolio/mine")
+def portfolio_mine() -> dict:
+    """The user's own Trading 212 holdings, read live and never cached, each beside the
+    model's latest call and next catalyst where the book covers the company."""
+    return my_portfolio.mine(None)
 
 
 @app.get("/calls/scores")
