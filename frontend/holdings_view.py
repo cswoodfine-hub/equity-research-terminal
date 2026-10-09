@@ -1,8 +1,8 @@
 """Your holdings: the user's own Trading 212 account beside the model, on the Universe tab.
 
 Reads ``/portfolio/performance`` and ``/portfolio/mine`` (backend/my_portfolio.py), both
-live and never cached by the API; held here for a minute so a rerun does not call Trading
-212 again. Every figure is from the payloads; nothing here computes one. The model's view
+live and never cached by the API; held here so a rerun does not call Trading
+212 again within five minutes. Every figure is from the payloads; nothing here computes one. The model's view
 beside a holding is the model's, not a recommendation to buy or sell.
 """
 
@@ -24,7 +24,7 @@ _CSS = """<style>
 .hd .hd-k i{font-style:normal;font-size:11.5px;color:var(--muted)}
 .hd .hd-s{color:var(--muted);margin:0 0 12px;line-height:1.5}
 .hd .up{color:var(--up)} .hd .down{color:var(--down)}
-.hd .hd-t{max-height:calc(100vh - 330px);overflow:auto;border-top:1px solid var(--rule)}
+.hd .hd-t{max-height:calc(100vh - 286px);overflow:auto;border-top:1px solid var(--rule)}
 .hd table{border-collapse:collapse;width:100%}
 .hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
   text-align:right;font-weight:500;padding:4px 8px;border-bottom:1px solid var(--rule)}
@@ -36,7 +36,9 @@ _CSS = """<style>
 </style>"""
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+# Five minutes, keyed on the path alone: the tab is drawn on every rerun whichever company
+# is picked, so a change of company never waits on Trading 212.
+@st.cache_data(ttl=300, show_spinner=False)
 def _read(api_base: str, path: str):
     with urllib.request.urlopen(api_base.rstrip("/") + path, timeout=120) as resp:
         return json.loads(resp.read().decode("utf-8"))

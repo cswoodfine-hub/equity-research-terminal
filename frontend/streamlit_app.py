@@ -1161,45 +1161,6 @@ def _readout_lead(readout, ticker: str) -> dict:
     }
 
 
-# Where a news item came from, as the chip says it. EDGAR is the fallback because a row
-# with no source is an SEC filing: the FDA feeds all name themselves.
-_NEWS_SOURCES = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
-                 "fda_safety": "FDA safety",
-                 # The company's own words, whether they came off its feed or its page.
-                 # Which of the two is a fetcher's business and not a reader's; that it
-                 # was the company speaking rather than the SEC or the FDA is the fact
-                 # the chip is for.
-                 "press_ir": "Company", "press_page": "Company"}
-# One screen of headlines. The rest are a scroll rather than a click, and the note says
-# how many were cut.
-_NEWS_SHOWN = 40
-
-
-def news_row(item) -> str:
-    """One announcement as a line: when, what it says, and who published it.
-
-    The whole row is the anchor, so the headline is the link rather than a cell called
-    "Link" sitting beside it.
-    """
-    url = item.get("url")
-    source = _NEWS_SOURCES.get(item.get("source"), "EDGAR")
-    # "8-K: 8-K" is what the fetcher stores when it cannot resolve the filing's item
-    # description, which is most of them for some filers. Said once it reads as the form
-    # it is; said twice it reads as a rendering fault.
-    title = (item.get("title") or "").strip()
-    head, _, tail = title.partition(": ")
-    if tail.strip() == head.strip():
-        title = head
-    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
-                'rel="noopener noreferrer">' if url else '<div class="fitem">')
-    return (f'{open_tag}'
-            f'<span class="d">{html_escape((item.get("published_at") or "")[:10])}</span>'
-            f'<span class="t">{html_escape(title)}</span>'
-            f'<span class="why"></span>'
-            f'<span class="s">{html_escape(source)}</span>'
-            f'{"</a>" if url else "</div>"}')
-
-
 # What each figure on a product card means, shown on hover. Every one is a measurement
 # whose basis is not obvious from the number: a revenue that is worldwide and tagged, a
 # date that is the last unexpired patent rather than a forecast.
@@ -9852,7 +9813,7 @@ with main:
         _wanted.append(("themes", "Themes"))
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
-    _wanted += [("comps", "Comps"), ("news", "News")]
+    _wanted += [("comps", "Comps"), ("holdings", "Holdings")]
     _panels = dict(zip([name for name, _label in _wanted],
                        st.tabs([label for _name, label in _wanted])))
     universe_tab = _panels["universe"]
@@ -9864,7 +9825,7 @@ with main:
     forecast_tab = _panels["forecast"]
     themes_tab = _panels.get("themes")
     comps_tab = _panels["comps"]
-    news_tab = _panels["news"]
+    holdings_tab = _panels["holdings"]
     portfolio_tab = _panels.get("portfolio")
     runway_tab = _panels.get("runway")
     universe_page.click_pending_tab()
@@ -9930,7 +9891,7 @@ with main:
         # away and they still belong to the universe rather than to a company, so
         # they are views here rather than tabs of their own.
         _view = st.segmented_control(
-            "Universe view", ["Overview", "Markets", "Policy", "Holdings"], default="Overview",
+            "Universe view", ["Overview", "Markets", "Policy"], default="Overview",
             key="universe_view", label_visibility="collapsed") or "Overview"
 
         _all_changes = api_get(api_base, "/changes")
@@ -9942,10 +9903,6 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
-        elif _view == "Holdings":
-            # The user's own Trading 212 account beside the model (holdings_view.py).
-            import holdings_view
-            holdings_view.render(api_base)
         elif (_universe_redesigned(ticker, _view)
               and universe_page.render(api_base, ticker)):
             pass
@@ -11268,59 +11225,14 @@ with main:
                             "Evidence", display_text=r"(NCT\d{8})")})
 
     # --- Labels ----------------------------------------------------------
-    # --- News ------------------------------------------------------------
     with forecast_tab:
         _render_forecast_tab(api_base, ticker)
 
-    with news_tab:
-        news = api_get(api_base, f"/companies/{ticker}/news")["news"]
-        section(f"News and announcements for {ticker}", len(news))
-        if not news:
-            state(f"No news on file for {ticker}",
-                  "Press Refresh all to pull EDGAR 8-K and 6-K material events and the "
-                  "FDA press, drug and safety feeds matched to this company. European "
-                  "filers submit 6-K, not 8-K.")
-        else:
-            # The same list the rest of the app uses, not a spreadsheet. A grid widget
-            # gave a headline the same weight as a cell of a table, put the link in its
-            # own column as the word "Link", and looked like a different application from
-            # the tab beside it. Each row is now the anchor itself.
-            st.markdown('<div class="feed news">' + "".join(
-                news_row(n) for n in news[:_NEWS_SHOWN]) + "</div>",
-                unsafe_allow_html=True)
-            note("EDGAR 8-K and 6-K material events, plus the FDA press, drug and "
-                 "MedWatch feeds matched to this company by name or brand. The full FDA "
-                 "feed is on the Universe tab."
-                 + (f" Showing the {_NEWS_SHOWN} most recent of {len(news)}."
-                    if len(news) > _NEWS_SHOWN else ""))
-
-        # --- Filing text changes ---
-        # The numbers in a 10-K change on their own schedule; the words change once a
-        # year. A rewritten risk factors section is a real signal with no structured
-        # field, so it is diffed against the last filing of the same form.
-        section("Filing text changes", "risk factors, latest filings")
-        ftext = api_get(api_base, f"/companies/{ticker}/filing-text").get("sections") or []
-        risk = [s for s in ftext
-                if s["section"] == "risk_factors" and s.get("added") is not None]
-        if not risk:
-            state(f"No filing text comparison for {ticker}",
-                  "Two filings of the same form are needed to diff the words. US filers "
-                  "get a 10-K and 10-Q comparison on refresh; a foreign 20-F filer lays "
-                  "its sections out under different item numbers and is a labelled future "
-                  "add. Press Refresh all if this looks empty.")
-        else:
-            for s in risk:
-                changed = (f" · {round((1 - s['ratio']) * 100)}% changed"
-                           if s.get("ratio") is not None else "")
-                st.markdown(
-                    f'<div class="byline"><b>{s["form"]} risk factors</b> · '
-                    f'{s["added"]} added, {s["removed"]} removed vs {s["prior_date"]}'
-                    f'{changed}</div>', unsafe_allow_html=True)
-                if s.get("added_passages"):
-                    st.markdown("".join(
-                        f'<div class="rf-add">{html_escape(p[:400])}'
-                        f'{"…" if len(p) > 400 else ""}</div>'
-                        for p in s["added_passages"][:5]), unsafe_allow_html=True)
+    with holdings_tab:
+        # The user's own Trading 212 account beside the model (holdings_view.py). The same
+        # whichever company is picked: it is the account, not the company in focus.
+        import holdings_view
+        holdings_view.render(api_base)
 
     # --- Themes: the universe read by modality rather than by ticker ------
     # Absent on big pharma: see the tab list above.
