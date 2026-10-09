@@ -32,6 +32,7 @@ _CSS = """<style>
 .hd td{padding:6px 8px;border-bottom:1px solid var(--rule);text-align:right;vertical-align:top}
 .hd td .sub{display:block;font-size:11px;color:var(--muted)}
 .hd tr.out td{color:var(--muted)}
+.hd td.up,.hd tr.out td.up{color:var(--up)} .hd td.down,.hd tr.out td.down{color:var(--down)}
 .hd .hd-n{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.5}
 </style>"""
 
