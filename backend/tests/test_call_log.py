@@ -34,10 +34,12 @@ def _fair(price, upside, target=None):
 
 
 def _stakes(p_gate):
-    return {"diluted_shares": 100.0, "priced": [
+    # Legs in $ millions, 100 million diluted shares: the stake's own swing a share is $8.
+    return {"diluted_shares": 100e6, "priced": [
         {"priced": True, "id": 7, "asset_id": 70, "asset_name": "Drugx", "gate": "p3_to_nda",
          "gate_label": "Phase 3 readout", "gate_trial": "NCT1", "expected_date": "2026-06",
-         "p_gate": p_gate, "rnpv_now": 500.0, "rnpv_success": 800.0, "rnpv_failure": 0.0}]}
+         "p_gate": p_gate, "rnpv_now": 500.0, "rnpv_success": 800.0, "rnpv_failure": 0.0,
+         "per_share": 8.0, "swing": 800.0}]}
 
 
 def test_a_day_is_recorded_once_and_never_rewritten(book):
@@ -134,3 +136,16 @@ def test_the_history_export_carries_the_calls(book, tmp_path):
                     fair_fn=lambda t: _fair(100.0, 0.2), stakes_fn=lambda t: _stakes(0.6))
     written = history.export(book, tmp_path / "hist")
     assert written["model_calls"] == 1 and written["gate_calls"] == 1
+
+
+def test_without_the_stakes_own_figure_the_legs_are_millions_over_the_shares(book):
+    stakes = _stakes(0.6)
+    for key in ("per_share", "swing"):
+        stakes["priced"][0].pop(key)
+    call_log.record(book, as_of="2026-01-02", tickers=["AAA"],
+                    fair_fn=lambda t: _fair(100.0, 0.2), stakes_fn=lambda t: stakes)
+    conn = db.get_connection(book)
+    gate = dict(conn.execute("SELECT * FROM gate_calls").fetchone())
+    conn.close()
+    assert gate["per_share_now"] == 5.0 and gate["per_share_success"] == 8.0
+

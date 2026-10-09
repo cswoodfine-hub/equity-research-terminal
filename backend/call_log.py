@@ -121,7 +121,14 @@ def _gate_rows(as_of, ticker, stakes, price, version, run_id) -> list[dict]:
     for g in (stakes or {}).get("priced") or []:
         if not isinstance(g, dict) or not g.get("priced"):
             continue
-        per = (lambda v: v / shares if v is not None and shares else None)
+        # The legs are in millions; a share of each is the stake's own per-share swing over
+        # its swing, so the record uses exactly the figure the gate page shows. Without one,
+        # millions over the diluted share count.
+        if g.get("per_share") is not None and g.get("swing"):
+            factor = g["per_share"] / g["swing"]
+        else:
+            factor = 1e6 / shares if shares else None
+        per = (lambda v, f=factor: v * f if v is not None and f else None)
         out.append({
             "as_of": as_of, "ticker": ticker, "catalyst_id": g.get("id"),
             "asset_id": g.get("asset_id"), "asset_name": g.get("asset_name"),
