@@ -24,8 +24,9 @@ _CSS = """<style>
 .hd .hd-k i{font-style:normal;font-size:11.5px;color:var(--muted)}
 .hd .hd-s{color:var(--muted);margin:0 0 12px;line-height:1.5}
 .hd .up{color:var(--up)} .hd .down{color:var(--down)}
+.hd .hd-t{max-height:calc(100vh - 330px);overflow:auto;border-top:1px solid var(--rule)}
 .hd table{border-collapse:collapse;width:100%}
-.hd th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+.hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
   text-align:right;font-weight:500;padding:4px 8px;border-bottom:1px solid var(--rule)}
 .hd th:first-child,.hd td:first-child{text-align:left}
 .hd td{padding:6px 8px;border-bottom:1px solid var(--rule);text-align:right;vertical-align:top}
@@ -65,17 +66,16 @@ def _tone(v):
 def _summary(perf: dict) -> str:
     cur = perf.get("currency") or "GBP"
     total, cash = perf.get("total"), perf.get("cash")
-    cells = [("Account value", _money(total, cur), f"cash {_money(cash, cur)}"
+    cells = [("Account value", _money(total, cur), "", f"cash {_money(cash, cur)}"
               + (f", {cash / total:.0%}" if total and cash is not None else "")),
              ("Gain since " + str(perf.get("since") or "")[:10],
-              f'<span class="{_tone(perf.get("gain"))}">{_money(perf.get("gain"), cur, True)}</span>',
+              _money(perf.get("gain"), cur, True), _tone(perf.get("gain")),
               f"{_pct(perf.get('return'))} money-weighted, not annualised")]
     for b in perf.get("benchmarks") or []:
-        cells.append((f"Same cash in {b['label']}",
-                      f'<span class="{_tone(b.get("gain"))}">{_money(b.get("gain"), cur, True)}</span>',
-                      f"{_pct(b.get('return'))} over the same days"))
-    head = "".join(f"<div><span>{escape(k)}</span><b>{v}</b><i>{escape(i)}</i></div>"
-                   for k, v, i in cells)
+        cells.append((f"Same cash in {b['label']}", _money(b.get("gain"), cur, True),
+                      _tone(b.get("gain")), f"{_pct(b.get('return'))} over the same days"))
+    head = "".join(f'<div><span>{escape(k)}</span><b class="{tone}">{v}</b><i>{escape(i)}</i></div>'
+                   for k, v, tone, i in cells)
     split = perf.get("split") or {}
     parts = [("price", split.get("unrealised_price")), ("currency", split.get("unrealised_currency")),
              ("dividends", split.get("dividends")), ("realised", split.get("realised"))]
@@ -132,9 +132,10 @@ def _table(mine: dict) -> str:
             f'<td class="{_tone(r.get("return"))}">{_pct(r.get("return"))}</td>'
             f'<td>{_pct(r.get("market"))}</td>'
             f'<td class="{_tone(r.get("pick"))}">{_pct(r.get("pick"))}</td>'
-            f'<td class="{_tone(r.get("fx_effect"))}">{_money(r.get("fx_effect"), cur, True)}</td>'
+            f'<td class="{_tone(r.get("fx_effect"))}">'
+            f'{_money(r.get("fx_effect"), cur, True) if r.get("fx_effect") is not None else "in pounds"}</td>'
             f'<td>{model}</td><td>{nxt_html}</td><td>{_gate_cell(r, cur)}</td><td>{week}</td></tr>')
-    return f"<table>{head}{''.join(rows)}</table>"
+    return f'<div class="hd-t"><table>{head}{"".join(rows)}</table></div>'
 
 
 def render(api_base: str) -> None:

@@ -25,11 +25,14 @@ The model's view beside a holding is the model's, not a recommendation to buy or
 from __future__ import annotations
 
 import datetime as dt
+import re
 
 import db
 import fx
 from fetchers import broker_t212
 
+_BANNED = re.compile(r"\b(?:additionally|highlight\w*|underscor\w*|pivotal|showcas\w*|"
+                     r"testament)\b", re.I)
 GATE_DAYS = 730
 FLAG_DAYS = 7
 BENCHMARKS = {"^GSPC": "S&P 500", "PPH": "PPH"}
@@ -145,8 +148,13 @@ def _flags(db_path, tickers: set) -> dict:
             continue
         entry = out.setdefault(t, {"count": 0, "high": []})
         entry["count"] += 1
-        if item.get("significance") == "high" and len(entry["high"]) < 3:
-            entry["high"].append(item.get("headline") or item.get("change_type"))
+        head = re.sub(rf"^{re.escape(t)}\s+", "", str(item.get("headline")
+                                                     or item.get("change_type") or ""))
+        # A source headline is quoted as published and cannot be reworded, so one in a
+        # word the house style bars is counted but not shown.
+        if (item.get("significance") == "high" and len(entry["high"]) < 3
+                and not _BANNED.search(head)):
+            entry["high"].append(head)
     return out
 
 
