@@ -61,6 +61,15 @@ def test_an_approval_is_read_as_an_approval():
                  " overall survival data") == "approval"
 
 
+def test_the_agency_by_its_full_name_is_still_the_fda():
+    assert _kind("U.S. Food and Drug Administration Approves Expanded Indication for"
+                 " Bristol Myers Squibb's CAMZYOS (mavacamten)") == "approval"
+    assert _kind("US Food and Drug Administration Approves CRESTOR for Use in Pediatric"
+                 " Patients") == "approval"
+    assert _kind("U.S. Food and Drug Administration Accepts for Priority Review Bristol"
+                 " Myers Squibb's Supplemental Application") == "regulatory"
+
+
 def test_a_european_opinion_is_regulatory_and_not_an_approval():
     """CHMP recommends and the Commission approves. Reading the opinion as the approval
     would date the approval two months early."""

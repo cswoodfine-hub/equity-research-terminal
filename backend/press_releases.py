@@ -101,6 +101,11 @@ _MONTHS = {m: i for i, m in enumerate(
      "september", "october", "november", "december"), start=1)}
 
 
+# The agency by its full name. BMS's "U.S. Food and Drug Administration Approves Expanded
+# Indication for Bristol Myers Squibb's CAMZYOS" (2026-09-30) read as nothing, because
+# every rule above names it "FDA".
+_SPELLED_FDA = re.compile(r"\bfood and drug administration\b", re.I)
+
 _NOT_YET = re.compile(r"\bappoints?\b|board of directors|potential (?:fda )?approval"
                      r"|toward (?:potential )?(?:fda )?approval", re.I)
 
@@ -114,6 +119,7 @@ def classify(title: str) -> tuple[str | None, bool]:
     text = (title or "").strip()
     if not text or HOUSEKEEPING.match(text):
         return None, False
+    text = _SPELLED_FDA.sub("FDA", text)
     for pattern, kind, ahead in KINDS:
         if re.search(pattern, text, re.I):
             # "Appoints X to its Board ... Toward Potential FDA Approval" names an approval
