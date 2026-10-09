@@ -158,6 +158,68 @@ def _flags(db_path, tickers: set) -> dict:
     return out
 
 
+# The user's own settings for the view, local and never committed (backend/cache/ is ignored
+# by git): what the cash is for, themes that group holdings into one bet, and the size below
+# which a position counts as small.
+CONFIG = db.BACKEND_DIR / "cache" / "holdings_config.json"
+SMALL_POSITION = 200.0
+_themes_memo: dict = {}
+
+
+def _config() -> dict:
+    import json
+    try:
+        return json.loads(CONFIG.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def _theme(t212_ticker: str, isin: str | None, covered: bool, groups: dict) -> str:
+    """The user's own grouping first; then a covered company is healthcare; then the
+    instrument's sector as Yahoo lists it for its ISIN, a fund being an index fund."""
+    for name, tickers in groups.items():
+        if t212_ticker in tickers:
+            return name
+    if covered:
+        return "Healthcare"
+    if isin not in _themes_memo:
+        import urllib.parse
+        import portfolio_history
+        try:
+            q = (portfolio_history._json(portfolio_history.SEARCH + "?" + urllib.parse.urlencode(
+                {"q": isin, "quotesCount": 1, "newsCount": 0})).get("quotes") or [{}])[0]
+        except Exception:
+            q = {}
+        _themes_memo[isin] = ("Index funds" if q.get("quoteType") == "ETF"
+                              else (q.get("sector") or "Unclassified"))
+    return _themes_memo[isin]
+
+
+def exposure(rows: list, cash, groups: dict, small: float, note: str | None) -> dict:
+    """Where the money is: cash and its purpose, the invested value by theme with each
+    theme's return, and how concentrated it is by size. Facts, not a recommendation."""
+    invested = sum(r.get("value") or 0 for r in rows)
+    themes: dict = {}
+    for r in rows:
+        t = themes.setdefault(r["theme"], {"theme": r["theme"], "value": 0.0, "cost": 0.0,
+                                           "holdings": 0})
+        t["value"] += r.get("value") or 0
+        t["cost"] += r.get("cost") or 0
+        t["holdings"] += 1
+    out_themes = sorted(({**t, "share": t["value"] / invested if invested else None,
+                          "return": t["value"] / t["cost"] - 1 if t["cost"] else None}
+                         for t in themes.values()), key=lambda t: -t["value"])
+    values = sorted((r.get("value") or 0 for r in rows), reverse=True)
+    smalls = [v for v in values if v < small]
+    total = invested + (cash or 0)
+    return {"cash": cash, "cash_share": (cash / total) if total and cash is not None else None,
+            "cash_note": note, "invested": invested, "positions": len(rows),
+            "themes": out_themes,
+            "top3_share": sum(values[:3]) / invested if invested else None,
+            "small": {"threshold": small, "count": len(smalls), "value": sum(smalls),
+                      "share": sum(smalls) / invested if invested else None}}
+
+
 def mine(db_path=None, today: dt.date | None = None) -> dict:
     today = today or dt.date.today()
     held = broker_t212.positions()
@@ -205,7 +267,15 @@ def mine(db_path=None, today: dt.date | None = None) -> dict:
     finally:
         conn.close()
     rows.sort(key=lambda r: -(r.get("value") or 0))
+    cfg = _config()
+    groups = cfg.get("themes") or {}
+    for r in rows:
+        r["theme"] = _theme(r.get("t212_ticker") or "", r.get("isin"), r["covered"], groups)
+    summary = broker_t212.summary()
     return {"ok": True, "currency": currency, "rows": rows,
+            "exposure": exposure(rows, summary.get("cash") if summary.get("ok") else None,
+                                 groups, float(cfg.get("small_position") or SMALL_POSITION),
+                                 cfg.get("cash_note")),
             "covered": sum(1 for r in rows if r["covered"]), "positions": len(rows),
             "source": "your Trading 212 account, read only, live"}
 

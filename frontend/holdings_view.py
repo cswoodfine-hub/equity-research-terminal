@@ -24,6 +24,13 @@ _CSS = """<style>
 .hd .hd-k i{font-style:normal;font-size:11.5px;color:var(--muted)}
 .hd .hd-s{color:var(--muted);margin:0 0 12px;line-height:1.5}
 .hd .up{color:var(--up)} .hd .down{color:var(--down)}
+.hd .hd-e{margin:0 0 10px;font-size:12px;color:var(--muted)}
+.hd .hd-e .bar{display:flex;height:10px;border-radius:2px;overflow:hidden;margin:5px 0 5px}
+.hd .hd-e .bar span{display:block;min-width:2px}
+.hd .hd-e .keys{display:flex;flex-wrap:wrap;gap:3px 16px;margin:0 0 4px}
+.hd .hd-e .k{white-space:nowrap} .hd .hd-e .k b{color:var(--text);font-weight:600}
+.hd .hd-e .k i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+.hd .hd-e .k em{font-style:normal}
 .hd .hd-c{margin:0 0 8px}
 .hd .hd-c .plot{position:relative;height:130px;margin:0 150px 18px 34px}
 .hd .hd-c svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
@@ -39,7 +46,7 @@ _CSS = """<style>
   font-size:10px;color:var(--muted)}
 .hd .hd-c .xl{position:absolute;top:calc(100% + 4px);font-size:10px;color:var(--muted)}
 .hd .hd-c .cap{font-size:11px;color:var(--muted)}
-.hd .hd-t{max-height:calc(100vh - 466px);overflow:auto;border-top:1px solid var(--rule)}
+.hd .hd-t{max-height:calc(100vh - 556px);overflow:auto;border-top:1px solid var(--rule)}
 .hd table{border-collapse:collapse;width:100%}
 .hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
   text-align:right;font-weight:500;padding:4px 8px;border-bottom:1px solid var(--rule)}
@@ -106,6 +113,49 @@ def _summary(perf: dict) -> str:
         note = (f" · not itemised by the API {_money(other, cur, True)} (fees, interest, or a "
                 f"movement the API does not list)")
     return f'<div class="hd-k">{head}</div><div class="hd-s">Where the gain came from: {words}{note}.</div>'
+
+
+# Theme colours from the house tokens, in the order themes are listed (largest first).
+_THEME_COLOURS = ("var(--fda)", "var(--phase-approved)", "var(--purple-book)",
+                  "var(--orange-book)", "var(--fda-bio)", "var(--phase-filed)",
+                  "var(--muted)", "var(--rule-strong)")
+
+
+def _exposure(mine: dict) -> str:
+    """Where the money is: the cash and what it is for, the invested value by theme as one
+    bar with each theme's share and return, and how concentrated it is by size. Facts only."""
+    e = mine.get("exposure") or {}
+    if not e.get("themes"):
+        return ""
+    cur = mine.get("currency") or "GBP"
+    cash = ""
+    if e.get("cash") is not None:
+        purpose = f", {escape(e['cash_note'])}" if e.get("cash_note") else ""
+        cash = (f"Cash {_money(e['cash'], cur)}, {_pct(e.get('cash_share'), signed=False, dp=0)} "
+                f"of the account{purpose} · invested {_money(e.get('invested'), cur)} in "
+                f"{e.get('positions')} positions")
+    segs, keys = [], []
+    for i, t in enumerate(e["themes"]):
+        colour = _THEME_COLOURS[i % len(_THEME_COLOURS)]
+        share = t.get("share") or 0
+        segs.append(f'<span style="flex:{share:.4f};background:{colour}" '
+                    f'title="{escape(t["theme"])} {share:.0%}"></span>')
+        keys.append(f'<span class="k"><i style="background:{colour}"></i>{escape(t["theme"])} '
+                    f'<b>{share:.0%}</b> {_money(t["value"], cur)} '
+                    f'<em class="{_tone(t.get("return"))}">{_pct(t.get("return"))}</em>'
+                    f'{holdings_note(t)}</span>')
+    sm = e.get("small") or {}
+    size = (f"Top three positions {_pct(e.get('top3_share'), signed=False, dp=0)} of invested · "
+            f"{sm.get('count')} under {_money(sm.get('threshold'), cur)}, "
+            f"{_money(sm.get('value'), cur)} together, {_pct(sm.get('share'), signed=False, dp=0)} "
+            f"of invested")
+    return (f'<div class="hd-e"><div class="l">{cash}</div><div class="bar">{"".join(segs)}</div>'
+            f'<div class="keys">{"".join(keys)}</div><div class="l">{size}</div></div>')
+
+
+def holdings_note(theme: dict) -> str:
+    n = theme.get("holdings") or 0
+    return f" · {n} holdings" if n > 1 else ""
 
 
 def _chart(hist: dict) -> str:
@@ -240,5 +290,6 @@ def render(api_base: str) -> None:
     if hist.get("ok") and hist.get("left_out"):
         note += (" Left out of the chart, no matching price series: "
                  + ", ".join(escape(n) for n in hist["left_out"]) + ".")
-    st.markdown(_CSS + f'<div class="hd">{_summary(perf)}{chart}{_table(mine)}'
+    st.markdown(_CSS + f'<div class="hd">{_summary(perf)}{_exposure(mine)}{chart}'
+                f'{_table(mine)}'
                 f'<div class="hd-n">{note}</div></div>', unsafe_allow_html=True)

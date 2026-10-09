@@ -29,6 +29,10 @@ def test_a_covered_holding_carries_the_models_latest_call(tmp_path, monkeypatch)
                      " VALUES (?, 'AZN', 180, ?, 'Buy')", (day, up))
     conn.commit()
     conn.close()
+    monkeypatch.setattr(broker_t212, "summary", lambda: {"ok": True, "cash": 100.0})
+    monkeypatch.setattr(my_portfolio, "CONFIG", tmp_path / "none.json")
+    monkeypatch.setattr(my_portfolio, "_theme",
+                        lambda t, isin, covered, groups: "Healthcare" if covered else "Index funds")
     monkeypatch.setattr(broker_t212, "positions", lambda: {"ok": True, "currency": "GBP", "rows": [
         {"t212_ticker": "AZNl_EQ", "ticker": "AZN", "name": "AstraZeneca", "value": 900.0},
         {"t212_ticker": "VWRPl_EQ", "ticker": "VWRP", "name": "FTSE All-World", "value": 2000.0}]})
@@ -127,3 +131,23 @@ def test_the_chart_is_a_unit_price_beside_the_benchmarks():
     assert html.count("<path") == 3
     assert "You −2.5%" in html or "You -2.5%" in html
     assert "S&amp;P 500 +5.5%" in html and "PPH +3.1%" in html
+
+
+def test_exposure_groups_by_the_users_themes_and_counts_the_small_positions():
+    rows = [{"theme": "Rare earths", "value": 100.0, "cost": 150.0},
+            {"theme": "Rare earths", "value": 50.0, "cost": 50.0},
+            {"theme": "Utilities", "value": 1000.0, "cost": 800.0},
+            {"theme": "Healthcare", "value": 850.0, "cost": 900.0}]
+    e = my_portfolio.exposure(rows, 2000.0, {}, 200.0, "earmarked for fees")
+    assert e["cash_share"] == pytest.approx(0.5) and e["cash_note"] == "earmarked for fees"
+    rare = [t for t in e["themes"] if t["theme"] == "Rare earths"][0]
+    assert rare["share"] == pytest.approx(150 / 2000) and rare["return"] == pytest.approx(-0.25)
+    assert e["top3_share"] == pytest.approx(1950 / 2000)
+    assert e["small"] == {"threshold": 200.0, "count": 2, "value": 150.0,
+                          "share": pytest.approx(150 / 2000)}
+
+
+def test_the_users_grouping_wins_over_the_sector(monkeypatch):
+    groups = {"Rare earths": ["MP_US_EQ"]}
+    assert my_portfolio._theme("MP_US_EQ", "X", False, groups) == "Rare earths"
+    assert my_portfolio._theme("AZNl_EQ", "Y", True, groups) == "Healthcare"
