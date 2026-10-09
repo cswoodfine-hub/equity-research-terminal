@@ -408,3 +408,173 @@ def test_the_agent_still_carries_the_project_name():
 
     assert "NovatalisResearch" in press_ir.USER_AGENT
     assert press_ir.HEADERS["From"] == press_ir.CONTACT
+
+
+# --- routes round a challenged investor site --------------------------------
+#
+# Pfizer's, BMS's, Gilead's and BioMarin's investor sites all answered a Cloudflare
+# challenge from 2026-09-08. The fixtures are the routes seeded instead, captured
+# 2026-10-09: StockTitan's feed for PFE (a wire aggregator, for a company whose every own
+# site is challenged), BioMarin's WordPress release feed and gilead.com's news listing.
+
+STOCKTITAN_PFE = (FIXTURES / "ir_feed_stocktitan_pfe.xml").read_text()
+BIOMARIN = (FIXTURES / "ir_feed_biomarin.xml").read_text()
+GILEAD_SXA = (FIXTURES / "ir_sxa_gilead.json").read_text()
+STOCKTITAN = "https://www.stocktitan.net/rss/news/PFE"
+GILEAD_LISTING = ("https://www.gilead.com/sxa/search/results/?s=%7B276E1983%7D"
+                  "&sig=news&p=12&e=0&o=News%20Date%2CDescending")
+
+
+def test_an_aggregators_label_is_not_part_of_the_headline():
+    titles = _titles(STOCKTITAN_PFE)
+    assert "Pfizer Declares Fourth-Quarter 2026 Dividend" in titles
+    assert not any("Stock News" in t for t in titles)
+
+
+def test_a_wordpress_release_feed_parses_with_a_link_and_a_date():
+    items = pr.parse_feed(BIOMARIN)
+    assert len(items) == 10
+    assert all(i["url"].startswith("https://www.biomarin.com/news/press-releases/")
+               and i["published"] for i in items)
+    assert items[0]["published"] == "2026-10-09"
+
+
+def test_a_sitecore_listing_parses_with_its_own_dates_and_absolute_links():
+    items = pr.parse_sxa(GILEAD_SXA, GILEAD_LISTING)
+    assert len(items) == 12
+    first = items[0]
+    assert first["title"].startswith("Gilead Accelerates Global Access Planning for"
+                                     " Investigational Once-Yearly Lenacapavir")
+    assert first["published"] == "2026-09-16"
+    assert all(i["url"].startswith("https://www.gilead.com/news/news-details/")
+               for i in items)
+    # Newest first, as the page itself sorts it.
+    dates = [i["published"] for i in items]
+    assert dates == sorted(dates, reverse=True)
+
+
+def test_a_listing_whose_shape_has_changed_yields_nothing_rather_than_guesses():
+    assert pr.parse_sxa('{"Results": [{"Url": "/x", "Html": "<p>no heading</p>"}]}',
+                        GILEAD_LISTING) == []
+
+
+def _company(tmp_path, ticker, name, feed, assets=()):
+    path = str(tmp_path / "t.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    cid = conn.execute("INSERT INTO companies (ticker, name, ir_rss_url) VALUES (?, ?, ?)",
+                       (ticker, name, feed)).lastrowid
+    for generic, brand in assets:
+        conn.execute("INSERT INTO assets (owner_company_id, generic_name, brand_name)"
+                     " VALUES (?, ?, ?)", (cid, generic, brand))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _serve(monkeypatch, text):
+    _freeze(monkeypatch)
+    monkeypatch.setattr("fetchers.press_ir.urllib.request.urlopen",
+                        lambda *a, **k: _Response(text))
+
+
+def test_an_aggregators_feed_keeps_only_the_companys_own_releases(tmp_path, monkeypatch):
+    """StockTitan tags a release by every ticker it names: Astellas's own portfolio
+    releases, ViiV's HIV data and an NYSE bell notice all sit on Pfizer's feed. A
+    partner release about a Pfizer product (Padcev, Talzenna) stays."""
+    path = _company(tmp_path, "PFE", "Pfizer Inc", STOCKTITAN,
+                    assets=[("enfortumab vedotin", "PADCEV"), ("talazoparib", "TALZENNA")])
+    _serve(monkeypatch, STOCKTITAN_PFE)
+    result = PressIrFetcher("PFE", db_path=path).run()
+    assert result.errors == []
+    titles = [r["title"] for r in _rows(path, "SELECT title FROM news")]
+    assert "Pfizer Declares Fourth-Quarter 2026 Dividend" in titles
+    assert any(t.startswith("U.S. FDA Approves PADCEV") for t in titles)
+    assert any(t.startswith("TALZENNA Plus XTANDI") for t in titles)
+    assert not any(t.startswith(("Astellas", "ViiV", "NYSE")) for t in titles)
+    assert any("named neither the company nor one of its products" in n
+               for n in result.notes)
+
+
+def test_a_companys_own_feed_is_not_filtered(tmp_path, monkeypatch):
+    """The filter is for an aggregator's feed. On the company's own, every item is its
+    own, whatever the headline names."""
+    path = _company(tmp_path, "GILD", "Gilead Sciences Inc", GILEAD_LISTING)
+    _serve(monkeypatch, GILEAD_SXA)
+    result = PressIrFetcher("GILD", db_path=path).run()
+    assert result.errors == []
+    news = _rows(path, "SELECT url FROM news")
+    assert len(news) == 12
+    assert all(n["url"].startswith("https://www.gilead.com/news/news-details/") for n in news)
+
+
+def test_the_names_a_headline_uses_are_the_short_name_and_the_products():
+    from fetchers.press_ir import names_pattern
+
+    names = ["Bristol-Myers Squibb", "Bristol", "Cobenfy", "BMS-986278"]
+    own = names_pattern(names)
+    assert own.search("Bristol Myers Squibb Announces Dividend")
+    assert own.search("U.S. FDA Grants Accelerated Approval to Bristol Myers Squibb’s"
+                      " First CELMoD Therapy")
+    assert own.search("Open Label Switch Study of Cobenfy Demonstrates Stability")
+    assert own.search("Phase 2 data for BMS 986278 in lung fibrosis")
+    assert not own.search("Three New Studies Show Viz.ai’s Cardio Suite Speeds Detection")
+    # Whole words only: a product name inside another word is not the product.
+    assert not names_pattern(["Opdivo"]).search("Opdivolumab is not a real drug")
+
+
+def test_the_legal_ending_is_not_the_name_a_headline_uses(tmp_path):
+    from fetchers.press_ir import own_names
+
+    path = _company(tmp_path, "BMY", "Bristol-Myers Squibb Co", "",
+                    assets=[("xanomeline and trospium", "Cobenfy")])
+    conn = db.get_connection(path)
+    company = conn.execute("SELECT id, name FROM companies").fetchone()
+    names = own_names(conn, company)
+    conn.close()
+    assert "Bristol-Myers Squibb" in names and "Bristol" in names
+    assert "Co" not in names and "Bristol-Myers Squibb Co" not in names
+    assert {"Cobenfy", "xanomeline", "trospium"} <= set(names)
+
+
+def _record(path, title, url, published):
+    conn = db.get_connection(path)
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    rows = [{"company_id": cid, "ticker": "BMY", "title": title, "url": url,
+             "published": published, "kind": None, "ahead": False, "stated_date": None}]
+    written = pr.record(conn, rows, "press_ir")[0]
+    conn.commit()
+    conn.close()
+    return written
+
+
+def test_a_release_held_under_its_old_link_is_not_written_again(tmp_path):
+    """BMS's releases were stored under Q4's links, cut with "...", and arrive now
+    under StockTitan's, whole. One release, one row."""
+    path = _company(tmp_path, "BMY", "Bristol-Myers Squibb Co", "")
+    old = ("Bristol Myers Squibb Announces Positive Topline Results from Registrational"
+           " Phase 2 QUINTESSENTIAL Trial of the Potential First-in-Class GPRC5D-Directed"
+           " CAR T Cell Therapy, Arlocabtagene Autoleucel ...")
+    new = ("Bristol Myers Squibb Announces Positive Topline Results from Registrational"
+           " Phase 2 QUINTESSENTIAL Trial of the Potential First-in-Class GPRC5D-Directed"
+           " CAR T Cell Therapy, Arlocabtagene Autoleucel (Arlo-cel), in Patients with"
+           " Relapsed or Refractory Multiple Myeloma")
+    assert _record(path, old, "https://q4.example/old", "2026-09-08") == 1
+    assert _record(path, new, "https://www.stocktitan.net/news/BMY/new", "2026-09-09") == 0
+    # The same words with a curly apostrophe and a trademark sign are the same release.
+    assert _record(path, "U.S. FDA Approves Bristol Myers Squibb's ZENBEXUS",
+                   "https://q4.example/z", "2026-08-13") == 1
+    assert _record(path, "U.S. FDA Approves Bristol Myers Squibb’s ZENBEXUS™",
+                   "https://www.stocktitan.net/news/BMY/z", "2026-08-13") == 0
+    assert len(_rows(path, "SELECT id FROM news")) == 2
+
+
+def test_a_headline_repeated_months_apart_is_two_releases(tmp_path):
+    """"Bristol Myers Squibb Announces Dividend" is a new release every quarter."""
+    path = _company(tmp_path, "BMY", "Bristol-Myers Squibb Co", "")
+    title = "Bristol Myers Squibb Announces Dividend"
+    assert _record(path, title, "https://q4.example/d1", "2026-06-17") == 1
+    assert _record(path, title, "https://www.stocktitan.net/news/BMY/d2", "2026-09-16") == 1
+    # Short headlines are matched whole, never on their opening alone.
+    assert _record(path, "Bristol Myers Squibb Announces", "https://x.example/d3",
+                   "2026-09-16") == 1

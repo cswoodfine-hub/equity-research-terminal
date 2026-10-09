@@ -17,6 +17,23 @@ link, guid, title and pubDate, with no body at all, so a catalyst is written onl
 the headline itself states a full date. A quarter is not a date and is not turned into
 one.
 
+When the investor site answers a bot challenge, ``ir_rss_url`` names another route to the
+same releases, in this order of preference, and never the unprotected origin behind the
+challenged host, which would be the same work-around a solved challenge is:
+
+1. Another of the company's own sites. BioMarin's WordPress site publishes its press
+   releases as a feed of their own (``/feed/?post_type=press-release``), and gilead.com
+   draws its news page from a Sitecore search listing (``/sxa/search/results/``), read
+   by ``press_releases.parse_sxa``. Each returned every release the challenged feed had
+   stored, 16 of 16 and 14 of 14.
+2. A wire aggregator's feed for the ticker, for a company whose every own site is
+   challenged (Pfizer and BMS, 2026-10-09). StockTitan republishes the wire releases
+   under their own headlines and publishes a feed per ticker, linked from its pages and
+   allowed by its robots file; for BMS it held 13 of the 14 stored releases, the one
+   missing being BioNTech's. It tags a release by every ticker the release names, so a
+   partner's release lands under both and an exchange's bell notice under a dozen: an
+   item counts only when its headline names the company or one of its own products.
+
 The parsing and the classifying live in ``press_releases``, tested against saved feeds.
 This module is the plumbing around them.
 """
@@ -27,6 +44,7 @@ import datetime as dt
 import json
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import db
@@ -70,6 +88,54 @@ class FeedChallenged(RuntimeError):
     """A feed answered with a bot challenge rather than its contents."""
 
 
+# Hosts whose feed carries other companies' releases too, filtered to the company's own.
+AGGREGATORS = ("stocktitan.net",)
+
+# What makes a name legal rather than the one a headline uses: "Pfizer Inc" is
+# "Pfizer" in every headline it writes.
+_LEGAL = re.compile(r"[,\s]+(?:inc|incorporated|co|company|corp|corporation|plc|ag|sa|"
+                    r"se|n\.?v|ltd|limited|holdings?)\.?$", re.I)
+
+# A product name shorter than this matches inside ordinary headline words.
+_MIN_TERM = 4
+
+
+def is_aggregator(feed: str) -> bool:
+    host = (urllib.parse.urlparse(feed).hostname or "").lower()
+    return any(host == a or host.endswith("." + a) for a in AGGREGATORS)
+
+
+def is_sxa(feed: str) -> bool:
+    return "/sxa/search/results" in urllib.parse.urlparse(feed).path.lower()
+
+
+def own_names(conn, company) -> list[str]:
+    """The names a headline uses for the company and its products: the company's name
+    without its legal ending, its first word, and every asset's generic and brand name
+    and development code (``BMS-986278``) it owns."""
+    name = _LEGAL.sub("", (company["name"] or "").strip())
+    terms = {name}
+    first = name.split()[0] if name else ""
+    if len(first) >= _MIN_TERM:
+        terms.add(first.split("-")[0])
+    for row in conn.execute(
+            "SELECT generic_name, brand_name, internal_code FROM assets"
+            " WHERE owner_company_id = ?", (company["id"],)):
+        for value in row:
+            for part in re.split(r"[;,/]| and ", value or ""):
+                if len(part.strip()) >= _MIN_TERM:
+                    terms.add(part.strip())
+    return sorted(t for t in terms if t)
+
+
+def names_pattern(names: list[str]):
+    """A headline test for any of ``names``, whole words only, a space and a hyphen
+    read alike ("Bristol-Myers Squibb" is "Bristol Myers Squibb" in its headlines)."""
+    alternatives = [r"[\s-]+".join(re.escape(w) for w in re.split(r"[\s-]+", n))
+                    for n in sorted(names, key=len, reverse=True)]
+    return re.compile(r"(?<![\w-])(?:" + "|".join(alternatives) + r")(?![\w-])", re.I)
+
+
 def _refusal(exc, feed: str) -> Exception:
     """The clearest exception a refused request can be turned into.
 
@@ -87,7 +153,8 @@ def _refusal(exc, feed: str) -> Exception:
         return FeedChallenged(
             f"{feed} answers a bot challenge rather than the feed, so this client "
             "cannot read it and no user agent will change that. Seed a different "
-            "ir_rss_url, or take the company's news from its 8-K filings")
+            "ir_rss_url: another of the company's own sites first, a wire "
+            "aggregator's feed for the ticker failing that (see this module's notes)")
     return exc
 
 
@@ -111,30 +178,43 @@ class PressIrFetcher(BaseFetcher):
             company = conn.execute(
                 "SELECT id, ticker, name, ir_rss_url FROM companies WHERE ticker = ?",
                 (self.ticker,)).fetchone()
+            feed = ((company["ir_rss_url"] if company else "") or "").strip()
+            names = own_names(conn, company) if company and is_aggregator(feed) else None
         finally:
             conn.close()
         if not company:
             raise ValueError(f"no company {self.ticker}")
-        feed = (company["ir_rss_url"] or "").strip()
         if not feed:
             # Not an error. Most of the universe has no feed seeded yet, and a company
             # without one has nothing to report rather than something to fix.
             return {"company": dict(company), "xml": None}
-        request = urllib.request.Request(feed, headers=HEADERS)
+        headers = HEADERS
+        if is_sxa(feed):
+            headers = {**HEADERS, "Accept": "application/json"}
+        request = urllib.request.Request(feed, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
                 xml_text = resp.read().decode("utf-8", "ignore")
         except urllib.error.HTTPError as exc:
             raise _refusal(exc, feed) from exc
-        return {"company": dict(company), "xml": xml_text}
+        return {"company": dict(company), "xml": xml_text, "feed": feed, "names": names}
 
     def normalise(self, raw) -> list[dict]:
         company = raw["company"]
         self.no_feed = raw["xml"] is None
+        self.not_own = 0
         if self.no_feed:
             return []
+        feed = raw.get("feed") or ""
+        items = (press_releases.parse_sxa(raw["xml"], feed) if is_sxa(feed)
+                 else press_releases.parse_feed(raw["xml"]))
+        if raw.get("names"):
+            own = names_pattern(raw["names"])
+            kept = [i for i in items if own.search(i["title"])]
+            self.not_own = len(items) - len(kept)
+            items = kept
         rows = []
-        for item in press_releases.parse_feed(raw["xml"]):
+        for item in items:
             if not item["url"]:
                 continue        # the url is the identity, and news has no other key
             kind, ahead = press_releases.classify(item["title"])
@@ -218,6 +298,9 @@ class PressIrFetcher(BaseFetcher):
         if written:
             notes.append(f"{self.ticker}: {written} releases, {changed} changes,"
                          f" {catalysts} catalysts")
+        if getattr(self, "not_own", 0):
+            notes.append(f"{self.ticker}: {self.not_own} items on the aggregator's feed"
+                         f" named neither the company nor one of its products, left out")
         behind = self.stale_by_days(rows)
         if behind is not None:
             # A note, not an error: the fetch worked, the feed answered, and what it

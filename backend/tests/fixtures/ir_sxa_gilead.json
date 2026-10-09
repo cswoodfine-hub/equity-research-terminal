@@ -1,0 +1,105 @@
+{
+ "TotalTime": 1691,
+ "QueryTime": 105,
+ "Signature": "news",
+ "Index": "gilead_corporate_web_ea_index",
+ "Count": 1981,
+ "Results": [
+  {
+   "Id": "db180b9d-2068-4cfa-ba92-86f2a51656f5",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-Accelerates-Global-Access-Planning-for-Investigational-Once-Yearly-Lenacapavir-for-HIV-Prevention",
+   "Url": "/news/news-details/2026/gilead-accelerates-global-access-planning-for-investigational-once-yearly-lenacapavir-for-hiv-prevention",
+   "Name": null,
+   "Html": "<a title=\"Gilead-Accelerates-Global-Access-Planning-for-Investigational-Once-Yearly-Lenacapavir-for-HIV-Prevention\" href=\"/news/news-details/2026/gilead-accelerates-global-access-planning-for-investigational-once-yearly-lenacapavir-for-hiv-prevention\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">September 16, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead Accelerates Global Access Planning for Investigational Once-Yearly Lenacapavir for HIV Prevention\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "a57c53f6-9d69-47af-b2fa-d9e16a467c99",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-and-PAHO-Announce-Milestone-Partnership-to-Accelerate-Access-to-Twice-Yearly-Lenacapavir-for-HIV-Prevention-Across-Latin-America-and-the-Caribbean",
+   "Url": "/news/news-details/2026/gilead-and-paho-announce-milestone-partnership-to-accelerate-access-to-twice-yearly-lenacapavir-for-hiv-prevention-across-latin-america-and-the-caribbean",
+   "Name": null,
+   "Html": "<a title=\"Gilead-and-PAHO-Announce-Milestone-Partnership-to-Accelerate-Access-to-Twice-Yearly-Lenacapavir-for-HIV-Prevention-Across-Latin-America-and-the-Caribbean\" href=\"/news/news-details/2026/gilead-and-paho-announce-milestone-partnership-to-accelerate-access-to-twice-yearly-lenacapavir-for-hiv-prevention-across-latin-america-and-the-caribbean\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">September 15, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead and PAHO Announce Milestone Partnership to Accelerate Access to Twice-Yearly Lenacapavir for HIV Prevention Across Latin America and the Caribbean\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "fd752969-8f22-44b4-847b-b6a404876136",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-Opens-State-of-the-Art-Research-Center-to-Advance-the-Next-Generation-of-Medicines",
+   "Url": "/news/news-details/2026/gilead-opens-state-of-the-art-research-center-to-advance-the-next-generation-of-medicines",
+   "Name": null,
+   "Html": "<a title=\"Gilead-Opens-State-of-the-Art-Research-Center-to-Advance-the-Next-Generation-of-Medicines\" href=\"/news/news-details/2026/gilead-opens-state-of-the-art-research-center-to-advance-the-next-generation-of-medicines\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">September 8, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead Opens State-of-the-Art Research Center to Advance the Next Generation of Medicines\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "640447a8-fe92-4e91-9072-9b29000c4e50",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/U-S--FDA-Approves-Gileads-Bixlenvo-a-New-Once-Daily-Single-Tablet-Option-for-Virologically-Suppressed-Adults-With-HIV-Including-Those-on-Complex-Regimens",
+   "Url": "/news/news-details/2026/u-s--fda-approves-gileads-bixlenvo-a-new-once-daily-single-tablet-option-for-virologically-suppressed-adults-with-hiv-including-those-on-complex-regimens",
+   "Name": null,
+   "Html": "<a title=\"U-S--FDA-Approves-Gileads-Bixlenvo-a-New-Once-Daily-Single-Tablet-Option-for-Virologically-Suppressed-Adults-With-HIV-Including-Those-on-Complex-Regimens\" href=\"/news/news-details/2026/u-s--fda-approves-gileads-bixlenvo-a-new-once-daily-single-tablet-option-for-virologically-suppressed-adults-with-hiv-including-those-on-complex-regimens\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">August 27, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     U.S. FDA Approves Gilead\u2019s Bixlenvo\u2122, a New Once-Daily Single Tablet Option for Virologically Suppressed Adults With HIV, Including Those on Complex Regimens\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "542bdc57-a2cb-44f6-8f3c-fd3ef420baa1",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-Sciences-to-Present-at-Upcoming-Third-Quarter-2026-Investor-Conferences",
+   "Url": "/news/news-details/2026/gilead-sciences-to-present-at-upcoming-third-quarter-2026-investor-conferences",
+   "Name": null,
+   "Html": "<a title=\"Gilead-Sciences-to-Present-at-Upcoming-Third-Quarter-2026-Investor-Conferences\" href=\"/news/news-details/2026/gilead-sciences-to-present-at-upcoming-third-quarter-2026-investor-conferences\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">August 26, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead Sciences to Present at Upcoming Third Quarter 2026 Investor Conferences\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "f74196c0-cfc7-4e1a-9d8c-1851910dc3ee",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/European-Commission-Expands-Role-of-Gileads-Trodelvy-in-First-Line-Metastatic-Triple-Negative-Breast-Cancer-Across-PD-L1-Status",
+   "Url": "/news/news-details/2026/european-commission-expands-role-of-gileads-trodelvy-in-first-line-metastatic-triple-negative-breast-cancer-across-pd-l1-status",
+   "Name": null,
+   "Html": "<a title=\"European-Commission-Expands-Role-of-Gileads-Trodelvy-in-First-Line-Metastatic-Triple-Negative-Breast-Cancer-Across-PD-L1-Status\" href=\"/news/news-details/2026/european-commission-expands-role-of-gileads-trodelvy-in-first-line-metastatic-triple-negative-breast-cancer-across-pd-l1-status\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">August 24, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     European Commission Expands Role of Gilead\u2019s Trodelvy&#174; in First-Line Metastatic Triple-Negative Breast Cancer Across PD-L1 Status\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "20d9824c-67cf-406e-88df-433781a52ef5",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-Sciences-Announces-Second-Quarter-2026-Financial-Results",
+   "Url": "/news/news-details/2026/gilead-sciences-announces-second-quarter-2026-financial-results",
+   "Name": null,
+   "Html": "<a title=\"Gilead-Sciences-Announces-Second-Quarter-2026-Financial-Results\" href=\"/news/news-details/2026/gilead-sciences-announces-second-quarter-2026-financial-results\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">August 4, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead Sciences Announces Second Quarter 2026 Financial Results\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "b90f8ee7-d0fe-4b61-97b0-3304e6c412eb",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/CHMP-Recommends-Gileads-Trodelvy-Plus-Keytruda-in-PD-L1-Positive-First-Line-Metastatic-Triple-Negative-Breast-Cancer",
+   "Url": "/news/news-details/2026/chmp-recommends-gileads-trodelvy-plus-keytruda-in-pd-l1-positive-first-line-metastatic-triple-negative-breast-cancer",
+   "Name": null,
+   "Html": "<a title=\"CHMP-Recommends-Gileads-Trodelvy-Plus-Keytruda-in-PD-L1-Positive-First-Line-Metastatic-Triple-Negative-Breast-Cancer\" href=\"/news/news-details/2026/chmp-recommends-gileads-trodelvy-plus-keytruda-in-pd-l1-positive-first-line-metastatic-triple-negative-breast-cancer\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">July 24, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     CHMP Recommends Gilead\u2019s Trodelvy&#174; Plus Keytruda&#174; in PD-(L)1-Positive First-Line Metastatic Triple-Negative Breast Cancer\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "f912ce91-8474-402d-8fe6-39b2029e83a7",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-Sciences-to-Release-Second-Quarter-2026-Financial-Results-on-Tuesday-August-4-2026",
+   "Url": "/news/news-details/2026/gilead-sciences-to-release-second-quarter-2026-financial-results-on-tuesday-august-4-2026",
+   "Name": null,
+   "Html": "<a title=\"Gilead-Sciences-to-Release-Second-Quarter-2026-Financial-Results-on-Tuesday-August-4-2026\" href=\"/news/news-details/2026/gilead-sciences-to-release-second-quarter-2026-financial-results-on-tuesday-august-4-2026\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">July 21, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead Sciences to Release Second Quarter 2026 Financial Results on Tuesday, August 4, 2026\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "d65e7043-f72c-496e-bbf8-196a5a554289",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Investigational-Once-Weekly-Oral-HIV-Treatment-Regimen-of-Islatravir-and-Lenacapavir-Maintained-Virological-Suppression-in-Adults-With-HIV-Who-Switched-Antiretroviral-Therapy",
+   "Url": "/news/news-details/2026/investigational-once-weekly-oral-hiv-treatment-regimen-of-islatravir-and-lenacapavir-maintained-virological-suppression-in-adults-with-hiv-who-switched-antiretroviral-therapy",
+   "Name": null,
+   "Html": "<a title=\"Investigational-Once-Weekly-Oral-HIV-Treatment-Regimen-of-Islatravir-and-Lenacapavir-Maintained-Virological-Suppression-in-Adults-With-HIV-Who-Switched-Antiretroviral-Therapy\" href=\"/news/news-details/2026/investigational-once-weekly-oral-hiv-treatment-regimen-of-islatravir-and-lenacapavir-maintained-virological-suppression-in-adults-with-hiv-who-switched-antiretroviral-therapy\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">July 21, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Investigational Once-Weekly Oral HIV Treatment Regimen of Islatravir and Lenacapavir Maintained Virological Suppression in Adults With HIV Who Switched Antiretroviral Therapy\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "566a01a0-221c-4a9d-ac51-387999013265",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/Gilead-to-Present-New-HIV-Research-at-AIDS-2026-Across-Prevention-Treatment-and-Cure",
+   "Url": "/news/news-details/2026/gilead-to-present-new-hiv-research-at-aids-2026-across-prevention-treatment-and-cure",
+   "Name": null,
+   "Html": "<a title=\"Gilead-to-Present-New-HIV-Research-at-AIDS-2026-Across-Prevention-Treatment-and-Cure\" href=\"/news/news-details/2026/gilead-to-present-new-hiv-research-at-aids-2026-across-prevention-treatment-and-cure\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">July 21, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     Gilead to Present New HIV Research at AIDS 2026 Across Prevention, Treatment and Cure\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  },
+  {
+   "Id": "fb9405c6-0e61-4463-9232-4308df9eb4d9",
+   "Language": "en",
+   "Path": "/sitecore/content/Gilead/GileadCorporate/Home/News/News Details/2026/U-S--FDA-Approves-Trodelvy-for-First-Line-Treatment-of-Metastatic-Triple-Negative-Breast-Cancer",
+   "Url": "/news/news-details/2026/u-s--fda-approves-trodelvy-for-first-line-treatment-of-metastatic-triple-negative-breast-cancer",
+   "Name": null,
+   "Html": "<a title=\"U-S--FDA-Approves-Trodelvy-for-First-Line-Treatment-of-Metastatic-Triple-Negative-Breast-Cancer\" href=\"/news/news-details/2026/u-s--fda-approves-trodelvy-for-first-line-treatment-of-metastatic-triple-negative-breast-cancer\"><div class=\"gl-section\"><div class=\"gl-notes-date field-news-date\">June 24, 2026</div><div class=\"gl-content-icon\">\r\n <h5>\r\n     U.S. FDA Approves Trodelvy&#174; for First-Line Treatment of Metastatic Triple-Negative Breast Cancer\r\n </h5>\r\n <span>\r\n     <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\">\r\n         <path d=\"M6 12H18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n         <path d=\"M12 6L18 12L12 18\" stroke=\"#C5203F\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\r\n     </svg>\r\n </span>\r\n\r\n</div></div></a>"
+  }
+ ]
+}

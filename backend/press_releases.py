@@ -21,7 +21,10 @@ forbidden from importing each other.
 from __future__ import annotations
 
 import datetime as dt
+import html
+import json
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 # What kind of announcement a headline is. Ordered, because a headline can match more
@@ -172,9 +175,54 @@ def parse_feed(xml_text: str) -> list[dict]:
                 link = (child.text or "").strip() or child.attrib.get("href", "")
             elif name in ("pubDate", "published", "updated", "date"):
                 published = published or (child.text or "").strip()
+        title = _AGGREGATOR_LABEL.sub("", title)
         if title:
             out.append({"title": title, "url": link, "published": _as_date(published)})
     return out
+
+
+# An aggregator's feed puts its own label after the headline: StockTitan writes
+# "Pfizer Declares Fourth-Quarter 2026 Dividend | PFE Stock News". The release's
+# headline is the part before it, and the label would stop the same release read off
+# another route from being recognised as the same.
+_AGGREGATOR_LABEL = re.compile(r"\s*\|\s*[A-Z][A-Z.]{0,6} Stock News\s*$")
+
+
+def parse_sxa(json_text: str, base_url: str) -> list[dict]:
+    """(title, link, published) per result of a Sitecore SXA search, the listing a
+    Sitecore newsroom draws its news page from.
+
+    Gilead's investor site answers a bot challenge, and gilead.com's own news page
+    answers in full: it is drawn by script from ``/sxa/search/results/``, a JSON
+    listing whose every result carries the release's url, its date as "September 16,
+    2026" and its headline. The ids in the query are the page's own, copied from it,
+    and the sort is the page's own date field, newest first.
+
+    This is a listing, not a feed, so a site rebuild can change its shape without
+    warning. A result that no longer parses is left out, and an empty listing is
+    reported by the fetcher as nothing found, never as a quiet success.
+    """
+    data = json.loads(json_text)
+    out = []
+    for result in data.get("Results") or []:
+        body = result.get("Html") or ""
+        path = (result.get("Url") or "").strip()
+        heading = re.search(r"<h\d[^>]*>(.*?)</h\d>", body, re.S)
+        when = re.search(r"field-news-date[^>]*>\s*([^<]+?)\s*<", body)
+        if not (heading and path):
+            continue
+        title = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", heading.group(1))))
+        out.append({"title": title.strip(), "url": urllib.parse.urljoin(base_url, path),
+                    "published": _long_date(when.group(1)) if when else None})
+    return out
+
+
+def _long_date(raw: str) -> str | None:
+    """"September 16, 2026" as 2026-09-16, or None."""
+    try:
+        return dt.datetime.strptime(raw.strip(), "%B %d, %Y").date().isoformat()
+    except ValueError:
+        return None
 
 
 _RSS_DATE = "%a, %d %b %Y %H:%M:%S"
@@ -229,6 +277,56 @@ def change_type(kind: str) -> str:
     return "press_" + kind.lower().replace(" ", "_")
 
 
+# The routes a company's own announcements arrive by. A release is one release whichever
+# of them carried it, and the url, which is news's key, differs between them.
+ANNOUNCEMENT_SOURCES = ("press_ir", "press_page")
+
+# How far apart two routes may date the same release. A wire stamps it in GMT and an IR
+# site in the company's own time zone, so an evening release lands a day apart.
+SAME_RELEASE_DAYS = 3
+
+# The shortest headline that may be matched on its opening alone. Q4's feeds cut a long
+# headline and end it with "...", so the stored copy is a prefix of the wire's.
+_PREFIX_MIN = 40
+
+
+def title_key(title: str) -> str:
+    """A headline reduced to its letters and digits, so the same release read off two
+    routes (curly or straight apostrophes, a trademark sign or not) reads as one."""
+    return re.sub(r"[^a-z0-9]", "", html.unescape(title or "").lower())
+
+
+def _held_under_another_url(conn, row) -> bool:
+    """Whether this release is already in news under another url.
+
+    The url is news's key, and it is the route's url, not the release's. When a
+    company's feed moves (BMS's investor site began answering a bot challenge in
+    September 2026 and its releases are now read off a wire aggregator), every release
+    the old route already stored would otherwise be written a second time under its new
+    link, and appear twice in every view built on news.
+    """
+    if not row.get("published"):
+        return False
+    key = title_key(row["title"])
+    if not key:
+        return False
+    held = conn.execute(
+        "SELECT title FROM news WHERE company_id = ? AND url != ?"
+        " AND source IN (%s) AND published_at BETWEEN date(?, ?) AND date(?, ?)"
+        % ",".join("?" * len(ANNOUNCEMENT_SOURCES)),
+        (row["company_id"], row["url"], *ANNOUNCEMENT_SOURCES,
+         row["published"], f"-{SAME_RELEASE_DAYS} day",
+         row["published"], f"+{SAME_RELEASE_DAYS} day")).fetchall()
+    for (title,) in held:
+        other = title_key(title)
+        if other == key:
+            return True
+        short, long_ = sorted((other, key), key=len)
+        if len(short) >= _PREFIX_MIN and long_.startswith(short):
+            return True
+    return False
+
+
 def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
     """Write releases to news, and the recent classified ones on to changes and
     catalysts. Returns (written, changed, catalysts).
@@ -240,6 +338,8 @@ def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
               - dt.timedelta(days=CHANGE_WINDOW_DAYS)).isoformat()
     written = changed = catalysts = 0
     for row in rows:
+        if _held_under_another_url(conn, row):
+            continue
         cursor = conn.execute(
             "INSERT INTO news (company_id, source, title, url, published_at)"
             " VALUES (?, ?, ?, ?, ?) ON CONFLICT(url) DO NOTHING",
