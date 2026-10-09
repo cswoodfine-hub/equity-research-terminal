@@ -910,6 +910,14 @@ def portfolio_mine() -> dict:
     return my_portfolio.mine(None)
 
 
+@app.get("/portfolio/performance")
+def portfolio_performance() -> dict:
+    """How the user's Trading 212 account has done: the money-weighted return from its
+    deposits and withdrawals, beside the same cash in the S&P 500 and PPH, and the gain
+    split into realised, unrealised price, currency and dividends. Never cached."""
+    return my_portfolio.performance(None)
+
+
 @app.get("/calls/scores")
 def calls_scores(cohort: Optional[str] = None) -> dict:
     """The model's recorded calls scored against what followed (backend/call_log.py): its

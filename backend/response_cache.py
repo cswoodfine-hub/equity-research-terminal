@@ -55,7 +55,7 @@ SKIP = "x-cache-skip"
 # Reads that must be live, or that write. Matched as prefixes or substrings of the path.
 NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                # The user's own account: always live, never on disk.
-               "/portfolio/mine")
+               "/portfolio/")
 NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet")
 MAX_ENTRIES = 3000
 # A stale entry is recomputed at most this often, so a writer that commits every few

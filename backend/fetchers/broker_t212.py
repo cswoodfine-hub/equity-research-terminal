@@ -47,8 +47,25 @@ def _auth() -> str:
     return key                                  # the older single-key form
 
 
+_MEMO: dict = {}
+_MEMO_S = 5.0                       # one answer serves calls a moment apart (rate limits)
+
+
 def get(path: str):
-    """GET one endpoint; (status, parsed body or None). Never raises on HTTP errors."""
+    """GET one endpoint; (status, parsed body or None). Never raises on HTTP errors. The
+    same path asked again within a few seconds is answered from the last reply, since the
+    account's limits allow one positions read a second and one summary every five."""
+    import time
+    hit = _MEMO.get(path)
+    if hit and time.monotonic() - hit[0] < _MEMO_S:
+        return hit[1]
+    out = _get(path)
+    if out[0] == 200:
+        _MEMO[path] = (time.monotonic(), out)
+    return out
+
+
+def _get(path: str):
     request = urllib.request.Request(_base() + path, headers={
         "Authorization": _auth(), "Accept": "application/json", "User-Agent": _USER_AGENT})
     try:
@@ -109,3 +126,44 @@ def positions() -> dict:
     return {"ok": True, "status": status, "rows": rows,
             "currency": next((r["account_currency"] for r in rows if r["account_currency"]),
                              None)}
+
+
+HISTORY = {"orders": "/equity/history/orders", "transactions": "/equity/history/transactions",
+           "dividends": "/equity/history/dividends"}
+_PAGE_PAUSE_S = 3.1                 # history allows 20 requests a minute per account
+
+
+def history(kind: str, pause=None) -> dict:
+    """Every row of one history list, following ``nextPagePath`` to its end:
+    {"ok", "status", "rows"}."""
+    import time
+    pause = _PAGE_PAUSE_S if pause is None else pause
+    if not configured():
+        return {"ok": False, "reason": "no T212_API_KEY in .env", "rows": []}
+    path, rows, status = HISTORY[kind] + "?limit=50", [], None
+    while path:
+        status, body = get(path)
+        if status != 200 or not isinstance(body, dict):
+            return {"ok": False, "status": status, "rows": rows}
+        rows += body.get("items") or []
+        nxt = body.get("nextPagePath")
+        path = nxt[len("/api/v0"):] if nxt and nxt.startswith("/api/v0") else nxt
+        if path:
+            time.sleep(pause)
+    return {"ok": True, "status": status, "rows": rows}
+
+
+def summary() -> dict:
+    """The account summary: {"ok", "currency", "total", "cash", "invested", "cost",
+    "realised", "unrealised"} in the account's currency."""
+    if not configured():
+        return {"ok": False, "reason": "no T212_API_KEY in .env"}
+    status, body = get("/equity/account/summary")
+    if status != 200 or not isinstance(body, dict):
+        return {"ok": False, "status": status}
+    inv, cash = body.get("investments") or {}, body.get("cash") or {}
+    return {"ok": True, "currency": body.get("currency"), "total": body.get("totalValue"),
+            "cash": cash.get("availableToTrade"), "invested": inv.get("currentValue"),
+            "cost": inv.get("totalCost"), "realised": inv.get("realizedProfitLoss"),
+            "unrealised": inv.get("unrealizedProfitLoss")}
+

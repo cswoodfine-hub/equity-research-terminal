@@ -9930,7 +9930,7 @@ with main:
         # away and they still belong to the universe rather than to a company, so
         # they are views here rather than tabs of their own.
         _view = st.segmented_control(
-            "Universe view", ["Overview", "Markets", "Policy"], default="Overview",
+            "Universe view", ["Overview", "Markets", "Policy", "Holdings"], default="Overview",
             key="universe_view", label_visibility="collapsed") or "Overview"
 
         _all_changes = api_get(api_base, "/changes")
@@ -9942,6 +9942,10 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
+        elif _view == "Holdings":
+            # The user's own Trading 212 account beside the model (holdings_view.py).
+            import holdings_view
+            holdings_view.render(api_base)
         elif (_universe_redesigned(ticker, _view)
               and universe_page.render(api_base, ticker)):
             pass
