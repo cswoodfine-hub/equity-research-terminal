@@ -59,6 +59,7 @@ import development
 import disease_areas
 import call_log
 import my_portfolio
+import portfolio_history
 import landscape as landscape_module
 import drug_card
 import landscape_overview
@@ -908,6 +909,14 @@ def portfolio_mine() -> dict:
     """The user's own Trading 212 holdings, read live and never cached, each beside the
     model's latest call and next catalyst where the book covers the company."""
     return my_portfolio.mine(None)
+
+
+@app.get("/portfolio/history")
+def portfolio_history_view() -> dict:
+    """The user's Trading 212 account valued every trading day since its first deposit,
+    rebuilt from its fills and cash (backend/portfolio_history.py), beside the money put in
+    and the same money in the S&P 500. Never cached."""
+    return portfolio_history.build()
 
 
 @app.get("/portfolio/performance")

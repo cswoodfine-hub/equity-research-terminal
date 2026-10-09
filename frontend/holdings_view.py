@@ -24,7 +24,22 @@ _CSS = """<style>
 .hd .hd-k i{font-style:normal;font-size:11.5px;color:var(--muted)}
 .hd .hd-s{color:var(--muted);margin:0 0 12px;line-height:1.5}
 .hd .up{color:var(--up)} .hd .down{color:var(--down)}
-.hd .hd-t{max-height:calc(100vh - 286px);overflow:auto;border-top:1px solid var(--rule)}
+.hd .hd-c{margin:0 0 8px}
+.hd .hd-c .plot{position:relative;height:130px;margin:0 150px 18px 34px}
+.hd .hd-c svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.hd .hd-c path{fill:none;stroke-width:1.8;vector-effect:non-scaling-stroke}
+.hd .hd-c path.v{stroke:var(--text)} .hd .hd-c path.s{stroke:var(--up);stroke-dasharray:6 4}
+.hd .hd-c path.p{stroke:var(--muted);stroke-dasharray:2 3}
+.hd .hd-c .g{stroke:var(--rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.hd .hd-c .end{position:absolute;left:calc(100% + 8px);transform:translateY(-50%);
+  font-size:11px;white-space:nowrap}
+.hd .hd-c .end.v{color:var(--text);font-weight:600} .hd .hd-c .end.s{color:var(--up)}
+.hd .hd-c .end.p{color:var(--muted)}
+.hd .hd-c .yl{position:absolute;right:calc(100% + 6px);transform:translateY(-50%);
+  font-size:10px;color:var(--muted)}
+.hd .hd-c .xl{position:absolute;top:calc(100% + 4px);font-size:10px;color:var(--muted)}
+.hd .hd-c .cap{font-size:11px;color:var(--muted)}
+.hd .hd-t{max-height:calc(100vh - 466px);overflow:auto;border-top:1px solid var(--rule)}
 .hd table{border-collapse:collapse;width:100%}
 .hd th{position:sticky;top:0;background:var(--ground);z-index:1;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
   text-align:right;font-weight:500;padding:4px 8px;border-bottom:1px solid var(--rule)}
@@ -85,12 +100,72 @@ def _summary(perf: dict) -> str:
     words = " · ".join(f"{k} {_money(v, cur, True)}" for k, v in parts if v is not None)
     other = split.get("not_itemised")
     note = ""
-    if other is not None and abs(other) >= 1:
-        rest = (perf.get("gain") or 0) - other
-        note = (f" · not itemised by the API {_money(other, cur, True)}: interest on cash or a "
-                f"promotion is a gain; money paid in that the API does not list as a deposit is "
-                f"not, and then the gain is {_money(rest, cur, True)}")
+    # Transfers of shares are counted as money put in (backend/my_portfolio.py), so what is
+    # left is small: currency conversion fees, interest. Said only when it is not.
+    if other is not None and abs(other) >= 20:
+        note = (f" · not itemised by the API {_money(other, cur, True)} (fees, interest, or a "
+                f"movement the API does not list)")
     return f'<div class="hd-k">{head}</div><div class="hd-s">Where the gain came from: {words}{note}.</div>'
+
+
+def _chart(hist: dict) -> str:
+    """The account as a unit price, 100 on the day it first held 100 or more, so money put
+    in moves the value and never the line, beside the S&P 500 and PPH in the account's
+    currency on the same base. The lines are an SVG stretched to the width; the labels are
+    HTML laid over it, so the type never stretches with them."""
+    dates = hist.get("dates") or []
+    lines = [("You", hist.get("index") or [], "v"),
+             ("S&P 500", hist.get("sp500_index") or [], "s"),
+             ("PPH", hist.get("pph_index") or [], "p")]
+    first = next((i for i, v in enumerate(lines[0][1]) if v is not None), None)
+    if first is None or len(dates) - first < 2:
+        return ""
+    allv = [v for _l, seq, _c in lines for v in seq[first:] if v is not None]
+    lo, hi = min(allv + [100.0]), max(allv + [100.0])
+    pad = (hi - lo) * 0.08 or 1
+    lo, hi = lo - pad, hi + pad
+    n = len(dates) - first
+    x = lambda i: 100 * (i - first) / (n - 1)
+    y = lambda v: 100 * (1 - (v - lo) / (hi - lo))
+    paths = []
+    for _label, seq, cls in lines:
+        pts = [f"{'M' if not k else 'L'}{x(i):.2f},{y(v):.2f}"
+               for k, (i, v) in enumerate((i, v) for i, v in enumerate(seq)
+                                         if i >= first and v is not None)]
+        paths.append(f'<path d="{"".join(pts)}" class="{cls}"/>')
+    base = f'<line x1="0" x2="100" y1="{y(100):.2f}" y2="{y(100):.2f}" class="g"/>'
+    # End labels sorted by height and pushed apart, so two lines ending close together
+    # never print over each other.
+    placed = sorted(((y(last), label, cls, last) for label, seq, cls in lines
+                     for last in [next((v for v in reversed(seq) if v is not None), None)]
+                     if last is not None))
+    tops, gap = [], 11.0
+    for top, *_rest in placed:
+        tops.append(max(top, tops[-1] + gap) if tops else top)
+    ends = [f'<span class="end {cls}" style="top:{top:.1f}%">{escape(label)} '
+            f'{_pct((last - 100) / 100)}</span>'
+            for top, (_y, label, cls, last) in zip(tops, placed)]
+    ticks = [f'<span class="yl" style="top:{y(v):.1f}%">{v:.0f}</span>'
+             for v in sorted({round(lo + pad), 100, round(hi - pad)})]
+    months, seen, last_x = [], set(), -100.0
+    for i in range(first, len(dates)):
+        if dates[i][:7] not in seen:
+            seen.add(dates[i][:7])
+            if x(i) - last_x >= 8:               # a month a few days in is not labelled
+                months.append(f'<span class="xl" style="left:{x(i):.1f}%">'
+                              f'{dt_label(dates[i])}</span>')
+                last_x = x(i)
+    return (f'<div class="hd-c"><div class="plot"><svg viewBox="0 0 100 100" '
+            f'preserveAspectRatio="none" role="img" aria-label="Account unit price since '
+            f'{dates[first]}">{base}{"".join(paths)}</svg>{"".join(ticks)}{"".join(ends)}'
+            f'{"".join(months)}</div><div class="cap">Your account as a unit price, 100 on '
+            f'{escape(dates[first])}: deposits and transfers move the value, not the line. '
+            f'The S&amp;P 500 and PPH in pounds on the same base.</div></div>')
+
+
+def dt_label(day: str) -> str:
+    months = "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split()
+    return f"{int(day[8:10])} {months[int(day[5:7]) - 1]}"
 
 
 def _gate_cell(row: dict, cur: str) -> str:
@@ -146,6 +221,7 @@ def render(api_base: str) -> None:
         with st.spinner("Reading your Trading 212 account"):
             perf = _read(api_base, "/portfolio/performance")
             mine = _read(api_base, "/portfolio/mine")
+            hist = _read(api_base, "/portfolio/history")
     except (urllib.error.URLError, OSError, ValueError) as exc:
         st.warning(f"Your holdings did not load: {exc}")
         return
@@ -160,5 +236,9 @@ def render(api_base: str) -> None:
             "pounds scale the model's swing a share to this holding's value. The model's view "
             "is the model's, not a recommendation to buy or sell. Read live from your Trading "
             "212 account, read only.")
-    st.markdown(_CSS + f'<div class="hd">{_summary(perf)}{_table(mine)}'
+    chart = _chart(hist) if hist.get("ok") else ""
+    if hist.get("ok") and hist.get("left_out"):
+        note += (" Left out of the chart, no matching price series: "
+                 + ", ".join(escape(n) for n in hist["left_out"]) + ".")
+    st.markdown(_CSS + f'<div class="hd">{_summary(perf)}{chart}{_table(mine)}'
                 f'<div class="hd-n">{note}</div></div>', unsafe_allow_html=True)
