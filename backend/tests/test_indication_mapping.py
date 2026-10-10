@@ -325,3 +325,92 @@ def test_the_rebuild_releases_a_catalyst_before_deleting_the_row_it_points_at(tm
     left = conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0]
     conn.close()
     assert left is None, "the link is released, and applications.resolve reattaches it"
+
+
+# --- the sponsor's English against MeSH's register (2026-10-10) ------------
+#
+# Saruparib's, AAA817's, mevrometostat's and Mim8's Phase 3s were filed under no indication,
+# so their readouts sat outside the gate model: "Prostate Cancer" shares no word with
+# "Prostatic Neoplasms", nor "Haemophilia A" with "Hemophilia A".
+
+def _browse(*terms):
+    return {"meshes": [{"id": f"D{i}", "term": t} for i, t in enumerate(terms)],
+            "ancestors": []}
+
+
+def _found(conditions, *terms):
+    return [t["term"] for t in im.indications_for(json.dumps(conditions), _browse(*terms))]
+
+
+def test_prostate_cancer_is_prostatic_neoplasms():
+    assert _found(["Metastatic Castration-Sensitive Prostate Cancer"],
+                  "Prostatic Neoplasms", "Neoplasm Metastasis",
+                  "Genital Neoplasms, Male") == ["Prostatic Neoplasms"]
+
+
+def test_a_british_spelling_is_the_same_disease():
+    assert _found(["Haemophilia A", "Haemophilia A With Inhibitors"],
+                  "Hemophilia A") == ["Hemophilia A"]
+
+
+def test_gastric_cancer_is_stomach_neoplasms():
+    assert _found(["Gastric Cancer"], "Stomach Neoplasms") == ["Stomach Neoplasms"]
+
+
+def test_sharing_only_the_word_for_a_kind_of_disease_is_no_match():
+    """Once cancer reads as neoplasms, every cancer shares that word with every MeSH
+    neoplasm. Lung cancer is lung neoplasms, not bronchial ones or neoplasms by site."""
+    assert _found(["Lung Cancer"], "Bronchial Neoplasms", "Neoplasms by Site",
+                  "Thoracic Neoplasms", "Lung Neoplasms") == ["Lung Neoplasms"]
+
+
+def _with_additions(tmp_path, monkeypatch, rows):
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    aids = json.dumps({"meshes": [{"id": "D000163", "term": "Acquired Immunodeficiency Syndrome"}]})
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name) VALUES (2, 1, 'Prepx')")
+    conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions,"
+                 " mesh_terms, phase, overall_status, enrollment)"
+                 " VALUES ('NCT9', 2, 1, '[\"HIV Pre-Exposure Prophylaxis\"]', ?, 'Phase 3',"
+                 " 'Recruiting', 4000)", (aids,))
+    conn.commit(); conn.close()
+    csv_path = tmp_path / "additions.csv"
+    csv_path.write_text("# comment\nticker,asset,mesh_id,term,nct_ids,basis\n" + rows)
+    monkeypatch.setattr(im, "ADDITIONS_CSV", csv_path)
+    im.build(path)
+    conn = db.get_connection(path)
+    got = [dict(r) for r in conn.execute(
+        "SELECT ai.asset_id, ai.phase, ai.development_status, i.mesh_id, i.name"
+        " FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
+        " WHERE ai.asset_id = 2")]
+    conn.close()
+    return got
+
+
+def test_a_pair_no_vocabulary_reaches_is_added_by_hand_with_its_trials_phase(tmp_path,
+                                                                             monkeypatch):
+    got = _with_additions(tmp_path, monkeypatch,
+                          'X,Prepx,D015658,HIV Infections,NCT9,"indexed only under AIDS"\n')
+    assert got == [{"asset_id": 2, "phase": "Phase 3", "development_status": "Recruiting",
+                    "mesh_id": "D015658", "name": "HIV Infections"}]
+
+
+def test_an_added_pair_asserts_nothing_unless_its_trials_are_the_assets(tmp_path,
+                                                                       monkeypatch):
+    # NCT1 is asset 1's study, so naming it for asset 2 adds no pair.
+    assert _with_additions(tmp_path, monkeypatch,
+                           'X,Prepx,D015658,HIV Infections,NCT1,"wrong study"\n') == []
+
+
+def test_an_accent_or_a_dropped_apostrophe_is_the_same_disease():
+    """Before generic words stopped counting, these matched on "syndrome" or "disease"
+    alone, so the guard would have lost them: Sotyktu's Sjogren's Phase 3 among them."""
+    assert _found(["Sjögren's Syndrome"], "Sjogren's Syndrome") == ["Sjogren's Syndrome"]
+    assert _found(["Crohns Disease"], "Crohn Disease") == ["Crohn Disease"]
+    assert _found(["Urothelial Carcinoma"], "Carcinoma, Transitional Cell") \
+        == ["Carcinoma, Transitional Cell"]
+
+
+def test_a_disease_that_shares_only_the_word_disease_is_another_disease():
+    assert _found(["Thyroid Eye Disease"], "Graves Disease") == []
+    assert _found(["Carcinoid Syndrome"], "Serotonin Syndrome") == []

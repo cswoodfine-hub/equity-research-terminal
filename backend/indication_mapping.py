@@ -36,8 +36,11 @@ Two rules decide what the table means:
 
 from __future__ import annotations
 
+import csv
 import json
+import pathlib
 import re
+import unicodedata
 
 import db
 
@@ -86,9 +89,53 @@ def is_indication(term: str) -> bool:
         and text.lower() not in TOO_BROAD
 
 
+# The sponsor writes English and MeSH writes its own register. "Metastatic Castration-
+# Sensitive Prostate Cancer" is MeSH's "Prostatic Neoplasms", "Haemophilia A" is
+# "Hemophilia A" and "Gastric Cancer" is "Stomach Neoplasms": the same disease with no word
+# in common, so saruparib's, AAA817's, mevrometostat's and Mim8's Phase 3s were filed under
+# nothing and their readouts sat outside the gate model (2026-10-10). Each word is mapped to
+# MeSH's own before the overlap is measured. Short and explicit, like TOO_BROAD.
+_SPELLING = {
+    "haemophilia": "hemophilia", "leukaemia": "leukemia", "leukaemias": "leukemias",
+    "anaemia": "anemia", "oesophageal": "esophageal", "oesophagus": "esophagus",
+    "haematological": "hematologic", "haematologic": "hematologic", "oedema": "edema",
+    "diarrhoea": "diarrhea", "haemorrhage": "hemorrhage", "paediatric": "pediatric",
+    "oestrogen": "estrogen", "coeliac": "celiac", "tumour": "tumor", "tumours": "tumors",
+}
+_MESH_WORD = {
+    "cancer": "neoplasms", "cancers": "neoplasms", "tumor": "neoplasms",
+    "tumors": "neoplasms", "neoplasm": "neoplasms",
+    "prostate": "prostatic", "gastric": "stomach", "colon": "colonic",
+    "urothelial": "transitional",
+}
+
+# Words that name a kind of disease rather than which one. Once "cancer" reads as
+# "neoplasms", every cancer shares that word with every MeSH neoplasm, and "Lung Cancer"
+# would answer to "Bronchial Neoplasms" and "Neoplasms by Site" on it alone. A match has
+# to share a word outside this set.
+_GENERIC = {"neoplasm", "disease", "disorder", "syndrome", "infection", "carcinoma"}
+
+
+def _stem(word: str) -> str:
+    """A plural or a possessive read as its singular, on both sides alike: sponsors write
+    "Crohns Disease" and "Sjogrens Syndrome" where MeSH has "Crohn Disease" and
+    "Sjogren's Syndrome", and before the generic words stopped counting those matched
+    on "disease" alone."""
+    return word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") \
+        else word
+
+
 def tokens(text: str) -> set:
-    return {w for w in re.split(r"[^a-z0-9]+", (text or "").lower())
-            if w and w not in _STOPWORDS}
+    out = set()
+    # "Sjögren's" is "Sjogren's": an accent would otherwise split the word in two.
+    text = unicodedata.normalize("NFKD", (text or "").lower())
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = re.sub(r"['’]", "", text)
+    for w in re.split(r"[^a-z0-9]+", text):
+        if w and w not in _STOPWORDS:
+            w = _SPELLING.get(w, w)
+            out.add(_stem(_MESH_WORD.get(w, w)))
+    return out
 
 
 def _numbers(words: set) -> set:
@@ -109,6 +156,8 @@ def containment(a: set, b: set) -> float:
         return 0.0
     na, nb = _numbers(a), _numbers(b)
     if na and nb and not (na & nb):
+        return 0.0
+    if not (a & b) - _GENERIC:
         return 0.0
     return len(a & b) / min(len(a), len(b))
 
@@ -204,6 +253,62 @@ def pairs_from_trials(rows) -> dict:
     return out
 
 
+# Pairs no vocabulary can reach, named by hand with the reason. MK-8527's prevention
+# studies are indexed only under "Acquired Immunodeficiency Syndrome", ABP 234's under no
+# descriptor at all, and zibotentan/dapagliflozin's under "Kidney Diseases", which is
+# TOO_BROAD. A row names the asset, the descriptor and the trials that make the pair; the
+# phase, status and enrolment are read from those trials, never from the file, and a row
+# whose trials are not mapped to that asset asserts nothing.
+ADDITIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                 / "data" / "asset_indication_additions.csv")
+
+
+def curated_additions(conn, path=None) -> dict:
+    """(asset_id, mesh_id) -> pair entry, in pairs_from_trials' shape, for each row of
+    ``data/asset_indication_additions.csv`` whose asset and trials are on file."""
+    path = pathlib.Path(path or ADDITIONS_CSV)
+    if not path.exists():
+        return {}
+    out: dict = {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.startswith("#")):
+            name = (row.get("asset") or "").strip()
+            mesh_id, term = (row.get("mesh_id") or "").strip(), (row.get("term") or "").strip()
+            ncts = (row.get("nct_ids") or "").split()
+            if not (name and mesh_id and term and ncts):
+                continue
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                    WHERE c.ticker = ? AND (LOWER(TRIM(a.generic_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.brand_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.internal_code)) = LOWER(?))""",
+                ((row.get("ticker") or "").strip().upper(), name, name, name)).fetchone()
+            if not asset:
+                continue
+            marks = ",".join("?" * len(ncts))
+            studies = conn.execute(
+                f"""SELECT phase, overall_status, enrollment, first_posted FROM trials
+                     WHERE nct_id IN ({marks}) AND asset_id = ?
+                    UNION ALL
+                    SELECT phase, NULL, enrollment, NULL FROM completed_trials
+                     WHERE nct_id IN ({marks}) AND asset_id = ?""",
+                (*ncts, asset[0], *ncts, asset[0])).fetchall()
+            if not studies:
+                continue
+            entry = out.setdefault((asset[0], mesh_id), {
+                "term": term, "phase": None, "statuses": [], "enrollment": 0,
+                "first_posted": None, "trials": 0})
+            for phase, status, enrollment, posted in studies:
+                entry["phase"] = higher_phase(entry["phase"], phase)
+                entry["statuses"].append(status)
+                entry["enrollment"] += enrollment or 0
+                entry["trials"] += 1
+                if posted and (entry["first_posted"] is None
+                               or posted < entry["first_posted"]):
+                    entry["first_posted"] = posted
+    return out
+
+
 def _upsert_indications(conn, pairs) -> dict:
     """One indications row per MeSH descriptor. Returns mesh_id -> indication_id."""
     ids = {}
@@ -238,6 +343,8 @@ def build(db_path=None) -> dict:
                SELECT asset_id, conditions, mesh_terms, phase, NULL, enrollment, NULL
                  FROM completed_trials WHERE asset_id IS NOT NULL""")]
         pairs = pairs_from_trials(rows)
+        for key, entry in curated_additions(conn).items():
+            pairs.setdefault(key, entry)
         indication_ids = _upsert_indications(conn, pairs)
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
