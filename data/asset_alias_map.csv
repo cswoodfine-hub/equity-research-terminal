@@ -182,3 +182,11 @@ LLY,ADVM-022,Ixo-vec,"Ixo-vec's former code: Adverum's FY2024 10-K (0001628280-2
 PFE,PF-06838435 (formerly SPK-9001),PF-06838435/ fidanacogene elaparvovec,"the same gene therapy under its Spark code (NCT03307980, completed 2026-07-23); Pfizer stopped Beqvez in February 2025 and the book retires the programme under the other name"
 ROG,RO7046015,Prasinezumab,"prasinezumab's Roche code: PASADENA (NCT03100149) doses RO7046015, and Roche's HY 2026 pipeline carries the molecule as RG7935 prasinezumab (https://assets.roche.com/f/176343/x/cb875526bd/pharmahy26.pdf)"
 ROG,RO7247669,Tobemstomig,tobemstomig's Roche code (RG6139); the stopped programme is retired under its INN
+#
+# Folded while pricing the unpriced Phase 3 readout gates, 10 October 2026. Each programme
+# name is the same molecule as a row the book already carries.
+AZN,Laroprovstat,AZD0780,"laroprovstat is AZD0780, AstraZeneca's oral small-molecule PCSK9 inhibitor (phase 1 in Circulation 2026, doi:10.1161/CIRCULATIONAHA.125.075973; https://medicaldialogues.in/cardiology-ctvs/news/first-oral-pcsk9-inhibitor-laroprovstat-shows-up-to-80-percent-ldl-reduction-in-phase-1-trial-171251), which the book models"
+AZN,Laroprovstat/Rosuvastatin 1,AZD0780,"a fixed-dose combination of laroprovstat (AZD0780) with rosuvastatin, studied in NCT07619118 against rosuvastatin alone; the component the sponsor owns is AZD0780"
+AZN,Laroprovstat/ezetimibe FCDP,AZD0780,"a fixed-dose combination of laroprovstat (AZD0780) with ezetimibe, in a Phase 1 bioavailability study (NCT07622433)"
+PFE,PF-06821497,Mevrometostat,"Pfizer's own trial titles name the two together: NCT06629779 'A Study to Learn How PF-06821497 (Mevrometostat) Works in Men With Metastatic Castration-resistant Prostate Cancer'"
+NVO,Mim8,Denecimig,"NCT07830732 is titled 'A Research Study Investigating Denecimig (Mim8) in Adults With Acquired Haemophilia A'"
