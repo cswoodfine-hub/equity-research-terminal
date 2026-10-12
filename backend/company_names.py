@@ -13,10 +13,44 @@ returned as None and the fetcher skips rather than inventing a query.
 
 from __future__ import annotations
 
+import re
+
 import db
 
 COLUMNS = ("ctgov_sponsor", "openfda_manufacturer", "openfda_sponsor",
            "orange_book_applicant", "purple_book_applicant")
+
+# A legal suffix the press leaves off. "Novartis AG" in quotes found 88 headlines, the
+# newest five weeks old, and not one of the Abogen licence's dozen (2026-10-07): a headline
+# says Novartis.
+LEGAL_SUFFIX = re.compile(
+    r"[,\s]+(?:Inc\.?|Incorporated|Corp\.?|Corporation|Co\.?|Company|PLC|plc|AG|A/S|"
+    r"S\.?A\.?|SE|N\.?V\.?|Ltd\.?|Limited|Holdings?|and|&)$")
+# Where the press name is not the legal name less its suffix: "Lilly" and "Gilead" lead a
+# headline, and Bristol Myers Squibb dropped its hyphen in 2020. The news deal search and
+# the acquired-sponsor check both read a headline by these names, so they live here.
+PRESS_NAMES = {
+    "LLY": ("Eli Lilly", "Lilly"), "GILD": ("Gilead",), "REGN": ("Regeneron",),
+    "BMY": ("Bristol Myers Squibb", "Bristol-Myers Squibb"), "MRK": ("Merck",),
+    "JNJ": ("Johnson & Johnson", "J&J"), "ROG": ("Roche",),
+}
+
+
+def bare(name: str) -> str:
+    """A name less its legal suffixes: "Eli Lilly and Company" is "Eli Lilly"."""
+    name = (name or "").strip()
+    while True:
+        short = LEGAL_SUFFIX.sub("", name.rstrip(" .,")).strip()
+        if short == name or not short:
+            return name
+        name = short
+
+
+def press_names(ticker: str, company_name: str) -> tuple:
+    """The names a headline calls the company by, most formal first."""
+    if ticker in PRESS_NAMES:
+        return PRESS_NAMES[ticker]
+    return (bare(company_name),)
 
 
 def source_name(ticker: str, column: str, fallback=None, db_path=None):

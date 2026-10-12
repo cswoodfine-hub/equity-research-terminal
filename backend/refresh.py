@@ -29,6 +29,7 @@ import balance_updates
 import financings
 import assumptions as assumptions_module
 import regional_loe
+import acquired_sponsors
 import retained_programmes
 import company_lines
 import indication_mapping
@@ -336,7 +337,10 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
     # the seller kept when the company was bought is released first, so it is never
-    # derived as the acquirer's programme.
+    # derived as the acquirer's programme. A study filed here through an acquisition the
+    # company never made (another company's headline, a place read as a name) goes back
+    # to the company that did buy its sponsor, or to no one.
+    acquired_sponsors.release(db_path)
     retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows
@@ -570,7 +574,10 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
     # the seller kept when the company was bought is released first, so it is never
-    # derived as the acquirer's programme.
+    # derived as the acquirer's programme. A study filed here through an acquisition the
+    # company never made (another company's headline, a place read as a name) goes back
+    # to the company that did buy its sponsor, or to no one.
+    acquired_sponsors.release(db_path)
     retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows

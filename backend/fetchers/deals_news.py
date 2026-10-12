@@ -26,6 +26,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
+import company_names
 import db
 import deals
 from fetchers.base import BaseFetcher, RefreshResult
@@ -447,34 +448,13 @@ def parse_reported(headline: str, company_names) -> dict | None:
             "reported_value": parse_value(text), "reported_usd": usd, "quote": text}
 
 
-# A legal suffix the press leaves off. "Novartis AG" in quotes found 88 headlines, the
-# newest five weeks old, and not one of the Abogen licence's dozen (2026-10-07): a headline
-# says Novartis.
-_LEGAL_SUFFIX = re.compile(
-    r"[,\s]+(?:Inc\.?|Incorporated|Corp\.?|Corporation|Co\.?|Company|PLC|plc|AG|A/S|"
-    r"S\.?A\.?|SE|N\.?V\.?|Ltd\.?|Limited|Holdings?|and|&)$")
-# Where the press name is not the legal name less its suffix: "Lilly" and "Gilead" lead a
-# headline, and Bristol Myers Squibb dropped its hyphen in 2020.
-SEARCH_NAMES = {
-    "LLY": ("Eli Lilly", "Lilly"), "GILD": ("Gilead",), "REGN": ("Regeneron",),
-    "BMY": ("Bristol Myers Squibb", "Bristol-Myers Squibb"), "MRK": ("Merck",),
-    "JNJ": ("Johnson & Johnson", "J&J"), "ROG": ("Roche",),
-}
+# The names a headline calls a company by live in company_names, since the acquired-sponsor
+# check reads a stored headline by the same names and must not import a fetcher.
+_LEGAL_SUFFIX = company_names.LEGAL_SUFFIX
+SEARCH_NAMES = company_names.PRESS_NAMES
 # Another company the press name also reads as: Merck KGaA is Merck in Germany.
 SEARCH_EXCLUDE = {"MRK": ("KGaA", "EMD")}
-
-
-def search_names(ticker: str, company_name: str) -> tuple:
-    """The names a headline calls the company by, most formal first."""
-    if ticker in SEARCH_NAMES:
-        return SEARCH_NAMES[ticker]
-    name = company_name.strip()
-    while True:
-        short = _LEGAL_SUFFIX.sub("", name).strip()
-        if short == name or not short:
-            break
-        name = short
-    return (name,)
+search_names = company_names.press_names
 
 
 def _feed_url(company_name: str, ticker: str = "") -> str:
