@@ -249,4 +249,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then Bayer's fifteen products and three lines, 2026-10-07
                               # then MK-8527 and zibotentan/dapagliflozin, Phase 3 gates, 2026-10-12,
                               # then saruparib, mevrometostat, AAA817, denecimig and ABP 234, the same day,
-                              # then Capricor's deramiocel, the same day
+                              # then Capricor's deramiocel, the same day,
+                              # then Stoke's zorevunersen, the same day
