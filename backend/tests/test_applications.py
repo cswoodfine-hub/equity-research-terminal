@@ -286,3 +286,45 @@ def test_the_stop_list_does_not_swallow_a_real_disease_word():
     assert "colorectal" in R._words("metastatic colorectal cancer")
     assert "hepatitis" in R._words("chronic hepatitis B")
     assert R._words("treatment of adult patients with severe disease") == set()
+
+
+def _alias(conn, name, asset_id):
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note) VALUES (?, ?,"
+                 " 'curated')", (name, asset_id))
+    conn.commit()
+
+
+def test_a_filing_naming_the_inn_joins_the_asset_through_its_alias(tmp_path):
+    """Intellia's 8-K names lonvo-z by its INN and the registry files every study under
+    NTLA-2002, so the derived row reads "Biological NTLA-2002" and the PDUFA date of
+    10 March 2027 joined nothing. data/asset_alias_map.csv gives the row its INN."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Biological NTLA-2002", code="NTLA-2002")
+    _asset(conn, 2, "nexiguran ziclumeran")
+    _alias(conn, "lonvoguran ziclumeran", 1)
+    got, why = R.match_asset(conn, 1, 'lonvoguran ziclumeran ("lonvo-z")')
+    conn.close()
+    assert got == 1 and "asset_aliases" in why
+
+
+def test_an_alias_never_outvotes_an_asset_own_name(tmp_path):
+    """The alias is read only where no asset's own name matches, so a curated name cannot
+    move a filing off the product it already joins."""
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Zanzalintinib")
+    _asset(conn, 2, "XL092")
+    _alias(conn, "zanzalintinib malate", 2)
+    got, why = R.match_asset(conn, 1, "zanzalintinib")
+    conn.close()
+    assert got == 1 and "own name" in why
+
+
+def test_an_alias_reaching_two_assets_is_refused(tmp_path):
+    conn = _seed(tmp_path)
+    _asset(conn, 1, "Biological NTLA-2002")
+    _asset(conn, 2, "NTLA-2002 Phase 1")
+    _alias(conn, "lonvoguran ziclumeran", 1)
+    _alias(conn, "lonvoguran", 2)
+    got, why = R.match_asset(conn, 1, 'lonvoguran ziclumeran ("lonvo-z")')
+    conn.close()
+    assert got is None and "ambiguous" in why

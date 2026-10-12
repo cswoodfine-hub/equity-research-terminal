@@ -122,12 +122,35 @@ def match_asset(conn, company_id: int, product: str) -> tuple:
             if name and len(name) >= 5 and (name in needle or needle in name):
                 hits.append(dict(row))
                 break
-    if not hits:
+    if hits:
+        if len({h["id"] for h in hits}) > 1:
+            names = ", ".join(sorted(str(h["generic_name"] or h["brand_name"])
+                                     for h in hits))
+            return None, (f"the name reaches {len(hits)} assets ({names}), so it is "
+                          f"ambiguous")
+        return hits[0]["id"], "matched on the asset's own name"
+    # Only where no asset's own name matches: a name the asset is known by beyond its own
+    # row (asset_aliases, written by the merge or by data/asset_alias_map.csv). A filing
+    # names a drug by its INN while the registry files every study under the code, so the
+    # derived row carries only the code: Intellia's 8-K names lonvo-z "(formerly known as
+    # NTLA-2002)", the asset row reads "Biological NTLA-2002", and the decision date joined
+    # nothing. Read after the own names, so an alias can never outvote them, and refused
+    # on ambiguity by the same rule.
+    by_alias = {}
+    for row in conn.execute(
+            "SELECT al.internal_code, a.id, a.generic_name, a.brand_name"
+            "  FROM asset_aliases al JOIN assets a ON a.id = al.asset_id"
+            " WHERE a.owner_company_id = ?", (company_id,)):
+        name = _norm(row["internal_code"])
+        if name and len(name) >= 5 and (name in needle or needle in name):
+            by_alias[row["id"]] = row["generic_name"] or row["brand_name"]
+    if not by_alias:
         return None, "no asset of this company carries that name"
-    if len({h["id"] for h in hits}) > 1:
-        names = ", ".join(sorted(str(h["generic_name"] or h["brand_name"]) for h in hits))
-        return None, f"the name reaches {len(hits)} assets ({names}), so it is ambiguous"
-    return hits[0]["id"], "matched on the asset's own name"
+    if len(by_alias) > 1:
+        names = ", ".join(sorted(str(n) for n in by_alias.values()))
+        return None, (f"the name reaches {len(by_alias)} assets through their aliases "
+                      f"({names}), so it is ambiguous")
+    return next(iter(by_alias)), "matched on a name the asset is known by (asset_aliases)"
 
 
 def match_indication(conn, asset_id: int, indication: str) -> tuple:
