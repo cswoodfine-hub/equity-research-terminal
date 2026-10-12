@@ -254,4 +254,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then Dyne's DYNE-251 and DYNE-101, the same day,
                               # then Intellia's lonvo-z, the same day,
                               # then Krystal's Vyjuvek, the same day,
-                              # then argenx's Vyvgart, the same day
+                              # then argenx's Vyvgart, the same day,
+                              # then Revolution Medicines' Rasonque, the same day
