@@ -2464,7 +2464,8 @@ def index_html(p, w=None):
     out_ = (f"; {', '.join(ix['left_out'])} left out, no close on {dday(dates[0])}"
             if ix["left_out"] else "")
     basis = (f"the {n} on this page on their closes, each set to 100 on {dday(dates[0])} "
-             f"and held; {sym} (global big pharma) dashed and the {msym} faint, both on "
+             f"and held; {sym} ({p.get('benchmark_label') or 'global big pharma'}) dashed and "
+             f"the {msym} faint, both on "
              f"price; the band is the middle half of the group{out_}")
     ya = Y(vals[-1])
     ends = [f'<span class="dot {tone}" style="top:{ya:.2f}%"></span>']
@@ -2480,7 +2481,8 @@ def index_html(p, w=None):
     if market:
         ends.append(f'<span class="end mk" style="top:{ym:.2f}%">{esc(msym)}</span>')
     return (f'<section class="uv uw-idx"><div class="uw-ih"><span class="lbl">Equal-weighted '
-            f'index</span><span class="sub" title="{esc(basis)}">{n} big pharma · {esc(WIN_LABEL[w])} · '
+            f'index</span><span class="sub" title="{esc(basis)}">{n} {esc(_cohort_noun(p))} · '
+            f'{esc(WIN_LABEL[w])} · '
             f'{esc(dday(dates[0]))} = 100</span><span class="kvs">{"".join(kv)}</span></div>'
             f'<div class="uw-ic"><div class="plot">{"".join(svg)}{"".join(ylab)}'
             f'{"".join(xlab)}{"".join(ends)}{"".join(hv)}</div></div></section>')

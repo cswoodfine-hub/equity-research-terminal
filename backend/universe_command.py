@@ -58,6 +58,19 @@ FX_BASES = ("CHF", "DKK", "EUR", "GBP")
 # total return would charge its dividends against the group.
 BENCHMARK = "PPH"
 MARKET = "^GSPC"
+# Each engine reads against its own sector. The biotech engine (the catalyst focus list)
+# and cell and gene read against XBI, the equal-weighted S&P biotech fund, whose members
+# are the small and mid caps those engines hold; PPH is a basket of the majors.
+BENCHMARKS = {"pharma": (BENCHMARK, "global big pharma"),
+              "biotech": ("XBI", "S&P biotech"), "cellgene": ("XBI", "S&P biotech")}
+# The group's name on the page where the scorecard's cohort does not describe it: the
+# biotech engine is a chosen list, not the commercial or clinical cohort of its focal name.
+ENGINE_COHORT = {"biotech": {"label": "Catalyst focus list", "noun": "focus list companies"}}
+
+
+def benchmark_for(engine: str | None) -> tuple:
+    """(symbol, words) of the benchmark an engine reads against; big pharma's by default."""
+    return BENCHMARKS.get(engine or "", BENCHMARKS["pharma"])
 MARKET_LABEL = "S&P 500"
 # The ranked feed keeps this many items; the page shows as many as fit its column.
 WEEK_ITEMS = 16
@@ -465,11 +478,14 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
     if ticker not in cohort:
         cohort = sorted(set(cohort) | {ticker})
     src["cohort"] = cohort
+    src["engine"] = engine
+    src["benchmark_symbol"] = benchmark_for(engine)[0]
     start = (today - dt.timedelta(days=CLOSES_DAYS)).isoformat()
     conn = db.get_connection(db_path)
     try:
         src["closes"] = _closes(conn, cohort, start, today.isoformat())
-        src["benchmark"] = _benchmark(conn, start, today.isoformat())
+        src["benchmark"] = _benchmark(conn, start, today.isoformat(),
+                                      src["benchmark_symbol"])
         src["market"] = _benchmark(conn, start, today.isoformat(), MARKET)
         src["relative"] = comps.relative_performance(conn=conn, ticker=ticker)
         src["fair_value"] = _fair_value(ticker)
@@ -1365,7 +1381,9 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
     companies = {t: _company(records[t], sc_companies.get(t) or {}) for t in cohort}
     focal_rec = sc_companies.get(ticker) or {}
     cohort_id = focal_rec.get("cohort")
-    cohort_meta = (sc.get("cohorts") or {}).get(cohort_id) or {}
+    cohort_meta = {**((sc.get("cohorts") or {}).get(cohort_id) or {}),
+                   **ENGINE_COHORT.get(src.get("engine") or "", {})}
+    bench_symbol, bench_words = benchmark_for(src.get("engine"))
 
     closes = src.get("closes") or {}
     bench = src.get("benchmark") or []
@@ -1448,17 +1466,26 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
         "approvals": [{**a, "application_type": application_type(a.get("application_number"))}
                       for a in src.get("approvals") or [] if a.get("ticker") == ticker],
     }
+    medians = dict(cohort_meta.get("medians") or {})
+    if src.get("engine") in ENGINE_COHORT:
+        # The scorecard's medians are of its own cohort (Capricor scores among the
+        # clinical-stage names). The page's group is the list, so the score cell's median
+        # is of the companies drawn beside it; the pillar medians stay the scorecard's,
+        # since each pillar is scored against that cohort.
+        medians["score"] = _median([(c.get("score") or {}).get("score")
+                                    for c in companies.values()])
     out = {
         "schema": SCHEMA, "complete": bool(val.get("complete", True)) and bool(cohort),
         "ticker": ticker, "window": window, "today": today.isoformat(),
         "price_date": price_date, "windows": windows,
         "cohort": {"id": cohort_id, "label": cohort_meta.get("label"),
                    "noun": cohort_meta.get("noun"), "n": len(cohort),
-                   "medians": cohort_meta.get("medians") or {}},
+                   "medians": medians},
         "tickers": sorted(cohort, key=lambda t: -(companies[t]["cap_usd_bn"] or 0)),
         "companies": companies, "focal": focal, "bench_week": bench_week,
         "closes": {t: closes.get(t) or [] for t in cohort}, "benchmark": bench,
-        "benchmark_symbol": BENCHMARK, "market": src.get("market") or [],
+        "benchmark_symbol": src.get("benchmark_symbol") or bench_symbol,
+        "benchmark_label": bench_words, "market": src.get("market") or [],
         "market_symbol": MARKET_LABEL,
     }
     rar = {r["ticker"]: r for r in src.get("rar") or []}

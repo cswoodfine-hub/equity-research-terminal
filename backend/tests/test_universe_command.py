@@ -298,6 +298,21 @@ def test_the_benchmark_week_is_read_on_the_same_five_sessions():
     assert out["benchmark_symbol"] == "PPH" and out["market_symbol"] == "S&P 500"
 
 
+def test_the_focus_list_reads_against_xbi_under_its_own_name():
+    """The biotech engine is the catalyst focus list: its page names the list, reads
+    against XBI rather than the majors' PPH, and the score cell's median is of the
+    companies drawn rather than of the scorecard cohort the focal name belongs to."""
+    out = uc.assemble(_src(engine="biotech", benchmark_symbol="XBI"), "AZN")
+    assert (out["benchmark_symbol"], out["benchmark_label"]) == ("XBI", "S&P biotech")
+    assert out["cohort"]["label"] == "Catalyst focus list"
+    assert out["cohort"]["noun"] == "focus list companies"
+    assert out["cohort"]["medians"]["score"] == 58       # AZN is the only one scored
+    big = uc.assemble(_src(), "AZN")
+    assert big["cohort"]["medians"]["score"] == 49
+    assert (big["benchmark_symbol"], big["benchmark_label"]) == ("PPH", "global big pharma")
+    assert uc.benchmark_for("cellgene")[0] == "XBI" and uc.benchmark_for(None)[0] == "PPH"
+
+
 def test_part_focal_skips_the_cohort_blocks():
     out = uc.assemble(_src(), "AZN", part="focal")
     assert "week_items" not in out and "week" not in out and "lanes" not in out

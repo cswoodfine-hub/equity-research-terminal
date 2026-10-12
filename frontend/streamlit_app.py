@@ -72,10 +72,12 @@ _REDESIGN_TICKERS = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK"
                      "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
 
 
-def _universe_redesigned(ticker: str, view: str) -> bool:
+def _universe_redesigned(ticker: str, view: str, engine: str | None = None) -> bool:
     """True when the Universe tab draws the redesigned overview for ``ticker``: the
-    Overview view of a company in the set. Markets, Policy and the as-of branch stay."""
-    return view == "Overview" and ticker in _REDESIGN_TICKERS
+    Overview view of a company in the set, or of any company on the biotech engine (the
+    catalyst focus list), which the command centre reads as its own group against XBI.
+    Markets, Policy and the as-of branch stay."""
+    return view == "Overview" and (ticker in _REDESIGN_TICKERS or engine == "biotech")
 
 
 def _catalysts_redesigned(ticker: str) -> bool:
@@ -9903,7 +9905,7 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
-        elif (_universe_redesigned(ticker, _view)
+        elif (_universe_redesigned(ticker, _view, (company or {}).get("engine"))
               and universe_page.render(api_base, ticker)):
             pass
         else:

@@ -808,11 +808,20 @@ def test_the_big_pharma_companies_take_the_redesign(switch):
         assert not on(t, "Overview")
 
 
+def test_the_catalyst_focus_list_takes_the_redesign_and_cell_and_gene_does_not(switch):
+    """The biotech engine is the catalyst focus list, and its Universe tab is the same
+    command centre as big pharma's, read against XBI. Cell and gene keeps today's page."""
+    on = switch["_universe_redesigned"]
+    assert on("CAPR", "Overview", "biotech") and on("ARGX", "Overview", "biotech")
+    assert not on("CAPR", "Markets", "biotech")
+    assert not on("CRSP", "Overview", "cellgene") and not on("INCY", "Overview", None)
+
+
 def test_every_other_company_keeps_todays_overview_called_as_before():
     source = APP.read_text()
     block = source[source.index('        if _view == "Markets":'):]
     block = block[:block.index("    with insights_tab:")]
-    assert ("_universe_redesigned(ticker, _view)" in block
+    assert ('_universe_redesigned(ticker, _view, (company or {}).get("engine"))' in block
             and "universe_page.render(api_base, ticker)" in block)
     assert block.rstrip().endswith(
         "_universe_overview(api_base, engine, _engine_name, _covered,\n"
