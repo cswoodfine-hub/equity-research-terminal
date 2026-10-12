@@ -417,6 +417,43 @@ def prune_orphan_pipeline_assets(db_path=None) -> dict:
         conn.close()
 
 
+TRIAL_ASSET_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                   / "data" / "trial_asset_map.csv")
+
+
+def load_overrides(conn, path=None) -> int:
+    """Write ``data/trial_asset_map.csv`` into ``trial_asset_map``: a study the names cannot
+    place, pinned to its asset by ticker and the asset's name, since ids are rebuilt with
+    the database. A row whose asset is not on file yet is left for a later run. Returns
+    the rows written."""
+    source = pathlib.Path(path) if path else TRIAL_ASSET_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    written = 0
+    for row in rows:
+        name = (row.get("asset") or "").strip()
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND ? IN (LOWER(TRIM(COALESCE(a.brand_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.generic_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.internal_code, ''))))
+                ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
+            ((row.get("ticker") or "").strip().upper(), name.lower())).fetchone()
+        nct = (row.get("nct_id") or "").strip()
+        if asset is None or not nct:
+            continue
+        conn.execute(
+            "INSERT INTO trial_asset_map (nct_id, asset_id, note) VALUES (?, ?, ?)"
+            " ON CONFLICT(nct_id) DO UPDATE SET asset_id = excluded.asset_id,"
+            "   note = excluded.note",
+            (nct, asset["id"], f"curated: {(row.get('note') or '').strip()}"))
+        written += 1
+    return written
+
+
 def map_trials(db_path=None) -> dict:
     """Bind every unmapped trial to an asset where its intervention names one.
 
@@ -428,6 +465,7 @@ def map_trials(db_path=None) -> dict:
     conn = db.get_connection(db_path)
     try:
         # The curated overrides first; they outrank anything derived here.
+        load_overrides(conn)
         overrides = dict(conn.execute(
             "SELECT nct_id, asset_id FROM trial_asset_map WHERE asset_id IS NOT NULL"))
         for nct_id, asset_id in overrides.items():

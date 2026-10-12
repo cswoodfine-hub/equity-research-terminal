@@ -1,0 +1,22 @@
+# A study the names cannot place, pinned to the asset it belongs to.
+#
+# trial_mapping.map_trials places a study on the asset its interventions name. Where the
+# registry lists a combination's ingredients as separate interventions, the first name
+# wins: REDEFINE 1 lists cagrilintide and semaglutide, so it would land on cagrilintide
+# alone, though it is CagriSema's pivotal study. And the longest name wins inside one
+# intervention, so "CagriSema (Cagrilintide B and Semaglutide I)" reads as cagrilintide; a
+# rule reading the name before the bracket first fixes those four and would move four
+# Keytruda Qlex studies ("Pembrolizumab (+) Berahyaluronidase alfa") onto Keytruda, so
+# they are pinned here instead. Loaded into trial_asset_map at the start
+# of every map_trials, keyed by ticker and the asset's name, because asset ids are rebuilt
+# with the database and a name is not. Each row says why from the study's own title.
+ticker,nct_id,asset,note
+NVO,NCT05567796,CagriSema,"REDEFINE 1, 'How Well CagriSema Helps People With Excess Body Weight Lose Weight': cagrilintide and semaglutide filed as separate interventions"
+NVO,NCT05669755,CagriSema,"REDEFINE 3, 'the Effects of CagriSema in People Living With Diseases in the Heart and Blood Vessels': cagrilintide and semaglutide filed separately"
+NVO,NCT06780449,CagriSema,"'the Long-term Effect on Weight Loss of CagriSema': cagrilintide and semaglutide filed separately"
+NVO,NCT07253285,CagriSema,"'How Well Cagrilintide and CagriSema Work in Children and Adolescents': both arms, filed with the CagriSema programme"
+NVO,NCT07527195,CagriSema,"'the Effect of CagriSema, Cagrilintide, and Semaglutide on Muscle Health': CagriSema named first"
+NVO,NCT07011667,CagriSema,"'How Well CagriSema Helps People Living With Obesity Lose Weight and Maintain Weight Loss': the intervention reads 'CagriSema (Cagrilintide B and Semaglutide I)'"
+NVO,NCT07282613,CagriSema,"'How Much CagriSema Lowers Blood Sugar and Body Weight Compared to Placebo': the intervention reads 'CagriSema (Cagrilintide B and Semaglutide I)'"
+NVO,NCT06797869,CagriSema,"'the Effects of CagriSema Compared to Placebo in People With Type 2 Diabetes': the intervention reads 'CagriSema (Cagrilintide B and Semaglutide I)'"
+NVO,NCT07184086,CagriSema,"'Weight Loss Due to Intervention With Cagrilintide and Semaglutide': the one intervention reads 'CagriSema (Cagrilintide B + semaglutide I)'"

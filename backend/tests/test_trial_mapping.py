@@ -461,3 +461,30 @@ def test_a_combination_named_for_every_ingredient_keeps_its_generic():
     row = {"generic_name": "Sacubitril", "active_ingredients": '["Sacubitril", "Valsartan"]'}
     assert tm._one_ingredient_of_a_combination(row)
     assert tm._combination_names(row) == ["sacubitril valsartan", "valsartan sacubitril"]
+
+
+def test_the_override_file_pins_a_study_by_the_assets_name(tmp_path):
+    """REDEFINE 1 files cagrilintide and semaglutide as separate interventions, so the
+    first name would put CagriSema's pivotal study on cagrilintide alone. The file pins
+    it by ticker and name, since asset ids are rebuilt with the database."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    combo = _asset(conn, "NVO", generic="CagriSema")
+    alone = _asset(conn, "NVO", generic="Cagrilintide")
+    _trial(conn, "NCT05567796", "NVO", ["Cagrilintide", "Semaglutide"])
+    _trial(conn, "NCT07220642", "NVO", ["Cagrilintide", "Placebo"])
+    conn.commit()
+    pins = tmp_path / "pins.csv"
+    pins.write_text("# a comment line\nticker,nct_id,asset,note\n"
+                    "NVO,NCT05567796,CagriSema,REDEFINE 1\n"
+                    "NVO,NCT09999999,NoSuchDrug,left for a later run\n")
+    assert tm.load_overrides(conn, pins) == 1
+    conn.commit()
+    conn.close()
+    tm.map_trials(db_file)
+    conn = db.get_connection(db_file)
+    got = dict(conn.execute("SELECT nct_id, asset_id FROM trials"))
+    conn.close()
+    assert got == {"NCT05567796": combo, "NCT07220642": alone}

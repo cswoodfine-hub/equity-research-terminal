@@ -18,7 +18,7 @@ Obesity incretin and amylin agents,mechanism,LLY,Retatrutide,data/assumptions/re
 Obesity incretin and amylin agents,mechanism,LLY,Eloralintide,data/assumptions/lly_eloralintide.csv,"Eloralintide (LLY). obesity, selective amylin agonist, Phase 3.",
 Obesity incretin and amylin agents,mechanism,AZN,AZD6234,0001104659-26-019130,AZD9550 + AZD6234 GLP-1R glucagon dual agonist + selective amylin agonist ... obesity,"AstraZeneca's selective amylin agonist, in its 20-F pipeline table"
 Obesity incretin and amylin agents,mechanism,AZN,Elecoglipron,0001104659-26-086846,"In the VISTA Phase IIb trial in adults with obesity or overweight and at least one comorbidity, elecoglipron demonstrated a clinically meaningful","AstraZeneca's obesity programme, from its July 2026 results"
-Obesity incretin and amylin agents,mechanism,NVO,Cagrilintide,data/assumptions/cagrilintide.csv,"Cagrilintide (NVO). obesity, amylin analogue.",
+Obesity incretin and amylin agents,mechanism,NVO,CagriSema,data/assumptions/nvo_cagrisema.csv,"CagriSema (NVO). obesity, cagrilintide with semaglutide.",
 Obesity incretin and amylin agents,mechanism,VKTX,VK2735,data/assumptions/vk2735.csv,"VK2735 (VKTX). obesity, dual GLP-1/GIP; the whole company.",
 PD-1 x VEGF bispecifics,mechanism,PFE,PF-08634404,0000078003-26-000026,"SSGJ-707/PF-08634404, a bispecific antibody targeting PD-1 and vascular endothelial growth factor",licensed from 3SBio
 PD-1 x VEGF bispecifics,mechanism,ABBV,ABBV-1480,data/assumptions/abbv_abbv_1480.csv,"ABBV-1480 (RC148): a PD-1/VEGF bispecific antibody AbbVie licensed from RemeGen in March 2026 for everywhere outside China.","the seed cites AbbVie's 2026 10-Qs, Note 4 (0001551152-26-000017, 0001551152-26-000026)"
