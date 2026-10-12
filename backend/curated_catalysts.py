@@ -69,17 +69,23 @@ def load(conn, path: Path | None = None) -> dict:
         if company is None:
             out["skipped"].append({"title": r["title"], "why": f"no company {r['ticker']}"})
             continue
-        asset_id = _asset(conn, company["id"], r["asset"])
-        if asset_id is None:
+        # A row naming no asset is written unjoined: applications.resolve joins it
+        # from the title once the asset exists (Intellia's lonvo-z had none).
+        asset_id = _asset(conn, company["id"], r["asset"]) if r["asset"] else None
+        if r["asset"] and asset_id is None:
             out["skipped"].append({"title": r["title"],
                                    "why": f"no single asset named {r['asset']}"})
             continue
-        link = _link(conn, asset_id, r["indication"])
-        existing = conn.execute(
+        link = _link(conn, asset_id, r["indication"]) if asset_id else None
+        # A filer restates a date under the same title (Capricor's August PDUFA moved to
+        # November): the row already on the file's date is the one, else the latest.
+        found = conn.execute(
             "SELECT id, status, asset_id, asset_indication_id, expected_date,"
             "       date_confidence, description, source_url FROM catalysts"
-            " WHERE company_id = ? AND catalyst_type = ? AND title = ?",
-            (company["id"], r["catalyst_type"], r["title"])).fetchone()
+            " WHERE company_id = ? AND catalyst_type = ? AND title = ?"
+            " ORDER BY expected_date = ? DESC, expected_date DESC, id DESC",
+            (company["id"], r["catalyst_type"], r["title"], r["expected_date"])).fetchall()
+        existing = found[0] if found else None
         if existing is None:
             conn.execute(
                 "INSERT INTO catalysts (company_id, asset_id, asset_indication_id,"
@@ -94,7 +100,7 @@ def load(conn, path: Path | None = None) -> dict:
         if (existing["status"] or "pending") != "pending":
             continue
         moved = {k: (r[k] or None) for k in _MOVABLE if (existing[k] or None) != (r[k] or None)}
-        if existing["asset_id"] != asset_id:
+        if asset_id is not None and existing["asset_id"] != asset_id:
             moved["asset_id"] = asset_id
         if existing["asset_indication_id"] is None and link is not None:
             moved["asset_indication_id"] = link

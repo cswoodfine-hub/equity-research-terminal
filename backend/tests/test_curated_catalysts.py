@@ -93,3 +93,28 @@ def test_every_committed_title_names_its_product_and_indication():
             assert applications._words(indication) & applications._words(row["indication"]), (
                 row["title"])
         assert "—" not in row["description"] + row["title"]
+
+
+def test_a_row_naming_no_asset_is_written_unjoined_for_resolve(tmp_path):
+    """Intellia's lonvo-z PDUFA arrived before the book had an asset for it."""
+    conn = _book(tmp_path)
+    row = {**ROW, "asset": "", "indication": "", "catalyst_type": "PDUFA",
+           "title": "Cagrilintide PDUFA, obesity"}
+    assert C.load(conn, _file(tmp_path, row))["written"] == 1
+    assert _catalysts(conn)[0]["asset_id"] is None
+    applications.resolve(conn)
+    got = _catalysts(conn)[0]
+    assert (got["asset_id"], got["asset_indication_id"]) == (7, 40)
+
+
+def test_a_restated_date_under_one_title_leaves_the_earlier_row_alone(tmp_path):
+    """Capricor's deramiocel PDUFA was 22 August, then extended to 22 November under
+    the same title: the November row is the file's, and August stays as filed."""
+    conn = _book(tmp_path)
+    for day in ("2026-08-22", "2026-11-22"):
+        conn.execute("INSERT INTO catalysts (company_id, asset_id, catalyst_type,"
+                     " expected_date, title, is_curated, status) VALUES"
+                     " (2, 7, 'regulatory decision', ?, ?, 0, 'pending')", (day, ROW["title"]))
+    got = C.load(conn, _file(tmp_path, {**ROW, "expected_date": "2026-11-22"}))
+    assert got["written"] == 0
+    assert sorted(r["expected_date"] for r in _catalysts(conn)) == ["2026-08-22", "2026-11-22"]
