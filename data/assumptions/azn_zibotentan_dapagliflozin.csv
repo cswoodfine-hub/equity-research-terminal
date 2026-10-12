@@ -17,9 +17,13 @@
 # Modelled: US adults with CKD, eGFR 30 to 89 and UACR above about 700 mg/g, on the book's 37mm with CKD, priced at
 # Kerendia under the house Part D convention, with uptake fitted to Kerendia's capture of the high-albuminuria patients in
 # its own label. Ex-US at Lokelma's filed ratio, as balcinrenone/dapagliflozin carries it.
-# Exclusivity: no date is on file, so the engine's default of 12 years from launch applies (2041). The combination is
-# claimed by US 11,730,735 ('Combination of zibotentan and dapagliflozin for the treatment of endothelin related
-# diseases', AstraZeneca AB, filed 2021-07-09, anticipated expiry 2041-07-09 per Google Patents), the same year.
+# Exclusivity: no date is on file, so the engine's default of 12 years from launch applies (2041), the term it gives an
+# asset whose modality is not on file; filed as a small molecule it would read 14 years (2043). US 11,730,735
+# ('Combination of zibotentan and dapagliflozin for the treatment of endothelin related diseases', AstraZeneca AB, filed
+# 2021-07-09, anticipated expiry 2041-07-09 per Google Patents) runs to the same year, but its claims are methods of
+# treating chronic kidney disease with the two drugs (claim 1), not the tablet, and no compound patent for zibotentan is
+# on file. A method of use can be carved out of a generic label; this one covers the only indication the label would
+# carry, so it supports the 2041 default rather than setting a date in data/disclosed_loe.csv.
 # Identity: zibotentan is carried on no other row of the book, under AstraZeneca or any other company, and no other branch
 # carries a seed for it. No independent peak forecast was found: DelveInsight's report is paid, and GlobalData's free
 # page gives a phase success benchmark, not a forecast.
