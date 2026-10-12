@@ -85,14 +85,18 @@ def test_the_link_survives_the_nightly_release(tmp_path):
 
 def test_every_committed_title_names_its_product_and_indication():
     """A title resolve cannot parse loses its indication link overnight: 'FDA decision on
-    the denecimig BLA, haemophilia A' read as product FDA and matched no indication."""
+    the denecimig BLA, haemophilia A' read as product FDA and matched no indication.
+    A readout is not a decision resolve reads, so it names its asset and study instead."""
     for row in C.rows():
+        assert "—" not in row["description"] + row["title"]
+        if row["catalyst_type"] == "data readout":
+            assert row["asset"] and C.names_study(row), row["title"]
+            continue
         product, indication = applications.parse_title(row["title"])
         assert product and indication, row["title"]
         if row["indication"]:
             assert applications._words(indication) & applications._words(row["indication"]), (
                 row["title"])
-        assert "—" not in row["description"] + row["title"]
 
 
 def test_a_row_naming_no_asset_is_written_unjoined_for_resolve(tmp_path):
@@ -118,3 +122,34 @@ def test_a_restated_date_under_one_title_leaves_the_earlier_row_alone(tmp_path):
     got = C.load(conn, _file(tmp_path, {**ROW, "expected_date": "2026-11-22"}))
     assert got["written"] == 0
     assert sorted(r["expected_date"] for r in _catalysts(conn)) == ["2026-08-22", "2026-11-22"]
+
+
+READOUT = {"ticker": "NVO", "asset": "Cagrilintide", "indication": "",
+           "catalyst_type": "data readout", "expected_date": "2027-03-31",
+           "date_confidence": "quarter",
+           "title": "Cagrilintide registrational cohort topline, obesity",
+           "description": "Topline in Q1 2027 from the cohort of NCT01234567.",
+           "source_url": "https://sec.gov/x"}
+
+
+def test_a_readout_the_registry_does_not_date_is_written_to_its_asset(tmp_path):
+    """Dyne's ACHIEVE cohort reads out in Q1 2027 inside a study the registry dates to
+    2029; the row keeps its asset through the nightly release of indication links."""
+    conn = _book(tmp_path)
+    assert C.load(conn, _file(tmp_path, READOUT)) == {"written": 1, "updated": 0,
+                                                      "skipped": []}
+    conn.execute("UPDATE catalysts SET asset_indication_id = NULL")
+    applications.resolve(conn)
+    got = conn.execute("SELECT asset_id, catalyst_type, description FROM catalysts"
+                       ).fetchone()
+    assert (got["asset_id"], got["catalyst_type"]) == (7, "data readout")
+    assert "NCT01234567" in got["description"]
+
+
+def test_a_readout_naming_no_study_or_no_asset_is_skipped_and_said(tmp_path):
+    conn = _book(tmp_path)
+    no_study = {**READOUT, "description": "Topline in Q1 2027."}
+    no_asset = {**READOUT, "asset": ""}
+    got = C.load(conn, _file(tmp_path, no_study, no_asset))
+    assert got["written"] == 0
+    assert [s["why"] for s in got["skipped"]] == ["a readout must name its asset and its study"] * 2

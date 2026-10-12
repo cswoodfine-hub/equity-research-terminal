@@ -18,6 +18,14 @@ The title must read "<product> decision, <indication>" or "<product> PDUFA,
 <indication>": the indication rebuild releases every catalyst's indication link each
 run and applications.resolve re-joins it from the title, so a title it cannot parse
 loses the link overnight and the asset drops off its approval gate.
+
+A readout the registry does not date is entered the same way, as a "data readout" that
+names its asset and its study's NCT number. Dyne's ACHIEVE registrational cohort reads
+out in Q1 2027 inside a study the registry dates to 2029, and the accelerated filing
+rests on it; stated legs whose sources cite that study are priced on the row
+(forecast_view.catalyst_stakes). Its title is free text, since resolve parses only a
+decision's, and its asset link is one the nightly rebuild does not release. A readout
+naming no study is skipped and said, because nothing could tie it to a trial.
 """
 
 from __future__ import annotations
@@ -28,6 +36,12 @@ from pathlib import Path
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "curated_catalysts.csv"
 _MOVABLE = ("expected_date", "date_confidence", "description", "source_url")
+_NCT = re.compile(r"NCT\d{8}")
+
+
+def names_study(row: dict) -> bool:
+    """True where a row names a registry study in its text or its link."""
+    return bool(_NCT.search((row.get("description") or "") + " " + (row.get("source_url") or "")))
 
 
 def _norm(text) -> str:
@@ -68,6 +82,10 @@ def load(conn, path: Path | None = None) -> dict:
                                (r["ticker"],)).fetchone()
         if company is None:
             out["skipped"].append({"title": r["title"], "why": f"no company {r['ticker']}"})
+            continue
+        if r["catalyst_type"] == "data readout" and not (r["asset"] and names_study(r)):
+            out["skipped"].append({"title": r["title"],
+                                   "why": "a readout must name its asset and its study"})
             continue
         # A row naming no asset is written unjoined: applications.resolve joins it
         # from the title once the asset exists (Intellia's lonvo-z had none).
