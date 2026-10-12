@@ -597,6 +597,19 @@ def price_unit_rate(conn, company_id: int) -> dict:
             "as_of": rates.get("as_of")}
 
 
+def _share_count_row(conn, company_id: int):
+    """The filed share count the divisor is read from, {value, period_end}, or None where
+    only the earnings-per-share route is left."""
+    for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
+        row = conn.execute(
+            """SELECT value, period_end FROM financials WHERE company_id = ? AND metric = ?
+                AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
+                period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
+        if row and row["value"]:
+            return row
+    return None
+
+
 def _diluted_shares(conn, company_id: int):
     """The divisor that turns an rNPV into a figure per share the price can be read against.
 
@@ -619,15 +632,8 @@ def _diluted_shares(conn, company_id: int):
     its per-share figure at twice the number the price can be compared with. The curated
     ADR ratio converts one to the other.
     """
-    ordinary = None
-    for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
-        row = conn.execute(
-            """SELECT value FROM financials WHERE company_id = ? AND metric = ?
-                AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
-                period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
-        if row and row["value"]:
-            ordinary = row["value"]
-            break
+    row = _share_count_row(conn, company_id)
+    ordinary = row["value"] if row else None
     if ordinary:
         return _to_price_units(conn, company_id, ordinary)
     income = conn.execute(
@@ -1936,7 +1942,13 @@ def _stored_beta(conn, counted: list):
 
 def _balance_sheet(conn, db_path, ticker: str, company_id: int):
     """Net cash in the reporting currency's millions, dated, from the cash-flow view
-    the Financials tab already shows, so the two never disagree. Positive is cash."""
+    the Financials tab already shows, so the two never disagree. Positive is cash.
+
+    Plus the equity raised after the balance sheet date whose shares the divisor already
+    counts (financings.inside_share_count), so cash and shares stand on one date. Dyne's
+    July 2026 offering was in its share count and not its cash, which read $2.17 a share
+    short. Stated filed proceeds in dollars only; the Financials tab is not changed."""
+    import financings
     try:
         import cashflow
         built = cashflow.build_cashflow(db_path, ticker)
@@ -1948,10 +1960,17 @@ def _balance_sheet(conn, db_path, ticker: str, company_id: int):
     if inputs.get("cash") is None:
         return None
     net_debt = built.get("net_debt")
-    return {"net_cash": (-net_debt / 1e6) if net_debt is not None else None,
-            "cash": inputs["cash"] / 1e6, "currency": built.get("currency"),
-            "as_of": inputs.get("balance_sheet_as_of") or built.get("fiscal_year"),
-            "debt_basis": inputs.get("debt_basis")}
+    as_of = inputs.get("balance_sheet_as_of") or built.get("fiscal_year")
+    raised = {"total": None, "rows": []}
+    if (built.get("currency") or "USD") == "USD" and isinstance(as_of, str):
+        count = _share_count_row(conn, company_id)
+        raised = financings.inside_share_count(
+            conn, company_id, as_of, count["period_end"] if count else None)
+    extra = (raised["total"] or 0.0) / 1e6
+    return {"net_cash": (-net_debt / 1e6 + extra) if net_debt is not None else None,
+            "cash": inputs["cash"] / 1e6 + extra, "currency": built.get("currency"),
+            "as_of": as_of, "debt_basis": inputs.get("debt_basis"),
+            "raised_after": extra or None, "raised_rows": raised["rows"]}
 
 
 def _dividends(conn, company_id: int):
@@ -2464,6 +2483,8 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
         "cash": cash, "cash_per_share": per_share(cash),
         "balance_sheet_as_of": balance["as_of"] if balance else None,
         "debt_basis": balance.get("debt_basis") if balance else None,
+        "raised_after_balance_sheet": balance.get("raised_after") if balance else None,
+        "raised_after_rows": balance.get("raised_rows") if balance else [],
         "equity": equity, "equity_per_share": equity_ps,
         "cost_of_equity": ke, "cost_of_equity_basis": ke_basis,
         "dividends": dividends, "dividends_year": div_year, "dps": dps,

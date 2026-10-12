@@ -243,6 +243,7 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
     assert seen == 643        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+    assert seen == 644        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24
                               # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25,
                               # then eleven Phase 3 seeds and nineteen verified from a parallel branch, 2026-09-26
                               # then 87 big pharma Phase 2 and 3 seeds, 2026-09-28
@@ -250,4 +251,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then MK-8527 and zibotentan/dapagliflozin, Phase 3 gates, 2026-10-12,
                               # then saruparib, mevrometostat, AAA817, denecimig and ABP 234, the same day,
                               # then Capricor's deramiocel, the same day,
-                              # then Stoke's zorevunersen, the same day
+                              # then Stoke's zorevunersen, the same day,
+                              # then Dyne's DYNE-251 and DYNE-101, the same day
