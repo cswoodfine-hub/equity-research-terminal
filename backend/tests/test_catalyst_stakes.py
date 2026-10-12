@@ -432,6 +432,33 @@ def test_a_study_with_no_mesh_terms_is_not_said_to_be_in_another_disease(tmp_pat
     _house_style(got[22]["why"])
 
 
+def test_a_gate_study_only_a_curated_addition_places_is_priced(tmp_path, big, monkeypatch):
+    """MK-8527's Phase 3s are indexed only under Acquired Immunodeficiency Syndrome, which
+    shares no word with the sponsor's conditions. data/asset_indication_additions.csv made
+    the Pre-Exposure Prophylaxis pair the forecast values, and the readout has to be read
+    in that indication too, or a seeded asset's gate is never priced."""
+    import indication_mapping as IM
+    path = _phase_3_book(tmp_path)
+    conn = db.get_connection(path)
+    aids = json.dumps({"meshes": [{"id": "D000163",
+                                   "term": "Acquired Immunodeficiency Syndrome"}],
+                       "ancestors": []})
+    conn.execute("UPDATE trials SET conditions = ?, mesh_terms = ? WHERE nct_id ="
+                 " 'NCT00000001'", (json.dumps(["Plasma cell dyscrasia"]), aids))
+    conn.commit(); conn.close()
+    assert _by_id(V.catalyst_stakes(path, "ABBV"))[21]["reason"] == "other_indication"
+    additions = tmp_path / "additions.csv"
+    additions.write_text("ticker,asset,mesh_id,term,nct_ids,basis\n"
+                         f"ABBV,etentamig,{MYELOMA[0]},{MYELOMA[1]},NCT00000001,t\n")
+    monkeypatch.setattr(IM, "ADDITIONS_CSV", additions)
+    got = _by_id(V.catalyst_stakes(path, "ABBV"))
+    assert got[21]["priced"] is True and got[21]["gate_trial"] == "NCT00000001"
+    # A row naming a study of another asset asserts nothing.
+    additions.write_text("ticker,asset,mesh_id,term,nct_ids,basis\n"
+                         f"GMAB,etentamig,{MYELOMA[0]},{MYELOMA[1]},NCT00000001,t\n")
+    assert _by_id(V.catalyst_stakes(path, "ABBV"))[21]["reason"] == "other_indication"
+
+
 def test_a_phase_2_gate_prices_its_readout_and_does_not_resolve_by_hand(tmp_path, big):
     path, conn = _pipeline(tmp_path, phase="Phase 2")
     _trial(conn, "NCT00000005", "Phase 2", _day(120), MYELOMA, enrollment=200)

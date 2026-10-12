@@ -231,11 +231,18 @@ def within(amount: float, start: dt.date, end: dt.date, frm: dt.date, to: dt.dat
 
 # --- the studies ---------------------------------------------------------------------
 
-def indication_fit(conditions, mesh_terms, modelled_mesh) -> tuple:
+def indication_fit(conditions, mesh_terms, modelled_mesh, conn=None, nct_id=None) -> tuple:
     """('modelled' | 'other' | 'unmapped', indications, why). A study counts only in an
-    indication the forecast values, the indication guard every gate view carries."""
+    indication the forecast values, the indication guard every gate view carries.
+
+    With the connection and the study's id it is read as the gate that prices it reads it
+    (pos_granular.study_indications), so a study data/asset_indication_additions.csv
+    places is in that indication here too. Without them, MK-8527's Phase 3s priced at the
+    stake and read as outside every modelled indication in the cost to reach it."""
     browse = indication_mapping.parse_browse(mesh_terms)
-    found = indication_mapping.indications_for(conditions, browse)
+    found = (pos_granular.study_indications(conn, nct_id, conditions, mesh_terms)
+             if conn is not None and nct_id else
+             indication_mapping.indications_for(conditions, browse))
     terms = [t["term"] for t in found]
     if {t["id"] for t in found} & set(modelled_mesh or ()):
         return "modelled", terms, None
@@ -310,7 +317,8 @@ def _asset_studies(conn, asset_id: int, phases: tuple, mesh, skip: set) -> list:
             (asset_id, *phases, *pos_granular.OPEN_STATUSES)):
         if row["nct_id"] in skip:
             continue
-        fit, terms, why = indication_fit(row["conditions"], row["mesh_terms"], mesh)
+        fit, terms, why = indication_fit(row["conditions"], row["mesh_terms"], mesh,
+                                         conn, row["nct_id"])
         out.append({**dict(row), "fit": fit, "indications": terms, "fit_why": why})
     return out
 
@@ -407,11 +415,11 @@ def _future_phase3(conn, asset_id, mesh, first_studies, rates, table, area_src, 
     covered = set()
     for study in registered:
         if study["fit"] == "modelled":
-            covered |= _mesh_ids(study, mesh)
+            covered |= _mesh_ids(conn, study, mesh)
     seamless = set()
     for study in first_studies:
         if study["phase"] == "Phase 2/3" and study["fit"] == "modelled":
-            seamless |= _mesh_ids(study, mesh)
+            seamless |= _mesh_ids(conn, study, mesh)
     duration = _figure(table, area_src, "3", "duration_months")
     programme = _figure(table, area_src, "3", "programme_oop_musd")
     end = add_months(start, duration["value"])
@@ -509,9 +517,9 @@ def _unread(stage: dict) -> dict:
                       "so what reaching it costs cannot be read from the registry" + where)}
 
 
-def _mesh_ids(study, mesh) -> set:
-    found = indication_mapping.indications_for(
-        study["conditions"], indication_mapping.parse_browse(study["mesh_terms"]))
+def _mesh_ids(conn, study, mesh) -> set:
+    found = pos_granular.study_indications(conn, study["nct_id"], study["conditions"],
+                                           study["mesh_terms"])
     return {t["id"] for t in found} & set(mesh)
 
 

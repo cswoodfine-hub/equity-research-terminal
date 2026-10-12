@@ -309,6 +309,58 @@ def curated_additions(conn, path=None) -> dict:
     return out
 
 
+# The additions file read once per change of the file, since every gate view asks it
+# about every study it reads.
+_ADDITIONS_CACHE: dict = {}
+
+
+def _addition_rows(path) -> list:
+    stat = path.stat()
+    stamp = (str(path), stat.st_mtime_ns, stat.st_size)
+    if stamp not in _ADDITIONS_CACHE:
+        with path.open(newline="", encoding="utf-8") as handle:
+            _ADDITIONS_CACHE.clear()
+            _ADDITIONS_CACHE[stamp] = list(csv.DictReader(
+                line for line in handle if not line.startswith("#")))
+    return _ADDITIONS_CACHE[stamp]
+
+
+def curated_terms(conn, nct_id: str, path=None) -> list[dict]:
+    """The descriptors ``data/asset_indication_additions.csv`` names for one study, each
+    {"id", "term"}, where the study is mapped to the row's asset, by the rule
+    curated_additions applies.
+
+    The build writes the pair from these rows; a view that asks which indication a study
+    is in has to read them too, or the pair stands and its studies do not. MK-8527's two
+    Phase 3s made a Pre-Exposure Prophylaxis pair, and their readouts still read as
+    matching no indication, so the gate that pair carries could never be priced."""
+    path = pathlib.Path(path or ADDITIONS_CSV)
+    if not nct_id or not path.exists():
+        return []
+    out: list = []
+    for row in _addition_rows(path):
+        name = (row.get("asset") or "").strip()
+        mesh_id, term = (row.get("mesh_id") or "").strip(), (row.get("term") or "").strip()
+        if not (name and mesh_id and term) or nct_id not in (row.get("nct_ids") or "").split():
+            continue
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND (LOWER(TRIM(a.generic_name)) = LOWER(?)
+                   OR LOWER(TRIM(a.brand_name)) = LOWER(?)
+                   OR LOWER(TRIM(a.internal_code)) = LOWER(?))""",
+            ((row.get("ticker") or "").strip().upper(), name, name, name)).fetchone()
+        if not asset:
+            continue
+        mapped = conn.execute(
+            """SELECT 1 FROM trials WHERE nct_id = ? AND asset_id = ?
+               UNION ALL
+               SELECT 1 FROM completed_trials WHERE nct_id = ? AND asset_id = ?""",
+            (nct_id, asset[0], nct_id, asset[0])).fetchone()
+        if mapped and mesh_id not in {t["id"] for t in out}:
+            out.append({"id": mesh_id, "term": term})
+    return out
+
+
 def _upsert_indications(conn, pairs) -> dict:
     """One indications row per MeSH descriptor. Returns mesh_id -> indication_id."""
     ids = {}

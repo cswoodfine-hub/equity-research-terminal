@@ -235,8 +235,7 @@ def _resolved_readouts(conn, asset_id: int, modelled_mesh) -> list:
                  WHERE t.asset_id = ? AND t.phase LIKE '%3%'
                    AND cat.catalyst_type = 'data readout'
                    AND cat.status IN ('met', 'missed')""", (asset_id,)):
-        found = indication_mapping.indications_for(
-            r["conditions"], indication_mapping.parse_browse(r["mesh_terms"]))
+        found = study_indications(conn, r["nct_id"], r["conditions"], r["mesh_terms"])
         if not {t["id"] for t in found} & mesh:
             continue
         out.append({"drug": None, "phase": "3",
@@ -767,7 +766,7 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set, skip: set) -> list:
         if r["nct_id"] in skip:
             continue
         browse = indication_mapping.parse_browse(r["mesh_terms"])
-        found = indication_mapping.indications_for(r["conditions"], browse)
+        found = study_indications(conn, r["nct_id"], r["conditions"], r["mesh_terms"])
         out.append({"nct_id": r["nct_id"], "phase": r["phase"],
                     "status": r["overall_status"],
                     "primary_completion": r["primary_completion_date"],
@@ -1092,6 +1091,21 @@ def legs_for_inputs(conn, asset_id: int, inputs: dict | None, today=None,
                  stated_pos=stated_pos(inputs.get("scalars"))), gathered)
 
 
+def study_indications(conn, nct_id: str, conditions, mesh_terms) -> list:
+    """The study's indications: the descriptors the sponsor's words select from its MeSH
+    terms, and any data/asset_indication_additions.csv names for it where no vocabulary
+    reaches (indication_mapping.curated_terms). The build makes the pair from both, so
+    every view that asks which indication a study is in reads both."""
+    found = indication_mapping.indications_for(
+        conditions, indication_mapping.parse_browse(mesh_terms))
+    seen = {t["id"] for t in found}
+    for term in indication_mapping.curated_terms(conn, nct_id):
+        if term["id"] not in seen:
+            found.append(term)
+            seen.add(term["id"])
+    return found
+
+
 def in_modelled(conn, nct_id: str, modelled_mesh) -> tuple:
     """(whether the study is in an indication the forecast values, its indications):
     the one MeSH test every gate view and stage_of's resolved readouts share."""
@@ -1099,8 +1113,7 @@ def in_modelled(conn, nct_id: str, modelled_mesh) -> tuple:
                        (nct_id,)).fetchone()
     if row is None:
         return False, []
-    found = indication_mapping.indications_for(
-        row["conditions"], indication_mapping.parse_browse(row["mesh_terms"]))
+    found = study_indications(conn, nct_id, row["conditions"], row["mesh_terms"])
     return bool({t["id"] for t in found} & set(modelled_mesh or ())), [t["term"] for t in found]
 
 
