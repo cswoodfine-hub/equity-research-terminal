@@ -39,6 +39,7 @@ import brand_split
 import biologic_loe
 import catalysts
 import consensus as consensus_module
+import curated_catalysts
 import curated_register
 import discontinued
 import db
@@ -406,6 +407,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
+        # decisions a person dated from a filing. After the seeds, so the assets exist.
+        mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
@@ -637,6 +641,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
+        # decisions a person dated from a filing. After the seeds, so the assets exist.
+        mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
