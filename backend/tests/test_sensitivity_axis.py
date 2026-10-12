@@ -201,6 +201,15 @@ def _nil_whatever_the_axis(built: dict, inputs: dict) -> bool:
                                   and not scalars.get("base_revenue"))
 
 
+def _loses_money_at_its_stated_costs(built: dict) -> bool:
+    """A product whose stated cost ratios exceed its revenue in every forecast year: it
+    loses more the more it sells, so its value falls as growth rises by construction.
+    Sarepta's ELEVIDYS after the 2025 label change carries the company's selling and R&D
+    ratios on a 58% gross margin and reads -8% before tax."""
+    rows = [r for r in built.get("pnl") or [] if r.get("revenue")]
+    return bool(rows) and all(r["ebit"] < 0 for r in rows)
+
+
 def _at_its_ceiling_from_year_one(built: dict, inputs: dict, axis: dict) -> bool:
     """A marketed product whose stated ceiling binds in the first forecast year at every
     step of the growth axis: growth cannot move it, its ceiling does (Jemperli)."""
@@ -244,6 +253,9 @@ def test_every_modelled_assets_grid_moves_on_its_second_axis(book):
             continue
         if _at_its_ceiling_from_year_one(built, inputs, axis):
             exempt.append(f"{label}: at its ceiling")
+            continue
+        if _loses_money_at_its_stated_costs(built):
+            exempt.append(f"{label}: loses money at its stated costs")
             continue
         column = [r[0] for r in forecast.sensitivity(
             inputs, "wacc", [built["wacc"]], axis["key"], axis["values"])["grid"]]
