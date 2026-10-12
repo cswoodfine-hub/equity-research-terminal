@@ -420,3 +420,44 @@ def test_a_delivery_device_is_formulation_not_molecule():
 
     assert canonical("Rimegepant 75 mg ODT") == canonical("Rimegepant")
     assert canonical("PDS Implant with Ranibizumab") == canonical("PDS with Ranibizumab")
+
+
+def _combo_book(tmp_path):
+    db_file = tmp_path / "combo.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    mono = _asset(conn, "JNJ", brand="Invokana", generic="Canagliflozin")
+    combo = _asset(conn, "JNJ", brand="Invokamet", generic="Canagliflozin")
+    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                 ('["Canagliflozin"]', mono))
+    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                 ('["Canagliflozin", "Metformin Hydrochloride"]', combo))
+    conn.commit()
+    return db_file, conn, mono, combo
+
+
+def test_a_combination_does_not_answer_to_one_of_its_ingredients(tmp_path):
+    """Invokamet carries "Canagliflozin" as its generic name. A canagliflozin and
+    phentermine obesity study (NCT02243202) was read onto it, which is canagliflozin with
+    metformin, and canagliflozin left the obesity landscape."""
+    db_file, conn, mono, combo = _combo_book(tmp_path)
+    _trial(conn, "NCT02243202", "JNJ", ["Canagliflozin", "Phentermine"])
+    _trial(conn, "NCT9", "JNJ", ["Canagliflozin/Metformin"])
+    conn.commit(); conn.close()
+    tm.map_trials(db_file)
+    conn = db.get_connection(db_file)
+    got = dict(conn.execute("SELECT nct_id, asset_id FROM trials"))
+    conn.close()
+    assert got["NCT02243202"] == mono
+    # Both ingredients together still find the combination, and before the single drug.
+    assert got["NCT9"] == combo
+
+
+def test_a_combination_named_for_every_ingredient_keeps_its_generic():
+    row = {"generic_name": "Sacubitril and Valsartan",
+           "active_ingredients": '["Sacubitril", "Valsartan"]'}
+    assert not tm._one_ingredient_of_a_combination(row)
+    row = {"generic_name": "Sacubitril", "active_ingredients": '["Sacubitril", "Valsartan"]'}
+    assert tm._one_ingredient_of_a_combination(row)
+    assert tm._combination_names(row) == ["sacubitril valsartan", "valsartan sacubitril"]

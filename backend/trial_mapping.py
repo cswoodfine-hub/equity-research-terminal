@@ -26,6 +26,7 @@ returned say how many, so the gap stays visible rather than reading as full cove
 from __future__ import annotations
 
 import csv
+import json
 import pathlib
 import re
 
@@ -175,21 +176,59 @@ def aliases(raw: str) -> set[str]:
     return {a for a in out if a}
 
 
+def _one_ingredient_of_a_combination(row) -> bool:
+    """Whether a combination product's generic name names only one of its ingredients.
+
+    140 combinations carry one ingredient as their generic name: Invokamet is
+    "Canagliflozin", Janumet "Metformin Hydrochloride", Orkambi "Ivacaftor". Answering to
+    that name, a combination took the single drug's studies: on 2026-10-09 a canagliflozin
+    and phentermine obesity study (NCT02243202) was re-read onto Invokamet, which is
+    canagliflozin with metformin, and canagliflozin left the obesity landscape. A
+    combination answers to its brand, its code, or a name that names every ingredient.
+    """
+    try:
+        ingredients = json.loads(row["active_ingredients"] or "[]")
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(ingredients, list) or len(ingredients) < 2:
+        return False
+    generic = set(canonical(row["generic_name"] or "").split())
+    return not all((canonical(i).split() or [""])[0] in generic for i in ingredients)
+
+
+def _combination_names(row) -> list[str]:
+    """The names a combination answers to in place of one ingredient's: every ingredient
+    together, in the label's order and, for a pair, the other way round, so a study of
+    "Sacubitril/Valsartan" or "metformin + sitagliptin" still finds the combination, and
+    finds it before the single drug, whose name is shorter."""
+    ingredients = [(canonical(i).split() or [""])[0]
+                   for i in json.loads(row["active_ingredients"] or "[]")]
+    ingredients = [i for i in ingredients if i]
+    out = [" ".join(ingredients)]
+    if len(ingredients) == 2:
+        out.append(" ".join(reversed(ingredients)))
+    return out
+
+
 def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
     """(normalised name, asset_id) for every name one company's assets are known by,
     longest first so the most specific match is tried before a shorter, vaguer one."""
     rows = conn.execute(
-        "SELECT id, brand_name, generic_name, internal_code FROM assets"
+        "SELECT id, brand_name, generic_name, internal_code, active_ingredients FROM assets"
         "  WHERE owner_company_id = ?", (company_id,)).fetchall()
     seen: set[tuple[str, int]] = set()
     names: list[tuple[str, int]] = []
     for row in rows:
         for field in ("brand_name", "generic_name", "internal_code"):
-            for candidate in aliases(row[field]):
-                key = (candidate, row["id"])
-                if key not in seen:
-                    seen.add(key)
-                    names.append(key)
+            values = [row[field]]
+            if field == "generic_name" and _one_ingredient_of_a_combination(row):
+                values = _combination_names(row)
+            for value in values:
+                for candidate in aliases(value):
+                    key = (candidate, row["id"])
+                    if key not in seen:
+                        seen.add(key)
+                        names.append(key)
     # Names the product answers to that appear nowhere on its own row: the development
     # name it was trialled under, whether the filings gave it up or an analyst wrote it
     # down. Casgevy is the case that needs the second kind, since its studies are filed
