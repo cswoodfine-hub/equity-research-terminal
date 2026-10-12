@@ -257,4 +257,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then Krystal's Vyjuvek, the same day,
                               # then argenx's Vyvgart, the same day,
                               # then Revolution Medicines' Rasonque, the same day,
-                              # then Sarepta's ELEVIDYS, Exondys 51, Amondys 45 and Vyondys 53, the same day
+                              # then Sarepta's ELEVIDYS, Exondys 51, Amondys 45 and Vyondys 53, the same day,
+                              # then uniQure's AMT-130, the same day
