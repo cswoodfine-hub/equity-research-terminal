@@ -293,6 +293,25 @@ def test_a_negative_readout_still_beats_an_accepted_application(tmp_path):
     assert got["stage"] == "negative" and got["pos"] == 0.0
 
 
+def test_a_missed_non_inferiority_endpoint_does_not_outrank_an_accepted_application(tmp_path):
+    """CagriSema's REDEFINE 4 missed non-inferiority to tirzepatide after its placebo
+    studies met and it was filed: not as good as another drug is not a failure, so the
+    filing still places it at the approval gate. A miss on its own endpoint still wins
+    (the test above)."""
+    import applications
+    conn = _seed(tmp_path, trials=(("NCT1", "Completed", "2026-03-01", 500, None),),
+                 readouts=(("XYZ-1234", 3, "negative", "2026-06-01"),))
+    conn.execute("UPDATE trial_readouts SET quote = 'The trial did not achieve its primary"
+                 " endpoint of demonstrating non-inferiority on weight loss for XYZ-1234"
+                 " compared to tirzepatide after 84 weeks.'")
+    conn.commit()
+    _catalyst(conn, "XYZ-1234 PDUFA, Multiple myeloma", "2027-04-01")
+    applications.resolve(conn, today=TODAY)
+    got = _resolve(conn)
+    conn.close()
+    assert got["stage"] == "filed" and got["pos"] > 0.5
+
+
 def test_a_filing_on_a_molecule_the_company_already_markets_lifts_nothing(tmp_path):
     """A supplemental application says nothing about a first approval, and the filers
     that matter never write the word supplemental. Two guards stand in the way and the

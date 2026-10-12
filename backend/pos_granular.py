@@ -142,6 +142,7 @@ _STEMS = (
      "Small molecule", "a small molecule by its stem"),
 )
 
+_NON_INFERIORITY = re.compile(r"non-?\s?inferior", re.I)
 _HEME = re.compile(r"leuk|lymphom|myelom|myelodysplas|hematolog|haematolog|"
                    r"myelofibro|polycyth|thrombocyth", re.I)
 _IO = re.compile(r"\bpd-?1\b|\bpd-?l1\b|ctla-?4|checkpoint|immuno-?oncolog|\btigit\b|"
@@ -294,10 +295,19 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
     mine = {norm(n) for n in names if n}
     readouts = []
     for r in conn.execute(
-            "SELECT drug, phase, outcome, event_date, accession FROM trial_readouts"
+            "SELECT drug, phase, outcome, event_date, accession, quote FROM trial_readouts"
             " WHERE company_id = ? ORDER BY event_date DESC", (company_id,)):
         drug = norm(r["drug"])
         if drug in mine or any(len(n) > 4 and n in drug for n in mine):
+            # A non-inferiority endpoint is set against another drug, so missing it says
+            # the asset is not as good as that drug, not that it fails: CagriSema's
+            # REDEFINE 4 missed non-inferiority to tirzepatide on 2026-02-23, its
+            # placebo-controlled REDEFINE 1 and 2 having met, and Novo kept the US
+            # decision on its Q4 2026 list after it. Read as a failure it would sink a
+            # filed asset to the mixed stage. Uptake is where such a result belongs.
+            if ((r["outcome"] or "").lower() == "negative"
+                    and _NON_INFERIORITY.search(r["quote"] or "")):
+                continue
             readouts.append(dict(r))
     phase3_readouts = [r for r in readouts if str(r["phase"] or "") == "3"]
     if resolved:
