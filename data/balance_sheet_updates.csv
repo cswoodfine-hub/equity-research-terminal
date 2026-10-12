@@ -22,6 +22,11 @@
 # and its own earnings release counts them in its $1.1bn of cash and investments, so they
 # are carried as the long-term marketable securities line, which the valuation does read.
 #
+# Sarepta's non-current investments, $145.4mm at 30 June 2026, are tagged as long-term investments and so were
+# not read as cash, though Sarepta counts them in its $945.0mm of cash, cash equivalents, restricted cash and
+# investments. They are government and agency bonds, corporate bonds and similar securities maturing in one to two
+# years, held available for sale, so they are carried as the long-term marketable securities line, as for Krystal.
+#
 # Columns: ticker, period_end, metric, value_musd (millions as printed), unit, accession,
 # caption (as the filing prints it), quote.
 ticker,period_end,metric,value_musd,unit,accession,caption,quote
@@ -37,3 +42,4 @@ LEGN,2026-06-30,TotalDebt,156.4,USD,0001801198-26-000022,Collaboration interest-
 QURE,2026-06-30,CashAndEquivalents,413.027,USD,0001104659-26-087815,Cash and cash equivalents,"Current assets Cash and cash equivalents $ 413,027 $ 80,240 Current investment securities 397,308 542,301 (in thousands). Q2 2026 10-Q, filed 2026-07-29; companyfacts still ends at the March quarter"
 QURE,2026-06-30,ShortTermInvestments,397.308,USD,0001104659-26-087815,Current investment securities,"Current investment securities 397,308 542,301 (in thousands). Tagged DebtSecuritiesHeldToMaturityAmortizedCostAfterAllowanceForCreditLossCurrent, which the companyfacts mapping does not read, so no quarter of uniQure's investments was on file"
 QURE,2026-06-30,TotalDebt,50.147,USD,0001104659-26-087815,Long-term debt,"Long-term debt 50,147 49,699 (in thousands); Note 6: 'The total principal outstanding as of June 30, 2026 under the Company's amended venture debt loan facility with Hercules Capital, Inc. ... was $ 50.0 million.' The liability from the royalty financing agreement (489,333) is not debt here: the 10-K for 2025 (0001104659-26-021898, Note 12) says 'The Company has no obligation to repay any amounts received from the Purchaser in the event that the applicable cap amount is not reached', and it is paid from the HEMGENIX royalties the book does not value either"
+SRPT,2026-06-30,MarketableSecuritiesNoncurrent,145.372,USD,0001193125-26-335003,Non-current investments,"Non-current investments 145,372 1,048 (in thousands). Note 5: 'All of the Company's non-current investments as of June 30, 2026 and December 31, 2025 had maturities between one and two years', and its table of financial instruments carries them at an amortized cost of 145,746 less 374 of unrealized losses, a fair value of 145,372, within total cash, cash equivalents and investments of 933,861, made up of money market funds, government and government agency bonds, corporate bonds, commercial paper, certificates of deposit and bank time deposits. Note 1: '$945.0 million of cash, cash equivalents, restricted cash and investments, consisting of $571.1 million of cash and cash equivalents, $362.7 million of investments and $11.2 million of non-current restricted cash and investments'. Strategic equity investments sit in other non-current assets, not in this line"
