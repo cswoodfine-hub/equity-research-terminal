@@ -414,3 +414,19 @@ def test_an_accent_or_a_dropped_apostrophe_is_the_same_disease():
 def test_a_disease_that_shares_only_the_word_disease_is_another_disease():
     assert _found(["Thyroid Eye Disease"], "Graves Disease") == []
     assert _found(["Carcinoid Syndrome"], "Serotonin Syndrome") == []
+
+
+def test_a_study_the_vocabulary_misses_answers_with_its_added_descriptor(tmp_path,
+                                                                        monkeypatch):
+    """The gate views ask which indication a study is in. A pair the additions file made
+    has to answer there too, and only for a study mapped to the row's own asset."""
+    _with_additions(tmp_path, monkeypatch,
+                    'X,Prepx,D015658,HIV Infections,NCT9 NCT1,"indexed only under AIDS"\n')
+    conn = db.get_connection(str(tmp_path / "t.db"))
+    try:
+        assert im.curated_terms(conn, "NCT9") == [{"id": "D015658",
+                                                   "term": "HIV Infections"}]
+        assert im.curated_terms(conn, "NCT1") == []      # asset 1's study, not Prepx's
+        assert im.curated_terms(conn, "NCT404") == []
+    finally:
+        conn.close()
