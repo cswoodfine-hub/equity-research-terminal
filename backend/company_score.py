@@ -664,7 +664,9 @@ def book_inputs(conn, records: list[dict], rates: dict, today) -> dict:
 
 # ---- scoring -------------------------------------------------------------------------------
 def cohort_of(rec: dict) -> str | None:
-    stage, engine = rec.get("stage"), rec.get("engine")
+    # The rule's engine where the record carries it: the focus list decides where a company
+    # opens, not who it is compared with.
+    stage, engine = rec.get("stage"), rec.get("rule_engine") or rec.get("engine")
     if stage == "clinical":
         return "clinical"
     if stage == "commercial" and engine == "pharma":

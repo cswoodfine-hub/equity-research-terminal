@@ -34,11 +34,18 @@ RATES = {"USD": 1.0, "EUR": 1.1378, "DKK": 0.15221, "CHF": 1.20224, "GBP": 1.326
 LLY_PRICE = 1184.78
 
 RECORD_KEYS = {
-    "ticker", "name", "engine", "stage", "country", "region", "listing", "filer",
+    "ticker", "name", "engine", "rule_engine", "stage", "country", "region", "listing", "filer",
     "reporting_currency", "row_currency", "fiscal_year_end_month", "themes", "areas",
     "market", "ev", "periods", "growth", "street", "risk", "healthcare", "model", "flags",
     "na", "lineage", "history", "screen_extras", "detail", "error",
 }
+
+
+# Every company the seed file names: the fixture book is built from it.
+def _seeded() -> int:
+    import csv
+    with open(seed.SEED_CSV, newline="", encoding="utf-8") as handle:
+        return sum(1 for _ in csv.DictReader(handle))
 
 
 # --- seeding -------------------------------------------------------------------------
@@ -279,13 +286,13 @@ def _codes(record, code=None):
 # --- the whole payload ---------------------------------------------------------------
 def test_every_company_has_the_full_record(out):
     assert out["schema"] == cv.SCHEMA == 1
-    assert len(out["companies"]) == 70
+    assert len(out["companies"]) == _seeded()
     tickers = [r["ticker"] for r in out["companies"]]
-    assert len(set(tickers)) == 70
+    assert len(set(tickers)) == _seeded()
     for record in out["companies"]:
         assert set(record) == RECORD_KEYS, record["ticker"]
     assert out["errors"] == []
-    assert out["universe"]["n"] == 70
+    assert out["universe"]["n"] == _seeded()
     assert out["fx"]["usd_per_unit"]["DKK"] == pytest.approx(RATES["DKK"])
     assert out["fx"]["usd_per_unit"]["USD"] == 1.0
     assert "{cur}" in out["basis_text"]["standardised"]
@@ -638,7 +645,7 @@ def test_one_failing_company_does_not_fail_the_rest(valuation_db, monkeypatch):
     monkeypatch.setattr(cv.beta_module, "compute", compute)
     built = cv.build(valuation_db, today=TODAY)
     by = _by(built)
-    assert len(built["companies"]) == 70
+    assert len(built["companies"]) == _seeded()
     assert by["PFE"]["error"] and "boom" in by["PFE"]["error"]
     assert _codes(by["PFE"], "calc_failed")[0]["severity"] == "red"
     assert [e["ticker"] for e in built["errors"]] == ["PFE"]
@@ -652,7 +659,7 @@ def test_route_marks_an_incomplete_body(valuation_db, monkeypatch):
     response = TestClient(main.app).get("/comps/valuation")
     assert response.status_code == 200
     body = response.json()
-    assert body["schema"] == 1 and len(body["companies"]) == 70
+    assert body["schema"] == 1 and len(body["companies"]) == _seeded()
     assert body["complete"] is False
     assert response.headers.get("x-cache-skip") == "1"
 

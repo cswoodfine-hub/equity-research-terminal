@@ -30,7 +30,7 @@ FRONTEND = pathlib.Path(__file__).resolve().parents[2] / "frontend"
 APP = FRONTEND / "streamlit_app.py"
 RESEARCH = FRONTEND / "assets" / "research.css"
 COMPONENT = "components.compsval.compsval"
-BIOTECH = "ALNY"   # a biotech-engine company: no Indications view on its Comps tab
+BIOTECH = "ARGX"   # on the catalyst focus list, the biotech engine: no Indications view
 SCORECARD = (pathlib.Path(__file__).resolve().parent / "fixtures" / "company_score"
              / "sample_scorecard.json")
 
@@ -185,7 +185,7 @@ def test_one_component_with_strict_json_args(pharma_app):
     assert args["engine"] == "pharma"
     assert args["live"] is True
     assert args["default"] is None and args["key"] == "compsval"
-    assert len(args["payload"]["companies"]) == 70
+    assert len(args["payload"]["companies"]) == len(_companies())
     assert isinstance(args["digest"], str) and len(args["digest"]) == 12
 
 

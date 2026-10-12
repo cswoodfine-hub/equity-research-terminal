@@ -301,6 +301,9 @@ class _Universe:
         self.rates["USD"] = 1.0
 
         self.homes = self._guard("engines", lambda: engines.home(db_path), {})
+        # The rule's placement, for the scorecard's cohorts: a company off the focus list
+        # has no engine to open on but is still compared with its peers.
+        self.rule_homes = self._guard("engines_rule", lambda: engines.rule_home(db_path), {})
         self.lead = self._guard("lead_stage", lambda: engines._lead_stage(
             conn, [c["ticker"] for c in self.companies]), {})
         self.screen = self._guard("screen", lambda: {
@@ -1509,6 +1512,7 @@ def _record(u: _Universe, co: dict, stage: dict) -> tuple:
 
     record = {
         "ticker": t, "name": co["name"], "engine": u.homes.get(t),
+        "rule_engine": u.rule_homes.get(t),
         "stage": runway.stage(conn, cid), "country": country, "region": region,
         "listing": listing, "filer": filer, "reporting_currency": co["reporting_currency"],
         "row_currency": row_currency, "fiscal_year_end_month": fye_month,
@@ -1783,6 +1787,7 @@ def _failed_record(u: _Universe, co: dict, message: str) -> dict:
     reasons.update({"filer.standard": "calc_failed", "region": "calc_failed"})
     return {
         "ticker": co["ticker"], "name": co["name"], "engine": u.homes.get(co["ticker"]),
+        "rule_engine": u.rule_homes.get(co["ticker"]),
         "stage": None, "country": co["country"], "region": None,
         "listing": {"home_exchange": None, "us_line": None, "adr_ratio": None, "otc": False},
         "filer": {"kind": None, "annual_form": None, "standard": None,

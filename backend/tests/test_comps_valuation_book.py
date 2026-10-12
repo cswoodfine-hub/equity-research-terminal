@@ -48,9 +48,10 @@ def _flag(record, code):
 def test_coverage_size_and_time(book, payload):
     out, seconds = payload
     companies = out["companies"]
-    assert len(companies) == 70
+    held = book.execute("SELECT COUNT(*) FROM companies").fetchone()[0]
+    assert len(companies) == held
     assert out["errors"] == []
-    assert sum(1 for r in companies if r["market"]["market_cap_usd_m"]) == 70
+    assert sum(1 for r in companies if r["market"]["market_cap_usd_m"]) == held
     assert sum(1 for r in companies if r["ev"]["ev_usd_m"] is not None) >= 36
     positive_ntm = sum(1 for r in companies
                        if (r["periods"]["NTM"] or {}).get("eps") is not None

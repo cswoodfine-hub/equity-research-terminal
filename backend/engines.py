@@ -143,19 +143,26 @@ def focus_list(path=None) -> set | None:
                 if (r.get("ticker") or "").strip()}
 
 
+def rule_home(db_path=None) -> dict:
+    """{ticker: engine} by the rule alone, the focus list not applied. The scorecard's
+    cohorts read this: commercial and clinical are questions of comparability, and a
+    company left off the list is still a company to compare."""
+    conn = db.get_connection(db_path)
+    try:
+        rates = fx.latest_usd_rates(db_path)
+        return {c["ticker"]: assign(conn, c["id"],
+                                    productivity.latest_revenue(conn, c["id"], rates))
+                for c in conn.execute("SELECT id, ticker FROM companies ORDER BY ticker")}
+    finally:
+        conn.close()
+
+
 def home(db_path=None, focus_path=None) -> dict:
     """{ticker: engine} for the whole universe: the rule, then the focus list.
 
     A listed company is on biotech. One the rule places on biotech that is not listed maps
     to None, on no engine. Pharma and cell and gene keep the rule's answer."""
-    conn = db.get_connection(db_path)
-    try:
-        rates = fx.latest_usd_rates(db_path)
-        placed = {c["ticker"]: assign(conn, c["id"],
-                                      productivity.latest_revenue(conn, c["id"], rates))
-                  for c in conn.execute("SELECT id, ticker FROM companies ORDER BY ticker")}
-    finally:
-        conn.close()
+    placed = rule_home(db_path)
     focus = focus_list(focus_path)
     if focus is None:
         return placed

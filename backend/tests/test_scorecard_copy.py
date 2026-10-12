@@ -208,7 +208,8 @@ def _live() -> dict:
         payload = json.loads(resp.read().decode("utf-8"))
     board = payload.get("scorecard")
     assert isinstance(board, dict) and not board.get("error"), (board or {}).get("error")
-    return board
+    # Every company in the universe is scored, focus list or not.
+    return {**board, "_expected": len(payload.get("companies") or [])}
 
 
 @pytest.fixture(scope="module", params=["sample", "live"])
@@ -515,7 +516,7 @@ def test_every_company_has_its_sentence_in_the_template(board):
     tail = (rf"(?:Strongest on {pillar}(?: and {pillar})?(?:, weakest on {pillar}"
             rf"(?: and {pillar})?)?\.|Weakest on {pillar}(?: and {pillar})?\."
             r"|No pillar above 60 or below 40\.)")
-    assert len(board["companies"]) == 70
+    assert len(board["companies"]) == board.get("_expected", 70)
     for t, rec in board["companies"].items():
         s = rec["sentence"]
         assert words(s) <= SENTENCE_MAX_WORDS, (t, s)
