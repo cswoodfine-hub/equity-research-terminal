@@ -188,3 +188,49 @@ def test_a_company_with_no_cash_line_reads_nothing(tmp_path):
     money = runway.liquidity(conn, cid)
     conn.close()
     assert money["available"] is None and money["raises"] == []
+
+
+# --- cash that came with shares the divisor already counts ------------------------------
+
+def _stored(conn, cid, closed_month, kind, amount=405e6):
+    conn.execute("INSERT INTO financings (company_id, closed_month, amount_usd, kind,"
+                 "  evidence, balance_sheet_date, accession, form_type, filed_date,"
+                 "  section) VALUES (?, ?, ?, ?, 'x', '2026-06-30', '0001-1', '10-Q',"
+                 "  '2026-07-29', 'mdna')", (cid, closed_month, amount, kind))
+    conn.commit()
+
+
+def test_a_raise_inside_the_share_count_is_counted(tmp_path):
+    """Dyne: the 24 July cover count holds the 21,045,000 July shares, the 30 June cash
+    does not hold the $405.0mm they raised."""
+    path, conn, cid = _company(tmp_path, DYNE)
+    _stored(conn, cid, "2026-07", "public offering")
+    got = financings.inside_share_count(conn, cid, "2026-06-30", "2026-07-24")
+    conn.close()
+    assert got["total"] == 405e6
+
+
+def test_a_raise_after_the_share_count_is_in_neither_figure(tmp_path):
+    """Moderna's August 2026 offering against a 24 July count: no cash without shares."""
+    path, conn, cid = _company(tmp_path, DYNE)
+    _stored(conn, cid, "2026-08", "public offering")
+    got = financings.inside_share_count(conn, cid, "2026-06-30", "2026-07-24")
+    conn.close()
+    assert got["total"] is None
+
+
+def test_a_loan_or_an_unread_kind_is_not_equity(tmp_path):
+    path, conn, cid = _company(tmp_path, DYNE)
+    _stored(conn, cid, "2026-07", "term loan")
+    _stored(conn, cid, "2026-07", "financing", amount=48.4e6)
+    got = financings.inside_share_count(conn, cid, "2026-06-30", "2026-08-06")
+    conn.close()
+    assert got["total"] is None and got["rows"] == []
+
+
+def test_no_dated_share_count_takes_nothing(tmp_path):
+    path, conn, cid = _company(tmp_path, DYNE)
+    _stored(conn, cid, "2026-07", "public offering")
+    got = financings.inside_share_count(conn, cid, "2026-06-30", None)
+    conn.close()
+    assert got["total"] is None

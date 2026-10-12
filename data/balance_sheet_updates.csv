@@ -12,6 +12,16 @@
 # carried for the marketable securities, which the filing says were all sold, so a stale
 # balance from an earlier quarter cannot be read as still held.
 #
+# Krystal Biotech tags no debt line after 2017, so the sum stopped at enterprise value and
+# netted nothing against $845.6mm of cash and short-term investments. Its 30 June 2026
+# balance sheet lists every liability it carries and none is borrowed, so a nil is carried
+# for that date, with the FY2025 10-K's own statement that it has no external borrowings.
+# Its long-term investments are tagged as long-term investments, which the valuation does
+# not read as cash because the tag can carry equity stakes. Krystal's are corporate bonds and
+# US government agency securities maturing in one to two years, held available for sale,
+# and its own earnings release counts them in its $1.1bn of cash and investments, so they
+# are carried as the long-term marketable securities line, which the valuation does read.
+#
 # Columns: ticker, period_end, metric, value_musd (millions as printed), unit, accession,
 # caption (as the filing prints it), quote.
 ticker,period_end,metric,value_musd,unit,accession,caption,quote
@@ -19,3 +29,11 @@ BIIB,2026-06-30,CashAndEquivalents,1285.0,USD,0000875045-26-000075,Cash and cash
 BIIB,2026-06-30,ShortTermInvestments,0.0,USD,0000875045-26-000075,Current portion of marketable securities,"Current portion of marketable securities — 807.2, where an em dash is nil: ""As of June 30, 2026, we have sold all of our marketable debt securities."""
 BIIB,2026-06-30,MarketableSecuritiesNoncurrent,0.0,USD,0000875045-26-000075,Marketable securities,"Marketable securities — 431.9, where an em dash is nil: ""As of June 30, 2026, we have sold all of our marketable debt securities."""
 BIIB,2026-06-30,TotalDebt,8090.3,USD,0000875045-26-000075,Current portion of term loan plus notes payable and term loan,"Current portion of term loan $ 800.0 $ — ... Notes payable and term loan 7,290.3 6,286.8. Note 8 splits the 2026 Term Loan raised for the acquisition: ""2026 Term Loan 364-day tranche (1) $ 799.9 $ 800.0"" and ""2026 Term Loan two-year tranche (1) 999.9 1,000.0"""
+KRYS,2026-06-30,TotalDebt,0.0,USD,0001711279-26-000057,Total liabilities,"Current liabilities Accounts payable $ 6,544 $ 3,238 Current portion of lease liability 1,808 1,771 Accrued rebates 83,480 58,181 Accrued expenses and other current liabilities 35,565 39,752 Total current liabilities 127,397 102,942 Lease liability 7,045 7,568 Other long-term liabilities 7,080 3,724 Total liabilities 141,522 114,234, where no line is borrowed money; the FY2025 10-K (0001711279-26-000016, Note 2) states ""the Company does not have any external borrowings"""
+KRYS,2026-06-30,MarketableSecuritiesNoncurrent,257.291,USD,0001711279-26-000057,Long-term investments,"Long-term investments 257,291 128,066 ... Note 5: Corporate bonds ... 117,920 U.S. government agency securities ... 139,371 ... Total ... $ 257,291 in the Long-term Marketable Securities column, where ""(2) The Company’s long-term marketable securities mature between one and two years."" The FY2025 10-K (0001711279-26-000016, Note 2): ""As the Company’s entire investment portfolio is considered available for use in current operations, it classifies all investments as available-for-sale securities"""
+LEGN,2026-06-30,CashAndEquivalents,672.9,USD,0001801198-26-000022,Cash and cash equivalents,"CONDENSED CONSOLIDATED STATEMENTS OF FINANCIAL POSITION AT JUNE 30, 2026 AND DECEMBER 31, 2025 (Dollars in millions) ... Time deposits 291.7 46.7 Cash and cash equivalents 672.9 901.9. Legend's interim report on Form 6-K, filed 2026-08-11; a foreign private issuer's half-year is not in companyfacts"
+LEGN,2026-06-30,ShortTermInvestments,291.7,USD,0001801198-26-000022,Time deposits,CURRENT ASSETS ... Time deposits 291.7 46.7 Cash and cash equivalents 672.9 901.9
+LEGN,2026-06-30,TotalDebt,156.4,USD,0001801198-26-000022,Collaboration interest-bearing advanced funding,"CURRENT LIABILITIES ... Collaboration interest-bearing advanced funding 156.4 319.1. The Janssen funding advances, recouped from Legend's share of Carvykti's pre-tax profit; the same line companyfacts carried as TotalDebt at 2025-12-31 (319.1). Leases are not debt here"
+QURE,2026-06-30,CashAndEquivalents,413.027,USD,0001104659-26-087815,Cash and cash equivalents,"Current assets Cash and cash equivalents $ 413,027 $ 80,240 Current investment securities 397,308 542,301 (in thousands). Q2 2026 10-Q, filed 2026-07-29; companyfacts still ends at the March quarter"
+QURE,2026-06-30,ShortTermInvestments,397.308,USD,0001104659-26-087815,Current investment securities,"Current investment securities 397,308 542,301 (in thousands). Tagged DebtSecuritiesHeldToMaturityAmortizedCostAfterAllowanceForCreditLossCurrent, which the companyfacts mapping does not read, so no quarter of uniQure's investments was on file"
+QURE,2026-06-30,TotalDebt,50.147,USD,0001104659-26-087815,Long-term debt,"Long-term debt 50,147 49,699 (in thousands); Note 6: 'The total principal outstanding as of June 30, 2026 under the Company's amended venture debt loan facility with Hercules Capital, Inc. ... was $ 50.0 million.' The liability from the royalty financing agreement (489,333) is not debt here: the 10-K for 2025 (0001104659-26-021898, Note 12) says 'The Company has no obligation to repay any amounts received from the Purchaser in the event that the applicable cap amount is not reached', and it is paid from the HEMGENIX royalties the book does not value either"

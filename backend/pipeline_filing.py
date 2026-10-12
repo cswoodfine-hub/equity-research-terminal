@@ -235,6 +235,19 @@ def owned_codes(conn, company_id: int) -> set:
             (company_id,)):
         out |= asset_merge.development_codes(
             " ".join(str(row[f]) for f in row.keys() if row[f]))
+    # A code the merge folded into a named row is that row's, though no column of it
+    # spells the code. Stoke's 10-Q introduces "zorevunersen (STK-001)" and the registry
+    # files the Phase 3 under the name, so STK-001 folds into zorevunersen through the
+    # alias map. Read from the asset columns alone, the code looked unowned: prune
+    # dropped the filing row once its asset had trials, and build wrote STK-001 again as
+    # a new asset with no trial, which the next merge folded, every refresh.
+    for row in conn.execute(
+            "SELECT al.internal_code FROM asset_aliases al"
+            "  JOIN assets a ON a.id = al.asset_id"
+            " WHERE a.owner_company_id = ? AND a.id NOT IN"
+            "    (SELECT asset_id FROM filing_programmes WHERE asset_id IS NOT NULL)",
+            (company_id,)):
+        out |= asset_merge.development_codes(row["internal_code"] or "")
     return out
 
 

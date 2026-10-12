@@ -123,6 +123,26 @@ def test_derive_readouts_is_idempotent_and_tracks_a_slip(tmp_path):
     assert next(r for r in rows if r["ticker"] == "LLY")["expected_date"] == slipped
 
 
+def test_a_readout_follows_its_study_to_the_company_that_holds_it(tmp_path):
+    """Pombiliti's Phase 3 readout sat under Structure Therapeutics after the study had
+    been filed there by mistake and gone back to BioMarin: the derivation updated the
+    date and never the company."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    mrk = conn.execute("SELECT id FROM companies WHERE ticker = 'MRK'").fetchone()[0]
+    conn.execute("UPDATE trials SET sponsor_company_id = ? WHERE nct_id = 'NCT_P3'", (mrk,))
+    conn.commit()
+    conn.close()
+
+    assert catalysts.derive_readouts(db_file)["updated"] == 1
+    held = [r["ticker"] for r in catalysts.list_catalysts(db_file, within_days=365)
+            if r["source_url"].endswith("NCT_P3")]
+    assert held == ["MRK"]
+    assert catalysts.derive_readouts(db_file)["updated"] == 0      # settled
+
+
 def test_accepting_a_readout_protects_it_from_the_next_refresh(tmp_path):
     """The analyst's judgement outranks the derivation."""
     db_file = tmp_path / "test.db"

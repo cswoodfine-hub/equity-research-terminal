@@ -228,6 +228,31 @@ def test_prune_drops_a_programme_that_has_since_acquired_a_trial(tmp_path):
     assert "DYNE-302" not in codes
 
 
+def test_a_code_folded_into_a_named_row_is_not_written_again(tmp_path):
+    """Stoke's STK-001 is zorevunersen, folded through the alias map. Once the folded
+    row's asset has trials, prune drops the filing row; the code must still read as
+    owned, or build writes STK-001 again as an asset with no trial on every refresh."""
+    path, conn, cid = _company(tmp_path, DYNE)
+    named = conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                         " VALUES (?, 'zeleciment basivarsen', 0)", (cid,)).lastrowid
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('DYNE-302', ?, 'curated: the same molecule')", (named,))
+    conn.execute("INSERT INTO trials (nct_id, asset_id, title, phase)"
+                 " VALUES ('NCT9', ?, 'A study', 'Phase 1')", (named,))
+    conn.commit()
+    conn.close()
+
+    pf.prune(path)
+    pf.build(path)
+    conn = db.get_connection(path)
+    codes = {r["code"] for r in conn.execute("SELECT code FROM filing_programmes")}
+    rows = conn.execute("SELECT COUNT(*) FROM assets WHERE internal_code = 'DYNE-302'"
+                        ).fetchone()[0]
+    conn.close()
+    assert "DYNE-302" not in codes and rows == 0
+    assert "DYNE-401" in codes
+
+
 def test_no_filing_text_is_no_programmes(tmp_path):
     path = str(tmp_path / "empty.db")
     db.init(path)
