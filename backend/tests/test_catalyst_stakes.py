@@ -421,8 +421,8 @@ def test_a_study_with_no_mesh_terms_is_not_said_to_be_in_another_disease(tmp_pat
 def test_a_gate_study_only_a_curated_addition_places_is_priced(tmp_path, big, monkeypatch):
     """MK-8527's Phase 3s are indexed only under Acquired Immunodeficiency Syndrome, which
     shares no word with the sponsor's conditions. data/asset_indication_additions.csv made
-    the HIV Infections pair the forecast values, and the readout has to be read in that
-    indication too, or a seeded asset's gate is never priced."""
+    the Pre-Exposure Prophylaxis pair the forecast values, and the readout has to be read
+    in that indication too, or a seeded asset's gate is never priced."""
     import indication_mapping as IM
     path = _phase_3_book(tmp_path)
     conn = db.get_connection(path)

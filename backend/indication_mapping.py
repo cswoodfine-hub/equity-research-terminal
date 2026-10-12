@@ -332,8 +332,8 @@ def curated_terms(conn, nct_id: str, path=None) -> list[dict]:
 
     The build writes the pair from these rows; a view that asks which indication a study
     is in has to read them too, or the pair stands and its studies do not. MK-8527's two
-    Phase 3s made an HIV Infections pair, and their readouts still read as matching no
-    indication, so the gate that pair carries could never be priced."""
+    Phase 3s made a Pre-Exposure Prophylaxis pair, and their readouts still read as
+    matching no indication, so the gate that pair carries could never be priced."""
     path = pathlib.Path(path or ADDITIONS_CSV)
     if not nct_id or not path.exists():
         return []

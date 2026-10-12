@@ -343,10 +343,10 @@ def test_a_gate_with_no_study_in_a_modelled_indication_is_unread_not_free(tmp_pa
 
 def test_a_gate_study_only_a_curated_addition_places_is_costed(tmp_path, big, monkeypatch):
     """MK-8527's Phase 3s are indexed only under Acquired Immunodeficiency Syndrome, and
-    data/asset_indication_additions.csv places them in HIV Infections, the indication the
-    forecast values. The stake reads them there; the cost to reach the gate has to as well,
-    or the same study is priced on one view and outside every modelled indication on the
-    next. A row naming a study of another asset places nothing."""
+    data/asset_indication_additions.csv places them in Pre-Exposure Prophylaxis, the
+    indication the forecast values. The stake reads them there; the cost to reach the gate
+    has to as well, or the same study is priced on one view and outside every modelled
+    indication on the next. A row naming a study of another asset places nothing."""
     import indication_mapping as IM
     path, conn = _book(tmp_path)
     _trial(conn, "NCT00000001", 7, enrollment=500, disease=AMYLOID)
