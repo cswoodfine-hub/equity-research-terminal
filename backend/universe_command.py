@@ -77,6 +77,21 @@ WEEK_ITEMS = 16
 # The ranked feed's look-ahead items: Phase 3 primary completions due inside 14 days and
 # listed patents and exclusivities ending inside 60.
 DUE_DAYS = 14
+# The catalyst focus list's week (the biotech engine): what moves a small or mid-cap
+# biotech is its next binary event, the share price itself, the money it raises, the
+# analysts and the shorts, so its feed reads those as well as the majors' rules.
+FOCUS_ENGINES = ("biotech",)
+BINARY_DAYS = 90            # an FDA decision or pivotal readout this close is the story
+# A registry date is the study's primary completion, and the topline follows it: eight
+# matched toplines came 0 to 127 days after (event_moves.READOUT_LAG_DAYS), so the options
+# move for a registry-dated readout is read to an expiry that late.
+TOPLINE_LAG_DAYS = 120
+BINARY_ITEMS = 3
+MOVE_MIN = 0.10             # a day move this large is news for a biotech
+MOVE_ITEMS = 3
+TARGET_MIN = 0.05           # a consensus target moved this much is a change of view
+SHORT_DAYS = 16             # a settlement this recent was published this week or last
+FINANCING_ITEMS = 3
 LOE_DAYS = 60
 # The slips item lists this many of the week's longest high slips in its rows.
 SLIP_ROWS = 6
@@ -524,9 +539,81 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["policy"] = policy_fedreg.recent(db_path, days=730)
         src["deal_rows"] = _deal_rows(conn, cohort,
                                       (today - dt.timedelta(days=2 * NEWS_DAYS)).isoformat())
+        if engine in FOCUS_ENGINES:
+            src["focus"] = _focus_reads(conn, db_path, cohort, today, src["catalysts"])
     finally:
         conn.close()
     return src
+
+
+def _focus_reads(conn, db_path, cohort: list, today: dt.date, catalysts: list) -> dict:
+    """What the focus list's week reads beyond the majors' rules: the consensus target
+    rows of three weeks, the financings filed this week, short interest, and each FDA
+    decision or Phase 3 readout inside BINARY_DAYS with the model's stake and the move the
+    options price. Network reads go through market_reads, cached and soft."""
+    import market_reads
+    marks = ",".join("?" * len(cohort))
+    since = (today - dt.timedelta(days=21)).isoformat()
+    targets = [dict(r) for r in conn.execute(
+        f"""SELECT c.ticker, e.as_of, e.value, e.low, e.high, e.note
+              FROM consensus_estimates e JOIN companies c ON c.id = e.company_id
+             WHERE e.metric = 'PriceTarget' AND c.ticker IN ({marks}) AND e.as_of >= ?
+             ORDER BY c.ticker, e.as_of""", (*cohort, since))]
+    week = (today - dt.timedelta(days=NEWS_DAYS)).isoformat()
+    money = [dict(r) for r in conn.execute(
+        f"""SELECT c.ticker, f.closed_month, f.amount_usd, f.kind, f.evidence, f.accession,
+                   f.form_type, f.filed_date
+              FROM financings f JOIN companies c ON c.id = f.company_id
+             WHERE c.ticker IN ({marks}) AND f.filed_date >= ?
+             ORDER BY f.amount_usd DESC""", (*cohort, week))]
+    symbols = {r["ticker"]: (r["us_adr_ticker"] or r["ticker"]) for r in conn.execute(
+        f"SELECT ticker, us_adr_ticker FROM companies WHERE ticker IN ({marks})", cohort)}
+    end = today + dt.timedelta(days=BINARY_DAYS)
+    near = []
+    for c in catalysts:
+        t = c.get("ticker")
+        if t not in symbols or (c.get("status") or "pending") != "pending":
+            continue
+        d = c.get("expected_date") or ""
+        day = _date(d) if len(d) >= 10 else (_month_end(_date(d[:7] + "-01"))
+                                              if _date(d[:7] + "-01") else None)
+        if day is None or not (today <= day <= end):
+            continue
+        regulatory = (c.get("catalyst_type") or "") != "data readout"
+        if not regulatory and "phase 3" not in (c.get("title") or "").lower():
+            continue
+        registry = not regulatory and not c.get("is_curated")
+        near.append({"id": c.get("id"), "ticker": t, "date": day.isoformat(),
+                     "month": len(d) < 10, "regulatory": regulatory,
+                     "type": c.get("catalyst_type"), "title": c.get("title"),
+                     "confidence": c.get("date_confidence"), "registry": registry,
+                     "options_from": (day + dt.timedelta(days=TOPLINE_LAG_DAYS)).isoformat()
+                     if registry else day.isoformat()})
+    stakes = {}
+    for t in sorted({n["ticker"] for n in near}):
+        stakes[t] = _stakes(t, db_path)
+    moves = market_reads.implied_moves([(symbols[n["ticker"]], n["options_from"])
+                                        for n in near])
+    for n in near:
+        priced = {r.get("id"): r for r in (stakes.get(n["ticker"]) or {}).get("priced") or []}
+        hit = priced.get(n["id"]) or {}
+        n["stake"] = {"pos_now": hit.get("pos_now"), "per_share": hit.get("per_share"),
+                      "pos_success": hit.get("pos_success"),
+                      "pos_failure": hit.get("pos_failure")} if hit else None
+        n["move"] = moves.get((symbols[n["ticker"]], n["options_from"]))
+    return {"targets": targets, "financings": money, "near": near,
+            "short": market_reads.short_interest(sorted(set(symbols.values()))),
+            "symbols": symbols}
+
+
+def _stakes(ticker: str, db_path):
+    """The company's priced events, from the warmed response where there is one."""
+    import response_cache
+    held = response_cache.cached_json(f"/companies/{ticker}/catalysts/stakes")
+    if held is not None or response_cache.enabled():
+        return held
+    import forecast_view
+    return forecast_view.catalyst_stakes(db_path, ticker)
 
 
 # --------------------------------------------------------------------------- assemble
@@ -990,6 +1077,15 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                          "url": h.get("url"), "src": "/headlines (readout)"})
     items += [r for r in readouts if r["phase"] != "2"]
 
+    # The focus list's own rules, after the Phase 3 results: the binary events ahead, the
+    # week's share moves, the money raised and the analysts' changes of view.
+    focus = src.get("engine") in FOCUS_ENGINES and src.get("focus") is not None
+    if focus:
+        items += _binary_items(src, companies, today)
+        items += _mover_items(src, companies, since, today, heads, rows)
+        items += _financing_items(src, companies)
+        items += _street_items(src, companies, since)
+
     # 4. Deals with no stated value: the feed's press deals of the week, and any headline
     # deal that came without a figure. The company's filings that name the deal fold in.
     for r in feed:
@@ -1095,7 +1191,7 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
     end30 = today + dt.timedelta(days=30)
     firm = [e for e in events if e["firm"] and e["regulatory"] and not e["month"]
             and _date(e["date"]) and today <= _date(e["date"]) <= end30]
-    if firm:
+    if firm and not focus:              # the focus list reads its own, to 90 days
         e = min(firm, key=lambda e: e["date"])
         items.append({"kind": "regulatory",
                       "tag": "PDUFA" if (e.get("type") or "").upper() == "PDUFA" else "FDA date",
@@ -1146,6 +1242,9 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                               + ([["Call", f"{call.isoformat()}, as the announcement states"]]
                                  if call else []),
                       "url": None, "src": "/changes (press_results)"})
+
+    if focus:
+        items += _short_items(src, companies, today)
 
     # 11. Filings a reader would open, one item.
     routine = [r for r in rows if _routine_filing(r)]
@@ -1235,6 +1334,222 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
     for i, it in enumerate(items[:WEEK_ITEMS], 1):
         it["rank"] = i
     return items[:WEEK_ITEMS]
+
+
+# --- the focus list's week -------------------------------------------------------------
+def _pc(v) -> str:
+    return f"{'+' if v > 0 else '−' if v < 0 else ''}{abs(v) * 100:.1f}%"
+
+
+def _usd(v) -> str:
+    if v is None:
+        return "no free data"
+    return f"${v / 1e9:.2f}bn" if abs(v) >= 1e9 else f"${v / 1e6:,.0f}mm"
+
+
+def _binary_items(src: dict, companies: dict, today: dt.date) -> list:
+    """Each FDA decision or Phase 3 readout inside BINARY_DAYS, soonest first: the model's
+    odds and swing a share where it prices the event, and the one standard deviation move
+    the options price by the first expiry after it."""
+    out = []
+    for n in sorted((src.get("focus") or {}).get("near") or [], key=lambda n: n["date"]):
+        t = n["ticker"]
+        if t not in companies:
+            continue
+        name = short_event_basis(n.get("title"), None)[0] or n.get("title") or t
+        what = "FDA decision" if n["regulatory"] else "Phase 3 readout"
+        days = (_date(n["date"]) - today).days
+        stake, move = n.get("stake") or {}, n.get("move") or {}
+        parts = []
+        if stake.get("per_share") is not None:
+            parts.append(f"the model's swing is ${stake['per_share']:.2f} a share"
+                         + (f" at {stake['pos_now']:.0%} odds" if stake.get("pos_now") is not None
+                            else ""))
+        if move.get("move") is not None:
+            parts.append(f"options price ±{move['move']:.0%} by {_dshort(move['expiry'])}")
+        when = (f"by the end of {_dlong(n['date'])[3:]}" if n["month"]
+                else _dshort(n["date"]))
+        head = f"{name} {what}, {when}" + (": " + "; ".join(parts) if parts else "")
+        rows = [["Date", f"{n['date'][:7] if n['month'] else n['date']}, "
+                         f"{n.get('confidence') or 'estimated'}"
+                         + (", the registry's primary completion: a topline follows it, "
+                            f"so the options are read to {TOPLINE_LAG_DAYS} days later"
+                            if n.get("registry") else "")],
+                ["What it is", n.get("title")],
+                ["Model odds now", f"{stake['pos_now']:.0%}" if stake.get("pos_now") is not None
+                 else "not priced: no stated legs or no model"],
+                ["Model swing a share", f"${stake['per_share']:.2f}"
+                 if stake.get("per_share") is not None else "no free data"],
+                ["Options price", (f"±{move['move']:.0%} by the {_dlong(move['expiry'])} expiry, "
+                                   f"one standard deviation at {move['iv']:.0%} volatility")
+                 if move.get("move") is not None else "no listed options that late"],
+                ["Close", companies[t].get("price")]]
+        out.append({"kind": "binary", "tag": "FDA date" if n["regulatory"] else "readout",
+                    "tickers": [t], "head": head, "verbatim": False,
+                    "fig": f"{days}d", "fig_sub": "to go", "date": n["date"],
+                    "days": days, "mini": {"type": "countdown", "days": days,
+                                           "of": BINARY_DAYS},
+                    "rows": rows, "url": None,
+                    "src": "/catalysts, catalyst stakes, Cboe delayed options"})
+        if len(out) >= BINARY_ITEMS:
+            break
+    return out
+
+
+def _mover_items(src: dict, companies: dict, since: str, today: dt.date, heads: list,
+                 rows: list) -> list:
+    """The week's largest day moves of MOVE_MIN or more, one item, each with the
+    company's news of that day where the feed holds any."""
+    closes = src.get("closes") or {}
+    moves = []
+    for t in companies:
+        series = closes.get(t) or []
+        for i in range(1, len(series)):
+            d, c = series[i]
+            p = series[i - 1][1]
+            if d < since or d > today.isoformat() or not p:
+                continue
+            r = c / p - 1.0
+            if abs(r) >= MOVE_MIN:
+                moves.append((t, d, r, p, c))
+    if not moves:
+        return []
+    moves.sort(key=lambda m: -abs(m[2]))
+    top = moves[:MOVE_ITEMS]
+
+    def said(t, d):
+        texts = [(h.get("headline") or "")[len(t) + 1:] for h in heads
+                 if h.get("ticker") == t and _iso(h.get("date")) == d]
+        texts += [_strip_ticker(r.get("headline"), t) for r in rows
+                  if r.get("ticker") == t and _iso(r.get("date")) == d]
+        return texts[0] if texts else None
+
+    t0, d0, r0 = top[0][0], top[0][1], top[0][2]
+    return [{"kind": "mover", "tag": "moves", "verbatim": False,
+             "tickers": list(dict.fromkeys(m[0] for m in top)),
+             "head": "; ".join(f"{t} {_pc(r)} on {_dshort(d)}" for t, d, r, _p, _c in top),
+             "fig": _pc(r0), "fig_sub": "largest day", "date": d0,
+             "mini": {"type": "stock", "ticker": t0, "marks": [d0]},
+             "rows": [[f"{t} {_dshort(d)}", f"{p:.2f} to {c:.2f}, {_pc(r)}"
+                       + (f"; that day: {said(t, d)}" if said(t, d) else "; no news on file")]
+                      for t, d, r, p, c in top]
+                     + ([["The rest", f"{len(moves) - len(top)} more days of {MOVE_MIN:.0%} or more"]]
+                        if len(moves) > len(top) else []),
+             "url": None, "src": "prices (daily closes)"}]
+
+
+def _financing_items(src: dict, companies: dict) -> list:
+    """Money raised in filings of the week, largest first: what was raised, how, and the
+    filing that says so."""
+    out = []
+    for f in (src.get("focus") or {}).get("financings") or []:
+        t = f["ticker"]
+        if t not in companies:
+            continue
+        out.append({"kind": "financing", "tag": "raise", "tickers": [t], "verbatim": False,
+                    "head": f"{companies[t]['short']} raised {_usd(f['amount_usd'])}"
+                            + (f", {f['kind']}" if f.get("kind") else ""),
+                    "fig": _usd(f["amount_usd"]), "fig_sub": "net proceeds",
+                    "date": _iso(f.get("filed_date")),
+                    "rows": [["Kind", f.get("kind") or "not stated"],
+                             ["Closed", f.get("closed_month")],
+                             ["Filed", f"{f.get('form_type') or ''} {f.get('accession') or ''}, "
+                                       f"{_iso(f.get('filed_date'))}".strip()],
+                             ["Filing text", f.get("evidence")]],
+                    "url": None, "src": "financings (filing text)"})
+        if len(out) >= FINANCING_ITEMS:
+            break
+    return out
+
+
+_RATINGS_RE = re.compile(r"(\d+) buy, (\d+) hold, (\d+) sell")
+
+
+def _street_items(src: dict, companies: dict, since: str) -> list:
+    """The consensus changes of the week, one item: a mean target moved TARGET_MIN or more,
+    or a change in the buy, hold and sell count, against the last reading before the week."""
+    by: dict = {}
+    for r in (src.get("focus") or {}).get("targets") or []:
+        by.setdefault(r["ticker"], []).append(r)
+    changes = []
+    for t, rs in by.items():
+        if t not in companies:
+            continue
+        before = [r for r in rs if r["as_of"] < since]
+        during = [r for r in rs if r["as_of"] >= since]
+        if not before or not during:
+            continue
+        a, b = before[-1], during[-1]
+        ra, rb = _RATINGS_RE.search(a.get("note") or ""), _RATINGS_RE.search(b.get("note") or "")
+        counts_a = tuple(int(x) for x in ra.groups()) if ra else None
+        counts_b = tuple(int(x) for x in rb.groups()) if rb else None
+        moved = (a["value"] and b["value"] and abs(b["value"] / a["value"] - 1) >= TARGET_MIN)
+        recount = counts_a and counts_b and counts_a != counts_b
+        if not (moved or recount):
+            continue
+        bits = []
+        if moved:
+            bits.append(f"mean target {'cut' if b['value'] < a['value'] else 'raised'} "
+                        f"{abs(b['value'] / a['value'] - 1):.0%} to ${b['value']:.2f}")
+        if recount:
+            bits.append(f"{counts_b[0]} buy, {counts_b[1]} hold, {counts_b[2]} sell "
+                        f"(was {counts_a[0]}, {counts_a[1]}, {counts_a[2]})")
+        changes.append((t, ", ".join(bits), a, b, abs(b["value"] / a["value"] - 1)
+                        if a["value"] and b["value"] else 0))
+    if not changes:
+        return []
+    changes.sort(key=lambda c: -c[4])
+    return [{"kind": "street", "tag": "analysts", "verbatim": False,
+             "tickers": [c[0] for c in changes][:6],
+             "head": "; ".join(f"{t} {text}" for t, text, *_r in changes[:3]),
+             "fig": str(len(changes)), "fig_sub": "changed", "date": changes[0][3]["as_of"],
+             "rows": [[t, f"${a['value']:.2f} on {_dshort(a['as_of'])} to ${b['value']:.2f} on "
+                          f"{_dshort(b['as_of'])}; range ${b['low']:.0f} to ${b['high']:.0f}; "
+                          f"{b.get('note') or ''}"] for t, _x, a, b, _m in changes],
+             "note": "Nasdaq's consensus target and rating count, read daily.",
+             "url": None, "src": "consensus_estimates (Nasdaq)"}]
+
+
+def _short_items(src: dict, companies: dict, today: dt.date) -> list:
+    """Short interest from the newest settlement, published inside SHORT_DAYS: the most
+    shorted names as a share of shares outstanding, with the change from the settlement
+    before."""
+    focus = src.get("focus") or {}
+    symbols = focus.get("symbols") or {}
+    rows_ = []
+    for t, sym in symbols.items():
+        c = companies.get(t)
+        series = (focus.get("short") or {}).get(sym) or []
+        if not c or not series or not c.get("price") or not c.get("cap_usd_bn"):
+            continue
+        new = series[0]
+        if (_date(new["settlement"]) or today) < today - dt.timedelta(days=SHORT_DAYS):
+            continue
+        shares = c["cap_usd_bn"] * 1e9 / c["price"]
+        old = series[1] if len(series) > 1 else None
+        rows_.append((t, new, new["shares"] / shares,
+                      (new["shares"] / old["shares"] - 1) if old and old["shares"] else None))
+    if not rows_:
+        return []
+    rows_.sort(key=lambda r: -r[2])
+    day = rows_[0][1]["settlement"]
+    return [{"kind": "short", "tag": "shorts", "verbatim": False,
+             "tickers": [r[0] for r in rows_][:6],
+             "head": f"Short interest at {_dshort(day)}: " + "; ".join(
+                 f"{t} {pct:.0%} of shares, {n['days_to_cover']:.1f} days to cover"
+                 if n.get("days_to_cover") is not None else f"{t} {pct:.0%} of shares"
+                 for t, n, pct, _ch in rows_[:3]),
+             "fig": f"{rows_[0][2]:.0%}", "fig_sub": f"{rows_[0][0]} short",
+             "date": day, "mini": {"type": "pctbars",
+                                   "rows": [[t, round(pct * 100)] for t, _n, pct, _c in rows_[:3]]},
+             "rows": [[t, f"{n['shares']:,.0f} shares, {pct:.1%} of shares outstanding"
+                          + (f", {n['days_to_cover']:.1f} days to cover" if n.get('days_to_cover')
+                             is not None else "")
+                          + (f", {_pc(ch)} since the settlement before" if ch is not None else "")]
+                      for t, n, pct, ch in rows_],
+             "note": "FINRA settlement figures through Nasdaq; shares outstanding are market "
+                     "capitalisation over price, so a count is approximate to the latest close.",
+             "url": None, "src": "Nasdaq short interest"}]
 
 
 def _next_event(mine: list) -> dict | None:
