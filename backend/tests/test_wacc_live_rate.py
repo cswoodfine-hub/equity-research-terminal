@@ -253,4 +253,5 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then Capricor's deramiocel, the same day,
                               # then Stoke's zorevunersen, the same day,
                               # then Dyne's DYNE-251 and DYNE-101, the same day,
-                              # then Intellia's lonvo-z, the same day
+                              # then Intellia's lonvo-z, the same day,
+                              # then Krystal's Vyjuvek, the same day
