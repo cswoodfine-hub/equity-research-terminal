@@ -2368,7 +2368,9 @@ def index_html(p, w=None):
     allv = (vals + [v for _d0, v in bench] + [v for _d0, v in market] + ix["q1"] + ix["q3"]
             + [100.0])
     lo, hi = min(allv), max(allv)
-    step = next(s_ for s_ in (1, 2, 2.5, 5, 10, 20, 25, 50) if (hi - lo) / s_ <= 4)
+    # nice_step reaches past 50, which a biotech group needs: Capricor alone runs from
+    # under 40 to over 200 on the year, and a fixed list ending at 50 had no step for it.
+    step = max(1, nice_step(hi - lo, 4))
     y0, y1 = math.floor(lo / step) * step, math.ceil(hi / step) * step
     if y1 == y0:
         y1 = y0 + step
