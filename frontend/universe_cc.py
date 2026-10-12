@@ -1788,6 +1788,9 @@ KIND_COLOUR = {
     "regulatory": "var(--fda)", "slips": "var(--orange-book)", "loe": "var(--orange-book)",
     "market": "var(--muted)", "earnings": "var(--muted)", "filing": "var(--muted)",
     "labels": "var(--fda-bio)",
+    # The catalyst focus list's own kinds.
+    "binary": "var(--fda)", "mover": "var(--text)", "financing": "var(--purple-book)",
+    "street": "var(--muted)", "short": "var(--orange-book)",
 }
 # The grid's rows (backend GRID_KINDS) in the same colours.
 GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--fda)",
@@ -1865,11 +1868,16 @@ def feed_item(p, it):
         mini = ""
         if m.get("type") == "slipbars":
             mini = bars_mini(m.get("rows"), T["orange"], lambda v: f"{v:,}d")
+        elif m.get("type") == "pctbars":
+            mini = bars_mini(m.get("rows"), T["orange"], lambda v: f"{v:,}%")
         elif m.get("type") == "dates" and m.get("a") and m.get("b"):
             mini = dates_mini(m.get("dates") or [], m.get("a"), m.get("b"))
         tickers = it.get("tickers") or []
-        if kind == "notice" and tickers:
-            mini = stock_mini((p.get("closes") or {}).get(tickers[0]) or [], [it.get("date")])
+        if kind in ("notice", "mover") and tickers:
+            first = (m.get("ticker") or tickers[0]) if kind == "mover" else tickers[0]
+            mini = stock_mini((p.get("closes") or {}).get(first) or [], [it.get("date")])
+        elif kind == "binary" and m.get("type") == "countdown":
+            mini = countdown_mini(m.get("days"), m.get("of") or 90)
         elif kind == "earnings" and it.get("call"):
             days = (_d(it["call"]) - _d(p.get("today"))).days if _d(p.get("today")) else None
             if days is not None and 0 <= days <= 30:
@@ -1936,8 +1944,19 @@ def brief(it):
     if kind == "earnings":
         m = re.search(r"\b(First|Second|Third|Fourth)-Quarter", head)
         return f"{_QUARTER[m.group(1).lower()]} results call" if m else "Results call"
+    if kind == "binary":
+        what = "FDA decision" if it.get("tag") == "FDA date" else "Phase 3 readout"
+        name = head.split(" FDA decision")[0].split(" Phase 3 readout")[0]
+        return f"{name} {what}"
+    if kind == "mover":
+        return "Biggest share moves"
+    if kind == "financing":
+        return head.split(",")[0]
+    if kind == "short":
+        return "Short interest"
     counted = {"slips": "trial dates slipped", "filing": "filings", "labels": "US labels revised",
-               "due": "Phase 3 readouts due", "loe": "exclusivities ending"}
+               "due": "Phase 3 readouts due", "loe": "exclusivities ending",
+               "street": "analyst views changed"}
     if kind in counted and fig not in (None, ""):
         return f"{fig} {counted[kind]}"
     words = head.split()

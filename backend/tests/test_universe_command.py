@@ -622,3 +622,63 @@ def test_book_guard_served_figures_match_the_prices_table(book, monkeypatch):
             assert start <= e["date"] <= end
     assert all(not (isinstance(v, float) and math.isnan(v))
                for c in out["companies"].values() for v in (c["change_5d"], c["price"]))
+
+
+# --------------------------------------------------------------- the focus list's week
+def _focus_src(**over):
+    focus = {
+        "near": [{"id": 2, "ticker": "LLY", "date": "2026-10-26", "month": False,
+                  "regulatory": True, "type": "PDUFA", "title": "Orforglipron PDUFA, obesity",
+                  "confidence": "confirmed", "registry": False, "options_from": "2026-10-26",
+                  "stake": {"pos_now": 0.9, "per_share": 4.25, "pos_success": 1.0,
+                            "pos_failure": 0.0},
+                  "move": {"expiry": "2026-10-30", "iv": 0.6, "years": 0.07, "move": 0.16}}],
+        "targets": [
+            {"ticker": "MRK", "as_of": "2026-09-25", "value": 100.0, "low": 80.0, "high": 120.0,
+             "note": "8 buy, 2 hold, 0 sell; per US-listed share"},
+            {"ticker": "MRK", "as_of": "2026-10-03", "value": 90.0, "low": 70.0, "high": 120.0,
+             "note": "7 buy, 3 hold, 0 sell; per US-listed share"},
+            {"ticker": "JNJ", "as_of": "2026-09-25", "value": 100.0, "low": 80.0, "high": 120.0,
+             "note": "5 buy, 5 hold, 0 sell; per US-listed share"},
+            {"ticker": "JNJ", "as_of": "2026-10-03", "value": 101.0, "low": 80.0, "high": 120.0,
+             "note": "5 buy, 5 hold, 0 sell; per US-listed share"}],
+        "financings": [{"ticker": "NVS", "closed_month": "2026-10", "amount_usd": 1.0e9,
+                        "kind": "public offering", "evidence": "net proceeds of $1.0 billion",
+                        "accession": "0000000000-26-000001", "form_type": "424B5",
+                        "filed_date": "2026-10-02"}],
+        "short": {"AZN": [{"settlement": "2026-09-30", "shares": 300e6, "avg_volume": 50e6,
+                           "days_to_cover": 6.0},
+                          {"settlement": "2026-09-15", "shares": 250e6, "avg_volume": 40e6,
+                           "days_to_cover": 6.25}]},
+        "symbols": {"AZN": "AZN", "LLY": "LLY", "MRK": "MRK", "JNJ": "JNJ", "NVS": "NVS"},
+    }
+    closes = {"AZN": [["2026-09-30", 100.0], ["2026-10-01", 118.0], ["2026-10-02", 117.0]],
+              "LLY": [["2026-09-30", 100.0], ["2026-10-01", 104.0]]}
+    return _src(engine="biotech", focus=focus, closes=closes, **over)
+
+
+def test_the_focus_list_reads_its_own_week():
+    items = uc.assemble(_focus_src(), "AZN")["week_items"]
+    by = {i["kind"]: i for i in items}
+    binary = by["binary"]
+    assert binary["tickers"] == ["LLY"] and binary["fig"] == "20d"
+    assert "the model's swing is $4.25 a share at 90% odds" in binary["head"]
+    assert "options price ±16% by 30 Oct" in binary["head"]
+    assert by["mover"]["head"] == "AZN +18.0% on 1 Oct" and by["mover"]["fig"] == "+18.0%"
+    assert by["financing"]["fig"] == "$1.00bn" and by["financing"]["tickers"] == ["NVS"]
+    assert by["street"]["tickers"] == ["MRK"]                # JNJ moved 1%, its count held
+    assert "mean target cut 10% to $90.00" in by["street"]["head"]
+    assert "7 buy, 3 hold, 0 sell (was 8, 2, 0)" in by["street"]["head"]
+    short = by["short"]
+    assert short["tickers"] == ["AZN"] and "+20.0% since the settlement before" in short["rows"][0][1]
+    kinds = [i["kind"] for i in items]
+    assert kinds.index("binary") < kinds.index("mover") < kinds.index("short")
+    # The 30-day FDA rule gives way to the binary one, so the decision is not listed twice.
+    assert "regulatory" not in kinds
+
+
+def test_big_pharma_keeps_its_week():
+    """No engine or the majors' engine: none of the focus list's rules."""
+    for src in (_src(), _src(engine="pharma", focus=_focus_src()["focus"])):
+        kinds = {i["kind"] for i in uc.assemble(src, "AZN")["week_items"]}
+        assert not kinds & {"binary", "mover", "financing", "street", "short"}
