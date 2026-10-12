@@ -296,7 +296,8 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
         for row in rows:
             url = CTGOV_URL.format(nct_id=row["nct_id"])
             existing = conn.execute(
-                "SELECT id, expected_date, title, is_curated, status FROM catalysts"
+                "SELECT id, expected_date, title, is_curated, status, company_id,"
+                "       asset_id FROM catalysts"
                 " WHERE source_url = ? ORDER BY status = 'pending', id",
                 (url,),
             ).fetchone()
@@ -318,11 +319,20 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                 added += 1
             elif not existing["is_curated"] and (
                     existing["expected_date"] != row["due"]
-                    or existing["title"] != title):
+                    or existing["title"] != title
+                    # The study moved to the company that holds it, or to the asset it
+                    # tests: the readout follows. Pombiliti's sat under Structure
+                    # Therapeutics after its study had gone back to BioMarin.
+                    or existing["company_id"] != row["company_id"]
+                    or (row["asset_id"] is not None
+                        and existing["asset_id"] != row["asset_id"])):
                 conn.execute(
                     "UPDATE catalysts SET expected_date = ?, date_confidence = ?,"
-                    " title = ?, updated_at = datetime('now') WHERE id = ?",
-                    (row["due"], _date_confidence(row["due"]), title, existing["id"]),
+                    " title = ?, company_id = ?,"
+                    " asset_id = COALESCE(?, asset_id),"
+                    " updated_at = datetime('now') WHERE id = ?",
+                    (row["due"], _date_confidence(row["due"]), title, row["company_id"],
+                     row["asset_id"], existing["id"]),
                 )
                 updated += 1
 
