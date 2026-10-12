@@ -1056,8 +1056,14 @@ def catalyst_stakes(db_path, ticker: str):
             return None
         rows = _stake_rows(conn, company, ticker)
         shares = _diluted_shares(conn, company["id"])
+        # A programme the company has stopped has no readout left to price. Amlitelimab,
+        # zimberelimab and camlipixant were retired with filed reasons on 2026-10-10 and
+        # still read "no forecast" here, as if a model were all they lacked.
+        retired = {r[0] for r in conn.execute("SELECT asset_id FROM retired_programmes")}
         by_asset: dict = {}
         for row in rows:
+            if row["asset_id"] in retired:
+                continue
             by_asset.setdefault(row["asset_id"], []).append(row)
         priced, unpriced = [], []
         for asset_id, asset_rows in by_asset.items():

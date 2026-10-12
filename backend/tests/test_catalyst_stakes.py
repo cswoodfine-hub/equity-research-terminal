@@ -82,6 +82,20 @@ def test_a_priced_catalyst_carries_its_swing_and_the_unpriced_says_what_would(tm
     assert set(unpriced[0]["missing"]) == {"pos_success", "pos_failure"}
 
 
+def test_a_retired_programmes_readout_is_not_on_the_list(tmp_path):
+    """Amlitelimab, zimberelimab and camlipixant were retired with filed reasons and still
+    read "no forecast", as if a model were all they lacked."""
+    path = _seed(tmp_path)
+    assert 11 in [r["id"] for r in V.catalyst_stakes(path, "VRTX")["unpriced"]]
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO retired_programmes (asset_id, stopped_on, basis)"
+                 " VALUES (2, '2026-07-24', 'development discontinued')")
+    conn.commit(); conn.close()
+    out = V.catalyst_stakes(path, "VRTX")
+    assert 11 not in [r["id"] for r in out["unpriced"] + out["priced"]]
+    assert 10 in [r["id"] for r in out["priced"]]
+
+
 def test_the_partner_prices_the_same_event_at_its_share(tmp_path):
     path = _seed(tmp_path)
     out = V.catalyst_stakes(path, "CRSP")
