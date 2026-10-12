@@ -10,6 +10,9 @@ os.environ.setdefault("ER_TOOL_RESPONSE_CACHE", "0")
 os.environ.setdefault("ER_TOOL_RESPONSE_CACHE_DISK", "0")
 # Nor does a test that runs the scheduled refresh record the day's calls on the book.
 os.environ.setdefault("ER_TOOL_CALL_LOG", "0")
+# A fixture universe is placed by the engine rule alone; the catalyst focus list names
+# real tickers, and its own tests switch it back on.
+os.environ.setdefault("ER_TOOL_BIOTECH_FOCUS", "0")
 # No test reads the user's own Trading 212 account: the key is blanked before .env loads,
 # and load_dotenv never overrides a variable already set.
 os.environ["T212_API_KEY"] = ""
