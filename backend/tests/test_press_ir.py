@@ -70,6 +70,18 @@ def test_the_agency_by_its_full_name_is_still_the_fda():
                  " Myers Squibb's Supplemental Application") == "regulatory"
 
 
+def test_a_result_stated_as_what_the_drug_did_is_a_readout():
+    assert _kind("Pfizer's Tilrekimig Shows Significant Skin Clearance in Phase 2 Atopic"
+                 " Dermatitis Study") == "data readout"
+    assert _kind("Pfizer’s LITFULO Significantly Improved Facial and Total Body"
+                 " Repigmentation in Patients with Nonsegmental Vitiligo") == "data readout"
+    assert _kind("Tozorakimab demonstrated statistically significant and highly clinically"
+                 " meaningful reduction in COPD exacerbations") == "data readout"
+    # A company's own progress is not a trial result.
+    assert _kind("Company Achieves Significant Milestone in US Manufacturing") is None
+    assert _kind("Pfizer Initiates Phase 3 Study of Drugx in Asthma") is None
+
+
 def test_a_european_opinion_is_regulatory_and_not_an_approval():
     """CHMP recommends and the Commission approves. Reading the opinion as the approval
     would date the approval two months early."""

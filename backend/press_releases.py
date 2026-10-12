@@ -54,7 +54,16 @@ KINDS = (
      r"|\bnda\b|\bbla\b|\bmaa\b|\bsnda\b|\bsbla\b", "regulatory", False),
     (r"phase (?:1|2|3|i{1,3})\b.*\b(?:results|data|readout|met|missed|topline)"
      r"|topline (?:results|data)|met (?:its |the )?primary endpoint"
-     r"|did not meet|failed to meet", "data readout", False),
+     r"|did not meet|failed to meet"
+     # A result stated as what the drug did rather than as "results": Pfizer's
+     # "Tilrekimig Shows Significant Skin Clearance in Phase 2 Atopic Dermatitis Study"
+     # and "LITFULO Significantly Improved Facial and Total Body Repigmentation" (both
+     # October 2026) read as nothing.
+     r"|\b(?:shows?|showed|demonstrates?|demonstrated|delivers?|delivered|achieves?"
+     r"|achieved)\b.{0,60}\b(?:statistically significant|significant|clinically"
+     r" meaningful|superior)(?! (?:milestone|growth|progress|investment|expansion)\b)"
+     r"|\bsignificantly (?:improved|improves|reduced|reduces|lowered|lowers|extended"
+     r"|extends|delayed|delays|increased|increases)\b", "data readout", False),
     (r"\bacquire|acquisition of|to buy\b|merger with|collaboration with"
      r"|licen[sc]ing agreement|partnership with", "deal", False),
     (r"\bdividend\b", "dividend", False),
