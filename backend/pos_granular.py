@@ -719,17 +719,40 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
     # The indication the forecast is built on. A filing for any other disease must not
     # lift this line.
     lead = _lead_indication(conn, asset_id)
-    blob = conn.execute(
-        "SELECT GROUP_CONCAT(COALESCE(conditions, '') || ' ' || COALESCE(title, ''), ' ')"
-        "  FROM trials WHERE asset_id = ?", (asset_id,)).fetchone()[0] or ""
+    mesh = modelled_mesh(conn, asset_id, lead["indication_id"] if lead else None)
     return {"area": area, "phase": phase, "names": names,
             "company_id": asset["owner_company_id"],
             "prevalence_us": (prevalence["value"] if prevalence else None),
             "biomarker_selected": bool((scalars or {}).get("biomarker_selected")),
-            "conditions_text": blob, "stored_modality": asset["modality"],
+            "conditions_text": conditions_text(conn, asset_id, mesh),
+            "stored_modality": asset["modality"],
             "lead_indication_id": (lead["id"] if lead else None),
-            "modelled_mesh": modelled_mesh(conn, asset_id,
-                                           lead["indication_id"] if lead else None)}
+            "modelled_mesh": mesh}
+
+
+def conditions_text(conn, asset_id: int, mesh) -> str:
+    """The conditions and titles the oncology cut reads: those of the studies in an
+    indication the forecast values, or of every study where none is placed in one (no
+    MeSH on the modelled rows, or no study matched to them).
+
+    Every study was read before, so mevrometostat's Phase 1 basket, which took follicular
+    lymphoma beside prostate cancer, put a prostate cancer drug on the haematologic rate.
+    """
+    rows = conn.execute(
+        "SELECT nct_id, conditions, title, mesh_terms FROM trials WHERE asset_id = ?"
+        " ORDER BY id", (asset_id,)).fetchall()
+
+    def text(r):
+        return f"{r['conditions'] or ''} {r['title'] or ''}"
+
+    mesh = set(mesh or ())
+    if mesh:
+        own = [text(r) for r in rows
+               if {t["id"] for t in study_indications(
+                   conn, r["nct_id"], r["conditions"], r["mesh_terms"])} & mesh]
+        if own:
+            return " ".join(own)
+    return " ".join(text(r) for r in rows)
 
 
 def _resolve_args(gathered: dict) -> dict:

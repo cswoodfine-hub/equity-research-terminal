@@ -1076,3 +1076,29 @@ def test_for_asset_reads_the_resolved_readout_on_the_rnpv_path(tmp_path):
         PG.big_pharma = real
     conn.close()
     assert before["stage"] == "entering" and after["stage"] == "positive"
+
+
+def test_the_oncology_cut_reads_the_studies_in_the_modelled_disease(tmp_path):
+    """Mevrometostat is modelled in prostate cancer, and its Phase 1 basket also took
+    follicular lymphoma. The basket's lymphoma put it on the haematologic rate while
+    every study was read; a study outside the modelled disease no longer speaks for it,
+    and where no study is matched to that disease every study is read, as before."""
+    prostate = ("D011471", "Prostatic Neoplasms")
+    conn = _gate_seed(tmp_path, name="XYZ-1234", trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2027-06-01", 900, prostate),
+        ("NCT2", "Phase 1", "Recruiting", "2027-01-01", 90, FOLLICULAR)))
+    conn.execute("UPDATE indications SET name = 'Prostatic Neoplasms', mesh_id = ?"
+                 " WHERE id = 3", (prostate[0],))
+    conn.commit()
+    gathered, placement = _placed(conn)
+    assert "Lymphoma" not in gathered["conditions_text"]
+    assert ("oncology", "Hematologic") not in {(c["cut"], c["group"])
+                                               for c in placement["cuts"]}
+
+    conn.execute("UPDATE trials SET mesh_terms = NULL WHERE nct_id = 'NCT1'")
+    conn.commit()
+    gathered, placement = _placed(conn)
+    conn.close()
+    assert "Lymphoma" in gathered["conditions_text"]
+    assert ("oncology", "Hematologic") in {(c["cut"], c["group"])
+                                           for c in placement["cuts"]}
