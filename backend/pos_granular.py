@@ -402,13 +402,21 @@ def _chain(table: dict, cut: str, group: str, gates: tuple, min_n: int = MIN_N) 
 
 def _cuts(table: dict, gates: tuple, *, names: list, stored_modality: str | None,
           report_area: str | None, conditions_text: str, prevalence_us: float | None,
-          biomarker_selected: bool) -> tuple:
+          biomarker_selected: bool, also_known: list | None = None) -> tuple:
     """(cuts, refused): the chain from ``gates`` under every other cut the asset
     qualifies for. Each is the whole chain under that cut, so the band is what the
     asset's attributes say and not an independence assumption multiplied across them.
     Each cut keeps its per-gate ``rows`` for the gate split; resolve strips them."""
     cuts, refused = [], []
     modality, how = modality_of(names[0] if names else None, stored_modality)
+    # A programme name carries no stem: CagriSema is cagrilintide with semaglutide, both
+    # peptides, and the name the registry files it under says neither. Its other names
+    # are read before the cut is refused, never its brand, which is not an INN.
+    for other in ([] if modality else list(also_known or [])):
+        found, why = modality_of(other, stored_modality)
+        if found:
+            modality, how = found, f"{why} ({other})"
+            break
     if modality:
         v, rows, reason = _chain(table, "modality", modality, gates)
         (cuts if v is not None else refused).append(
@@ -487,7 +495,7 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
             biomarker_selected: bool, conditions_text: str = "",
             stored_modality: str | None = None, lead_indication_id=None,
             today=None, table=None, at_gate: str | None = None,
-            modelled_mesh=None) -> dict | None:
+            modelled_mesh=None, also_known: list | None = None) -> dict | None:
     """The probability, its band, and everything it rests on. None where not applicable.
 
     Applies only from Phase 2, Phase 2/3 or Phase 3, and only where the area chain can
@@ -534,7 +542,8 @@ def resolve(conn, asset_id: int, *, area: str | None, phase: str | None,
 
     attributes = {"names": names, "stored_modality": stored_modality,
                   "report_area": report_area, "conditions_text": conditions_text,
-                  "prevalence_us": prevalence_us, "biomarker_selected": biomarker_selected}
+                  "prevalence_us": prevalence_us, "biomarker_selected": biomarker_selected,
+                  "also_known": also_known}
     cuts, refused = _cuts(table, gates, **attributes)
 
     # The point is the central tendency of every published rate this asset belongs to,
@@ -696,7 +705,7 @@ def modelled_mesh(conn, asset_id: int, lead_indication: int | None = None) -> li
 # The keys of a _gather result that resolve() takes; the rest are for the gate views.
 _RESOLVE_KEYS = ("area", "phase", "names", "company_id", "prevalence_us",
                  "biomarker_selected", "conditions_text", "stored_modality",
-                 "lead_indication_id", "modelled_mesh")
+                 "lead_indication_id", "modelled_mesh", "also_known")
 
 
 def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
@@ -717,6 +726,9 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
         return None
     names = [n for n in (asset["generic_name"], asset["brand_name"],
                          asset["internal_code"]) if n]
+    also_known = [r[0] for r in conn.execute(
+        "SELECT internal_code FROM asset_aliases WHERE asset_id = ? ORDER BY internal_code",
+        (asset_id,))]
     # The lead indication's US prevalence, from the row the model already holds.
     prevalence = conn.execute(
         """SELECT a.value FROM assumptions a
@@ -730,7 +742,7 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
     # lift this line.
     lead = _lead_indication(conn, asset_id)
     mesh = modelled_mesh(conn, asset_id, lead["indication_id"] if lead else None)
-    return {"area": area, "phase": phase, "names": names,
+    return {"area": area, "phase": phase, "names": names, "also_known": also_known,
             "company_id": asset["owner_company_id"],
             "prevalence_us": (prevalence["value"] if prevalence else None),
             "biomarker_selected": bool((scalars or {}).get("biomarker_selected")),

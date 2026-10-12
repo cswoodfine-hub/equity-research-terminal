@@ -1121,3 +1121,19 @@ def test_the_oncology_cut_reads_the_studies_in_the_modelled_disease(tmp_path):
     assert "Lymphoma" in gathered["conditions_text"]
     assert ("oncology", "Hematologic") in {(c["cut"], c["group"])
                                            for c in placement["cuts"]}
+
+
+def test_a_name_with_no_stem_is_read_through_the_assets_other_names(tmp_path):
+    """CagriSema is filed under a programme name with no INN stem; its alias
+    Cagrilintide/Semaglutide carries the peptide stem, so the cut is not refused. A brand
+    is never read, since it is not an INN."""
+    conn = _seed(tmp_path, name="CagriSema")
+    without = _resolve(conn, area="Metabolic", names=["CagriSema"], conditions_text="obesity")
+    with_alias = _resolve(conn, area="Metabolic", names=["CagriSema"],
+                          conditions_text="obesity", also_known=["Cagrilintide/Semaglutide"])
+    brand_only = _resolve(conn, area="Metabolic", names=["CagriSema", "Wegovy"],
+                          conditions_text="obesity")
+    conn.close()
+    assert "modality" not in {c["cut"] for c in without["cuts"]}
+    assert ("modality", "Peptide") in {(c["cut"], c["group"]) for c in with_alias["cuts"]}
+    assert "modality" not in {c["cut"] for c in brand_only["cuts"]}
