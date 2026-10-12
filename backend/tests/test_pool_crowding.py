@@ -290,3 +290,29 @@ def test_an_asset_that_states_a_pool_but_draws_no_share_is_not_a_claimant(tmp_pa
     names = {c["name"] for c in PC.claimants(conn, 367)}
     conn.close()
     assert names == {"alpha", "gamma"}
+
+
+def test_a_rival_counts_in_proportion_to_its_odds():
+    """An asset's forecast is its success case; its rivals are still uncertain there. A
+    rival at 0.46 takes from a certain asset less than a certain rival would, and the
+    certain asset takes from the rival as before. VX-670 was charged the whole of
+    DYNE-101, a launch the engine prices at 0.46."""
+    sure, rival = _claim("vx670", 0.60), _claim("dyne101", 0.60, start=2029)
+    full = PC.solve([sure, rival], years=25)
+    sure["pos"], rival["pos"] = 1.0, 0.46
+    odds = PC.solve([sure, rival], years=25)
+    by = {a["name"]: a for a in odds["assets"]}
+    was = {a["name"]: a for a in full["assets"]}
+    assert was["vx670"]["ratio"] < by["vx670"]["ratio"] < 1.0
+    assert by["dyne101"]["ratio"] == pytest.approx(was["dyne101"]["ratio"])
+    # The pool the landscape reports is the book's draw, every claimant in full.
+    assert odds["shared"] == full["shared"]
+
+
+def test_certain_claimants_keep_the_old_rule():
+    claims = [_claim("a", 0.30), _claim("b", 0.20, start=2029)]
+    before = PC.solve(claims, years=20)
+    for c in claims:
+        c["pos"] = 1.0
+    after = PC.solve(claims, years=20)
+    assert [a["crowded"] for a in after["assets"]] == [a["crowded"] for a in before["assets"]]
