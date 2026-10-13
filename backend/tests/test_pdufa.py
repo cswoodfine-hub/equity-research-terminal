@@ -301,3 +301,27 @@ def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path,
     assert got["errors"] == []
     assert [r["outcome"] for r in ledger] == ["found"]
     assert "before the ledger" in ledger[0]["detail"]
+
+
+def test_a_decision_restated_in_a_later_filing_is_not_written_twice(tmp_path):
+    """Summit's ivonescimab goal date of 2026-11-14 is stated in the January acceptance
+    8-K and again in the September AstraZeneca 8-K. Each has its own URL, so only the
+    company, product and date can say it is one decision."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    catalysts.add_catalyst(db_file, "LLY", "PDUFA", "2027-03-14",
+                           "Retatrutide PDUFA, obesity", is_curated=0,
+                           source_url="https://example.com/a.htm",
+                           date_confidence="confirmed")
+    conn = db.get_connection(db_file)
+    first = conn.execute("SELECT id FROM catalysts").fetchone()[0]
+    assert pdufa.already_dated(conn, "LLY", "retatrutide", "2027-03-14") == first
+    assert pdufa.already_dated(conn, "lly", "Retatrutide ", "2027-03-14") == first
+    # Another date, another product, another company or a resolved row is not it.
+    assert pdufa.already_dated(conn, "LLY", "retatrutide", "2027-06-30") is None
+    assert pdufa.already_dated(conn, "LLY", "orforglipron", "2027-03-14") is None
+    assert pdufa.already_dated(conn, "MRK", "retatrutide", "2027-03-14") is None
+    conn.execute("UPDATE catalysts SET status = 'met'")
+    assert pdufa.already_dated(conn, "LLY", "retatrutide", "2027-03-14") is None
+    conn.close()
