@@ -403,6 +403,19 @@ def test_a_numbered_dose_regimen_is_the_study_labelling_its_arms():
     assert not NOT_A_COMPOUND.search(normalise("Tozorakimab"))
 
 
+def test_a_drug_class_is_a_choice_of_drugs_not_a_programme():
+    """Ultragenyx's Cosmic study (NCT05768854) compares setrusumab with "Bisphosphonate",
+    and its UX111 follow-up (NCT04360265) lists only "Adjuvant Immunomodulatory (IM)
+    Therapy": each had become an Ultragenyx programme."""
+    from trial_mapping import NOT_A_COMPOUND, normalise
+
+    for name in ("Bisphosphonate", "Bisphosphonates", "Oral Corticosteroids",
+                 "Adjuvant Immunomodulatory (IM) Therapy"):
+        assert NOT_A_COMPOUND.search(normalise(name)), name
+    for name in ("Setrusumab", "Zoledronic Acid", "Prednisolone", "UX111"):
+        assert not NOT_A_COMPOUND.search(normalise(name)), name
+
+
 def test_a_molecule_named_with_its_chemotherapy_is_a_regimen():
     """"Durvalumab + Chemotherapy" names what durvalumab was given alongside. Durvalumab
     already has a row; this made a second programme out of the protocol's shorthand. The
