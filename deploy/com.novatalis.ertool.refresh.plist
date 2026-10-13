@@ -12,11 +12,10 @@
   root so env.py finds the .env there. A missed 06:00 (Mac asleep or off) runs on the
   next wake, which is the launchd default for StartCalendarInterval.
 
-  IMPORTANT, one-time Full Disk Access grant. The repo is under ~/Documents, which
-  macOS protects, so a launchd job cannot read it until /bin/bash is given Full Disk
-  Access: System Settings > Privacy & Security > Full Disk Access > + > Cmd+Shift+G >
-  /bin/bash > Open, then turn it on. Without this the job fails with a PermissionError
-  on pyvenv.cfg. The job runs through run_refresh.sh so this single binary is enough.
+  The repo lives in ~/Projects, outside the folders macOS protects (Documents, Desktop,
+  Downloads) and outside iCloud Drive, so the job needs no Full Disk Access grant. It
+  moved there on 2026-10-13: under ~/Documents, iCloud offloaded files to placeholders
+  that a job cannot read while the Mac is offline. Keep it out of synced folders.
 
   Install:
     cp deploy/com.novatalis.ertool.refresh.plist ~/Library/LaunchAgents/
@@ -41,16 +40,16 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/deploy/run_refresh.sh</string>
+        <string>/Users/charleswoodfine/Projects/ER Tool/deploy/run_refresh.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool</string>
+    <string>/Users/charleswoodfine/Projects/ER Tool</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>ER_TOOL_DB</key>
-        <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/backend/er_tool.db</string>
+        <string>/Users/charleswoodfine/Projects/ER Tool/backend/er_tool.db</string>
     </dict>
 
     <key>StartCalendarInterval</key>
@@ -65,8 +64,8 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/logs/launchd.out.log</string>
+    <string>/Users/charleswoodfine/Projects/ER Tool/logs/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/charleswoodfine/Documents/WORK/Projects/ER Tool/logs/launchd.err.log</string>
+    <string>/Users/charleswoodfine/Projects/ER Tool/logs/launchd.err.log</string>
 </dict>
 </plist>
