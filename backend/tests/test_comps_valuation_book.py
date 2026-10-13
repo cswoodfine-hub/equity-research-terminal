@@ -58,7 +58,9 @@ def test_coverage_size_and_time(book, payload):
                        and r["periods"]["NTM"]["eps"] > 0 and r["market"]["price"])
     assert positive_ntm >= 29
     body = json.dumps(out, allow_nan=False, separators=(",", ":"))
-    assert len(body.encode("utf-8")) < 900 * 1024
+    # 13 KB a company held: the bound set at 900 KB for 70 companies, so the universe can
+    # grow while a record that bloats still fails (75 companies read 12.6 KB each).
+    assert len(body.encode("utf-8")) < held * 13 * 1024
     assert seconds < 10
 
 
