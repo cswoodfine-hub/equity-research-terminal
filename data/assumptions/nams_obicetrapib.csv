@@ -26,12 +26,14 @@
 # engine (2030) though Menarini launches from Q4 2026, and it keeps the US exclusivity date; the two run in
 # opposite directions and are small beside the US.
 #
-# Exclusivity: no date is entered. The genus patent naming obicetrapib expires in August 2027, before any US launch;
-# the 10-K (0001193125-26-056029) puts the 5 to 10 mg dosage form and 1 to 25 mg method patents at February 2034
-# before extension (the company's March 2026 presentation, 8-K 0001193125-26-084266, charts a term extension to
-# August 2039 that is not granted) and the solid salt form of the commercial product at July 2043. The engine's
-# default for a product with no modality on file, 12 years from the 2030 start (2042), sits inside that range and is
-# kept, labelled as a default. The asset carries no modality, so the small-molecule erosion shape is stated below.
+# Exclusivity: July 2043, in data/disclosed_loe.csv. The genus patent naming obicetrapib expires in August 2027,
+# before any US launch, so the date is the granted US patent on the solid salt form the company will sell, which its
+# March 2026 presentation (8-K 0001193125-26-084266) calls the product's composition of matter patent (US 12,006,305,
+# July 2043; 10-K 0001193125-26-056029). Earlier walls a generic also meets are five years of new chemical entity
+# exclusivity and the granted 5 to 10 mg dosage form and 1 to 25 mg method patents to February 2034, which the
+# presentation charts to August 2039 with an extension not yet granted. A rival salt under 505(b)(2) would leave 2034
+# or 2039, which is the downside of the date. The asset carries no modality, so the small-molecule erosion shape is
+# stated below.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
