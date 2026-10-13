@@ -49,3 +49,4 @@ PFE,BHV-7000,"NCT06132893, NCT06309966, NCT06443463 and NCT07262268 are Biohaven
 PFE,BHV-8000,"NCT06976268 is Biohaven Therapeutics' study of its own TYK2/JAK1 inhibitor (lead sponsor Biohaven), not a Pfizer programme."
 PFE,BHV-1530,"NCT06874335 is Biohaven Therapeutics' study of its own degrader (lead sponsor Biohaven), not a Pfizer programme."
 PFE,BHV-1510,"NCT06384807 is Biohaven Therapeutics' study of its own antibody-drug conjugate (lead sponsor Biohaven), not a Pfizer programme."
+RARE,FGF23,"FGF23 is fibroblast growth factor 23, the hormone Crysvita (burosumab) binds, not an Ultragenyx programme. The filing reader took it from the Q2 2026 10-Q (0001193125-26-333233): 'a competitor could develop the same antibody or a similar antibody as well as other approaches that target FGF23 for potential commercialization in Latin America'. asset_merge now reads FGF as a target, so the name is not written again; this row removes the one already derived."
