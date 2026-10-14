@@ -3,8 +3,8 @@
 # A) in pediatric patients with preserved neurodevelopmental function. APPROVED: standard full
 # approval on 2026-09-17 (8-K 0001515673-26-000006, FDA STN 125845), after a complete response
 # letter in July 2025 and a resubmission the FDA accepted with a PDUFA date of 2026-09-19 (8-K
-# 0001193125-26-139084). The approval earned a rare pediatric disease voucher, which Ultragenyx
-# holds unsold and no filing prices, so it is not counted.
+# 0001193125-26-139084). The approval earned a rare pediatric disease voucher, sold on 2026-10-08
+# for $203mm (8-K 0001193125-26-421079), carried in data/other_claims.csv.
 # Modelled: the US only, MPS IIIA children under 8 on a published birth prevalence and the 2025
 # Census, one infusion each at the $3.95mm list price less Casgevy's realised discount, on
 # Genglycos's curve, the peak solved to GlobalData's US figure for 2038. The Abeona royalty is
