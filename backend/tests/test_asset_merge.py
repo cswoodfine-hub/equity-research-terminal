@@ -157,6 +157,12 @@ def test_a_target_is_not_a_development_code():
     assert _codes("KYV-101 anti-CD19 CAR-T cell therapy") == {"KYV-101"}
 
 
+def test_a_growth_factor_is_not_a_development_code():
+    """Ultragenyx's 10-Q says a competitor could 'target FGF23', the hormone Crysvita
+    binds, and the filing reader wrote FGF23 as an Ultragenyx programme."""
+    assert _codes("approaches that target FGF23 in Latin America") == set()
+
+
 def test_an_isotope_is_not_a_development_code():
     assert _codes("[177Lu]Lu-PSMA-617") == {"PSMA-617"}
 

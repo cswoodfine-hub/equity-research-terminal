@@ -63,6 +63,16 @@ NOT_A_COMPOUND = re.compile(
     # A numbered dose regimen is the study's own labelling of its arms, not a compound:
     # "Tozorakimab Dose Regimen 1" and "Tozorakimab Dose Regimen 2" are one programme.
     r"|\bdose (regimen|level|cohort|escalation)\b"
+    # A drug class names a choice of drugs, not one. Ultragenyx's Cosmic study gave
+    # setrusumab against "Bisphosphonate", the investigator's pick of the class, and the
+    # UX111 follow-up study lists only "Adjuvant Immunomodulatory (IM) Therapy", the
+    # steroid and immunosuppressant cover given with a gene therapy: each became a
+    # programme of its own. Anchored at both ends, so a molecule named with its class
+    # still reads as the molecule.
+    r"|^(?:(?:adjuvant|prophylactic|optimi[sz]ed|background|concomitant|oral)\s+)*"
+    r"(?:bisphosphonates?|corticosteroids?|glucocorticoids?|immunomodulatory"
+    r"|immunosuppressi(?:ve|on)|immunosuppressants?)"
+    r"(?:\s+im)?(?:\s+(?:therapy|therapies|treatment|regimen|agents?))?$"
     )
 
 # Words that make a name a regimen rather than a molecule. Tested against the canonical

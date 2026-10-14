@@ -67,7 +67,7 @@ _ELEMENTS = {"AC", "AT", "BI", "C", "CU", "F", "GA", "GD", "H", "HO", "I", "IN",
 # and cell lines sit here too: AAVrh74 is a capsid serotype and HEK-293 is what the vector
 # is grown in, and neither is a compound anyone is developing.
 _BIOLOGY = {"AAV", "AAVRH", "ACE", "ANG", "APOE", "BCMA", "CAR", "CART", "CD", "COV",
-            "COVID", "DUX", "EGFR", "FC", "GIP", "GLP", "HBV", "HDL", "HEK", "HER",
+            "COVID", "DUX", "EGFR", "FC", "FGF", "GIP", "GLP", "HBV", "HDL", "HEK", "HER",
             "HIV", "HLA", "HPV", "IGG", "IL", "KRAS", "LDL", "LNP", "LRRC", "MHC", "MMP",
             "NK", "PD", "PDL", "PEG", "PSA", "RH", "RSV", "SARS", "TCR", "TDP", "TNF",
             "VEGF"}
