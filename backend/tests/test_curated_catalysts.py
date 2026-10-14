@@ -48,11 +48,12 @@ def _catalysts(conn):
 def test_a_book_without_the_row_gets_it_joined_to_its_asset_and_indication(tmp_path):
     conn = _book(tmp_path)
     got = C.load(conn, _file(tmp_path, ROW))
-    assert got == {"written": 1, "updated": 0, "skipped": []}
+    assert got == {"written": 1, "updated": 0, "withdrawn": 0, "skipped": []}
     assert _catalysts(conn) == [{"asset_id": 7, "asset_indication_id": 40,
                                  "expected_date": "2026-12-31", "date_confidence": "quarter",
                                  "title": ROW["title"], "is_curated": 1, "status": "pending"}]
-    assert C.load(conn, _file(tmp_path, ROW)) == {"written": 0, "updated": 0, "skipped": []}
+    assert C.load(conn, _file(tmp_path, ROW)) == {"written": 0, "updated": 0, "withdrawn": 0,
+                                                  "skipped": []}
 
 
 def test_a_pending_row_moves_with_the_file_and_a_resolved_one_does_not(tmp_path):
@@ -137,7 +138,7 @@ def test_a_readout_the_registry_does_not_date_is_written_to_its_asset(tmp_path):
     2029; the row keeps its asset through the nightly release of indication links."""
     conn = _book(tmp_path)
     assert C.load(conn, _file(tmp_path, READOUT)) == {"written": 1, "updated": 0,
-                                                      "skipped": []}
+                                                      "withdrawn": 0, "skipped": []}
     conn.execute("UPDATE catalysts SET asset_indication_id = NULL")
     applications.resolve(conn)
     got = conn.execute("SELECT asset_id, catalyst_type, description FROM catalysts"
@@ -153,3 +154,45 @@ def test_a_readout_naming_no_study_or_no_asset_is_skipped_and_said(tmp_path):
     got = C.load(conn, _file(tmp_path, no_study, no_asset))
     assert got["written"] == 0
     assert [s["why"] for s in got["skipped"]] == ["a readout must name its asset and its study"] * 2
+
+
+def _extracted(conn, day, title, asset_id=None):
+    conn.execute("INSERT INTO catalysts (company_id, asset_id, catalyst_type, expected_date,"
+                 " title, is_curated, status) VALUES (2, ?, 'PDUFA', ?, ?, 0, 'pending')",
+                 (asset_id, day, title))
+
+
+def test_a_decision_read_from_two_filings_ends_as_the_files_one_row(tmp_path):
+    """Summit's ivonescimab PDUFA of 2026-11-14 was read from the January acceptance 8-K
+    and again from the September AstraZeneca 8-K, two rows for one decision. The file's
+    row adopts one, and the other machine-read copy of the same product and date goes."""
+    conn = _book(tmp_path)
+    row = {**ROW, "catalyst_type": "PDUFA", "expected_date": "2026-11-14",
+           "date_confidence": "confirmed", "title": "Cagrilintide PDUFA, obesity"}
+    _extracted(conn, "2026-11-14", "cagrilintide PDUFA, adults with obesity")
+    _extracted(conn, "2026-11-14", row["title"], 7)
+    _extracted(conn, "2026-12-01", "cagrilintide PDUFA, obesity in adolescents")
+    got = C.load(conn, _file(tmp_path, row))
+    assert (got["written"], got["withdrawn"]) == (0, 1)
+    assert sorted((r["expected_date"], r["title"]) for r in _catalysts(conn)) == [
+        ("2026-11-14", row["title"]),
+        ("2026-12-01", "cagrilintide PDUFA, obesity in adolescents")]
+    assert C.load(conn, _file(tmp_path, row))["withdrawn"] == 0
+
+
+def test_a_copy_is_withdrawn_only_if_it_is_machine_read_pending_and_the_same_product(
+        tmp_path):
+    """A curated row, a resolved row and another product's decision on the same day are
+    each a record of their own."""
+    conn = _book(tmp_path)
+    row = {**ROW, "catalyst_type": "PDUFA", "expected_date": "2026-11-14",
+           "title": "Cagrilintide PDUFA, obesity"}
+    _extracted(conn, "2026-11-14", "Semaglutide PDUFA, heart failure")
+    _extracted(conn, "2026-11-14", "cagrilintide PDUFA, adults with obesity")
+    conn.execute("UPDATE catalysts SET status = 'met' WHERE title LIKE 'cagri%'")
+    conn.execute("INSERT INTO catalysts (company_id, catalyst_type, expected_date, title,"
+                 " is_curated, status) VALUES (2, 'PDUFA', '2026-11-14',"
+                 " 'Cagrilintide PDUFA, obesity (hand entered)', 1, 'pending')")
+    got = C.load(conn, _file(tmp_path, row))
+    assert (got["written"], got["withdrawn"]) == (1, 0)
+    assert len(_catalysts(conn)) == 4

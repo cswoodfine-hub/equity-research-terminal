@@ -322,6 +322,29 @@ def record_read(conn, filing: dict, outcome: str, detail: str | None) -> None:
     conn.commit()
 
 
+def already_dated(conn, ticker: str, product: str, date: str) -> int | None:
+    """The id of a pending decision already on file for this company, product and date.
+
+    A company restates its goal date in later filings, and each filing has its own URL,
+    so the URL guard below lets the same decision in again: Summit's ivonescimab PDUFA
+    of 2026-11-14 was written from the January acceptance 8-K and again from the
+    September AstraZeneca 8-K. Same company, same product, same date is one decision."""
+    wanted = _normalise(product).replace(" ", "")
+    if not wanted:
+        return None
+    for row in conn.execute(
+            "SELECT cat.id, cat.title FROM catalysts cat JOIN companies c"
+            "  ON c.id = cat.company_id WHERE c.ticker = ? AND cat.expected_date = ?"
+            "   AND cat.catalyst_type IN ('PDUFA', 'regulatory decision')"
+            "   AND COALESCE(cat.status, 'pending') = 'pending'",
+            ((ticker or "").upper(), date)):
+        head = re.split(r"\s+(?:PDUFA|decision|action date)\b", row["title"] or "",
+                        maxsplit=1, flags=re.I)[0]
+        if _normalise(head).replace(" ", "") == wanted:
+            return row["id"]
+    return None
+
+
 def _ask(document: str, filing: dict) -> dict | None:
     user = (f"Company: {filing['ticker']}\n"
             f"Filed: {filing['filed_date']} ({filing['form_type']})\n\n"
@@ -391,6 +414,11 @@ def extract(db_path=None, limit: int = 25, today=None) -> dict:
             if row is None:
                 note(filing, "dropped" if why != "no decision date stated" else "none",
                      why)
+                continue
+            on_file = already_dated(conn, filing["ticker"], row["product"], row["date"])
+            if on_file is not None:
+                note(filing, "found", f"{row['date']}, already on file as catalyst "
+                                      f"{on_file}")
                 continue
             title = f"{row['product']} PDUFA"
             if row["indication"]:

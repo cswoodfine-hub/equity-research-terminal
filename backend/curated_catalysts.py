@@ -37,6 +37,8 @@ from pathlib import Path
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "curated_catalysts.csv"
 _MOVABLE = ("expected_date", "date_confidence", "description", "source_url")
 _NCT = re.compile(r"NCT\d{8}")
+# The kinds of row that are an FDA decision, as applications.FILED_KINDS names them.
+_DECISIONS = ("PDUFA", "regulatory decision")
 
 
 def names_study(row: dict) -> bool:
@@ -74,9 +76,44 @@ def _link(conn, asset_id: int, indication: str):
     return row["id"] if row else None
 
 
+def _product(title: str) -> str:
+    """The product a decision's title names, normalised: the text before "PDUFA",
+    "decision" or "action date", as applications.parse_title reads it."""
+    import applications
+    return _norm(applications.parse_title(title)[0])
+
+
+def _withdraw_copies(conn, company_id: int, kept: int, r: dict, asset_id) -> int:
+    """Delete the machine-read copies of the decision the file names. Returns how many.
+
+    pdufa.py writes a row per filing that states a goal date, and a company restates
+    its date in later 8-Ks: Summit's ivonescimab PDUFA of 2026-11-14 arrived twice, from
+    the January acceptance and from the September AstraZeneca 8-K, so the one decision
+    stood twice on the calendar. The file's row is the record of that decision, so a
+    pending machine-read row of the same company, date and product (or asset) is the
+    same event and goes, as derive_readouts withdraws a stale derived readout. A curated
+    or resolved row is never touched."""
+    if r["catalyst_type"] not in _DECISIONS:
+        return 0
+    marks = ",".join("?" * len(_DECISIONS))
+    product = _product(r["title"])
+    gone = 0
+    for row in conn.execute(
+            f"SELECT id, title, asset_id FROM catalysts WHERE company_id = ?"
+            f"   AND catalyst_type IN ({marks}) AND expected_date = ? AND id <> ?"
+            f"   AND is_curated = 0 AND COALESCE(status, 'pending') = 'pending'",
+            (company_id, *_DECISIONS, r["expected_date"], kept)).fetchall():
+        same_asset = asset_id is not None and row["asset_id"] == asset_id
+        if same_asset or (product and _product(row["title"]) == product):
+            conn.execute("DELETE FROM catalysts WHERE id = ?", (row["id"],))
+            gone += 1
+    return gone
+
+
 def load(conn, path: Path | None = None) -> dict:
-    """Write the file's catalysts into the book. {"written", "updated", "skipped"}."""
-    out = {"written": 0, "updated": 0, "skipped": []}
+    """Write the file's catalysts into the book. {"written", "updated", "withdrawn",
+    "skipped"}."""
+    out = {"written": 0, "updated": 0, "withdrawn": 0, "skipped": []}
     for r in rows(path):
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
                                (r["ticker"],)).fetchone()
@@ -105,7 +142,7 @@ def load(conn, path: Path | None = None) -> dict:
             (company["id"], r["catalyst_type"], r["title"], r["expected_date"])).fetchall()
         existing = found[0] if found else None
         if existing is None:
-            conn.execute(
+            cur = conn.execute(
                 "INSERT INTO catalysts (company_id, asset_id, asset_indication_id,"
                 " catalyst_type, expected_date, date_confidence, title, description,"
                 " is_curated, source_url, status)"
@@ -114,9 +151,13 @@ def load(conn, path: Path | None = None) -> dict:
                  r["date_confidence"] or None, r["title"], r["description"],
                  r["source_url"] or None))
             out["written"] += 1
+            out["withdrawn"] += _withdraw_copies(conn, company["id"], cur.lastrowid, r,
+                                                 asset_id)
             continue
         if (existing["status"] or "pending") != "pending":
             continue
+        out["withdrawn"] += _withdraw_copies(conn, company["id"], existing["id"], r,
+                                             asset_id or existing["asset_id"])
         moved = {k: (r[k] or None) for k in _MOVABLE if (existing[k] or None) != (r[k] or None)}
         if asset_id is not None and existing["asset_id"] != asset_id:
             moved["asset_id"] = asset_id
