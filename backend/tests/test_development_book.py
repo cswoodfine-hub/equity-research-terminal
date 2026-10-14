@@ -55,7 +55,11 @@ def test_every_pipeline_line_reads_or_says_why_not(views):
     ok = sum(len(_read(v)) for v in views.values())
     refused = [r for v in views.values() for r in v["refused"]]
     assert ok, "no pipeline line reads"
-    assert ok >= 0.9 * (ok + len(refused)), (ok, len(refused))
+    # A line priced on stated legs is outside the cost view by design (it reads derived
+    # gates only), and every catalyst focus model prices its event that way, so those
+    # refusals do not count against the share that reads.
+    gaps = [r for r in refused if r["reason"] != "stated_legs"]
+    assert ok >= 0.9 * (ok + len(gaps)), (ok, len(gaps), len(refused))
     for row in refused:
         assert row["ok"] is False and row["reason"] in D.REFUSALS and row["why"], row
         # A line that failed is named rather than taking the list down, but on the book
