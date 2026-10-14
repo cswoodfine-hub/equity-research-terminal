@@ -12,10 +12,11 @@
   root so env.py finds the .env there. A missed 06:00 (Mac asleep or off) runs on the
   next wake, which is the launchd default for StartCalendarInterval.
 
-  The repo lives in ~/Projects, outside the folders macOS protects (Documents, Desktop,
+  The repo lives in ~/Novatalis Lens, outside the folders macOS protects (Documents, Desktop,
   Downloads) and outside iCloud Drive, so the job needs no Full Disk Access grant. It
-  moved there on 2026-10-13: under ~/Documents, iCloud offloaded files to placeholders
-  that a job cannot read while the Mac is offline. Keep it out of synced folders.
+  left ~/Documents on 2026-10-13, where iCloud offloaded files to placeholders a job
+  cannot read while the Mac is offline. Keep it out of synced folders. run_refresh.sh
+  finds the repo from its own path, so after a move only the paths below change.
 
   Install:
     cp deploy/com.novatalis.ertool.refresh.plist ~/Library/LaunchAgents/
@@ -40,16 +41,16 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/charleswoodfine/Projects/ER Tool/deploy/run_refresh.sh</string>
+        <string>/Users/charleswoodfine/Novatalis Lens/ER Tool/deploy/run_refresh.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/charleswoodfine/Projects/ER Tool</string>
+    <string>/Users/charleswoodfine/Novatalis Lens/ER Tool</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>ER_TOOL_DB</key>
-        <string>/Users/charleswoodfine/Projects/ER Tool/backend/er_tool.db</string>
+        <string>/Users/charleswoodfine/Novatalis Lens/ER Tool/backend/er_tool.db</string>
     </dict>
 
     <key>StartCalendarInterval</key>
@@ -64,8 +65,8 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/charleswoodfine/Projects/ER Tool/logs/launchd.out.log</string>
+    <string>/Users/charleswoodfine/Novatalis Lens/ER Tool/logs/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/charleswoodfine/Projects/ER Tool/logs/launchd.err.log</string>
+    <string>/Users/charleswoodfine/Novatalis Lens/ER Tool/logs/launchd.err.log</string>
 </dict>
 </plist>
