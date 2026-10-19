@@ -462,6 +462,28 @@ def lines_for(statement: str) -> tuple[Line, ...]:
 
 
 # --- period classification ----------------------------------------------
+# A 52/53-week year ends on the same weekday each year, so its end drifts across 31
+# December: Johnson & Johnson's 2022 ended on 1 January 2023 and Exelixis's 2025 on
+# 2 January 2026. Such a year belongs to the year it mostly falls in. The drift is at most
+# a few days, so a week is the window.
+_YEAR_END_DRIFT_DAYS = 7
+
+
+def fiscal_year_of(end: str) -> int:
+    """The fiscal year a period belongs to, from its end date ("2026-01-02" or "20260102").
+
+    A period ending in the first week of January belongs to the year before. Reading the
+    year off the end date labelled Exelixis's fiscal 2025 as 2026, and gave Johnson &
+    Johnson's fiscal 2022 (ended 1 January 2023) and fiscal 2023 (ended 31 December 2023)
+    the same year, so anything keyed by year kept one and dropped the other. The filing's
+    own ``fy`` cannot settle it: that is the year of the report, which every comparative
+    column in it carries too.
+    """
+    digits = str(end).replace("-", "")
+    year, month, day = int(digits[:4]), int(digits[4:6]), int(digits[6:8])
+    return year - 1 if month == 1 and day <= _YEAR_END_DRIFT_DAYS else year
+
+
 def classify_period(entry: dict) -> tuple[str, str] | None:
     """Map a company-facts entry to (period_end, period_type), or None to ignore it.
 

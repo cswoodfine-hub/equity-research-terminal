@@ -1,0 +1,269 @@
+{
+ "dataset": [
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2019-12-31",
+   "modified": "2024-06-04",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2019-01-01",
+     "endDate": "2019-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/2a6705e6-7a1e-460c-ba22-35249a531918/data",
+     "description": null,
+     "modified": "2024-06-04"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2020-12-31",
+   "modified": "2024-06-04",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2020-01-01",
+     "endDate": "2020-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/7795fe20-e80e-435a-a9ed-d2d65e05feeb/data",
+     "description": null,
+     "modified": "2024-06-04"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2021-12-31",
+   "modified": "2024-06-04",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2021-01-01",
+     "endDate": "2021-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/f68114ed-f854-4ffc-9c6e-ed78b5e2f8d0/data",
+     "description": null,
+     "modified": "2024-06-04"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2022-12-30",
+   "modified": "2024-06-04",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2022-01-01",
+     "endDate": "2022-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/b101b457-ffa4-49bb-8fd9-27c1266086e2/data",
+     "description": null,
+     "modified": "2024-06-04"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2023-12-31",
+   "modified": "2025-09-09",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2023-01-01",
+     "endDate": "2023-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/e54db557-cd82-4e91-a0fe-61aad5865d69/data",
+     "description": null,
+     "modified": "2025-09-09"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider and Drug : 2024-12-01",
+   "modified": "2026-05-21",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2024-01-01",
+     "endDate": "2024-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/9552739e-3d05-4c1b-8eff-ecabf391e2e5/data",
+     "description": "latest",
+     "modified": "2026-05-21"
+    },
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/d5aa71a8-dcc0-4570-8bcf-bd39deac69fe/data",
+     "description": null,
+     "modified": "2026-05-21"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Provider : 2024-12-03",
+   "modified": "2026-08-03",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2024-01-01",
+     "endDate": "2024-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/14d8e8a9-7e9b-4370-a044-bf97c46b4b44/data",
+     "description": "latest",
+     "modified": "2026-08-03"
+    },
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/2d38b6fd-f7a9-4edd-98f6-06ae3b4d1b8c/data",
+     "description": null,
+     "modified": "2026-08-03"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2019-12-31",
+   "modified": "2023-05-10",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2019-01-01",
+     "endDate": "2019-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/73a6335e-f16f-4c81-a84b-6b5a986e2bf8/data",
+     "description": null,
+     "modified": "2023-05-10"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2020-12-31",
+   "modified": "2024-05-21",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2020-01-01",
+     "endDate": "2020-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/83891e77-99cf-4865-b60a-97703b916e09/data",
+     "description": null,
+     "modified": "2024-05-21"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2021-12-31",
+   "modified": "2023-10-25",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2021-01-01",
+     "endDate": "2021-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/7dda2a9d-034a-446a-b4b3-e1254e0127b2/data",
+     "description": null,
+     "modified": "2023-10-25"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2022-12-30",
+   "modified": "2024-06-04",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2022-01-01",
+     "endDate": "2022-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/1fc57194-a51d-4864-aee6-de0889488151/data",
+     "description": null,
+     "modified": "2024-06-04"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2023-12-31",
+   "modified": "2025-04-24",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2023-01-01",
+     "endDate": "2023-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/3463648b-1971-478d-84ca-80cadc758153/data",
+     "description": null,
+     "modified": "2025-04-24"
+    }
+   ]
+  },
+  {
+   "title": "Medicare Part D Prescribers - by Geography and Drug : 2024-12-01",
+   "modified": "2026-05-21",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2024-01-01",
+     "endDate": "2024-12-31"
+    }
+   ],
+   "distribution": [
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/c8ea3f8e-3a09-4fea-86f2-8902fb4b0920/data",
+     "description": "latest",
+     "modified": "2026-05-21"
+    },
+    {
+     "format": "API",
+     "accessURL": "https://data.cms.gov/data-api/v1/dataset/9b4c142c-69cc-4a96-a09a-7cf2ba7f5816/data",
+     "description": null,
+     "modified": "2026-05-21"
+    }
+   ]
+  }
+ ]
+}

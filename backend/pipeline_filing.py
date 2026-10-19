@@ -104,6 +104,17 @@ _ARTEFACT = (r"(?:trial|study|studies|cohort|registry|capsid|vector|platform|"
              r"technology|trademark|mark|assay|construct|promoter|cell line)")
 _ADJACENT = 3
 
+# Another company's product a trial measures this one against. A filing names it in the
+# company's own voice, so the first-person test cannot catch it: Vaxcyte's 10-Q of
+# 2026-08-05 says "we announced that the first participants were dosed" in its Phase 3
+# "through direct, head-to-head comparisons with both PVC20 and PCV21", which are
+# Pfizer's Prevnar 20 (misspelt) and Merck's Capvaxive, and both became Vaxcyte
+# programmes. The object of a comparison is the comparator, read up to the end of its
+# clause, and only a code named nowhere else is taken (see compared_against).
+_COMPARISON = re.compile(
+    r"\b(?:compared\s+(?:to|with|against)|comparisons?\s+(?:to|with|against)|"
+    r"versus|vs\.|relative\s+to)\s+(?P<object>[^.;:,]{1,80})", re.IGNORECASE)
+
 # How many times a code has to appear in the document before it counts as a programme
 # rather than a stray token.
 MIN_MENTIONS = 2
@@ -125,6 +136,38 @@ def _names_an_artefact(text: str, code: str) -> bool:
     adjacent = (rf"{escaped}\W{{0,{_ADJACENT}}}{_ARTEFACT}\b"
                 rf"|\b{_ARTEFACT}\W{{0,{_ADJACENT}}}{escaped}")
     return bool(re.search(adjacent, text, re.IGNORECASE))
+
+
+def compared_against(text: str) -> set:
+    """Every code the document only ever names as the object of a comparison.
+
+    "head-to-head comparisons with both PVC20 and PCV21, the current standard-of-care
+    PCVs" is the only place Vaxcyte's 10-Q names either code, so both are comparators.
+    Only ever, because a company compares its own drugs too: Structure's 10-Q reports
+    "superior weight loss compared to semaglutide or ACCG-3535 monotherapy" and elsewhere
+    calls ACCG-3535 "our second amylin development candidate". A code the document also
+    names anywhere outside a comparison is left to the other tests.
+    """
+    text = text or ""
+    spans = [(m.start("object"), m.end("object")) for m in _COMPARISON.finditer(text)]
+    if not spans:
+        return set()
+    upper = text.upper()
+    out = set()
+    for code in asset_merge.development_codes(text):
+        places = [m.start() for m in re.finditer(
+            rf"(?<![A-Z0-9-]){re.escape(code)}(?![A-Z0-9])", upper)]
+        if places and all(any(lo <= p < hi for lo, hi in spans) for p in places):
+            out.add(code)
+    return out
+
+
+def not_programmes(text: str) -> set:
+    """Codes the document shows are a trial, a capsid, an ordinary word or a comparator."""
+    codes = asset_merge.development_codes(text)
+    return ({code for code in codes
+             if _names_an_artefact(text, code) or _is_a_word(text, code)}
+            | (compared_against(text) & codes))
 
 
 def _is_a_word(text: str, code: str) -> bool:
@@ -183,10 +226,9 @@ def programmes(text: str, company_name: str = "", corroboration: str = "") -> li
     """
     sentences = [_clean(s) for s in _SENTENCE.split(text or "")]
     whole = " ".join(sentences)
-    # Judged once over the whole document: a token is a trial name or a drug name
-    # throughout, not one in each sentence.
-    artefacts = {code for code in asset_merge.development_codes(whole)
-                 if _names_an_artefact(whole, code) or _is_a_word(whole, code)}
+    # Judged once over the whole document: a token is a trial name, a comparator or a
+    # drug name throughout, not one in each sentence.
+    artefacts = not_programmes(whole)
 
     mentions: dict = {}
     for sentence in sentences + [_clean(corroboration)]:
@@ -235,6 +277,19 @@ def owned_codes(conn, company_id: int) -> set:
             (company_id,)):
         out |= asset_merge.development_codes(
             " ".join(str(row[f]) for f in row.keys() if row[f]))
+    # A code the merge folded into a named row is that row's, though no column of it
+    # spells the code. Stoke's 10-Q introduces "zorevunersen (STK-001)" and the registry
+    # files the Phase 3 under the name, so STK-001 folds into zorevunersen through the
+    # alias map. Read from the asset columns alone, the code looked unowned: prune
+    # dropped the filing row once its asset had trials, and build wrote STK-001 again as
+    # a new asset with no trial, which the next merge folded, every refresh.
+    for row in conn.execute(
+            "SELECT al.internal_code FROM asset_aliases al"
+            "  JOIN assets a ON a.id = al.asset_id"
+            " WHERE a.owner_company_id = ? AND a.id NOT IN"
+            "    (SELECT asset_id FROM filing_programmes WHERE asset_id IS NOT NULL)",
+            (company_id,)):
+        out |= asset_merge.development_codes(row["internal_code"] or "")
     return out
 
 
@@ -320,11 +375,26 @@ def build(db_path=None) -> dict:
 
 
 def prune(db_path=None) -> dict:
-    """Drop a filing-derived programme that has since been bound to a trial elsewhere.
+    """Drop a filing-derived programme that has since been bound to a trial elsewhere, or
+    that the company's latest filing shows is not a programme of its own.
 
     Nothing here should compete with the registry. Once a study names the compound the
     trial mapper owns it, and this row would be the second copy.
+
+    A row written before a rule existed is not undone by the rule, because build only
+    ever adds. Vaxcyte's PCV21 and PVC20 were written as its programmes before the
+    comparator test, so a code the latest filing only ever names as a comparator goes
+    here, and so does the asset the row created where nothing else points at it.
+
+    The comparator test alone, not the artefact and word tests build also applies. Run
+    backwards over the book on 2026-10-13 those two would have dropped Beam's BEAM-304
+    ("BEAM-304 is a liver-targeting LNP formulation", a PKU programme) and Century's
+    CNTY-308 (a CD19 CAR-iT in IND-enabling studies), both real programmes that only
+    stand beside the word "formulation" or "cell therapy". The comparator test fires on
+    Vaxcyte alone across the universe's latest filings.
     """
+    import assets_util
+
     conn = db.get_connection(db_path)
     dropped = 0
     try:
@@ -333,6 +403,28 @@ def prune(db_path=None) -> dict:
                 "  JOIN trials t ON t.asset_id = p.asset_id").fetchall():
             conn.execute("DELETE FROM filing_programmes WHERE id = ?", (row["id"],))
             dropped += 1
+        guards = "".join(
+            f" AND NOT EXISTS (SELECT 1 FROM {table} x WHERE x.{column} = assets.id"
+            + (" AND x.id <> assets.id" if table == "assets" else "") + ")"
+            for table, column in assets_util.referring_columns(conn))
+        companies = [r["company_id"] for r in conn.execute(
+            "SELECT DISTINCT company_id FROM filing_programmes")]
+        for company_id in companies:
+            section = latest_section(conn, company_id)
+            if section is None:
+                continue
+            whole = " ".join(_clean(s) for s in _SENTENCE.split(section["text"] or ""))
+            wrong = compared_against(whole) & asset_merge.development_codes(whole)
+            for row in conn.execute(
+                    "SELECT id, asset_id, code FROM filing_programmes"
+                    "  WHERE company_id = ?", (company_id,)).fetchall():
+                if row["code"] not in wrong:
+                    continue
+                conn.execute("DELETE FROM filing_programmes WHERE id = ?", (row["id"],))
+                dropped += 1
+                if row["asset_id"] is not None:
+                    conn.execute(f"DELETE FROM assets WHERE id = ? AND is_marketed = 0"
+                                 f"{guards}", (row["asset_id"],))
         conn.commit()
     finally:
         conn.close()

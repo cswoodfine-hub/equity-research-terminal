@@ -184,13 +184,17 @@ def store(conn, cache_dir: pathlib.Path = CACHE_DIR, curated_path=None) -> dict:
     Run after a refresh, like the asset merge: the data sets change quarterly and the
     curated file when a filing is read, and neither belongs in the path to a price.
     """
-    companies = {r["ticker"]: r for r in conn.execute(
-        "SELECT id, ticker, cik FROM companies WHERE cik IS NOT NULL")}
-    filings = build([r["cik"] for r in companies.values()], cache_dir)
+    # Every company with a CIK is read from its filings; a company with none (Roche,
+    # Bayer: not SEC registrants) still takes the claims curated from its own report.
     curated_rows = curated(curated_path)
+    companies = {r["ticker"]: r for r in conn.execute(
+        "SELECT id, ticker, cik FROM companies")
+        if r["cik"] or r["ticker"].upper() in curated_rows}
+    filings = build([r["cik"] for r in companies.values() if r["cik"]], cache_dir)
     written, seen = 0, set()
     for ticker, company in companies.items():
-        lines = _lines(filings.get(str(int(company["cik"]))), ticker, curated_rows)
+        filing = filings.get(str(int(company["cik"]))) if company["cik"] else None
+        lines = _lines(filing, ticker, curated_rows)
         for line in lines:
             conn.execute(
                 """INSERT INTO other_claims (company_id, item, label, value, sign, unit,

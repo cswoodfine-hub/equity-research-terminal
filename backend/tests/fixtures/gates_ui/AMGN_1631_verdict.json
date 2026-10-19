@@ -1,0 +1,161 @@
+{
+ "ok": true,
+ "ticker": "AMGN",
+ "asset_id": 1631,
+ "name": "Olpasiran",
+ "scenario": "base",
+ "per_share": 4.0036565563919035,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 2169.9818535644117,
+   "defined": false,
+   "per_share": 4.0036565563919035
+  },
+  "base": {
+   "rnpv": 2169.9818535644117,
+   "defined": true,
+   "per_share": 4.0036565563919035
+  },
+  "bull": {
+   "rnpv": 2169.9818535644117,
+   "defined": false,
+   "per_share": 4.0036565563919035
+  }
+ },
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2028-06-15",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "why": null,
+  "trial": {
+   "nct_id": "NCT07293260",
+   "indication": "Cardiovascular Diseases",
+   "indications": [
+    "Cardiovascular Diseases"
+   ],
+   "phase": "Phase 3",
+   "primary_completion": "2028-06-15"
+  },
+  "legs_basis": "derived",
+  "pos_now": 0.5009,
+  "pos_success": 0.874,
+  "pos_failure": 0.0,
+  "p_gate": 0.5731121281464531,
+  "p_gate_published": 0.5730968504537431,
+  "placed": null,
+  "evidence": {
+   "p_gate": "published",
+   "success": "published",
+   "failure": "convention"
+  },
+  "stated_pos": false,
+  "share": 1.0,
+  "rnpv_now": 2169.9818535644117,
+  "rnpv_success": 3786.312916780387,
+  "rnpv_failure": 0.0,
+  "per_share_now": 4.0036565563919035,
+  "per_share_success": 6.98581718963171,
+  "per_share_failure": 0.0,
+  "held": {
+   "open": 1,
+   "ncts": [
+    "NCT07136012"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Coronary Disease"
+   ],
+   "pos": 0.4554,
+   "note": "A miss leaves 1 other Phase 3 open, and the model holds it at 46% until it reads out.",
+   "per_share": 3.6399784303870493
+  },
+  "basis": "Phase 3 to NDA/BLA 57.3% then NDA/BLA to approval 87.4% for Cardiovascular and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+  "band": {
+   "pos_low": 0.4554,
+   "pos_high": 0.551,
+   "per_share_low": 3.6399784303870493,
+   "per_share_high": 4.404102141289556
+  }
+ },
+ "gate_range": true,
+ "launch": {
+  "asset_id": 1631,
+  "name": "Olpasiran",
+  "status": "before_floor",
+  "flag": "red",
+  "seed_year": 2027,
+  "seed_source": "convention: first full year after the current one",
+  "seed_scenario": "base",
+  "seed_basis": {
+   "cites": null,
+   "match": null
+  },
+  "first_possible_year": 2028,
+  "first_full_year": 2029,
+  "decision_date": "2028-11-30",
+  "standard": {
+   "review": "standard",
+   "months": 10,
+   "filing_period_days": 60,
+   "decision_date": "2029-03-30",
+   "first_possible_year": 2029,
+   "first_full_year": 2030
+  },
+  "evidence": {
+   "kind": "registry",
+   "nct_id": "NCT05581303",
+   "date": "2028-03-31",
+   "date_type": "estimated",
+   "phase": "Phase 3",
+   "status": "Active not recruiting",
+   "enrollment": 7297,
+   "title": "Olpasiran Trials of Cardiovascular Events and Lipoprotein(a) Reduction (OCEAN(a)) - Outcomes Trial",
+   "source_url": "https://clinicaltrials.gov/study/NCT05581303",
+   "fetched_at": "2026-10-05 05:40:01",
+   "stale": false
+  },
+  "clock": {
+   "pathway": "nme_nda_or_original_bla",
+   "pathway_how": "no marketed row for this molecule, so read as a new molecule or original biologic",
+   "review": "priority",
+   "months": 6,
+   "filing_period_days": 60,
+   "basis": "I.A.1.b and I.B.4.b: 'Review and act on 90 percent of priority NME NDA and original BLA submissions within 6 months of the 60-day filing date.' Under the Program 'the PDUFA review clock will begin at the conclusion of the 60-day filing review period that begins on the date of FDA receipt of the original submission' (I.B.4, page 9), so the goal is 6 months after a filing date 60 days from receipt",
+   "source": "PDUFA VII commitment letter FY2023-2027 (https://www.fda.gov/media/151712/download) pages 4 and 9",
+   "carries_to": "proposed PDUFA VIII letter FY2028-2032 (https://www.fda.gov/media/193977/download) Table 1: NME NDAs and original BLAs '90% in 6 months of the 60-day filing date', and I.B.4 keeps the clock start; proposed, not enacted",
+   "cross_check": "PDUFA FY2025 performance report (https://www.fda.gov/media/191112/download) Appendix A Table A-1: 29 first-cycle priority approvals marked NME took a median 8.0 months from receipt (6.2 to 12.3), parsed 2026-10-05",
+   "extension_months": 3,
+   "applied": true
+  },
+  "voucher": null,
+  "if_filed_today": null,
+  "slip": null,
+  "gate": {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "nct_id": "NCT07293260",
+   "date": "2028-06-15",
+   "due": false,
+   "decision_date": "2029-02-14",
+   "first_possible_year": 2029,
+   "first_full_year": 2030,
+   "why": null,
+   "same_as_governing": false
+  },
+  "modelled_floor": {
+   "nct_id": "NCT07293260",
+   "primary_completion": "2028-06-15",
+   "indications": [
+    "Cardiovascular Diseases"
+   ],
+   "decision_date": "2029-02-14",
+   "first_possible_year": 2029,
+   "first_full_year": 2030
+  },
+  "trials_considered": 3,
+  "message": "2027 in the model, but the earliest approval is Nov 2028, so the first full year is 2029 at the soonest. NCT05581303 completes 31 Mar 2028 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt. The gate study is NCT07293260, completing 15 Jun 2028, which puts the earliest approval from it at Feb 2029."
+ }
+}

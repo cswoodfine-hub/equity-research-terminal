@@ -1,0 +1,502 @@
+{
+ "ok": true,
+ "ticker": "VRTX",
+ "sotp": {
+  "marketed": {
+   "per_share": 228.10754869071096
+  },
+  "pipeline": {
+   "per_share": 36.13227082382492
+  }
+ },
+ "modelled": [
+  {
+   "asset_id": 207,
+   "name": "Alyftrek",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2040,
+   "loe_in_base": false,
+   "per_share": 111.84893674751652,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 102,
+   "name": "Trikafta (Copackaged)",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2037,
+   "loe_in_base": false,
+   "per_share": 78.21304836614706,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 258,
+   "name": "Journavx",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2040,
+   "loe_in_base": false,
+   "per_share": 34.83114017591116,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 2915,
+   "name": "Povetacicept",
+   "share": 1.0,
+   "counted": true,
+   "pos": 0.884,
+   "is_marketed": false,
+   "gate": {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "date_basis": null,
+    "due": false,
+    "why": "no accepted application on file, so no decision date is known",
+    "trial": null,
+    "legs_basis": "derived",
+    "pos_now": 0.884,
+    "pos_success": 1.0,
+    "pos_failure": 0.0,
+    "p_gate": 0.884,
+    "p_gate_published": null,
+    "placed": "stated PoS implies a filing",
+    "evidence": {
+     "p_gate": "implied",
+     "success": "convention",
+     "failure": "convention"
+    },
+    "stated_pos": true,
+    "share": 1.0,
+    "rnpv_now": 5654.164363143032,
+    "rnpv_success": 6396.113532967231,
+    "rnpv_failure": 0.0,
+    "per_share_now": 21.9153657486164,
+    "per_share_success": 24.79113772467919,
+    "per_share_failure": 0.0,
+    "held": null,
+    "basis": "stated PoS implies a filing: the stated 88.4% is at or above the 58.3% the asset would carry if its Phase 2 readout passed, so it is read at the FDA decision with gate odds of 88.4%, implied, not published; a failure is taken at nil, the model's convention for a failed programme",
+    "band": null
+   },
+   "launch": {
+    "status": "before_floor_cited",
+    "flag": "amber",
+    "seed_year": 2027,
+    "first_possible_year": 2029,
+    "first_full_year": 2030,
+    "decision_date": "2029-08-27",
+    "message": "2027 in the model, but the earliest approval is Aug 2029, so the first full year is 2030 at the soonest. NCT07204275 completes 29 Dec 2028 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt. The seed's source cites a filing the database does not hold: record it.",
+    "evidence_kind": "registry",
+    "nct_id": "NCT07204275",
+    "evidence_date": "2028-12-29"
+   },
+   "loe_year": 2039,
+   "loe_in_base": false,
+   "per_share": 21.9153657486164,
+   "per_share_success": 24.79113772467919,
+   "per_share_failure": 0.0
+  },
+  {
+   "asset_id": 2905,
+   "name": "VX-880",
+   "share": 1.0,
+   "counted": true,
+   "pos": 0.524,
+   "is_marketed": false,
+   "gate": {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2026-09-17",
+    "date_basis": "primary completion on the registry, passed with no readout on file",
+    "due": true,
+    "why": null,
+    "trial": {
+     "nct_id": "NCT06832410",
+     "indication": "Diabetes Mellitus, Type 1",
+     "indications": [
+      "Diabetes Mellitus, Type 1"
+     ],
+     "phase": "Phase 3",
+     "primary_completion": "2026-09-17"
+    },
+    "legs_basis": "derived",
+    "pos_now": 0.524,
+    "pos_success": 0.9001,
+    "pos_failure": 0.0,
+    "p_gate": 0.5821575380513276,
+    "p_gate_published": 0.6151585161566082,
+    "placed": null,
+    "evidence": {
+     "p_gate": "implied",
+     "success": "published",
+     "failure": "convention"
+    },
+    "stated_pos": true,
+    "share": 1.0,
+    "rnpv_now": 923.7951109544089,
+    "rnpv_success": 1586.847288874167,
+    "rnpv_failure": 0.0,
+    "per_share_now": 3.5806012052496468,
+    "per_share_success": 6.150570887109175,
+    "per_share_failure": 0.0,
+    "held": {
+     "open": 1,
+     "ncts": [
+      "NCT04786262"
+     ],
+     "indications": [
+      "Diabetes Mellitus, Type 1",
+      "Hypoglycemia"
+     ],
+     "pos": 0.5537,
+     "note": "A miss leaves 1 other Phase 3 open; the model's own rule would hold it at 55%, but the stated PoS governs until it is cleared.",
+     "stated_governs": true,
+     "per_share": 3.7835474949365064
+    },
+    "basis": "implied, not published: the stated PoS of 52.4% over the 90.0% the asset carries if its Phase 3 readout passes gives gate odds of 58.2%, against 61.5% published; a failure is taken at nil, the model's convention for a failed programme",
+    "band": null
+   },
+   "launch": {
+    "status": "clear",
+    "flag": null,
+    "seed_year": 2029,
+    "first_possible_year": 2027,
+    "first_full_year": 2028,
+    "decision_date": "2027-05-16",
+    "message": "2029 in the model is clear of the earliest approval, May 2027. NCT06832410 reached primary completion 17 Sep 2026 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt.",
+    "evidence_kind": "registry",
+    "nct_id": "NCT06832410",
+    "evidence_date": "2026-09-17"
+   },
+   "loe_year": 2041,
+   "loe_in_base": false,
+   "per_share": 3.5806012052496468,
+   "per_share_success": 6.150570887109175,
+   "per_share_failure": 0.0
+  },
+  {
+   "asset_id": 3004,
+   "name": "Atumelnant",
+   "share": 1.0,
+   "counted": true,
+   "pos": 0.5441,
+   "is_marketed": false,
+   "gate": {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2027-05",
+    "date_basis": "primary completion on the registry",
+    "due": false,
+    "why": null,
+    "trial": {
+     "nct_id": "NCT07144163",
+     "indication": "Adrenal Hyperplasia, Congenital",
+     "indications": [
+      "Adrenal Hyperplasia, Congenital"
+     ],
+     "phase": "Phase 3",
+     "primary_completion": "2027-05"
+    },
+    "legs_basis": "derived",
+    "pos_now": 0.5441,
+    "pos_success": 0.9209,
+    "pos_failure": 0.0,
+    "p_gate": 0.5908350526658703,
+    "p_gate_published": 0.5908570046974141,
+    "placed": null,
+    "evidence": {
+     "p_gate": "published",
+     "success": "published",
+     "failure": "convention"
+    },
+    "stated_pos": false,
+    "share": 1.0,
+    "rnpv_now": 892.3375537493309,
+    "rnpv_success": 1510.2989399885296,
+    "rnpv_failure": 0.0,
+    "per_share_now": 3.458672688950895,
+    "per_share_success": 5.853871860420658,
+    "per_share_failure": 0.0,
+    "held": {
+     "open": 1,
+     "ncts": [
+      "NCT07159841"
+     ],
+     "indications": [
+      "Adrenal Hyperplasia, Congenital"
+     ],
+     "pos": 0.5237,
+     "note": "A miss leaves 1 other Phase 3 open, and the model holds it at 52% until it reads out.",
+     "per_share": 3.328996300686609
+    },
+    "basis": "Phase 3 to NDA/BLA 59.1% then NDA/BLA to approval 92.1% for all indications and Rare, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+    "band": {
+     "pos_low": 0.5237,
+     "pos_high": 0.5653,
+     "per_share_low": 3.328996300686609,
+     "per_share_high": 3.5934344257745656
+    }
+   },
+   "launch": {
+    "status": "clear",
+    "flag": null,
+    "seed_year": 2029,
+    "first_possible_year": 2027,
+    "first_full_year": 2028,
+    "decision_date": "2027-12-30",
+    "message": "2029 in the model is clear of the earliest approval, Dec 2027. NCT07144163 completes May 2027 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt.",
+    "evidence_kind": "registry",
+    "nct_id": "NCT07144163",
+    "evidence_date": "2027-05"
+   },
+   "loe_year": 2041,
+   "loe_in_base": false,
+   "per_share": 3.458672688950895,
+   "per_share_success": 5.853871860420658,
+   "per_share_failure": 0.0
+  },
+  {
+   "asset_id": 2904,
+   "name": "VX-147",
+   "share": 1.0,
+   "counted": true,
+   "pos": 0.4,
+   "is_marketed": false,
+   "gate": null,
+   "launch": {
+    "status": "before_floor_cited",
+    "flag": "amber",
+    "seed_year": 2028,
+    "first_possible_year": 2029,
+    "first_full_year": 2030,
+    "decision_date": "2029-02-01",
+    "message": "2028 in the model, but the earliest approval is Feb 2029, so the first full year is 2030 at the soonest. NCT05312879 completes 2 Jun 2028 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt. The seed's source cites a filing the database does not hold: record it.",
+    "evidence_kind": "registry",
+    "nct_id": "NCT05312879",
+    "evidence_date": "2028-06-02"
+   },
+   "loe_year": 2040,
+   "loe_in_base": false,
+   "per_share": 3.443485322605965,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 371,
+   "name": "Casgevy",
+   "share": 0.6,
+   "counted": true,
+   "pos": 0.8075,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2035,
+   "loe_in_base": false,
+   "per_share": 3.214423401136232,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 2893,
+   "name": "VX-670",
+   "share": 0.898007,
+   "counted": true,
+   "pos": 0.1764,
+   "is_marketed": false,
+   "gate": {
+    "gate": "p2_to_p3",
+    "label": "Phase 2 readout",
+    "date": "2029-01-30",
+    "date_basis": "primary completion on the registry",
+    "due": false,
+    "why": null,
+    "trial": {
+     "nct_id": "NCT06926621",
+     "indication": "Myotonic Dystrophy",
+     "indications": [
+      "Myotonic Dystrophy",
+      "Myotonic Disorders"
+     ],
+     "phase": "Phase 2",
+     "primary_completion": "2029-01-30"
+    },
+    "legs_basis": "derived",
+    "pos_now": 0.1764,
+    "pos_success": 0.5102,
+    "pos_failure": 0.0,
+    "p_gate": 0.3457467659741278,
+    "p_gate_published": 0.34572821695661465,
+    "placed": null,
+    "evidence": {
+     "p_gate": "published",
+     "success": "published",
+     "failure": "convention"
+    },
+    "stated_pos": false,
+    "share": 0.898007,
+    "rnpv_now": 709.2471453758931,
+    "rnpv_success": 2051.3486030089607,
+    "rnpv_failure": 0.0,
+    "per_share_now": 2.7490199433174154,
+    "per_share_success": 7.950963577554111,
+    "per_share_failure": 0.0,
+    "held": null,
+    "basis": "Phase 2 to Phase 3 34.6% then Phase 3 to NDA/BLA 56.6% then NDA/BLA to approval 90.1% for Neurology and Rare, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+    "band": {
+     "pos_low": 0.1234,
+     "pos_high": 0.2521,
+     "per_share_low": 1.9230672392594617,
+     "per_share_high": 3.9287297489247184
+    }
+   },
+   "launch": {
+    "status": "no_registry_basis",
+    "flag": null,
+    "seed_year": 2031,
+    "first_possible_year": null,
+    "first_full_year": null,
+    "decision_date": null,
+    "message": "No live Phase 3 on the registry, no positive Phase 3 readout and no accepted application, so no floor is drawn.",
+    "evidence_kind": null,
+    "nct_id": null,
+    "evidence_date": null
+   },
+   "loe_year": 2043,
+   "loe_in_base": false,
+   "per_share": 2.7490199433174154,
+   "per_share_success": 7.950963577554111,
+   "per_share_failure": 0.0
+  },
+  {
+   "asset_id": 2902,
+   "name": "VX-407",
+   "share": 1.0,
+   "counted": true,
+   "pos": 0.1953,
+   "is_marketed": false,
+   "gate": {
+    "gate": "p2_to_p3",
+    "label": "Phase 2 readout",
+    "date": "2027-07-22",
+    "date_basis": "primary completion on the registry",
+    "due": false,
+    "why": null,
+    "trial": {
+     "nct_id": "NCT07161037",
+     "indication": "Polycystic Kidney, Autosomal Dominant",
+     "indications": [
+      "Polycystic Kidney, Autosomal Dominant"
+     ],
+     "phase": "Phase 2",
+     "primary_completion": "2027-07-22"
+    },
+    "legs_basis": "derived",
+    "pos_now": 0.1953,
+    "pos_success": 0.5441,
+    "pos_failure": 0.0,
+    "p_gate": 0.3589413710714942,
+    "p_gate_published": 0.35901810539302886,
+    "placed": null,
+    "evidence": {
+     "p_gate": "published",
+     "success": "published",
+     "failure": "convention"
+    },
+    "stated_pos": false,
+    "share": 1.0,
+    "rnpv_now": 254.16248609182455,
+    "rnpv_success": 708.0891381595583,
+    "rnpv_failure": 0.0,
+    "per_share_now": 0.9851259150845914,
+    "per_share_success": 2.744531543254102,
+    "per_share_failure": 0.0,
+    "held": null,
+    "basis": "Phase 2 to Phase 3 35.9% then Phase 3 to NDA/BLA 59.1% then NDA/BLA to approval 92.1% for all indications and Rare, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+    "band": {
+     "pos_low": 0.1513,
+     "pos_high": 0.2521,
+     "per_share_low": 0.7631825445586209,
+     "per_share_high": 1.271634629763571
+    }
+   },
+   "launch": {
+    "status": "no_registry_basis",
+    "flag": null,
+    "seed_year": 2034,
+    "first_possible_year": null,
+    "first_full_year": null,
+    "decision_date": null,
+    "message": "No live Phase 3 on the registry, no positive Phase 3 readout and no accepted application, so no floor is drawn.",
+    "evidence_kind": null,
+    "nct_id": null,
+    "evidence_date": null
+   },
+   "loe_year": 2046,
+   "loe_in_base": false,
+   "per_share": 0.9851259150845914,
+   "per_share_success": 2.744531543254102,
+   "per_share_failure": 0.0
+  },
+  {
+   "asset_id": 99,
+   "name": "Kalydeco",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2028,
+   "loe_in_base": false,
+   "per_share": 0.0,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 101,
+   "name": "Orkambi",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2031,
+   "loe_in_base": false,
+   "per_share": 0.0,
+   "per_share_success": null,
+   "per_share_failure": null
+  },
+  {
+   "asset_id": 312,
+   "name": "Symdeko (Copackaged)",
+   "share": 1.0,
+   "counted": true,
+   "pos": 1.0,
+   "is_marketed": true,
+   "gate": null,
+   "launch": null,
+   "loe_year": 2031,
+   "loe_in_base": false,
+   "per_share": 0.0,
+   "per_share_success": null,
+   "per_share_failure": null
+  }
+ ]
+}

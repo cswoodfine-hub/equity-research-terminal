@@ -1,0 +1,158 @@
+{
+ "ok": true,
+ "ticker": "LLY",
+ "asset_id": 1514,
+ "name": "Eloralintide",
+ "scenario": "base",
+ "per_share": 5.023388932961994,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 5284.686177277239,
+   "defined": false,
+   "per_share": 5.876444097939774
+  },
+  "base": {
+   "rnpv": 4517.533667412721,
+   "defined": true,
+   "per_share": 5.023388932961994
+  },
+  "bull": {
+   "rnpv": 5284.686177277239,
+   "defined": false,
+   "per_share": 5.876444097939774
+  }
+ },
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2028-01",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "why": null,
+  "trial": {
+   "nct_id": "NCT07282600",
+   "indication": "Overweight",
+   "indications": [
+    "Overweight",
+    "Obesity"
+   ],
+   "phase": "Phase 3",
+   "primary_completion": "2028-01"
+  },
+  "legs_basis": "derived",
+  "pos_now": 0.5452,
+  "pos_success": 0.8937,
+  "pos_failure": 0.0,
+  "p_gate": 0.6100481145798367,
+  "p_gate_published": 0.6100635963435609,
+  "placed": null,
+  "evidence": {
+   "p_gate": "published",
+   "success": "published",
+   "failure": "convention"
+  },
+  "stated_pos": false,
+  "share": 1.0,
+  "rnpv_now": 4517.533667412721,
+  "rnpv_success": 7405.20880147973,
+  "rnpv_failure": 0.0,
+  "per_share_now": 5.023388932961994,
+  "per_share_success": 8.234414323896063,
+  "per_share_failure": 0.0,
+  "held": {
+   "open": 4,
+   "ncts": [
+    "NCT07321886",
+    "NCT07353931",
+    "NCT07392190",
+    "NCT07369011"
+   ],
+   "indications": [
+    "Obesity",
+    "Osteoarthritis",
+    "Overweight",
+    "Sleep Apnea, Obstructive"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 4 other Phase 3s open, and the model holds it at 55% until they read out.",
+   "per_share": 5.023388932961994
+  },
+  "basis": "Phase 3 to NDA/BLA 61.0% then NDA/BLA to approval 89.4% for Metabolic, Peptide and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+  "band": {
+   "pos_low": 0.5286,
+   "pos_high": 0.5565,
+   "per_share_low": 4.870439086507171,
+   "per_share_high": 5.127505394705336
+  }
+ },
+ "gate_range": true,
+ "launch": {
+  "asset_id": 1514,
+  "name": "Eloralintide",
+  "status": "clear",
+  "flag": null,
+  "seed_year": 2030,
+  "seed_source": "judgement: Lilly's 10-K for 2025 (filed 2026-02-12) lists the obesity Phase 3 trial as initiated; retatrutide's obesity Phase 3 programme began in 2023 and its seed launches in 2027, and the same interval from late 2025 is 2030",
+  "seed_scenario": "base",
+  "seed_basis": {
+   "cites": null,
+   "match": null
+  },
+  "first_possible_year": 2028,
+  "first_full_year": 2029,
+  "decision_date": "2028-09-01",
+  "standard": {
+   "review": "standard",
+   "months": 10,
+   "filing_period_days": 60,
+   "decision_date": "2029-01-01",
+   "first_possible_year": 2029,
+   "first_full_year": 2030
+  },
+  "evidence": {
+   "kind": "registry",
+   "nct_id": "NCT07282600",
+   "date": "2028-01",
+   "date_type": "estimated",
+   "phase": "Phase 3",
+   "status": "Recruiting",
+   "enrollment": 1035,
+   "title": "A Study of Eloralintide (LY3841136) in Participants With Obesity or Overweight, and Type 2 Diabetes",
+   "source_url": "https://clinicaltrials.gov/study/NCT07282600",
+   "fetched_at": "2026-10-05 07:46:51",
+   "stale": false
+  },
+  "clock": {
+   "pathway": "nme_nda_or_original_bla",
+   "pathway_how": "no marketed row for this molecule, so read as a new molecule or original biologic",
+   "review": "priority",
+   "months": 6,
+   "filing_period_days": 60,
+   "basis": "I.A.1.b and I.B.4.b: 'Review and act on 90 percent of priority NME NDA and original BLA submissions within 6 months of the 60-day filing date.' Under the Program 'the PDUFA review clock will begin at the conclusion of the 60-day filing review period that begins on the date of FDA receipt of the original submission' (I.B.4, page 9), so the goal is 6 months after a filing date 60 days from receipt",
+   "source": "PDUFA VII commitment letter FY2023-2027 (https://www.fda.gov/media/151712/download) pages 4 and 9",
+   "carries_to": "proposed PDUFA VIII letter FY2028-2032 (https://www.fda.gov/media/193977/download) Table 1: NME NDAs and original BLAs '90% in 6 months of the 60-day filing date', and I.B.4 keeps the clock start; proposed, not enacted",
+   "cross_check": "PDUFA FY2025 performance report (https://www.fda.gov/media/191112/download) Appendix A Table A-1: 29 first-cycle priority approvals marked NME took a median 8.0 months from receipt (6.2 to 12.3), parsed 2026-10-05",
+   "extension_months": 3,
+   "applied": true
+  },
+  "voucher": null,
+  "if_filed_today": null,
+  "slip": null,
+  "gate": {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "nct_id": "NCT07282600",
+   "date": "2028-01",
+   "due": false,
+   "decision_date": "2028-09-01",
+   "first_possible_year": 2028,
+   "first_full_year": 2029,
+   "why": null,
+   "same_as_governing": true
+  },
+  "modelled_floor": null,
+  "trials_considered": 5,
+  "message": "2030 in the model is clear of the earliest approval, Sep 2028. NCT07282600 completes Jan 2028 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt."
+ }
+}

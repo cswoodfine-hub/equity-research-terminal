@@ -56,6 +56,8 @@ _TIMEOUT_S = 30
 SYMBOLS = {
     "^GSPC": "S&P 500, the market a beta is measured against",
     "XLV": "Health Care Select Sector SPDR, the sector a pharma book is read against",
+    "PPH": "VanEck Pharmaceutical ETF, the global big pharma group the Universe tab is read "
+           "against",
 }
 
 

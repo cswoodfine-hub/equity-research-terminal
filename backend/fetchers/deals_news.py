@@ -26,6 +26,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
+import company_names
 import db
 import deals
 from fetchers.base import BaseFetcher, RefreshResult
@@ -37,16 +38,47 @@ _TIMEOUT_S = 30
 _USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
 FEED = "https://news.google.com/rss/search"
 
-# The verbs that state a deal, with the type each implies. They live beside the rule that
-# reads who is doing the deal, since the prune pass finds them in stored headlines too.
-_DEAL_VERBS = deals.DEAL_VERBS
+# "deal with X", or "deal for X's drug". "Deal for" with no possessive names what is bought
+# ("Nurix Deal for BTK Degrader"), not who sells it.
+_WITH_OR_FOR = (r"(?:with|for(?=\s+(?:[A-Z][\w&.-]*\s+){0,3}[A-Z][\w&.-]*['\u2019]s\b))")
+
+# The verbs that state a deal, with the type each implies. Ordered longest first so
+# "agrees to acquire" is read before "acquire".
+_DEAL_VERBS = (
+    (r"completes? (?:the )?acquisition of", "acquisition"),
+    (r"agrees? to acquire", "acquisition"),
+    (r"to acquire", "acquisition"),
+    (r"acquires?", "acquisition"),
+    (r"buys?", "acquisition"),
+    (r"snaps? up", "acquisition"),
+    (r"licen[sc]es?(?: rights)?(?: to| from)?", "licensing"),
+    (r"licensing (?:deal|agreement|pact) with", "licensing"),
+    (r"partners? with", "collaboration"),
+    (r"collaborat(?:es?|ion) with", "collaboration"),
+    (r"teams? up with", "collaboration"),
+    (r"signs? (?:a )?(?:deal|agreement|pact) with", "collaboration"),
+    # The deal as a noun with the size or subject in front of it: "signs licensing deal
+    # worth $7.2 B with China's Abogen", "strikes up to $7.8 billion mRNA deal with
+    # China's Abogen", "pens $7.8B deal for Abogen's in vivo T-cell engager".
+    (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
+     r"licen[sc]ing (?:deal|agreement|pact)(?: worth \S+(?: \S+)?)? " + _WITH_OR_FOR,
+     "licensing"),
+    (r"(?:signs?|strikes?|inks?|seals?|pens?|clinch(?:es)?) (?:an? )?(?:\S+ ){0,5}?"
+     r"(?:deal|agreement|pact|tie-up)(?: worth \S+(?: \S+)?)? " + _WITH_OR_FOR,
+     "collaboration"),
+)
 
 # A headline that asks a question or muses about the sector is commentary, not an
 # announcement: "Why other Big Pharmas could follow Lilly into psychedelics".
 _COMMENTARY = re.compile(
     r"\?|\bcould\b|\bmight\b|\bwhy\b|\brumou?r|\breportedly\b|\bexplores?\b"
     r"|\bweighs?\b|\bmulls?\b|\btalks\b|\bnears?\b|\bbid for\b|\banalysis\b|\bopinion\b"
-    r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b", re.I)
+    r"|\bstock market today\b|\bhere'?s a look\b|\bspree\b|\bvs\.?(?=\s)", re.I)
+
+# Public names for readers outside the fetcher (company_score's deal gate), so they do not
+# reach into its private ones.
+DEAL_VERBS = _DEAL_VERBS
+COMMENTARY = _COMMENTARY
 
 # "up to $3.8 billion", "$2.25B", "$950 million".
 _VALUE = re.compile(
@@ -56,13 +88,13 @@ _VALUE = re.compile(
 # Case matters, so this part of the pattern is never matched with re.I. A headline says
 # "acquires cancer therapy developer Arcellx", and only the capitals separate the
 # company from the words describing it.
-_NAME = r"(?P<who>[A-Z][\w&.'-]*(?:\s+[A-Z][\w&.'-]*){0,4})"
+_NAME = r"(?P<who>[A-Z][\w&.'\u2019-]*(?:\s+[A-Z][\w&.'\u2019-]*){0,4})"
 
 # What a publisher puts in front of the name: sector, nationality, and the shape of the
 # thing bought. Trimmed from the front so "biotech Apogee Therapeutics" and "Apogee
 # Therapeutics" are recognised as one deal rather than two.
 _LEAD = {
-    "of", "the", "a", "an", "its", "us", "u.s.", "uk", "u.k.", "eu",
+    "of", "from", "the", "a", "an", "its", "us", "u.s.", "uk", "u.k.", "eu",
     "biotech", "biotechnology", "biopharma", "biopharmaceutical", "pharma",
     "pharmaceutical", "pharmaceuticals", "drugmaker", "drug", "maker", "developer",
     "company", "firm", "startup", "start-up", "group", "business", "unit", "division",
@@ -75,12 +107,18 @@ _LEAD = {
     "china-based", "based", "swiss-based", "boston", "houston", "waltham", "plano",
     "connecticut", "massachusetts", "california", "texas", "ai", "digital", "medical",
     "device", "obesity", "immunology", "inflammatory", "radiopharmaceutical",
+    "korean", "european", "u.n.", "u.n", "adc", "car-t", "api", "sirna", "mrna", "oxford",
+    "cambridge", "spinout", "spin-out", "san", "diego", "raleigh",
 }
+
+_NATIONALITY = {"american", "british", "canadian", "chinese", "danish", "dutch", "french",
+                "german", "indian", "irish", "japanese", "korean", "swiss", "european"}
 
 # What a publisher hyphenates in front of a name, and the diseases it leads with.
 # "Prostate Cancer Treatment-Maker Halda" is Halda described, not a company called that.
 _DESCRIPTOR = re.compile(
-    r"^(?:[\w']+-(?:maker|based|focused|backed|owned|led|stage|listed)|"
+    r"^(?:[\w']+-(?:maker|based|focused|backed|owned|led|stage|listed|rooted|born)|"
+    r"[a-z]{2,}-\d+[a-z]?|[a-z]{2,4}-(?:beta|alpha|t)|"
     r"prostate|breast|lung|kidney|liver|skin|blood|brain|rare|orphan|"
     r"weight[- ]loss|anti[- ]obesity|treatment|therapy|drug|medicine|vaccine|"
     r"antibody|radiopharma|neuro|cardio|derma|respiratory|autoimmune)$")
@@ -103,7 +141,8 @@ _TAIL = {"worth", "for", "in", "to", "with", "and", "over", "at", "as", "on", "u
          # leads with the party, "Summit Is in Talks for a $15 Billion Partnership",
          # and the capital on the verb made it part of the company's name.
          "is", "are", "was", "were", "has", "have", "had", "said", "says", "will",
-         "could", "may", "might", "reportedly", "eyes", "eyeing", "nears", "nearing"}
+         "could", "may", "might", "reportedly", "eyes", "eyeing", "nears", "nearing",
+         "ai"}
 
 # Title case makes an ordinary word look like a company. None of these is one.
 _NOT_A_NAME = {
@@ -114,6 +153,16 @@ _NOT_A_NAME = {
     "agreement", "collaboration", "licensing", "partnership", "acquisition", "buy",
     "approaches", "approach", "advise", "advises", "advised", "explores", "explore",
     "weighs", "weigh", "mulls", "mull", "considers", "consider", "talks", "merger",
+    "time", "science", "this", "that", "up-to", "trump", "white", "parkinson", "alzheimer",
+    "crohn", "huntington", "hodgkin",
+}
+# Where a captured name runs on into what is being bought: "Chimagen Multiple Myeloma
+# T-Cell Engager", "Nanexa Drug Delivery Technology". The name ends before the first.
+_PRODUCT_WORD = {
+    "multiple", "myeloma", "t-cell", "engager", "drug", "drugs", "therapy", "blood-cancer",
+    "inhibitor", "candidate", "platform", "technology", "delivery", "asset", "antibody",
+    "vaccine", "program", "programme", "portfolio", "rights", "glp-1", "glp-2",
+    "further", "strengthening", "expanding", "boosting", "advancing", "bolstering",
 }
 
 
@@ -184,7 +233,7 @@ def _clean_name(raw: str) -> str | None:
     rather than a title-cased ordinary word, since "Buys Shares" is not a counterparty.
     """
     def token(word: str) -> str:
-        return word.lower().strip(".,'\u2019")
+        return word.lower().replace("\u2019", "'").strip(".,'-")
 
     def describes(word: str) -> bool:
         """Whether a leading word describes the company rather than naming it.
@@ -205,34 +254,89 @@ def _clean_name(raw: str) -> str | None:
         words.pop()
     if not words or token(words[0]) in _NOT_A_NAME:
         return None
+    # The name ends at its possessive ("Chimagen's T cell engager") or where it runs on
+    # into the thing bought ("Nanexa Drug Delivery Technology").
+    cut = False
+    for i, word in enumerate(words):
+        if re.search(r"['\u2019]s$", word):
+            words = words[:i] + [re.sub(r"['\u2019]s$", "", word)]
+            break
+        if i and token(word) in _PRODUCT_WORD:
+            words, cut = words[:i], True
+            break
+    # A descriptor alone is a description with no name after it: "deal with Chinese
+    # biotech", "acquires German ADC specialist Tubulis" names nobody in its capitals.
+    if len(words) == 1 and (token(words[0]) in _NATIONALITY or describes(words[0])):
+        return None
+    if token(words[0]) in _NOT_A_NAME:
+        return None
     # Trimming "Ltd." off "Bio Palette Co., Ltd." leaves the comma behind it.
     name = " ".join(words).strip(" ,;:-")
+    # What is left of a product once its noun is cut is a description ("Selective PDE10A
+    # Inhibitor"), unless it is one word or carries a corporate marker.
+    if cut and len(words) > 1 and not deals._ORGANISATION.search(name):
+        return None
     return name if len(name) >= 3 else None
 
 
-def parse_deal(headline: str, company_names, buyer=None) -> dict | None:
+def parse_deal(headline: str, company_names) -> dict | None:
     """{deal_type, counterparty, announced_value} from a headline, or None when it states no deal.
 
     The counterparty is the party that is not the company being searched for, which is
     why the company's own names are passed in: "Eli Lilly acquires Ajax Therapeutics"
     and "Ajax Therapeutics acquired by Eli Lilly" name the same two parties either way
     round, and only one of them is the counterparty.
-
-    ``buyer`` is the company's (name, ticker). Given, the words leading into the verb have
-    to name it as the one doing the deal, since the search returns every headline that
-    mentions the company: "Azurity acquires Covis Pharma" is Azurity's deal, whatever
-    feed it arrived on.
     """
     text = _clean_title(headline)
-    if not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text):
+    if (not text or _COMMENTARY.search(text) or deals.NOT_OUR_DEAL.search(text)
+            or _NOT_BD.search(text)):
         return None
+    # A roundup carries several deals: each clause is read on its own, so a value is
+    # never taken from another company's deal.
+    for clause in re.split(r";\s*", text):
+        deal = _parse_clause(clause, company_names)
+        if deal:
+            return {**deal, "quote": text}
+    return None
+
+
+# A partnership a pharma company announces that is not business development: carbon
+# removal, wellness apps, relief work. Stated plainly, and still not a deal for this page.
+_NOT_BD = re.compile(
+    r"\b(?:carbon|emissions?|sustainab\w*|net[- ]zero|climate|renewable|wellness|"
+    r"hunger|migration|humanitarian|philanthrop\w*|sponsorship)\b", re.I)
+
+
+def _subject(before: str, company_names) -> bool:
+    """Whether the searched company is the one doing the deal: named before the verb, and
+    alone. "Tempus announces collaboration with Moderna and Merck" is Tempus's deal, and
+    "Halozyme and Vertex sign deal for Hypercon" names its party before the verb, where
+    the reader does not look."""
+    low = before.lower()
+    if not any(re.search(rf"(?<![\w-]){re.escape(n.lower())}(?![\w-])", low)
+               for n in company_names if n):
+        return False
+    return not re.search(r"\b(?:and|&)\s+[A-Z]|,\s*[A-Z][\w-]*(?:\s+[A-Z][\w-]*)?\s+"
+                         r"(?i:launch|sign|enter|announce|partner|team)", before)
+
+
+def _parse_clause(text: str, company_names) -> dict | None:
     for verb, deal_type in _DEAL_VERBS:
         # The verb is read whatever its case; the name is not, so the capitals stay
         # meaningful. Hence the scoped flag rather than re.I over the whole pattern.
         match = re.search(rf"(?i:\b{verb})\s+{_NAME}", text)
         if not match:
             continue
+        if not _subject(text[:match.start()], company_names):
+            continue
         who = match.group("who")
+        # "Acquire Experimental Blood Cancer Therapy From Chimagen": the party follows the
+        # "from", past the description of what is bought.
+        source = re.search(r"\bFrom\s+", text[match.start("who"):])
+        if source:
+            after = re.match(_NAME, text[match.start("who") + source.end():])
+            if after:
+                who = after.group("who")
         # The captured name can be the holder rather than the party: "acquire BIOG
         # portfolio company, Forte Biosciences". Step over the phrase and take the name
         # after it, which is the company actually changing hands.
@@ -241,6 +345,10 @@ def parse_deal(headline: str, company_names, buyer=None) -> dict | None:
             after = re.match(_NAME, text[match.end() + holder.end():])
             if after:
                 who = after.group("who")
+        # "pact with Langer startup": a founder's name in front of the company's.
+        if re.match(r"\s+(?:startup|start-up|lab|spinout|spin-out)\b",
+                    text[match.start("who") + len(who):], re.I):
+            continue
         counterparty = _clean_name(who)
         # An organisation, not the thing being bought. The capital-letter match takes
         # whatever follows the verb, which for "Acquires Selective PDE10A Inhibitor" is
@@ -251,11 +359,8 @@ def parse_deal(headline: str, company_names, buyer=None) -> dict | None:
         # ("X acquired by Lilly"), which names no counterparty this way round.
         if any(n.lower() in counterparty.lower() for n in company_names):
             return None
-        if buyer and not deals.names_buyer(text[:match.start()], *buyer):
-            return None
         return {"deal_type": deal_type, "counterparty": counterparty,
-                "announced_value": parse_value(text), "area": parse_area(text),
-                "quote": text}
+                "announced_value": parse_value(text), "area": parse_area(text)}
     return None
 
 
@@ -343,10 +448,21 @@ def parse_reported(headline: str, company_names) -> dict | None:
             "reported_value": parse_value(text), "reported_usd": usd, "quote": text}
 
 
-def _feed_url(company_name: str) -> str:
+# The names a headline calls a company by live in company_names, since the acquired-sponsor
+# check reads a stored headline by the same names and must not import a fetcher.
+_LEGAL_SUFFIX = company_names.LEGAL_SUFFIX
+SEARCH_NAMES = company_names.PRESS_NAMES
+# Another company the press name also reads as: Merck KGaA is Merck in Germany.
+SEARCH_EXCLUDE = {"MRK": ("KGaA", "EMD")}
+search_names = company_names.press_names
+
+
+def _feed_url(company_name: str, ticker: str = "") -> str:
     # Merger and takeover terms ride along with the announced-deal words. Without them
     # the feed never returns a talks story, so the lane below would have nothing to read.
-    query = (f'"{company_name}" (acquires OR acquisition OR licensing OR '
+    names = " OR ".join(f'"{n}"' for n in search_names(ticker, company_name))
+    minus = "".join(f" -{w}" for w in SEARCH_EXCLUDE.get(ticker, ()))
+    query = (f'({names}){minus} (acquires OR acquisition OR licensing OR licenses OR deal OR '
              f'collaboration OR partnership OR merger OR takeover OR "in talks")')
     return FEED + "?" + urllib.parse.urlencode(
         {"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"})
@@ -401,7 +517,8 @@ class DealsNewsFetcher(BaseFetcher):
         for company in companies:
             try:
                 request = urllib.request.Request(
-                    _feed_url(company["name"]), headers={"User-Agent": _USER_AGENT})
+                    _feed_url(company["name"], company["ticker"]),
+                    headers={"User-Agent": _USER_AGENT})
                 with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
                     feeds[company["ticker"]] = resp.read().decode("utf-8", "ignore")
             except Exception as exc:              # one company's feed, not the run
@@ -419,15 +536,14 @@ class DealsNewsFetcher(BaseFetcher):
             company = by_ticker[ticker]
             # The company's own names, so the passive voice is recognised rather than
             # read as a deal with itself.
-            names = {company["name"], ticker,
-                     company["name"].split()[0]} - {"The", "A"}
+            names = ({company["name"], ticker, company["name"].split()[0]}
+                     | set(search_names(ticker, company["name"]))) - {"The", "A"}
             try:
                 items = parse_feed(xml_text)
             except ET.ParseError:
                 continue
             for item in items:
-                deal = parse_deal(item["title"], names,
-                                  buyer=(company["name"], ticker))
+                deal = parse_deal(item["title"], names)
                 if not deal:
                     talk = parse_reported(item["title"], names)
                     if talk:
@@ -464,6 +580,11 @@ class DealsNewsFetcher(BaseFetcher):
                     seen["quote"] = row["quote"]
                 if len(row["counterparty"]) > len(seen["counterparty"]):
                     seen["counterparty"] = row["counterparty"]
+                # "Strikes a deal with" is the vaguest telling: where another says it is a
+                # licence or a takeover, that is what it is.
+                if seen["deal_type"] == "collaboration" and row["deal_type"] in (
+                        "licensing", "acquisition"):
+                    seen["deal_type"] = row["deal_type"]
                 if seen["announced_value"] is None:
                     seen["announced_value"] = row["announced_value"]
                 if seen["area"] is None:

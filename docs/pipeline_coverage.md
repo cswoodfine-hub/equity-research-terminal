@@ -542,3 +542,293 @@ The values differ materially, which is why the rule matters: ianalumab's penetra
 0.0784 on main and 0.1771 on the branch, seltorexant's 0.0062 and 0.0014, felcorekibart's
 asthma 0.0219 and 0.0071, and zenagamtide is priced on 2025 CMS on main and 2024 on the
 branch.
+
+## The rows that are not new medicines, acted on, 25 September 2026
+
+The sort said what each late-stage row is. This pass acts on every class but NEW, and prices
+nothing. On a copy of the 2026-09-25 book run through three refresh cycles, no company's or
+asset's valuation moves.
+
+| Class | Rows acted on | What happens now |
+|---|---|---|
+| DUPLICATE and REGIMEN | 64 | Named in `data/asset_alias_map.csv` against the row the book carries, the product named first in the sort's own "of" (for a regimen, the component the sponsor owns). The merge folds each one and its trials move onto the product. |
+| LINE_EXTENSION | 27 | The same, against the row that carries the product's revenue or model, so 9vHPV folds into Gardasil / Gardasil 9 rather than the bare Gardasil 9 row. |
+| DEAD | 18 | Retired through `data/discontinued_programmes.csv` and `backend/discontinued.py`: kept with its trials, snapshotted, and skipped by the pipeline grid, the programme list, the coverage population and the valuation. |
+| NOT_A_PROGRAMME | 19 | Listed in `data/not_a_programme.csv`. `trial_mapping` never derives a programme from the name for that sponsor, and `prune_arms` removes a row already derived. |
+
+**The late-stage population falls from 366 rows to 250**: 190 NEW, 51 unsorted, and nine left
+open on purpose. Big pharma coverage at Phase 2 and later is now 73 valued of 283 (26%),
+against 72 of 382 before, and Phase 3 is 69 of 142 (49%) against 68 of 198. The valued count
+barely moved. What moved is the denominator, which no longer counts one medicine several
+times or counts a stopped programme as live.
+
+**Left open, each for a stated reason**
+
+- Two duplicates cross companies and a merge never does: Moderna's mRNA-4157 is Merck's
+  intismeran, and Pfizer's ATM-AVI is Emblaveo, carried under AbbVie.
+- Seven line extensions have no parent in the book to fold into: Mosquirix, Lagevrio,
+  Atectura and Enerzair Breezhaler, Ordspono, Armour Thyroid, and Emblaveo under Pfizer.
+- Gandotinib stays live. It has had no trial since 2015, but no discontinuation was ever
+  announced, and silence is not a filing.
+- The folds bring survivors into the population unsorted: BNT323, GSK5764227, Atirmociclib,
+  and from released trials EDI048 and spartalizumab.
+
+**No line extension is valued yet, and most should not be.** A marketed product runs on its
+reported revenue and one growth rate, so the engine has no slot for a risked new indication.
+Five of the 17 modelled parents (Cobenfy, Ebglyss, Scemblix, Leqvio, Fabhalta) grow to a
+published peak, and a consensus peak already carries the label expansions, so pricing the
+extension would count it twice. The other twelve run on last year's reported growth, and
+their extensions are mostly paediatric, device or formulation studies. The material one is
+Pluvicto's PSMAddition in hormone-sensitive prostate cancer. Datroway is the larger gap: a
+marketed product with revenue on file and no model, so neither it nor its new lung and breast
+settings carries any value.
+
+**Found on the way**
+
+- The refresh merges before it applies the curated register, so a product the register adds
+  absorbs its pipeline twin only on the next refresh: Elahere and a mirvetuximab row,
+  Aucatzyl and obe-cel.
+- The trials fetcher keeps DRUG, BIOLOGICAL, GENETIC and COMBINATION_PRODUCT interventions,
+  and the registry files radioligands as RADIATION. The Lutathera study NCT06784752 therefore
+  lists only octreotide LAR in the book, and once that row went it mapped to Sandostatin, the
+  comparator.
+- Releasing a trial from one comparator exposes its next intervention to derivation. A
+  Gilead paediatric HIV study produced a darunavir row as soon as its atazanavir row went, so
+  a trial's comparators are listed together.
+- `prune_arms` nulls any `asset_id` column it reads as nullable, and SQLite reads an INTEGER
+  PRIMARY KEY as nullable, where NULL assigns a fresh row id. `retired_programmes` keys the
+  asset in its own NOT NULL UNIQUE column for that reason.
+
+## The unmodelled big pharma Phase 3s audited and priced, 26 September 2026
+
+The 68 big pharma rows the sort left NEW or unsorted at Phase 3 were audited for identity,
+ownership and status before any of them was priced. The audit ran against a branch that had
+forked before main's seed commits, so 11 of its 47 NEW verdicts were already priced on main
+(dazodalibep, rilvegostomig, seltorexant, felcorekibart, mocertatug rezetecan, Ris-Rez,
+sofetabart mipitecan, ianalumab, zigakibart, atirmociclib, lunsekimig), and six more rows
+turned out to be main's seeds or folds under another verdict. Main was merged in first, and
+main's verified seeds stand.
+
+| Outcome | Rows | Action |
+|---|---|---|
+| NEW, priced on main already | 11 | None |
+| NEW, priced nowhere | 13 | Researched and verified: 11 seeded, 2 refused (REGN-2Cat, Sanofi's royalty unfiled; REGN5713, its confirmatory Phase 3 terminated) |
+| NEW, seeded unverified on `claude/youthful-curie-bux19h` | 19 | Verified to main's rules under the branch's filenames |
+| NEW, refused | 4 | Iza-bren (no filed split with SystImmune) and del-desiran (HARBOR missed), both main's refusals; BAY3723113 (Bayer holds Japan only, and has no company block); livmoniplimab, retired below |
+| Main's seed or fold already covers it | 6 | Olomorasib's two rows, del-desiran's twin, atumelnant, duvakitug, zenagamtide |
+| Duplicate, approved or line extension | 8 | Folded through `data/asset_alias_map.csv`: MRTX849 into Krazati, BMS-986165 into Sotyktu, MK-1406 into CD388, DCR-PHXC into Rivfloza, TQJ230 into pelacarsen, subcutaneous pembrolizumab into Keytruda Qlex, PG4 into the Prevnar family, MMRVNS into the varicella new seed |
+| Stopped or licensed away | 3 | Retired with livmoniplimab (AbbVie's July 2026 pipeline lists it discontinued): itepekimab (Sanofi Q2 2026), linerixibat (to Alfasigma) and vepdegestrant (to Rigel) |
+| Not a programme | 3 | Cetrelimab (a backbone beside TAR-200), avelumab (Merck KGaA's, in a continued-access study) and ABBV-444 (an OTC eye drop already on sale) |
+| Left open | 1 | Tolebrutinib, approved in the EU as Cenrifki with no sales reported yet |
+
+Every one of the 19 branch seeds needed correcting. The common faults were the 2024 CMS
+basis, forecast_start_year set to next year with the launch left to the ramp, and
+launch_ramp.csv read as a penetration curve. Two were wrong in ways that moved the value.
+Etavopivat was keyed 'Etavopivat' against the book's 'Etavopivat A', so it loaded nothing,
+and its uptake applied a share of all sickle cell patients to a pool 15 times smaller. ABP
+206 wrote an explicit zero carryover on a line-of-therapy pool, which doubled its first year. Before that
+branch merges it must drop these 19 files; git will flag each, since the names match.
+
+**Value added, per share, with every seed built on the same copy of the book**
+
+| Company | Without | With | Change | Largest addition |
+|---|---|---|---|---|
+| REGN | $1,003.07 | $1,029.12 | +$26.05 | pozelimab with cemdisiran, gMG, NDA accepted: $19.18 |
+| LLY | $482.64 | $490.23 | +$7.59 | remternetug, preclinical Alzheimer's: $4.35 |
+| AMGN | $376.46 | $381.86 | +$5.40 | ABP 206, the Opdivo biosimilar, filed: $3.01 |
+| NVS | $173.98 | $175.27 | +$1.29 | AOC 1020 (del-brax), FSHD: $1.11 |
+| BIIB | $243.55 | $244.65 | +$1.10 | salanersen, SMA: $2.25 |
+| SNY | $65.90 | $66.15 | +$0.26 | riliprubart, CIDP: $0.10 |
+| BMY | $98.36 | $98.56 | +$0.20 | BMS-986489, SCLC: $0.16 |
+| PFE | $26.30 | $26.41 | +$0.11 | sigvotatug vedotin, NSCLC: $0.24 |
+| GSK | $65.54 | $65.64 | +$0.10 | velzatinib and the varicella vaccine: $0.07 each |
+| NVO | $49.76 | $49.82 | +$0.06 | etavopivat, sickle cell: $0.06 |
+| AZN | $175.53 | $175.58 | +$0.05 | balcinrenone with dapagliflozin |
+| JNJ | $197.49 | $197.52 | +$0.03 | ITI-1284, generalised anxiety disorder |
+
+Remternetug is the weakest large number. Its $7.7bn peak rests on a stated 0.5x judgement
+multiple of the symptomatic class's start rate applied to 15.8mm amyloid-positive people aged
+55 to 80, about 3.6 times the class's 2025 starts, and Kisunla's own preclinical trial
+(TRAILBLAZER-ALZ 3) targets the same people. Salanersen and navlimetostat are valued before
+their fixed payments (Ionis milestones, the Mirati CVR), since the engine has no key for one.
+
+**Coverage.** Big pharma assets whose highest phase is Phase 3: 113 valued of 130 (87%),
+against 86 before this pass. Phase 2/3 and 3 together: 119 of 138. Phase 2 and later: 123
+of 258 (48%), against 93. The 19 late-stage rows left unvalued are Roche's six (researched
+separately), six line extensions (Armour Thyroid, Lagevrio, Atectura and Enerzair, which have
+no parent in the book, and the erdafitinib intravesical system and Ocrevus subcutaneous,
+which fold into Balversa and Ocrevus on 26 September), the six
+refusals above plus tolebrutinib (approved in the EU as Cenrifki, no sales yet), and
+arlocabtagene autoleucel, a Bristol CAR-T that arrived through a fold and has not been
+researched.
+
+**Found on the way**
+
+- Taking a row out of derivation releases its trials to their next intervention. Removing
+  cetrelimab made J&J's amivantamab combination study derive an Amivantamab row, which then
+  took MARIPOSA and the other amivantamab trials off Rybrevant; Pfizer's avelumab
+  continued-access study derived lorlatinib (misspelled Lorlatanib) and talazoparib rows; and
+  ABBV-444's trial derived its comparator. Each now folds into its product or is listed as not
+  a programme. On a copy of the book run through three refresh cycles, exactly the 23 intended
+  rows leave the pipeline, nothing new appears, and the only value that moves is Merck's,
+  $161.58 to $161.88 a share, as CD388 takes up the ANCHOR Phase 3 that sat on MK-1406.
+- Five further duplicate rows found by the researchers fold too: BIIB115 into salanersen,
+  ORX750 into cleminorexton, BIVV020 into riliprubart, REGN4461 into mibavademab, and a tablet
+  process arm into ibuzatrelvir.
+
+## The rest of big pharma's Phase 2 and later audited and priced, 28 September 2026
+
+Every big pharma row still unvalued at Phase 2, 2/3 or 3 after the Phase 3 pass, 116 in all,
+was audited for identity, ownership and status, then each surviving new medicine was
+researched and re-derived by an independent verifier from its cited sources.
+
+| Outcome | Rows | Action |
+|---|---|---|
+| NEW, seeded and verified | 86 | 68 accepted as written, 18 corrected by the verifier; bretisilocin makes 87, below |
+| NEW, rejected by the verifier | 1 | QCZ484: the book's hypertension pool carries an unsourced incidence |
+| NEW, held back | 1 | Trevogrumab, below |
+| NEW, refused at research | 8 | Confirmed by each verifier, below |
+| Duplicate | 6 | Folded through `data/asset_alias_map.csv`: GM-2505 into bretisilocin, ADVM-022 into Ixo-vec, RO7046015 into prasinezumab, SPK-9001 into the retired Beqvez row, two GSK vaccine arms into their programmes; RO7247669 folds into tobemstomig with it |
+| Stopped | 10 | Retired: domvanalimab, miransertib, LXH254 (naporafenib), ipatasertib, tominersen, tiragolumab, tobemstomig, amlitelimab, LY3016859 (fepixnebart), LY3541860 |
+| Licensed away | 1 | Afimetoran, to Beeline in July 2025 |
+| Approved | 2 | Bepirovirsen (Hibsago, Japan, US PDUFA 26 October 2026) and mazdutide (Innovent's, China); neither priced as a Phase 2 asset |
+| Not a programme | 1 | Budigalimab, a PD-1 backbone beside other molecules |
+
+The refusals: GSK3772701 and the iNTS-TCV vaccine are alliances with no filed split;
+JNJ-89495120 (PIPE-307) missed both readouts; emugrobart (RO7204239) was stopped by Chugai on
+28 September 2026 and is retired; INE963 is filed by Novartis only as a combination under
+cipargamin; LY3537021 has no citable count of patients starting highly emetogenic
+chemotherapy; LXE408 has no US market; and the PF-07104091 SCLC arm is one cohort of a
+first-in-human study, not a programme.
+
+Iza-bren, refused twice before for want of a filed split, is priced now. Biokin's reply to
+its exchange's inquiry states its US profit share is slightly below half, so Bristol's share
+of 0.5 is conservative.
+
+Trevogrumab is held back, not seeded. The book's obesity convention would carry it at 2/9 of
+the Zepbound capture anchor and value it at $11.72 a Regeneron share, but it is an add-on to
+semaglutide that gave no added weight loss in COURAGE (-9.9% and -11.1% against -10.6% on
+semaglutide alone). Its benefit is lean mass, and no free source sizes that market. The
+verified file is kept outside the repo until a lean-mass basis can be cited.
+
+Bretisilocin was priced last. It was not on the candidate list because its only Phase 2,
+GM-2505's study in MDD, sat on the duplicate row until the fold above moved it across. AbbVie
+bought it outright with Gilgamesh ($906mm upfront, FY2025 10-K), and the seed prices it on
+Spravato: $1.2bn US peak in 2042, $1.37bn with ex-US at Spravato's filed split, $0.15 a share.
+
+**Value added, per share, with every seed built on the same copy of the book**
+
+Pipeline is the change in modelled pipeline value; total adds the engine's future-pipeline
+lens, which is sized from the modelled book and so moves with it.
+
+| Company | Without | With | Total | Pipeline | Largest addition |
+|---|---|---|---|---|---|
+| VRTX | $502.90 | $509.26 | +$6.36 | +$3.62 | VX-670, myotonic dystrophy type 1: $2.76 |
+| ROG | $29.77 | $33.53 | +$3.76 | +$1.64 | giredestrant, two US filings accepted: $1.08 |
+| NVO | $49.52 | $51.84 | +$2.32 | +$0.59 | UBT251, obesity: $0.67 |
+| NVS | $173.80 | $175.48 | +$1.68 | +$0.66 | GHZ339: $0.17 |
+| AZN | $173.64 | $174.89 | +$1.25 | -$0.18 | AZD2389: $0.12 |
+| BMY | $97.57 | $98.28 | +$0.71 | +$0.50 | arlocabtagene autoleucel: $0.24 |
+| MRK | $160.02 | $160.47 | +$0.45 | +$0.00 | MK-2214: $0.10 |
+| JNJ | $195.39 | $195.83 | +$0.44 | +$0.16 | JNJ-95597528: $0.10 |
+| REGN | $1,021.34 | $1,021.76 | +$0.42 | +$1.51 | REGN13335, PAH: $2.24 |
+| ABBV | $208.65 | $209.44 | +$0.79 | +$0.26 | bretisilocin, MDD: $0.15 |
+| GSK | $65.08 | $65.46 | +$0.38 | +$0.08 | GSK3862995B: $0.07 |
+| SNY | $65.17 | $65.52 | +$0.34 | +$0.13 | SAR448851: $0.05 |
+| PFE | $26.12 | $26.43 | +$0.31 | +$0.20 | PF-08653945, obesity: $0.21 |
+| BIIB | $242.35 | $242.64 | +$0.30 | +$0.20 | felzartamab: $0.20 |
+| GILD | $128.50 | $128.78 | +$0.28 | +$0.09 | emvistegrast: $0.03 |
+| LLY | $485.13 | $485.11 | -$0.02 | -$0.41 | nisotirostide (LY3457263), obesity: $1.00 |
+
+Seven of the new assets are obesity claimants (nisotirostide, macupatide, the Novo triple,
+UBT251, PF-08653945, petrelintide and CT-996), so the engine crowds the pool across them and
+the existing claimants give some value back: retatrutide falls $2.40, cagrilintide $0.47 and
+olatorepatide $1.09. That is why Lilly nets slightly negative and AstraZeneca's pipeline
+line falls. Most Phase 2 seeds are worth cents a share, as a probability near 0.15 to 0.25
+implies.
+
+**Coverage.** Big pharma assets whose highest phase is Phase 3: 117 valued of 125 (94%).
+Phase 2/3 and 3 together: 123 of 133. Phase 2 and later: 209 of 238 (88%), against 122 before
+this pass. What stays unvalued at Phase 2 and later is the refusals and approvals above,
+QCZ484 and trevogrumab, the Phase 3 refusals from 26 September (BAY3723113, REGN-2Cat,
+REGN5713, del-desiran) with tolebrutinib, Bayer's two Phase 2s, gandotinib (sorted dead
+but never announced stopped), the line extensions with no parent in the book, and EDI048 and
+spartalizumab, released from trials by earlier folds.
+
+**Found on the way**
+
+- The book's hypertension pool in `azn_baxfendy.csv` carries an incidence of 1.2mm a year
+  with no study behind it, and a prevalence about 42% above Carey 2019's count of
+  treatment-resistant patients. QCZ484 was rejected on it, and a re-sourcing task is open.
+- The book's trial table still shows NCT06220669 (LY3541860) as active while the registry
+  terminated it on 23 September 2026, and GM-2505's Phase 2a as recruiting when it completed
+  in July. The next refresh corrects both.
+
+## Launch years checked against the registry and the FDA clock, 5 October 2026
+
+`backend/launch_timing.py` reads, for every unmarketed asset with a seeded
+`forecast_start_year`, the earliest approval the evidence on file allows: an accepted
+application's decision date; else a positive Phase 3 readout as `pos_granular.stage_of`
+reads it; else the earliest primary completion among the asset's live Phase 3 and 2/3
+studies. A positive readout names the evidence but never dates the floor later than the
+registry would: the floor runs from the earliest of every positive Phase 3 readout (a
+resolved catalyst from its study's primary completion where that comes first) and the
+earliest live completion, so recording good news can never turn an asset red. On the book
+this moves three of the six readout-governed floors to their registry completion
+(Sonesitatug vedotin, Ianalumab, Venglustat) and two to their earlier readout (Tozorakimab,
+Ris-Rez); no status changes. The submission is taken on that day and the review at the pathway's priority clock
+from `data/fda_review_clock.csv` (PDUFA VII: 6 months from a filing date 60 days after
+receipt for a new molecule or original biologic, 6 months from receipt for a new indication
+of a marketed one). The 60 days are days, as 21 CFR 314.101(a)(2) dates the filing, not two
+calendar months, so a 1 May completion gives 30 December of the same year. It is a flag: nothing reads it
+on the value path, and equity per share, every asset rNPV and the 21 ratings are
+byte-identical with it in place. `GET /companies/{ticker}/launch-timing` lists it and
+`backend/tools/launch_timing_check.py` prints every flag for checking. On the page the flag
+is one mark, a dotted underline, red or amber, with the floor's message in the tooltip: on
+the asset's value on the Pipeline tab and in Key insights, and on the earliest approval in
+the Forecast tab's Next gate layer. A part year carries none.
+
+| Status | Assets | Meaning |
+|---|---|---|
+| before_floor | 7 | The seed starts before any approval could land |
+| before_floor_cited | 5 | The same, but the seed's own source cites a filing or readout the database does not hold |
+| part_year | 13 | The seed starts in the approval year itself; information only |
+| clear | 102 | |
+| no_registry_basis | 81 | No live Phase 3, positive readout or accepted application to date from |
+| not_assessed | 3 | Nil probability in force (Ceralasertib, Monalizumab) or a failed Phase 3 (Camlipixant) |
+| no_clock | 2 | ABP 206 and ABP 692: no biosimilar clock until the BsUFA letter is read |
+
+**The seven red flags, each checked against its own source.** All seven seeds say only
+"convention: the first full year after the current one", so the registry is the evidence,
+and each governing study was re-read live on ClinicalTrials.gov.
+
+| Asset | Seed | Study that sets the floor | Earliest approval | First full year | Check |
+|---|---|---|---|---|---|
+| Olpasiran (AMGN) | 2027 | NCT05581303, OCEAN(a)-Outcomes, 2028-03-31 | Nov 2028 | 2029 | Amgen's Q2 2026 release (8-K 0000318154-26-000124) says only that the trial is ongoing. Stands |
+| Lepodisiran (LLY) | 2027 | NCT06292013, ACCLAIM-Lp(a), 2029-03 | Oct 2029 | 2030 | Stands |
+| Abelacimab (NVS) | 2027 | NCT07739888, 2030-12-30 | Aug 2031 | 2032 | The book misses LILAC-TIMI 76 (NCT05712200, Anthos, 2027-12-30), which gives Aug 2028 and 2029; Novartis lists the atrial fibrillation submission in 2028 (Q2 2026, 6-K 0001114448-26-000012). Stands, on the missing study |
+| Trontinemab (ROG) | 2027 | NCT07169578, 2028-02-16 | Oct 2028 | 2029 | The completion moved forward from 2028-06-07 on 2026-09-26, which pulled the floor from 2029 to 2028. Stands |
+| Frexalimab (SNY) | 2027 | NCT06141473, 2027-05-06 | Jan 2028 | 2029 | Sanofi's half-year report lists relapsing MS at Phase 3. Stands |
+| VK2735 (VKTX) | 2027 | NCT07104500, VANQUISH-1, 2027-07-01 | Feb 2028 | 2029 | Viking: about 4,500 enrolled by November 2025 on 78 weeks of treatment (8-K of 2026-07-29). Stands |
+| mRNA seasonal flu vaccine (GSK) | 2027 | NCT07851246, 2027-07-09, not yet recruiting | Mar 2028 | 2029 | Stands |
+
+**The five amber flags.** Amber is drawn only where the floor rests on the registry alone, so
+the database lacks what the seed cites. Four can be recorded now and each would then be read
+against its own evidence: ifinatamab deruxtecan (a PDUFA date of 10 October 2026 in Merck's
+Q2 10-Q), povetacicept (an accepted BLA with a PDUFA date of 30 November 2026 in Vertex's Q2
+10-Q), AOC 1044 (a BLA submitted 2026-06-25 under priority review) and intismeran autogene
+(INTerpath-001's positive interim readout of 19 August 2026). VX-147's seed cites a planned
+AMPLITUDE interim for accelerated approval in early 2027, which cannot be recorded until it
+reads out. A seed that cites the filing or readout the database already holds, and still
+starts before it, stays red. Seed-cited PDUFA dates are not entered as catalysts
+in this build. The registry check also found RAINIER (NCT06564142, povetacicept's IgAN
+Phase 3, under Alpine) and IDeate-Lung02 (NCT06203210, under Daiichi Sankyo) missing from the
+book.
+
+**Retatrutide reads clear and is a year early.** The floor dates from TRIUMPH-3's actual
+primary completion (NCT05882045, 2026-04-16) with no submission lag, so December 2026. Lilly
+states it plans to submit the BLA in the first quarter of 2027 (Q2 2026 release, 8-K
+0000059478-26-000077), which puts approval between September and November 2027 on a priority
+review and early 2028 on a standard one. The seed of 2027 is then the approval year at best,
+where the book's own convention wants 2028. The floor cannot see a stated filing window until
+one can be recorded.

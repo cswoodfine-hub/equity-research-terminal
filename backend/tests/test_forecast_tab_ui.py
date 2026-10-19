@@ -119,6 +119,14 @@ def test_the_tab_renders_the_sliders_at_base_values(app):
     assert "vs base" not in body            # no delta badge at rest
 
 
+def test_a_product_with_a_verdict_never_says_it_has_none(app):
+    """The "No verdict" state hung off the granular success-rate test rather than the
+    verdict, so every product without a granular rate printed it under its own drivers."""
+    body = " ".join(str(m.value) for m in app.markdown)
+    assert "What it rests on".lower() in body.lower() or "rests on" in body
+    assert "No verdict" not in body
+
+
 def test_moving_the_volume_slider_retells_the_page_itself(app):
     """No separate section: the revenue chart and the valuation tiles are the display,
     and a moved slider changes them, base kept as a muted reference line."""

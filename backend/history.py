@@ -30,6 +30,9 @@ import db
 HISTORY_TABLES = [
     "refresh_runs", "snapshots", "changes", "catalysts", "insights",
     "annotations", "fx_rates",
+    # The model's calls as made each day (call_log.py): exported so each day's commit is
+    # the dated record they are scored against.
+    "model_calls", "gate_calls",
 ]
 
 DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data" / "history"

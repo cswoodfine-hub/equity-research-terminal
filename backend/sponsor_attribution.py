@@ -44,10 +44,12 @@ def own_names(ticker: str, db_path=None) -> list:
     return list(dict.fromkeys(n for n in names if n))
 
 
-def names_for(ticker: str, db_path=None, today=None) -> list:
-    """The company's own names and the names of the companies it recently acquired."""
-    return own_names(ticker, db_path) + acquired_sponsors.for_company(
-        db_path, ticker, today=today)
+def belongs(lead, own, acquired) -> bool:
+    """Whether a stated lead sponsor is this company's: its own name anywhere in the lead,
+    which is how a subsidiary names its parent, or a lead that begins with the name of a
+    company it bought, the stricter test acquired_sponsors holds an acquisition to."""
+    return ctgov.lead_names(lead, own) or any(
+        acquired_sponsors._lead_starts(lead or "", name) for name in acquired or ())
 
 
 def misfiled(db_path=None, table: str = "completed_trials", today=None) -> list[dict]:
@@ -73,8 +75,10 @@ def misfiled(db_path=None, table: str = "completed_trials", today=None) -> list[
     out = []
     for row in rows:
         if row["ticker"] not in names:
-            names[row["ticker"]] = names_for(row["ticker"], db_path, today)
-        if not ctgov.lead_names(row["lead_sponsor"], names[row["ticker"]]):
+            names[row["ticker"]] = (own_names(row["ticker"], db_path),
+                                    acquired_sponsors.for_company(
+                                        db_path, row["ticker"], today=today))
+        if not belongs(row["lead_sponsor"], *names[row["ticker"]]):
             out.append(dict(row))
     return out
 

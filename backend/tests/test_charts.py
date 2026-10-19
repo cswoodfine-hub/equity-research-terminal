@@ -490,6 +490,31 @@ def test_waterfall_reference_is_a_dashed_rule_inside_the_domain():
     assert ry < min(tops)
 
 
+def test_waterfall_price_rule_runs_under_the_figures_and_names_itself_only_when_asked():
+    """The rule was drawn last, over every bar and figure: on Amgen it struck through the
+    dividend's minus sign. It now comes before the bars, each figure sits on a patch of
+    the ground, and with no label the rule stands alone for the chip to name."""
+    steps = [{"label": "a", "value": 10.0, "kind": "start"},
+             {"label": "b", "value": -5.0, "kind": "step"},
+             {"label": "c", "kind": "end"}]
+    svg = charts.waterfall(steps, reference={"label": None, "value": 8.0})
+    ET.fromstring(svg)
+    assert svg.index('class="reference"') < svg.index('<rect x=')
+    assert "8.0<" not in svg                       # no label at the end of the rule
+    assert svg.count('class="figure-ground"') == 3  # every bar's figure on its patch
+    assert svg.index('class="reference"') < svg.index('class="figure-ground"')
+
+
+def test_a_waterfall_label_wider_than_its_slot_takes_two_lines():
+    steps = ([{"label": "marketed", "value": 10.0, "kind": "start"}]
+             + [{"label": "growth capital", "value": 1.0, "kind": "step"}] * 12
+             + [{"label": "12m", "kind": "end"}])
+    svg = charts.waterfall(steps, 800, 210)
+    ET.fromstring(svg)
+    assert ">growth</tspan>" in svg and ">capital</tspan>" in svg
+    assert ">marketed<" in svg                     # a label that fits stays on one line
+
+
 # --- football field --------------------------------------------------------
 def test_a_football_field_draws_each_range_and_the_price_once():
     svg = charts.football_field(

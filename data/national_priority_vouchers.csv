@@ -1,0 +1,6 @@
+# Commissioner's National Priority Vouchers, one row per product, transcribed only from FDA's own
+# announcements (https://www.fda.gov/industry/commissioners-national-priority-voucher-cnpv-pilot-program).
+# Empty until that transcription is done: no row may come from a company release or a news summary.
+# Read by backend/launch_timing.py, which names a holder and applies no clock of its own until
+# data/fda_review_clock.csv carries a sourced row for the programme.
+product,sponsor,asset_name_match,awarded,source_url

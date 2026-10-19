@@ -29,6 +29,7 @@ import balance_updates
 import financings
 import assumptions as assumptions_module
 import regional_loe
+import acquired_sponsors
 import retained_programmes
 import company_lines
 import indication_mapping
@@ -39,7 +40,9 @@ import brand_split
 import biologic_loe
 import catalysts
 import consensus as consensus_module
+import curated_catalysts
 import curated_register
+import discontinued
 import db
 import deals
 import diff
@@ -74,6 +77,10 @@ from fetchers.labels_dailymed import LabelsDailyMedFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.negotiated_prices_cms import NegotiatedPricesCmsFetcher
 from fetchers.benchmarks import BenchmarksFetcher
+from fetchers.codes_rxnav import DrugCodesRxNavFetcher
+from fetchers.formulary_cms import PartDFormularyFetcher
+from fetchers.prescribers_cms import PartDPrescribersFetcher
+from fetchers.utilization_medicaid import MedicaidSdudFetcher
 from fetchers.policy_fedreg import PolicyFedRegFetcher
 from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
@@ -83,6 +90,8 @@ from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
 from fetchers.product_revenue_sec import ProductRevenueFetcher
+from fetchers.pharmacology import PharmacologyFetcher
+from fetchers.trial_results import TrialResultsFetcher
 from fetchers.trials_completed import TrialsCompletedFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 
@@ -92,6 +101,23 @@ DEFAULT_TICKER = "LLY"
 # company, so this also caps concurrent requests per host: 4 workers keeps EDGAR well
 # under its 10 requests/second limit.
 MAX_WORKERS = int(os.getenv("ER_TOOL_REFRESH_WORKERS", "4"))
+
+
+def _big_pharma(company, db_path) -> bool:
+    """Whether the company is read on the big pharma engine, by the same rule the
+    universe split uses. False where it cannot be told, so an unplaced company does not
+    run the heavier sources."""
+    try:
+        import pos_granular
+        conn = db.get_connection(db_path)
+        try:
+            row = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (company["ticker"],)).fetchone()
+            return bool(row) and pos_granular.big_pharma(conn, row["id"])
+        finally:
+            conn.close()
+    except Exception:
+        return False
 
 
 def _company_fetchers(company, db_path):
@@ -126,6 +152,13 @@ def _company_fetchers(company, db_path):
         fetchers.append(ConsensusFmpFetcher(company["ticker"], db_path))
     # The keyless street feed: annual EPS and the price target, for every listed company.
     fetchers.append(ConsensusNasdaqFetcher(company["ticker"], db_path))
+    # What each drug is and what its trials posted, for the indication landscape. Big
+    # pharma only for now, which is where the landscape is read: the results fetch alone
+    # is some 4,800 studies there. Both run after the trial fetchers above, whose asset
+    # mapping they read.
+    if _big_pharma(company, db_path):
+        fetchers.append(PharmacologyFetcher(company["ticker"], db_path))
+        fetchers.append(TrialResultsFetcher(company["ticker"], db_path))
     if company["is_sec_filer"] and company["cik"]:
         fetchers.append(FinancialsEdgarFetcher(company["ticker"], db_path))
         fetchers.append(FilingsEdgarFetcher(company["ticker"], db_path))
@@ -162,6 +195,20 @@ def _universe_fetchers(db_path):
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             PolicyFedRegFetcher(db_path),
             NegotiatedPricesCmsFetcher(db_path)]
+
+
+def _payer_fetchers(db_path):
+    """Medicare and Medicaid prescribing and plan coverage, keyed on drug codes.
+
+    The codes come first: the Medicaid and formulary readers join what they store to
+    ``drug_codes`` and never import the codes fetcher. None of the four is a universe
+    download in the sense above, because they read the asset rows, so they run in a late
+    stage of the universe refresh, once the merges and the brand split have settled the
+    rows, and never in a single-company refresh. Each holds its own release guard against
+    a forced run, so a daily run costs a few metadata calls on most days.
+    """
+    return [DrugCodesRxNavFetcher(db_path), PartDPrescribersFetcher(db_path),
+            MedicaidSdudFetcher(db_path), PartDFormularyFetcher(db_path)]
 
 
 # How long a run may be in flight before a later one is allowed to assume it died. A
@@ -290,7 +337,10 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
     # the seller kept when the company was bought is released first, so it is never
-    # derived as the acquirer's programme.
+    # derived as the acquirer's programme. A study filed here through an acquisition the
+    # company never made (another company's headline, a place read as a name) goes back
+    # to the company that did buy its sponsor, or to no one.
+    acquired_sponsors.release(db_path)
     retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows
@@ -351,6 +401,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     _register = curated_register.apply(db_path)
     mapped["register_added"], mapped["register_retired"] = (_register["added"],
                                                             _register["retired"])
+    # Programmes the company has stopped, retired after the merges so a retirement
+    # lands on the row that survives them. Rebuilt from the file every run.
+    mapped["programmes_retired"] = discontinued.apply(db_path)["retired"]
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
@@ -358,6 +411,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
+        # decisions a person dated from a filing. After the seeds, so the assets exist.
+        mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
@@ -518,7 +574,10 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # unmarketed asset first, so the pipeline reads as programmes rather than loose
     # studies. Both are idempotent, and neither overwrites a curated mapping. A compound
     # the seller kept when the company was bought is released first, so it is never
-    # derived as the acquirer's programme.
+    # derived as the acquirer's programme. A study filed here through an acquisition the
+    # company never made (another company's headline, a place read as a name) goes back
+    # to the company that did buy its sponsor, or to no one.
+    acquired_sponsors.release(db_path)
     retained_programmes.release(db_path)
     pipeline_assets = trial_mapping.derive_pipeline_assets(db_path)
     # Which brands are one molecule, before the trials are matched: where two rows
@@ -579,6 +638,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     _register = curated_register.apply(db_path)
     mapped["register_added"], mapped["register_retired"] = (_register["added"],
                                                             _register["retired"])
+    # Programmes the company has stopped, retired after the merges so a retirement
+    # lands on the row that survives them. Rebuilt from the file every run.
+    mapped["programmes_retired"] = discontinued.apply(db_path)["retired"]
     # The curated assumption seeds, insert-only: a rebuilt database gets the layer back,
     # and an analyst's live edit is never overwritten by the file it started from.
     conn = db.get_connection(db_path)
@@ -586,6 +648,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         mapped["assumption_seeds"] = assumptions_module.load_seeds(conn)["written"]
         mapped["line_seeds"] = company_lines.load_seeds(conn)["written"]
         mapped["consensus_seeds"] = consensus_module.load_seeds(conn)["written"]
+        # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
+        # decisions a person dated from a filing. After the seeds, so the assets exist.
+        mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
@@ -660,6 +725,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
     leaders = leadership.detect(db_path, run_id)
+    # Medicare and Medicaid prescribing and Part D plan coverage, read once the asset
+    # rows are final and before the diff, which reads the coverage snapshots they write.
+    for fetcher in _payer_fetchers(db_path):
+        fetcher.refresh_run_id = run_id
+        fetcher.force = force
+        record(fetcher.run(), fetcher.entity_key)
     # Headlines last, for the licensing deals the filings name only in aggregate.
     news_deals = DealsNewsFetcher(db_path)
     news_deals.refresh_run_id = run_id

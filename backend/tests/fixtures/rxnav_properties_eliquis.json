@@ -1,0 +1,35 @@
+{
+ "1364441": {
+  "properties": {
+   "rxcui": "1364441",
+   "name": "apixaban 2.5 MG Oral Tablet [Eliquis]",
+   "synonym": "Eliquis 2.5 MG Oral Tablet",
+   "tty": "SBD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ },
+ "1364447": {
+  "properties": {
+   "rxcui": "1364447",
+   "name": "apixaban 5 MG Oral Tablet [Eliquis]",
+   "synonym": "Eliquis 5 MG Oral Tablet",
+   "tty": "SBD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ },
+ "1992428": {
+  "properties": {
+   "rxcui": "1992428",
+   "name": "{74 (apixaban 5 MG Oral Tablet [Eliquis]) } Pack [Eliquis 30-Day Starter Pack]",
+   "synonym": "Eliquis 30-Day Starter Pack",
+   "tty": "BPCK",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ }
+}

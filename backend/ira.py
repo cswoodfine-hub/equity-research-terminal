@@ -185,7 +185,12 @@ def company_exposure(conn, ticker: str, rates: dict | None = None) -> dict:
         spending += got["part_d_spending"] or 0.0
         years.add(got["year"])
 
-    rates = fx_module.latest_usd_rates() if rates is None else rates
+    if rates is None:
+        # fx takes a path, so ask the connection which file it is open on. With no path
+        # the rates came from the default database whatever database the caller held.
+        row = conn.execute("PRAGMA database_list").fetchone()
+        rates = fx_module.latest_usd_rates((row["file"] or None) if row is not None
+                                           else None)
     revenue = productivity.latest_revenue(conn, company["id"], rates)
     share = (spending / revenue) if (revenue and spending) else None
     return {"ticker": ticker.upper(), "part_d_spending": spending or None,

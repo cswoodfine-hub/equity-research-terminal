@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 import env  # noqa: F401  loads the .env from the repo root, before any module reads it
@@ -26,14 +27,20 @@ import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
 import comps as comps_module
+import catalysts_command as catalysts_command_module
+import comps_context as comps_context_module
+import comps_valuation as comps_valuation_module
+import company_score as company_score_module
 import db
 import deals as deals_module
 import demand as demand_module
+import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
+import universe_command as universe_command_module
 import valuation as valuation_module
 import financials_view as financials_view_module
 import insights as insights_module
@@ -47,13 +54,25 @@ import engines as engines_module
 import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
+import launch_timing
+import development
+import disease_areas
+import call_log
+import my_portfolio
+import portfolio_history
+import landscape as landscape_module
+import drug_card
+import landscape_overview
+import landscape_score
 import fx as fx_module
 import loe as loe_module
 import product_areas
 import therapeutic_areas
+import payer_access as payer_access_module
 import pipeline as pipeline_module
 import product_profile as product_profile_module
 import refresh as refresh_module
+import response_cache
 import regulatory as regulatory_module
 import screen as screen_module
 import slippage as slippage_module
@@ -69,6 +88,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Pharma equity research terminal", version="0.2.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def serve_reads_from_cache(request, call_next):
+    """Reads are served from their last computation until the book changes, and the slow
+    ones are computed ahead of the page (backend/response_cache.py)."""
+    response_cache.start_warming(str(request.base_url))
+    return await response_cache.handle(request, call_next)
 
 
 @app.get("/health")
@@ -302,6 +329,51 @@ def comps_trend() -> dict:
     return comps_module.comps_trend()
 
 
+@app.get("/comps/valuation")
+def comps_valuation_view():
+    """Every company's valuation record for the Comps tab's Valuation view: components,
+    not multiples, each null with its reason (backend/comps_valuation.py), and the company
+    scorecard built from them (backend/company_score.py) under ``scorecard``. A body built
+    before the model reads are warm, or whose scorecard failed, is marked incomplete and is
+    never cached."""
+    payload = comps_valuation_module.build()
+    payload["scorecard"] = company_score_module.build(payload)
+    ok = payload["complete"] and not payload["scorecard"].get("error")
+    headers = {} if ok else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
+
+
+@app.get("/universe/command")
+def universe_command(ticker: str = Query(default="AZN"),
+                     window: str = Query(default=universe_command_module.DEFAULT_WINDOW),
+                     part: str = Query(default="all")):
+    """The Universe tab's command centre for one company in focus (backend/
+    universe_command.py): the cohort's rankings, the price against value map, the board
+    of the next 90 days, the week ranked, rates, exposure, approvals and readouts, a year
+    of prices and the policy calendar, in one read. ``part=focal`` returns only what the
+    company dialog draws. A body built before the valuation it embeds was warm is marked
+    incomplete and is never cached."""
+    payload = universe_command_module.build(
+        ticker, window, part="focal" if part == "focal" else "all")
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
+
+
+@app.get("/companies/{ticker}/comps-context")
+def company_comps_context(ticker: str):
+    """What stands behind one company's valuation in the Comps tab: its dated catalysts of
+    the next 12 months and the competition in its most valuable indications
+    (backend/comps_context.py). The verdict is read from the response cache only, so a
+    body built before it is warm is marked incomplete and is never cached."""
+    payload = comps_context_module.build(ticker)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
+
+
 @app.get("/pipeline")
 def pipeline() -> list[dict]:
     return pipeline_module.build_pipeline()
@@ -398,6 +470,30 @@ def company_demand(ticker: str) -> dict:
     if rows is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return {"ticker": ticker.upper(), "drugs": rows}
+
+
+@app.get("/companies/{ticker}/demand/split")
+def company_demand_split(ticker: str) -> dict:
+    """Each brand's Medicare spend growth split into patients, use per patient and
+    price, one row per brand and part, sorted by latest spend, beside the model's growth
+    rate and the tracked-brand median. A read-only lens: Medicare only, Part D gross of
+    rebates (docs/design/medicare-demand-split.md)."""
+    out = demand_split_module.company_split(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return out
+
+
+@app.get("/companies/{ticker}/payer-access")
+def company_payer_access(ticker: str) -> dict:
+    """Each marketed brand's Medicare Part D prescribing, Part D plan coverage and
+    Medicaid prescriptions, one row per brand and never totalled: a co-marketed brand
+    shows whole on both owners' pages. Display only; nothing valued reads it
+    (backend/payer_access.py)."""
+    out = payer_access_module.company_view(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return out
 
 
 @app.get("/companies/{ticker}/approvals")
@@ -580,6 +676,18 @@ class AssumptionsIn(BaseModel):
     scenario: str = "base"
 
 
+@app.get("/companies/{ticker}/forecast/{asset_id}/demand")
+def forecast_demand_split(ticker: str, asset_id: int) -> dict:
+    """One asset's Medicare growth split, every year pair, with the flags, the tracked
+    median and the model and reported growth beside it. ok False with a reason when CMS
+    has no series for the brand."""
+    out = demand_split_module.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no asset {asset_id} for {ticker.upper()}")
+    return out
+
+
 @app.post("/companies/{ticker}/forecast/{asset_id}/assumptions")
 def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -> dict:
     """Write the editor's rows. The ticker scopes the asset, so an assumption cannot be
@@ -609,6 +717,37 @@ def company_forecast_verdict(ticker: str) -> dict:
     return {**out, "note": forecast_note.write_company(out)}
 
 
+@app.get("/companies/{ticker}/launch-timing")
+def company_launch_timing(ticker: str) -> dict:
+    """The earliest approval the evidence allows for every unmarketed asset with a seeded
+    start year, against that start, red flags first. A flag for checking: it moves no
+    value."""
+    conn = db.get_connection()
+    try:
+        company = conn.execute("SELECT id, ticker FROM companies WHERE ticker = ?",
+                               (ticker.upper(),)).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        assets = launch_timing.for_company(conn, company["id"])
+    finally:
+        conn.close()
+    return {"ticker": company["ticker"], "assets": assets}
+
+
+# Not /forecast/development, for the same reason as /forecast-verdict: /forecast/{asset_id}
+# would match first and fail to cast "development" to an int.
+@app.get("/companies/{ticker}/development")
+def company_development(ticker: str) -> dict:
+    """Every counted pipeline line's next gate: what reaching it costs from published trial
+    costs, what passing it is worth, failing gates first, and the named trials' spend
+    against the R&D the book charges. A view: the R&D ratio already pays for these trials,
+    so it moves no value."""
+    out = development.for_company(None, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
 @app.get("/companies/{ticker}/breakpoints")
 def company_breakpoints(ticker: str) -> dict:
     """For every assumption the company's value rests on, the value at which it meets
@@ -616,6 +755,92 @@ def company_breakpoints(ticker: str) -> dict:
     out = breakpoints.company(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return out
+
+
+@app.get("/indications")
+def indications_list(limit: int = 250) -> list:
+    """The indications a landscape can be drawn for, most contested first: every one
+    with a big pharma candidate that is marketed or in Phase 2 and later."""
+    return landscape_module.indications(None, limit=limit)
+
+
+@app.get("/indications/{indication_id}/landscape")
+def indication_landscape(indication_id: int) -> dict:
+    """Every big pharma candidate for one indication, whatever its modality: what it is,
+    what its trials posted against placebo, its safety record and what the model says it
+    is worth, with the patient pool the modelled ones share."""
+    out = landscape_module.landscape(
+        None, indication_id,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"))
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
+    return out
+
+
+@app.get("/indications/{indication_id}/overview")
+def indication_overview(indication_id: int, endpoint: Optional[str] = None) -> dict:
+    """The landscape read for you: each drug's best result on one measure, its cost in
+    people stopping for side effects, and a verdict in plain words."""
+    land = landscape_module.landscape(
+        None, indication_id,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"))
+    if land is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
+    return {"indication": land["indication"], **landscape_overview.overview(land, endpoint),
+            "scorecard": landscape_score.scorecard(land)}
+
+
+@app.get("/indications/{indication_id}/drug/{asset_id}")
+def indication_drug(indication_id: int, asset_id: int) -> dict:
+    """One drug's card in one indication: what it is, its scorecard place and the results,
+    safety and trials behind it, the patient pool and the build it is valued on, its value
+    and next gate, and for a marketed product its revenue and Medicare use. Assembled from
+    the landscape, the scorecard, the forecast and the product profile; nothing new."""
+    verdict_for = lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict")
+    land = landscape_module.landscape(None, indication_id, verdict_for=verdict_for)
+    if land is None:
+        raise HTTPException(status_code=404, detail=f"unknown indication {indication_id}")
+    # The overview the page has just drawn carries the scorecard; computed only when it
+    # has not been read yet.
+    scorecard = (response_cache.cached_json(f"/indications/{indication_id}/overview")
+                 or {}).get("scorecard") or landscape_score.scorecard(land)
+    out = drug_card.card(
+        None, land, asset_id, scorecard=scorecard, verdict_for=verdict_for,
+        verdict_of=lambda t, a: (
+            response_cache.cached_json(f"/companies/{t}/forecast/{a}/verdict")
+            or forecast_view_module.verdict(None, t, a)),
+        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"),
+        forecast_of=lambda t, a: (
+            response_cache.cached_json(f"/companies/{t}/forecast/{a}")
+            or forecast_view_module.asset_forecast(None, t, a)))
+    if out is None:
+        raise HTTPException(status_code=404,
+                            detail=f"no candidate {asset_id} in indication {indication_id}")
+    return out
+
+
+@app.get("/areas")
+def areas_list() -> list:
+    """The disease areas the big pharma cohort is present in, most companies first, with
+    the tickers present in each."""
+    return disease_areas.index(None)
+
+
+@app.get("/areas/{area_slug}")
+def area_detail(area_slug: str) -> dict:
+    """One disease area: every big pharma company present scored on value today,
+    pipeline, durability and clinical quality, the area's figures and its findings."""
+    def scorecard_for(indication_id):
+        ov = response_cache.cached_json(f"/indications/{indication_id}/overview")
+        return (ov or {}).get("scorecard")
+    out = disease_areas.area(
+        None, area_slug,
+        verdict_for=lambda t: response_cache.cached_json(f"/companies/{t}/forecast-verdict"),
+        stakes_for=lambda t: response_cache.cached_json(f"/companies/{t}/catalysts/stakes"),
+        scorecard_for=scorecard_for)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"unknown disease area {area_slug}")
     return out
 
 
@@ -637,6 +862,17 @@ def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict
         raise HTTPException(status_code=404,
                             detail=f"no asset {asset_id} for {ticker}")
     return {**out, "note": forecast_note.write(out)}
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/development")
+def forecast_development(ticker: str, asset_id: int) -> dict:
+    """What reaching the asset's next gate costs, beside what passing it is worth, and the
+    ladder to approval after later trial costs. A refusal comes back as {ok: false,
+    reason, why}. A view beside the value: it moves no rNPV, sum of the parts or rating."""
+    out = development.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
+    return out
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/shape")
@@ -668,6 +904,43 @@ def company_street(ticker: str) -> dict:
     return out
 
 
+@app.get("/portfolio/mine")
+def portfolio_mine() -> dict:
+    """The user's own Trading 212 holdings, read live and never cached, each beside the
+    model's latest call and next catalyst where the book covers the company."""
+    return my_portfolio.mine(None)
+
+
+@app.get("/portfolio/history")
+def portfolio_history_view() -> dict:
+    """The user's Trading 212 account valued every trading day since its first deposit,
+    rebuilt from its fills and cash (backend/portfolio_history.py), beside the money put in
+    and the same money in the S&P 500. Never cached."""
+    return portfolio_history.build()
+
+
+@app.get("/portfolio/performance")
+def portfolio_performance() -> dict:
+    """How the user's Trading 212 account has done: the money-weighted return from its
+    deposits and withdrawals, beside the same cash in the S&P 500 and PPH, and the gain
+    split into realised, unrealised price, currency and dividends. Never cached."""
+    return my_portfolio.performance(None)
+
+
+@app.get("/calls/scores")
+def calls_scores(cohort: Optional[str] = None) -> dict:
+    """The model's recorded calls scored against what followed (backend/call_log.py): its
+    12-month upside against the return over PPH at 1, 3, 6 and 12 months, beside the
+    analysts' targets on the same days, and the gate odds against the readouts."""
+    return call_log.score(None, cohort=cohort)
+
+
+@app.get("/calls/{ticker}")
+def calls_for(ticker: str) -> list:
+    """Every call recorded for one company, oldest first."""
+    return call_log.history(None, ticker)
+
+
 @app.get("/companies/{ticker}/catalysts/stakes")
 def company_catalyst_stakes(ticker: str) -> dict:
     """The catalyst calendar ranked by dollars at stake rather than by date."""
@@ -675,6 +948,20 @@ def company_catalyst_stakes(ticker: str) -> dict:
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     return out
+
+
+@app.get("/companies/{ticker}/catalysts/view")
+def company_catalysts_view(ticker: str):
+    """The redesigned Catalysts tab in one read (backend/catalysts_command.py): every
+    pipeline line at its next gate with its legs, cost and launch floor, the dated events
+    by therapy area, the exclusivity losses, slips, crowding, the readout record and why
+    the rest carry no price. A body built before the scorecard it reads was warm is marked
+    incomplete and is never cached."""
+    payload = catalysts_command_module.build(ticker)
+    if payload is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
+    return JSONResponse(payload, headers=headers)
 
 
 class ResolveIn(BaseModel):
@@ -722,7 +1009,8 @@ def forecast_whatif(ticker: str, asset_id: int,
 def forecast_sensitivity(ticker: str, asset_id: int,
                          scenario: str = Query(default="base"),
                          preset: str = Query(default="price")) -> dict:
-    """The two grids: WACC x net price, and LOE year x year-one erosion."""
+    """The two grids: WACC x the input the asset's mode builds revenue from (growth,
+    pool growth, published peak or net price), and LOE year x year-one erosion."""
     grid = forecast_view_module.sensitivity(None, ticker, asset_id, scenario, preset)
     if grid is None:
         raise HTTPException(status_code=404,
@@ -1185,6 +1473,27 @@ def changes(days: int = Query(default=30),
     return whatchanged_module.build_feed(days=days, ticker=ticker)
 
 
+class BriefIn(BaseModel):
+    facts: str
+
+
+@app.get("/companies/{ticker}/brief")
+def company_brief(ticker: str, hash: str = Query(default="")) -> dict:
+    """The model's rewrite of the Key insights briefing, if one was written from exactly
+    the facts whose hash is given; otherwise no body, and the page shows its own."""
+    found = insights_module.latest_brief(ticker=ticker, facts_hash=hash)
+    return found or {"ticker": ticker.upper(), "body": None, "model": None,
+                     "generated_at": None}
+
+
+@app.post("/companies/{ticker}/brief")
+def write_company_brief(ticker: str, body: BriefIn) -> dict:
+    """Rewrite the Key insights briefing with the note model, from the page's own facts."""
+    out = insights_module.write_brief(ticker=ticker, facts=body.facts)
+    out["hash"] = insights_module.brief_hash(body.facts)
+    return out
+
+
 @app.get("/companies/{ticker}/note")
 def company_note(ticker: str, days: int = Query(default=30),
                  refresh: bool = Query(default=False)) -> dict:
@@ -1333,11 +1642,13 @@ def remove_catalyst(catalyst_id: int) -> dict:
 
 @app.post("/catalysts/{catalyst_id}/accept")
 def accept_catalyst(catalyst_id: int) -> dict:
-    """Promote a derived catalyst to curated, so a later refresh cannot withdraw it."""
+    """Promote a pending derived catalyst to curated, so a later refresh cannot withdraw
+    it. A resolved one is history and is refused."""
     if not catalysts_module.accept_catalyst(None, catalyst_id):
         raise HTTPException(
             status_code=404,
-            detail=f"catalyst {catalyst_id} not found, or is already curated")
+            detail=f"catalyst {catalyst_id} not found, already curated, or already "
+                   f"resolved")
     return {"accepted": catalyst_id}
 
 

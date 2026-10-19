@@ -153,3 +153,42 @@ def test_a_dropped_age_floor_is_a_population_expansion(tmp_path):
     assert row["change_type"] == "population_expansion"
     assert row["significance"] == "high"
     assert "age floor 12 -> 2" in row["new_value"]
+
+
+# --- the fetch reads a whole label only for a new version ----------------------------
+def _fetch_with(monkeypatch, db_file):
+    from fetchers import labels_dailymed as LD
+    calls = {"xml": 0}
+    monkeypatch.setattr(LD.time, "sleep", lambda s: None)
+    monkeypatch.setattr(LD.dailymed, "history", lambda setid: _HISTORY)
+    monkeypatch.setattr(LD.dailymed, "search", lambda name: _SEARCH)
+
+    def xml(setid):
+        calls["xml"] += 1
+        return "<document/>"
+    monkeypatch.setattr(LD.dailymed, "spl_xml", xml)
+    rows = LD.LabelsDailyMedFetcher("LLY", db_file).fetch()
+    return rows, calls["xml"]
+
+
+def test_a_version_on_file_is_not_read_again(tmp_path, monkeypatch):
+    """Every label read every day to keep none of it was 91 of the refresh's 160 minutes
+    (2026-10-07). The history says the version; the whole label is read only when it is
+    new, and the row still goes on, so the version and its date stay current."""
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    _label(db_file, "bbb", 12)
+    rows, xml_reads = _fetch_with(monkeypatch, db_file)
+    assert xml_reads == 0
+    assert [(r["setid"], r["spl_version"], r["indications_text"]) for r in rows] == [
+        ("bbb", 12, None)]
+
+
+def test_a_new_version_is_read_whole(tmp_path, monkeypatch):
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    _label(db_file, "bbb", 8)
+    rows, xml_reads = _fetch_with(monkeypatch, db_file)
+    assert xml_reads == 1 and rows[0]["spl_version"] == 12

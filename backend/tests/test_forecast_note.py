@@ -138,3 +138,144 @@ def test_a_market_rate_is_not_described_as_the_books_own_assumption():
     assert book == "the book assumes for its own products"
     # No basis on file claims neither one.
     assert forecast_note._growth_whose({}) == "the book is held to"
+
+
+def test_the_company_headline_reads_as_prose_not_the_bridge():
+    """The summary used to print the bridge as a list ("growth capital $3.63 off, $9.97
+    carried to the close, net debt $15.28, other claims $0.55 off"), which the waterfall
+    beside it already draws, and a first rewrite still read it out a sentence per step.
+    It now says where the value comes from in shares, gives figures for the price, the
+    pipeline and the balance sheet, and leaves the small steps to the waterfall."""
+    s = {"close": 166.15, "equity_per_share": 175.38, "forward_12m": 185.34,
+         "upside": 0.1155,
+         "marketed": {"n": 32, "per_share": 90.40},
+         "pipeline": {"n": 22, "per_share": 12.49},
+         "future": {"per_share": 81.96},
+         "growth_investment": {"per_share": -3.63},
+         "carry_per_share": 9.97, "net_cash_per_share": -15.28,
+         "other_claims_per_share": -0.55}
+    line = forecast_note._sotp_headline({"ticker": "AZN", "sotp": s, "coverage": {}})
+    assert line == (
+        "On the model, AZN's equity is worth $175.38 a share, 6% above the $166.15 share "
+        "price, and $185.34 in twelve months, 12% above it. About half of that value "
+        "comes from the 32 products already on the market and most of the rest from "
+        "launches beyond the modelled pipeline, valued on what past R&D spending has "
+        "bought. The 22 candidates in development add $12.49 once each is weighted by "
+        "its chance of approval, and net debt takes off $15.28 a share.")
+    assert line.count("$") == 5 and "$-" not in line
+
+
+def test_a_second_part_larger_than_what_is_left_is_given_in_dollars():
+    """Bristol's products were 56% of its equity and its launches more than the other
+    44%, because net debt comes off after; two shares read "56% ... and about half"."""
+    s = {"close": 62.40, "equity_per_share": 97.23, "forward_12m": 101.92,
+         "marketed": {"n": 17, "per_share": 54.45}, "future": {"per_share": 50.13},
+         "pipeline": {"n": 11, "per_share": 2.80}, "net_cash_per_share": -15.53}
+    line = forecast_note._sotp_headline({"ticker": "BMY", "sotp": s, "coverage": {}})
+    assert ("The 17 products already on the market supply 56% of that value and launches "
+            "beyond the modelled pipeline another $50.13 a share, valued on what past R&D "
+            "spending has bought.") in line
+
+
+def test_a_step_that_is_not_small_is_named_with_its_figure():
+    """Viking's investment in plant and working capital was $12.33 of a $20.63 value;
+    netting it into "smaller items" called a large charge small."""
+    s = {"close": 32.60, "equity_per_share": None, "enterprise_per_share": 19.10,
+         "enterprise_today_per_share": 20.63, "cash_per_share": 4.45,
+         "marketed": {"n": 0, "per_share": 0.0},
+         "pipeline": {"n": 1, "per_share": 23.89}, "future": {"per_share": 7.53},
+         "growth_investment": {"per_share": -12.33}, "carry_per_share": 1.53}
+    line = forecast_note._sotp_headline({"ticker": "VKTX", "sotp": s, "coverage": {}})
+    assert line.startswith("On the model, VKTX's enterprise value is $20.63 a share, 37% "
+                           "below the $32.60 share price.")
+    assert "investment in plant and working capital for growth takes off $12.33" in line
+    assert "rolling the value forward" not in line          # $1.53 is small: left out
+    assert line.endswith("That is before $4.45 a share of cash; no debt figure is on file.")
+
+
+def test_with_nothing_modelled_the_balance_sheet_is_not_called_a_value():
+    s = {"close": 13.50, "equity_per_share": -8.93, "net_cash_per_share": -8.93,
+         "enterprise_today_per_share": 0.0,
+         "marketed": {"n": 0, "per_share": 0.0}, "pipeline": {"n": 0, "per_share": 0.0},
+         "lines": {"n": 0, "per_share": 0.0}}
+    line = forecast_note._sotp_headline({"ticker": "BAYN", "sotp": s, "coverage": {}})
+    assert line == ("Nothing is modelled for BAYN yet, so there is no value to set "
+                    "against the $13.50 share price. The balance sheet holds $8.93 a "
+                    "share of net debt.")
+
+
+def test_coverage_that_rounds_to_the_whole_is_all_of_it_and_names_no_gap():
+    """Glaxo covered 99.976%, printed "100.0%", and then named what it left out."""
+    v = {"ticker": "GSK", "modelled": [{"counted": True}] * 35, "streams": [{}] * 4,
+         "coverage": {"share": 0.99976, "fiscal_year": 2025, "basis": "reported total",
+                      "reported_revenue": 1000.0, "modelled_revenue": 999.76,
+                      "unmodelled": [{"name": "PENMENVY", "revenue": 0.24}]}}
+    assert forecast_note._coverage_clause(v) == (
+        " The model's 35 assets and four revenue lines cover all of FY2025 reported "
+        "revenue.")
+    v["coverage"]["share"] = 0.968
+    assert "cover 96.8% of FY2025" in forecast_note._coverage_clause(v)
+
+
+# --- the next gate sets the range where no scenario does --------------------------------
+BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
+
+
+def _gated(**gate):
+    base = {"gate": "p3_to_nda", "label": "Phase 3 readout", "date": "2028-01",
+            "due": False, "per_share_now": 8.52, "per_share_success": 13.97,
+            "per_share_failure": 0.0, "held": None, "legs_basis": "derived"}
+    base.update(gate)
+    return _verdict(name="Eloralintide", has_range=False, gate_range=True, gate=base)
+
+
+def _body(v):
+    return " ".join(forecast_note.write(v)["body"])
+
+
+def _house_style(text):
+    assert "—" not in text and "–" not in text, text
+    assert not any(word in text.lower() for word in BANNED), text
+
+
+def test_with_no_scenarios_the_next_gate_sets_the_range():
+    body = _body(_gated())
+    assert ("No bear or bull case is on file, so the next gate sets the range: $13.97 a "
+            "share if its Phase 3 readout, est. Jan 2028, passes, nil if it fails, against "
+            "$8.52 now.") in body
+    assert "one set of assumptions" not in body
+    _house_style(body)
+
+
+def test_the_held_clause_says_where_a_miss_leaves_it():
+    body = _body(_gated(held={"open": 4, "pos": 0.5552, "ncts": []}))
+    assert ("A miss leaves 4 other Phase 3s open, and the model holds it at 56% until "
+            "they read out.") in body
+    one = _body(_gated(held={"open": 1, "pos": 0.4388, "ncts": []}))
+    assert "1 other Phase 3 open, and the model holds it at 44% until it reads out." in one
+    stated = _body(_gated(held={"open": 2, "pos": 0.5452, "stated_governs": True}))
+    assert "but the stated PoS governs until it is cleared." in stated
+    _house_style(body + one + stated)
+
+
+def test_an_fda_decision_and_an_overdue_readout_are_dated_as_they_are():
+    fda = _body(_gated(gate="nda_to_approval", label="FDA decision", date="2026-10-26"))
+    assert ("$13.97 a share if the FDA approves it (decision due 26 Oct 2026), nil if it "
+            "does not, against $8.52 now.") in fda
+    due = _body(_gated(date="2024-10-30", due=True))
+    assert "if its Phase 3 readout, due since Oct 2024 with no readout on file, passes" in due
+    undated = _body(_gated(date=None))
+    assert "if its Phase 3 readout passes, nil if it fails" in undated
+    _house_style(fda + due + undated)
+
+
+def test_a_scenario_range_still_outranks_the_gate():
+    v = _gated()
+    v["has_range"] = True
+    body = _body(v)
+    assert "$1.42 to $8.91" in body and "next gate sets the range" not in body
+
+
+def test_without_a_gate_the_old_sentence_stands():
+    body = _body(_verdict(has_range=False, gate=None, gate_range=False))
+    assert "There is no bear or bull case on file" in body

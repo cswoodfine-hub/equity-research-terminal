@@ -70,11 +70,15 @@ def derive_new_patients(pool: float, incidence: float, penetration,
     optional per-year list of treatment slots.
 
     ``carryover`` is the share of the patients not started in a year who are still
-    eligible the next. At 1.0, the default, nobody leaves: a prevalent pool is drawn down
-    and the tail converges on the incidence run rate, the Zolgensma shape. At 0.0 each
-    year's eligible patients are that year's alone, as in a line of cancer therapy, where
-    a patient not started on this drug starts another and leaves the line, and the tail
-    converges on incidence x penetration.
+    eligible the next. At 1.0, the default here, nobody leaves: a prevalent pool is drawn
+    down and the tail converges on the incidence run rate, the Zolgensma shape. At 0.0
+    each year's eligible patients are that year's alone, as in a line of cancer therapy,
+    where a patient not started on this drug starts another and leaves the line, and the
+    tail converges on incidence x penetration.
+
+    This function is the bare arithmetic and keeps 1.0 as its default. Which carryover a
+    seeded pool runs at is decided by ``pool_rule``, and ``patients_for_indication`` and
+    ``pool_crowding`` pass its answer in.
 
     The pool never goes negative, by construction rather than by assertion.
     """
@@ -89,6 +93,52 @@ def derive_new_patients(pool: float, incidence: float, penetration,
         out.append(new)
         remaining = max(0.0, remaining + incidence - new) * carryover
     return out
+
+
+# What pool_rule calls each answer, so a caller can say which one it ran on.
+POOL_STATED = "stated"
+POOL_LINE = "line of therapy"
+POOL_CLOSED = "closed pool"
+POOL_INFERRED = "inferred from the stated prevalence and incidence"
+
+
+def pool_rule(prevalence, incidence, stated=None) -> tuple:
+    """Whether the patients not started in a year are still eligible the next, and
+    whether the opening pool counts on top of the first year's inflow.
+
+    Returns (carryover, opening_is_prevalence, basis), taking the first that applies:
+
+    - A stated ``untreated_carryover_pct`` wins, and keeps its opening stock: a sourced
+      exit such as Baxfendy's 1 minus a measured death rate, or a line of therapy whose
+      pool differs from its inflow (the metastatic breast pools at 0).
+    - A prevalence stated equal to its incidence is the year's own diagnoses, which is how
+      every cancer seed writes a line of therapy. Nothing carries over and there is no
+      opening stock on top of the first year's diagnoses.
+    - No inflow leaves a closed pool. There is no exit to infer from an incidence of nil,
+      so every untreated patient stays, as before.
+    - Otherwise patients leave the untreated pool as fast as they arrive, so it holds the
+      size the seed states: carryover P / (P + I).
+
+    Why P / (P + I). With nobody started the pool runs R' = (R + I) x c, which settles at
+    I x c / (1 - c). Setting that to P, the opening pool the first year uses, gives
+    c = P / (P + I). The more familiar 1 - I / P is the continuous-time version; under this
+    engine's timing it settles the pool at P - I, so the second year would step down from
+    the first. The ratio is free of scale, so the eligible share and the ex-US multiple,
+    which multiply both figures, leave it unchanged.
+
+    Until 2026-10-05 a missing carryover was read as 1.0 wherever the two figures
+    differed. 106 seeded pools then grew by their whole inflow every year and never lost
+    a patient, so a share measured in a launch's first years was applied, by the peak,
+    to a population many years of inflow larger than the one the seed states.
+    """
+    if stated is not None:
+        return float(stated), True, POOL_STATED
+    if prevalence and incidence is not None and abs(prevalence - incidence) < 0.5:
+        return 0.0, False, POOL_LINE
+    if not incidence:
+        return 1.0, True, POOL_CLOSED
+    prevalence = float(prevalence or 0.0)
+    return prevalence / (prevalence + float(incidence)), True, POOL_INFERRED
 
 
 def patients_for_indication(ind: dict, years: list[int], notes: list,
@@ -159,24 +209,40 @@ def patients_for_indication(ind: dict, years: list[int], notes: list,
         capacity = None
         if "capacity_patients" in series:
             capacity = [series["capacity_patients"].get(y) for y in years]
-        # Whether the patients not started in a year are still there the next. A seed can
-        # say so outright. Where it does not, a pool stated equal to its own inflow is the
+        # Whether the patients not started in a year are still there the next, by
+        # pool_rule, which pool_crowding shares so the two never disagree. A seed can say
+        # so outright. Where it does not, a pool stated equal to its own inflow is the
         # year's diagnoses, which is how every cancer seed writes a line of therapy ("lung
         # cancer incidence is the pool: diagnosed and treated each year rather than
         # accumulated"). Carrying its untreated patients forward treated every one of them
         # in the end, whatever the peak share, and put a PD-1/VEGF bispecific above
         # Keytruda. Such a pool is the inflow alone, so the opening pool is not counted on
-        # top of the first year's diagnoses either.
-        carryover = scalars.get("untreated_carryover_pct")
-        if carryover is None and prevalence and abs(prevalence - incidence) < 0.5:
-            carryover, pool = 0.0, 0.0
-            notes.append(f"{ind.get('name', 'indication')}: the pool is the year's own "
+        # top of the first year's diagnoses either. Any other pool with an inflow loses
+        # patients as fast as it gains them, so it holds the size the seed states.
+        carryover, opening, rule = pool_rule(prevalence, incidence,
+                                             scalars.get("untreated_carryover_pct"))
+        if not opening:
+            pool = 0.0
+        name = ind.get("name", "indication")
+        if rule == POOL_LINE:
+            notes.append(f"{name}: the pool is the year's own "
                          f"diagnoses (prevalence equals incidence), so a patient not "
                          f"started in a year does not carry into the next, and the peak "
                          f"penetration of {peak * funnel:.1%} is the share of each year's "
                          f"eligible patients the drug reaches")
+        elif rule == POOL_INFERRED and explicit is None:
+            # Said only where the derived series is the one the build uses: a hand series
+            # (Casgevy's sickle cell patients) is not drawn from this pool.
+            notes.append(f"{name}: no exit from the untreated pool is stated, so it is "
+                         f"inferred from the stated prevalence and incidence. Patients "
+                         f"leave as fast as they arrive ({incidence:,.0f} a year into "
+                         f"{prevalence:,.0f}), so {carryover:.2%} of those not started "
+                         f"in a year carry into the next and the pool holds its size")
+        elif rule == POOL_CLOSED and explicit is None:
+            notes.append(f"{name}: no inflow is stated, so there is no exit to infer "
+                         f"and every patient not started stays eligible")
         derived = derive_new_patients(pool, inc, curve, len(years), capacity,
-                                      carryover=1.0 if carryover is None else carryover)
+                                      carryover=carryover)
     else:
         missing = [k for k, v in (("prevalence", prevalence),
                                   ("eligible_pct", eligible_pct),
@@ -473,6 +539,26 @@ def decaying_pv(first: float, rate: float, decay_pct, late_decay_pct,
     return total + level * disc * (1.0 + rate) / (rate + late)
 
 
+def erosion_factor(since: int, year1_pct, decay_pct, late_decay_pct=None,
+                   late_from_year=None) -> float:
+    """The share of revenue left ``since`` years after the LOE year: nothing lost at or
+    before it, the year-one drop in the year after, then each later year's decay, on the
+    early rate until ``late_from_year`` years past the cliff and the late rate from there.
+
+    Counted from the cliff, not from wherever a forecast window happens to open, so a
+    cliff three years before the window is three years down its curve in the first year.
+    """
+    if year1_pct is None or since < 1:
+        return 1.0
+    switch = int(late_from_year) if late_from_year else None
+    early = decay_pct or 0.0
+    late = late_rate(decay_pct, late_decay_pct)
+    factor = 1.0 - year1_pct
+    for k in range(2, int(since) + 1):
+        factor *= 1.0 - (late if switch is not None and k >= switch else early)
+    return factor
+
+
 def erode(revenue: list[float], years: list[int], loe_year,
           year1_pct, decay_pct, late_decay_pct=None, late_from_year=None) -> list[float]:
     """Revenue after loss of exclusivity: a year-one drop, then decay of the remainder.
@@ -485,22 +571,17 @@ def erode(revenue: list[float], years: list[int], loe_year,
     eight years past their US loss of exclusivity falls about a tenth a year, against the
     third the first years take. Without a late rate the second stage never starts and the
     single rate runs on, which is what every seeded shape still does.
+
+    Each year takes the curve's own value for how far past the cliff it is
+    (``erosion_factor``). Stepping from the first year in the window instead gave a cliff
+    two or more years before the window no year-one drop at all, so an earlier date was
+    worth more than a later one.
     """
     if loe_year is None or year1_pct is None:
         return list(revenue)
-    switch = int(late_from_year) if late_from_year else None
-    out = []
-    factor = 1.0
-    for year, value in zip(years, revenue):
-        since = year - loe_year
-        if since == 1:
-            factor = 1.0 - year1_pct
-        elif since > 1:
-            slowed = switch is not None and since >= switch
-            factor *= (1.0 - (late_rate(decay_pct, late_decay_pct) if slowed
-                              else (decay_pct or 0.0)))
-        out.append(value * factor if year > loe_year else value)
-    return out
+    return [value * erosion_factor(year - int(loe_year), year1_pct, decay_pct,
+                                   late_decay_pct, late_from_year)
+            for year, value in zip(years, revenue)]
 
 
 def regional_split(regions) -> tuple[list[dict], float]:
@@ -626,8 +707,12 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
         # Already eroding at the horizon. The years still on the steep rate are carried
         # one by one and the slower rate takes the stream from there.
         since = int(last_year) - int(loe_year)
-        early_years = max(0, (switch - 1 - since)) if switch else 0
-        first = (1.0 - decay) if early_years > 0 or not switch or since + 1 < switch \
+        # The first year past the horizon is itself on the early rate while the switch is
+        # still ahead, so one early year fewer remains after it: erode() steps the early
+        # rate while since < switch. Counting it twice took an extra early-rate year off
+        # every product whose forecast ends a year or two past its LOE.
+        early_years = max(0, switch - 2 - since) if switch and since + 1 < switch else 0
+        first = (1.0 - decay) if not switch or since + 1 < switch \
             else (1.0 - late_rate(decay_pct, late_decay_pct))
         return decaying_pv(first, rate, decay_pct, late_decay_pct, early_years)
     step = (1.0 + growth) / (1.0 + rate)
@@ -637,6 +722,48 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
     tail = decaying_pv(1.0 - year1_pct, rate, decay_pct, late_decay_pct,
                        max(0, switch - 2) if switch else 0)
     return before + step ** n * tail
+
+
+def terminal_path(growth: float, last_year: int, loe_year=None, in_base: bool = True,
+                  year1_pct=None, decay_pct=None, late_decay_pct=None,
+                  late_from_year=None, years=None) -> dict:
+    """{year: revenue as a share of the final year's} for each year after ``last_year``:
+    the stream ``terminal_multiple`` discounts, year by year. A product with no cliff
+    ahead runs on at its growth; one the horizon ends inside keeps decaying, on the early
+    rate and then the late one; one whose LOE falls later runs flat to it at its growth,
+    takes the year-one drop, then decays the same two stages. Discounted at the rate,
+    the path sums to the multiple, which is what lets the future pipeline's room carry a
+    product past its forecast exactly as the product's own value does."""
+    out = {}
+    years = [y for y in (years or []) if y > int(last_year)]
+    g = growth or 0.0
+    if loe_year is None or in_base or year1_pct is None:
+        return {y: (1.0 + g) ** (y - int(last_year)) for y in years}
+    decay = decay_pct or 0.0
+    late = late_rate(decay_pct, late_decay_pct)
+    switch = int(late_from_year) if late_from_year else None
+
+    def stages(first: float, early_years: int, j: int) -> float:
+        # The j-th year of a stream that starts at ``first``: the early rate for
+        # ``early_years`` years, then the late rate (decaying_pv's own steps).
+        if j <= early_years:
+            return first * (1.0 - decay) ** (j - 1)
+        return first * (1.0 - decay) ** early_years * (1.0 - late) ** (j - 1 - early_years)
+
+    if int(last_year) > int(loe_year):
+        since = int(last_year) - int(loe_year)
+        early_years = max(0, switch - 2 - since) if switch and since + 1 < switch else 0
+        first = (1.0 - decay) if not switch or since + 1 < switch else (1.0 - late)
+        for y in years:
+            out[y] = stages(first, early_years, y - int(last_year))
+        return out
+    n = int(loe_year) - int(last_year)
+    early_years = max(0, switch - 2) if switch else 0
+    for y in years:
+        k = y - int(last_year)
+        out[y] = ((1.0 + g) ** k if k <= n
+                  else (1.0 + g) ** n * stages(1.0 - year1_pct, early_years, k - n))
+    return out
 
 
 # --- the whole build --------------------------------------------------------
@@ -658,6 +785,38 @@ def latest_run_rate(actuals) -> tuple:
     return (latest["value"] * factor,
             f"{latest['period']} {latest['fiscal_year']} of {latest['value']:,.0f}mm, "
             f"annualised")
+
+
+def fell_since(actuals, loe_year) -> bool | None:
+    """Whether the reported revenue shows a cliff: True where any full year from the LOE
+    year on is below the year before it, False where every such year held or rose, None
+    where no full year from the LOE year on has the year before it on file to compare.
+
+    The LOE year itself counts, since a date early in a year shows in that year's
+    revenue. Quarters are left out: a quarter against a full year is not a fall."""
+    full = {int(a["fiscal_year"]): a["value"] for a in actuals or []
+            if a.get("period") == "FY" and a.get("value") is not None
+            and a.get("fiscal_year") is not None}
+    pairs = [(full[year - 1], full[year]) for year in sorted(full)
+             if year >= int(loe_year) and year - 1 in full]
+    if not pairs:
+        return None
+    return any(now < before for before, now in pairs)
+
+
+def cliff_window(inputs: dict, late_from_year=None) -> int | None:
+    """How many years past an LOE on file a cliff must have shown in the reported revenue
+    before it is read as in the base without that evidence: the erosion shape's own
+    ``late_from_year``, the year its steep fall is over. A shape with none (the biologic
+    and unknown rows) takes the earliest the curated shapes carry, the small-molecule
+    row's four years, measured on CMS Part D brands four to eight years past their US
+    LOE. None where no curated shape carries one."""
+    if late_from_year:
+        return int(late_from_year)
+    found = [int(row["late_from_year"])
+             for row in (inputs.get("erosion_defaults") or {}).values()
+             if row.get("late_from_year") not in (None, "")]
+    return min(found) if found else None
 
 
 def erosion_default(inputs: dict):
@@ -894,16 +1053,25 @@ def build(inputs: dict) -> dict:
                 f"exclusivity is not in this and is applied separately")
 
     # Erosion, only where the horizon runs past the LOE on file or assumed.
+    #
+    # The record says whether the cliff is already in the reported base: the exclusivity
+    # on file, a loss on file as past with no date, or, where neither exists, the
+    # statutory default below. A stated loe_year (a seed row, the slider, the LOE grid, a
+    # break-point search) only says when the cliff falls. The engine cannot tell a seed
+    # row from a slider, since both arrive as this one scalar, and when the stated year
+    # decided the base as well, moving it across the year before the window jumped the
+    # value back up: Orenitram was worth 83.89 a share more with its cliff a year earlier.
     loe = inputs.get("loe") or {}
-    loe_year = scalars.get("loe_year") or loe.get("year")
-    loe_basis = "assumed" if scalars.get("loe_year") else (loe.get("basis") or None)
+    record_year = loe.get("year")
+    record_basis = loe.get("basis") or None
+    default_note = None
     # A product that has not launched has no patent on file to lose, and running it to
     # the horizon and into a perpetuity values a molecule as though exclusivity never
     # ends. The default is the statute for a biologic and the Hatch-Waxman cap for a
     # small molecule, counted from the launch year, and it is labelled as a default
     # wherever it is read so an analyst can replace it with the patent when known.
-    known_past = bool(loe.get("in_base")) and loe_year is None
-    if loe_year is None and not known_past:
+    known_past = bool(loe.get("in_base")) and record_year is None
+    if record_year is None and not known_past:
         defaults = inputs.get("loe_defaults") or {}
         default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
         approved = inputs.get("approval_year")
@@ -912,19 +1080,21 @@ def build(inputs: dict) -> dict:
         # and ran flat to the horizon and into a perpetuity, Novo's insulins among them,
         # which values a 2000 approval as though exclusivity never ended.
         if default and default.get("years_from_launch") and approved:
-            loe_year = approved + int(default["years_from_launch"])
-            loe_basis = (f"default: {default['years_from_launch']} years from the "
-                         f"{approved} approval, {default['source']}")
-            notes.append(f"no exclusivity on file, so LOE is taken as {loe_year}, "
-                         f"{default['years_from_launch']} years from the {approved} "
-                         f"approval ({default['source']})")
+            record_year = approved + int(default["years_from_launch"])
+            record_basis = (f"default: {default['years_from_launch']} years from the "
+                            f"{approved} approval, {default['source']}")
+            default_note = (f"no exclusivity on file, so LOE is taken as {record_year}, "
+                            f"{default['years_from_launch']} years from the {approved} "
+                            f"approval ({default['source']})")
         elif default and default.get("years_from_launch") and inputs.get("is_marketed") is False:
-            loe_year = start + int(default["years_from_launch"])
-            loe_basis = (f"default: {default['years_from_launch']} years from launch, "
-                         f"{default['source']}")
-            notes.append(f"no exclusivity on file for an unlaunched product, so LOE is "
-                         f"taken as {loe_year}, {default['years_from_launch']} years "
-                         f"from a {start} launch ({default['source']})")
+            record_year = start + int(default["years_from_launch"])
+            record_basis = (f"default: {default['years_from_launch']} years from launch, "
+                            f"{default['source']}")
+            default_note = (f"no exclusivity on file for an unlaunched product, so LOE is "
+                            f"taken as {record_year}, {default['years_from_launch']} years "
+                            f"from a {start} launch ({default['source']})")
+    if record_year is not None:
+        record_year = int(record_year)
     year1 = scalars.get("erosion_year1_pct")
     decay = scalars.get("erosion_decay_pct")
     # The second stage of the decay, where the modality has one on file. A seed may state
@@ -942,8 +1112,51 @@ def build(inputs: dict) -> dict:
                 late_decay = default.get("late_decay_pct")
                 late_from = default.get("late_from_year")
             erosion_basis = f"curated default ({which}), {default['source']}"
-    if loe_year is not None:
-        loe_year = int(loe_year)
+    # An LOE whose cliff year is already behind the first forecast year is in the base:
+    # the reported revenue the forecast grows from was earned after it, and the growth
+    # rate read off the filing already carries the decline. Eroding it again compounded
+    # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
+    # years. The year-one drop still lands where the cliff falls inside the window.
+    record_in_base = known_past or (record_year is not None and record_year + 1 < years[0])
+    # A recent date needs the revenue to agree. Yervoy's record is the 2023 statutory
+    # floor, and it reported 2,238mm, 2,530mm and 2,900mm in the three years since: no
+    # cliff has happened, and reading the date as in the base ran it on its growth for
+    # ever with no cliff at all. Inside the erosion shape's steep years, a date with no
+    # fall in any full reported year since has not landed, and by convention the cliff
+    # lands in the first forecast year. Older dates, and recent ones with no full year
+    # to compare, keep the rule above.
+    if record_in_base and record_year is not None:
+        window_length = cliff_window(inputs, late_from)
+        if (window_length is not None and years[0] - record_year < window_length
+                and fell_since(inputs.get("actuals"), record_year) is False):
+            record_basis = (f"{record_basis or 'the date on file'} of {record_year}, but no "
+                            "fall in the reported revenue since, so by convention the "
+                            f"cliff lands in {years[0]}")
+            notes.append(f"the LOE on file, {record_year}, is less than {window_length} "
+                         "years before the forecast and no full reported year since has "
+                         "fallen, so the cliff has not happened yet: it is taken as "
+                         f"landing in {years[0]}, the first forecast year")
+            record_year, record_in_base = years[0] - 1, False
+    # A blank stated cell is no statement, as it always read here.
+    stated = scalars.get("loe_year") or None
+    if stated is not None and record_in_base:
+        # Nothing a lever says can take a loss the reported revenue already carries out
+        # of it, or put it in a second time, so the record's year stands.
+        loe_year, loe_basis, in_base = record_year, record_basis, True
+        if default_note:
+            notes.append(default_note)
+        notes.append(f"a stated LOE of {int(stated)} is not applied: the loss on file "
+                     f"({record_year or 'already past'}, {record_basis}) is already in the "
+                     "reported revenue, so moving its year changes nothing")
+    elif stated is not None:
+        # The record's cliff is still ahead, so a stated year moves it, and a year before
+        # the window sits further down the same curve rather than in the base: an earlier
+        # loss is never worth more than a later one.
+        loe_year, loe_basis, in_base = int(stated), "assumed", False
+    else:
+        loe_year, loe_basis, in_base = record_year, record_basis, record_in_base
+        if default_note:
+            notes.append(default_note)
     # The price decline stops at the cliff. Past it the erosion curve takes over, and
     # that curve is fitted to filers' printed United States net revenue lines, which have
     # already fallen partly on price. Compounding the decline through those years charged
@@ -960,12 +1173,6 @@ def build(inputs: dict) -> dict:
         notes.append(f"the net price decline stops at the {loe_year} cliff and the "
                      f"erosion curve carries it from there, since that curve is measured "
                      f"on net revenue which already fell partly on price")
-    # An LOE whose cliff year is already behind the first forecast year is in the base:
-    # the reported revenue the forecast grows from was earned after it, and the growth
-    # rate read off the filing already carries the decline. Eroding it again compounded
-    # the decay from year one on Cerezyme, off patent since 2006, and halved it in four
-    # years. The year-one drop still lands where the cliff falls inside the window.
-    in_base = known_past or (loe_year is not None and loe_year + 1 < years[0])
     # Exclusivity ends market by market. Ozempic's compound patent lapsed in China and
     # Canada in 2026 and runs to 2031 in Europe; Eliquis opens in Europe two years before
     # the US. A region the filer reports sales for, with a date of its own, is split off
@@ -997,7 +1204,11 @@ def build(inputs: dict) -> dict:
             # date: Europe's ten years from first authorisation still stand.
             r_year = int(floor)
             r_basis = region.get("floor_basis") or "statutory protection, later than the US date"
-            r_in_base = r_year + 1 < years[0]
+            # With no record of its own the region's loss is in the base only when the US
+            # record's is and the floor is past as well. A past floor alone kept the region
+            # whole when a lever moved the US date before it, so the earlier date was worth
+            # more than the later one.
+            r_in_base = in_base and r_year + 1 < years[0]
         elif r_year is None and not r_known_past:
             # No date for the region: it keeps the US date, as the whole line did before.
             r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base
@@ -1046,6 +1257,10 @@ def build(inputs: dict) -> dict:
     growth = (scalars.get("terminal_growth_pct")
               if scalars.get("terminal_growth_pct") is not None
               else scalars.get("terminal_growth")) or 0.0
+    # The revenue the terminal value carries past the horizon, for the future pipeline's
+    # room: what each part earned in the final year, its exclusivity and the erosion
+    # shape. None where no terminal value is taken, so nothing is carried.
+    terminal_tail = None
     if (scalars.get("terminal_mode") or "perpetuity") == "perpetuity":
         last = spans[-1] if spans else len(flows) - 0.5
         tv, tv_pv = terminal_value(flows[-1], growth, rate, last)
@@ -1058,6 +1273,10 @@ def build(inputs: dict) -> dict:
         parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"])
                   for r in regional]
         if end is not None and final > 0 and rate - growth > 0:
+            terminal_tail = {"end": end, "growth": growth, "year1_pct": year1,
+                             "decay_pct": decay, "late_decay_pct": late_decay,
+                             "late_from_year": late_from,
+                             "parts": [[w / final, y, b] for w, y, b in parts if w]}
             multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1,
                                                          decay, late_decay, late_from)
                            for w, y, b in parts)
@@ -1116,6 +1335,9 @@ def build(inputs: dict) -> dict:
         "pos_granular": (inputs.get("pos_granular")
                          if pos_basis == (inputs.get("pos_granular") or {}).get("basis")
                          else None),
+        # The placement whatever governs, so a view can read the gate of an asset whose
+        # stated probability outranks it. Nothing above reads it.
+        "pos_placement": inputs.get("pos_granular"),
         # "stated", or "placeholder curve, ..." where the uptake ceiling and midpoint came
         # from data/curve_defaults.csv rather than the asset. None where no curve is built.
         "curve_basis": curve_basis,
@@ -1128,6 +1350,7 @@ def build(inputs: dict) -> dict:
         # that moves them can start from where they are rather than from a guess.
         "erosion_year1_pct": year1, "erosion_decay_pct": decay, "net_price": price,
         "pv_fcff": sum(pvs), "terminal_value": tv, "terminal_pv": tv_pv,
+        "terminal_tail": terminal_tail,
         "npv": npv, "rnpv": rnpv,
         "owner_rnpv": rnpv * share if share is not None else None,
         "partner_rnpv": rnpv * (1.0 - share) if share is not None else None,

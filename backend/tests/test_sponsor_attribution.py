@@ -29,8 +29,10 @@ def _seed(tmp_path):
     conn.execute("INSERT INTO companies (ticker, name, ctgov_sponsor)"
                  " VALUES ('LLY', 'Eli Lilly and Company', 'Eli Lilly and Company')")
     pfe = conn.execute("SELECT id FROM companies WHERE ticker = 'PFE'").fetchone()[0]
-    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date)"
-                 " VALUES (?, 'acquisition', 'Biohaven Pharmaceuticals', ?)",
+    # A filing's row, which acquired_sponsors believes without reading a headline.
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 " accession) VALUES (?, 'acquisition', 'Biohaven Pharmaceuticals', ?,"
+                 " '0000078003-22-000001')",
                  (pfe, (dt.date.today() - dt.timedelta(days=365)).isoformat()))
     conn.commit()
     conn.close()

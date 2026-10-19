@@ -14,9 +14,11 @@ from __future__ import annotations
 import datetime as dt
 import hashlib
 import html
+import importlib
 import json
 import re
 import os
+import types
 from collections import Counter
 import urllib.error
 import urllib.parse
@@ -25,26 +27,64 @@ import urllib.request
 import pandas as pd
 import streamlit as st
 
+import areas_view as AV
 import calendar_view
+import catalysts_page
 import price_chart
 import revenue_mix
 import scorecard_chart
 import treemap
 import theme as T
 import trend as trend_module
+import universe_page
 from components import charts as CH
 from components import approvnav
 from components import covnav
 from components import enginepick
 from components import clicklist
+from components import compsval
 from components import prodcards
 from components import drawchart
+try:                                    # the drug card's click listener
+    from components import drugclick
+except Exception:                       # pragma: no cover - a broken install only
+    drugclick = None
+import drug_card_view as DCV
 from components import render as R
 from components import tokens as TK
+
+# A running server re-reads this script on a save, but not a module the script imports
+# when the checkout sits under a dot-directory, as a worktree does: Streamlit's watcher
+# skips those. So the script can be newer than the wrapper held in memory, and would
+# call it with arguments it does not take. A wrapper behind the revision this script
+# is written against is reloaded once, here.
+if getattr(compsval, "REVISION", 0) < 4:
+    compsval = importlib.reload(compsval)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
 DEFAULT_TICKER = "LLY"
+
+# The companies whose Universe overview is the redesigned command centre (universe_page,
+# universe_cc) and whose Catalysts tab is the dated readout list: the eighteen big pharma
+# companies the command centre reads. Every other company keeps today's overview exactly.
+_REDESIGN_TICKERS = {"ABBV", "AMGN", "AZN", "BAYN", "BIIB", "BMY", "GILD", "GSK", "JNJ",
+                     "LLY", "MRK", "NVO", "NVS", "PFE", "REGN", "ROG", "SNY", "VRTX"}
+
+
+def _universe_redesigned(ticker: str, view: str, engine: str | None = None) -> bool:
+    """True when the Universe tab draws the redesigned overview for ``ticker``: the
+    Overview view of a company in the set, or of any company on the biotech engine (the
+    catalyst focus list), which the command centre reads as its own group against XBI.
+    Markets, Policy and the as-of branch stay."""
+    return view == "Overview" and (ticker in _REDESIGN_TICKERS or engine == "biotech")
+
+
+def _catalysts_redesigned(ticker: str) -> bool:
+    """True when the Catalysts tab draws the redesigned body for ``ticker`` (catalysts_page,
+    catalysts_readouts). The calendar fold under it stays for every company it does not
+    draw."""
+    return ticker in _REDESIGN_TICKERS
 
 # The landing page renders inside a component iframe, which inherits none of the host
 # page's CSS variables, so the tokens it needs are handed across. One source of truth
@@ -55,6 +95,21 @@ LANDING_TOKENS = {
     "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
     "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
+}
+# The Comps valuation view is the same kind of iframe, with more of the palette: the faint
+# rule, the narrow face, the phase ramp and the spacing base. It has no colour of its own:
+# selection and focus are derived from these tokens in research.css, as on every other tab.
+# "phase-filed" is left out on purpose: its value is the flag colour, which this view keeps
+# for uncertainty alone. Built only from tokens.py, so there is still one source of truth.
+COMPS_TOKENS = {
+    **LANDING_TOKENS,
+    "rule-faint": TK.RULE_FAINT,
+    "font-ui-narrow": TK.FONT_UI_NARROW,
+    "phase-preclinical": TK.PHASE_RAMP["preclinical"],
+    "phase-1": TK.PHASE_RAMP["Phase 1"], "phase-2": TK.PHASE_RAMP["Phase 2"],
+    "phase-3": TK.PHASE_RAMP["Phase 3"], "phase-approved": TK.PHASE_RAMP["approved"],
+    "space": f"{TK.SPACE}px", "radius": f"{TK.RADIUS}px",
+    "radius-small": f"{TK.RADIUS_SMALL}px",
 }
 PIPELINE_PHASES = ["Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3", "Phase 3", "Phase 4"]
 # How long a headline runs before it is cut, chosen to hold the box to two lines at the
@@ -150,8 +205,8 @@ CALENDAR_MONTHS = 24
 
 # --- Transport ----------------------------------------------------------
 @st.cache_data(ttl=30, show_spinner=False)
-def api_get(base: str, path: str):
-    with urllib.request.urlopen(base.rstrip("/") + path, timeout=30) as resp:
+def api_get(base: str, path: str, timeout: int = 30):
+    with urllib.request.urlopen(base.rstrip("/") + path, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -170,6 +225,16 @@ def api_post_json(base: str, path: str, payload: dict, timeout: int = 60):
         headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def _rerun_here():
+    """Rerun only the fragment this is called from, so a click inside one tab does not
+    redraw the other eleven. Streamlit allows that only during the fragment's own rerun;
+    when the fragment is running as part of a full-page run, the page reruns instead."""
+    try:
+        st.rerun(scope="fragment")
+    except st.errors.StreamlitAPIException:
+        st.rerun()
 
 
 # --- Presentation helpers -----------------------------------------------
@@ -219,6 +284,10 @@ def run_refresh(base: str, path: str, key: str, spinner: str):
             st.session_state[key] = api_post(base, path)
             st.session_state["last_run"] = st.session_state[key]
             api_get.clear()
+            # The comps valuation payload and the focal context have their own minute of
+            # cache; a refresh is new data.
+            _comps_valuation_payload.clear()
+            _comps_context.clear()
         except (urllib.error.URLError, OSError) as exc:
             st.session_state["refresh_error"] = str(exc)
 
@@ -318,7 +387,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
     with closer:
         if st.button("close", key=f"pf_close_{aid}", use_container_width=True):
             st.session_state.pop("profile_asset", None)
-            st.rerun()
+            _rerun_here()
 
     loe = prof.get("loe") or {}
     dem = prof.get("demand")
@@ -361,7 +430,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'<div><span class="k">Medicare spend</span>'
         f'<span class="v{"" if dem else " none"}">'
         f'{"$" + T.num(dem["spend"] / 1e9, 2) + " bn" if dem else "no free data"}</span>'
-        f'<span class="sub">{("US " + str(dem["year"]) + ", " + T.pct(dem["spend_growth"] * 100) + " YoY") if dem and dem.get("spend_growth") is not None else ("US " + str(dem["year"]) if dem else "not in Part D/B")}</span></div>'
+        f'<span class="sub">{html_escape(_medicare_tile_sub(dem))}</span></div>'
         f'<div><span class="k">first approval</span>'
         f'<span class="v{"" if prof.get("first_approval") else " none"}">'
         f'{(prof.get("first_approval") or "—")[:10]}</span>'
@@ -533,7 +602,9 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         '<div class="byline">Every field here is sourced: approval and supplements '
         'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
         'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
-        'data is left out rather than filled.</div>', unsafe_allow_html=True)
+        'data is left out rather than filled. '
+        f'{html_escape(_payer_byline(prof.get("access")))}</div>',
+        unsafe_allow_html=True)
 
 
 def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
@@ -543,15 +614,10 @@ def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
     gap: free data carries CMS spending for the drugs Medicare buys, tagged revenue only
     where the filer tags a product axis, and a trial only where one is running.
     """
-    brand = (prof.get("brand") or "").lower()
-    generic = (prof.get("generic") or "").lower()
-
-    def _mine(text: str) -> bool:
-        low = (text or "").lower()
-        return bool(low) and ((brand and brand in low) or (generic and generic in low))
-
+    # By id: a brand or generic substring also caught a neighbour whose CMS name
+    # contained it.
     demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
-                          or []) if _mine(d.get("brand")) or _mine(d.get("generic"))]
+                          or []) if str(d.get("asset_id")) == str(aid)]
     # Revenue rows carry the asset id, so this one needs no name matching at all.
     revenue = [r for r in (api_get(api_base, f"/companies/{ticker}/revenue").get("rows")
                            or []) if r.get("asset_id") == aid]
@@ -605,6 +671,350 @@ def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
         else:
             st.markdown('<div class="feed">' + "".join(
                 _post_approval_row(s) for s in studies[:8]) + "</div>",
+                unsafe_allow_html=True)
+    # Who prescribes it in Medicare, which Part D plans cover it, how often Medicaid
+    # fills it: a second row, under the three above.
+    _payer_row(prof)
+
+
+# --- payer access: Part D prescribing, Part D plan coverage, Medicaid -------------------
+# The fact profile's second row (backend/payer_access.py). Each panel leads with one
+# figure and one small picture and keeps the rest behind the folded detail under the row.
+# Every panel says whose population it counts: Part D prescribers or plans, or Medicaid
+# prescriptions before rebates. Nothing here is revenue, and none of it is valued.
+_PAYER_PANELS = (("prescribing", "Part D prescribing"),
+                 ("formulary", "Part D plan coverage"),
+                 ("medicaid", "Medicaid prescriptions"))
+_PAYER_SCOPE = {"prescribing": "Medicare Part D only",
+                "formulary": "Medicare Part D plans only",
+                "medicaid": "Medicaid only, before rebates"}
+# Tiers are ordinal, cheapest first, and keep one colour each across brands.
+_PAYER_TIERS = 6
+
+
+def _payer_n(value) -> str:
+    return f"{value:,.0f}" if value is not None else "no free data"
+
+
+def _payer_pct(share, digits: int = 0) -> str:
+    return f"{share * 100:.{digits}f}%" if share is not None else "no free data"
+
+
+def _payer_scope(access: dict, key: str) -> str:
+    """The panel's first line: whose population its figures count, and when."""
+    block = (access or {}).get(key) or {}
+    return (f'<div class="byline pa-scope">'
+            f'{html_escape(block.get("scope_label") or _PAYER_SCOPE[key])}</div>')
+
+
+def _payer_chip(access: dict, key: str) -> str:
+    """The section rule's chip: short, because the full scope is the line under it."""
+    block = (access or {}).get(key) or {}
+    if key == "prescribing" and block.get("year"):
+        return str(block["year"])
+    if key == "formulary" and block.get("release_date"):
+        return f'{block["release_date"][:7]} release'
+    return "before rebates" if key == "medicaid" else "Medicare"
+
+
+def _payer_state(why) -> str:
+    return (f'<div class="state"><div class="d">{html_escape(why or "")}</div></div>'
+            if why else "")
+
+
+def _payer_co_line(access: dict) -> str:
+    co = (access or {}).get("co_marketed")
+    if not co or not co.get("owners"):
+        return ""
+    owners = co["owners"]
+    where = (f"{owners[0]}'s page" if len(owners) == 1
+             else "the pages of " + ", ".join(owners))
+    return (f'<div class="byline pa-co">{html_escape(co["label"])}. The same brand shows '
+            f'on {html_escape(where)}.</div>')
+
+
+def _payer_days_text(p: dict) -> str:
+    dc = p.get("days_covered") or {}
+    value = dc.get("value")
+    if not dc.get("applies", True):
+        return (dc.get("note") or "").rstrip(".") + "." if dc.get("note") else ""
+    if value is None:
+        if (p.get("national") or {}).get("beneficiaries") is None:
+            return "CMS suppresses the beneficiary count, so days covered cannot be read."
+        return "Days covered: no free data."
+    if value <= 1:
+        return (f"Days supplied cover {value:.0%} of each beneficiary's year. A proxy, "
+                f"not a PDC: it also falls when patients start or stop mid-year.")
+    # Not only the frequent-dosing case: a daily tablet passes 1 when two strengths are
+    # filled together, refills come early or packs run under 30 days (Lamictal XR, 1.04).
+    return (f"Days supplied come to {value:.2f} times each beneficiary's year. A proxy, "
+            f"not a PDC: it passes 1 where supplies overlap, as when two strengths are "
+            f"filled together, and where fills run under 30 days, which CMS counts as "
+            f"full 30-day fills, as for a drug given every week or two.")
+
+
+def _payer_prescribing_html(access: dict) -> str:
+    p = (access or {}).get("prescribing")
+    scope = _payer_scope(access, "prescribing")
+    if not p:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("prescribing"))
+    nat, f = p.get("national") or {}, p.get("file") or {}
+    # A brand CMS lists by container is summed, so a prescriber who writes for the vial
+    # and the pen is counted twice: the count is a ceiling and the lead says so.
+    ceiling = "At most " if nat.get("upper_bound") else ""
+    out = [scope, f'<div class="pa-lead">{ceiling}<b>{_payer_n(nat.get("prescribers"))}'
+           f'</b> prescribers, {_payer_n(nat.get("claims"))} claims</div>']
+    if f.get("top10pct") is not None:
+        out.append(f'<div class="pa-sub">Top 10% of the file population write '
+                   f'{_payer_pct(f["top10pct"])} of its claims</div>')
+    deciles = f.get("deciles")
+    if f.get("why"):
+        # A pull the budget has not reached, or one that did not reconcile: the file
+        # figures are held back, and "fewer than 10 prescribers" would be a wrong reason.
+        out.append(f'<div class="byline">{html_escape(f["why"])}.</div>')
+    elif deciles:
+        out.append(CH.bar_chart(
+            [{"label": str(i + 1), "value": v * 100 if v is not None else None}
+             for i, v in enumerate(deciles)], width=300, height=104,
+            value_fmt=lambda v: f"{v:.0f}%"))
+        out.append('<div class="byline">Share of file claims by prescriber decile, '
+                   'heaviest first. The file population is prescribers with 11 or more '
+                   'claims for the drug.</div>')
+    elif f:
+        out.append('<div class="byline">Fewer than 10 prescribers in the file, so no '
+                   'deciles.</div>')
+    out.append(f'<div class="pa-text">{html_escape(_payer_days_text(p))}</div>')
+    if p.get("part_b_note"):
+        out.append(f'<div class="byline">{html_escape(p["part_b_note"])}</div>')
+    return "".join(out)
+
+
+def _payer_formulary_html(access: dict) -> str:
+    f = (access or {}).get("formulary")
+    scope = _payer_scope(access, "formulary")
+    if not f:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("formulary"))
+    out = [scope,
+           f'<div class="pa-lead">Listed on <b>{_payer_n(f.get("formularies_listing"))}'
+           f'</b> of {_payer_n(f.get("formularies_total"))} formularies</div>']
+    # Restrictions only where something lists the brand: "prior authorisation on 0"
+    # beside "listed on 0" reads as an open door.
+    if f.get("formularies_listing"):
+        out.append(f'<div class="pa-sub">Prior authorisation on '
+                   f'{_payer_n(f.get("pa_formularies"))}, step therapy on '
+                   f'{_payer_n(f.get("st_formularies"))}</div>')
+    if f.get("zero_reason"):
+        out.append(_payer_state(f["zero_reason"]))
+    tiers = f.get("tiers") or []
+    if tiers:
+        ramp = T.ordinal_ramp(_PAYER_TIERS)
+        out.append(CH.share_strip(
+            [{"label": str(t["tier"]), "value": t["formularies"],
+              "colour": ramp[min(max(int(t["tier"]), 1), _PAYER_TIERS) - 1]}
+             for t in tiers], width=300, height=22, label="tier mix"))
+        out.append('<div class="byline">Its lowest tier on each formulary, tier 1 '
+                   'cheapest. Tiers are each plan\'s own.</div>')
+    return "".join(out)
+
+
+def _payer_change(growth: float, bound) -> str:
+    """A Medicaid change in words, saying which way a suppressed quarter can move it."""
+    word = "up" if growth >= 0 else "down"
+    size = f"{abs(growth):.1%}"
+    if bound == "at_least":         # only the later count is a floor: true change no lower
+        return f"{word} {'at least' if growth >= 0 else 'at most'} {size}"
+    if bound == "at_most":          # only the earlier count is a floor: no higher
+        return f"{word} {'at most' if growth >= 0 else 'at least'} {size}"
+    if bound == "both":
+        return f"{word} {size} between two lower bounds"
+    return f"{word} {size}"
+
+
+def _payer_signed_change(growth: float, bound) -> str:
+    sign = f"{growth:+.1%}"
+    return {"at_least": f"at least {sign}", "at_most": f"at most {sign}",
+            "both": f"{sign} between lower bounds"}.get(bound, sign)
+
+
+def _payer_medicaid_html(access: dict) -> str:
+    m = (access or {}).get("medicaid")
+    scope = _payer_scope(access, "medicaid")
+    if not m:
+        return scope + _payer_state(((access or {}).get("why_empty") or {})
+                                    .get("medicaid"))
+    latest = m.get("latest")
+    out = [scope]
+    if latest:
+        floor = "At least " if latest.get("lower_bound") else ""
+        growth = latest.get("growth")
+        move = ""
+        if growth is not None:
+            move = f", {_payer_change(growth, latest.get('growth_bound'))} on a year"
+        out.append(f'<div class="pa-lead">{floor}<b>{_payer_n(latest["prescriptions"])}'
+                   f'</b> prescriptions in {latest["year"]} Q{latest["quarter"]}'
+                   f'{move}</div>')
+    values = [q.get("prescriptions") for q in m.get("quarters") or []]
+    if len([v for v in values if v is not None]) > 1:
+        out.append(CH.sparkline(values, width=300, height=36, label_last=False))
+        first, last = (m["quarters"][0], m["quarters"][-1])
+        out.append(f'<div class="byline">Quarterly, {first["year"]} Q{first["quarter"]} '
+                   f'to {last["year"]} Q{last["quarter"]}, fee-for-service and managed '
+                   f'care.</div>')
+    out.append('<div class="pa-text">Gross of Medicaid rebates, so this is volume, not '
+               'revenue.</div>')
+    return "".join(out)
+
+
+def _payer_rows(pairs) -> str:
+    return "".join(f'<div class="prof-row"><span class="prof-k">{html_escape(k)}</span>'
+                   f'<span class="prof-v">{html_escape(v)}</span></div>'
+                   for k, v in pairs if v is not None)
+
+
+def _payer_detail_html(access: dict) -> str:
+    """The folded detail under the row: the figures behind each panel's lead."""
+    if not access:
+        return ""
+    p, f, m, codes = (access.get("prescribing"), access.get("formulary"),
+                      access.get("medicaid"), access.get("codes") or {})
+    if not (p or f or m):
+        return ""
+    out = ['<details class="pa-more"><summary>Prescribers, plans and quarters</summary>']
+    if p:
+        nat, fl, dc = p.get("national") or {}, p.get("file") or {}, p["days_covered"]
+        held_back = fl.get("why")
+        if fl.get("status") != "complete":
+            fl = {}                 # no file figure to show; held_back says why
+        out.append(f'<div class="prof-sub">Part D prescribing, {p["year"]}</div>')
+        out.append(_payer_rows([
+            ("beneficiaries, at most" if nat.get("upper_bound") else "beneficiaries",
+             _payer_n(nat.get("beneficiaries"))),
+            ("30-day fills", _payer_n(nat.get("fills_30d"))),
+            ("days covered, a proxy", f'{dc["value"]:.3f}'
+             if dc.get("value") is not None else None),
+            ("file prescribers, 11 or more claims", _payer_n(fl.get("prescribers"))
+             if fl else None),
+            ("file share of national claims", _payer_pct(fl.get("claims_share"))
+             if fl.get("claims_share") is not None else None),
+            ("prescribers writing half the file claims",
+             _payer_n(fl.get("prescribers_for_50pct"))
+             if fl.get("prescribers_for_50pct") is not None else None),
+            ("median claims per file prescriber", f'{fl["median_claims"]:,.0f}'
+             if fl.get("median_claims") is not None else None),
+            ("days supplied per claim", f'{fl["days_per_claim"]:.1f}'
+             if fl.get("days_per_claim") is not None else None),
+            ("file-based days covered", f'{dc["file_value"]:.3f}'
+             if dc.get("file_value") is not None else None)]))
+        for line in (nat.get("note"), held_back and f"{held_back}.", dc.get("file_note"),
+                     (p.get("volume_deciles") or {}).get("note")):
+            if line:
+                out.append(f'<div class="byline">{html_escape(line)}</div>')
+        if p.get("specialties"):
+            out.append('<div class="prof-sub">Prescriber specialty, share of file '
+                       'claims</div>')
+            out.append(_payer_rows([(s["specialty"], _payer_pct(s.get("claims_share")))
+                                    for s in p["specialties"][:8]]))
+        if len(p.get("series") or []) > 1:
+            out.append('<div class="prof-sub">National prescribers and beneficiaries'
+                       '</div>')
+            out.append(_payer_rows([
+                (str(s["year"]), f'{_payer_n(s.get("prescribers"))} / '
+                                 f'{_payer_n(s.get("beneficiaries"))}')
+                for s in p["series"]]))
+    if f:
+        out.append(f'<div class="prof-sub">Part D plan coverage, '
+                   f'{html_escape(f.get("release_date") or "")} release</div>')
+        split = f.get("by_plan_type") or {}
+        rows = [("plans listing", f'{_payer_n(f.get("plans_listing"))} of '
+                                  f'{_payer_n(f.get("plans_total"))}')]
+        for kind in ("MA-PD", "PDP"):
+            s = split.get(kind)
+            if s:
+                rows.append((f"{kind} plans: listing, PA, ST, QL",
+                             f'{s["listing"]:,} of {s["plans"]:,}; {s["pa"]:,}, '
+                             f'{s["st"]:,}, {s["ql"]:,}'))
+        if not split:
+            rows.append(("plans with PA, ST, QL", f'{_payer_n(f.get("pa_plans"))}, '
+                         f'{_payer_n(f.get("st_plans"))}, {_payer_n(f.get("ql_plans"))}'))
+        rows += [("quantity limit, formularies", _payer_n(f.get("ql_formularies"))),
+                 ("plans with it on a specialty tier",
+                  _payer_n(f.get("specialty_plans_listing"))),
+                 ("selected for Medicare negotiation", "yes" if f.get("selected_drug")
+                  else "no"),
+                 ("brand RxNorm codes listed", f'{_payer_n(f.get("rxcuis_listed"))} of '
+                                               f'{_payer_n(f.get("rxcuis_known"))}')]
+        out.append(_payer_rows(rows))
+    if m:
+        out.append('<div class="prof-sub">Medicaid prescriptions by year</div>')
+        out.append(_payer_rows([
+            (f'{y["year"]}{"" if y.get("full_year") else ", part year"}',
+             # A year whose every package CMS suppressed has no count, not "no free data".
+             "suppressed by CMS" if y["prescriptions"] is None else
+             ("at least " if y.get("lower_bound") else "") + _payer_n(y["prescriptions"])
+             + (f', {_payer_signed_change(y["growth"], y.get("growth_bound"))}'
+                if y.get("growth") is not None else ""))
+            for y in m.get("years") or []]))
+        latest_q = next((q for q in reversed(m.get("quarters") or [])
+                         if q.get("prescriptions") is not None), None)
+        if latest_q:
+            out.append(_payer_rows([(
+                f'{latest_q["year"]} Q{latest_q["quarter"]}: fee-for-service, managed care',
+                f'{_payer_n(latest_q.get("ffsu"))}, {_payer_n(latest_q.get("mcou"))}')]))
+        for line in (m.get("unbranded_note"),
+                     (m.get("reused_codes") or {}).get("note")):
+            if line:
+                out.append(f'<div class="byline">{html_escape(line)}</div>')
+        if m.get("reused_codes"):
+            r = m["reused_codes"]
+            out.append(f'<div class="byline">{r["prescriptions"]:,} prescriptions on '
+                       f'{html_escape(", ".join(r["codes"]))}.</div>')
+    if codes:
+        out.append('<div class="prof-sub">Drug codes</div>')
+        out.append(_payer_rows([
+            ("brand RxNorm codes", _payer_n(codes.get("brand_rxcuis"))),
+            ("brand product codes", _payer_n(codes.get("brand_ndc9s"))),
+            ("RxNorm release", codes.get("rxnorm_version"))]))
+    caveats = []
+    for block in (p, f, m):
+        for line in (block or {}).get("caveats") or []:
+            if line not in caveats:
+                caveats.append(line)
+    out.extend(f'<div class="byline">{html_escape(c)}</div>' for c in caveats)
+    out.append("</details>")
+    return "".join(out)
+
+
+def _payer_byline(access) -> str:
+    """The sources of the payer row, with the statement NLM asks every user of RxNav to
+    carry."""
+    text = ("Part D prescribing from CMS's Medicare Part D Prescribers files, plan coverage "
+            "from its monthly Part D formulary file, Medicaid prescriptions from the State "
+            "Drug Utilization Data, drug codes from RxNav.")
+    attribution = (access or {}).get("attribution")
+    return text + (f" {attribution}" if attribution else "")
+
+
+def _payer_shows(prof: dict) -> bool:
+    """Whether the row is drawn: a marketed product with the payer view on its profile.
+    A pipeline compound would only print "not marketed" three times."""
+    return bool((prof or {}).get("access") and (prof or {}).get("is_marketed"))
+
+
+def _payer_row(prof: dict) -> None:
+    """The fact profile's payer row: three panels and the folded detail under them."""
+    if not _payer_shows(prof):
+        return
+    access = prof["access"]
+    cols = st.columns(3, gap="medium")
+    builders = {"prescribing": _payer_prescribing_html,
+                "formulary": _payer_formulary_html, "medicaid": _payer_medicaid_html}
+    for col, (key, title) in zip(cols, _PAYER_PANELS):
+        with col:
+            section(title, None, _payer_chip(access, key))
+            st.markdown(builders[key](access), unsafe_allow_html=True)
+    st.markdown(_payer_co_line(access) + _payer_detail_html(access),
                 unsafe_allow_html=True)
 
 
@@ -753,45 +1163,6 @@ def _readout_lead(readout, ticker: str) -> dict:
     }
 
 
-# Where a news item came from, as the chip says it. EDGAR is the fallback because a row
-# with no source is an SEC filing: the FDA feeds all name themselves.
-_NEWS_SOURCES = {"fda_press": "FDA press", "fda_drugs": "FDA drug",
-                 "fda_safety": "FDA safety",
-                 # The company's own words, whether they came off its feed or its page.
-                 # Which of the two is a fetcher's business and not a reader's; that it
-                 # was the company speaking rather than the SEC or the FDA is the fact
-                 # the chip is for.
-                 "press_ir": "Company", "press_page": "Company"}
-# One screen of headlines. The rest are a scroll rather than a click, and the note says
-# how many were cut.
-_NEWS_SHOWN = 40
-
-
-def news_row(item) -> str:
-    """One announcement as a line: when, what it says, and who published it.
-
-    The whole row is the anchor, so the headline is the link rather than a cell called
-    "Link" sitting beside it.
-    """
-    url = item.get("url")
-    source = _NEWS_SOURCES.get(item.get("source"), "EDGAR")
-    # "8-K: 8-K" is what the fetcher stores when it cannot resolve the filing's item
-    # description, which is most of them for some filers. Said once it reads as the form
-    # it is; said twice it reads as a rendering fault.
-    title = (item.get("title") or "").strip()
-    head, _, tail = title.partition(": ")
-    if tail.strip() == head.strip():
-        title = head
-    open_tag = (f'<a class="fitem link" href="{html_escape(url)}" target="_blank" '
-                'rel="noopener noreferrer">' if url else '<div class="fitem">')
-    return (f'{open_tag}'
-            f'<span class="d">{html_escape((item.get("published_at") or "")[:10])}</span>'
-            f'<span class="t">{html_escape(title)}</span>'
-            f'<span class="why"></span>'
-            f'<span class="s">{html_escape(source)}</span>'
-            f'{"</a>" if url else "</div>"}')
-
-
 # What each figure on a product card means, shown on hover. Every one is a measurement
 # whose basis is not obvious from the number: a revenue that is worldwide and tagged, a
 # date that is the last unexpired patent rather than a forecast.
@@ -841,53 +1212,6 @@ _LOE_LAPSED_AFTER_YEARS = 14
 # One screen of lifecycle studies. The rest are on the company's own Pipeline and
 # Catalysts tabs, and the section count states the true total.
 _POST_APPROVAL_SHOWN = 30
-
-
-# The measures a head to head is argued on, and which direction is better on each.
-# Stated rather than inferred: more revenue is better, a nearer patent cliff is not, and
-# a valuation multiple is not a scoreboard at all, so it is shown and left unmarked.
-#   (key, label, formatter, higher_is_better or None for "no better side")
-_H2H_ROWS = (
-    ("revenue", "Revenue", lambda v: f"{T.num(v / 1e9, 1)}bn", True),
-    ("revenue_growth", "Revenue growth", lambda v: T.pct(v * 100, 1), True),
-    ("net_margin", "Net margin", lambda v: T.pct(v * 100, 1), True),
-    ("rd_pct", "R&D, share of sales", lambda v: T.pct(v * 100, 1), None),
-    ("market_cap", "Market cap", lambda v: f"{T.num(v / 1e9, 0)}bn", None),
-    ("pe", "P/E", lambda v: T.num(v, 1), None),
-    ("ev_sales", "EV / sales", lambda v: T.num(v, 1), None),
-    ("late_trials", "Late-stage trials", lambda v: str(int(v)), True),
-    ("catalysts_12m", "Catalysts, 12m", lambda v: str(int(v)), True),
-    ("loe_share_5y", "Revenue off patent, 5y", lambda v: T.pct(v * 100, 1), False),
-    ("ttm_price_change", "Price, 12m", lambda v: T.pct(v * 100, 1), True),
-)
-
-
-def _head_to_head(a: dict, b: dict, ta: str, tb: str) -> str:
-    """Two companies as one column of measures, the better side marked on each.
-
-    A measure either company is missing is printed as a dash on that side and marked on
-    neither: an absent figure is not a worse one, and the free sources leave plenty of
-    them absent.
-    """
-    rows = []
-    for key, label, fmt, higher in _H2H_ROWS:
-        va, vb = a.get(key), b.get(key)
-        wa = wb = ""
-        if higher is not None and isinstance(va, (int, float)) \
-                and isinstance(vb, (int, float)) and va != vb:
-            better_is_a = (va > vb) if higher else (va < vb)
-            wa, wb = ("win", "") if better_is_a else ("", "win")
-        rows.append(
-            f'<div class="h2h-r">'
-            f'<span class="h2h-v {wa}">{fmt(va) if isinstance(va, (int, float)) else "—"}</span>'
-            f'<span class="h2h-k">{html_escape(label)}</span>'
-            f'<span class="h2h-v {wb}">{fmt(vb) if isinstance(vb, (int, float)) else "—"}</span>'
-            f'</div>')
-    return (f'<div class="h2h"><div class="h2h-r h2h-head">'
-            f'<span class="h2h-v">{html_escape(ta)}</span>'
-            f'<span class="h2h-k">{html_escape(str(a.get("fiscal_year") or ""))}</span>'
-            f'<span class="h2h-v">{html_escape(tb)}</span></div>'
-            + "".join(rows) + "</div>")
 
 
 def _post_approval_row(study) -> str:
@@ -1452,7 +1776,7 @@ CURVE_KEYS = ("penetration_peak_pct", "ramp_midpoint_year")
 # page reload (the clicklist component returns the id to Python).
 
 _BOOK_TOP = 12
-_BUILD_TOP = 7
+_BUILD_TOP = 14
 _BOOK_TOKENS = {"panel": TK.PANEL, "panel-hi": TK.RULE, "rule": TK.RULE,
                 "rule-strong": TK.RULE_STRONG, "muted": TK.MUTED, "text": TK.TEXT,
                 "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
@@ -1590,6 +1914,15 @@ def _value_book(v: dict, ticker: str, selected):
     return None
 
 
+def _mix_hex(a: str, b: str, t: float) -> str:
+    """Token colour ``a`` moved a share ``t`` of the way to token colour ``b``: a derived
+    shade, never a new colour."""
+    a, b = a.lstrip("#"), b.lstrip("#")
+    ca = [int(a[i:i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b[i:i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb))
+
+
 def _revenue_build(v: dict) -> None:
     """History running into forecast, stacked by what produces it.
 
@@ -1598,10 +1931,11 @@ def _revenue_build(v: dict) -> None:
     hatched so it is seen and not believed, and the reported figures sit over the top
     as the line the bands have to meet.
 
-    Seven bands are named and the rest are one. A build of forty-three named bands was
-    a legend of forty-three names over a chart nobody could read; the seven largest by
-    value are what the eye can hold, and the remainder is drawn as a single grey band
-    so the total is still the total.
+    Fourteen bands are named and the rest are one. A build of forty-three named bands was
+    a legend of forty-three names over a chart nobody could read; drawn across the whole
+    page, the fourteen largest by value hold, each in its own colour, and the remainder is
+    one grey band so the total is still the total. Revenue lines no asset carries are
+    each a shade of grey of their own, so a line is never mistaken for a product.
 
     What has no path is not drawn as one. Revenue with neither a product row nor a line
     is stated as a figure beside the chart, because a flat band for it would be a
@@ -1621,14 +1955,18 @@ def _revenue_build(v: dict) -> None:
     years = hist_years + forecast_years
     labels = [str(y) for y in years]
 
-    palette = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
-               TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
+    base = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
+            TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
+    # Seven token colours, then the same seven lightened toward the text colour: fourteen
+    # products each told apart, with no colour from outside the palette.
+    palette = base + [_mix_hex(c, TK.TEXT, 0.45) for c in base]
+    greys = [_mix_hex(TK.MUTED, TK.GROUND, f) for f in (0.0, 0.25, 0.45, 0.6, 0.15, 0.35)]
     ranked = sorted(modelled, key=lambda m: -(m.get("rnpv_share") or 0))
     head, rest = ranked[:_BUILD_TOP], ranked[_BUILD_TOP:]
     series = []
     for i, m in enumerate(head):
         by_year = dict(zip(m.get("years") or [], m.get("revenue_share") or []))
-        series.append({"name": m["name"][:18], "colour": palette[i % len(palette)],
+        series.append({"name": m["name"][:22], "colour": palette[i % len(palette)],
                        "hatched": not m.get("counted", True),
                        "values": [by_year.get(y) for y in years]})
     if rest:
@@ -1636,16 +1974,16 @@ def _revenue_build(v: dict) -> None:
         for m in rest:
             for y, value in zip(m.get("years") or [], m.get("revenue_share") or []):
                 other[y] = other.get(y, 0.0) + (value or 0.0)
-        series.append({"name": f"{len(rest)} others", "colour": TK.RULE_STRONG,
+        series.append({"name": f"{len(rest)} smaller products", "colour": TK.RULE_STRONG,
                        "values": [other.get(y) for y in years]})
-    for s in streams:
+    for j, s in enumerate(streams):
         by_year = dict(zip(s.get("years") or [], s.get("revenue") or []))
-        series.append({"name": s["line"][:18], "colour": TK.MUTED,
+        series.append({"name": s["line"][:24], "colour": greys[j % len(greys)],
                        "values": [by_year.get(y) for y in years]})
     ref_by_year = dict(history)
-    section("Revenue build", basis="mm · reported over modelled")
+    section("Revenue build", basis=f"{_mm()} · reported over modelled")
     R.show(CH.stacked_columns(
-        labels, series, 760, 292, value_fmt=lambda x: f"{x:,.0f}",
+        labels, series, 1500, 420, value_fmt=lambda x: f"{x:,.0f}",
         reference={"name": "reported", "colour": TK.TEXT,
                    "values": [ref_by_year.get(y) for y in years]}),
         css_class="chart-mount stretch")
@@ -1662,6 +2000,1110 @@ def _book_top(api_base: str, ticker: str):
     if not modelled:
         return None
     return max(modelled, key=lambda m: m["per_share"])["asset_id"]
+
+
+# The book's reporting currency, set where the whole-company verdict is read and used by
+# every figure under it. Per-share figures are translated to dollars; revenue, rNPV and
+# the P&L stay in the filer's own currency, and a bare "mm" read Novo's 199,762mm krone
+# rNPV for Ozempic as dollars. The P&L said "mm USD" for every filer.
+_BOOK_UNIT = {"currency": "USD"}
+
+
+def _mm() -> str:
+    cur = _BOOK_UNIT["currency"]
+    return "mm" if cur == "USD" else f"mm {cur}"
+
+
+def _intro(text: str) -> None:
+    """The question a view answers, in one line above it."""
+    st.markdown(f'<div class="view-intro">{html_escape(text)}</div>',
+                unsafe_allow_html=True)
+
+
+# --- Comps valuation -----------------------------------------------------
+# The whole universe in one read. The view chooses its own peers from all 70 companies,
+# so a peer from another engine can be added in the frame without a rerun. A minute of
+# cache keeps a rerun of the page from rebuilding the payload; the view's Reload button
+# clears it. Read directly rather than through api_get, so that a reload is a real read
+# of the API rather than a second cache handing back the same body.
+@st.cache_data(ttl=60, show_spinner=False)
+def _comps_valuation_payload(api_base: str) -> dict:
+    with urllib.request.urlopen(api_base.rstrip("/") + "/comps/valuation",
+                                timeout=60) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+# The focal company's own evidence for Drivers and risks: its dated catalysts of the next
+# twelve months and the competition in its most valuable indications. One company per
+# read, the same minute of cache and the same direct read as the payload, so the view's
+# Reload button is a real read of both.
+@st.cache_data(ttl=60, show_spinner=False)
+def _comps_context(api_base: str, ticker: str) -> dict:
+    with urllib.request.urlopen(
+            api_base.rstrip("/")
+            + f"/companies/{urllib.parse.quote(ticker)}/comps-context",
+            timeout=30) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _compsval_action(kinds: tuple, seen_key: str):
+    """The valuation view's last action when it is one of ``kinds`` and its nonce is
+    not the one recorded under ``seen_key``; otherwise None.
+
+    The component's value persists in session state after the click, so the nonce, not
+    the value, says whether an action is new.
+    """
+    value = st.session_state.get("compsval")
+    if (isinstance(value, dict) and value.get("action") in kinds
+            and value.get("nonce") is not None
+            and value.get("nonce") != st.session_state.get(seen_key)):
+        return value
+    return None
+
+
+def _compsval_focus():
+    """The ticker the valuation view last asked to make focal, while that request is
+    still unapplied; otherwise None.
+
+    The view posts ``{"action": "focus", "ticker", "nonce"}``. The pre-selectbox hook
+    records each nonce it applies, and a rerun caused by anything else does not send
+    the page back to a company the analyst has since moved off. (Revision 4 of the frame
+    sends no ``indication`` action: the competition rows that linked to a landscape left
+    with Drivers and risks, design company-scorecard.md 6.4.)
+    """
+    value = _compsval_action(("focus",), "_compsval_nonce")
+    if value is None:
+        return None
+    return str(value.get("ticker") or "").strip().upper()
+
+
+def _cm_ordinal(n: int) -> str:
+    """1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st."""
+    tail = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{tail}"
+
+
+def _company_map_points(scorecard: dict, ticker: str, records=None) -> list:
+    """The bubbles of the company map (design company-scorecard.md 3.1, 8.1) for the
+    open company's cohort, read from the scorecard as it came: one per company with a
+    company score and a value score, nothing computed here.
+
+    ``records`` are the payload's company records, read for each price date: a bubble's
+    tooltip names its price date when it is not the cohort's latest. An open company
+    with no cohort, or a scorecard that failed, gives no points.
+    """
+    sc = scorecard if isinstance(scorecard, dict) else {}
+    companies = sc.get("companies") or {}
+    own = companies.get(ticker) or {}
+    cohort_id = own.get("cohort")
+    cohort = (sc.get("cohorts") or {}).get(cohort_id) or {}
+    if sc.get("error") or not cohort_id or not cohort:
+        return []
+    meta = (sc.get("method") or {}).get("pillars") or {}
+    business = [p.get("id") for p in cohort.get("pillars") or []
+                if (meta.get(p.get("id")) or {}).get("kind") == "business"]
+    price_of = {}
+    for rec in records or []:
+        if isinstance(rec, dict):
+            price_of[rec.get("ticker")] = ((rec.get("market") or {}).get("price_as_of"))
+    members = [t for t, r in companies.items() if (r or {}).get("cohort") == cohort_id]
+    dates = [price_of.get(t) for t in members if price_of.get(t)]
+    latest = max(dates) if dates else None
+    n = cohort.get("n") or len(members)
+    points = []
+    for t in members:
+        r = companies[t]
+        chart = r.get("chart")
+        if not chart or r.get("rank") is None:
+            continue
+        lo, hi = (r.get("rank_range") or [None, None])[:2]
+        rank_text = f"{_cm_ordinal(int(r['rank']))} of {r.get('ranked_of') or n}"
+        range_text = r.get("range_text") or (f"{lo}–{hi}" if lo is not None else "")
+        pillars = r.get("pillars") or {}
+        parts = []
+        for pid in business:
+            s = (pillars.get(pid) or {}).get("score")
+            if s is None:
+                continue
+            label = (meta.get(pid) or {}).get("label") or pid
+            parts.append(f"{label if not parts else label.lower()} {s}")
+        tip = (f"{t} {r.get('name') or t}. Company score {r.get('score')}, {rank_text}"
+               + (f", range {range_text}" if range_text else "") + "."
+               + (f" Value {r.get('value')}." if r.get("value") is not None else ""))
+        if parts:
+            tip += " " + ", ".join(parts)
+            k, k_of = r.get("pillars_scored"), r.get("pillars_of")
+            tip += (f" (on {k} of {k_of} pillars)." if k is not None and k_of and k < k_of
+                    else ".")
+        when = price_of.get(t)
+        if when and latest and when != latest:
+            try:
+                when_text = dt.date.fromisoformat(str(when)[:10]).strftime("%-d %b %Y")
+            except ValueError:
+                when_text = str(when)
+            tip += f" Price of {when_text}."
+        aria = (f"{t}, rank {r['rank']}"
+                + (f", range {lo} to {hi}" if lo is not None else "")
+                + f", company score {r.get('score')}"
+                + (f", value {r.get('value')}" if r.get("value") is not None else ""))
+        points.append({"ticker": t, "x": chart.get("x"), "y": chart.get("y"),
+                       "size": chart.get("size"), "complete": bool(chart.get("complete")),
+                       "rank": r["rank"], "tip": tip, "aria": aria})
+    return points
+
+
+# A fragment: the frame recomputes every peer set, basis, preset and bridge input itself,
+# so Python hears only two actions and none should redraw the other tabs for nothing. A
+# reload reruns this fragment alone. A new focal company reruns the page, because the
+# top bar and every other tab follow it; the hook before the company selector applies it.
+@st.fragment
+def _comps_valuation_view(api_base: str, ticker: str, engine: str, live: bool):
+    """The Companies view: one component over the whole universe, the focal company
+    being the one the top bar has open. It opens on the company map of the focal
+    company's cohort, drawn here and handed to the frame, which binds its bubbles."""
+    try:
+        payload = _comps_valuation_payload(api_base)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        state("Companies unavailable",
+              f"The API did not answer on /comps/valuation: {html_escape(str(exc))}. "
+              "Check it is running, then open this tab again.", error=True)
+        return
+    # The chart is drawn in Python, the look of the clinical scorecard, and the frame only
+    # shows it. A drawing that fails leaves the frame its table and its panel.
+    try:
+        chart_svg = CH.company_map(
+            _company_map_points(payload.get("scorecard"), ticker, payload.get("companies")),
+            760, 480, open_ticker=ticker)
+    except Exception as exc:  # the scorecard's shape is the API's; the view still opens
+        print(f"company map failed for {ticker}: {exc!r}", flush=True)
+        chart_svg = ""
+    picked = compsval.comps_valuation(payload, focal=ticker, engine=engine,
+                                      tokens=COMPS_TOKENS, live=live,
+                                      mode="full", key="compsval", chart_svg=chart_svg)
+    if not (isinstance(picked, dict) and picked.get("nonce") is not None
+            and picked.get("nonce") != st.session_state.get("_compsval_seen")):
+        return
+    st.session_state["_compsval_seen"] = picked.get("nonce")
+    # The hook before the company selector records the nonce of a focus action it has
+    # applied, which it can only do in a full run. A nonce it has not recorded means this
+    # is the fragment's own rerun, so the page reruns for the hook.
+    hooked = picked.get("nonce") == st.session_state.get("_compsval_nonce")
+    if picked.get("action") == "focus":
+        wanted = str(picked.get("ticker") or "").strip().upper()
+        if wanted and wanted != ticker and not hooked:
+            st.rerun()
+    elif picked.get("action") == "reload":
+        _comps_valuation_payload.clear()
+        _comps_context.clear()
+        _rerun_here()
+
+
+def _peer_value_section(api_base: str, ticker: str) -> None:
+    """The value the peer set's multiple implies for the company, on the Forecast tab.
+
+    One more lens on the same question the fair value range asks, so it sits under that
+    range. It is the Comps valuation component in its bridge mode: the peer set, the
+    metric and the bridge inputs are the ones chosen in Comps, read from the browser
+    storage the two frames share, and nothing comes back to Python from it. Drawn for
+    every company, modelled or not, because a peer multiple needs no product model.
+    """
+    section("Value implied by peer multiples",
+            basis="peer set and metric from Comps · $ a share")
+    try:
+        payload = _comps_valuation_payload(api_base)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        state("Peer multiples unavailable",
+              f"The API did not answer on /comps/valuation: {html_escape(str(exc))}.",
+              error=True)
+        return
+    # Live as the Comps view is: the time machine's state is read where the page set
+    # it, which a rerun of the Forecast fragment alone does not repeat.
+    compsval.comps_valuation(payload, focal=ticker,
+                             engine=st.session_state.get("engine") or "",
+                             tokens=COMPS_TOKENS, live=not globals().get("asof_state"),
+                             mode="bridge")
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _landscape_index(api_base: str):
+    try:
+        return api_get(api_base, "/indications")
+    except (urllib.error.URLError, OSError):
+        return None
+
+
+def _pct(value, digits: int = 1) -> str:
+    return "·" if value is None else f"{value * 100:.{digits}f}%"
+
+
+def _land_num(value, digits: int = 1) -> str:
+    return "·" if value is None else f"{value:,.{digits}f}"
+
+
+def _indication_landscape(api_base: str, ticker: str) -> None:
+    """Every big pharma candidate for one indication, whatever its modality or mechanism,
+    compared on what it is, what its trials posted and what the model says it is worth.
+
+    Opens on the most contested indication the company is in. Three views of the same
+    candidates: the candidates themselves (stage, science, value, share of the pool), the
+    efficacy their trials posted against placebo, and their safety record against placebo
+    in the same trials.
+    """
+    index = _landscape_index(api_base)
+    if not index:
+        state("No landscape yet", "the API returned no indications with a big pharma "
+              "candidate marketed or in Phase 2 and later")
+        return
+    by_id = {i["id"]: i for i in index}
+    mine = [i["id"] for i in index if ticker in (i.get("tickers") or [])]
+    options = mine + [i["id"] for i in index if i["id"] not in mine]
+    # One line: the indication beside the view switch, so the overview fits one screen
+    # (theme.py, land_head).
+    with st.container(key="land_head"):
+        # The indication, the scorecard's two pop-outs (drawn by the overview) and the
+        # view switch, on one line.
+        head_pick, head_why, head_how, head_view = st.columns(
+            [0.36, 0.165, 0.165, 0.31], vertical_alignment="center")
+    # No index is passed: the first option is the default, and a default beside a session
+    # value draws a warning.
+    with head_pick:
+        pick = st.selectbox(
+            "Indication", options, key=f"land_pick_{ticker}",
+            # The indication alone; how many companies develop it, and whether this one does,
+            # are the first figure under it.
+            format_func=lambda i: by_id[i]["name"],
+            label_visibility="collapsed")
+    with st.spinner("Reading every candidate's trials and safety record"):
+        try:
+            # Longer than the page's usual 30 seconds: a landscape whose companies have
+            # no cached verdict yet builds their books the first time it is opened.
+            with urllib.request.urlopen(
+                    api_base.rstrip("/") + f"/indications/{pick}/landscape",
+                    timeout=240) as resp:
+                land = json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError) as exc:
+            state("The landscape did not load", str(exc), error=True)
+            return
+    cands = land.get("candidates") or []
+    if not cands:
+        state("No candidates", "nothing big pharma holds is linked to this indication")
+        return
+    cov = land.get("coverage") or {}
+    pool = land.get("pool") or {}
+    cells = [
+        ("in development", str(by_id[pick]["companies"]), "",
+         f'companies · {ticker} {"in it" if pick in mine else "not in it"}'),
+        ("candidates", str(cov.get("candidates", len(cands))), "",
+         f'{len(land.get("companies") or [])} companies'),
+        ("marketed", str(sum(1 for c in cands if c["stage"] == "Marketed")), "",
+         f'{sum(1 for c in cands if c["is_marketed"] and c["stage"] != "Marketed")} more '
+         f'sold elsewhere, trialled here'),
+        ("phase 3", str(sum(1 for c in cands if c["stage"] in ("Phase 3", "Phase 2/3"))),
+         "", f'{sum(1 for c in cands if c["stage"] == "Phase 2")} in Phase 2'),
+        ("mechanism known", f'{cov.get("with_mechanism", 0)}', "",
+         "ChEMBL and the FDA label"),
+        ("modelled", f'{cov.get("with_model", 0)}', "", "valued in the book"),
+        ("trials posted", f'{cov.get("trials_with_results", 0)}', "",
+         f'of {cov.get("trials", 0)} linked'),
+    ]
+    if pool.get("pool"):
+        # A line of therapy's pool is a year's eligible diagnoses, not a standing count.
+        shared = (f'{pool["pooled"]} of {pool.get("claimants")} claimants'
+                  if pool.get("pooled") is not None else f'{pool.get("claimants")} claimants')
+        cells.append(("shared pool", DCV.pool_size(pool["pool"]), "",
+                      ("a year, " if pool.get("per_year") else "") + shared
+                      + (f' · {_pct(pool.get("uncrowded_share"), 0)} claimed, '
+                         f'{_pct(pool.get("crowded_share"), 0)} after crowding'
+                         if pool.get("uncrowded_share") is not None else "")))
+    st.markdown('<div class="pos land-pos">' + "".join(
+        f'<span><span class="k">{html_escape(k)}</span><span class="v {cls}">{html_escape(v)}'
+        f'</span><span class="sub">{html_escape(sub)}</span></span>'
+        for k, v, cls, sub in cells) + "</div>", unsafe_allow_html=True)
+    members = (land.get("indication") or {}).get("members") or []
+    if len(members) > 1:
+        note("One population under several names, read together: " + ", ".join(members))
+
+    # A switch, not a third level of tabs: this sits inside the Comps tab's own views,
+    # and tabs inside tabs inside tabs read as three navigations at once.
+    with head_view:
+        view = st.segmented_control(
+            "View", ["Overview", "Candidates", "Efficacy", "Safety"], default="Overview",
+            key=f"land_view_{pick}", label_visibility="collapsed") or "Overview"
+    if view == "Overview":
+        _landscape_overview(api_base, pick, ticker, (head_why, head_how), cands,
+                            _decap(by_id[pick]["name"]))
+    elif view == "Candidates":
+        _landscape_candidates(cands, api_base, pick)
+    elif view == "Efficacy":
+        _landscape_efficacy(land.get("endpoints") or [], cands, pick)
+    else:
+        _landscape_safety(land.get("safety") or [])
+
+
+def _get_long(api_base: str, path: str, timeout: int = 240):
+    with urllib.request.urlopen(api_base.rstrip("/") + path, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _cap(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def _how(text: str) -> None:
+    """A reading instruction, shown rather than folded: the overview is read fast, and a
+    note behind a toggle is one nobody opens."""
+    st.markdown(f'<div class="how-read">{html_escape(text)}</div>', unsafe_allow_html=True)
+
+
+def _verdict_card(card: dict, lead: bool = False, meaning: bool = True,
+                  compact: bool = False) -> str:
+    """One verdict card. ``compact`` is the card beside the scorecard's table: its detail
+    is cut to a few lines and the whole of it is on hover."""
+    tip = (f' title="{html_escape(" ".join(x for x in (card.get("headline"), card.get("detail")) if x))}"'
+           if compact else "")
+    detail = (f'<div class="vc-detail">{html_escape(card["detail"])}</div>'
+              if card.get("detail") else "")
+    mean = (f'<div class="vc-mean"><span>What this means</span>'
+            f'{html_escape(card["meaning"])}</div>' if meaning and card.get("meaning") else "")
+    return (f'<div class="vc{" vc-lead" if lead else ""}{" vc-compact" if compact else ""} '
+            f'vc-{html_escape(card["kind"])}"{tip}>'
+            f'<div class="vc-title">{html_escape(card["title"])}</div>'
+            f'<div class="vc-head">{html_escape(card["headline"])}</div>{detail}{mean}</div>')
+
+
+def _score_cell(value, focal: bool = False, mark: str | None = None) -> str:
+    """A score out of 100 as its figure and a bar, or the null dash.
+
+    ``mark`` is a slot after the figure: None for no slot, "" for an empty one and "†"
+    for the dagger of a drug scored on strength and wins alone. Every cell of a column
+    that carries a dagger gets the slot, so the figures still line up."""
+    if value is None:
+        return '<td class="n m">—</td>'
+    slot = "" if mark is None else f'<span class="sc-dg">{html_escape(mark)}</span>'
+    return (f'<td class="n"><span class="sc{" sc-f" if focal else ""}">'
+            f'<i style="width:{max(0.0, min(100.0, value)):.0f}%"></i></span>{value:.0f}'
+            f'{slot}</td>')
+
+
+def _score_range(a: dict, table: bool = False) -> str:
+    """Where a drug's rank falls in 95 of 100 redraws, as "2 to 3". Where it never moved,
+    the table shows the rank itself ("1") and the words nothing; blank where the drug is
+    not placed."""
+    rr = a.get("rank_range")
+    if not rr:
+        return ""
+    if rr[0] == rr[1]:
+        return str(rr[0]) if table else ""
+    return f"{rr[0]} to {rr[1]}"
+
+
+def _score_tip(a: dict) -> str:
+    """The tooltip of a bubble: its scores and rank with the range the rank could sit
+    in, then the lines printed under the chart."""
+    e, s_, v = a["efficacy"], a["safety"], a["evidence"]
+    span = _score_range(a)
+    head = (f'{a["name"]} ({a["ticker"]}), {a["stage"]}. Overall {a["overall"]:.0f}, '
+            f'rank {a["rank"]}' + (f" (could sit {span})" if span else "")
+            + f': efficacy {e["score"]:.0f}, safety {s_["score"]:.0f}, evidence '
+            + (f'{v["score"]:.0f}' if v.get("score") is not None else "not stated") + ".")
+    care = [s_["read_with_care"]] if s_.get("read_with_care") else []
+    return " ".join([head] + (e.get("lines") or [])[:3] + (s_.get("lines") or [])[:1] + care)
+
+
+def _score_why(a: dict, numbered: bool = False, notes: bool = False) -> str:
+    """One drug's words: its name, then the lines printed under the chart, then, on
+    demand, the notes that say what else each score rests on."""
+    span = _score_range(a)
+    meta = (f'{a["ticker"]} · overall {a["overall"]:.0f}'
+            + (f" · rank could sit {span}" if span else ""))
+    lead = f'{a["rank"]}. ' if numbered else ""
+    lines = (a["efficacy"].get("lines") or []) + (a["safety"].get("lines") or [])
+    body = " ".join(html_escape(x) for x in lines)
+    more = ((a["efficacy"].get("notes") or []) + (a["safety"].get("notes") or [])
+            if notes else [])
+    tail = (f'<div class="sc-notes">{" ".join(html_escape(x) for x in more)}</div>'
+            if more else "")
+    return (f'<div class="sc-why"><b>{lead}{html_escape(a["name"])}</b> '
+            f'<span class="m">{html_escape(meta)}</span><br>{body}{tail}</div>')
+
+
+_STAGE_SHORT = (("Marketed", "marketed"), ("Phase 3", "Phase 3"), ("Phase 2/3", "Phase 2/3"),
+                ("Phase 2", "Phase 2"), ("Phase 1", "Phase 1"))
+
+
+def _stage_short(stage: str) -> str:
+    """The stage in one word or two: a marketed drug trialled here is still marketed."""
+    for key, short in _STAGE_SHORT:
+        if (stage or "").startswith(key):
+            return short
+    return stage or ""
+
+
+def _plain_cell(value, why: str | None = None, num: bool = False, tip: str | None = None) -> str:
+    """A text cell, or the null dash with the reason on hover."""
+    if value in (None, ""):
+        why_tip = f' title="{html_escape(why)}"' if why else ""
+        return f'<td class="{"n " if num else ""}m"{why_tip}>—</td>'
+    hover = f' title="{html_escape(tip)}"' if tip else ""
+    return f'<td class="{"n" if num else "sc-txt"}"{hover}>{html_escape(str(value))}</td>'
+
+
+def _score_rows(placed: list, ticker: str) -> str:
+    """The ranked table: rank and the range it could sit in, the drug, its stage, its four
+    scores, then how it was given in the trials that scored it (people treated, dose,
+    form, frequency, trial length). The open company's rows are marked; a dagger on an
+    efficacy figure that rests on strength and wins alone carries its meaning on hover."""
+    dagger_tip = ("Size of effect not compared: no peer was tested against the same control "
+                  "on the same measure in trials of about the same length, so its size "
+                  "counts at 50.")
+    rows = ""
+    for a in placed:
+        focal = a["ticker"] == ticker
+        name = (f'<b>{html_escape(a["name"])}</b>' if focal else html_escape(a["name"]))
+        rr = a.get("rank_range") or []
+        span = (f"{rr[0]}\u2013{rr[1]}" if len(rr) == 2 and rr[0] != rr[1] else "")
+        rank = f'{a["rank"]}' + (f'<span class="m sc-rng"> {html_escape(span)}</span>' if span else "")
+        e = a["efficacy"].get("score")
+        dag = a["efficacy"].get("size_basis") == "not comparable"
+        eff = ("<td class=\"n m\">—</td>" if e is None else
+               f'<td class="n"{f" title={chr(34)}{html_escape(dagger_tip)}{chr(34)}" if dag else ""}>'
+               f'{e:.0f}{"<span class=sc-dg>†</span>" if dag else ""}</td>')
+        num = lambda v: "<td class=\"n m\">—</td>" if v is None else f'<td class="n">{v:.0f}</td>'
+        reg = a.get("regimen") or {}
+        why = reg.get("why") or {}
+        n = reg.get("participants")
+        # A row with an id opens the drug's card (_drug_click).
+        label = html_escape(a["name"]).replace('"', "&quot;")
+        hit = (f' data-drug="{a["asset_id"]}" tabindex="0" title="Open the card for {label}"'
+               if a.get("asset_id") is not None else "")
+        rows += (f'<tr class="{"sc-mine" if focal else ""}"{hit}>'
+                 f'<td class="n m sc-rk">{rank}</td>'
+                 f'<td>{name} <span class="m">{html_escape(a["ticker"])}</span></td>'
+                 f'<td class="m sc-txt">{html_escape(_stage_short(a["stage"]))}</td>'
+                 + _score_cell(a["overall"], focal) + eff
+                 + num(a["safety"].get("score")) + num(a["evidence"].get("score"))
+                 + _plain_cell(f"{n:,}" if n else None, "no participants posted", num=True)
+                 + _plain_cell(reg.get("dose"), why.get("dose"))
+                 + _plain_cell(reg.get("form"), why.get("form"))
+                 + _plain_cell(reg.get("frequency"), why.get("frequency"))
+                 + _plain_cell(reg.get("duration"), why.get("duration"),
+                               tip=reg.get("duration_span")) + "</tr>")
+    head = ("<th title=\"Rank, then where it falls in 95 of 100 redraws of every trial result "
+            "within its margin of error\">#</th><th>compound</th><th>stage</th>"
+            "<th>overall</th><th>efficacy</th><th>safety</th><th>evidence</th>"
+            "<th class=\"sc-reg\" title=\"People treated in its controlled trials\">n</th>"
+            "<th class=\"sc-reg\" title=\"Doses its own arms name\">dose</th>"
+            "<th class=\"sc-reg\" title=\"How it was given in these trials\">form</th>"
+            "<th class=\"sc-reg\" title=\"Dosing schedule its arms name\">frequency</th>"
+            "<th class=\"sc-reg\" title=\"Time point of the primary endpoints: treatment length in a "
+            "fixed-length trial, follow-up in a survival trial\">weeks</th>")
+    return ('<div class="land-wrap"><table class="land sc-table"><thead><tr>'
+            f'{head}</tr></thead><tbody>{rows}</tbody></table></div>')
+
+
+# The terms on screen an analyst might otherwise look up, each in plain words and then
+# the method's usual name, so it can be checked elsewhere.
+_SCORE_TERMS = (
+    ("z-score", "a result divided by its standard error, how far it would vary from one "
+                "trial to the next. 1.96 is the usual bar for a real effect (p = 0.05); "
+                "3.29 is the bar at p = 0.001 and scores full strength."),
+    ("Allowing for the number each trial tested", "the more endpoints a trial tests, the "
+                                                  "higher the bar each must clear, so testing "
+                                                  "more cannot buy wins (a false discovery "
+                                                  "rate correction, within each trial)."),
+    ("Averaged across trials, larger trials counting more", "each trial weighted by its "
+                                                            "precision, with room for trials "
+                                                            "that disagree (a random-effects "
+                                                            "meta-analysis)."),
+    ("On that basis", "an indirect comparison: each drug against the control both were "
+                      "tested on, not a trial of the two against each other."),
+    ("Moved toward the class average", "a result pulled part of the way toward the average "
+                                       "of its mechanism class, a less certain result "
+                                       "further (shrinkage). Only where four or more drugs "
+                                       "of one class share a measure and a control."),
+    ("Moved toward the average of the drugs here", "strength and wins from one or two "
+                                                   "trials pulled part of the way toward the "
+                                                   "average of every drug in the indication, "
+                                                   "so a single trial cannot carry a drug to "
+                                                   "the top (shrinkage)."),
+    ("95% interval", "a range built this way holds the true figure 95 times in 100."),
+    ("Hazard ratio", "the rate of death or progression on the drug over the rate on the "
+                     "comparator, below 1 favouring the drug: 0.72 is a 28% lower rate."),
+    ("Points", "percentage points, a difference between two percentages, such as the "
+               "drug's rate less the control's."),
+)
+
+
+def _score_method(method: dict) -> str:
+    """How it is scored, one labelled line a part, the range after the overall, then
+    the caveat and the terms in plain words."""
+    parts = [("Efficacy", method.get("efficacy")), ("Safety", method.get("safety")),
+             ("Evidence", method.get("evidence")),
+             ("Overall", " ".join(t for t in (method.get("overall"),
+                                              method.get("uncertainty")) if t))]
+    body = "".join(f'<div><span class="k">{k}:</span> {html_escape(_decap(v))}</div>'
+                   for k, v in parts if v)
+    caveat = (f'<div>{html_escape(method["caveat"])}</div>' if method.get("caveat") else "")
+    terms = "".join(f'<div><span class="k">{html_escape(k)}:</span> {html_escape(v)}</div>'
+                    for k, v in _SCORE_TERMS)
+    return (f'<div class="how-read sc-how"><div>How it is scored, each from 0 to 100.</div>'
+            f'{body}{caveat}<div class="sc-terms"><div>The terms in plain words.</div>'
+            f'{terms}</div></div>')
+
+
+def _landscape_scorecard(sc: dict, ticker: str, cards=(), lead=None, slots=None) -> None:
+    """The primary figure of an indication, laid out as Comps > Companies: the clinical
+    scorecard on the left, the ranked table on the right. What each score rests on, how it
+    is scored and who is not on the chart are a click away, never printed under it."""
+    assets = sc.get("assets") or []
+    placed = [a for a in assets if a.get("placed")]
+    rest = [a for a in assets if not a.get("placed")]
+    if not placed:
+        state("No drug can be scored here yet",
+              "A score needs a posted result against a comparator and a safety figure "
+              "against a control, and no candidate in this indication has both.")
+        return
+    # The two explanations are pop-outs on the view's head line (``slots``), so nothing
+    # hangs under the view; without the slots they sit at the scorecard's head.
+    with st.container(key="sc_head"):
+        if slots:
+            h_why, h_how = slots
+            section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
+                    basis="efficacy, safety and weight of evidence, averaged · posted results only")
+        else:
+            h_sec, h_why, h_how = st.columns([0.7, 0.15, 0.15], vertical_alignment="center")
+            with h_sec:
+                section("Clinical scorecard", f"{len(placed)} of {len(assets)} scored",
+                        basis="efficacy, safety and weight of evidence, averaged · "
+                              "posted results only")
+    with h_why:
+        with st.popover("What every score rests on", use_container_width=True):
+            st.markdown("".join(_score_why(a, numbered=True, notes=True) for a in placed),
+                        unsafe_allow_html=True)
+    with h_how:
+        with st.popover("How it is scored", use_container_width=True):
+            if rest:
+                by_reason: dict = {}
+                for a in rest:
+                    by_reason.setdefault(a.get("why_not") or "not scored", []).append(a)
+                parts = []
+                for reason, group in by_reason.items():
+                    names = ", ".join(f'{a["name"]} ({a["ticker"]})' for a in group[:8])
+                    more = f" and {len(group) - 8} more" if len(group) > 8 else ""
+                    parts.append(f"{_cap(reason)} ({len(group)}): {names}{more}.")
+                st.markdown('<div class="how-read">Not on the chart, because a score is never '
+                            f'guessed. {html_escape(" ".join(parts))}</div>',
+                            unsafe_allow_html=True)
+            st.markdown(_score_method(sc.get("method") or {}), unsafe_allow_html=True)
+    # The chart at its own shape and the table beside it, both as tall as the screen leaves
+    # (theme.py, --sc-h): the table scrolls inside, down and across.
+    with st.container(key="sc_map"):
+        left, right = st.columns([1.4, 1], gap="medium")
+    with left:
+        chart = CH.score_map(
+            [{"name": a["name"], "ticker": a["ticker"], "x": a["efficacy"]["score"],
+              "y": a["safety"]["score"], "evidence": a["evidence"].get("score"),
+              "stage": a["stage"], "boxed": a["boxed"], "rank": a.get("rank"),
+              "nosize": a["efficacy"].get("size_basis") == "not comparable",
+              "tip": _score_tip(a) + " Click for its card.", "id": a.get("asset_id")}
+             for a in placed],
+            720, 480, highlight=ticker,
+            x_caption=("efficacy score" if any(a["efficacy"].get("size_basis") == "ranked"
+                                               for a in placed)
+                       else "efficacy score (strength and wins, no size)"))
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+    with right:
+        st.markdown(_score_rows(placed, ticker), unsafe_allow_html=True)
+    # The bottom line and the readout cards: one row of equal boxes under both.
+    if lead or cards:
+        st.markdown('<div class="sc-cards">'
+                    + (_verdict_card(lead, lead=True, meaning=False, compact=True)
+                       if lead else "")
+                    + "".join(_verdict_card(c, meaning=False, compact=True) for c in cards)
+                    + "</div>", unsafe_allow_html=True)
+
+
+def _decap(text) -> str:
+    text = text or ""
+    return text[:1].lower() + text[1:] if text else text
+
+
+_CO_SUFFIX = re.compile(r"\s*(,?\s*(PLC|plc|Inc\.?|AG|A/S|SA|S\.A\.|SE|N\.V\.|Ltd\.?|Co\.?|"
+                        r"& Co\.?|Corporation|Corp\.?|Company|Holdings?))+$")
+
+
+def _company_card(ticker: str, cands: list, indication: str) -> dict:
+    """The selected company's own assets in this indication as a verdict card: how many,
+    by stage, which, and what the model puts on the modelled ones a share. A product's
+    value is its whole value, every use of it, and the card says so; a product the model
+    does not value is counted, never given a figure."""
+    mine = [c for c in cands or [] if c.get("ticker") == ticker]
+    full = (mine[0].get("company") if mine else None) or globals().get("names", {}).get(ticker)
+    name = re.sub(r"\s+(and|&)$", "", _CO_SUFFIX.sub("", full or "").strip()) or ticker
+    # The indication is the selector's; the card names whose assets these are.
+    title = f"{name}' assets" if name.endswith("s") else f"{name}'s assets"
+    if not mine:
+        return {"kind": "company", "title": title,
+                "headline": f"{name} has no candidate in this indication",
+                "detail": "Nothing it markets or develops is linked to this disease."}
+
+    def stage_of(c):
+        st_ = c.get("stage") or ""
+        return ("marketed" if st_.startswith("Marketed") else
+                "Phase 3" if st_.startswith("Phase 3") or st_ == "Phase 2/3" else
+                "Phase 2" if st_.startswith("Phase 2") else "earlier")
+    groups: dict = {}
+    for c in mine:
+        groups.setdefault(stage_of(c), []).append(c)
+    order = ("marketed", "Phase 3", "Phase 2", "earlier")
+    counts = ", ".join(f"{len(groups[g])} {'in ' + g if g.startswith('Phase') else g}"
+                       for g in order if groups.get(g))
+    label = lambda c: (c.get("brands") or [None])[0] or c.get("name") or ""
+    lists = "; ".join(f"{_cap(g)}: {', '.join(label(c) for c in groups[g])}"
+                      for g in order if groups.get(g))
+    valued = [c for c in mine if (c.get("model") or {}).get("per_share") is not None]
+    cur = {(c.get("model") or {}).get("currency") or "USD" for c in valued}
+    value = ""
+    if valued and len(cur) == 1:
+        unit = "$" if cur == {"USD"} else f"{next(iter(cur))} "
+        top = max(valued, key=lambda c: c["model"]["per_share"])
+        total = sum(c["model"]["per_share"] for c in valued)
+        value = (f" The model puts {unit}{total:,.2f} a share on the {len(valued)} it values, "
+                 f"each product across all its uses; {label(top)} the most at "
+                 f"{unit}{top['model']['per_share']:,.2f}.")
+    unvalued = len(mine) - len(valued)
+    if unvalued:
+        value += f" {unvalued} carr{'ies' if unvalued == 1 else 'y'} no model value."
+    n = len(mine)
+    return {"kind": "company", "title": title,
+            "headline": f"{n} candidate{'s' if n != 1 else ''}: {counts}",
+            "detail": f"{lists}.{value}"}
+
+
+def _landscape_overview(api_base: str, pick: int, ticker: str, slots=None, cands=None,
+                        indication: str = "") -> None:
+    """The landscape read for you: the clinical scorecard beside its ranked table, then the
+    verdict cards, each its headline and its evidence."""
+    try:
+        ov = _get_long(api_base, f"/indications/{pick}/overview")
+    except (urllib.error.URLError, OSError) as exc:
+        state("The overview did not load", str(exc), error=True)
+        return
+    cards = ov.get("cards") or []
+    # The selected company's own assets in place of "closest to market".
+    if cands is not None:
+        mine = _company_card(ticker, cands, indication)
+        cards = [mine if c.get("kind") == "stage" else c for c in cards]
+        if not any(c.get("kind") == "company" for c in cards):
+            cards.append(mine)
+    placed = [a for a in ((ov.get("scorecard") or {}).get("assets") or []) if a.get("placed")]
+    if ov.get("scorecard"):
+        # With a chart, the bottom line and the readout cards sit under it beside the
+        # table, and what each score rests on and how it is scored close the view.
+        _landscape_scorecard(ov["scorecard"], ticker, cards[1:] if placed else (),
+                             cards[0] if placed and cards else None, slots)
+        if placed:
+            _drug_click(api_base, pick, {a.get("asset_id"): a["name"] for a in placed})
+    if not cards:
+        if not ov.get("scorecard"):
+            state("Not enough to read yet", "no candidate here has posted results or a model")
+        return
+    if placed:
+        return
+    st.markdown(_verdict_card(cards[0], lead=True, meaning=False), unsafe_allow_html=True)
+    rest = cards[1:] if not placed else []
+    if rest:
+        st.markdown('<div class="vc-grid vc-row">' + "".join(_verdict_card(c, meaning=False)
+                                                       for c in rest)
+                    + "</div>", unsafe_allow_html=True)
+
+
+# --- The drug card ---------------------------------------------------------
+# A click on a drug's bubble in the clinical scorecard or its row in the ranked table opens
+# its card: everything the book holds on the drug in this indication (backend/drug_card.py,
+# drawn by drug_card_view.py). The chart and the table stay markdown in the page, sized by
+# the stylesheet; a hidden frame listens for the click and returns the drug, so the
+# session reruns on the same tab rather than a link reloading the page.
+def _drug_click(api_base: str, pick: int, names: dict, scope: str = ".st-key-sc_map",
+                box: str = "sc_click") -> None:
+    """Hear a click on a drug under ``scope`` (the overview's scorecard, or the Candidates
+    table) and open its card, once per click. ``box`` keys the listener's hidden frame."""
+    if drugclick is None:
+        return
+    with st.container(key=box):
+        got = drugclick.drug_click(scope, key=f"{box}_{pick}")
+    if not (isinstance(got, dict) and got.get("asset") is not None
+            and got.get("nonce") != st.session_state.get("_sc_click_seen")):
+        return
+    st.session_state["_sc_click_seen"] = got.get("nonce")
+    try:
+        asset_id = int(got["asset"])
+    except (TypeError, ValueError):
+        return
+    _drug_dialog(api_base, pick, asset_id, names.get(asset_id) or "The drug")
+
+
+def _drug_dialog(api_base: str, pick: int, asset_id: int, name: str) -> None:
+    @st.dialog(name, width="large")
+    def _body():
+        try:
+            with st.spinner("Reading its trials, model and market"):
+                card = _get_long(api_base, f"/indications/{pick}/drug/{asset_id}")
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            state("The card did not load", html_escape(str(exc)), error=True)
+            return
+        head, panes = DCV.card_html(card)
+        st.markdown(head, unsafe_allow_html=True)
+        for tab, (_label, markup) in zip(st.tabs([p[0] for p in panes]), panes):
+            with tab:
+                st.markdown(markup, unsafe_allow_html=True)
+
+    _body()
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _areas_index(api_base: str):
+    try:
+        return api_get(api_base, "/areas")
+    except (urllib.error.URLError, OSError):
+        return None
+
+
+def _disease_areas(api_base: str, ticker: str) -> None:
+    """Every big pharma company's assets in one disease area, scored on four pillars:
+    value today, pipeline, durability and clinical quality, each 0 to 100 within the area
+    and averaged (backend/disease_areas.py states the rules).
+
+    Laid out as an indication's overview, on one screen: the area and the two pop-outs on
+    one line, the area's figures, the scorecard (value today against pipeline beside the
+    ranked table) and one row of finding cards, the last the selected company's position.
+    Opens on the area where the company is present that most companies share.
+    """
+    index = _areas_index(api_base)
+    if not index:
+        state("No disease areas yet", "the API returned no area with a big pharma company "
+              "present")
+        return
+    by_slug = {a["slug"]: a for a in index}
+    options = AV.area_options(index, ticker)
+    with st.container(key="area_head"):
+        head_pick, head_why, head_how, head_basis = st.columns(
+            [0.36, 0.165, 0.165, 0.31], vertical_alignment="center")
+    with head_pick:
+        pick = st.selectbox("Disease area", options, key=f"area_pick_{ticker}",
+                            format_func=lambda s: by_slug[s]["area"],
+                            label_visibility="collapsed")
+    with st.spinner("Scoring every company in the area"):
+        try:
+            page = _get_long(api_base, f"/areas/{pick}")
+        except (urllib.error.URLError, OSError) as exc:
+            state("The area did not load", str(exc), error=True)
+            return
+    rows = page.get("companies") or []
+    if not rows:
+        state("No company here", "no big pharma company has an asset placed in this area")
+        return
+    with head_basis:
+        st.markdown(f'<div class="ar-basis">Big pharma only · USD at ECB rates of '
+                    f'{html_escape(page.get("fx_as_of") or "no date on file")}</div>',
+                    unsafe_allow_html=True)
+    st.markdown(AV.figures_html(AV.figure_cells(page, ticker)), unsafe_allow_html=True)
+    points = AV.map_points(rows)
+    with head_why:
+        with st.popover("What every score rests on", use_container_width=True):
+            st.markdown(AV.rests_on_html(rows, page.get("horizon_end")),
+                        unsafe_allow_html=True)
+    with head_how:
+        with st.popover("How it is scored", use_container_width=True):
+            st.markdown(AV.method_html(page.get("method") or {}, AV.off_chart(rows)),
+                        unsafe_allow_html=True)
+    thin = sum(1 for r in rows if not AV.ranked(r))
+    weights = page.get("weights") or AV.WEIGHTS
+    with st.container(key="area_sc_head"):
+        # A company with too little on file to rank is left off the chart and counted.
+        section("Area scorecard",
+                f"{len(points)} of {len(rows)} on the chart"
+                + (f" · {thin} with {AV.THIN}" if thin else ""),
+                basis=", ".join(f"{label} {weights.get(key, 0) * 100:.0f}%"
+                                for key, label in (("value", "value today"),
+                                                   ("pipeline", "pipeline"),
+                                                   ("clinical", "clinical quality"),
+                                                   ("durability", "durability")))
+                + ", weighted")
+    with st.container(key="area_map"):
+        left, right = st.columns([1.4, 1], gap="medium")
+    with left:
+        chart = CH.area_map(points, 720, 480, highlight=ticker)
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        else:
+            state("Nothing to chart", "no company here has both a value today and a "
+                  "pipeline score")
+    with right:
+        st.markdown(AV.table_html(rows, ticker, page.get("horizon_end"), weights),
+                    unsafe_allow_html=True)
+    cards = list(page.get("cards") or []) + [
+        AV.company_card(page, ticker, globals().get("names", {}).get(ticker))]
+    st.markdown(AV.cards_html(cards), unsafe_allow_html=True)
+
+
+def _stage_chip(stage: str) -> str:
+    cls = ("s-mkt" if stage == "Marketed" else "s-mkt-here" if stage.startswith("Marketed")
+           else "s-p3" if stage in ("Phase 3", "Phase 2/3") or stage.startswith("Phase 3")
+           else "s-p2" if stage.startswith("Phase 2") else "s-p1")
+    return f'<span class="stage {cls}">{html_escape(stage)}</span>'
+
+
+def _landscape_candidates(cands: list, api_base: str | None = None,
+                          pick: int | None = None) -> None:
+    """One row a drug, eight columns in reading order: which drug, how far along, what it
+    is, how it is given, what it is worth, its share of the pool, its evidence and any
+    boxed warning. Thirteen equal columns made every row a wall of the same weight. A row
+    opens the drug's card, as the scorecard's rows do, so a drug with no posted result is
+    reachable too."""
+    head = ("compound", "stage", "what it is", "given", "value a share", "pool kept",
+            "evidence", "")
+    rows = ""
+    for c in cands:
+        mech = "; ".join(m["value"] for m in c["mechanisms"][:2]) or (
+            "; ".join(c["classes"][:2]) or "mechanism: no free data")
+        # A target already named in the mechanism ("PD-1 inhibitor" over "PD-1") says it
+        # twice; only a target the mechanism does not spell out is added.
+        targets = ", ".join(t for t in c["targets"][:3] if t.lower() not in mech.lower())
+        model = c.get("model") or {}
+        cur = model.get("currency") or ""
+        value = (f'{model["per_share"]:,.2f}' if model.get("per_share") is not None else "·")
+        value_sub = " · ".join(x for x in (
+            f'PoS {_pct(model.get("pos"), 0)}' if model.get("pos") is not None else "",
+            (f'peak {model["peak_revenue"]:,.0f}mm{" " + cur if cur and cur != "USD" else ""}'
+             f' {model.get("peak_year") or ""}').strip() if model.get("peak_revenue") else "")
+            if x)
+        pooled = c.get("pool") or {}
+        kept = _pct(pooled.get("ratio"), 0) if pooled.get("pooled") else "·"
+        stage = c["stage"] + (" (elsewhere)" if c.get("phase_elsewhere") else "")
+        modality = c.get("modality") or ", ".join(c.get("molecule_type") or []) or ""
+        route = ", ".join(c["route"]).lower()
+        boxed = c.get("boxed_warning") or ""
+        how = " ".join(f'<span class="tag">{html_escape(x)}</span>' for x in c["linked_by"])
+        warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
+                if boxed else "")
+        label = html_escape(c["name"] or "").replace('"', "&quot;")
+        rows += (
+            f'<tr data-drug="{c["asset_id"]}" tabindex="0" title="Open the card for {label}">'
+            f'<td>{html_escape(c["name"] or "")} '
+            f'<span class="m">{html_escape(c["ticker"])}</span>'
+            + (f'<span class="sub">sold as {html_escape(", ".join(c["brands"]))}</span>'
+               if c.get("brands") else "") + '</td>'
+            f'<td>{_stage_chip(stage)}</td>'
+            f'<td>{html_escape(mech)}'
+            + (f'<span class="sub">{html_escape(targets)}</span>' if targets else "")
+            + f'</td><td class="m">{html_escape(modality)}'
+            + (f'<span class="sub">{html_escape(route)}</span>' if route else "") + '</td>'
+            f'<td class="n">{value}'
+            + (f'<span class="sub">{html_escape(value_sub)}</span>' if value_sub else "")
+            + f'</td><td class="n">{kept}</td>'
+            f'<td class="n">{c["with_results"]}/{len(c["trials"])} posted'
+            f'<span class="sub">{how}</span></td>'
+            f'<td>{warn}</td></tr>')
+    with st.container(key="land_cands"):
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                    f'{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{rows}</tbody></table></div>', unsafe_allow_html=True)
+    if api_base is not None and pick is not None:
+        _drug_click(api_base, pick, {c["asset_id"]: c["name"] for c in cands},
+                    scope=".st-key-land_cands", box="cand_click")
+    note("Value a share is the drug's modelled value per share of its own company, so it "
+         "ranks a drug within its company, not across companies. Pool kept is the share of "
+         "its own forecast a drug keeps once the patients every claimant draws on are "
+         "counted once. Evidence: trials with posted results over trials linked here, and "
+         "how the drug was linked. Hover a boxed warning to read it.")
+
+    # The same candidates by what they act on, which is the axis modality hides.
+    by_mech: dict = {}
+    for c in cands:
+        keys = [m["value"] for m in c["mechanisms"]] or c["classes"][:1] or ["not in ChEMBL"]
+        for k in keys[:2]:
+            by_mech.setdefault(k, []).append(c)
+    section("Mechanisms in play", len(by_mech))
+    mrows = ""
+    for mech, members in sorted(by_mech.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        who = ", ".join(f'{m["name"]} ({m["ticker"]}, {m["stage"]})' for m in members)
+        mrows += (f'<tr><td>{html_escape(mech)}</td><td class="n">{len(members)}</td>'
+                  f'<td class="m">{html_escape(who)}</td></tr>')
+    st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr><th>mechanism</th><th>drugs</th><th>who</th>'
+                f'</tr></thead><tbody>{mrows}</tbody></table></div>', unsafe_allow_html=True)
+
+
+def _landscape_efficacy(groups: list, cands: list, pick: int) -> None:
+    if not groups:
+        state("No posted results", "none of these candidates' trials on this indication "
+              "has results posted to ClinicalTrials.gov yet")
+    else:
+        def label(i):
+            g = groups[i]
+            return (f'{_short(g["title"], 80)} · {g["unit"] or "no unit"} · '
+                    f'{g["n_assets"]} drug{"s" if g["n_assets"] != 1 else ""}, '
+                    f'{len(g["rows"])} arms')
+        gi = st.selectbox("Endpoint", list(range(len(groups))), format_func=label,
+                          key=f"land_ep_{pick}", label_visibility="collapsed")
+        g = groups[gi]
+        rows = [r for r in g["rows"] if r["value"] is not None]
+        chart_rows = [{"label": _short(f'{r["name"]} · {r["arm"]}'
+                                       + (f' · {r["category"]}' if r.get("category") else ""),
+                                       52)
+                       + (f' · w{r["weeks"]:.0f}' if r.get("weeks") else ""),
+                       "value": r["value"], "reference": r["placebo"],
+                       "group": r["nct_id"]} for r in rows[:40]]
+        chart = CH.against_reference(chart_rows, 900, value_fmt=lambda v: f"{v:,.1f}")
+        if chart:
+            R.show(chart, css_class="chart-mount stretch")
+        note("Filled: the arm. Open: the same trial's comparator, placebo where there is "
+             "one, else the arm the sponsor calls the control, else the other of two arms. "
+             "The figure at the right is the arm less its comparator. Rows between rules "
+             "are one trial.")
+        head = ("drug", "trial", "wk", "arm", "n", "value", "comparator", "difference",
+                "sponsor's estimate", "p")
+        body = ""
+        last = None
+        for r in rows:
+            cls = ' class="grp"' if last is not None and r["nct_id"] != last else ""
+            last = r["nct_id"]
+            est = (f'{r["estimate"]:,.2f}' + (f' ({r["ci"][0]:,.2f} to {r["ci"][1]:,.2f})'
+                                              if r.get("ci") else "")
+                   if r.get("estimate") is not None else "·")
+            spread = f' ± {r["spread"]:,.2f}' if r.get("spread") is not None else ""
+            body += (f'<tr{cls}><td>{html_escape(r["name"])} <span class="m">'
+                     f'{html_escape(r["ticker"])}</span></td>'
+                     f'<td><a href="https://clinicaltrials.gov/study/{r["nct_id"]}" '
+                     f'target="_blank">{r["nct_id"]}</a> <span class="m">'
+                     f'{html_escape(r["phase"] or "")}</span></td>'
+                     f'<td class="n">{_land_num(r.get("weeks"), 0)}</td>'
+                     f'<td>{html_escape(_short(r["arm"] or "", 48))}'
+                     + DCV.arm_tag(r, "tag")
+                     + f'</td><td class="n">{r["n"] or "·"}</td>'
+                     f'<td class="n">{_land_num(r["value"], 2)}{html_escape(spread)}</td>'
+                     f'<td class="n">{_land_num(r["placebo"], 2)}'
+                     + (f' <span class="tag">{html_escape(r["reference_kind"])}</span>'
+                        if r.get("reference_kind") and r["reference_kind"] != "placebo" else "")
+                     + '</td>'
+                     f'<td class="n">{_land_num(r["delta"], 2)}</td>'
+                     f'<td class="n">{html_escape(est)}</td>'
+                     f'<td class="n">{html_escape(r["p_value"] or "·")}</td></tr>')
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
+        note(f'{g["title"]} ({g["unit"] or "no unit"}, {g["param_type"] or "measure"}). '
+             "Trials differ in population, duration and background therapy, so read a "
+             "difference against its own placebo before reading it against another trial's. "
+             "An arm tagged other arm names none of the drug's names, codes or development "
+             "names: an active comparator or an arm the sponsor labelled by letter. A "
+             "control arm is the trial's own control, posted beside the drug's arms.")
+    quotes = [(c, q) for c in cands for q in (c.get("readouts") or [])]
+    if quotes:
+        section("Readouts from the press", len(quotes), "the sentence each was read from")
+        qrows = "".join(
+            f'<tr><td class="pol-d">{html_escape((q.get("date") or "")[:10])}</td>'
+            f'<td class="pol-l">{html_escape(c["name"])}</td>'
+            f'<td class="pol-k">{html_escape(q.get("outcome") or "")}</td>'
+            f'<td class="pol-t">'
+            + (f'<a href="{html_escape(q["url"])}" target="_blank">' if q.get("url") else "")
+            + html_escape(_short(q.get("quote") or "", 260))
+            + ("</a>" if q.get("url") else "") + "</td></tr>"
+            for c, q in quotes)
+        st.markdown(f'<table class="pol"><tbody>{qrows}</tbody></table>',
+                    unsafe_allow_html=True)
+
+
+def _landscape_safety(rows: list) -> None:
+    rated = [r for r in rows if r.get("trials")]
+    if not rated:
+        state("No posted safety data", "none of these candidates' trials on this "
+              "indication has adverse events posted to ClinicalTrials.gov yet")
+    else:
+        left, right = st.columns(2, gap="medium")
+        for col, key, title in ((left, "serious", "Serious adverse events"),
+                                (right, "withdrawn", "Withdrawn for an adverse event")):
+            with col:
+                section(title, basis="% · control open")
+                pts = [{"label": _short(f'{r["name"]} ({r["ticker"]})', 30),
+                        "value": r[f"{key}_rate"] * 100,
+                        "reference": (r[f"placebo_{key}_rate"] * 100
+                                      if r.get(f"placebo_{key}_rate") is not None else None),
+                        "group": r["asset_id"]}
+                       for r in rated if r.get(f"{key}_rate") is not None]
+                chart = CH.against_reference(pts, 520, label_width=170,
+                                             value_fmt=lambda v: f"{v:.0f}%",
+                                             delta_fmt=lambda v: f"{v:+.1f} pts")
+                if chart:
+                    R.show(chart, css_class="chart-mount stretch")
+                else:
+                    note("no rate posted")
+        def _vs(r, key, digits=1):
+            mine, ctrl = r.get(f"{key}_rate"), r.get(f"placebo_{key}_rate")
+            if mine is None:
+                return "·"
+            return (f'{_pct(mine, digits)}<span class="sub">vs {_pct(ctrl, digits)}</span>'
+                    if ctrl is not None else _pct(mine, digits))
+
+        head = ("drug", "trials", "participants", "serious AE", "withdrawn for AE",
+                "deaths", "commonest events, drug vs control", "")
+        body = ""
+        for r in rated:
+            events = "<br>".join(
+                f'{html_escape(e["term"])} {_pct(e["rate"], 0)}'
+                + (f' <span class="m">vs {_pct(e["placebo_rate"], 0)}</span>'
+                   if e.get("placebo_rate") is not None else "")
+                for e in (r.get("top_events") or [])[:4])
+            boxed = r.get("boxed_warning") or ""
+            warn = (f'<span class="tag warn" title="{html_escape(boxed)}">boxed warning</span>'
+                    if boxed else "")
+            body += (f'<tr><td>{html_escape(r["name"])} <span class="m">'
+                     f'{html_escape(r["ticker"])}</span></td>'
+                     f'<td class="n">{r["trials"]}<span class="sub">'
+                     f'{html_escape(r.get("control_kind") or "no control")}</span></td>'
+                     f'<td class="n">{r.get("participants") or "·"}<span class="sub">'
+                     f'vs {r.get("placebo_participants") or "·"}</span></td>'
+                     f'<td class="n">{_vs(r, "serious")}</td>'
+                     f'<td class="n">{_vs(r, "withdrawn")}</td>'
+                     f'<td class="n">{_vs(r, "deaths", 2)}</td>'
+                     f'<td>{events}</td><td>{warn}</td></tr>')
+        st.markdown(f'<div class="land-wrap"><table class="land"><thead><tr>'
+                    f'{"".join(f"<th>{h}</th>" for h in head)}'
+                    f'</tr></thead><tbody>{body}</tbody></table></div>', unsafe_allow_html=True)
+        note("Drug arms pooled across the drug's trials on this indication, against the "
+             "control arms of the same trials: placebo, the arm the sponsor calls the "
+             "control, or the other of two arms. A trial with no control adds to the drug "
+             "side only. Participants: drug arms / control arms. The commonest events are "
+             "the drug's rate with the control's in brackets.")
+    warned = [r for r in rows if not r.get("trials") and r.get("boxed_warning")]
+    if warned:
+        section("Boxed warnings without posted trial safety", len(warned))
+        st.markdown('<table class="pol"><tbody>' + "".join(
+            f'<tr><td class="pol-l">{html_escape(r["name"])}</td>'
+            f'<td class="pol-t">{html_escape(_short(r["boxed_warning"], 300))}</td></tr>'
+            for r in warned) + "</tbody></table>", unsafe_allow_html=True)
+
+
+def _rating_tile(api_base: str, ticker: str, up) -> tuple:
+    """The rating Key insights shows, with the twelve-month move beside it.
+
+    "Against the price" alone read +12% as a call, while the rating is the return above
+    the cost of equity, where a fairly priced share is a hold. Both tabs now say the same
+    thing, from the same cached fair value.
+    """
+    try:
+        rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
+    except (urllib.error.URLError, OSError):
+        rated = {}
+    call = rated.get("rating") if rated.get("ok") else None
+    move = f"{up:+.0%}" if up is not None else ""
+    if not call:
+        return ("against the price", move or "—", "", None, "",
+                "12-month value over the close")
+    tone = " up" if call in ("Strong buy", "Buy") else " down" if call == "Sell" else ""
+    return ("rating", call, "", move, tone,
+            f"model range {T.num(rated.get('low_today'), 0)} to "
+            f"{T.num(rated.get('high_today'), 0)}")
 
 
 def _sotp_bridge(s: dict) -> None:
@@ -1705,6 +3147,12 @@ def _sotp_bridge(s: dict) -> None:
     if s.get("net_cash_per_share") is not None:
         steps.append({"label": "net cash" if s["net_cash_per_share"] >= 0 else "net debt",
                       "value": s["net_cash_per_share"], "kind": "step"})
+        # Pensions, minorities, deal instalments owed and stakes held at equity. The
+        # equity figure counts them, so a bridge without them ended above the headline:
+        # AstraZeneca's bars summed to 175.93 against the 175.38 printed over them.
+        if s.get("other_claims_per_share"):
+            steps.append({"label": "other claims", "value": s["other_claims_per_share"],
+                          "kind": "step"})
         steps.append({"label": "equity", "kind": "end"})
     else:
         steps.append({"label": "net cash", "value": None, "kind": "null"})
@@ -1715,9 +3163,13 @@ def _sotp_bridge(s: dict) -> None:
         if s.get("dps"):
             steps.append({"label": "dividend", "value": -s["dps"], "kind": "step"})
         steps.append({"label": "12m", "kind": "end"})
-    section("Sum of the parts", basis="$ a share · read against the price")
-    R.show(CH.waterfall(steps, 700, 250, value_fmt=lambda x: f"{x:,.2f}",
-                        reference=({"label": "price", "value": s["close"]}
+    # The price is named in the chip, not at the end of its rule, where it sat on the
+    # twelve-month bar.
+    section("Sum of the parts",
+            basis=(f"$ a share · the price dashed, {s['close']:,.2f}" if s.get("close")
+                   else "$ a share"))
+    R.show(CH.waterfall(steps, 800, 210, value_fmt=lambda x: f"{x:,.2f}",
+                        reference=({"label": None, "value": s["close"]}
                                    if s.get("close") else None)),
            css_class="chart-mount stretch")
     bits = []
@@ -1746,10 +3198,13 @@ def _sotp_bridge(s: dict) -> None:
                         f"({min(history)}-{max(history)}) buys the launches before then, "
                         f"less {future.get('named_overlap') or 0:,.0f}mm of revenue from "
                         "launches the book names")
-        if future.get("capped_from"):
-            bits.append(f"launches held to the book's {future.get('book_peak_year')} "
-                        f"revenue of {future.get('book_peak', 0):,.0f}mm from "
-                        f"{future['capped_from']}, which cuts "
+        # A cap that binds in some year but trims less than half a percent overall read
+        # as "which cuts 0% of what they would sell": a fact about nothing.
+        if future.get("capped_from") and (future.get("capped_share") or 0) >= 0.005:
+            bits.append(f"launches held to the book's best year in real terms, "
+                        f"{future.get('book_peak_year')}'s "
+                        f"{future.get('book_peak', 0):,.0f}mm grown at the long-run rate, "
+                        f"from {future['capped_from']}, which cuts "
                         f"{future.get('capped_share', 0):.0%} of what they would sell")
     # Computed since the franchise was built and rendered nowhere, so the one input
     # on this page that already moves with the market looked like a fixed assumption.
@@ -1786,6 +3241,88 @@ def _sotp_bridge(s: dict) -> None:
                         + "</div>", unsafe_allow_html=True)
 
 
+def _revenue_bars(path, last, base, growth, has_lines, has_pipe) -> str:
+    """Revenue by year as stacked columns, in HTML so the plot can fill its column.
+
+    Each forecast year stacks what is sold, the lines no asset carries and the pipeline
+    after its probability, with what the probability takes off hatched on top, so the
+    risked total and the haircut read on one bar. The reported year is one grey bar:
+    the book's own revenue, with the whole company's drawn as a dashed line across the
+    plot. Heights are flex shares of the tallest stack rather than pixels, which is
+    what lets the plot stretch to meet the value column beside it. A null is a gap,
+    never a zero.
+    """
+    actual = _mix_hex(TK.TEXT, TK.GROUND, 0.4)
+    lines_c = _mix_hex(TK.MUTED, TK.GROUND, 0.5)
+    # Purple, the pipeline's colour in the value list on this tab: the Phase 3 green it
+    # had read as part of the marketed bar under it. What PoS takes off is the same purple
+    # hatched over a dim ground of it, so a thin cap stays apart from the risked segment.
+    pipe_c = TK.PURPLE_BOOK
+    cut_c = _mix_hex(pipe_c, TK.GROUND, 0.65)
+    cols = []
+    if last:
+        cols.append({"year": f"FY{last['fiscal_year']}A", "growth": None, "total": base,
+                     "segs": [("the book, reported", base, actual, "")]})
+    for r, g in zip(path, growth):
+        pipe, risked = r.get("pipeline"), r.get("pipeline_risked")
+        haircut = (pipe - risked) if pipe is not None and risked is not None else None
+        segs = [("marketed", r.get("marketed"), TK.UP, "")]
+        if has_lines:
+            segs.append(("lines", r.get("lines"), lines_c, ""))
+        if has_pipe:
+            segs += [("pipeline, after PoS", risked, pipe_c, ""),
+                     ("taken off by PoS", haircut, pipe_c, " hatch")]
+        cols.append({"year": f"FY{r['year']}E", "growth": g,
+                     "total": r.get("total_risked"), "segs": segs})
+    company = last.get("value") if last else None
+    stacks = [sum(v for _n, v, _c, _h in c["segs"] if v and v > 0) for c in cols]
+    top = max(stacks + [company or 0.0, 0.0])
+    if top <= 0:
+        return ""
+
+    def share(v):
+        # Flex shares out of a thousand: a sum under one would leave the column unfilled.
+        return f"{max(v, 0.0) / top * 1000:.3f}"
+
+    out = []
+    for c, height in zip(cols, stacks):
+        segs = [(n, v, col, h) for n, v, col, h in c["segs"] if v and v > 0]
+        parts = [f'<div style="flex:{share(top - height)} 1 0"></div>']
+        for i, (name, v, colour, hatch) in enumerate(reversed(segs)):
+            label = (f'<span class="rb-v">{c["total"]:,.0f}</span>'
+                     if i == 0 and c["total"] is not None else "")
+            ground = f";--c2:{cut_c}" if hatch else ""
+            parts.append(f'<div class="rb-seg{hatch}" style="flex:{share(v)} 1 0;'
+                         f'--c:{colour}{ground}" title="{html_escape(c["year"])} '
+                         f'{html_escape(name)}: {v:,.0f}">{label}</div>')
+        g = c["growth"]
+        tone = "" if g is None else " up" if g > 0 else " down" if g < 0 else ""
+        out.append(f'<div class="rb-col"><div class="rb-stack">{"".join(parts)}</div>'
+                   f'<div class="rb-x"><span>{html_escape(c["year"])}</span>'
+                   f'<span class="rb-g{tone}">{"" if g is None else f"{g:+.1%}"}</span>'
+                   "</div></div>")
+    ref = ""
+    if company:
+        ref = (f'<div class="rb-ref"><div style="flex:{share(top - company)} 1 0"></div>'
+               f'<div class="rb-line"></div><div style="flex:{share(company)} 1 0"></div>'
+               "</div>")
+    keys = [("marketed", TK.UP, "")]
+    if has_lines:
+        keys.append(("lines", lines_c, ""))
+    if has_pipe:
+        keys += [("pipeline, after PoS", pipe_c, ""), ("taken off by PoS", pipe_c, " hatch")]
+    if last:
+        keys.append(("the book, reported", actual, ""))
+    legend = "".join(f'<span><i class="rb-sw{h}" style="--c:{col}'
+                     + (f";--c2:{cut_c}" if h else "")
+                     + f'"></i>{html_escape(n)}</span>' for n, col, h in keys)
+    if company:
+        legend += (f'<span><i class="rb-sw dash"></i>whole company, '
+                   f'FY{last["fiscal_year"]} {company:,.0f}</span>')
+    return (f'<div class="rbar"><div class="rb-legend">{legend}</div>'
+            f'<div class="rb-plot">{ref}{"".join(out)}</div></div>')
+
+
 def _revenue_split(s: dict) -> None:
     """Revenue by year, marketed against pipeline, beside the last year reported.
 
@@ -1797,7 +3334,7 @@ def _revenue_split(s: dict) -> None:
     last = s.get("last_reported")
     if not path:
         return
-    section("Revenue by year", basis="mm · the modelled book")
+    section("Revenue by year", basis=f"{_mm()} · the modelled book")
     years = ([f"FY{last['fiscal_year']}A"] if last else []) + [f"FY{r['year']}E" for r in path]
     has_lines = any(r.get("lines") for r in path)
     has_pipe = any(r.get("pipeline") for r in path)
@@ -1828,21 +3365,30 @@ def _revenue_split(s: dict) -> None:
         if value is None:
             return '<td class="rs-v none">·</td>'
         if pct:
-            return f'<td class="rs-v">{value:+.1%}</td>'
+            tone = " up" if value > 0 else " down" if value < 0 else ""
+            return f'<td class="rs-v{tone}">{value:+.1%}</td>'
         return f'<td class="rs-v">{value:,.0f}</td>'
     head = "".join(f"<th>{html_escape(y)}</th>" for y in years)
     body = ""
     for label, values in rows:
-        cls = ' class="rs-total"' if label.startswith("total") else ""
+        cls = (' class="rs-total"' if label.startswith("total")
+               else ' class="rs-growth"' if label == "growth"
+               else ' class="rs-ref"' if label.startswith("reported") else "")
         body += (f'<tr{cls}><td class="rs-k">{html_escape(label)}</td>'
                  + "".join(cell(v, pct=(label == "growth")) for v in values) + "</tr>")
-    st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
-                f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
+    st.markdown(_revenue_bars(path, last, base, growth, has_lines, has_pipe),
+                unsafe_allow_html=True)
+    # What has no forecast qualifies the bars, so it sits under them and the half ends
+    # on its fold, level with the value half's.
     if s.get("not_valued"):
-        st.markdown('<div class="byline">no forecast, so not in any of these: '
+        st.markdown('<div class="byline rb-foot">no forecast, so not in any of these: '
                     + html_escape(", ".join(f"{n['name']} {n['revenue']:,.0f}mm"
                                             for n in s["not_valued"])) + "</div>",
                     unsafe_allow_html=True)
+    # The bars carry the totals and the growth; the split to the unit sits under them.
+    with st.expander("The figures"):
+        st.markdown(f'<table class="rs"><thead><tr><th></th>{head}</tr></thead>'
+                    f'<tbody>{body}</tbody></table>', unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=60, show_spinner=False)
@@ -1904,8 +3450,9 @@ def _fair_value_range(api_base: str, ticker: str) -> None:
     section("Fair value range", basis="$ a share · each lens a range, the price dashed")
     rows = [{"label": l["lens"], "low": l["low"], "high": l["high"], "mid": l.get("mid"),
              "emphasis": l["key"].startswith("sotp")} for l in fv["lenses"]]
-    R.show(CH.football_field(rows, 760, 36 + 30 * len(rows), marker=close,
-                             value_fmt=money, label_width=300), css_class="chart-mount")
+    R.show(CH.football_field(rows, 800, 32 + 24 * len(rows), marker=close,
+                             value_fmt=money, label_width=270),
+           css_class="chart-mount stretch")
     split = fv.get("revenue_split") or {}
     guidance_text = None
     if split.get("ok") and split.get("matched_equity") is not None:
@@ -2018,6 +3565,26 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
          "probability; a payer group or franchise is exposure only")
 
 
+def _pipeline_development(api_base: str, ticker: str) -> None:
+    """Every counted pipeline line's next gate against what reaching it costs, folded
+    with the further reads: a view beside the value, never in it
+    (docs/design/development-cost.md). A failed read says it did not load."""
+    try:
+        payload, problem = api_get(api_base, f"/companies/{ticker}/development"), None
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        payload, problem = None, str(exc).rstrip(".")
+    failing = len((payload or {}).get("failing") or [])
+    label = "Pipeline development, next gate" + (
+        f" · {failing} {'gate costs' if failing == 1 else 'gates cost'} more to reach "
+        f"than {'it is' if failing == 1 else 'they are'} worth risked" if failing else "")
+    with st.expander(label, expanded=False):
+        if problem:
+            st.markdown(f'<div class="byline">{html_escape(_GATE_FAILED.format(error=problem))}'
+                        '</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(_gate_book_html(payload), unsafe_allow_html=True)
+
+
 def _book(api_base: str, ticker: str, selected):
     """The company above the compound, because that is the unit of coverage.
 
@@ -2038,16 +3605,27 @@ def _book(api_base: str, ticker: str, selected):
         return None, None
     if not v.get("ok") or not (v.get("per_share") or v.get("streams")
                                or v.get("placeholders")):
-        return v, None
+        # Without this the tab opened straight on an empty assumptions grid for
+        # whichever asset sorts first (Bayer's acetaminophen), with nothing to say the
+        # company has no model yet rather than the page having failed.
+        if v.get("ok") or v.get("modelled") is not None:
+            section(f"{ticker} · the whole company")
+            state(f"No model for {ticker} yet",
+                  "No asset carries assumptions, so there is no sum of the parts, "
+                  "twelve-month value or rating. Pick an asset below and enter or import "
+                  "its assumptions to start one.")
+            # A peer multiple needs no product model, so this lens stands alone here.
+            _peer_value_section(api_base, ticker)
+        return v, None, None
     note_body = v.get("note") or {}
     coverage = v.get("coverage") or {}
     modelled = v.get("modelled") or []
     counted = [m for m in modelled if m.get("counted", True)]
+    _BOOK_UNIT["currency"] = (((v.get("sotp") or {}).get("fx") or {}).get("currency")
+                              or "USD")
 
     section(f"{ticker} · the whole company",
             basis=f"{len(counted)} counted of {len(modelled)} drawn")
-    st.markdown(f'<div class="call-lead">{html_escape(note_body.get("headline") or "")}'
-                '</div>', unsafe_allow_html=True)
     sotp = v.get("sotp") or {}
     if sotp.get("equity_per_share") is not None:
         up = sotp.get("upside")
@@ -2058,8 +3636,7 @@ def _book(api_base: str, ticker: str, selected):
                   "rolled at the cost of equity, less dividends"),
                  ("share price", T.num(v.get("close"), 2), "", None, "",
                   f"close {v.get('close_date') or ''}"),
-                 ("against the price", f"{up:+.0%}" if up is not None else "—", "",
-                  None, "", "12-month value over the close")]
+                 _rating_tile(api_base, ticker, up)]
     elif sotp.get("enterprise_per_share") is not None:
         # The balance sheet could not be added: the sum stops at enterprise value and
         # the cash on hand is shown beside it rather than folded in.
@@ -2093,27 +3670,36 @@ def _book(api_base: str, ticker: str, selected):
     if nxt.get("expected_date"):
         tiles.append(("next catalyst", nxt["expected_date"], "", None, "",
                       (nxt.get("title") or nxt.get("catalyst_type") or "")[:34]))
+    # The figures first, across the page; then the value on the left (the sum of the
+    # parts over the range of lenses) and the forecast on the right (the summary over
+    # the revenue by year); then the revenue build across the page; then each asset,
+    # the list beside the one picked; and the further reads at the foot. The value
+    # keeps the wider share for its charts' step labels, but less than it had: the
+    # forecast half holds the densest text. Whichever half is shorter gives way above
+    # its second section, so both end on one line.
     st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-
-    if sotp.get("marketed", {}).get("per_share") is not None:
-        bridge_col, split_col = st.columns([1.35, 1], gap="medium")
-        with bridge_col:
+    value_col, forecast_col = st.columns([1.3, 1], gap="medium")
+    with value_col:
+        if sotp.get("marketed", {}).get("per_share") is not None:
             _sotp_bridge(sotp)
-        with split_col:
+        _fair_value_range(api_base, ticker)
+    with forecast_col:
+        section("Forecast summary")
+        st.markdown(f'<div class="call-lead fc-summary">'
+                    f'{html_escape(note_body.get("headline") or "")}</div>',
+                    unsafe_allow_html=True)
+        if sotp.get("marketed", {}).get("per_share") is not None:
             _revenue_split(sotp)
+    _revenue_build(v)
 
-    _fair_value_range(api_base, ticker)
-    # Under the range and above what breaks it: a selection is a fact about the book
-    # rather than a lever on it, and nothing here multiplies into a value.
-    _ira_strip(api_base, ticker)
-    _what_breaks_it(api_base, ticker)
-
-    left, right = st.columns([1, 1.5], gap="medium")
-    with left:
+    list_col, bench_col = st.columns([1, 1.5], gap="medium")
+    with list_col:
         section("Value by asset", basis="$ a share · click one")
         clicked = _value_book(v, ticker, selected)
-    with right:
-        _revenue_build(v)
+    with bench_col:
+        bench = st.container()
+    # The picked asset's levers and layers run the full width under the pair.
+    below = st.container()
     bits = list(note_body.get("body") or [])
     if coverage.get("untagged_revenue"):
         bits.append(f"{coverage['untagged_revenue'] / 1e6:,.0f}mm of "
@@ -2129,7 +3715,13 @@ def _book(api_base: str, ticker: str, selected):
                     "per-share figure.")
     if bits:
         note(" ".join(bits))
-    return v, clicked
+    # The further reads, at the foot: what the price needs, the risks that move together,
+    # the value a peer multiple implies, and the Medicare selections.
+    _what_breaks_it(api_base, ticker)
+    _pipeline_development(api_base, ticker)
+    _peer_value_section(api_base, ticker)
+    _ira_strip(api_base, ticker)
+    return v, clicked, {"bench": bench, "below": below}
 
 
 # --- the workbench ----------------------------------------------------------------
@@ -2216,20 +3808,25 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
             moved["wacc"] = round(got / 100.0, 6)
 
     if mode in ("marketed", "franchise"):
-        growth = scalars.get("revenue_growth_pct")
+        # The what-if sends growth to the rate the mode grows from: a franchise's pool.
+        growth = scalars.get("franchise_growth_pct" if mode == "franchise"
+                             else "revenue_growth_pct")
         fade = scalars.get("terminal_growth_pct")
         # A loss already in the base cannot erode again, so neither slider could move it.
         loe = None if result.get("loe_in_base") else result.get("loe_year")
         year1 = result.get("erosion_year1_pct")
         cols = st.columns([1, 1, 1, 1, 1, 0.5])
         slot = 0
-        if mode == "marketed" and growth is not None:
+        if growth is not None:
             base = round(growth * 100, 1)
             with cols[slot]:
-                got = st.slider("growth", round(max(base - 10.0, -40.0), 1),
+                got = st.slider("pool growth" if mode == "franchise" else "growth",
+                                round(max(base - 10.0, -40.0), 1),
                                 round(base + 10.0, 1), base, 0.5, format="%.1f%%",
                                 key=key("growth"),
-                                help="near-term annual growth, before erosion")
+                                help=("annual growth of the franchise pool, before erosion"
+                                      if mode == "franchise"
+                                      else "near-term annual growth, before erosion"))
             keys.append(key("growth")); slot += 1
             if abs(got - base) > 1e-9:
                 moved["growth"] = round(got / 100.0, 4)
@@ -2265,8 +3862,10 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
         with cols[0]:
             got = st.slider("volume", 0.4, 1.6, 1.0, 0.05, format="%.2fx",
                             key=key("volume"),
-                            help="scales the patient curve; the acceptance lever the "
-                                 "uptake audit surfaced")
+                            help=("scales the published peak, since a launch has no "
+                                  "patient curve" if mode == "launch" else
+                                  "scales the patient curve; the acceptance lever the "
+                                  "uptake audit surfaced"))
         keys.append(key("volume"))
         if abs(got - 1.0) > 1e-9:
             moved["volume"] = got
@@ -2293,7 +3892,7 @@ def _lever_controls(ticker: str, sel: int, result: dict, scalars: dict) -> dict:
                      help="back to the assumptions on file"):
             for k in keys:
                 st.session_state.pop(k, None)
-            st.rerun()
+            _rerun_here()
     return moved
 
 
@@ -2336,7 +3935,7 @@ def _revenue_path(name: str, result: dict, varied, base_slim, actuals: list,
     if varied and "loe_year" in moved and result.get("loe_year") in all_years:
         markers.append({"index": all_years.index(result["loe_year"]),
                         "label": f"base {result['loe_year']}", "colour": TK.MUTED})
-    section(f"{name} revenue", basis=f"mm · {scenario}" + (" · varied" if varied else ""))
+    section(f"{name} revenue", basis=f"{_mm()} · {scenario}" + (" · varied" if varied else ""))
     R.show(CH.line_chart(series, labels, 780, 236, y_fmt=lambda v: f"{v:,.0f}",
                          y_span=revenue_span, markers=markers, points=points,
                          shade=shade, zero=True), css_class="chart-mount stretch")
@@ -2365,7 +3964,7 @@ def _value_bridge(shown: dict, verdict: dict, varied: bool) -> None:
         steps += [{"label": f"partner {1 - share:.0%}", "value": -shown["partner_rnpv"],
                    "kind": "step"},
                   {"label": "owner", "kind": "end"}]
-    section("Where the value sits", basis="mm" + (" · varied" if varied else ""))
+    section("Where the value sits", basis=_mm() + (" · varied" if varied else ""))
     R.show(CH.waterfall(steps, 470, 236, value_fmt=lambda x: f"{x:,.0f}"),
            css_class="chart-mount stretch")
     shares = verdict.get("diluted_shares")
@@ -2393,7 +3992,7 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
     levers = verdict.get("levers") or []
     with left:
         if levers:
-            section("What it rests on", basis="rNPV swing, mm")
+            section("What it rests on", basis=f"rNPV swing, {_mm()}")
             rows = [{"label": f"{l['lever']}, "
                               f"{'±2y' if l.get('step', '').startswith('two') else '±20%'}",
                      "low": l["down"], "high": l["up"]} for l in levers]
@@ -2404,11 +4003,25 @@ def _drivers_layer(verdict: dict, scenario: str) -> None:
         base_ps = (spread.get("base") or {}).get("per_share")
         low = (spread.get("bear") or {}).get("per_share")
         high = (spread.get("bull") or {}).get("per_share")
+        gate_rows = _gate_range_rows(verdict)
         if (verdict.get("has_range") and low is not None and high is not None
                 and base_ps is not None):
+            # The hand bear and bull first, the next gate's legs under them, derived.
             section("The range", basis="bear · base · bull")
-            R.show(CH.tornado([{"label": "per share", "low": low, "high": high}],
-                              440, 86, centre=base_ps,
+            rows = [{"label": "bear · bull, stated" if gate_rows else "per share",
+                     "low": low, "high": high}] + gate_rows
+            R.show(CH.tornado(rows, 440, 86 if len(rows) == 1 else 40 + 34 * len(rows),
+                              centre=base_ps,
+                              value_fmt=lambda x: f"${x:,.2f}"), css_class="chart-mount")
+        elif gate_rows:
+            # No hand range, so the next gate sets it: nil if it fails to the success
+            # value, centred on today, with the PoS band as its own narrower row.
+            gate = verdict.get("gate") or {}
+            section("The range", basis="next gate · "
+                    + ("stated legs" if gate.get("legs_basis") == "stated" else "derived"))
+            R.show(CH.tornado(gate_rows, 440, 86 if len(gate_rows) == 1
+                              else 40 + 34 * len(gate_rows),
+                              centre=gate.get("per_share_now") or 0.0,
                               value_fmt=lambda x: f"${x:,.2f}"), css_class="chart-mount")
         else:
             section("The range", basis="one case")
@@ -2517,6 +4130,702 @@ def _pos_layer(granular: dict) -> None:
                 f'never read off a title.</div>', unsafe_allow_html=True)
 
 
+# --- The launch floor's flag (build 3: docs/pipeline_coverage.md, launch years) ---------
+# Red where the model launches before the earliest approval the registry and the FDA
+# review clock allow, amber where the seed cites a filing or a readout that is not on file.
+# A part year is information, not a flag, and a clear floor carries nothing. The same
+# mark on the Pipeline tab's value, a Key insights pipeline row and the Next gate block.
+_LAUNCH_TONES = {"before_floor": "red", "before_floor_cited": "amber"}
+
+
+def _launch_flag(launch) -> str:
+    """The flag's tone, "red" or "amber", or "" where the line carries none."""
+    if not isinstance(launch, dict):
+        return ""
+    tone = launch.get("flag") or _LAUNCH_TONES.get(launch.get("status"), "")
+    return tone if tone in ("red", "amber") else ""
+
+
+def _launch_flagged(markup: str, launch, tip: bool = True) -> str:
+    """``markup`` underlined in the flag's tone, the floor's message as its tooltip where
+    ``tip`` (a row that carries one tooltip for everything passes False), or unchanged
+    where nothing is flagged."""
+    tone = _launch_flag(launch)
+    if not tone:
+        return markup
+    message = str(launch.get("message") or "") if tip else ""
+    quoted = html_escape(message).replace('"', "&quot;")
+    title = f' title="{quoted}"' if message else ""
+    return f'<span class="u-flagged {tone}"{title}>{markup}</span>'
+
+
+def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
+                     launch: dict = None) -> str:
+    """The Pipeline tab's rightmost column: what the compound is worth a share, or why not.
+
+    Four states, and the difference between the last two is the point. "no forecast"
+    means nobody has written the assumptions. The refused row means they were written,
+    the engine read them and stopped on a named gap, which is a piece of work with a next
+    step attached rather than an absence. A valued figure whose launch year falls before
+    the earliest approval the evidence allows is underlined, red or amber, with the
+    floor's message as its tooltip; a part year is information and carries nothing.
+    """
+    if asset_id in valued:
+        figure = _launch_flagged(T.num(valued[asset_id] or 0, 2), launch)
+        return (f'<span class="prog-v" title="rNPV a share, counted in the '
+                f'company total">{figure}</span>')
+    if asset_id in held:
+        figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
+        return (f'<span class="prog-v off" title="built on a placeholder curve, '
+                f'so it is shown and not counted">{figure} *</span>')
+    if asset_id in blocked:
+        want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
+        return (f'<span class="prog-v off" title="the engine stopped on: '
+                f'{html_escape(want)}">needs</span>')
+    return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+
+
+# --- Catalysts: At stake (comps-valuation.md section 12) -------------------------------
+# One builder per piece, so the tab's redesign can reuse them: the row, whether it takes
+# the met and missed buttons, the fold, and what a resolve said. A derived row says so on
+# every line it is drawn on, and only a row the back end marks resolvable gets buttons:
+# a derived Phase 2 or FDA gate resolves through the registry or openFDA, never by hand.
+_STAKE_SHOWN = 6
+_STAKE_TITLE_CHARS = 64
+
+
+def _stake_leg(pos) -> str:
+    """A leg's probability as the row prints it: "nil" for none, never "0.00"."""
+    if pos is None or pos != pos:
+        return "·"
+    return "nil" if pos < 0.005 else f"{pos:.2f}"
+
+
+def _stake_resolvable(row) -> bool:
+    """Met and missed are drawn only on a priced row the back end marks resolvable."""
+    return (isinstance(row, dict) and row.get("priced", True) is not False
+            and row.get("resolvable") is True)
+
+
+def _stake_title(title, event: str = "") -> str:
+    """The catalyst's title, cut to fit, without its leading phase only where the row's
+    event already names that phase: a Phase 2/3 study priced as a Phase 2 gate, or a
+    stated row whose event is "data readout", keeps it."""
+    title = str(title or "").strip()
+    phase = re.match(r"^(Phase [0-9/]+),\s*", title)
+    if phase and str(event or "").startswith(f"{phase.group(1)} readout"):
+        title = title[phase.end():]
+    limit = _STAKE_TITLE_CHARS
+    return title if len(title) <= limit else title[: limit - 1].rstrip() + "…"
+
+
+def _stake_row_html(row: dict) -> str:
+    """One priced catalyst: what it is and when, its swing at this company's share, and
+    the legs, with a derived row tagged (the basis in the tag's tooltip). Under it in
+    muted text: what the model holds after a miss, why a different study is priced, and
+    why there is no button where a resolve is not taken by hand."""
+    r = row if isinstance(row, dict) else {}
+    derived = r.get("legs_basis") == "derived"
+    tag = (f' <span class="u-tag" title="{_gate_attr(r.get("basis"))}">derived</span>'
+           if derived else "")
+    event = r.get("gate_label") if derived and r.get("gate_label") else r.get("catalyst_type")
+    per_share = (f" · {r['per_share']:+,.2f}/sh" if r.get("per_share") is not None else "")
+    lines = [f'<b>{html_escape(r.get("asset_name") or "")}</b> '
+             f'{html_escape(r.get("expected_date") or "")} · {html_escape(event or "")} · '
+             f'{html_escape(_stake_title(r.get("title"), event))}{tag}',
+             f'swing <b>{(r.get("swing") or 0):,.0f}mm</b> · this company '
+             f'{(r.get("share") or 0):.0%}: <b>{(r.get("share_swing") or 0):,.0f}mm</b>'
+             f'{per_share} · PoS {_stake_leg(r.get("pos_now"))} now, '
+             f'{_stake_leg(r.get("pos_success"))} met, {_stake_leg(r.get("pos_failure"))} missed']
+    held = r.get("held") if isinstance(r.get("held"), dict) else {}
+    notes = [held.get("note"), r.get("gate_note")]
+    if not _stake_resolvable(r):
+        notes.append(r.get("resolve_note") or "Not resolved by hand.")
+    muted = " ".join(str(x).strip() for x in notes if x)
+    if muted:
+        lines.append(f'<span class="u-muted">{html_escape(muted)}</span>')
+    return '<div class="byline">' + "<br>".join(lines) + "</div>"
+
+
+def _stake_split(rows: list, shown: int = _STAKE_SHOWN) -> tuple:
+    """The rows drawn open and the rest, folded: the largest swings first, as ranked."""
+    rows = [r for r in rows or [] if isinstance(r, dict)]
+    return rows[:shown], rows[shown:]
+
+
+def _stake_resolved_note(result) -> str:
+    """What a resolve said, where the page has to say it: a stated PoS still governs."""
+    r = result if isinstance(result, dict) else {}
+    if r.get("route") != "gate evidence" or not r.get("stated_pos_governs"):
+        return ""
+    pos = r.get("pos_applied")
+    held = f" of {pos:.0%}" if isinstance(pos, (int, float)) else ""
+    return (f"Recorded as gate evidence. The stated PoS{held} still governs; clear it "
+            "under Assumptions to let the gate move it.")
+
+
+def _stake_row(box, api_base: str, ticker: str, row: dict) -> None:
+    """One At stake row in ``box``: the text, and met and missed only where the back end
+    takes a resolve. Two clicks, not one: resolving steps the live PoS and writes
+    history, and a stray click should never do that. The first click arms; the second,
+    on the same outcome, commits."""
+    info_col, act_col = box.columns([6, 1], vertical_alignment="center")
+    with info_col:
+        st.markdown(_stake_row_html(row), unsafe_allow_html=True)
+    if not _stake_resolvable(row):
+        return
+    with act_col:
+        armed_key = f"cat_arm_{ticker}_{row['id']}"
+        armed = st.session_state.get(armed_key)
+        met_col, miss_col = st.columns(2, gap="small")
+        clicked = None
+        with met_col:
+            label = "sure?" if armed == "met" else "met"
+            if st.button(label, key=f"cat_met_{ticker}_{row['id']}", width="stretch"):
+                clicked = "met"
+        with miss_col:
+            label = "sure?" if armed == "missed" else "missed"
+            if st.button(label, key=f"cat_miss_{ticker}_{row['id']}", width="stretch"):
+                clicked = "missed"
+        if clicked:
+            if armed == clicked:
+                try:
+                    result = api_post_json(
+                        api_base, f"/companies/{ticker}/catalysts/{row['id']}/resolve",
+                        {"outcome": clicked})
+                    st.session_state.pop(armed_key, None)
+                    st.session_state[f"cat_resolved_{ticker}"] = result
+                    api_get.clear()
+                    st.rerun()
+                except (urllib.error.URLError, OSError) as exc:
+                    st.error(f"resolve failed: {exc}")
+            else:
+                st.session_state[armed_key] = clicked
+                st.rerun()
+
+
+# --- The next gate: builds 1 to 3 in one block -------------------------------------------
+# docs/design/development-cost.md, comps-valuation.md section 12, and the launch section
+# of docs/pipeline_coverage.md. One layer on an unmarketed asset: the gate and its date,
+# its chance, what passing and failing are worth and what the model holds after a miss,
+# what reaching it costs from published trial costs and what that nets, and the earliest
+# approval from it. None of it is in the value: the legs average back to the rNPV, the
+# trial cost is already paid inside the R&D ratio, and the launch floor is a flag.
+_GATE_EVIDENCE = {"published": "published", "implied": "implied by the stated PoS"}
+_GATE_PRICES = "2018 prices, not restated"
+_GATE_FAILED = "The trial costs did not load: {error}. Reload in a minute."
+_GATE_LADDER = "After later trial costs"
+
+
+def _gate_attr(text) -> str:
+    """A value for a double-quoted attribute."""
+    return html_escape(str(text or "")).replace('"', "&quot;")
+
+
+def _gate_ps(value, nil: bool = False) -> str:
+    """A figure a share: "8.23", "−0.05", "nil" for a leg of nothing where ``nil``, and
+    "·" where there is no figure."""
+    if value is None or value != value:
+        return "·"
+    if nil and abs(value) < 0.005:
+        return "nil"
+    text = f"{abs(value):,.2f}"
+    return ("−" + text) if value < 0 and round(abs(value), 2) else text
+
+
+def _gate_mm(value, currency: str = "USD") -> str:
+    """Millions in the payload's currency: "138mm", "2.1mm", "725mm DKK"."""
+    if value is None or value != value:
+        return "·"
+    text = f"{value:,.1f}" if abs(value) < 10 else f"{value:,.0f}"
+    return f"{text}mm" + ("" if (currency or "USD") == "USD" else f" {currency}")
+
+
+def _gate_pct(p) -> str:
+    """A chance as it reads: "61%", "1.9%" under ten, "0.22%" under one."""
+    if p is None or p != p:
+        return "·"
+    pct = p * 100
+    return f"{pct:.0f}%" if pct >= 9.5 else f"{pct:.1f}%" if pct >= 0.95 else f"{pct:.2f}%"
+
+
+def _gate_when(gate: dict) -> str:
+    """When the gate falls: "est. Jan 2028", "due since Oct 2024", "decision due 10 Oct
+    2026", "no date on file"."""
+    date = str((gate or {}).get("date") or "")
+    if not date:
+        return "no date on file"
+    if (gate or {}).get("gate") == "nda_to_approval":
+        return f"decision due {_ki_day(date)}"
+    return (f"due since {_ki_month(date)}" if (gate or {}).get("due")
+            else f"est. {_ki_month(date)}")
+
+
+def _gate_programme(label: str) -> str:
+    """The stage a cost to reach covers, by the gate it reaches: the Phase 3 programme for
+    a Phase 3 readout, never the gate study alone."""
+    phase = re.match(r"^(Phase [0-9/]+) readout", str(label or ""))
+    return f"the {phase.group(1)} programme in the modelled disease" if phase else ""
+
+
+def _gate_summary(verdict: dict, dev: dict = None, dev_error: str = None) -> dict:
+    """What the Next gate block draws, or {} where the asset has no gate.
+
+    The legs come from the development payload where it read, else from the verdict: its
+    success leg and risked value are the rollup gate's (base case), so the cost and the
+    net sit on the same figures as the legs. A refusal or a failed read keeps the legs
+    and says why there is no cost; an unread cost is "no free data", never nil.
+
+    The failure leg is nil, the model's convention, for derived legs; where success and
+    failure legs are stated on file it is the stated one, which the cost view refuses, so
+    it comes from the verdict."""
+    v = verdict if isinstance(verdict, dict) else {}
+    vg = v.get("gate") if isinstance(v.get("gate"), dict) else {}
+    d = dev if isinstance(dev, dict) else {}
+    dg = d.get("gate") if d.get("ok") and isinstance(d.get("gate"), dict) else {}
+    if not vg and not dg:
+        return {}
+    g = dg or vg
+    trial = g.get("trial") if isinstance(g.get("trial"), dict) else {}
+    held = g.get("held") if isinstance(g.get("held"), dict) else {}
+    out = {
+        "gate": g.get("gate"), "label": g.get("label") or "next gate",
+        "nct": trial.get("nct_id"), "when": _gate_when(g), "due": bool(g.get("due")),
+        "p": g.get("p") if dg else g.get("p_gate"),
+        "evidence": (g.get("p_evidence") if dg
+                     else (g.get("evidence") or {}).get("p_gate")),
+        "placed": g.get("placed"),
+        "now": g.get("rnpv_per_share") if dg else g.get("per_share_now"),
+        "success": g.get("success_leg_per_share") if dg else g.get("per_share_success"),
+        "pos_success": g.get("pos_success"),
+        "held": held, "legs": vg.get("basis") or g.get("legs_basis") or "",
+        "stated": vg.get("legs_basis") == "stated",
+        "failure": (vg.get("per_share_failure") if vg.get("legs_basis") == "stated"
+                    else 0.0),
+        "currency": d.get("currency") or "USD", "base_case": bool(dg),
+        "launch": v.get("launch") if isinstance(v.get("launch"), dict) else {},
+        "cost": None, "problem": None}
+    if dev_error:
+        out["problem"] = _GATE_FAILED.format(error=str(dev_error).rstrip("."))
+    elif d and not d.get("ok"):
+        out["problem"] = d.get("why") or "No cost is read for this asset."
+    if dg:
+        high = dg.get("high") if isinstance(dg.get("high"), dict) else {}
+        out["cost"] = {
+            "unread": bool(dg.get("unread")) or dg.get("cost_per_share") is None,
+            "per_share": dg.get("cost_per_share"), "mm": dg.get("cost"),
+            "net": dg.get("net_per_share"), "breakeven": dg.get("breakeven_p"),
+            "funds": dg.get("funds"), "basis": dg.get("basis") or "",
+            "grade": dg.get("grade"), "high": high.get("cost_per_share"),
+            "high_net": high.get("net_per_share"), "high_label": high.get("label") or "",
+            "paid": d.get("paid_note") or "", "tax": d.get("tax_basis") or ""}
+    return out
+
+
+def _gate_breakeven(s: dict) -> str:
+    """The net row's note: the chance at which reaching the gate pays for itself."""
+    c = s.get("cost") or {}
+    be = c.get("breakeven")
+    if be is None:
+        return ""
+    if be > 1:
+        return "would not pay for itself at a certain pass"
+    if c.get("funds") is False:
+        return f"needs a {_gate_pct(be)} chance against the {_gate_pct(s.get('p'))} on file"
+    return f"breaks even at a {_gate_pct(be)} chance"
+
+
+def _gate_rows(s: dict) -> list:
+    """The facts beside the picture, one row each: {k, v, note, tone, tip}. A cost that
+    could not be read is "no free data"; a refused or failed one has no row, and the
+    lines under the table say why."""
+    if not s:
+        return []
+    rows = []
+    evidence = _GATE_EVIDENCE.get(s.get("evidence"), s.get("evidence") or "")
+    rows.append({"k": "chance", "v": _gate_pct(s.get("p")),
+                 "note": (s.get("placed") or evidence
+                          or ("stated legs carry no gate odds" if s.get("stated") else "")),
+                 "tip": s.get("legs")})
+    now = s.get("now")
+    rows.append({"k": "if it passes", "v": _gate_ps(s.get("success")),
+                 "note": f"a share, against {_gate_ps(now)} now" if now is not None else "a share",
+                 "tip": (f"{s['pos_success']:.1%} chance of approval once it passes"
+                         if s.get("pos_success") is not None and s["pos_success"] < 0.9995
+                         else "")})
+    if s.get("stated"):
+        # The analyst's own failure leg, never the convention's nil.
+        rows.append({"k": "if it fails", "v": _gate_ps(s.get("failure"), nil=True),
+                     "note": "a share, the stated leg on file", "tip": s.get("legs") or ""})
+    else:
+        rows.append({"k": "if it fails", "v": "nil",
+                     "note": "the model's convention for a failed programme", "tip": ""})
+    held = s.get("held") or {}
+    if held.get("open") and held.get("pos") is not None:
+        n = held["open"]
+        rows.append({"k": "held", "v": _gate_pct(held["pos"]),
+                     "note": (f"{n} other Phase 3{'' if n == 1 else 's'} open"
+                              + ("; the stated PoS governs" if held.get("stated_governs")
+                                 else "")),
+                     "tip": held.get("note") or ""})
+    c = s.get("cost")
+    if c:
+        if c.get("unread"):
+            rows.append({"k": "cost to reach", "v": "no free data", "tone": "none",
+                         "note": "", "tip": c.get("basis")})
+        else:
+            rows.append({"k": "cost to reach", "v": _gate_ps(c.get("per_share")),
+                         "note": f"{_gate_mm(c.get('mm'), s.get('currency'))} after tax, "
+                                 f"{_GATE_PRICES}",
+                         "tip": " ".join(x for x in (c.get("basis"), c.get("tax")) if x)})
+            rows.append({"k": "net", "v": _gate_ps(c.get("net")),
+                         "tone": "down" if c.get("funds") is False else "",
+                         "note": _gate_breakeven(s),
+                         "tip": "the chance times what passing is worth, less the cost "
+                                "to reach it"})
+            if c.get("high") is not None:
+                rows.append({"k": "at DiMasi's level", "v": _gate_ps(c["high"]),
+                             "tone": "muted",
+                             "note": f"net {_gate_ps(c.get('high_net'))}, a high bound",
+                             "tip": c.get("high_label")})
+    launch = s.get("launch") or {}
+    lg = launch.get("gate") if isinstance(launch.get("gate"), dict) else {}
+    seed = launch.get("seed_year")
+    if lg.get("decision_date"):
+        rows.append({"k": "earliest approval",
+                     "v": _launch_flagged(html_escape(_ki_month(lg["decision_date"])),
+                                          launch),
+                     "html": True,
+                     "note": "from this gate" + (f"; model {seed}" if seed else ""),
+                     "tip": launch.get("message") or ""})
+    elif launch.get("decision_date") and _launch_flag(launch):
+        rows.append({"k": "earliest approval",
+                     "v": _launch_flagged(html_escape(_ki_month(launch["decision_date"])),
+                                          launch),
+                     "html": True,
+                     "note": "from the registry" + (f"; model {seed}" if seed else ""),
+                     "tip": launch.get("message") or ""})
+    return rows
+
+
+def _gate_table_html(rows: list) -> str:
+    """The facts as a table: what, the figure, and a few words; the rest in the tooltip."""
+    out = []
+    for r in rows:
+        value = r["v"] if r.get("html") else html_escape(r["v"])
+        tone = f' {r["tone"]}' if r.get("tone") else ""
+        tip = r.get("tip") or ""
+        attrs = f' title="{_gate_attr(tip)}"' if tip else ""
+        out.append(f'<tr{attrs}><td class="k">{html_escape(r["k"])}</td>'
+                   f'<td class="v{tone}">{value}</td>'
+                   f'<td class="t">{html_escape(r.get("note") or "")}</td></tr>')
+    return f'<table class="u-gate"><tbody>{"".join(out)}</tbody></table>' if out else ""
+
+
+def _gate_steps(s: dict) -> list:
+    """The headline as a waterfall, a share: what passing is worth, less the chance it
+    fails, is today's risked value; less the cost to reach the gate is the net. An unread
+    cost is a hatched step with no net after it, never a nil one. Stated legs carry no
+    gate odds, so they draw no picture and the table says what they are."""
+    success, p = (s or {}).get("success"), (s or {}).get("p")
+    if success is None or p is None:
+        return []
+    steps = [{"label": "if it passes", "value": success, "kind": "start",
+              "tip": f"{s.get('label')} passes"},
+             {"label": f"{1 - p:.0%} it fails", "value": -(1 - p) * success,
+              "kind": "step", "tip": "failure is taken at nil"},
+             {"label": "risked now", "kind": "end"}]
+    c = s.get("cost")
+    if c and c.get("unread"):
+        steps.append({"label": "cost to reach", "value": None, "kind": "step",
+                      "tip": c.get("basis")})
+    elif c and c.get("per_share") is not None:
+        steps += [{"label": "cost to reach", "value": -c["per_share"], "kind": "step",
+                   "tip": f"{_GATE_PRICES}, after tax"},
+                  {"label": "net", "kind": "end"}]
+    return steps
+
+
+def _gate_head(s: dict) -> str:
+    """The section's chip: the gate, when it falls, its study, and where its legs come
+    from, "derived" or "stated legs", as the range's chip says it."""
+    legs = "stated legs" if s.get("stated") else "derived"
+    return " · ".join(x for x in (s.get("label"), s.get("when"), s.get("nct"), legs) if x)
+
+
+def _gate_lines(s: dict) -> list:
+    """The sentences under the table, few and in the order a reader asks: what the cost
+    covers, what is not read and why, where the money already sits, and a flag."""
+    if not s:
+        return []
+    out = []
+    c = s.get("cost") or {}
+    if s.get("problem"):
+        out.append(s["problem"])
+    elif c.get("unread"):
+        out.append(f"No free data for the cost to reach: {c.get('basis')}.")
+    elif c:
+        programme = _gate_programme(s.get("label"))
+        out.append(f"The cost to reach is {programme}, not the gate study alone: "
+                   f"{c.get('basis')}." if programme else
+                   f"The cost to reach is {c.get('basis')}.")
+    if c.get("paid"):
+        out.append(f"{c['paid']} Trial costs are at {_GATE_PRICES}.")
+    if _launch_flag(s.get("launch")):
+        out.append(str((s.get("launch") or {}).get("message") or ""))
+    return [x for x in out if x]
+
+
+def _gate_ladder_html(dev: dict) -> str:
+    """The ladder to approval after later trial costs, a share, one row a gate, and what
+    today is worth once every later cost is paid. Unread values are "no free data"."""
+    d = dev if isinstance(dev, dict) else {}
+    lad = d.get("ladder") if isinstance(d.get("ladder"), dict) else {}
+    rows = lad.get("rows") or []
+    if not d.get("ok") or not rows:
+        return ""
+
+    def cell(value, nil=False):
+        return ('<td class="v none">no free data</td>' if value is None
+                else f'<td class="v">{_gate_ps(value, nil)}</td>')
+    out = ['<table class="u-gate ladder"><thead><tr><td class="k">gate</td>'
+           '<td class="k">date</td><td class="k v">chance</td>'
+           '<td class="k v">cost to reach</td><td class="k v">if it passes</td>'
+           '<td class="k v">net</td><td class="k v">breaks even</td></tr></thead><tbody>']
+    for r in rows:
+        be = r.get("breakeven_p")
+        floored = " floored at nil" if r.get("floored") else ""
+        out.append(f'<tr><td class="t">{html_escape(r.get("label") or "")}</td>'
+                   f'<td class="t">{html_escape(_ki_month(r.get("date")) or "no date")}</td>'
+                   f'<td class="v">{_gate_pct(r.get("p"))}</td>'
+                   + cell(r.get("cost_per_share")) + cell(r.get("value_if_passed_per_share"))
+                   + cell(r.get("net_per_share"))
+                   + f'<td class="v{" none" if be is None else ""}">'
+                     f'{"no free data" if be is None else _gate_pct(be)}{floored}</td></tr>')
+    out.append("</tbody></table>")
+    today, cost = lad.get("value_today_per_share"), lad.get("risked_cost_per_share")
+    rnpv = ((d.get("gate") or {}).get("rnpv_per_share"))
+    if today is not None and rnpv is not None:
+        out.append(f'<div class="byline">Today, with every later trial cost paid: '
+                   f'{_gate_ps(today)} a share against {_gate_ps(rnpv)} risked before cost, '
+                   f'so the risked cost to approval is {_gate_ps(cost)}. Each "if it '
+                   f'passes" here is net of the costs after it, so it sits below the '
+                   f'success leg above.</div>')
+    else:
+        out.append('<div class="byline">A later stage has no free data for its cost, so '
+                   'what rests on it is not read.</div>')
+    return "".join(out)
+
+
+def _gate_studies_html(dev: dict) -> str:
+    """The studies behind each cost, the programme outside the headline as one figure,
+    and the sources. Costs here are before tax and in 2018 dollars, whatever currency
+    the headline is in, so each says "$": a Danish filer's cost to reach reads in kroner
+    after tax above them."""
+    d = dev if isinstance(dev, dict) else {}
+    if not d.get("ok"):
+        return ""
+    out = ['<table class="u-gate studies"><thead><tr><td class="k">study</td>'
+           '<td class="k">phase</td><td class="k v">enrolled</td>'
+           '<td class="k v">a patient</td><td class="k v">still ahead</td>'
+           '<td class="k v">cost ahead, before tax</td></tr></thead><tbody>']
+    for stage in d.get("stages") or []:
+        out.append(f'<tr><td class="t" colspan="6">{html_escape(stage.get("label") or "")}'
+                   f'{": no free data" if stage.get("unread") else ""}</td></tr>')
+        for st_ in stage.get("studies") or []:
+            nct = html_escape(st_.get("nct_id") or "")
+            enrolled, pp = st_.get("enrollment"), st_.get("per_patient_usd")
+            share, ahead = st_.get("share_ahead"), st_.get("ahead_usd_mm")
+            out.append(
+                f'<tr title="{_gate_attr(st_.get("title"))}">'
+                f'<td class="t"><a href="https://clinicaltrials.gov/study/{nct}" '
+                f'target="_blank" rel="noopener">{nct}</a></td>'
+                f'<td class="t">{html_escape(st_.get("phase") or "")}</td>'
+                + ('<td class="v">·</td>' if enrolled is None
+                   else f'<td class="v">{enrolled:,}</td>')
+                + ('<td class="v">·</td>' if pp is None
+                   else f'<td class="v">${pp / 1e3:,.0f}k</td>')
+                + ('<td class="v">·</td>' if share is None
+                   else f'<td class="v">{share:.0%}</td>')
+                + ('<td class="v none">no free data</td>' if ahead is None
+                   else f'<td class="v">${_gate_mm(ahead)}</td>') + '</tr>')
+    out.append("</tbody></table>")
+    o = d.get("outside") if isinstance(d.get("outside"), dict) else {}
+    n = len(o.get("studies") or [])
+    if n:
+        left = o.get("cost_usd_mm")
+        ahead = (f"${_gate_mm(left)} ahead before tax" if left else
+                 "its cost already spent" if n == 1 else "their cost already spent")
+        out.append(f'<div class="byline">Outside the headline: {n} other open '
+                   f'{"study" if n == 1 else "studies"}, {ahead}. '
+                   f'{html_escape(o.get("note") or "")}</div>')
+    if d.get("sources"):
+        out.append('<div class="byline">' + html_escape("; ".join(d["sources"])) + ".</div>")
+    return "".join(out)
+
+
+def _gate_book_rows(payload: dict) -> list:
+    """The company's next gates as table rows: failing first, then by net a share, then
+    the gates whose cost is not read. Each {name, asset_id, label, when, p, cost, success,
+    net, breakeven, grade, tone}."""
+    pay = payload if isinstance(payload, dict) else {}
+    out = []
+    for part, tone in (("failing", "down"), ("rows", ""), ("uncosted", "none")):
+        for r in pay.get(part) or []:
+            g = r.get("gate") if isinstance(r.get("gate"), dict) else {}
+            out.append({"name": r.get("name") or "", "asset_id": r.get("asset_id"),
+                        "label": g.get("label") or "", "when": _gate_when(g),
+                        "p": g.get("p"), "cost": g.get("cost_per_share"),
+                        "success": g.get("success_leg_per_share"),
+                        "net": g.get("net_per_share"), "breakeven": g.get("breakeven_p"),
+                        "grade": g.get("grade") or "", "tone": tone,
+                        "tip": g.get("basis") or ""})
+    return out
+
+
+def _gate_book_html(payload: dict) -> str:
+    """The Forecast tab's company view: every counted pipeline line's next gate, what
+    reaching it costs and nets a share, and the reconciliation with the book's R&D."""
+    rows = _gate_book_rows(payload)
+    if not rows:
+        return ('<div class="byline">No counted pipeline line has a gate to cost, so there '
+                'is nothing to set against the R&amp;D the book charges.</div>')
+    out = ['<table class="u-gate book"><thead><tr><td class="k">compound</td>'
+           '<td class="k">next gate</td><td class="k">when</td><td class="k v">chance</td>'
+           '<td class="k v">cost to reach</td><td class="k v">if it passes</td>'
+           '<td class="k v">net</td><td class="k v">breaks even</td>'
+           '<td class="k">grade</td></tr></thead><tbody>']
+    for r in rows:
+        tip = _gate_attr(r.get("tip"))
+        unread = r["cost"] is None
+        be = r.get("breakeven")
+        out.append(
+            f'<tr title="{tip}"><td class="t n pipeline">{html_escape(r["name"])}</td>'
+            f'<td class="t">{html_escape(r["label"])}</td>'
+            f'<td class="t">{html_escape(r["when"])}</td>'
+            f'<td class="v">{_gate_pct(r["p"])}</td>'
+            + ('<td class="v none">no free data</td>' if unread
+               else f'<td class="v">{_gate_ps(r["cost"])}</td>')
+            + f'<td class="v">{_gate_ps(r["success"])}</td>'
+            + ('<td class="v none">·</td>' if unread
+               else f'<td class="v{" down" if r["tone"] == "down" else ""}">'
+                    f'{_gate_ps(r["net"])}</td>')
+            + f'<td class="v">{"·" if be is None else "never" if be > 1 else _gate_pct(be)}'
+              f'</td><td class="t">{html_escape(r["grade"])}</td></tr>')
+    out.append("</tbody></table>")
+    pay = payload if isinstance(payload, dict) else {}
+    refused = [r for r in pay.get("refused") or [] if isinstance(r, dict)]
+    lines = []
+    sentence = (pay.get("reconciliation") or {}).get("sentence")
+    if sentence:
+        lines.append(sentence)
+    if refused:
+        why = [str(r.get("why") or r.get("reason") or "").rstrip(".") for r in refused]
+        lines.append("Not read: " + "; ".join(
+            f"{r.get('name')} ({w[:1].lower() + w[1:]})" for r, w in zip(refused, why))
+            + ".")
+    lines.append(f"A share, after tax at the company's share of each programme, at "
+                 f"{_GATE_PRICES}. What passing is worth is derived from published "
+                 f"transition rates and a failure is nil; a view beside the value, never "
+                 f"in it.")
+    out += [f'<div class="byline">{html_escape(x)}</div>' for x in lines]
+    return "".join(out)
+
+
+def _gate_range_rows(verdict: dict) -> list:
+    """The Drivers range's gate rows: nil if the gate fails to its success value, and the
+    PoS band beneath where one is on file, so outcome and estimate are never one bar.
+    Below a hand bear and bull, labelled as derived."""
+    v = verdict if isinstance(verdict, dict) else {}
+    g = v.get("gate") if isinstance(v.get("gate"), dict) else {}
+    if not v.get("gate_range") or g.get("per_share_success") is None:
+        return []
+    tag = "stated legs" if g.get("legs_basis") == "stated" else "derived"
+    rows = [{"label": f"{g.get('label') or 'next gate'}, {tag}",
+             "low": g.get("per_share_failure") or 0.0, "high": g["per_share_success"]}]
+    band = g.get("band") if isinstance(g.get("band"), dict) else {}
+    if band.get("per_share_low") is not None and band.get("per_share_high") is not None:
+        rows.append({"label": "PoS band", "low": band["per_share_low"],
+                     "high": band["per_share_high"]})
+    return rows
+
+
+def _next_gate_layer(verdict: dict, dev, dev_error, scenario: str) -> None:
+    """The Next gate block: the headline as a picture first, the facts beside it, then
+    the ladder after later trial costs and the studies behind the cost on demand."""
+    s = _gate_summary(verdict, dev, dev_error)
+    if not s:
+        return
+    base = " · base case" if scenario != "base" and s.get("base_case") else ""
+    section("Next gate", basis=_gate_head(s) + base)
+    steps = _gate_steps(s)
+    if steps:
+        picture, facts = st.columns([1.1, 1], gap="medium")
+        with picture:
+            R.show(CH.waterfall(steps, 470, 220, value_fmt=lambda x: f"{x:,.2f}"),
+                   css_class="chart-mount stretch")
+    else:
+        facts = st.container()
+    with facts:
+        st.markdown(_gate_table_html(_gate_rows(s)), unsafe_allow_html=True)
+    for line in _gate_lines(s):
+        st.markdown(f'<div class="byline">{html_escape(line)}</div>',
+                    unsafe_allow_html=True)
+    ladder = _gate_ladder_html(dev)
+    if ladder:
+        with st.expander(_GATE_LADDER, expanded=False):
+            st.markdown(ladder, unsafe_allow_html=True)
+    studies = _gate_studies_html(dev)
+    if studies:
+        with st.expander("Trials and sources", expanded=False):
+            st.markdown(studies, unsafe_allow_html=True)
+
+
+def _catalysts_today(api_base: str, ticker: str, feed) -> None:
+    """The Catalysts tab above the calendar fold, as every company outside the redesign set
+    draws it."""
+    # What could move the company next, as one list (company-scorecard.md 1.5): the
+    # events of the next twelve months, value-bearing first, beside what could cost
+    # it. The Comps view used to carry this; the comparison with peers stays there.
+    _drivers_and_risks(api_base, ticker, feed)
+
+    # What each event is worth before when it lands: the modelled swing between the
+    # success and failure legs, at this company's share of the economics, ranked by
+    # size rather than by date. Drawn only when a catalyst is priced. The unpriced
+    # lines named two database keys and no number, six to a screen for big pharma,
+    # and every one of those events is in Drivers or the calendar already.
+    try:
+        stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
+    except (urllib.error.URLError, OSError):
+        stakes = None
+    if stakes and stakes.get("priced"):
+        section("At stake", basis="rNPV swing, ranked by size")
+        # Keyed for the spacing in _DR_CSS: clear of the rule, buttons centred.
+        stake_box = st.container(key="cat_stakes")
+        # Said once, on the rerun after the resolve that called for it.
+        said = _stake_resolved_note(st.session_state.pop(f"cat_resolved_{ticker}", None))
+        if said:
+            stake_box.info(said)
+        shown, rest = _stake_split(stakes["priced"])
+        for row in shown:
+            _stake_row(stake_box, api_base, ticker, row)
+        if rest:
+            with stake_box.expander(f"{len(rest)} more at stake", expanded=False):
+                for row in rest:
+                    _stake_row(st.container(), api_base, ticker, row)
+
+
+# The Next gate block's builders and the At stake row's record control, handed to the
+# redesigned Catalysts tab (catalysts_page) so its card and dialog print and act exactly as
+# the Forecast tab and today's At stake list do. Builders live in this script, which runs
+# the whole app on import, so they are passed rather than imported.
+_CATALYSTS_KIT = types.SimpleNamespace(
+    gate_summary=_gate_summary, gate_rows=_gate_rows, gate_table_html=_gate_table_html,
+    gate_lines=_gate_lines, gate_ladder_html=_gate_ladder_html,
+    gate_studies_html=_gate_studies_html, stake_resolvable=_stake_resolvable,
+    stake_row=_stake_row, stake_resolved_note=_stake_resolved_note)
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def _export_blob(url: str) -> bytes | None:
     """The xlsx, fetched once a minute rather than on every rerun of the page."""
@@ -2597,8 +4906,8 @@ def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
             years, 560, 200, y_fmt=lambda v: f"{v:,.0f}"), css_class="chart-mount")
         peak_year = shaped["years"][revenue.index(max(revenue))] if revenue else None
         st.markdown(metric_tiles([
-            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
-            ("peak revenue", T.num(max(revenue) if revenue else None), "mm", None, "",
+            ("rNPV", T.num(shaped["rnpv"]), _mm(), None, "", "risk-adjusted"),
+            ("peak revenue", T.num(max(revenue) if revenue else None), _mm(), None, "",
              f"in {peak_year}" if peak_year else ""),
             ("peak treated", T.num(max(treated) if treated else None), "patients",
              None, "", "on therapy at the top"),
@@ -2818,7 +5127,7 @@ def _pnl_section(result: dict, varied) -> None:
     years = result.get("years") or []
     if not rows or not years:
         return
-    section("P&L", basis="mm USD" + (" · varied" if varied else "")
+    section("P&L", basis=f"mm {_BOOK_UNIT['currency']}" + (" · varied" if varied else "")
             + " · company ratios applied to this revenue")
     last = rows[-1]
     first = rows[0]
@@ -2830,7 +5139,7 @@ def _pnl_section(result: dict, varied) -> None:
         ("R&D charged", T.pct(first["rd"] / first["revenue"] * 100, 1)
          if first.get("revenue") else "—", "", None, "",
          "the company ratio, on this product's revenue"),
-        ("cumulative FCFF", T.num(sum(r["fcff"] for r in rows)), "mm", None, "",
+        ("cumulative FCFF", T.num(sum(r["fcff"] for r in rows)), _mm(), None, "",
          "undiscounted, before PoS"),
     ], one_row=True), unsafe_allow_html=True)
     table = pd.DataFrame([{
@@ -2901,16 +5210,309 @@ def _share_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
             years, 560, 200, y_fmt=lambda v: f"{v:,.0f}%"), css_class="chart-mount")
         peak = max(shaped["revenue"]) if shaped["revenue"] else None
         st.markdown(metric_tiles([
-            ("rNPV", T.num(shaped["rnpv"]), "mm", None, "", "risk-adjusted"),
+            ("rNPV", T.num(shaped["rnpv"]), _mm(), None, "", "risk-adjusted"),
             ("share by " + years[-1], T.num(share[-1] * 100 if share else None), "%",
              None, "", f"against a {plateau_pct:.0f}% plateau"),
-            ("peak revenue", T.num(peak), "mm", None, "",
+            ("peak revenue", T.num(peak), _mm(), None, "",
              f"in {shaped['years'][shaped['revenue'].index(peak)]}" if peak else ""),
             ("first year", T.num(shaped["revenue"][0] if shaped["revenue"] else None),
-             "mm", None, "", "guided, so it does not move"),
+             _mm(), None, "", "guided, so it does not move"),
         ], one_row=True), unsafe_allow_html=True)
 
 
+# --- Medicare: the growth split (docs/design/medicare-demand-split.md) -----------------
+# Pure builders over the /forecast/{id}/demand and /demand/split payloads, tested by
+# extraction like the Key insights builders. Medicare only, never the US market: each
+# view carries the label the API sends, and a figure the payload lacks is a dash.
+# A figure the payload lacks: a dot, as the forecast levers show one.
+_MC_NONE = "·"
+
+
+def _mc_pct(x, decimals: int = 1) -> str:
+    """A growth fraction as a signed percent with a true minus; missing is a dot,
+    never a zero."""
+    if x is None:
+        return _MC_NONE
+    v = x * 100
+    if round(v, decimals) == 0:
+        return f"{0:.{decimals}f}%"
+    return ("+" if v > 0 else "−") + f"{abs(v):.{decimals}f}%"
+
+
+def _mc_pts(x) -> str:
+    if x is None:
+        return _MC_NONE
+    v = x * 100
+    return ("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v):.1f}"
+
+
+def _mc_cell(value, median=None, sub: str = "") -> str:
+    """One figure, with the tracked median for the same years under it."""
+    extra = []
+    if median is not None:
+        extra.append(f"median {_mc_pct(median)}")
+    if sub:
+        extra.append(sub)
+    under = (f'<span class="mc-sub">{html_escape(" · ".join(extra))}</span>'
+             if extra else "")
+    return f'<td class="n">{_mc_pct(value)}{under}</td>'
+
+
+def _mc_footnotes(steps) -> dict:
+    """{(code, words): n}, numbered in the order the table meets them."""
+    out: dict = {}
+    for st in steps:
+        for f in st.get("flags") or []:
+            key = (f.get("code"), f.get("words"))
+            if key not in out:
+                out[key] = len(out) + 1
+    return out
+
+
+def _mc_table(part, model, notes) -> str:
+    """One row per year pair for one Medicare part: the split, the tracked median of
+    each factor, then reported growth for the same fiscal year and the gap."""
+    labels = part.get("factor_labels") or {}
+    head = ["Years", "Spend", labels.get("patients", "Patients"),
+            labels.get("intensity", "Use per patient"), labels.get("price", "Cost per claim"),
+            labels.get("price_per_unit", "Cost per unit"), "US reported", "Worldwide",
+            "Gap, pts"]
+    rows = []
+    for st in part.get("steps") or []:
+        base = st.get("baseline") or {}
+        marks = "".join(
+            f'<sup>{notes[(f.get("code"), f.get("words"))]}</sup>'
+            for f in st.get("flags") or [] if (f.get("code"), f.get("words")) in notes)
+        years = (str(st["to"]) if (st.get("to") or 0) - (st.get("from") or 0) == 1
+                 else f'{st.get("from")} to {st.get("to")}')
+        cells = [f'<td>{html_escape(years)}{marks}</td>', _mc_cell(st.get("spend"),
+                                                                     base.get("spend"))]
+        if st.get("patients") is None and st.get("claims") is not None:
+            # CMS gave no patient count: claims and price are the split.
+            cells.append(_mc_cell(st.get("claims"), base.get("claims"),
+                                  f'{labels.get("claims", "claims").lower()}, '
+                                  "no patient count"))
+            cells.append('<td class="n m">·</td>')
+        else:
+            cells.append(_mc_cell(st.get("patients"), base.get("patients")))
+            cells.append(_mc_cell(st.get("intensity"), base.get("intensity")))
+        cells.append(_mc_cell(st.get("price"), base.get("price")))
+        cells.append(_mc_cell(st.get("price_per_unit"), base.get("price_per_unit")))
+        cells.append(_mc_cell(st.get("us_growth"), None, st.get("us_note") or ""))
+        cells.append(_mc_cell(st.get("global_growth"), None, st.get("global_note") or ""))
+        cells.append(f'<td class="n">{_mc_pts(st.get("gap_pts"))}</td>')
+        cls = ' class="nlfl"' if st.get("like_for_like") is False else ""
+        rows.append(f"<tr{cls}>" + "".join(cells) + "</tr>")
+    sp = part.get("span")
+    if sp:
+        rows.append(
+            '<tr class="grp"><td>'
+            f'{sp["from"]} to {sp["to"]}, a year</td>'
+            + _mc_cell(sp.get("spend")) + _mc_cell(sp.get("patients"))
+            + _mc_cell(sp.get("intensity")) + _mc_cell(sp.get("price"))
+            + _mc_cell(sp.get("price_per_unit"))
+            + '<td class="n m">·</td><td class="n m">·</td><td class="n m">·</td></tr>')
+    if model and model.get("value") is not None:
+        what = ("growth" if model.get("key") == "revenue_growth_pct"
+                else "franchise pool growth")
+        fade = ""
+        if model.get("fade_to") is not None and model.get("fade_years"):
+            n = model["fade_years"]
+            fade = (f" fading to {_mc_pct(model['fade_to'])} over "
+                    f"{int(n) if float(n).is_integer() else n} years")
+        rows.append(
+            f'<tr class="grp mc-model"><td colspan="{len(head)}">Model from '
+            f'FY{model.get("from_fy") or "?"}: {html_escape(what)} '
+            f'{_mc_pct(model["value"])} a year{html_escape(fade)}</td></tr>')
+    return ('<div class="land-wrap"><table class="land sc-table mc-table"><thead><tr>'
+            + "".join(f"<th>{html_escape(h)}</th>" for h in head)
+            + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+
+def _mc_chart(part: dict, width: int = 760, height: int = 240) -> str:
+    base = [{**s["baseline"], "from": s.get("from"), "to": s.get("to")}
+            for s in part.get("steps") or [] if s.get("baseline")]
+    return CH.growth_split(part.get("steps") or [], width, height, baseline=base,
+                           factor_labels=part.get("factor_labels"))
+
+
+def _medicare_layer_html(split: dict) -> str:
+    """The Forecast tab's Medicare layer for one asset: the label, the sentence, the
+    split drawn for the main part (a second, smaller chart only when two parts are
+    material), the table by year pair with the model's row last, the flags as
+    numbered notes, and which record holds the brand. Empty when there is no series."""
+    if not split or not split.get("ok"):
+        return ""
+    parts = [p for p in split.get("parts") or [] if p.get("steps")]
+    material = [p for p in parts if p.get("material")]
+    if not material:
+        return ""
+    model = (split.get("beside") or {}).get("model_growth")
+    out = ['<div class="mc">',
+           f'<div class="byline mc-label">{html_escape(split.get("label") or "")}</div>']
+    if split.get("sentence"):
+        out.append(f'<p class="mc-sentence">{html_escape(split["sentence"])}</p>')
+    # The flag reads the main part's latest step, as the sentence does: patients, or
+    # claims where CMS gives no patient count or changed the containers, named by part
+    # when there are two.
+    two_parts = len(split.get("parts") or []) > 1
+    if (split.get("beside") or {}).get("direction_disagrees"):
+        last = material[0]["steps"][-1]
+        what = ("patients" if last.get("patients") is not None
+                and last.get("like_for_like") is not False else
+                ((material[0].get("factor_labels") or {}).get("claims") or "claims").lower())
+        scope = f'Medicare Part {material[0].get("part")}' if two_parts else "Medicare"
+        out.append(f'<div class="mc-flag">The model and {html_escape(scope)} '
+                   f'{html_escape(what)} point opposite ways. A flag only: nothing in the '
+                   "model moves.</div>")
+    notes = _mc_footnotes([s for p in material for s in p["steps"]])
+    for i, part in enumerate(material):
+        title = f'{part.get("part_label") or part.get("part")}'
+        share = part.get("spend_share")
+        if share is not None and len(parts) > 1:
+            title += f", {share * 100:.0f}% of the brand's Medicare spend"
+        out.append(f'<div class="subhead">{html_escape(title)}'
+                   f'<span>{html_escape(part.get("source_file") or "")}</span></div>')
+        svg = _mc_chart(part, 760 if i == 0 else 520, 240 if i == 0 else 180)
+        if svg:
+            out.append(f'<div class="chart-mount">{svg}</div>')
+        out.append(_mc_table(part, model if i == 0 else None, notes))
+    for part in parts:
+        if not part.get("material"):
+            last = part["steps"][-1]
+            out.append(
+                f'<div class="byline">{html_escape(part.get("part_label") or "")}: '
+                f'{_mc_pct(part.get("spend_share"), 1).lstrip("+")} of the brand\'s '
+                f'Medicare spend, {_mc_pct(last.get("spend"))} in {last.get("to")}, '
+                "reported, not split.</div>")
+    if split.get("brand_total"):
+        bt = split["brand_total"][-1]
+        pts = bt.get("points") or {}
+        # One name for both parts: a Part D fill and a Part B claim are not the same
+        # thing, so the total takes neither part's word for use or price.
+        labels = {"patients": "patients", "intensity": "use per patient",
+                  "price": "price", "claims": "claims", "unsplit": "not split"}
+        bits = ", ".join(f'{html_escape(labels.get(k, k))} {_mc_pts(v)}'
+                         for k, v in pts.items())
+        out.append(f'<div class="byline">Both parts, {bt["to"]}: spend '
+                   f'{_mc_pct(bt.get("spend"))}, in points {bits}. Patients are not '
+                   "added across parts, since one patient can be in both.</div>")
+    out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")} '
+               "Gap: US reported growth less the brand's Medicare spend growth"
+               f'{", all parts" if two_parts else ""}, '
+               f'{html_escape(split.get("gap_label") or "")}; shown in dollars only.</div>')
+    if notes:
+        out.append('<ol class="mc-notes">' + "".join(
+            f"<li>{html_escape(words or code)}</li>"
+            for (code, words), _n in sorted(notes.items(), key=lambda kv: kv[1]))
+            + "</ol>")
+    held = split.get("held_on")
+    if held:
+        out.append('<div class="byline">Medicare reports the brand, held on '
+                   f'{html_escape(held.get("ticker") or "another")}\'s record.</div>')
+    if split.get("shared_with"):
+        out.append('<div class="byline">The brand is also modelled by '
+                   f'{html_escape(", ".join(split["shared_with"]))}; Medicare cannot say '
+                   "which company books the US sales.</div>")
+    out.append("</div>")
+    return "".join(out)
+
+
+def _medicare_book_html(split: dict, top: int = 15) -> str:
+    """The Portfolio's Medicare demand layer: one row per brand and part, by latest
+    spend, the first fifteen shown and the rest folded, with the tracked median last."""
+    if not split or not split.get("brands"):
+        return ""
+    labels_d = (split.get("factor_labels") or {}).get("D") or {}
+    year = split.get("latest_year")
+    # Dollar signs as an entity: Streamlit's markdown reads two of them as maths.
+    head = ["Brand", "Part", f"{year} Medicare spend, &#36;bn", "Spend", "Patients",
+            "Use per patient", "Price", "Model growth", f"US reported FY{year}"]
+
+    def row(r):
+        part = r.get("part") or ""
+        spend_bn = (f'{r["spending"] / 1e9:,.2f}' if r.get("spending") is not None
+                    else _MC_NONE)
+        brand = html_escape(r.get("brand") or "")
+        if r.get("held_on"):
+            brand += (f' <span class="mc-sub">held on '
+                      f'{html_escape(r["held_on"].get("ticker") or "")}</span>')
+        cells = [f"<td>{brand}</td>", f'<td class="m">{html_escape(part)}</td>',
+                 f'<td class="n">{spend_bn}</td>', _mc_cell(r.get("spend"))]
+        if not r.get("material"):
+            cells.append('<td class="m" colspan="5">under 5% of the brand\'s Medicare '
+                         "spend, not split</td>")
+            return '<tr class="mc-minor">' + "".join(cells) + "</tr>"
+        if r.get("patients") is None and r.get("claims") is not None:
+            cells.append(_mc_cell(r.get("claims"), None, "claims, no patient count"))
+            cells.append('<td class="n m">·</td>')
+        else:
+            # A container change makes the patient count not like for like, as the
+            # Forecast layer hatches it.
+            cells.append(_mc_cell(r.get("patients"), None,
+                                  "not like for like" if r.get("like_for_like") is False
+                                  else ""))
+            cells.append(_mc_cell(r.get("intensity")))
+        cells.append(_mc_cell(r.get("price")))
+        mark = (' <span class="mc-dis" title="the model and Medicare patients point '
+                'opposite ways">opposite</span>' if r.get("direction_disagrees") else "")
+        cells.append(f'<td class="n">{_mc_pct(r.get("model_growth"))}{mark}</td>')
+        cells.append(_mc_cell(r.get("us_growth"), None, r.get("us_note") or ""))
+        return "<tr>" + "".join(cells) + "</tr>"
+
+    brands = split["brands"]
+    def table(rows):
+        return ('<div class="land-wrap"><table class="land sc-table mc-table"><thead><tr>'
+                + "".join(f"<th>{h}</th>" for h in head)
+                + "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div>")
+
+    out = ['<div class="mc">',
+           f'<div class="byline mc-label">{html_escape(split.get("label") or "")} '
+           f'Use per patient is fills per patient in Part D and claims per patient in '
+           "Part B; price is cost per fill or per claim.</div>",
+           table([row(r) for r in brands[:top]])]
+    if len(brands) > top:
+        out.append(f'<details class="mc-more"><summary>{len(brands) - top} more</summary>'
+                   + table([row(r) for r in brands[top:]]) + "</details>")
+    for part in ("D", "B"):
+        med = (split.get("baseline") or {}).get(part)
+        if not med:
+            continue
+        labels = (split.get("factor_labels") or {}).get(part) or labels_d
+        floor = med.get("min_spend") or 50e6
+        out.append(
+            f'<div class="byline">Tracked Part {part} median {med.get("to")}: patients '
+            f'{_mc_pct(med.get("patients"))}, {labels.get("intensity", "use").lower()} '
+            f'{_mc_pct(med.get("intensity"))}, {labels.get("price", "price").lower()} '
+            f'{_mc_pct(med.get("price"))}, {med.get("n")} brands over '
+            f'&#36;{floor / 1e6:,.0f}mm</div>')
+    out.append(f'<div class="byline">{html_escape(split.get("patients_note") or "")}</div>')
+    out.append("</div>")
+    return "".join(out)
+
+
+def _medicare_tile_sub(dem) -> str:
+    """The fact profile's Medicare spend subtitle: the year, spend growth and, where
+    the main part's patient count is like for like, its patient growth."""
+    if not dem:
+        return "not in Part D/B"
+    out = f'US {dem["year"]}'
+    if dem.get("spend_growth") is not None:
+        out += f', {_mc_pct(dem["spend_growth"])} YoY'
+    parts = dem.get("parts") or []
+    main = parts[0] if parts else None
+    if main and main.get("patient_growth") is not None and main.get("like_for_like"):
+        out += f', patients {_mc_pct(main["patient_growth"])}'
+        if len(parts) > 1:
+            out += f' in Part {main["part"]}'
+    return out
+
+
+# A fragment: picking a product, a scenario or a lever reruns this tab alone. The page
+# renders every tab on every rerun, so a click here used to redraw all of them and refetch
+# whatever their cache had let go, which is where a product click spent its time. A save
+# still reruns the page, since the other tabs read what it wrote.
+@st.fragment
 def _render_forecast_tab(api_base: str, ticker: str):
     """The forecast: the book above, the product beneath, the levers under both.
 
@@ -2921,7 +5523,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
     reading it and choosing from it are one act. Everything deeper is a layer under
     the workbench, answering a question the figures above provoke.
     """
-    st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+    st.markdown('<span class="no-rail fc-anchor"></span>', unsafe_allow_html=True)
     try:
         overview = api_get(api_base, f"/companies/{ticker}/forecast")
     except (urllib.error.URLError, OSError) as exc:
@@ -2937,6 +5539,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
         state("No forecastable products",
               "a forecast starts from a marketed product or an assumption seed under "
               "data/assumptions/")
+        _peer_value_section(api_base, ticker)
         return
     labels = {aid: name + ("" if n else "  (start one)") for aid, name, n in options}
     ordered = sorted(options, key=lambda o: (o[2] == 0, o[1]))
@@ -2952,235 +5555,280 @@ def _render_forecast_tab(api_base: str, ticker: str):
 
     # The book. A click on a row is a request to read that product: the picker's
     # value is set before the picker reads its key, and the page reruns onto it.
-    _company, clicked = _book(api_base, ticker, selected)
+    _company, clicked, slots = _book(api_base, ticker, selected)
     if clicked is not None and clicked in ids and clicked != selected:
         st.session_state[pick_key] = clicked
-        st.rerun()
+        _rerun_here()
+    bench = (slots or {}).get("bench") or st.container()
+    below = (slots or {}).get("below") or st.container()
 
-    st.markdown('<div class="fc-bench"></div>', unsafe_allow_html=True)
-    pick_col, scenario_col, id_col = st.columns([1.35, 0.8, 2.6], gap="small")
-    with pick_col:
-        sel = st.selectbox("Product", ids, format_func=lambda aid: labels[aid],
-                           key=pick_key, label_visibility="collapsed")
-    with scenario_col:
-        scenario = st.segmented_control(
-            "Scenario", ["base", "bear", "bull"], default="base",
-            key=f"fc_scenario_{ticker}_{sel}", label_visibility="collapsed") or "base"
+    with bench:
+        st.markdown('<div class="fc-bench"></div>', unsafe_allow_html=True)
+        # Beside the asset list the bench is half the page, so the scenario control gets
+        # room for its three choices on one line.
+        pick_col, scenario_col, id_col = st.columns([1.2, 1.05, 2.2], gap="small")
+        with pick_col:
+            sel = st.selectbox("Product", ids, format_func=lambda aid: labels[aid],
+                               key=pick_key, label_visibility="collapsed")
+        with scenario_col:
+            scenario = st.segmented_control(
+                "Scenario", ["base", "bear", "bull"], default="base",
+                key=f"fc_scenario_{ticker}_{sel}", label_visibility="collapsed") or "base"
 
-    try:
-        data = api_get(api_base,
-                       f"/companies/{ticker}/forecast/{sel}?scenario={scenario}")
-    except (urllib.error.URLError, OSError) as exc:
-        state("Forecast unavailable", str(exc), error=True)
-        return
-
-    if not data.get("ok"):
-        missing = ", ".join(data.get("missing") or [])
-        drew = _curve_shaper(api_base, ticker, sel, scenario,
-                             data.get("missing") or [])
-        if not drew:
-            state("No forecast yet", f"missing: {missing}")
-            template = data.get("template") or []
-            if template:
-                note("required keys: " + "; ".join(
-                    f"{row['key']} ({row['hint']})" for row in template))
-        _forecast_editor(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        _forecast_import(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        return
-
-    result = data["result"]
-    years = result["years"]
-    x_labels = [str(y) for y in years]
-    unsourced = data.get("unsourced") or []
-    scalars = data.get("scalars") or {}
-    try:
-        verdict = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/verdict"
-                                    f"?scenario={scenario}")
-    except (urllib.error.URLError, OSError):
-        verdict = {}
-    if not verdict.get("ok"):
-        verdict = {}
-    with id_col:
-        st.markdown(_identity(data, result), unsafe_allow_html=True)
-
-    # The figures and the charts are filled after the levers are read, because a moved
-    # lever is what they show. Containers hold their place above the slider row.
-    head_slot = st.container()
-    charts_slot = st.container()
-    section("Levers", basis="same engine · base stays as the grey line")
-    moved = _lever_controls(ticker, sel, result, scalars)
-    varied = base_slim = None
-    if moved:
-        query = "&".join(f"{k}={v}" for k, v in moved.items())
         try:
-            wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
-                                   f"?scenario={scenario}&{query}")
+            data = api_get(api_base,
+                           f"/companies/{ticker}/forecast/{sel}?scenario={scenario}")
         except (urllib.error.URLError, OSError) as exc:
-            wi = None
-            st.error(f"variation failed: {exc}")
-        if wi and wi.get("ok"):
-            varied, base_slim = wi["varied"], wi["base"]
-    volume_scale = moved.get("volume", 1.0) if varied else 1.0
+            state("Forecast unavailable", str(exc), error=True)
+            return
 
-    # One frame for the whole scenario family where one exists, so switching bear to
-    # bull moves the line rather than the scale.
-    span_values = list(result["revenue_after_loe"])
-    if verdict.get("has_range"):
-        for scenario_name in ("base", "bear", "bull"):
-            if scenario_name == scenario:
-                continue
-            try:
-                other = api_get(api_base, f"/companies/{ticker}/forecast/{sel}"
-                                          f"?scenario={scenario_name}")
-            except (urllib.error.URLError, OSError):
-                continue
-            if other.get("ok"):
-                span_values += other["result"]["revenue_after_loe"]
-    revenue_span = (min(span_values), max(span_values)) if span_values else None
-    _pat = [v for v in (list(result["patients"]["total"] or [])
-                        + list(result["patients"].get("treated") or []))
-            if v is not None]
-    patients_span = (min(_pat), max(_pat)) if _pat else None
-    placeholder = (result.get("curve_basis") or "").startswith("placeholder")
+        if not data.get("ok"):
+            missing = ", ".join(data.get("missing") or [])
+            drew = _curve_shaper(api_base, ticker, sel, scenario,
+                                 data.get("missing") or [])
+            if not drew:
+                state("No forecast yet", f"missing: {missing}")
+                template = data.get("template") or []
+                if template:
+                    note("required keys: " + "; ".join(
+                        f"{row['key']} ({row['hint']})" for row in template))
+            _forecast_editor(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            _forecast_import(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            return
 
-    shown = varied or result
-    share = result.get("economics_share")
-    shares = verdict.get("diluted_shares")
-    close = verdict.get("close")
-    owner_now = shown["owner_rnpv"] if share is not None else shown["rnpv"]
-    owner_base = result["owner_rnpv"] if share is not None else result["rnpv"]
-    per_share = (owner_now * 1e6 / shares) if shares else None
-    per_share_base = (owner_base * 1e6 / shares) if shares else None
-
-    with head_slot:
-        headline = (verdict.get("note") or {}).get("headline")
-        if headline:
-            st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
-                        unsafe_allow_html=True)
-        if varied:
-            delta = shown["rnpv"] - result["rnpv"]
-            change = f"{delta:+,.0f}mm vs base"
-            tone = " up" if delta >= 0 else " down"
-            ps_change = (f"{per_share - per_share_base:+,.2f} vs base"
-                         if per_share is not None else None)
-        else:
-            change, tone, ps_change = None, "", None
-        revenue = shown["revenue"] if varied else result["revenue_after_loe"]
-        peak = max(revenue) if revenue else None
-        peak_year = years[revenue.index(peak)] if peak is not None else None
-        clause = _short
-        # Wider than the 40 the other captions take, so the date survives the cut.
-        # The whole point of the discount rate naming a vintage is that a reader sees
-        # how old it is without opening anything, and "CAPM from components on rates
-        # to 2026-09-18" is 43 characters.
-        wacc_note = ("slider" if "wacc" in moved and varied
-                     else clause(result.get("wacc_basis"), 48))
-        pos_note = ("slider" if "pos" in moved and varied
-                    else _pos_caption(result.get("pos_granular"))
-                    or clause(result.get("pos_basis")))
-        tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,
-                  "", ps_change, tone, "risk-adjusted, this asset only"),
-                 ("share of price",
-                  T.pct(per_share / close * 100, 1) if (per_share and close) else None,
-                  "", None, "", f"of ${close:,.2f}" if close else "no price on file"),
-                 ("rNPV", T.num(shown["rnpv"]), "mm", change, tone,
-                  f"base {T.num(result['rnpv'])}mm" if varied
-                  else f"owner {share:.0%} of economics" if share is not None
-                  else f"NPV {T.num(shown['npv'])}mm before PoS"
-                  if shown["pos"] < 1.0 - 1e-9 else "risk-adjusted"),
-                 ("peak revenue", T.num(peak), "mm", None, "",
-                  f"in {peak_year}" if peak_year else ""),
-                 ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
-                 ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
-        loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
-        # "none" rather than a dash: the tiles read a dash as data that is missing,
-        # and an asset with no exclusivity on file is a fact, not a gap in a source.
-        tiles.append(("LOE", str(loe_shown) if loe_shown
-                      else "past" if result.get("loe_in_base") else "none", "", None, "",
-                      "slider" if "loe_year" in moved and varied
-                      else clause(result.get("loe_basis")) if loe_shown
-                      else "date not on file" if result.get("loe_in_base")
-                      else "no exclusivity on file"))
-        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
-        if unsourced:
-            st.markdown(f'<div class="byline">unsourced assumptions: '
-                        f'{html_escape(", ".join(unsourced))}</div>',
-                        unsafe_allow_html=True)
-        if placeholder:
-            state("Drawn on a placeholder curve, and not counted",
-                  "the uptake ceiling and midpoint are the shaper's probe values. This "
-                  "asset is left out of the company per-share figure until real values "
-                  "are committed, under Uptake below.")
-
-    with charts_slot:
-        path_col, bridge_col = st.columns([1.6, 1], gap="medium")
-        with path_col:
-            _revenue_path(data["name"], result, varied, base_slim,
-                          data.get("actuals") or [], moved, scenario, revenue_span)
-        with bridge_col:
-            _value_bridge(shown, verdict, bool(varied))
-
-    # Everything under the levers is a layer, not a step. Each answers a question the
-    # figures above provoke, and only one is asked at a time, so they share one screen.
-    st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-    has_uptake = (patients_span is not None or placeholder
-                  or result.get("mode") == "franchise")
-    n_rows = len(data.get("assumptions") or [])
-    layer_names = ["Drivers"] + (["Uptake"] if has_uptake else []) + [
-        "P&L", "Sensitivity", f"Assumptions · {n_rows}"]
-    panels = dict(zip(layer_names, st.tabs(layer_names)))
-
-    with panels["Drivers"]:
-        if verdict:
-            _drivers_layer(verdict, scenario)
-        if result.get("pos_granular"):
-            _pos_layer(result["pos_granular"])
-        else:
-            state("No verdict", "the API did not return one for this product")
-
-    if has_uptake:
-        with panels["Uptake"]:
-            if patients_span is None:
-                note("no patient curve: this product is anchored on revenue rather than "
-                     "built from patients, so the funnel is not rebuilt for it.")
-            else:
-                _render_patient_chart(result, years, x_labels, volume_scale,
-                                      patients_span)
-            if placeholder:
-                _curve_shaper(api_base, ticker, sel, scenario, [])
-            if result.get("mode") == "franchise":
-                _share_shaper(api_base, ticker, sel, scenario, result)
-
-    with panels["P&L"]:
-        _pnl_section(result, varied)
-
-    with panels["Sensitivity"]:
-        anchored = result.get("mode") in ("marketed", "franchise")
-        preset = st.segmented_control(
-            "Grid", ["price", "loe"], default="price",
-            format_func=lambda p: ("WACC x growth" if anchored else "WACC x net price")
-            if p == "price" else "LOE year x year-one erosion",
-            key=f"fc_grid_{ticker}_{sel}") or "price"
+        result = data["result"]
+        years = result["years"]
+        x_labels = [str(y) for y in years]
+        unsourced = data.get("unsourced") or []
+        scalars = data.get("scalars") or {}
         try:
-            grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
-                                     f"?scenario={scenario}&preset={preset}")
+            verdict = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/verdict"
+                                        f"?scenario={scenario}")
         except (urllib.error.URLError, OSError):
-            grid = None
-        _sensitivity_grid(grid, result.get("rnpv"))
+            verdict = {}
+        if not verdict.get("ok"):
+            verdict = {}
+        # The Medicare split is its own read, so a failure empties this layer alone.
+        try:
+            medicare = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/demand")
+            medicare_error = None
+        except (urllib.error.URLError, OSError) as exc:
+            medicare, medicare_error = None, str(exc)
+        medicare_html = _medicare_layer_html(medicare) if medicare else ""
+        # The next gate's cost is its own read too, and only an asset with a gate asks.
+        dev, dev_error = None, None
+        if verdict.get("gate"):
+            try:
+                dev = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/development")
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                dev_error = str(exc)
+        with id_col:
+            st.markdown(_identity(data, result), unsafe_allow_html=True)
 
-    with panels[layer_names[-1]]:
-        _forecast_editor(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
-        blob = _export_blob(api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
-                            f"/export.xlsx?scenario={scenario}")
-        if blob:
-            st.download_button("Export to Excel", data=blob,
-                               file_name=f"{data['name'].lower()}_forecast.xlsx",
-                               key=f"fc_dl_{ticker}_{sel}")
-        _forecast_import(api_base, ticker, sel, scenario,
-                         data.get("assumptions") or [])
+        # The figures and the charts are filled after the levers are read, because a moved
+        # lever is what they show. Containers hold their place above the slider row.
+        head_slot = st.container()
+        charts_slot = st.container()
+    with below:
+        section("Levers", basis="same engine · base stays as the grey line")
+        moved = _lever_controls(ticker, sel, result, scalars)
+        varied = base_slim = None
+        if moved:
+            query = "&".join(f"{k}={v}" for k, v in moved.items())
+            try:
+                wi = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/whatif"
+                                       f"?scenario={scenario}&{query}")
+            except (urllib.error.URLError, OSError) as exc:
+                wi = None
+                st.error(f"variation failed: {exc}")
+            if wi and wi.get("ok"):
+                varied, base_slim = wi["varied"], wi["base"]
+        volume_scale = moved.get("volume", 1.0) if varied else 1.0
+
+        # One frame for the whole scenario family where one exists, so switching bear to
+        # bull moves the line rather than the scale.
+        span_values = list(result["revenue_after_loe"])
+        if verdict.get("has_range"):
+            for scenario_name in ("base", "bear", "bull"):
+                if scenario_name == scenario:
+                    continue
+                try:
+                    other = api_get(api_base, f"/companies/{ticker}/forecast/{sel}"
+                                              f"?scenario={scenario_name}")
+                except (urllib.error.URLError, OSError):
+                    continue
+                if other.get("ok"):
+                    span_values += other["result"]["revenue_after_loe"]
+        revenue_span = (min(span_values), max(span_values)) if span_values else None
+        _pat = [v for v in (list(result["patients"]["total"] or [])
+                            + list(result["patients"].get("treated") or []))
+                if v is not None]
+        patients_span = (min(_pat), max(_pat)) if _pat else None
+        placeholder = (result.get("curve_basis") or "").startswith("placeholder")
+
+        shown = varied or result
+        share = result.get("economics_share")
+        shares = verdict.get("diluted_shares")
+        close = verdict.get("close")
+        owner_now = shown["owner_rnpv"] if share is not None else shown["rnpv"]
+        owner_base = result["owner_rnpv"] if share is not None else result["rnpv"]
+        per_share = (owner_now * 1e6 / shares) if shares else None
+        per_share_base = (owner_base * 1e6 / shares) if shares else None
+
+        with head_slot:
+            headline = (verdict.get("note") or {}).get("headline")
+            if headline:
+                st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
+                            unsafe_allow_html=True)
+            if varied:
+                delta = shown["rnpv"] - result["rnpv"]
+                change = f"{delta:+,.0f}{_mm()} vs base"
+                tone = " up" if delta >= 0 else " down"
+                ps_change = (f"{per_share - per_share_base:+,.2f} vs base"
+                             if per_share is not None else None)
+            else:
+                change, tone, ps_change = None, "", None
+            revenue = shown["revenue"] if varied else result["revenue_after_loe"]
+            peak = max(revenue) if revenue else None
+            peak_year = years[revenue.index(peak)] if peak is not None else None
+            clause = _short
+            # Wider than the 40 the other captions take, so the date survives the cut.
+            # The whole point of the discount rate naming a vintage is that a reader sees
+            # how old it is without opening anything, and "CAPM from components on rates
+            # to 2026-09-18" is 43 characters.
+            wacc_note = ("slider" if "wacc" in moved and varied
+                         else clause(result.get("wacc_basis"), 48))
+            pos_note = ("slider" if "pos" in moved and varied
+                        else _pos_caption(result.get("pos_granular"))
+                        or clause(result.get("pos_basis")))
+            tiles = [("per share", T.num(per_share, 2) if per_share is not None else None,
+                      "", ps_change, tone, "risk-adjusted, this asset only"),
+                     ("share of price",
+                      T.pct(per_share / close * 100, 1) if (per_share and close) else None,
+                      "", None, "", f"of ${close:,.2f}" if close else "no price on file"),
+                     ("rNPV", T.num(shown["rnpv"]), _mm(), change, tone,
+                      f"base {T.num(result['rnpv'])}{_mm()}" if varied
+                      else f"owner {share:.0%} of economics" if share is not None
+                      else f"NPV {T.num(shown['npv'])}{_mm()} before PoS"
+                      if shown["pos"] < 1.0 - 1e-9 else "risk-adjusted"),
+                     ("peak revenue", T.num(peak), _mm(), None, "",
+                      f"in {peak_year}" if peak_year else ""),
+                     ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
+                     ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
+            loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
+            # "none" rather than a dash: the tiles read a dash as data that is missing,
+            # and an asset with no exclusivity on file is a fact, not a gap in a source.
+            tiles.append(("LOE", str(loe_shown) if loe_shown
+                          else "past" if result.get("loe_in_base") else "none", "", None, "",
+                          "slider" if "loe_year" in moved and varied
+                          else clause(result.get("loe_basis")) if loe_shown
+                          else "date not on file" if result.get("loe_in_base")
+                          else "no exclusivity on file"))
+            st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+            if unsourced:
+                st.markdown(f'<div class="byline">unsourced assumptions: '
+                            f'{html_escape(", ".join(unsourced))}</div>',
+                            unsafe_allow_html=True)
+            if placeholder:
+                state("Drawn on a placeholder curve, and not counted",
+                      "the uptake ceiling and midpoint are the shaper's probe values. This "
+                      "asset is left out of the company per-share figure until real values "
+                      "are committed, under Uptake below.")
+
+        with charts_slot:
+            path_col, bridge_col = st.columns([1.6, 1], gap="medium")
+            with path_col:
+                _revenue_path(data["name"], result, varied, base_slim,
+                              data.get("actuals") or [], moved, scenario, revenue_span)
+            with bridge_col:
+                _value_bridge(shown, verdict, bool(varied))
+
+        # Everything under the levers is a layer, not a step. Each answers a question the
+        # figures above provoke, and only one is asked at a time, so they share one screen.
+        st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+        has_uptake = (patients_span is not None or placeholder
+                      or result.get("mode") == "franchise")
+        n_rows = len(data.get("assumptions") or [])
+        # Medicare sits after Drivers, only where CMS has a series for the brand. The next
+        # gate sits beside it, only where the asset has one: a pipeline asset reads the
+        # one and a marketed brand the other.
+        has_medicare = bool(medicare_html) or bool(medicare_error)
+        has_gate = bool(verdict.get("gate"))
+        layer_names = (["Drivers"] + (["Next gate"] if has_gate else [])
+                       + (["Medicare"] if has_medicare else [])
+                       + (["Uptake"] if has_uptake else [])
+                       + ["P&L", "Sensitivity", f"Assumptions · {n_rows}"])
+        panels = dict(zip(layer_names, st.tabs(layer_names)))
+
+        with panels["Drivers"]:
+            if verdict:
+                _drivers_layer(verdict, scenario)
+            else:
+                state("No verdict", "the API did not return one for this product")
+            # The granular success rate is its own layer, and a marketed product has none,
+            # which is not a missing verdict: the else once hung off this test and printed
+            # "No verdict" under every approved product's drivers.
+            if result.get("pos_granular"):
+                _pos_layer(result["pos_granular"])
+
+        if has_gate:
+            with panels["Next gate"]:
+                _next_gate_layer(verdict, dev, dev_error, scenario)
+
+        if has_medicare:
+            with panels["Medicare"]:
+                if medicare_error:
+                    state("Medicare split unavailable",
+                          f"the API did not answer: {medicare_error}", error=True)
+                else:
+                    st.markdown(medicare_html, unsafe_allow_html=True)
+
+        if has_uptake:
+            with panels["Uptake"]:
+                if patients_span is None:
+                    note("no patient curve: this product is anchored on revenue rather than "
+                         "built from patients, so the funnel is not rebuilt for it.")
+                else:
+                    _render_patient_chart(result, years, x_labels, volume_scale,
+                                          patients_span)
+                if placeholder:
+                    _curve_shaper(api_base, ticker, sel, scenario, [])
+                if result.get("mode") == "franchise":
+                    _share_shaper(api_base, ticker, sel, scenario, result)
+
+        with panels["P&L"]:
+            _pnl_section(result, varied)
+
+        with panels["Sensitivity"]:
+            # The second axis is the input the mode builds revenue from (grid_axis).
+            price_grid = {"marketed": "WACC x growth", "franchise": "WACC x pool growth",
+                          "launch": "WACC x peak"}.get(result.get("mode"),
+                                                       "WACC x net price")
+            preset = st.segmented_control(
+                "Grid", ["price", "loe"], default="price",
+                format_func=lambda p: price_grid
+                if p == "price" else "LOE year x year-one erosion",
+                key=f"fc_grid_{ticker}_{sel}") or "price"
+            try:
+                grid = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/sensitivity"
+                                         f"?scenario={scenario}&preset={preset}")
+            except (urllib.error.URLError, OSError):
+                grid = None
+            _sensitivity_grid(grid, result.get("rnpv"))
+
+        with panels[layer_names[-1]]:
+            _forecast_editor(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
+            blob = _export_blob(api_base.rstrip("/") + f"/companies/{ticker}/forecast/{sel}"
+                                f"/export.xlsx?scenario={scenario}")
+            if blob:
+                st.download_button("Export to Excel", data=blob,
+                                   file_name=f"{data['name'].lower()}_forecast.xlsx",
+                                   key=f"fc_dl_{ticker}_{sel}")
+            _forecast_import(api_base, ticker, sel, scenario,
+                             data.get("assumptions") or [])
 
 
 def _sensitivity_grid(grid, base_rnpv=None) -> None:
@@ -3193,10 +5841,13 @@ def _sensitivity_grid(grid, base_rnpv=None) -> None:
         span = (high - low) or 1.0
         def axis(key, value):
             # Rates read as percents, years as years, a price as the figure it is.
-            if key in ("wacc", "revenue_growth_pct", "erosion_year1_pct"):
+            if key in ("wacc", "revenue_growth_pct", "franchise_growth_pct",
+                       "erosion_year1_pct"):
                 return f"{value * 100:.1f}%"
             if key == "loe_year":
                 return f"{int(value)}"
+            if key == "peak_revenue_musd":
+                return f"{value:,.0f}"
             return f"{value:g}"
         row_labels = [axis(grid["y_key"], y) for y in grid["y_values"]]
         col_labels = [axis(grid["x_key"], x) for x in grid["x_values"]]
@@ -3426,6 +6077,9 @@ def _china_bd(api_base: str, ticker: str) -> None:
     the interesting part is the sentences behind it. The direction is deliberately
     absent: a headline does not state it reliably, and two of the stored rows read as
     agreements with a Chinese party while being the company licensing out and selling.
+
+    Folded, like the morning note above it: open, it put about 90 words of verbatim
+    headlines on Key insights' first screen for PFE at 1440 x 810, over 8.7's budget.
     """
     try:
         got = api_get(api_base, f"/companies/{ticker}/china-bd")
@@ -3433,9 +6087,16 @@ def _china_bd(api_base: str, ticker: str) -> None:
         return
     if not got.get("count"):
         return
+    with st.expander(f"China-linked business development · {got['count']} on file",
+                     expanded=False):
+        _china_bd_body(got)
+
+
+def _china_bd_body(got: dict) -> None:
+    """The deals behind ``_china_bd``'s fold: the two tiles, the rows, the method."""
     total = got.get("announced_value_total")
-    section("China-linked business development", f"{got['count']} on file",
-            "from the companies' own words, direction not claimed")
+    st.markdown('<div class="byline">From the companies\' own words, direction not '
+                'claimed.</div>', unsafe_allow_html=True)
     tiles = [
         ("deals", str(got["count"]), "", None, "",
          f"{got['priced']} state a figure" if got["priced"] else
@@ -3464,6 +6125,2568 @@ def _china_bd(api_base: str, ticker: str) -> None:
          "agreements with a Chinese party. The value is announced consideration, "
          "milestones included, and is summed only where every deal on the list states "
          "one, since a partial sum reads as a total and is not one.")
+
+
+# --- Key insights: the company on one page (company-scorecard.md 1.3 and 5.3) -------
+# Every number on the tab is a scorecard object, a figure the strip has always read, or a
+# catalyst or change row, and each is said once: the strip holds what the bars and the
+# lines do not, the sentence names pillars without their numbers, and Next is the head
+# of the Catalysts list rather than a second ranking. The builders below are pure string
+# functions, so the tab's tests run them on the sample scorecard without the API.
+_KI_LEFT_TO_NEWS = ("revenue_restatement", "rate_move")
+# Dated ahead rather than changed: the strip and Next hold them.
+_KI_AHEAD_KINDS = ("catalyst", "loe")
+_KI_CHANGE_DAYS = 30
+# Three, like Next. Five (the spec's count) put every block on the screen at 1440 x 810
+# and the tab at 232 words for AZN and 241 for LLY against a budget of 220
+# (company-scorecard.md 8.7); News has every row.
+_KI_CHANGES_SHOWN = 3
+# A headline is cut at a word to about this length, the whole of it on hover. A diff row
+# ("slips 2027-05-14 -> 2028-01-10") is kept whole, since its meaning is in its tail.
+_KI_HEADLINE_CHARS = 56
+_KI_EMPTY = "·"
+_KI_MINUS = "−"
+_KI_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+              "Nov", "Dec")
+_KI_FAILED = "The scorecard did not load: {error}."
+_KI_NO_CHANGES = "Nothing rated high in 30 days."
+# Revision 4 (docs/design/key-insights.md): the call beside the price, then three columns.
+_KI_BREAKS_SHOWN = 2
+_KI_NOT_MODELLED = ("Nothing is modelled for {T} yet, so there is no 12-month value. "
+                    "Forecast starts one.")
+_KI_NO_BRIDGE = "The bridge does not add up here; Forecast has it in full."
+# The note's news, the kinds likeliest to bear on a price first. A slip is counted, not
+# listed: it moves a date far more often than a price.
+_KI_NEWS_ORDER = {"press_data_readout": 0, "press_deal": 1, "ira_selected": 1,
+                  "ira_deselected": 1, "press_approval": 2, "new_approval": 2,
+                  "efficacy_supplement": 3, "new_filing": 4, "material event": 4}
+_KI_NEWS_SAID = 2
+_KI_NOTE_WORDS = 180
+_KI_NEWS_CHARS = 72
+# A month with nothing rated high still says its press releases and FDA news: rated medium,
+# they are company news all the same, and "none on file" would be false.
+_KI_NEWS_MEDIUM = ("press_", "new_approval", "efficacy_supplement", "ira_")
+# A headline's company preamble ("AstraZeneca announces", "Incyte and X Announce") goes, so
+# what happened survives the cut.
+_KI_PREAMBLE = re.compile(
+    r"^(?:[A-Z][\w&.'’\-]*,?\s+){1,6}?(?:announces?|reports?|receives?|presents?|unveils?|"
+    r"shares?|provides?)\s+(?:that\s+)?", re.I)
+# An appositive that holds the result back ("Remigromig, a tri-specific agonist of ...,
+# met its primary endpoint") is dropped before a cut.
+_KI_APPOSITIVE = re.compile(
+    r",\s+an?\s+.+?,\s+(?=(?:met|meets|achiev|show|demonstrat|receiv|grant|approv|fail|"
+    r"did|delivers?)\w*\b)", re.I)
+# A trial of these kinds or this far out is not the next test of anything.
+_KI_NOT_A_TEST = re.compile(r"follow[- ]?up|long[- ]term|extension|rollover|continued access|"
+                            r"expanded access", re.I)
+_KI_NOT_A_COMPOUND = re.compile(r"regimen|lymphodepletion|standard of care|placebo|"
+                                r"best supportive|chemotherapy alone", re.I)
+_KI_READOUT_YEARS = 8
+# The note names the first loss of exclusivity worth this share of revenue, and a larger
+# one after it only inside this many years: past that it is not this year's question.
+_KI_LOSS_MATERIAL = 0.05
+_KI_LOSS_YEARS = 5
+# A release's long names, as a reader says them.
+_KI_SHORT_WORDS = (("Biologics License Application", "BLA"), ("New Drug Application", "NDA"),
+                   ("Marketing Authorization Application", "MAA"),
+                   ("Food and Drug Administration", "FDA"), ("U.S. FDA", "FDA"))
+# A figure carries its currency's sign where it has a short one; the key names any other.
+_KI_CURRENCY_SIGNS = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥"}
+_KI_COUNT_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight",
+                   "nine", "ten")
+# Key assets, readouts and expiries: five rows each, so the three columns end together.
+_KI_ASSETS_SHOWN = 5
+_KI_READOUTS_SHOWN = 5
+_KI_EXPIRIES_SHOWN = 5
+_KI_STAGE_RANK = {"Phase 3": 0, "Phase 2/3": 1, "Phase 2": 2, "Phase 1/2": 3, "Phase 1": 4}
+_KI_PHASE_SHORT = {"Phase 1": "Ph 1", "Phase 1/2": "Ph 1/2", "Phase 2": "Ph 2",
+                   "Phase 2/3": "Ph 2/3", "Phase 3": "Ph 3", "Phase 4": "Ph 4"}
+_KI_REG_EVENTS = {"pdufa": "PDUFA", "regulatory decision": "decision", "adcom": "AdCom",
+                  "ema decision": "EMA"}
+_KI_SHORT = {"rev_growth": "Revenue growth", "op_margin": "Operating margin", "pretax_margin": "Pre-tax margin",
+             "fcf_margin": "FCF margin", "nd_ocf": "Net debt / cash flow",
+             "net_cash_rev": "Net cash / revenue", "runway": "Cash runway",
+             "late_per_rev": "Late-stage per $10bn", "fresh_share": "New-launch revenue",
+             "top_product": "Top product share", "trial_conc": "Trial concentration",
+             "share_change": "Share count change", "late_compounds": "Late-stage compounds",
+             "mid_late_compounds": "Phase 2 or later", "loe_years": "Exclusivity left"}
+
+
+def _ki_attr(text) -> str:
+    """A value for a double-quoted HTML attribute."""
+    return html.escape(str(text or ""), quote=True)
+
+
+def _ki_signed_pct(fraction, decimals: int = 1) -> str:
+    """"+13.2%" or "−1.7%" from a fraction; "" when there is none."""
+    if fraction is None or fraction != fraction:
+        return ""
+    pct = abs(fraction) * 100
+    text = f"{pct:,.{decimals}f}%"
+    if round(pct, decimals) == 0:
+        return text
+    return ("+" if fraction > 0 else _KI_MINUS) + text
+
+
+def _ki_month(iso) -> str:
+    """"Sep 2027" from "2027-09-08"; "" when it is not a date."""
+    m = re.match(r"^(\d{4})-(\d{2})", str(iso or ""))
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return ""
+    return f"{_KI_MONTHS[int(m.group(2)) - 1]} {m.group(1)}"
+
+
+def _ki_day(iso) -> str:
+    """"22 Sep 2026" from "2026-09-22 19:50:51"; the month alone without a day."""
+    m = re.match(r"^(\d{4})-(\d{2})(?:-(\d{2}))?", str(iso or ""))
+    if not m or not 1 <= int(m.group(2)) <= 12:
+        return ""
+    month = f"{_KI_MONTHS[int(m.group(2)) - 1]} {m.group(1)}"
+    return f"{int(m.group(3))} {month}" if m.group(3) else month
+
+
+def _ki_product(name) -> str:
+    """A product's name with anything in brackets dropped, as the lines print it, and a
+    brand the source shouts ("VYJUVEK") in the title case every other name has. A code
+    with a digit in it ("ABBV-400") stays as it is."""
+    name = re.sub(r"\s*\([^)]*\)", "", str(name or "")).strip()
+    if name.isupper() and len(name) > 4 and not re.search(r"\d", name):
+        return name.title()
+    return name
+
+
+def _ki_money(v, decimals: int = 2) -> str:
+    """"1,149.85", "−19.44", "·" for None."""
+    if v is None or v != v:
+        return _KI_EMPTY
+    text = f"{abs(v):,.{decimals}f}"
+    return (_KI_MINUS + text) if v < 0 and round(abs(v), decimals) else text
+
+
+def _ki_ord(n) -> str:
+    n = int(n)
+    if 10 <= n % 100 <= 20:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def _ki_tone(x) -> str:
+    return "" if x is None else "up" if x > 0 else "down" if x < 0 else ""
+
+
+def _ki_year_series(points: list, days: int = 365) -> dict:
+    """The last ``days`` of daily closes and what the call reads off them: the close,
+    the day's move, the move over the year (only on a full year of prices) and the range."""
+    rows = [(str(p.get("as_of") or "")[:10], p.get("close")) for p in points or []
+            if isinstance(p, dict) and p.get("close") is not None]
+    rows = [r for r in rows if re.match(r"^\d{4}-\d{2}-\d{2}$", r[0])]
+    rows.sort()
+    if not rows:
+        return {"closes": [], "dates": [], "close": None, "as_of": None, "day_move": None,
+                "year_move": None, "low": None, "high": None}
+    last = dt.date.fromisoformat(rows[-1][0])
+    since = (last - dt.timedelta(days=days)).isoformat()
+    year = [r for r in rows if r[0] >= since]
+    closes = [c for _, c in year]
+    day_move = rows[-1][1] / rows[-2][1] - 1 if len(rows) > 1 and rows[-2][1] else None
+    first = dt.date.fromisoformat(year[0][0])
+    year_move = (closes[-1] / closes[0] - 1
+                 if (last - first).days >= 358 and closes[0] else None)
+    return {"closes": closes, "dates": [d for d, _ in year], "close": closes[-1],
+            "as_of": rows[-1][0], "day_move": day_move, "year_move": year_move,
+            "low": min(closes), "high": max(closes)}
+
+
+def _ki_range_fmt(v, low) -> str:
+    """A range end: whole figures where the range's low end is 100 or more, two places
+    below it, so a range far under the price ("18.82 to 19.12") never reads "19 to 19"."""
+    if v is None:
+        return _KI_EMPTY
+    return f"{v:,.0f}" if low is not None and low >= 100 else f"{v:,.2f}"
+
+
+def _ki_call(rated: dict, fv_reason, series: dict, street: dict = None) -> dict:
+    """The lead of the page: the model's twelve-month value with its rating, else the
+    street's target, else a dot with the reason. The move is against the close."""
+    rated = rated if isinstance(rated, dict) else {}
+    close = series.get("close") if isinstance(series, dict) else None
+    target = (street or {}).get("value") if isinstance(street, dict) else None
+    if rated.get("ok") and rated.get("forward_12m") is not None:
+        fwd = rated["forward_12m"]
+        word = rated.get("rating") or _KI_EMPTY
+        tone = {"Strong buy": "up", "Buy": "up", "Sell": "down", "Strong sell": "down"}.get(
+            word, "neutral")
+        move = rated.get("upside_12m")
+        if move is None and close:
+            move = fwd / close - 1
+        sub = f"against {_ki_money(close)}" if close is not None else ""
+        if rated.get("forward_low") is not None and rated.get("forward_high") is not None:
+            low = min(rated["forward_low"], rated["forward_high"])
+            sub += (f" · {_ki_range_fmt(rated['forward_low'], low)} to "
+                    f"{_ki_range_fmt(rated['forward_high'], low)} in 12 months")
+        coe, dps = rated.get("cost_of_equity"), rated.get("dps")
+        tip = "rolled a year"
+        if coe is not None:
+            tip += f" at the {coe:.1%} cost of equity"
+        if dps:
+            tip += f", less the {_ki_money(dps)} dividend"
+        return {"source": "model", "key": "12-month value · model", "word": word,
+                "word_tone": tone, "word_tip": rated.get("basis") or rated.get("reason") or "",
+                "value": _ki_money(fwd), "tip": tip, "move": _ki_signed_pct(move),
+                "move_tone": _ki_tone(move), "sub": sub.strip(" ·"), "note": ""}
+    reason = (rated.get("reason") or fv_reason or "no sum of the parts on file")
+    if target is not None:
+        move = target / close - 1 if close else None
+        return {"source": "street", "key": "12-month street target", "word": "",
+                "word_tone": "neutral", "word_tip": "", "value": _ki_money(target),
+                "tip": "the street's mean price target", "move": _ki_signed_pct(move),
+                "move_tone": _ki_tone(move),
+                "sub": f"against {_ki_money(close)}" if close is not None else "",
+                "note": "not rated", "note_tip": reason}
+    return {"source": None, "key": "12-month value", "word": "", "word_tone": "neutral",
+            "word_tip": "", "value": "", "tip": f"{reason}; no consensus on file",
+            "move": "", "move_tone": "", "sub": "Not modelled, and no consensus on file.",
+            "note": ""}
+
+
+def _ki_call_failed(error) -> dict:
+    """The call when the rating could not be read: a dot that says so, never the street."""
+    return {"source": None, "key": "12-month value", "word": "", "word_tone": "neutral",
+            "word_tip": "", "value": "", "tip": str(error or ""), "move": "",
+            "move_tone": "", "sub": "The rating did not load; reload in a minute.", "note": ""}
+
+
+def _ki_figures(series: dict, call: dict, momentum: dict = None, street: dict = None,
+                multiple: dict = None, multiple_place: dict = None) -> list:
+    """The market row under the call, five cells of (value, key, tone, tip): the close,
+    the day, the year against the sector, the street, the multiple against peers."""
+    series = series if isinstance(series, dict) else {}
+    out = []
+    close = series.get("close")
+    if close is None:
+        out.append((_KI_EMPTY, "close · no price on file", "none", "no price on file"))
+    else:
+        out.append((_ki_money(close), "close", "", f"as of {series.get('as_of') or ''}".strip()))
+    day = series.get("day_move")
+    if day is None:
+        out.append((_KI_EMPTY, "24 hours · no prior close", "none", "no prior close on file"))
+    else:
+        out.append((_ki_signed_pct(day), "24 hours",
+                    _ki_tone(day) if round(abs(day) * 100, 1) else "",
+                    "the close against the close before it"))
+    year = series.get("year_move")
+    mom = momentum if isinstance(momentum, dict) else {}
+    if year is None:
+        out.append((_KI_EMPTY, "1 year · under a year of prices", "none",
+                    "less than a year of prices on file"))
+    else:
+        key = "1 year" + (f" · {re.sub(r'(?<![0-9])1 points', '1 point', str(mom['text']))} vs XLV"
+                          if mom.get("text") else "")
+        tip = (f"{mom['place']} of {mom['n']} against XLV" if mom.get("place") and mom.get("n")
+               else _ki_reason(mom))
+        out.append((_ki_signed_pct(year), key,
+                    _ki_tone(year) if round(abs(year) * 100, 1) else "", tip))
+    st_ = street if isinstance(street, dict) else {}
+    if (call or {}).get("source") == "street":
+        if series.get("low") is not None:
+            out.append((f"{_ki_range_fmt(series['low'], series['low'])} to "
+                        f"{_ki_range_fmt(series['high'], series['low'])}", "52 weeks", "small",
+                        "the year's lowest and highest close"))
+        else:
+            out.append((_KI_EMPTY, "52 weeks · no price on file", "none", "no price on file"))
+    elif st_.get("value") is not None:
+        ratings = st_.get("ratings") or {}
+        counts = ", ".join(f"{ratings[k]} {k}" for k in ("buy", "hold", "sell")
+                           if ratings.get(k))
+        tip = " · ".join(part for part in (
+            f"{_ki_money(st_.get('low'))} to {_ki_money(st_.get('high'))}"
+            if st_.get("low") is not None and st_.get("high") is not None else "",
+            counts, str(st_.get("as_of") or "")) if part)
+        out.append((_ki_money(st_["value"]), "street target", "", tip))
+    else:
+        out.append((_KI_EMPTY, "street · no consensus on file", "none", "no consensus on file"))
+    mult = multiple if isinstance(multiple, dict) else {}
+    if mult.get("text"):
+        key = mult.get("label") or "multiple"
+        if mult.get("median_text"):
+            key += f" · median {mult['median_text']}"
+        place = multiple_place if isinstance(multiple_place, dict) else {}
+        tip = f"{place['place']} of {place['n']}" if place.get("place") and place.get("n") else ""
+        out.append((mult["text"], key, "", tip))
+    else:
+        out.append((_KI_EMPTY, "multiple · none on file", "none", "no multiple on file"))
+    return out
+
+
+def _ki_revenue(verdict: dict, record: dict) -> dict:
+    """The latest year's revenue as filed: {"figure": "58.7bn", "currency", "fy", "growth"}
+    from the forecast's reported rows in the currency they are filed in, else the payload's
+    FY0 in dollars; {} with neither."""
+    ver = verdict if isinstance(verdict, dict) else {}
+    rec = record if isinstance(record, dict) else {}
+    reported = [r for r in ver.get("reported_revenue") or [] if isinstance(r, dict)
+                and r.get("value") is not None and r.get("fiscal_year") is not None]
+    fy0 = (rec.get("periods") or {}).get("FY0") or {}
+    fy0_year = re.search(r"(\d{4})", str(fy0.get("label") or ""))
+    if reported and fy0_year and int(reported[-1]["fiscal_year"]) < int(fy0_year.group(1)):
+        # The last revenue filed is older than the latest year on file: that year had none.
+        return {"figure": "", "currency": "", "fy": f"FY{fy0_year.group(1)}", "growth": None,
+                "stale": f"FY{reported[-1]['fiscal_year']}"}
+    if reported:
+        last = reported[-1]
+        prev = reported[-2] if len(reported) > 1 else None
+        fig, unit = _ki_level(last["value"])
+        growth = None
+        # Growth off a base under a million is noise, not a rate a reader can use.
+        if prev and prev.get("value") and int(last["fiscal_year"]) - int(prev["fiscal_year"]) == 1 \
+                and abs(prev["value"]) >= 1 and abs(last["value"]) >= 1:
+            growth = last["value"] / prev["value"] - 1
+        return {"figure": f"{fig}{unit}",
+                "currency": rec.get("row_currency") or rec.get("reporting_currency") or "",
+                "fy": f"FY{last['fiscal_year']}", "growth": growth}
+    if fy0.get("revenue_usd_m"):
+        fig, unit = _ki_level(fy0["revenue_usd_m"])
+        return {"figure": f"{fig}{unit}", "currency": "USD", "fy": str(fy0.get("label") or ""),
+                "growth": None}
+    return {}
+
+
+def _ki_business_figures(record: dict, verdict: dict, company: dict, modelled: bool,
+                         exclusivities: list = None, failed: str = "") -> list:
+    """The business row under the market row, five cells of (value, key, tone, tip): the
+    market value, the year's revenue and its growth, the products on sale, the late-stage
+    compounds and every compound in trials."""
+    rec = record if isinstance(record, dict) else {}
+    ver = verdict if isinstance(verdict, dict) else {}
+    out = []
+    mkt = rec.get("market") or {}
+    cap = mkt.get("market_cap_usd_m")
+    # A failed read is said to have failed, never taken for a company with nothing on file.
+    lost = (lambda field: (_KI_EMPTY, f"{field} · did not load", "none", str(failed))) \
+        if failed and not rec else None
+    if lost and not cap:
+        out.append(lost("market cap"))
+    elif cap:
+        fig, unit = _ki_level(cap)
+        out.append((f"${fig}{unit}", "market cap", "",
+                    str(mkt.get("market_cap_basis_text") or "")))
+    else:
+        out.append((_KI_EMPTY, "market cap", "none", "no share count on file"))
+    rev = _ki_revenue(ver, rec)
+    if rev.get("stale"):
+        out.append((_KI_EMPTY, f"{rev['fy']} revenue", "none",
+                    f"no revenue filed for {rev['fy']}; the last filed is {rev['stale']}"))
+    elif rev:
+        sign = _KI_CURRENCY_SIGNS.get(rev.get("currency") or "")
+        key = " ".join(x for x in (rev.get("fy"), "revenue",
+                                   "" if sign else rev.get("currency")) if x)
+        if rev.get("growth") is not None:
+            key += f" · {_ki_signed_pct(rev['growth'])}"
+        tip = f"{rev.get('fy')} revenue as filed" + (
+            f", in {rev['currency']}" if rev.get("currency") else "")
+        out.append(((sign or "") + rev["figure"], key, "", tip))
+    else:
+        out.append((_KI_EMPTY, "revenue", "none", "no revenue on file"))
+    m = (ver.get("sotp") or {}).get("marketed") or {}
+    if modelled and m.get("n"):
+        out.append((f"{m['n']:,}", "product on sale" if m["n"] == 1 else "products on sale",
+                    "", "the products on sale the model counts"))
+    else:
+        names = {_ki_product(a.get("generic_name") or a.get("brand_name")).lower()
+                 for a in exclusivities or [] if isinstance(a, dict)
+                 and (a.get("brand_name") or a.get("generic_name"))}
+        if names:
+            out.append((f"{len(names):,}",
+                        "approved product" if len(names) == 1 else "approved products", "",
+                        "molecules with an FDA approval and an exclusivity record on file, "
+                        "a new formulation counted once"))
+        elif lost:
+            out.append(lost("products on sale"))
+        else:
+            out.append((_KI_EMPTY, "products on sale", "none",
+                        "no approved product on file"))
+    pipe = ((rec.get("detail") or {}).get("pipeline") or {}).get("compounds") or {}
+    if pipe:
+        late = (pipe.get("Phase 3") or 0) + (pipe.get("Phase 2/3") or 0)
+        # Phase 4 compounds are approved products, counted under the products on sale.
+        total = sum(v for k, v in pipe.items() if isinstance(v, (int, float))
+                    and k in _KI_STAGE_RANK)
+        metric = _ki_metric(company, ("late_compounds",)) if company else None
+        out.append((f"{late:,}", "late-stage", "",
+                    " · ".join(x for x in ("compounds in Phase 3 or Phase 2/3",
+                                           _ki_place(metric)) if x)))
+        out.append((f"{total:,}", "in trials", "",
+                    "every compound in Phase 1 to Phase 3 with a trial on file"))
+    elif lost:
+        out += [lost("late-stage"), lost("in trials")]
+    else:
+        out.append((_KI_EMPTY, "late-stage", "none", "no trials on file"))
+        out.append((_KI_EMPTY, "in trials", "none", "no trials on file"))
+    return out
+
+
+def _ki_call_html(call: dict, figures: list, business: list = None) -> str:
+    """The call: key, then the rating word, the value and the move on one baseline, the
+    range under them, then two rows of five figure cells, the market and the business.
+    Keeps the page's .pos class."""
+    word = (f'<span class="ki-word {call.get("word_tone") or "neutral"}" '
+            f'title="{_ki_attr(call.get("word_tip"))}">{html_escape(call["word"])}</span>'
+            if call.get("word") else "")
+    fig_cls = "ki-fig none" if call.get("value") == _KI_EMPTY else "ki-fig"
+    fig = (f'<span class="{fig_cls}" title="{_ki_attr(call.get("tip"))}">'
+           f'{html_escape(call["value"])}</span>' if call.get("value") else "")
+    move = (f'<span class="ki-move {call.get("move_tone") or ""}">'
+            f'{html_escape(call["move"])}</span>' if call.get("move") else "")
+    note = (f'<span class="ki-note-tag" title="{_ki_attr(call.get("note_tip"))}">'
+            f'{html_escape(call["note"])}</span>' if call.get("note") else "")
+    # With a value the sub line sits on the lead's baseline, which keeps the call level
+    # with the chart beside it; without one it is the lead.
+    sub_cls = "ki-sub" if call.get("value") else "ki-sub ki-sub-lead"
+    sub_tag = "span" if call.get("value") else "div"
+    sub = (f'<{sub_tag} class="{sub_cls}" title="{_ki_attr(call.get("tip"))}">'
+           f'{html_escape(call["sub"])}</{sub_tag}>' if call.get("sub") else "")
+    def cells(rows):
+        return "".join(
+            f'<div class="ki-f" title="{_ki_attr(tip)}"><span class="v {tone}">'
+            f'{html_escape(value)}</span><span class="k">{html_escape(key)}</span></div>'
+            for value, key, tone, tip in rows)
+    biz = f'<div class="ki-figs ki-biz">{cells(business)}</div>' if business else ""
+    return (f'<div class="pos ki-call"><div class="ki-k">{html_escape(call["key"])}</div>'
+            f'<div class="ki-lead">{word}{fig}{move}{note}'
+            f'{sub if sub_tag == "span" else ""}</div>{"" if sub_tag == "span" else sub}'
+            f'<div class="ki-figs">{cells(figures)}</div>{biz}</div>')
+
+
+def _ki_plural(n, one: str, many: str = None) -> str:
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def _ki_bridge(sotp: dict, forward_check=None) -> dict:
+    """The twelve-month value as a bridge, from what is sold to the twelve-month figure,
+    each step named by what it is and its sign: growth capital always takes off, net cash
+    adds and net debt takes off, other claims folded into the second. It is drawn only
+    where it adds up: today's end to the equity (or, with no debt on file, the enterprise
+    value), the end to the twelve-month value and that to the rating's, each to the cent.
+    {ok, steps, end, reason}."""
+    s = sotp if isinstance(sotp, dict) else {}
+    m = (s.get("marketed") or {}).get("per_share")
+    if m is None:
+        return {"ok": False, "steps": [], "end": None, "reason": "no sum of the parts"}
+    n_m = (s.get("marketed") or {}).get("n") or 0
+    steps = [{"label": "marketed", "value": m, "kind": "start",
+              "tip": f"{_ki_plural(n_m, 'product')} on the market"}]
+    run = m
+    p = s.get("pipeline") or {}
+    if p.get("n"):
+        v = p.get("per_share") or 0.0
+        steps.append({"label": "pipeline", "value": v, "kind": "step",
+                      "tip": f"{_ki_plural(p['n'], 'candidate')} after their chance of "
+                             "approval"})
+        run += v
+    ln = s.get("lines") or {}
+    if ln.get("n"):
+        v = ln.get("per_share") or 0.0
+        steps.append({"label": "lines", "value": v, "kind": "step",
+                      "tip": f"{_ki_plural(ln['n'], 'revenue line')} no product model holds"})
+        run += v
+    fut = (s.get("future") or {}).get("per_share")
+    steps.append({"label": "launches", "value": fut, "kind": "step",
+                  "tip": "launches past the modelled pipeline, from R&D"})
+    run += fut or 0.0
+    carry = s.get("carry_per_share")
+    if carry:
+        tip = "carried to the close"
+        if s.get("valuation_anchor") and s.get("years_to_price") is not None:
+            tip = (f"valued at {s['valuation_anchor']}, carried {s['years_to_price']:.2f}y "
+                   f"to the {s.get('price_date') or ''} close").replace("  ", " ")
+        steps.append({"label": "to today", "value": carry, "kind": "step", "tip": tip})
+        run += carry
+    growth = (s.get("growth_investment") or {}).get("per_share")
+    if growth:
+        steps.append({"label": "growth capital", "value": -abs(growth), "kind": "step",
+                      "tip": "plant and working capital the growth needs"})
+        run -= abs(growth)
+    claims = s.get("other_claims_per_share") or 0.0
+    net = s.get("net_cash_per_share")
+    if net is None:
+        if claims:
+            steps.append({"label": "other claims", "value": claims, "kind": "step",
+                          "tip": "other claims on the business"})
+            run += claims
+        steps.append({"label": "EV today", "kind": "end"})
+        ev = s.get("enterprise_today_per_share")
+        if ev is None or abs(run - ev) > 0.01:
+            return {"ok": False, "steps": [], "end": None,
+                    "reason": "the enterprise value does not reconcile"}
+        return {"ok": True, "steps": steps, "end": run, "reason": None}
+    balance = net + claims
+    label = "net cash" if balance >= 0 else "net debt"
+    tip = f"{'net cash' if net >= 0 else 'net debt'} {_ki_money(net)}"
+    if claims:
+        tip += f", other claims {_ki_money(claims)}"
+    steps.append({"label": label, "value": balance, "kind": "step", "tip": tip})
+    run += balance
+    steps.append({"label": "today", "kind": "end"})
+    eq = s.get("equity_per_share")
+    if eq is None or abs(run - eq) > 0.01:
+        return {"ok": False, "steps": [], "end": None, "reason": "today does not reconcile"}
+    fwd = s.get("forward_12m")
+    coe, dps = s.get("cost_of_equity"), s.get("dps") or 0.0
+    if fwd is None or coe is None:
+        return {"ok": True, "steps": steps, "end": eq, "reason": None}
+    year = eq * coe - dps
+    if abs(eq + year - fwd) > 0.01 or (forward_check is not None
+                                       and abs(fwd - forward_check) > 0.01):
+        return {"ok": False, "steps": [], "end": None,
+                "reason": "the twelve-month value does not reconcile"}
+    tip = f"{coe:.1%} cost of equity {_ki_money(eq * coe)}"
+    if dps:
+        tip += f", less the {_ki_money(dps)} dividend"
+    steps += [{"label": "a year on", "value": year, "kind": "step", "tip": tip},
+              {"label": "12 months", "kind": "end"}]
+    return {"ok": True, "steps": steps, "end": fwd, "reason": None}
+
+
+def _ki_lever_text(kind: str, value, key: str = "") -> str:
+    """A lever's setting as the breaks print it: a rate to two places of a percent, launch
+    productivity as a ratio, years with a y."""
+    if value is None:
+        return _KI_EMPTY
+    if value < 0:
+        return _KI_MINUS + _ki_lever_text(kind, abs(value), key)
+    if key == "launch_rate":
+        return f"{value:.3f} per R&D $"
+    if kind == "year":
+        return f"{int(value)}"
+    if kind == "years":
+        return f"{int(value)}y" if float(value).is_integer() else f"{value:.1f}y"
+    if kind == "level":
+        return f"${value:,.0f}mm"
+    if kind == "scale":
+        return f"×{value:.2f}"
+    if kind == "price":
+        return f"${value * 1e6:,.0f}"
+    return f"{value:.2%}"
+
+
+def _ki_breaks(bp: dict, shown: int = _KI_BREAKS_SHOWN) -> dict:
+    """The nearest levers that alone take today's value to the price: {head, rows, tip}."""
+    bp = bp if isinstance(bp, dict) else {}
+    if not bp.get("ok"):
+        return {}
+    levers = [l for l in bp.get("levers") or [] if isinstance(l, dict)
+              and l.get("reachable") and l.get("break") is not None
+              and l.get("model") is not None]
+    levers.sort(key=lambda l: l.get("distance") if l.get("distance") is not None else 1e9)
+    if not levers:
+        return {}
+    eq, close = bp.get("equity_per_share"), bp.get("close")
+    head = (f"Today's {_ki_money(eq)} meets the {_ki_money(close)} price at"
+            if bp.get("direction") == "down" else f"The {_ki_money(close)} price needs")
+    rows = []
+    for l in levers[:shown]:
+        name = (l.get("lever") if l.get("scope") == "company"
+                else f"{_ki_product(l.get('name'))}'s {l.get('lever')}")
+        rows.append({"glyph": "▼" if l["break"] < l["model"] else "▲", "name": name,
+                     "model": _ki_lever_text(l.get("kind"), l["model"], l.get("key") or ""),
+                     "brk": _ki_lever_text(l.get("kind"), l["break"], l.get("key") or ""),
+                     "tip": " · ".join(str(x) for x in (l.get("evidence"),
+                                                       l.get("evidence_class")) if x)})
+    body = (bp.get("sentence") or {}).get("body") or []
+    return {"head": head, "rows": rows, "tip": " ".join(str(b) for b in body)}
+
+
+def _ki_street_expects(record: dict) -> list:
+    """The street's EPS for the next two years, when there is no model: (value, key)."""
+    eps = ((record or {}).get("street") or {}).get("eps_first") or {}
+    out = []
+    for key in ("FY1", "FY2"):
+        e = eps.get(key) if isinstance(eps.get(key), dict) else {}
+        if e.get("value") is not None:
+            label = ((record or {}).get("periods") or {}).get(key, {}).get("label") or key
+            out.append((_ki_money(e["value"]), f"{label} EPS, street"))
+    return out
+
+
+def _ki_metric(company: dict, ids: tuple) -> dict:
+    """The first of ``ids`` with a value, searched across every pillar and then the
+    measures a cohort reports without scoring (a commercial biotech's exclusivity), else the
+    first of them present (with its reason), else None."""
+    found = {}
+    for p in ((company or {}).get("pillars") or {}).values():
+        for m in (p or {}).get("metrics") or []:
+            if isinstance(m, dict) and m.get("id") in ids:
+                found.setdefault(m["id"], m)
+    for m in (((company or {}).get("facts") or {}).get("other_metrics") or []):
+        if isinstance(m, dict) and m.get("id") in ids:
+            found.setdefault(m["id"], m)
+    for i in ids:
+        if found.get(i) and found[i].get("value") is not None:
+            return found[i]
+    return next((found[i] for i in ids if i in found), None)
+
+
+def _ki_reason(metric: dict, reasons: dict = None) -> str:
+    """Why a measure has no value, in words: the metric's own filled sentence, else the
+    method's where it is not a template, else its key."""
+    m = metric or {}
+    if m.get("reason_text"):
+        return str(m["reason_text"])
+    r = m.get("reason")
+    text = (reasons or {}).get(r) if r else None
+    if text and "{" not in str(text):
+        return str(text)
+    return str(r or "no value on file").replace("_", " ")
+
+
+def _ki_place(metric: dict) -> str:
+    m = metric or {}
+    return f"{m['place']} of {m['n']}" if m.get("place") and m.get("n") else ""
+
+
+def _ki_peer_row(board: dict, ticker: str, metric: dict) -> dict:
+    """One measure across the cohort: the company's value and place, every peer's value
+    for the dot strip, the median and the tone of the company's dot."""
+    board = board if isinstance(board, dict) else {}
+    method = (board.get("method") or {}).get("metrics") or {}
+    reasons = (board.get("method") or {}).get("reasons") or {}
+    companies = board.get("companies") or {}
+    me = companies.get(ticker) or {}
+    mid = (metric or {}).get("id")
+    meta = method.get(mid) or {}
+    peers = []
+    for t, c in companies.items():
+        if not isinstance(c, dict) or c.get("cohort") != me.get("cohort") or t == ticker:
+            continue
+        m = _ki_metric(c, (mid,))
+        if m and m.get("value") is not None:
+            peers.append({"ticker": t, "value": m["value"], "text": m.get("text") or ""})
+    cohort = (board.get("cohorts") or {}).get(me.get("cohort")) or {}
+    score = (metric or {}).get("score")
+    tone = "up" if score is not None and score >= 75 else (
+        "down" if score is not None and score <= 25 else "neutral")
+    reason = _ki_reason(metric, reasons) if (metric or {}).get("value") is None else None
+    return {"id": mid, "label": _KI_SHORT.get(mid) or meta.get("label") or mid,
+            "full_label": meta.get("label") or mid, "text": (metric or {}).get("text"),
+            "place_text": _ki_place(metric), "value": (metric or {}).get("value"),
+            "better": meta.get("better") or "higher",
+            "median": (cohort.get("metric_medians") or {}).get(mid), "tone": tone,
+            "peers": peers, "reason": reason}
+
+
+def _ki_mix_segments(products: dict, fy0: dict, shown: int = 5) -> list:
+    """The top products' shares of revenue and the rest, on the Portfolio donut's basis."""
+    p = products if isinstance(products, dict) else {}
+    seen: dict = {}
+    for r in p.get("rows") or []:
+        if isinstance(r, dict) and r.get("value_usd_m"):
+            name = _ki_product(r.get("name")).lower()
+            if name not in seen or r["value_usd_m"] > seen[name]["value_usd_m"]:
+                seen[name] = r          # LNTH filed Definity twice: one row a product
+    rows = sorted(seen.values(), key=lambda r: -r["value_usd_m"])
+    if not rows:
+        return []
+    product_total = sum(r["value_usd_m"] for r in rows) + (p.get("unattributed_usd_m") or 0.0)
+    total = (fy0 or {}).get("revenue_usd_m")
+    label = str((fy0 or {}).get("label") or "")
+    if (not total or str(p.get("fiscal_year")) not in label
+            or sum(r["value_usd_m"] for r in rows[:shown]) > total):
+        total = product_total
+    out = []
+    for i, r in enumerate(rows[:shown]):
+        share = r["value_usd_m"] / total
+        name = _ki_product(r.get("name"))
+        out.append({"value": r["value_usd_m"], "key": f"m{i}", "label": name,
+                    "sub": f"{share:.0%}", "tip": f"{name} {share:.1%} of revenue"})
+    rest = total - sum(r["value_usd_m"] for r in rows[:shown])
+    if rest > 0:
+        out.append({"value": rest, "key": "rest", "label": "rest",
+                    "sub": f"{rest / total:.0%}", "tip": f"the rest {rest / total:.1%}"})
+    return out
+
+
+def _ki_level(value_mm) -> tuple:
+    """(figure, unit) for revenue in millions: ("58.7", "bn") or ("940", "mm")."""
+    if value_mm is None:
+        return _KI_EMPTY, ""
+    if abs(value_mm) >= 1000:
+        return f"{value_mm / 1000:,.1f}", "bn"
+    if value_mm == 0:
+        return "0", ""
+    if abs(value_mm) < 1:
+        return f"{value_mm * 1000:,.0f}", "k"
+    return f"{value_mm:,.0f}", "mm"
+
+
+def _ki_pct_words(x, up: str = "up", down: str = "down") -> str:
+    """"down 2.3%" / "up 0.4%" / "flat"."""
+    if x is None:
+        return ""
+    if round(abs(x) * 100, 1) == 0:
+        return "flat"
+    return f"{up if x > 0 else down} {abs(x) * 100:.1f}%"
+
+
+def _ki_month_move(series: dict, days: int = 30):
+    """The move over the last ``days`` of the year series, or None."""
+    dates, closes = (series or {}).get("dates") or [], (series or {}).get("closes") or []
+    if len(dates) < 2:
+        return None
+    last = dt.date.fromisoformat(dates[-1])
+    since = (last - dt.timedelta(days=days)).isoformat()
+    for d, c in zip(dates, closes):
+        if d >= since and c:
+            return closes[-1] / c - 1 if d < dates[-1] else None
+    return None
+
+
+def _ki_rel_words(metric: dict) -> str:
+    """"24 points behind the sector (XLV)" from the scorecard's relative measure."""
+    m = metric or {}
+    if m.get("value") is None:
+        return ""
+    pts = round(abs(m["value"]) * 100)
+    if pts == 0:
+        return "in line with the sector (XLV)"
+    return f"{_ki_points(pts)} {'ahead of' if m['value'] > 0 else 'behind'} the sector (XLV)"
+
+
+def _ki_points(n) -> str:
+    """"1 point", "24 points"."""
+    return f"{n} point" if n == 1 else f"{n} points"
+
+
+def _ki_unit_once(model, brk) -> str:
+    """The model's figure without the unit the break-point beside it already says:
+    "0.362" beside "0.307 per R&D $"."""
+    m, b = str(model or ""), str(brk or "")
+    unit = re.sub(r"^[−\-+]?[\d.,]+", "", b)
+    if unit.strip() and not unit.startswith(("%", "y")) and m.endswith(unit):
+        return m[:-len(unit)]
+    return m
+
+
+def _ki_span_words(days) -> str:
+    """"98 days", "14 months", "4 years": a slip at the scale a reader thinks in."""
+    if days is None:
+        return ""
+    if days < 60:
+        return _ki_plural(days, "day")
+    if days < 730:
+        return _ki_plural(round(days / 30.44), "month")
+    years = days / 365.25
+    return _ki_plural(round(years), "year") if abs(years - round(years)) < 0.15 \
+        else f"{years:.1f} years"
+
+
+def _ki_event_words(item: dict, ticker: str, cut: bool = True) -> str:
+    """A change as a clause of prose with its day: a press headline as published, less a
+    bracketed preamble, the company's own "announces", trademark signs and an appositive
+    that holds the result back, then cut at a clause or a word; "a new FDA indication for
+    Truqap"; "FDA approval of Etcamah"; "an 8-K filing (material agreement signed)"; "CMS
+    chose Botox for Medicare price negotiation (IPAY 2028)"; "a trial (NCT…) moved from
+    Phase 2 to Phase 2/3". ``cut`` False keeps the headline whole, as the note model's facts
+    need it, less any review note the feed carries for the analyst."""
+    head = re.sub(r"^\[[^\]]*\]\s*", "", _ki_headline(item, ticker))
+    head = re.sub(r"\.?\s*Review:.*$", "", head).strip()
+    head = re.sub(r"\s*[®™©]", "", head)
+    for long, short in _KI_SHORT_WORDS:
+        head = head.replace(long, short)
+    head = re.sub(r"\b[Pp]ivotal\s+", "", head)        # a word house style never uses
+    when = _ki_short_day(item.get("date"))
+    m_sup = re.match(r"^Efficacy supplement: (.+?) approved(?: (\d{4}-\d{2}-\d{2}))?", head)
+    m_new = re.match(r"^FDA approval: (.+?)(?: \([A-Z]{2,4}\s?\d+\))?$", head)
+    m_form = re.match(r"^(8-K|6-K|10-Q|10-K|20-F): (.+)$", head)
+    m_phase = re.match(r"^Trial (NCT\d{8}): (Phase [^>]+?) -> (Phase .+)$", head)
+    m_end = re.match(r"^Trial (NCT\d{8}): endpoint_change$", head)
+    m_slip = re.search(r"(NCT\d{8}).*?slips", head)
+    m_sel = re.match(r"^CMS selects? .*?price negotiation\W*(IPAY \d{4})?\W*:\s*(.+)$", head, re.I)
+    m_desel = re.match(r"^CMS has deselected (.+?) from Medicare", head, re.I)
+    if m_sup:
+        text = f"a new FDA indication for {m_sup.group(1)}"
+        when = _ki_short_day(m_sup.group(2)) or when
+    elif m_new:
+        text = f"FDA approval of {m_new.group(1)}"
+    elif m_form:
+        items = [x.strip() for x in m_form.group(2).split(",") if x.strip()]
+        extra = 0
+        tail = re.match(r"^and (\d+) more$", items[-1]) if items else None
+        if tail:
+            extra, items = int(tail.group(1)), items[:-1]
+        listed = [x[:1].lower() + x[1:] for x in items] or ["no item named"]
+        others = len(listed) - 1 + extra
+        if others == 1 and not extra:         # two items are both said
+            inner = f"{listed[0]} and {listed[1]}"
+        elif others:
+            inner = f"{listed[0]}, {_ki_plural(others, 'other item')}"
+        else:
+            inner = listed[0]
+        article = "an" if m_form.group(1)[0] == "8" else "a"
+        text = f"{article} {m_form.group(1)} filing ({inner})"
+        if cut and len(text) > _KI_NEWS_CHARS + 18:
+            # The items are the news: they are cut, never the filing they are in.
+            room = _KI_NEWS_CHARS + 18 - len(f"{article} {m_form.group(1)} filing ()") - 1
+            inner = inner[:room]
+            inner = inner[:inner.rfind(" ")] if " " in inner else inner
+            text = f"{article} {m_form.group(1)} filing ({inner.rstrip(' ,;:')}…)"
+    elif m_sel:
+        names = _ki_join([_ki_soft_caps(x) for x in re.split(r";\s*|,\s*", m_sel.group(2))
+                          if x.strip()])
+        text = (f"CMS chose {names} for Medicare price negotiation"
+                + (f", with prices from {m_sel.group(1)[-4:]}" if m_sel.group(1) else ""))
+    elif m_desel:
+        names = _ki_join(list(dict.fromkeys(
+            _ki_soft_caps(x) for x in re.split(r";\s*", m_desel.group(1)) if x.strip())))
+        text = f"CMS dropped {names} from Medicare price negotiation"
+    elif m_phase:
+        text = f"a trial ({m_phase.group(1)}) moved from {m_phase.group(2)} to {m_phase.group(3)}"
+    elif m_end:
+        text = f"a trial ({m_end.group(1)}) changed its primary endpoint"
+    elif m_slip and _ki_slip_days(item) is not None:
+        text = f"a readout ({m_slip.group(1)}) slipped {_ki_slip_days(item)} days"
+    else:
+        text = head
+        letters = [c for c in text if c.isalpha()]
+        if letters and sum(c.isupper() for c in letters) > 0.7 * len(letters):
+            text = re.sub(r"\b(fda|ema|eu|cms|bla|nda|snda|sbla|maa|us|uk|glp-1|gip|adc|"
+                          r"chmp|mhra|nice|pdufa|ii|iii)\b",
+                          lambda m: m.group(1).upper(), text.lower())
+            text = text[:1].upper() + text[1:]
+        if cut:
+            short = _KI_PREAMBLE.sub("", text, count=1)
+            if short != text and len(short) > 12:
+                text = short[:1].upper() + short[1:]
+            text = _KI_APPOSITIVE.sub(" ", text, count=1)
+    if cut and len(text) > _KI_NEWS_CHARS and not (m_form or m_sel or m_desel):
+        room = text[:_KI_NEWS_CHARS - 1]
+        clause = max(room.rfind(", "), room.rfind(" to "), room.rfind(" and "))
+        stop = clause if clause > _KI_NEWS_CHARS * 0.6 else room.rfind(" ")
+        text = (room[:stop] if stop > 0 else room).rstrip(" ,;:")
+        if text.count("(") > text.count(")"):          # never end inside brackets
+            text = text[:text.rfind("(")].rstrip(" ,;:")
+        text += "…"
+    return f"{text} ({when})" if when else text
+
+
+def _ki_soft_caps(name) -> str:
+    """A name the feed shouts ("ENTRESTO SPRINKLE") as a name ("Entresto Sprinkle")."""
+    name = str(name or "").strip()
+    return name.title() if name.isupper() and len(name) > 3 else name
+
+
+def _ki_short_day(iso) -> str:
+    """"28 Sep" from "2026-09-28 07:37:14": inside the month the year goes without saying."""
+    m = re.match(r"^\d{4}-(\d{2})-(\d{2})", str(iso or ""))
+    if not m or not 1 <= int(m.group(1)) <= 12:
+        return ""
+    return f"{int(m.group(2))} {_KI_MONTHS[int(m.group(1)) - 1]}"
+
+
+def _ki_slip_days(item: dict):
+    """The days a slip moved its readout, from the headline's two dates, or None."""
+    m = re.search(r"slips (\d{4}-\d{2}(?:-\d{2})?) -> (\d{4}-\d{2}(?:-\d{2})?)",
+                  str((item or {}).get("headline") or ""))
+    if not m:
+        return None
+    try:
+        a, b = (dt.date.fromisoformat(x if len(x) == 10 else x + "-01") for x in m.groups())
+    except ValueError:
+        return None
+    return (b - a).days
+
+
+def _ki_count_word(n: int) -> str:
+    return _KI_COUNT_WORDS[n] if 0 <= n < len(_KI_COUNT_WORDS) else str(n)
+
+
+def _ki_news_tone(item: dict) -> str:
+    """"up", "down" or "": how a change reads for the holder, from its kind and, for a
+    readout, its own words. A judgement on the news, never on what the price did."""
+    ct = (item or {}).get("change_type") or ""
+    head = str((item or {}).get("headline") or "")
+    if ct == "press_data_readout":
+        if re.search(r"did not|not meet|fail|discontinu|halt|futil|negative|unlikely to",
+                     head, re.I):
+            return "down"
+        if re.search(r"\bmet\b|positive|significant|improv|superior|success", head, re.I):
+            return "up"
+        return ""
+    if ct == "press_approval" and not _ki_is_approval(head):
+        return ""
+    # A deselection follows a generic's entry: a loss of exclusivity, not good news.
+    return {"press_approval": "up", "new_approval": "up", "efficacy_supplement": "up",
+            "ira_selected": "down", "date_slip": "down"}.get(ct, "")
+
+
+def _ki_is_approval(headline) -> bool:
+    """A release the feed files as an approval that reports one: not a board appointment
+    "toward potential FDA approval", nor an approval still ahead."""
+    head = str(headline or "")
+    if re.search(r"\bappoints?\b|board of directors|toward potential|potential (?:FDA )?"
+                 r"approval|seeks? approval|accepts? .*(?:application|filing)", head, re.I):
+        return False
+    return bool(re.search(r"approv|authori[sz]|clearance|cleared", head, re.I))
+
+
+def _ki_join(parts: list) -> str:
+    parts = [p for p in parts if p]
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+_KI_BANNED = re.compile(r"\b(?:additionally|highlight\w*|underscor\w*|pivotal|showcas\w*|"
+                        r"testament)\b", re.I)
+
+
+def _ki_month_news(changes: list, ticker: str, limit: int = _KI_NEWS_SAID) -> dict:
+    """The month's company news for the note: {"said": [clauses as shown], "full": [the
+    same, headlines whole], "tones": [how each reads for the holder], "more", "slips": n,
+    "longest": days, "quiet": n}. The kinds likeliest to bear on a price come first
+    (results, deals and policy, then approvals), at most _KI_NEWS_SAID; new indications
+    are said in one clause; an FDA approval the company's own release already says, and a
+    filing the feed carries twice, are said once. Changes rated high come first; a month
+    with none says its press releases and FDA news rated medium. "quiet" counts the news
+    on file that is said in neither, so the note never calls a month without news.
+
+    Slips are counted, not listed, since they move a date far more often than a price:
+    one a trial, from its earliest date to its latest, and only where the readout was
+    still ahead when it moved. A correction to a date already past is not a slip."""
+    news = [it for it in changes or [] if isinstance(it, dict) and it.get("kind") != "market"]
+    level = lambda it: it.get("significance") or "high"
+    high = [it for it in news if level(it) == "high"]
+    slips = [it for it in high if it.get("change_type") == "date_slip"]
+    rest = [it for it in high if it.get("change_type") != "date_slip"]
+    if not rest:
+        rest = [it for it in news if level(it) == "medium" and any(
+            str(it.get("change_type") or "").startswith(k) for k in _KI_NEWS_MEDIUM)]
+    sups, ranked, seen, press = [], [], set(), []
+    for it in rest:
+        if it.get("change_type") == "press_approval" and _ki_is_approval(it.get("headline")):
+            press.append(_ki_event_words(it, ticker).lower())
+    for it in rest:
+        ct = it.get("change_type") or ""
+        if ct == "efficacy_supplement":
+            m = re.match(r"^Efficacy supplement: (.+?) approved(?: (\d{4}-\d{2}-\d{2}))?",
+                         _ki_headline(it, ticker))
+            if m:
+                sups.append((m.group(1), m.group(2) or str(it.get("date") or "")[:10]))
+                continue
+        if ct == "new_approval":
+            m = re.match(r"^FDA approval: (.+?)(?: \(|$)", _ki_headline(it, ticker))
+            if m and any(m.group(1).lower() in p for p in press):
+                continue
+        said = _ki_event_words(it, ticker)
+        # The note quotes a headline as published and cannot reword it, so one in a word
+        # the house style bars ("Alexion to showcase Phase III data") is passed over.
+        if _KI_BANNED.search(said):
+            continue
+        key = re.sub(r" \(\d{1,2} [A-Z][a-z]{2}\)$", "", said)
+        if key in seen:
+            continue
+        seen.add(key)
+        order = _KI_NEWS_ORDER.get(ct, 5)
+        if ct == "press_approval" and not _ki_is_approval(it.get("headline")):
+            order = 5
+        ranked.append((order, str(it.get("date") or "")[:10], said,
+                       _ki_event_words(it, ticker, cut=False), _ki_news_tone(it)))
+    if sups:
+        names = list(dict.fromkeys(name for name, _ in sups))
+        days = sorted(d for _, d in sups if d)
+        span = ""
+        if days:
+            lo, hi = _ki_short_day(days[0]), _ki_short_day(days[-1])
+            if lo == hi:
+                span = lo
+            elif lo.split(" ")[1] == hi.split(" ")[1]:
+                span = f"{lo.split(' ')[0]} to {hi}"
+            else:
+                span = f"{lo} to {hi}"
+        said = (f"a new FDA indication for {names[0]}" if len(names) == 1 else
+                f"new FDA indications for {_ki_join(names)}")
+        said = f"{said} ({span})" if span else said
+        ranked.append((_KI_NEWS_ORDER["efficacy_supplement"], days[-1] if days else "",
+                       said, said, "up"))
+    ranked.sort(key=lambda r: r[1], reverse=True)
+    ranked.sort(key=lambda r: r[0])
+    trials = {}
+    for it in slips:
+        m = re.search(r"(NCT\d{8}).*?slips (\d{4}-\d{2}(?:-\d{2})?) -> "
+                      r"(\d{4}-\d{2}(?:-\d{2})?)", str(it.get("headline") or ""))
+        if not m:
+            trials.setdefault(id(it), None)
+            continue
+        nct, old, new = m.groups()
+        seen_on = str(it.get("date") or "")[:10]
+        if seen_on and old[:len(seen_on)] < seen_on[:len(old)]:
+            continue                        # the date had passed: a correction, not a slip
+        lo, hi = trials.get(nct) or (old, new)
+        trials[nct] = (min(lo, old), max(hi, new))
+
+    def span_days(pair):
+        if not pair:
+            return None
+        try:
+            a, b = (dt.date.fromisoformat(x if len(x) == 10 else x + "-01") for x in pair)
+        except ValueError:
+            return None
+        return (b - a).days
+    longest = max((d for d in (span_days(p) for p in trials.values()) if d is not None),
+                  default=None)
+    top = ranked[:limit]
+    quiet = 0 if ranked else sum(1 for it in news if it.get("change_type") != "date_slip")
+    return {"said": [r[2] for r in top], "full": [r[3] for r in top],
+            "tones": [r[4] for r in top], "more": max(0, len(ranked) - limit),
+            "slips": len(trials), "longest": longest, "quiet": quiet}
+
+
+def _ki_brief(ticker: str, series: dict, rated: dict, call: dict, rel_3m: dict,
+              rel_1y: dict, changes: list, sotp: dict, assets: dict, breaks: dict,
+              events: list, risks: list, company: dict, cohort: dict, street: dict = None,
+              modelled: bool = True, unrated: str = "", failed: str = "",
+              rel_1m: float = None, expiries: dict = None,
+              rating_failed: str = "", coverage: dict = None,
+              business: list = None, news_said: int = _KI_NEWS_SAID) -> dict:
+    """The morning note, reasoned from the figures the tab shows, in three paragraphs.
+    1. The call, and what the price pays for against the model. 2. The trading, with the
+    month's news set beside the move. 3. What the value rests on and what would break
+    it, what the next readouts test, the nearest loss of exclusivity (the first row of the
+    list beside it), and the standing against the cohort. {"paragraphs", "lead" (the
+    opening sentence), "facts" (labelled lines for the note model, headlines whole)}.
+
+    Judgement is drawn only from the figures: what the price pays for, whether a readout
+    tests the pipeline or a product already sold, whether growth costs margin. A move is
+    never given a cause: news is set beside it. ``coverage`` is the forecast's share of
+    revenue it models; ``business`` the business row, read where nothing else is said."""
+    series = series or {}
+    rated = rated if isinstance(rated, dict) else {}
+    s = sotp or {}
+    paras, facts = [], []
+    close = series.get("close") if series.get("close") is not None else rated.get("close")
+    rated_ok = bool(rated.get("ok")) and rated.get("forward_12m") is not None
+    tgt = (street or {}).get("value") if isinstance(street, dict) else None
+    m, p, fut = (s.get("marketed") or {}), (s.get("pipeline") or {}), (s.get("future") or {})
+    net = s.get("net_cash_per_share")
+
+    def street_line():
+        return (f"The street's mean target is {_ki_money(tgt)}, "
+                f"{_ki_pct_words(tgt / close - 1)} on the {_ki_money(close)} close.")
+
+    # 1. The call, and what the price pays for.
+    p1 = []
+    if modelled and rated_ok:
+        fwd, up, word = rated["forward_12m"], rated.get("upside_12m") or 0.0, rated.get("rating")
+        lead = (f"{word + ', with a' if word else 'A'} 12-month value of {_ki_money(fwd)}, "
+                f"{abs(up) * 100:.1f}% {'above' if up >= 0 else 'below'} the "
+                f"{_ki_money(close)} close.")
+        p1.append(lead)
+        facts.append(f"rating: {word or 'none'}; 12-month value {_ki_money(fwd)}, "
+                     f"{_ki_signed_pct(up)} on the close {_ki_money(close)}")
+        mid = rated.get("value_today")
+        ahead = (fut.get("per_share") or 0.0) + (p.get("per_share") or 0.0)
+        if m.get("n") == 0:
+            # Nothing on sale is valued: a price-implied split would set the price against
+            # net cash and the pipeline alone, which says nothing about the business.
+            parts = [f"{what} ({_ki_money(v)}{' a share' if i == 0 else ''})"
+                     for i, (v, what) in enumerate((x for x in (
+                         (net if (net or 0) > 0 else None, "net cash"),
+                         (p.get("per_share"), "the pipeline"),
+                         (fut.get("per_share"), "future launches")) if x[0]))]
+            debt = (f", less net debt of {_ki_money(-net)} a share" if net and net < 0 else "")
+            p1.append("The model values none of the products on sale"
+                      + (f": its value is {_ki_join(parts)}{debt}." if parts else "."))
+            facts.append("the model values none of the products on sale")
+        elif mid is not None and close and ahead > 0:
+            base = mid - ahead
+            implied = close - base
+            what = ("the products on sale and net cash" if (net or 0) >= 0
+                    else "the products on sale net of debt")
+            if base <= 0:
+                p1.append(f"Debt outweighs the products on sale, so the price is a bet on the "
+                          f"pipeline and future launches, which the model puts at "
+                          f"{_ki_money(ahead)} a share.")
+            elif implied <= 0:
+                p1.append(f"The price is below the {_ki_money(base)} of {what}, so it gives "
+                          f"nothing for the {_ki_money(ahead)} the model puts on the pipeline "
+                          "and future launches.")
+            elif implied < ahead:
+                p1.append(f"The price pays for {what} ({_ki_money(base)}) and "
+                          f"{implied / ahead:.0%} of the model's {_ki_money(ahead)} for the "
+                          f"pipeline and future launches, leaving {_ki_money(ahead - implied)} "
+                          "a share unpriced.")
+            else:
+                p1.append(f"After {_ki_money(base)} for {what}, the price asks "
+                          f"{_ki_money(implied)} for the pipeline and future launches, "
+                          f"{implied / ahead:.1f} times the model's {_ki_money(ahead)}.")
+            facts.append(f"today's value {_ki_money(mid)}: {what} "
+                         f"{_ki_money(base)}, pipeline and future launches {_ki_money(ahead)}; "
+                         f"the price implies {_ki_money(implied)} for the pipeline and launches")
+        cover = (coverage or {}).get("share") if isinstance(coverage, dict) else None
+        if cover is not None and m.get("n") and cover < 0.9:
+            p1.append(f"The model covers {cover:.0%} of revenue, so {1 - cover:.0%} of it is "
+                      "not in the value.")
+            facts.append(f"the model covers {cover:.0%} of revenue")
+    elif modelled and rating_failed:
+        lead = (f"The rating did not load ({str(rating_failed).rstrip('.')}), so the note has "
+                "no 12-month value to set against the price.")
+        p1.append(lead)
+        facts.append("rating: did not load")
+    elif modelled:
+        why = str(rated.get("reason") or unrated or "no value against the price is on file")
+        lead = f"The model gives {ticker} no 12-month value ({why.rstrip('.')})."
+        p1.append(lead)
+        facts.append(f"no 12-month value: {why.rstrip('.')}")
+        if tgt is not None and close:
+            p1.append(street_line())
+            facts.append(f"street target {_ki_money(tgt)}")
+    elif failed:
+        lead = (f"The forecast did not load ({str(failed).rstrip('.')}), so the note has no "
+                "value to set against the price.")
+        p1.append(lead)
+        facts.append("forecast: did not load")
+    elif tgt is not None:
+        lead = f"{ticker} is not modelled."
+        p1 += [lead, street_line() if close else
+               f"The street's mean target is {_ki_money(tgt)}."]
+        facts.append(f"not modelled; street target {_ki_money(tgt)}")
+    else:
+        biz_line = _ki_business_line(business)
+        lead = (f"{ticker} is not modelled and no consensus is on file"
+                + (", so the note reads the price and the business only." if biz_line else "."))
+        p1.append(lead)
+        facts.append("not modelled; no consensus on file")
+    paras.append(" ".join(p1))
+
+    # 2. The trading, with the month's news beside it.
+    p2 = []
+    day, month, year = series.get("day_move"), _ki_month_move(series), series.get("year_move")
+    for label, v in (("day move", day), ("one-month move", month), ("one-year move", year)):
+        if v is not None:
+            facts.append(f"{label} {_ki_signed_pct(v)}")
+    rel = _ki_rel_words(rel_1y)
+    if rel:
+        facts.append(f"one year against the sector: {rel}")
+    if _ki_rel_words(rel_3m):
+        facts.append(f"three months against the sector: {_ki_rel_words(rel_3m)}")
+    if rel_1m is not None:
+        facts.append(f"one month against the sector: {_ki_signed_pct(rel_1m)}")
+    moves = []
+    if month is not None:
+        moves.append(f"{_ki_pct_words(month)} this month")
+    if year is not None:
+        words = _ki_pct_words(year)
+        if month is not None and words.split(" ")[0] == _ki_pct_words(month).split(" ")[0] \
+                != "flat":
+            words = words.split(" ", 1)[1]
+        moves.append(f"{words} over the year")
+    news = _ki_month_news(changes, ticker, news_said)
+    said, tones = news["said"], news.get("tones") or []
+    items = "; ".join(said)
+    if year is None:
+        rel = ""                  # the year's relative is never set beside the month's move
+    trade = (f"The shares are {_ki_join(moves)}" + (f", {rel}" if rel else "")) if moves else ""
+    if trade:
+        p2.append(trade + ".")
+    if said:
+        # "Despite" only where the shares also fell behind the sector: a fall the sector
+        # shared is not one the news failed to stop.
+        behind = rel_1m is None or rel_1m < -0.01
+        ahead_of = rel_1m is None or rel_1m > -0.01
+        good, bad = "up" in tones and "down" not in tones, "down" in tones
+        if month is not None and month < -0.01 and good and behind:
+            p2.append(f"The fall came despite the month's news: {items}.")
+        elif month is not None and month > 0.01 and good and ahead_of:
+            p2.append(f"The rise came with the month's news: {items}.")
+        elif month is not None and month < -0.01 and bad:
+            p2.append(f"The fall came alongside the month's news: {items}.")
+        else:
+            p2.append(f"The month's news: {items}.")
+        facts += [f"news: {x}" for x in news["full"]]
+    elif news.get("quiet"):
+        if rel_1m is not None and round(abs(rel_1m) * 100) <= 2:
+            p2.append("None of the month's company news is rated high, and the month's move "
+                      "is the sector's.")
+        elif rel_1m is not None:
+            p2.append(f"None of the month's company news is rated high, in a month "
+                      f"{_ki_points(round(abs(rel_1m) * 100))} "
+                      f"{'ahead of' if rel_1m > 0 else 'behind'} the sector.")
+        else:
+            p2.append("None of the month's company news is rated high.")
+        facts.append("news: none rated high this month")
+    else:
+        if rel_1m is not None and round(abs(rel_1m) * 100) <= 2:
+            p2.append("With no company news on file, the month's move is the sector's.")
+            facts.append("news: none on file; the month in line with the sector")
+        elif rel_1m is not None:
+            p2.append(f"No company news is on file for a month "
+                      f"{_ki_points(round(abs(rel_1m) * 100))} "
+                      f"{'ahead of' if rel_1m > 0 else 'behind'} the sector.")
+            facts.append("news: none on file for the month")
+        else:
+            p2.append("No company news is on file for the month.")
+            facts.append("news: none on file for the month")
+    if news["slips"]:
+        n, longest = news["slips"], news["longest"]
+        first = _ki_count_word(n)
+        span = _ki_span_words(longest)
+        far = (f", by {span}" if n == 1 else f", the longest by {span}") if span else ""
+        p2.append(f"{first[:1].upper() + first[1:]} late-stage "
+                  f"{'readout' if n == 1 else 'readouts'} slipped{far}.")
+        facts.append(f"late-stage readouts that slipped this month: {n}"
+                     + (f", longest {span}" if span else ""))
+    paras.append(" ".join(p2))
+
+    # 3. What the value rests on and what breaks it, what comes next, where it stands.
+    p3 = []
+    loss = _ki_loss_words(expiries, risks, series.get("as_of") or "")
+    named_loss = {r["asset"].lower() for r in loss.get("rows") or []}
+    legs = []
+    if modelled:
+        rows_m = ((assets or {}).get("marketed") or {}).get("rows") or []
+        rows_p = ((assets or {}).get("pipeline") or {}).get("rows") or []
+        once = set()
+        for r in rows_m[:2] + rows_p[:2]:
+            if r.get("value") and r["name"].lower() not in once:
+                once.add(r["name"].lower())
+                legs.append(dict(r, leg="asset"))
+        if fut.get("per_share"):
+            legs.append({"leg": "launches", "value": fut["per_share"]})
+        if net and net > 0:
+            legs.append({"leg": "cash", "value": net})
+        legs.sort(key=lambda r: -r["value"])
+        parts = []
+        for r in legs[:3]:
+            if r["leg"] == "launches":
+                parts.append(f"{_ki_money(r['value'])} a share of launches past the pipeline")
+            elif r["leg"] == "cash":
+                parts.append(f"{_ki_money(r['value'])} a share of net cash")
+            elif r.get("kind") == "pipeline":
+                parts.append(f"{r['name']} ({_ki_money(r['value'])} after its chance of "
+                             "approval)")
+            else:
+                meta = r.get("meta") or ""
+                # The loss of exclusivity said below is not said here too.
+                held = ("" if r["name"].lower() in named_loss else
+                        "past its LOE" if meta == "lapsed" else
+                        f"protected to {meta}" if meta else "")
+                parts.append(f"{r['name']} ({_ki_money(r['value'])}"
+                             + (f", {held})" if held else ")"))
+        rows = ((breaks or {}).get("rows") or [])[:1] if rated_ok else []
+        clause = ""
+        if rows and "meets" in (breaks or {}).get("head", ""):
+            clause = "; the call holds while " + " and ".join(
+                f"{r['name']} stays {'below' if r['glyph'] == '▲' else 'above'} {r['brk']} "
+                f"({_ki_unit_once(r['model'], r['brk'])} now)" for r in rows)
+        elif rows:
+            clause = "; to justify the price the model would need " + " or ".join(
+                f"{r['name']} at {r['brk']} against {_ki_unit_once(r['model'], r['brk'])} now"
+                for r in rows)
+        if parts and m.get("n") != 0:
+            p3.append(f"The value rests on {_ki_join(parts)}{clause}.")
+        elif clause:
+            p3.append(clause[2:3].upper() + clause[3:] + ".")
+        facts += [f"value rests on: {r.get('name') or r['leg']} {_ki_money(r['value'])}"
+                  + (f", {r.get('meta')}" if r.get("meta") else "") for r in legs[:3]]
+        facts += [f"break lever: {r['name']} {r['model']} now, breaks at {r['brk']}"
+                  for r in rows]
+    nxt = ""
+    ahead_ev = [e for e in events or []
+                if re.match(r"^\d{4}(-\d{2}){0,2}$", str(e.get("date") or ""))][:3]
+    if ahead_ev:
+        pipe_next = [e for e in ahead_ev if e.get("pipeline")]
+        if not pipe_next:
+            names = list(dict.fromkeys(e["asset"] for e in ahead_ev))
+            by = ahead_ev[-1].get("date_text") or ahead_ev[-1].get("when")
+            nxt = (f"the next readouts, {_ki_join(names)} (by {by}), extend products already "
+                   "sold rather than test the pipeline" if len(names) > 1 else
+                   f"the next readout, {names[0]} ({by}), extends a product already sold "
+                   "rather than testing the pipeline")
+        else:
+            # Within the soonest month, the furthest phase: the one the value turns on.
+            first = min(str(e.get("date"))[:7] for e in pipe_next)
+            e = min((x for x in pipe_next if str(x.get("date"))[:7] == first),
+                    key=lambda x: -1 if x.get("short") in _KI_REG_EVENTS.values() else
+                    _KI_STAGE_RANK.get(re.sub(r" readout$", "", str(x.get("event") or "")), 5))
+            row = next((r for r in ((assets or {}).get("pipeline") or {}).get("rows") or []
+                        if r.get("name") == e["asset"]), {})
+            value = row.get("value")
+            in_legs = any(r.get("name") == e["asset"] for r in legs[:3])
+            worth = ""
+            if value and not in_legs:
+                # Where this event is the compound's next gate, what passing it is worth.
+                lost = _ki_money(row["failure"]) if row.get("failure") else "nil"
+                worth = (f", worth {_ki_money(row['success'])} a share if it passes and {lost} "
+                         f"if it fails, against {_ki_money(value)} now"
+                         if row.get("success") is not None and _ki_gate_is(row, e)
+                         else f", {_ki_money(value)} a share in the model")
+            nxt = (f"the {e.get('event') or 'readout'} for {e['asset']} ({e.get('date_text')}) "
+                   f"is the next test of the pipeline{worth}")
+        facts += [f"readout: {e['asset']} {e.get('event')}"
+                  + (f" in {e['indication']}" if e.get("indication") else "")
+                  + f" ({e.get('date_text')})" + (", pipeline" if e.get("pipeline") else "")
+                  for e in ahead_ev]
+    lose = loss.get("text") or ""
+    facts += loss.get("facts") or []
+    if nxt and lose:
+        p3.append(f"{nxt[:1].upper() + nxt[1:]}; {lose}.")
+    elif nxt or lose:
+        text = nxt or lose
+        p3.append(text[:1].upper() + text[1:] + ".")
+    co = company or {}
+    if co.get("rank") is not None and (cohort or {}).get("noun"):
+        g = _ki_metric(co, ("rev_growth",))
+        om = _ki_metric(co, ("op_margin", "pretax_margin"))
+        gp, mp = (g or {}).get("place"), (om or {}).get("place")
+        mname = _KI_SHORT.get((om or {}).get("id"), "margin").lower()
+        of = co.get("ranked_of") or cohort.get("n")
+        runway = _ki_metric(co, ("runway",)) if co.get("cohort") == "clinical" else None
+        tail, read = ", ".join(x for x in (f"growth {gp}" if gp else "",
+                                           f"{mname} {mp}" if mp else "") if x), ""
+        sg, sm = _ki_standing(g), _ki_standing(om, margin=True)
+        if mp and "best" in mp and (om or {}).get("value") is not None and om["value"] < 0:
+            mp = "negative"                 # a loss is never said as a "best" place
+            tail = ", ".join(x for x in (f"growth {gp}" if gp else "", f"{mname} {mp}") if x)
+        if gp and mp and sg and sm:
+            if sg != sm:
+                tail = f"growth {gp} but {mname} {mp}"
+            read = {("good", "bad"): "growth bought at the cost of margin",
+                    ("bad", "good"): "margin without the growth",
+                    ("good", "good"): "strong on both",
+                    ("bad", "bad"): "weak on both"}[(sg, sm)]
+        if runway and runway.get("text") and not tail:
+            tail = f"cash runway {runway['text']}" + (
+                f", {runway['place']}" if runway.get("place") else "")
+        p3.append(f"It ranks {_ki_ord(co['rank'])} of {of} {cohort['noun']}"
+                  + (f": {tail}" if tail else "") + (f", {read}" if read else "") + ".")
+        facts.append(f"peer rank: {_ki_ord(co['rank'])} of {of} {cohort['noun']}"
+                     + (f"; {tail}" if tail else ""))
+    if not p3:
+        biz = _ki_business_line(business)
+        if biz:
+            p3.append(biz)
+            facts.append(f"business: {biz.rstrip('.')}")
+    if p3:
+        paras.append(" ".join(p3))
+    # A note past its length says one piece of news, not two: the rest is on News.
+    if news_said > 1 and len(said) > 1 and \
+            sum(len(x.split()) for x in paras) > _KI_NOTE_WORDS:
+        return _ki_brief(ticker, series, rated, call, rel_3m, rel_1y, changes, sotp, assets,
+                         breaks, events, risks, company, cohort, street, modelled, unrated,
+                         failed, rel_1m, expiries, rating_failed, coverage, business,
+                         news_said=1)
+    return {"paragraphs": paras, "lead": lead, "facts": "\n".join(facts)}
+
+
+def _ki_standing(metric: dict, margin: bool = False) -> str:
+    """"good", "bad" or "" for a place in the cohort: the top third or the bottom third by
+    the scorecard's own score, the middle third saying nothing. A loss is never a good
+    margin, whatever its place."""
+    m = metric or {}
+    score = m.get("score")
+    if margin and m.get("value") is not None and m["value"] < 0:
+        return "bad"
+    if score is None:
+        return ""
+    return "good" if score >= 200 / 3 else "bad" if score <= 100 / 3 else ""
+
+
+def _ki_loss_words(expiries: dict, risks: list, as_of: str = "") -> dict:
+    """The note's loss of exclusivity: the nearest, every product lost that day together,
+    and the largest in the list where it is another and 10% of revenue or more.
+    {"text", "facts", "rows": the products named}."""
+    rows = list((expiries or {}).get("all") or (expiries or {}).get("rows") or []) \
+        if expiries is not None else [
+        dict(r, when=_ki_month(r.get("date"))) for r in risks or []
+        if r.get("kind") == "exclusivity"][:1]
+    if not rows:
+        return {}
+
+    def share_of(r):
+        if r.get("share") is not None:
+            return r["share"]
+        try:
+            return float(str(r.get("share_text")).rstrip("%")) / 100
+        except (TypeError, ValueError):
+            return None
+
+    def when_of(r):
+        when = str(r.get("when") or "")
+        return ("on " if re.match(r"^\d{1,2} ", when) else "in ") + when
+
+    def group(at):
+        # Products lost the same day, each with a share: "together" adds what is known.
+        same = [r for r in rows if r.get("date") == at.get("date") and r.get("when")
+                and share_of(r) is not None]
+        return same if at in same else [at] + same if share_of(at) is None else same or [at]
+
+    def total_of(same):
+        shares = [share_of(r) for r in same]
+        return sum(x for x in shares if x is not None) \
+            if any(x is not None for x in shares) else None
+
+    # The first loss worth 5% of revenue, every product lost that day with it; where none
+    # is, the nearest.
+    first, same, lead = rows[0], group(rows[0]), "the nearest loss of exclusivity"
+    for r in rows:
+        g = group(r)
+        if (total_of(g) or 0) >= _KI_LOSS_MATERIAL:
+            if r is not rows[0] and g[0] is not same[0]:
+                lead = (f"the first loss of exclusivity over "
+                        f"{_KI_LOSS_MATERIAL:.0%} of revenue")
+            first, same = g[0], g
+            break
+    names = _ki_join([_ki_soft_caps(r["asset"]) for r in same])
+    total = total_of(same)
+    pct = f"{total * 100:.1f}%" if total is not None else (first.get("share_text") or "")
+    joint = " together" if len(same) > 1 else ""
+    what = f"{names} {when_of(first)}"
+    if total is not None and total >= 0.10:
+        text = f"{lead}, {what}, is {pct} of revenue{joint}, the largest risk"
+    elif pct:
+        text = f"{lead}, {what}, is {pct} of revenue{joint}"
+    else:
+        text = f"{lead} is {what}"
+    named = list(same)
+    base = str(as_of or rows[0].get("date") or "")[:4]
+    horizon = str(int(base) + _KI_LOSS_YEARS) if base.isdigit() else "9999"
+    rest = [r for r in rows if r not in same and share_of(r) is not None
+            and str(r.get("date") or "")[:4] <= horizon and r.get("date", "") > first.get("date", "")]
+    big = max(rest, key=share_of, default=None)
+    if big is not None and share_of(big) >= 0.15 and (total is None or share_of(big) > total):
+        text = text.replace(", the largest risk", "")
+        text += (f"; the largest, {_ki_soft_caps(big['asset'])} {when_of(big)}, is "
+                 f"{share_of(big) * 100:.1f}%")
+        named.append(big)
+    facts = [f"risk: {r.get('asset')} loses exclusivity {r.get('when')}"
+             + (f", {r.get('share_text')} of revenue" if r.get("share_text") else "")
+             for r in named]
+    return {"text": text, "facts": facts, "rows": named}
+
+
+def _ki_business_line(business: list) -> str:
+    """The business row as a sentence, for a note with nothing else to say of it:
+    "It reports $2.3bn of revenue for FY2025, has 4 approved products and 12 compounds in
+    trials, 3 of them late-stage." "" when the row holds nothing."""
+    cells = {}
+    for value, key, tone, _tip in business or []:
+        if tone == "none":
+            continue
+        k = str(key)
+        if "revenue" in k:
+            cells["revenue"] = (value, k)
+        elif "products on sale" in k or "approved products" in k:
+            cells["products"] = (value, k)
+        elif k.startswith("late-stage"):
+            cells["late"] = value
+        elif k.startswith("in trials"):
+            cells["trials"] = value
+    bits = []
+    if "revenue" in cells:
+        value, k = cells["revenue"]
+        fy = re.match(r"^(FY\d{4})", k)
+        growth = re.search(r"· ([+−-][\d.,]+%)", k)
+        bits.append(f"reports {value} of revenue" + (f" for {fy.group(1)}" if fy else "")
+                    + (f" ({growth.group(1)})" if growth else ""))
+    has = []
+    if "products" in cells:
+        value, k = cells["products"]
+        noun = "approved product" if "approved" in k else "product on sale"
+        n = str(value).replace(",", "")
+        has.append(f"{value} {noun if n == '1' else noun.replace('product', 'products')}")
+    if cells.get("trials") and cells["trials"] != "0":
+        late = cells.get("late")
+        n = str(cells["trials"]).replace(",", "")
+        has.append(f"{cells['trials']} {'compound' if n == '1' else 'compounds'} in trials"
+                   + (f", {late} of them late-stage" if late and late != "0" else ""))
+    if bits and has:
+        return f"It {bits[0]}, with {_ki_join(has)}."
+    if has:
+        return f"It has {_ki_join(has)}."
+    return f"It {bits[0]}." if bits else ""
+
+
+def _ki_brief_html(brief: dict, label: str, model_body: str = None) -> str:
+    """The note as it opens: the rewrite where one matches today's figures, a paragraph a
+    line of it, else the briefing as built with its opening sentence in bold."""
+    if model_body:
+        paras = [html_escape(p.strip()) for p in re.split(r"\n+", model_body) if p.strip()]
+    else:
+        raw = (brief or {}).get("paragraphs") or []
+        lead = (brief or {}).get("lead") or ""
+        paras = [html_escape(p) for p in raw]
+        if paras and lead and raw[0].startswith(lead):
+            paras[0] = f"<b>{html_escape(lead)}</b>{html_escape(raw[0][len(lead):])}"
+    body = "".join(f"<p>{p}</p>" for p in paras)
+    return (_ki_section_html("Morning note", label)
+            + f'<div class="ki-brief">{body}</div>')
+
+
+def _ki_loe_text(iso, basis: str = "", day: bool = False) -> str:
+    """An exclusivity date to the precision its source gave. A filing's or the statute's
+    year ("U.S. compound patent (2031)", "statutory floor (12y)", "10-K disclosure") stands
+    in a year's last day for the year, so prints the year; a month's last day standing in
+    for a month ("(2029-03)") prints the month; a filing that names the day, or a register
+    date (Orange Book, Purple Book), prints the day with ``day``, else the month."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", str(iso or ""))
+    if not m:
+        return ""
+    basis = str(basis or "")
+    year, month = m.group(1), f"{m.group(1)}-{m.group(2)}"
+    stated = re.search(r"statutory floor|10-K|10-Q|20-F|annual report|disclosure", basis, re.I)
+    if f"({m.group(0)})" in basis:
+        return _ki_day(iso) if day else _ki_month(iso)
+    if (m.group(2), m.group(3)) == ("12", "31") and (f"({year})" in basis or stated):
+        return year
+    if f"({month})" in basis or stated or not day:
+        return _ki_month(iso)
+    return _ki_day(iso)
+
+
+def _ki_due_ahead(due, today) -> bool:
+    """A due date is still ahead: a month-only date by its month, a day by its day."""
+    due = str(due or "")
+    if not re.match(r"^\d{4}-\d{2}", due):
+        return False
+    return due[:7] >= today.isoformat()[:7] if len(due) < 10 else due[:10] >= today.isoformat()
+
+
+def _ki_next_readout(programme: dict, today) -> dict:
+    """A compound's next readout at the furthest phase it still has to read out, since that
+    is the one its value turns on, else nothing: {"phase", "date", "text"}. Every such date
+    is the registry's estimate of primary completion."""
+    if _KI_NOT_A_COMPOUND.search(str((programme or {}).get("name") or "")):
+        return {}
+    until = f"{today.year + _KI_READOUT_YEARS}{today.isoformat()[4:]}"
+    # A follow-up, extension or access study reads out nothing the value turns on, and a
+    # date years past any launch the model holds is not a next test.
+    studies = [s for s in (programme or {}).get("studies") or [] if isinstance(s, dict)
+               and _ki_due_ahead(s.get("due"), today) and s.get("phase") in _KI_STAGE_RANK
+               and str(s.get("due"))[:10] <= until
+               and not _KI_NOT_A_TEST.search(str(s.get("title") or ""))
+               and re.sub(r"[\s_]", "", str(s.get("status") or "")).lower()
+               != "enrollingbyinvitation"]
+    if not studies:
+        return {}
+    top = min(_KI_STAGE_RANK[s["phase"]] for s in studies)
+    pick = min((s for s in studies if _KI_STAGE_RANK[s["phase"]] == top),
+               key=lambda s: str(s["due"]))
+    return {"phase": pick["phase"], "date": str(pick["due"])[:10], "nct_id": pick.get("nct_id"),
+            "text": f"{_KI_PHASE_SHORT[pick['phase']]} · {_ki_month(pick['due'])}"}
+
+
+def _ki_product_mix(record: dict) -> list:
+    """[(product, share of the company's revenue)], largest first, measured against the
+    year's reported revenue. Product rows of another year than the revenue, or adding to
+    more than it, give no shares: a share of something else is not printed as one of the
+    company's revenue."""
+    rec = record if isinstance(record, dict) else {}
+    products = (rec.get("detail") or {}).get("products") or {}
+    fy0 = (rec.get("periods") or {}).get("FY0") or {}
+    total = fy0.get("revenue_usd_m")
+    if not total or str(products.get("fiscal_year")) not in str(fy0.get("label") or ""):
+        return []
+    mix = _ki_mix_segments(products, fy0, shown=10 ** 6)
+    named = [x for x in mix if x["key"] != "rest"]
+    if sum(x["value"] for x in named) > total:
+        return []
+    return [(x["label"], x["value"] / total) for x in named]
+
+
+def _ki_product_shares(record: dict) -> dict:
+    """Each product's share of the company's revenue, by lower-case name."""
+    return {name.lower(): share for name, share in _ki_product_mix(record)}
+
+
+def _ki_key_assets(verdict: dict, record: dict, programmes: list, exclusivities: list,
+                   today, modelled: bool, shown: int = _KI_ASSETS_SHOWN,
+                   development: dict = None) -> dict:
+    """The five marketed products and the five pipeline compounds the value rests on most,
+    with when each is decided: a product's loss of exclusivity, a compound's next readout.
+
+    Modelled, both are ranked by value a share (a compound's after its chance of approval)
+    on one scale, and the rest of each is one row whose count includes the ones valued at
+    nothing. Not modelled, products are ranked by share of revenue, the rest of revenue one
+    row, and compounds by furthest phase, then the readout nearest.
+
+    A modelled compound with a next gate carries ``success``, what passing it is worth a
+    share (the whisker), and its launch floor's ``flag`` (the underline). The gate, a gate
+    that costs more to reach than it is worth (``development``, the company's next-gate
+    costs) and the floor's message go in the row's one tooltip, and nowhere else."""
+    v = verdict if isinstance(verdict, dict) else {}
+    excl_id, excl_name = {}, {}
+    for a in exclusivities or []:
+        if isinstance(a, dict) and a.get("loe"):
+            excl_id.setdefault(a.get("asset_id"), a)
+            excl_name.setdefault(_ki_product(a.get("brand_name")).lower(), a)
+    progs = {p.get("asset_id"): p for p in programmes or [] if isinstance(p, dict)}
+    failing = {r.get("asset_id"): r for r in (development or {}).get("failing") or []
+               if isinstance(r, dict)} if isinstance(development, dict) else {}
+    shares = _ki_product_shares(record)
+    since = today.isoformat()
+
+    def loe_of(asset_id, name, lapsed=False, year=None):
+        e = excl_id.get(asset_id) or excl_name.get(name.lower())
+        if lapsed or (e and str(e["loe"])[:10] < since) or (
+                not e and year and int(year) < today.year):
+            return "lapsed", (e or {}).get("loe_basis") or ""
+        if e:
+            return _ki_loe_text(e["loe"], e.get("loe_basis")), e.get("loe_basis") or ""
+        return (str(year) if year else ""), ("the model's LOE year" if year else "")
+
+    marketed, pipeline = [], []
+    rest_share = None
+    if modelled:
+        for a in v.get("modelled") or []:
+            if not isinstance(a, dict) or not a.get("counted", True) \
+                    or a.get("per_share") is None:
+                continue
+            name = _ki_product(a.get("name"))
+            if a.get("is_marketed"):
+                meta, basis = loe_of(a.get("asset_id"), name, a.get("loe_in_base"),
+                                     a.get("loe_year"))
+                share = shares.get(name.lower())
+                tip = " · ".join(x for x in (
+                    name, f"{share:.1%} of revenue" if share is not None else "",
+                    f"exclusivity: {basis}" if basis else "") if x)
+                marketed.append({"name": name, "value": a["per_share"], "meta": meta,
+                                 "text": _ki_money(a["per_share"]), "tip": tip,
+                                 "kind": "marketed"})
+            else:
+                nxt = _ki_next_readout(progs.get(a.get("asset_id")), today)
+                gate = _ki_gate(a, failing.get(a.get("asset_id")))
+                flag = _launch_flag(a.get("launch"))
+                tip = " · ".join(x for x in (
+                    name, f"chance of approval {a['pos']:.0%}" if a.get("pos") is not None
+                    else "", f"next readout {nxt['nct_id']}, registry estimate"
+                    if nxt.get("nct_id") else "", gate.get("tip"),
+                    (a.get("launch") or {}).get("message") if flag else "") if x)
+                pipeline.append({"name": name, "value": a["per_share"],
+                                 "meta": nxt.get("text") or "", "text": _ki_money(a["per_share"]),
+                                 "tip": tip, "kind": "pipeline", "success": gate.get("success"),
+                                 "failure": gate.get("failure"), "gate": gate.get("event"),
+                                 "flag": flag})
+        marketed.sort(key=lambda r: -r["value"])
+        pipeline.sort(key=lambda r: -r["value"])
+        if not pipeline:
+            pipeline = _ki_programme_rows(programmes, today)
+        s = v.get("sotp") or {}
+        totals = {"marketed": (s.get("marketed") or {}).get("per_share"),
+                  "pipeline": (s.get("pipeline") or {}).get("per_share")}
+    else:
+        for name, share in _ki_product_mix(record):
+            meta, basis = loe_of(None, name)
+            marketed.append({"name": name, "value": share, "meta": meta,
+                             "text": f"{share:.0%}" if share >= 0.01 else "<1%",
+                             "kind": "marketed",
+                             "tip": " · ".join(x for x in (
+                                 name, f"{share:.1%} of revenue",
+                                 f"exclusivity: {basis}" if basis else "") if x)})
+        if marketed:
+            rest_share = max(0.0, 1.0 - sum(r["value"] for r in marketed[:shown]))
+        else:
+            # No revenue split by product on file: the approved products and their losses
+            # of exclusivity, soonest first, rather than a table that says there are none.
+            seen = set()
+            for e in sorted((x for x in exclusivities or [] if isinstance(x, dict)
+                             and x.get("brand_name")), key=lambda x: str(x.get("loe") or "9")):
+                name = _ki_product(e["brand_name"])
+                if name.lower() in seen:
+                    continue
+                seen.add(name.lower())
+                meta, basis = loe_of(e.get("asset_id"), name)
+                marketed.append({"name": name, "value": None, "meta": meta, "text": "",
+                                 "kind": "marketed", "tip": " · ".join(
+                                     x for x in (name, "no revenue split by product on file",
+                                                 f"exclusivity: {basis}" if basis else "")
+                                     if x)})
+        pipeline = _ki_programme_rows(programmes, today)
+        totals = {"marketed": None, "pipeline": None}
+
+    def part(rows, kind):
+        top = rows[:shown]
+        more_n = len(rows) - len(top)
+        more_value = None
+        if more_n and totals.get(kind) is not None and all(
+                r.get("value") is not None for r in top):
+            more_value = totals[kind] - sum(r["value"] for r in top)
+        out = {"rows": top, "more_n": more_n, "more_value": more_value}
+        if kind == "marketed" and rest_share is not None:
+            out.update(more_n=0, more_value=None, rest=rest_share)
+        return out
+
+    shown_rows = marketed[:shown] + pipeline[:shown]
+    # The scale takes the whiskers too, so a success value is never clipped at the edge.
+    return {"modelled": modelled, "marketed": part(marketed, "marketed"),
+            "pipeline": part(pipeline, "pipeline"),
+            "top": max([r["value"] for r in shown_rows if r.get("value")]
+                       + [r["success"] for r in shown_rows if r.get("success")] or [1.0])}
+
+
+def _ki_gate(line: dict, failing: dict = None) -> dict:
+    """A pipeline line's next gate as Key assets reads it: ``success``, its value a share
+    if the gate passes; ``event``, the gate's label and month, so the note names the same
+    event; and ``tip``, the gate in words, then the cost fact where reaching it costs more
+    than it is worth risked (``failing``, the line's row in the company's next-gate
+    costs). ``failure`` is nil unless stated legs on file say otherwise. {} where the
+    line has no gate."""
+    g = (line or {}).get("gate") if isinstance((line or {}).get("gate"), dict) else {}
+    success = (line or {}).get("per_share_success")
+    if success is None:
+        success = g.get("per_share_success")
+    if not g or success is None:
+        return {}
+    failure = 0.0
+    if g.get("legs_basis") == "stated":
+        failure = (line or {}).get("per_share_failure")
+        failure = g.get("per_share_failure") if failure is None else failure
+        failure = failure if failure is not None and failure >= 0.005 else 0.0
+    lost = _ki_money(failure) if failure else "nil"
+    label = g.get("label") or "next gate"
+    date = str(g.get("date") or "")
+    if g.get("gate") == "nda_to_approval":
+        when = f" (decision due {_ki_day(date)})" if date else ""
+        words = (f"{label}{when}: {_ki_money(success)} a share if the FDA approves it, "
+                 f"{lost} if it does not")
+    else:
+        when = ("" if not date else f" due since {_ki_month(date)}" if g.get("due")
+                else f" est. {_ki_month(date)}")
+        words = f"{label}{when}: {_ki_money(success)} a share if it passes, {lost} if it fails"
+    words += (", from the success and failure legs on file" if g.get("legs_basis") == "stated"
+              else ", on gate odds implied by the stated PoS"
+              if (g.get("evidence") or {}).get("p_gate") == "implied"
+              else ", derived from published transition rates")
+    fg = (failing or {}).get("gate") if isinstance((failing or {}).get("gate"), dict) else {}
+    if fg.get("funds") is False and fg.get("breakeven_p") is not None:
+        be, p = fg["breakeven_p"], fg.get("p")
+        reach = f"reaching the {fg.get('label') or label}"
+        words += (f" · {reach} costs more than passing it is worth" if be > 1 or p is None
+                  else f" · {reach} costs more than it is worth risked: it needs a "
+                       f"{be:.0%} chance against the {p:.0%} on file")
+        words += ", at published trial costs in 2018 prices"
+    # The month the note's event has to fall in to be this gate; none for an FDA decision
+    # with no date on file, which any decision on the compound is.
+    return {"success": success, "failure": failure, "tip": words,
+            "event": {"label": label, "month": date[:7]}}
+
+
+def _ki_gate_is(row: dict, event: dict) -> bool:
+    """Whether a readout or decision in the note is the compound's next gate: the same kind
+    of event, in the gate's month. An FDA decision with no date on file is any decision on
+    the compound; a readout gate with no date has no study dated at it, so a dated readout
+    is another study and never the gate. A gate already due is never an event ahead, so
+    its legs are never said of a later study."""
+    gate = (row or {}).get("gate") or {}
+    label, what = gate.get("label"), str((event or {}).get("event") or "")
+    kinds = {"Phase 3 readout": ("Phase 3 readout", "Phase 2/3 readout"),
+             "Phase 2 readout": ("Phase 2 readout", "Phase 2/3 readout"),
+             "FDA decision": ("PDUFA date", "regulatory decision")}.get(label, ())
+    if what not in kinds:
+        return False
+    month = gate.get("month") or ""
+    if not month:
+        return label == "FDA decision"
+    return str((event or {}).get("date") or "")[:7] == month
+
+
+def _ki_programme_rows(programmes: list, today) -> list:
+    """Compounds in trials with no value on file, furthest phase first, then the readout
+    nearest: what Key assets lists where the model counts none."""
+    rows = []
+    for p in programmes or []:
+        if not isinstance(p, dict) or p.get("stage") not in _KI_STAGE_RANK \
+                or _KI_NOT_A_COMPOUND.search(str(p.get("name") or "")):
+            continue
+        nxt = _ki_next_readout(p, today)
+        rows.append({"name": _ki_product(p.get("name")), "value": None,
+                     "text": _KI_PHASE_SHORT[p["stage"]],
+                     "meta": _ki_month(nxt["date"]) if nxt else "",
+                     "rank": (_KI_STAGE_RANK[p["stage"]], nxt.get("date") or "9999"),
+                     "tip": " · ".join(x for x in (
+                         p.get("name"), p.get("area"),
+                         f"{p.get('trials')} trials" if p.get("trials") else "",
+                         "readout a registry estimate" if nxt else "") if x),
+                     "kind": "pipeline"})
+    rows.sort(key=lambda r: r["rank"])
+    return rows
+
+
+def _ki_key_assets_html(assets: dict, failed: str = "") -> str:
+    """Two short tables on one scale: what each holds, and when it is decided. ``failed``
+    is the comps read's error, said in place of an empty product table."""
+    a = assets or {}
+    modelled = a.get("modelled")
+    top = a.get("top") or 1.0
+    out = []
+    for kind in ("marketed", "pipeline"):
+        part = a.get(kind) or {}
+        rows = part.get("rows") or []
+        valued = any(r.get("value") is not None for r in rows)
+        title = ("Marketed" if kind == "marketed" else
+                 "Pipeline, risked" if modelled and valued else "Pipeline")
+        if not rows:
+            none = (f"The scorecard did not load: {str(failed).rstrip('.')}."
+                    if failed and kind == "marketed" and not modelled else
+                    "No product revenue on file." if kind == "marketed"
+                    else "No compound in trials on file.")
+            out.append(f'<div class="ki-ka-h"><span>{html_escape(title)}</span></div>'
+                       f'<div class="ki-ka none">{html_escape(none)}</div>')
+            continue
+        value_head = ("value" if modelled and valued else
+                      "" if not any(r.get("text") for r in rows) else
+                      "of revenue" if kind == "marketed" else "phase")
+        meta_head = "LOE" if kind == "marketed" else "readout, est."
+        out.append(f'<div class="ki-ka-h"><span>{html_escape(title)}</span><span></span>'
+                   f'<span class="v">{html_escape(value_head)}</span>'
+                   f'<span>{html_escape(meta_head)}</span></div>')
+        for r in rows:
+            bar = ""
+            if r.get("value") is not None:
+                w = max(r["value"] / top * 100, 1.5)
+                bar = f'<i class="{kind}" style="width:{w:.1f}%"></i>'
+                # A hairline from the bar's end to what the compound is worth if its next
+                # gate passes, in the row's own height.
+                if r.get("success") is not None and r["success"] > r["value"]:
+                    end = min(r["success"] / top * 100, 100.0)
+                    bar += (f'<i class="whisker" style="left:{w:.1f}%;'
+                            f'width:{max(end - w, 0.5):.1f}%"></i>')
+            # The launch floor's flag underlines the figure; its words are in the tooltip.
+            text = _launch_flagged(html_escape(r.get("text") or ""),
+                                   {"flag": r.get("flag")}, tip=False)
+            out.append(f'<div class="ki-ka" title="{_ki_attr(r.get("tip"))}">'
+                       f'<span class="n {kind}">{html_escape(r["name"])}</span>'
+                       f'<span class="b">{bar}</span>'
+                       f'<span class="v">{text}</span>'
+                       f'<span class="m">{html_escape(r.get("meta") or _KI_EMPTY)}</span></div>')
+        if part.get("rest") is not None:
+            out.append(f'<div class="ki-ka more"><span class="n">rest of revenue</span>'
+                       f'<span class="b"></span><span class="v">{part["rest"]:.0%}</span>'
+                       f'<span class="m"></span></div>')
+        elif part.get("more_n"):
+            more = part.get("more_value")
+            more_text = "" if more is None else _ki_money(more)
+            out.append(f'<div class="ki-ka more"><span class="n">{part["more_n"]} more</span>'
+                       f'<span class="b"></span><span class="v">{more_text}</span>'
+                       f'<span class="m"></span></div>')
+    return '<div class="ki-assets">' + "".join(out) + "</div>"
+
+
+def _ki_readouts(items: list, today, prose=None, shown: int = _KI_READOUTS_SHOWN,
+                 min_pct: float = 0.01, programmes: list = None) -> dict:
+    """The dated events that can move the value, soonest first: regulatory dates, late-
+    stage readouts, a Phase 2 or later readout of an unapproved compound the model does
+    not value, and any readout of one worth ``min_pct`` of the price. {"rows", "more",
+    "total"}; each row says what reads out, for what, and when, and marks every date the
+    company has not stated or confirmed as an estimate."""
+    prose = prose or (lambda s: s)
+    rows = []
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        iso = str(it.get("date") or "")
+        if not _ki_due_ahead(iso, today):
+            continue
+        kind = str(it.get("kind") or "").lower()
+        asset = it.get("asset") if isinstance(it.get("asset"), dict) else {}
+        val = it.get("asset_value") if isinstance(it.get("asset_value"), dict) else {}
+        reg = it.get("regulatory") is True or kind in _KI_REG_EVENTS
+        late = "readout" in kind and it.get("phase") in ("Phase 3", "Phase 2/3")
+        unapproved = (not asset.get("is_marketed")) if asset else reg
+        unvalued_mid = (unapproved and not val and "readout" in kind
+                        and _KI_STAGE_RANK.get(it.get("phase"), 9) <= _KI_STAGE_RANK["Phase 2"])
+        big = unapproved and (val.get("pct_of_price") or 0) >= min_pct
+        if not (reg or late or big or unvalued_mid):
+            continue
+        name = _ki_product(asset.get("name"))
+        if _KI_NOT_A_COMPOUND.search(name):
+            continue
+        if not name:
+            title = re.sub(r"^Phase [0-9/]+,\s*", "", str(it.get("title") or ""))
+            name = _ki_product(re.split(r",|\s(?:PDUFA|AdCom|EMA|BLA|NDA)\b",
+                                        title)[0].strip(" ,.;:")[:40])
+        if reg:
+            short = _KI_REG_EVENTS.get(kind, "decision")
+            event = {"PDUFA": "PDUFA date", "AdCom": "advisory committee",
+                     "EMA": "EMA decision"}.get(short, "regulatory decision")
+        else:
+            short = _KI_PHASE_SHORT.get(it.get("phase"), "readout")
+            event = f"{it['phase']} readout" if it.get("phase") else "data readout"
+        ind = (it.get("indication") or {}).get("name") if isinstance(
+            it.get("indication"), dict) else None
+        est = it.get("date_confidence") not in ("confirmed", "stated")
+        prec = it.get("date_precision")
+        mo = int(iso[5:7])
+        if prec == "quarter":
+            when = f"Q{(mo + 2) // 3} {iso[:4]}"
+        elif prec == "half":
+            when = f"H{1 if mo <= 6 else 2} {iso[:4]}"
+        elif prec == "day" and not est and len(iso) >= 10:
+            when = _ki_day(iso[:10])
+        else:
+            when = _ki_month(iso)
+        rows.append({"date": iso[:10], "when": when, "estimated": est,
+                     "date_text": f"est. {when}" if est else when,
+                     "asset": name, "pipeline": unapproved, "short": short,
+                     "event": event, "indication": prose(ind) if ind else None,
+                     "tip": " · ".join(x for x in (it.get("title"), it.get("nct_id"))
+                                       if x)})
+    rows.sort(key=lambda r: (r["date"], r["asset"]))
+    # Two trials of one compound reading out in a month are one row, its indications
+    # joined: "Ph 3 · excessive somnolence, binge-eating disorder".
+    once, kept = {}, []
+    for r in rows:
+        key = (r["asset"].lower(), r["date"][:7], r["short"])
+        if key not in once:
+            once[key] = r
+            kept.append(r)
+        elif r.get("indication") and r["indication"] not in str(once[key].get("indication")):
+            first = once[key]
+            first["indication"] = (f"{first['indication']}, {r['indication']}"
+                                   if first.get("indication") else r["indication"])
+            first["estimated"] = first["estimated"] or r["estimated"]
+    rows = kept
+    # Short of a full list inside the catalysts' twelve months, the registry's next readout
+    # of each compound past them, so a company with its readouts further out still has some.
+    if len(rows) < shown and programmes:
+        last = max([r["date"] for r in rows] + [today.isoformat()])
+        named = {r["asset"].lower() for r in rows}
+        nexts = [(p, _ki_next_readout(p, today) if isinstance(p, dict) else {})
+                 for p in programmes]
+        # A Phase 1 study reads out nothing the value turns on where a later one exists,
+        # and a study in healthy volunteers tests no disease.
+        later = any(n and _KI_STAGE_RANK[n["phase"]] <= _KI_STAGE_RANK["Phase 2"]
+                    for _, n in nexts)
+        extra = []
+        for p, nxt in nexts:
+            name = _ki_product((p or {}).get("name"))
+            if not nxt or nxt["date"] <= last or name.lower() in named:
+                continue
+            if (later and _KI_STAGE_RANK[nxt["phase"]] > _KI_STAGE_RANK["Phase 2"]) \
+                    or "healthy volunteer" in str((p or {}).get("area") or "").lower():
+                continue
+            when = _ki_month(nxt["date"])
+            extra.append({"date": nxt["date"], "when": when, "estimated": True,
+                          "date_text": f"est. {when}", "asset": name, "pipeline": True,
+                          "short": _KI_PHASE_SHORT[nxt["phase"]],
+                          "event": f"{nxt['phase']} readout", "indication": None,
+                          "area": (str(p.get("area") or "").lower()
+                                   if p.get("area") not in (None, "", "Other") else None),
+                          "tip": " · ".join(x for x in (p.get("name"), nxt.get("nct_id"),
+                                                        "primary completion, registry estimate")
+                                            if x)})
+        extra.sort(key=lambda r: (r["date"], r["asset"]))
+        rows += extra[:shown - len(rows)]
+    return {"rows": rows[:shown], "more": max(0, len(rows) - shown), "total": len(rows)}
+
+
+def _ki_readouts_html(readouts: dict) -> str:
+    rows = (readouts or {}).get("rows") or []
+    if not rows:
+        return ('<div class="ki-empty">No late-stage readout or regulatory date is on file '
+                'for the next 12 months.</div>')
+    out = []
+    for r in rows:
+        mark = "○" if r.get("estimated") else "●"
+        what = " · ".join(x for x in (r.get("short"), r.get("indication") or r.get("area"))
+                          if x)
+        out.append(f'<div class="ki-ro" title="{_ki_attr(r.get("tip"))}">'
+                   f'<span class="d"><i>{mark}</i>{html_escape(r["when"])}</span>'
+                   f'<span class="n{" pipeline" if r.get("pipeline") else ""}">'
+                   f'{html_escape(r["asset"])}</span>'
+                   f'<span class="w">{html_escape(what)}</span></div>')
+    if (readouts or {}).get("more"):
+        out.append(f'<div class="ki-ro more">{readouts["more"]} more on Catalysts</div>')
+    return '<div class="ki-list">' + "".join(out) + "</div>"
+
+
+def _ki_expiry_kind(basis: str) -> str:
+    """What an exclusivity date is, in two words: a patent, the 12-year biologic term, an
+    orphan term, a settlement, or the model's own year."""
+    b = str(basis or "").lower()
+    if "model" in b:
+        return "model year"
+    if "settle" in b:
+        return "settlement"
+    if "orphan" in b:
+        return "orphan"
+    if "12y" in b or "reference product" in b or "biologic" in b or "floor" in b:
+        return "12y biologic"
+    if "patent" in b:
+        return "patent"
+    return "exclusivity"
+
+
+def _ki_expiries(exclusivities: list, verdict: dict, record: dict, losses: list, today,
+                 modelled: bool, shown: int = _KI_EXPIRIES_SHOWN) -> dict:
+    """The next losses of exclusivity, soonest first, of the products that matter: one the
+    model values or one with revenue on file. A company with neither lists every one.
+
+    The scorecard's own loss date wins where it has the product, so the list and the
+    scorecard agree. A product the model already carries past its LOE is never listed, and
+    an orphan term is never taken for the product's loss of exclusivity: it guards one
+    indication, not the molecule. {"rows", "more"}; each row: the date at its source's
+    precision, product, kind, share of revenue (text and number), value a share."""
+    since = today.isoformat()
+    values, gone, model_year = {}, set(), {}
+    if modelled:
+        for a in (verdict or {}).get("modelled") or []:
+            if not isinstance(a, dict) or not a.get("is_marketed"):
+                continue
+            if a.get("loe_in_base") or (a.get("loe_year") and int(a["loe_year"]) < today.year):
+                gone.add(a.get("asset_id"))
+            if a.get("counted", True) and a.get("per_share"):
+                values[a.get("asset_id")] = a["per_share"]
+    shares = _ki_product_shares(record)
+    lost = {r.get("asset_id"): r for r in losses or [] if isinstance(r, dict) and r.get("date")}
+    cands, seen = [], set()
+    rows_in = []
+    for e in exclusivities or []:
+        if not isinstance(e, dict) or not e.get("loe"):
+            continue
+        sc = lost.get(e.get("asset_id"))
+        iso, basis = ((str(sc["date"])[:10], sc.get("basis") or e.get("loe_basis"))
+                      if sc else (str(e["loe"])[:10], e.get("loe_basis")))
+        rows_in.append((iso, basis, e))
+    # A loss the scorecard holds that the exclusivity file does not (a product whose
+    # exclusivity is read from its filer) is listed all the same.
+    held = {e.get("asset_id") for e in exclusivities or [] if isinstance(e, dict)}
+    for aid, sc in lost.items():
+        if aid not in held and sc.get("asset"):
+            rows_in.append((str(sc["date"])[:10], sc.get("basis") or "",
+                            {"asset_id": aid, "brand_name": sc["asset"]}))
+    for iso, basis, e in sorted(rows_in, key=lambda x: x[0]):
+        name = _ki_soft_caps(_ki_product(e.get("brand_name") or e.get("generic_name")))
+        if not name or name.lower() in seen:
+            continue
+        if e.get("asset_id") in gone:
+            seen.add(name.lower())      # a lapsed product is never listed, not even later
+            continue
+        # A date already gone, or an orphan term (it guards one indication, not the
+        # molecule), says nothing of the product's own loss: a later row still can.
+        if iso < since or _ki_expiry_kind(basis) == "orphan":
+            continue
+        seen.add(name.lower())
+        share = shares.get(name.lower())
+        sc = lost.get(e.get("asset_id")) or {}
+        share_text = sc.get("share_text") or (f"{share * 100:.1f}%" if share is not None else "")
+        share_num = sc.get("share_of_revenue") if sc.get("share_of_revenue") is not None \
+            else share
+        cands.append({"date": iso, "when": _ki_loe_text(iso, basis, day=True),
+                      "asset": name, "kind": _ki_expiry_kind(basis),
+                      "share_text": share_text, "share": share_num,
+                      "value": values.get(e.get("asset_id")),
+                      "tip": " · ".join(x for x in (name, basis) if x)})
+    # A modelled product the exclusivity file does not hold (a CBER biologic) keeps the
+    # model's own LOE year.
+    for a in (verdict or {}).get("modelled") or [] if modelled else []:
+        if not isinstance(a, dict) or not a.get("is_marketed") or a.get("loe_in_base") \
+                or not a.get("loe_year") or not a.get("per_share"):
+            continue
+        name = _ki_product(a.get("name"))
+        # A year alone is past for this year too: it cannot say whether the day has gone.
+        if name.lower() in seen or int(a["loe_year"]) <= today.year:
+            continue
+        seen.add(name.lower())
+        share = shares.get(name.lower())
+        cands.append({"date": f"{a['loe_year']}-12-31", "when": str(a["loe_year"]),
+                      "asset": name, "kind": "model year", "value": a["per_share"],
+                      "share_text": f"{share * 100:.1f}%" if share is not None else "",
+                      "share": share, "tip": f"{name} · the model's LOE year"})
+    cands.sort(key=lambda c: c["date"])
+    material = [c for c in cands if c["value"] is not None or c["share_text"]]
+    rows = material or cands
+    return {"rows": rows[:shown], "more": max(0, len(rows) - shown), "all": rows}
+
+
+def _ki_expiries_html(expiries: dict, today=None) -> str:
+    rows = (expiries or {}).get("rows") or []
+    # A loss inside two years is the one to watch: only its date is in the down colour.
+    near = (f"{today.year + 2}{today.isoformat()[4:]}" if today else "")
+    if not rows:
+        return '<div class="ki-empty">No loss of exclusivity ahead is on file.</div>'
+    out = []
+    for r in rows:
+        what = " · ".join(x for x in (r.get("kind"),
+                                      f"{r['share_text']} of revenue" if r.get("share_text")
+                                      else "") if x)
+        value = _ki_money(r["value"]) if r.get("value") is not None else ""
+        out.append(f'<div class="ki-ex" title="{_ki_attr(r.get("tip"))}">'
+                   f'<span class="d{" near" if near and r.get("date", "") <= near else ""}">'
+                   f'{html_escape(r["when"])}</span>'
+                   f'<span class="n">{html_escape(r["asset"])}</span>'
+                   f'<span class="w">{html_escape(what)}</span>'
+                   f'<span class="v">{html_escape(value)}</span></div>')
+    if (expiries or {}).get("more"):
+        out.append(f'<div class="ki-ex more">{expiries["more"]} more on Portfolio</div>')
+    return '<div class="ki-list">' + "".join(out) + "</div>"
+
+
+def _ki_cohort_table(board: dict, ticker: str, record: dict, verdict: dict) -> list:
+    """The business against its cohort as one table, in three groups: each measure's value,
+    its place, and every peer on a strip where right is better. [{"title", "rows"}]."""
+    board = board if isinstance(board, dict) else {}
+    me = (board.get("companies") or {}).get(ticker) or {}
+    rec = record if isinstance(record, dict) else {}
+    ver = verdict if isinstance(verdict, dict) else {}
+    if me.get("cohort") == "clinical":
+        groups = (("Funding", (("runway",), ("share_change",))),
+                  ("Pipeline", (("mid_late_compounds",), ("trial_conc",))))
+    else:
+        bal = (("runway",) if me.get("cohort") == "commercial" and not _ki_metric(
+            me, ("nd_ocf", "net_cash_rev")) else ("nd_ocf", "net_cash_rev"))
+        groups = (("Financials", (("rev_growth",), ("op_margin", "pretax_margin", "fcf_margin"),
+                                  bal)),
+                  ("Pipeline", (("late_compounds",), ("late_per_rev",))),
+                  ("Marketed", (("loe_years",), ("top_product",), ("fresh_share",))))
+    # What a group leaves unsaid: the revenue the measures are of, the compounds in trials.
+    sub = {}
+    reported = ver.get("reported_revenue") or []
+    last = reported[-1] if reported else None
+    if last and last.get("value"):
+        fig, unit = _ki_level(last["value"])
+        cur = rec.get("row_currency") or rec.get("reporting_currency") or ""
+        sub["Financials"] = f"{fig}{unit} {cur} revenue, FY{last['fiscal_year']}".replace(
+            "  ", " ")
+    else:
+        fy0 = (rec.get("periods") or {}).get("FY0") or {}
+        if fy0.get("revenue_usd_m"):
+            fig, unit = _ki_level(fy0["revenue_usd_m"])
+            sub["Financials"] = f"{fig}{unit} USD revenue, {fy0.get('label') or ''}".strip(" ,")
+    pipe = ((rec.get("detail") or {}).get("pipeline") or {}).get("compounds") or {}
+    count = sum(v for k, v in pipe.items() if isinstance(v, (int, float)) and k in _KI_STAGE_RANK)
+    if count:
+        sub["Pipeline"] = f"{count:,.0f} {'compound' if count == 1 else 'compounds'} in trials"
+    out = []
+    for title, ids_list in groups:
+        rows = []
+        for ids in ids_list:
+            m = _ki_metric(me, ids)
+            if m:
+                row = _ki_peer_row(board, ticker, m)
+                if row.get("text"):
+                    row["text"] = (str(row["text"]).replace(" years", "y")
+                                   .replace(" year", "y").replace(" months", "mo"))
+                rows.append(row)
+        if rows:
+            out.append({"title": title, "sub": sub.get(title, ""), "rows": rows})
+    return out
+
+
+def _ki_cohort_html(groups: list, strips: dict) -> str:
+    """The table: a caps group label, then a row a measure, its strip from ``strips`` by id."""
+    out = []
+    for i, g in enumerate(groups or []):
+        sub = f'<i>{html_escape(g["sub"])}</i>' if g.get("sub") else ""
+        # Said once, at the top right of the table: the chip above has no room for it.
+        key = '<b class="rb">right is better</b>' if i == 0 else ""
+        out.append(f'<div class="ki-ct-g">{html_escape(g["title"])}{sub}{key}</div>')
+        if all(r.get("value") is None for r in g["rows"]):
+            # A group with no measure on file is one line saying why, not rows of dots.
+            out.append(f'<div class="ki-ct none">'
+                       f'{html_escape(g["rows"][0].get("reason") or "no value on file")}'
+                       f'</div>')
+            continue
+        for r in g["rows"]:
+            name = (f'<span class="l" title="{_ki_attr(r["full_label"])}">'
+                    f'{html_escape(r["label"])}</span>')
+            if r.get("value") is None:
+                out.append(f'<div class="ki-ct" title="{_ki_attr(r.get("reason"))}">{name}'
+                           f'<span class="s"></span><span class="v none">{_KI_EMPTY}</span>'
+                           f'<span class="p"></span></div>')
+                continue
+            out.append(f'<div class="ki-ct">{name}<span class="s">{strips.get(r["id"]) or ""}'
+                       f'</span><span class="v">{html_escape(r.get("text") or "")}</span>'
+                       f'<span class="p {r.get("tone") or ""}">'
+                       f'{html_escape(r.get("place_text") or "")}</span></div>')
+    return '<div class="ki-cohort">' + "".join(out) + "</div>"
+
+
+def _ki_forecast_state(verdict, error=None) -> str:
+    """"modelled", "not_modelled" or "failed": a read that failed is never said to be a
+    company with nothing modelled."""
+    if error:
+        return "failed"
+    v = verdict if isinstance(verdict, dict) else {}
+    if (v.get("ok") and (v.get("per_share") or v.get("streams") or v.get("placeholders"))
+            and ((v.get("sotp") or {}).get("marketed") or {}).get("per_share") is not None):
+        return "modelled"
+    return "not_modelled"
+
+
+def _ki_section_html(label: str, basis: str = "") -> str:
+    """The same markup section() writes, for a section inside a band."""
+    chip = f'<span class="sec-basis">{html_escape(basis)}</span>' if basis else ""
+    return f'<div class="sec ki-sec"><span class="sec-label">{html_escape(label)}</span>{chip}</div>'
+
+
+def _ki_band_html(cells: list, layout: str = "c2") -> str:
+    """A band: one grid, each cell its own block of markup. No blank lines, so markdown
+    cannot break the HTML."""
+    inner = "".join(f'<div class="ki-cell">{c}</div>' for c in cells)
+    return re.sub(r"\n\s*", "", f'<div class="ki-band {layout}">{inner}</div>')
+
+
+def _ki_changes(feed, ticker: str, today, levels: tuple = ("high",)) -> list:
+    """The company's changes rated high (or of ``levels``) in the last 30 days, newest
+    first. Restatements and rate moves are left to News, and what is dated ahead
+    (catalysts, exclusivity) to the readouts and the expiries."""
+    since = (today - dt.timedelta(days=_KI_CHANGE_DAYS)).isoformat()
+    until = today.isoformat()
+    rows = [it for it in feed or [] if isinstance(it, dict)
+            and it.get("significance") in levels
+            and it.get("kind") not in _KI_AHEAD_KINDS
+            and it.get("change_type") not in _KI_LEFT_TO_NEWS
+            and (it.get("ticker") or "") == ticker
+            and since <= str(it.get("date") or "")[:10] <= until]
+    rows.sort(key=lambda it: (str(it.get("date") or "")[:10],
+                              str(it.get("detected_at") or it.get("date") or "")),
+              reverse=True)
+    once, kept = set(), []
+    for it in rows:                 # the feed can carry one change twice
+        key = (str(it.get("date") or "")[:10], str(it.get("headline") or "").strip().lower())
+        if key not in once:
+            once.add(key)
+            kept.append(it)
+    return kept
+
+
+def _ki_headline(item, ticker: str) -> str:
+    """The change's headline without the leading ticker, which the page already names."""
+    text = re.sub(r"\s+", " ", str(item.get("headline") or "")).strip()
+    if ticker and text.startswith(ticker + " "):
+        text = text[len(ticker) + 1:]
+    return text[:1].upper() + text[1:]
+
+
+def _ki_change_row(item, ticker: str) -> str:
+    """The feed's own row markup, as the drawing has it: the date and the headline, the
+    ticker taken off it and the headline held to one line. The severity and the reason
+    columns go to the hover, with the whole headline: every row here is high and the
+    section's basis says so, and the reason repeats the headline ("efficacy supplement"
+    beside "Efficacy supplement: Truqap approved"), so on the line each said a thing twice."""
+    full = _ki_headline(item, ticker)
+    short = full
+    if len(full) > _KI_HEADLINE_CHARS and " -> " not in full:
+        cut = full[:_KI_HEADLINE_CHARS - 1]
+        # At a word where there is one in the last third, so no word is left half shown.
+        space = cut.rfind(" ")
+        if space > _KI_HEADLINE_CHARS * 2 // 3:
+            cut = cut[:space]
+        short = cut.rstrip(" ,;:") + "…"
+    markup = change_row(dict(item, headline=short, reason=""))
+    markup = re.sub(r'<span class="why">[^<]*</span><span class="s [a-z]+">[^<]*</span>', "",
+                    markup, count=1)
+    hover = " · ".join(part for part in (full, item.get("reason")) if part)
+    return markup.replace('class="fitem', f'title="{_ki_attr(hover)}" class="fitem', 1)
+
+
+def _ki_changes_basis(total: int) -> str:
+    """"3 of 10 in 30 days": the rest are on News."""
+    return f"{min(_KI_CHANGES_SHOWN, total)} of {total} in {_KI_CHANGE_DAYS} days"
+
+
+def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> None:
+    """Key insights, the company on one screen (docs/design/key-insights.md, revision 4):
+    the call beside the price, with a market row and a business row of figures under it;
+    then three columns that end together, the morning note and the readouts and decisions
+    ahead, the key assets and their losses of exclusivity, the bridge to the 12-month value
+    and the business against its cohort; then what changed and the note's controls.
+
+    Each object is one the page or a neighbouring tab already reads through the same
+    cached call, read once here and passed down. Every read has its own try, so a failure
+    costs a module, never the tab, and says it did not load."""
+    import drivers as DRV
+    if getattr(DRV, "REVISION", 0) < 4:
+        DRV = importlib.reload(DRV)
+
+    problem = None
+    try:
+        payload = _comps_valuation_payload(api_base) or {}
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        payload, problem = {}, str(exc).rstrip(".")
+    record = next((c for c in payload.get("companies") or []
+                   if isinstance(c, dict) and c.get("ticker") == ticker), None) or {}
+    board = payload.get("scorecard") if isinstance(payload.get("scorecard"), dict) else {}
+    company = (board.get("companies") or {}).get(ticker) if board else None
+    if problem is None and not isinstance(company, dict):
+        problem = (str(board.get("error")).rstrip(".") if board.get("error")
+                   else f"no record for {ticker}")
+    company = company if isinstance(company, dict) else None
+    cohort = ((board.get("cohorts") or {}).get((company or {}).get("cohort")) or {}) \
+        if board else {}
+
+    # Band 1. The call beside the price. A read that fails is said to have failed: falling
+    # back to the street there would print a street target beside the model's own bridge.
+    fv, fv_failed = {}, None
+    for _attempt in range(2):
+        try:
+            # The rating is the page's lead, and under a refresh it takes over a minute.
+            fv = api_get(api_base, f"/companies/{ticker}/fair-value", timeout=120) or {}
+            fv_failed = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            fv_failed = str(exc).rstrip(".")
+    rated = fv.get("rating") if isinstance(fv.get("rating"), dict) else {}
+    series = _ki_year_series(prices.get("points") or [])
+    street = ((record.get("street") or {}).get("price_target")
+              if isinstance(record.get("street"), dict) else None)
+    call = (_ki_call_failed(fv_failed) if fv_failed
+            else _ki_call(rated, fv.get("reason"), series, street))
+    momentum = _ki_metric(company, ("rel_1y",)) if company else None
+    multiple = ((company or {}).get("facts") or {}).get("multiple")
+    mplace = _ki_metric(company, ((multiple or {}).get("metric"),)) if company and multiple \
+        else None
+    figures = _ki_figures(series, call, momentum, street, multiple, mplace)
+    tone = call.get("word_tone") if call.get("source") == "model" else "neutral"
+    model_mark = ({"mid": rated.get("forward_12m"), "low": rated.get("forward_low"),
+                   "high": rated.get("forward_high"), "tone": tone,
+                   "tip": (f"Model in 12 months {_ki_money(rated.get('forward_12m'))}, "
+                           f"{_ki_money(rated.get('forward_low'))} to "
+                           f"{_ki_money(rated.get('forward_high'))}")}
+                  if call.get("source") == "model" else None)
+    street_mark = ({"value": street["value"],
+                    "tip": f"Street target {_ki_money(street['value'])}"}
+                   if isinstance(street, dict) and street.get("value") is not None else None)
+    money_fmt = (lambda v: f"{v:,.0f}") if (series.get("close") or 0) >= 100 else \
+        (lambda v: f"{v:,.2f}")
+    chart = CH.price_call(series["closes"], series["dates"], series.get("close"),
+                          model=model_mark, street=street_mark, width=800, height=196,
+                          value_fmt=money_fmt)
+    chart_cell = (f'<div class="chart-mount stretch ki-price">{chart}</div>' if chart else
+                  f'<div class="ki-empty" title="no price on file; Refresh on Prices">'
+                  f'{_KI_EMPTY}</div>')
+
+    # The reads below the call, before anything is drawn: the business row, the note and
+    # the three columns are written from them.
+    verdict, verdict_error = None, None
+    try:
+        verdict = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        verdict_error = str(exc).rstrip(".")
+    fstate = _ki_forecast_state(verdict, verdict_error)
+    modelled = fstate == "modelled"
+    sotp = (verdict or {}).get("sotp") or {} if modelled else {}
+    bp = None
+    if modelled:
+        try:
+            bp = _breakpoints(api_base, ticker)
+        except Exception:  # noqa: BLE001
+            bp = None
+    breaks = _ki_breaks(bp) if modelled else {}
+    try:
+        context = _comps_context(api_base, ticker)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        context = {"ticker": ticker, "error": str(exc)}
+    today = dt.date.today()
+    try:
+        today = dt.date.fromisoformat(str(board.get("today"))[:10])
+    except (TypeError, ValueError):
+        pass
+    programmes, exclusivities, read_errors = [], [], {}
+    try:
+        programmes = (api_get(api_base, f"/companies/{ticker}/programmes") or {}).get(
+            "programmes") or []
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        read_errors["programmes"] = str(exc).rstrip(".")
+    try:
+        exclusivities = (api_get(api_base, f"/companies/{ticker}/exclusivities") or {}).get(
+            "assets") or []
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        read_errors["exclusivities"] = str(exc).rstrip(".")
+    # The next gates' costs, for the one fact Key assets puts in a row's tooltip: a gate
+    # that costs more to reach than it is worth. Its own try, like the two reads above.
+    development = None
+    if modelled:
+        try:
+            development = api_get(api_base, f"/companies/{ticker}/development")
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            read_errors["trial costs"] = str(exc).rstrip(".")
+    assets = _ki_key_assets(verdict, record, programmes, exclusivities, today, modelled,
+                            development=development)
+    expiries = _ki_expiries(exclusivities, verdict, record,
+                            (company or {}).get("exclusivity_losses"), today, modelled)
+    # When the events read fails the list says so and is not filled from the registry,
+    # which would lead it with Phase 1 studies the events would have outranked.
+    events_ok = DRV.context_error(context) is None
+    readout_items = ((context.get("catalysts") or {}).get("items") or []) if events_ok else []
+    readouts = _ki_readouts(readout_items, today, prose=DRV.indication_prose,
+                            min_pct=DRV.DRIVER_MIN_PCT,
+                            programmes=programmes if events_ok else None)
+    business = _ki_business_figures(record, verdict, company, modelled, exclusivities,
+                                    failed=problem or "")
+    st.markdown(_ki_band_html([_ki_call_html(call, figures, business), chart_cell], "c2"),
+                unsafe_allow_html=True)
+
+    month_news = _ki_changes(feed, ticker, today, levels=("high", "medium", "low"))
+    rel_1m = (((record.get("detail") or {}).get("relative") or {}).get("1m")
+              or {}).get("relative_pct")
+    brief = _ki_brief(ticker, series, rated, call, _ki_metric(company, ("rel_3m",)),
+                      _ki_metric(company, ("rel_1y",)), month_news, sotp, assets, breaks,
+                      readouts["rows"], [], company, cohort, street, modelled,
+                      unrated=str(fv.get("reason") or ""), failed=verdict_error or "",
+                      rel_1m=rel_1m, expiries=expiries, rating_failed=fv_failed or "",
+                      coverage=(verdict or {}).get("coverage") if modelled else None,
+                      business=business)
+
+    # The note's rewrite: Rewrite note (in the foot) asks the note model to rewrite the
+    # briefing from exactly these facts; a rewrite is shown only while they still hold.
+    # The answer to the click is used as it comes back, since the read below is cached.
+    import hashlib
+    facts_hash = hashlib.sha1(brief["facts"].strip().encode("utf-8")).hexdigest()[:12]
+    if st.session_state.get("gen_note"):
+        with st.spinner(f"Writing the {ticker} note"):
+            try:
+                st.session_state["brief_result"] = dict(api_post_json(
+                    api_base, f"/companies/{ticker}/brief", {"facts": brief["facts"]},
+                    timeout=120), ticker=ticker)
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                st.session_state["brief_result"] = {"error": str(exc), "ticker": ticker}
+    written = {}
+    fresh = st.session_state.get("brief_result")
+    if isinstance(fresh, dict) and fresh.get("ticker") == ticker \
+            and fresh.get("hash") == facts_hash and fresh.get("body"):
+        written = fresh
+    else:
+        try:
+            written = api_get(api_base, f"/companies/{ticker}/brief?hash={facts_hash}") or {}
+        except (urllib.error.URLError, OSError, ValueError):
+            written = {}
+    if written.get("body"):
+        label = " · ".join(x for x in (written.get("model"),
+                                       _ki_day(written.get("generated_at")),
+                                       (written.get("generated_at") or "")[11:16]) if x)
+    else:
+        label = "from the figures on this page"
+    note_cell = _ki_brief_html(brief, label, written.get("body"))
+    # A short note leaves its column room for two more readouts, so the three columns end
+    # together rather than column one stopping a hundred pixels early.
+    if sum(len(p.split()) for p in brief["paragraphs"]) < 120 and readouts.get("more"):
+        readouts = _ki_readouts(readout_items, today, prose=DRV.indication_prose,
+                                min_pct=DRV.DRIVER_MIN_PCT, shown=_KI_READOUTS_SHOWN + 2,
+                                programmes=programmes if events_ok else None)
+
+    # Band 2, three columns that end together. The note, then the dated events that can
+    # move the value. What the value rests on, asset by asset, then the exclusivity it
+    # loses next. Where the 12-month value comes from, then the business against its
+    # cohort. A read that failed says so, never that nothing is on file.
+    def did_not_load(what):
+        return (f'<div class="ki-empty">The {what} did not load: '
+                f'{html_escape(read_errors[what])}. Reload in a minute.</div>')
+
+    col_a = (note_cell
+             + _ki_section_html("Readouts and decisions", "soonest first · ○ estimated date")
+             + _ki_readouts_html(readouts))
+    ctx_problem = DRV.context_error(context)
+    if ctx_problem is not None:
+        col_a += (f'<div class="ki-empty">'
+                  f'{html_escape(DRV.CONTEXT_FAILED.format(T=ticker, error=ctx_problem))}</div>')
+    chip = ("$ a share" if modelled else
+            "the forecast did not load" if fstate == "failed" else "not modelled")
+    col_b = (_ki_section_html("Key assets", chip)
+             + (did_not_load("programmes") if "programmes" in read_errors else "")
+             + (did_not_load("trial costs") if "trial costs" in read_errors else "")
+             + _ki_key_assets_html(assets, problem or "")
+             + _ki_section_html("Loss of exclusivity", "next five · $ a share")
+             + (did_not_load("exclusivities") if "exclusivities" in read_errors
+                else _ki_expiries_html(expiries, today)))
+
+    if modelled:
+        bridge = _ki_bridge(sotp, rated.get("forward_12m") if rated.get("ok") else None)
+        end = _ki_money(bridge["end"]) if bridge.get("end") is not None else None
+        if bridge["ok"] and end:
+            # Built at the column's width with no axis margin, so its figures are drawn
+            # at their size. A price far above every bar is named in the chip, not drawn:
+            # on the bridge's scale it would crush the bars into the lower half.
+            level, tallest = 0.0, 0.0
+            for st_ in bridge["steps"]:
+                if st_.get("kind") == "start":
+                    level = st_.get("value") or 0.0
+                elif st_.get("kind") == "step" and st_.get("value") is not None:
+                    level += st_["value"]
+                tallest = max(tallest, level)
+            far = bool(sotp.get("close") and tallest and sotp["close"] > 1.4 * tallest)
+            svg = CH.waterfall(bridge["steps"], 430, 176,
+                               value_fmt=lambda x: f"{x:,.2f}", pad_l=8,
+                               reference=({"label": None, "value": sotp["close"]}
+                                          if sotp.get("close") and not far else None))
+            top = (_ki_section_html(f"Where {end} comes from",
+                                    f"$ a share · price {_ki_money(sotp.get('close'))}, "
+                                    + ("above the chart" if far else "dashed"))
+                   + f'<div class="chart-mount stretch ki-bridge">{svg}</div>')
+        else:
+            top = (_ki_section_html("Where the value comes from")
+                   + f'<div class="ki-empty">{html_escape(_KI_NO_BRIDGE)}</div>')
+    elif fstate == "failed":
+        top = (_ki_section_html("Where the value comes from")
+               + f'<div class="ki-empty">The forecast did not load: '
+                 f'{html_escape(verdict_error)}. Reload in a minute.</div>')
+    else:
+        expects = _ki_street_expects(record)
+        top = ""
+        if expects:
+            cells = "".join(f'<div class="ki-f"><span class="v">{html_escape(v)}</span>'
+                            f'<span class="k">{html_escape(k)}</span></div>'
+                            for v, k in expects)
+            top = (_ki_section_html("What the street expects")
+                   + f'<div class="ki-figs ki-expects">{cells}</div>')
+    if company is None:
+        cohort_html = (_ki_section_html("Against its cohort")
+                       + f'<div class="ki-empty">'
+                         f'{html_escape(_KI_FAILED.format(error=problem))}</div>')
+    else:
+        chip = (f"{_ki_ord(company['rank'])} of {company.get('ranked_of')}"
+                if company.get("rank") is not None else (company.get("reason_text") or ""))
+        title = (f"Against {cohort.get('n')} {cohort.get('noun')}"
+                 if cohort.get("n") and cohort.get("noun") else "Against its cohort")
+        groups = _ki_cohort_table(board, ticker, record,
+                                  verdict if isinstance(verdict, dict) else {})
+        strips = {r["id"]: CH.peer_dots(r["peers"], {"ticker": ticker, "value": r["value"],
+                                                     "text": r.get("text")},
+                                        better=r["better"], width=68, height=16,
+                                        median=r.get("median"), tone=r["tone"],
+                                        label=r["full_label"])
+                  for g in groups for r in g["rows"] if r.get("value") is not None}
+        cohort_html = _ki_section_html(title, chip) + _ki_cohort_html(groups, strips)
+    col_c = (f'<div class="ki-top">{top}</div>' if top else "") + cohort_html
+    st.markdown(_ki_band_html([col_a, col_b, col_c], "c3e"), unsafe_allow_html=True)
+
+    # Foot. What changed, then the note's controls.
+    changes = _ki_changes(feed, ticker, today)
+    changed_col, note_col = st.columns([7, 5], gap="medium")
+    with changed_col:
+        section("What changed", basis=_ki_changes_basis(len(changes)) if changes else "")
+        if changes:
+            st.markdown('<div class="feed ki-changes">'
+                        + "".join(_ki_change_row(it, ticker)
+                                  for it in changes[:_KI_CHANGES_SHOWN])
+                        + "</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="ki-empty">{html_escape(_KI_NO_CHANGES)}</div>',
+                        unsafe_allow_html=True)
+    with note_col:
+        section("Note")
+        b1, b2, _pad = st.container(key="ki_note_buttons").columns([1.2, 1, 2], gap="small")
+        with b1:
+            st.button("Rewrite note", key="gen_note", width="stretch",
+                      help="Have the note model rewrite the morning note from the figures "
+                           "on this page")
+        with b2:
+            write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
+        result = st.session_state.get("brief_result")
+        if isinstance(result, dict) and result.get("ticker") == ticker and result.get("error"):
+            st.markdown(f'<div class="byline">The rewrite did not run: '
+                        f'{html_escape(result["error"])}. The note above is the one built '
+                        'from the figures.</div>', unsafe_allow_html=True)
+        if write_sheet:
+            with st.spinner(f"Writing the {ticker} tearsheet"):
+                st.session_state["tearsheet"] = api_post(
+                    api_base, f"/companies/{ticker}/tearsheet")
+        made = st.session_state.get("tearsheet")
+        if made and made.get("ticker") == ticker:
+            st.markdown(
+                f'<div class="byline">Tearsheet written to '
+                f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
+                'Open it and print to A4, or save as PDF.</div>',
+                unsafe_allow_html=True)
+
+    _china_bd(api_base, ticker)
 
 
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,
@@ -3995,6 +9218,17 @@ if not engine and _shared:
     engine = next((c.get("engine") for c in companies
                    if c["ticker"] == _shared and c.get("engine") in ENGINES), "")
 
+# The Comps valuation view can make any company in the universe focal, since a peer may
+# come from another engine. The picker below lists only the open engine's companies, so a
+# focal company from another engine opens its own engine first, the way a shared link
+# does, and the hook before the picker then selects it.
+_cv_focus = _compsval_focus()
+if engine and _cv_focus:
+    _cv_home = next((c.get("engine") for c in companies if c["ticker"] == _cv_focus), None)
+    if _cv_home in ENGINES and _cv_home != engine:
+        engine = _cv_home
+        st.query_params["engine"] = _cv_home
+
 st.session_state["engine"] = engine or st.session_state.get("engine") or "pharma"
 # An engine narrows the picker to the companies it covers. Search is the escape hatch and
 # still reaches everything, so narrowing costs nothing that cannot be undone. The home
@@ -4035,6 +9269,15 @@ if (isinstance(_cov, dict) and _cov.get("ticker") in tickers
     st.session_state["company_pick"] = _cov["ticker"]
     st.session_state["_cov_nonce"] = _cov.get("nonce")
 
+# The same for the Comps valuation view: a new focal company picked inside it (its
+# company selector, "Make focal" or the palette) is applied here, before the selector
+# reads its key. The nonce is recorded either way, so an unknown ticker is dropped once
+# rather than retried on every rerun.
+if _cv_focus is not None:
+    if _cv_focus in tickers:
+        st.session_state["company_pick"] = _cv_focus
+    st.session_state["_compsval_nonce"] = (st.session_state.get("compsval") or {}).get("nonce")
+
 # A click on the approvals timeline names a company and an application number. The
 # company is applied here, before the selector reads its key; the application number is
 # A wedge on the revenue mix links to ?product=<asset id>. Read once, held in session
@@ -4066,6 +9309,10 @@ def _jump_to_search():
         st.session_state["company_pick"] = match
         st.session_state["global_search"] = ""
 
+
+# A button in the Universe tab's company dialog opens that company on another tab; the
+# company is applied here, before the selector reads its key.
+universe_page.apply_goto(tickers)
 
 bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
 with bar[0]:
@@ -4109,7 +9356,7 @@ elif company.get("is_foreign_private_issuer"):
 else:
     filer = "10-K filer"
 quote = prices.get("currency")
-meta = " · ".join(x for x in [company.get("exchange"), filer,
+meta = " · ".join(x for x in [company.get("primary_exchange"), filer,
                               f"quoted in {quote}" if quote else None] if x)
 with bar[1]:
     st.markdown(
@@ -4222,6 +9469,206 @@ def _cat_phase_study(title: str) -> tuple[str, str]:
         phase, study = text.split(", ", 1)
         return phase, study
     return "", text
+
+
+# --- Catalysts: Drivers and risks ------------------------------------------------------
+# Scoped to the two lists and carried with their markup. A list is one grid, so every
+# lead in it takes the width of the longest and the texts start on one line; a row is
+# display: contents, so it can be a link to its registry page without breaking the grid.
+# Each block pads its foot by the rem Streamlit's markdown pulls back up, so a fold drawn
+# under a list never sits on its last row.
+_DR_CSS = """<style>
+.dr-wrap { padding-bottom: 1rem; }
+/* At stake, drawn under this section on the same tab: a columns block is not an element
+   container, so the section rule's spacing missed it and the met and missed buttons sat
+   5 px over the rule. Each row centres its buttons on its two lines. */
+.st-key-cat_stakes { margin-top: 0.55rem; }
+.st-key-cat_stakes .stButton button { min-height: 28px; padding: 0.1rem 0.5rem; }
+.dr-h { display: flex; align-items: baseline; gap: 0.6rem; margin: 0.75rem 0 0.45rem; }
+.dr-h .k { font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+           text-transform: uppercase; color: var(--text); }
+.dr-h .b { font-size: 11px; color: var(--muted); }
+.dr-list { display: grid; grid-template-columns: max-content minmax(0, 1fr);
+           column-gap: 0.9rem; row-gap: 0.34rem; align-items: baseline; }
+.dr-row { display: contents; color: inherit; text-decoration: none; }
+.dr-lead { font-family: var(--font-mono); font-size: 11.5px; color: var(--text);
+           white-space: nowrap; }
+.dr-lead.date { color: var(--muted); }
+.dr-m { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+        color: var(--muted); margin-left: 4px; cursor: help; }
+.dr-text { font-size: 12.5px; line-height: 1.4; color: var(--text); min-width: 0; }
+a.dr-row:hover .dr-text { color: var(--up); }
+.dr-note { font-size: 11px; color: var(--muted); margin-top: 0.45rem; }
+.dr-empty { font-size: 12px; color: var(--muted); }
+</style>"""
+
+
+def _dr_href(row: dict):
+    """The registry page a row opens: the event's own source, or the trial a slip names.
+    Only a web address is linked, never another scheme a stored value might carry."""
+    url = row.get("source") or (f"https://clinicaltrials.gov/study/{row['nct_id']}"
+                                if row.get("nct_id") else None)
+    return url if isinstance(url, str) and url.startswith(("https://", "http://")) else None
+
+
+def _dr_tip(kind: str, row: dict) -> str:
+    """The hover text behind a row: what the number is and where it comes from. Words a
+    reader can ask for, so they cost nothing on the screen."""
+    if kind == "driver":
+        if row.get("model") and row.get("value_kind") == "stake":
+            # A derived stake says so: its legs are published transition rates, not a
+            # success and failure case anyone wrote down.
+            lead = (f"Model output, {row['lead_note']}" if row.get("lead_note")
+                    else "Model output")
+            return (f"{lead}: the swing between the met and missed cases, a share, "
+                    f"{(row.get('pct_of_price') or 0):.1%} of the price. "
+                    + (row.get("title") or ""))
+        if row.get("model"):
+            return (f"Model output: {row['asset']}'s risk-adjusted value a share, "
+                    f"{(row.get('pct_of_price') or 0):.1%} of the price. "
+                    + (row.get("title") or ""))
+        return row.get("title") or ""
+    if row.get("kind") == "exclusivity":
+        # The row's own share text, so the hover never reads a tenth off the lead.
+        share = row.get("share_text") or (f"{row['share_of_revenue']:.1%}"
+                                          if row.get("share_of_revenue") is not None else None)
+        return " · ".join(x for x in (
+            f"{share} of the latest year's revenue" if share else None,
+            row.get("basis")) if x)
+    if row.get("kind") == "slip":
+        return (f"Primary completion moved from {row.get('old')} to {row.get('new')}, "
+                f"seen {row.get('detected')}")
+    if row.get("kind") == "pool":
+        kept = str(row.get("lead") or "").replace(" kept", "")
+        ind = str(row.get("indication") or "")
+        if ind[1:2].islower():           # "Obesity" mid-sentence, but "HIV infections" kept
+            ind = ind[:1].lower() + ind[1:]
+        return (f"Model output: with {row.get('pool_drugs')} drugs sharing the {ind} pool, "
+                f"the company's forecast keeps {kept} of the patients it would reach alone.")
+    return ""
+
+
+def _dr_attr(text) -> str:
+    """A value for a double-quoted attribute. Not ``html.escape``: by the time the
+    Catalysts tab draws, the page's own code has bound ``html`` to a list of markup."""
+    return html_escape(str(text or "")).replace('"', "&quot;")
+
+
+def _dr_list(rows: list, kind: str) -> str:
+    """One list as markup: the lead (a number, else the month), then the row's text."""
+    out = []
+    for r in rows:
+        dated = kind == "driver" and not r.get("model")
+        marker = ""
+        if kind == "driver" and r.get("model"):
+            # A stake's marker says what kind of stake it is, derived or stated, as the
+            # row's tooltip does, since the marker's own title is what shows over it.
+            said = (f"Model output, {r['lead_note']}" if r.get("lead_note")
+                    else "Model output")
+            marker = f'<span class="dr-m" title="{_dr_attr(said)}">M</span>'
+        tip = _dr_tip(kind, r)
+        href = _dr_href(r)
+        attrs = f' title="{_dr_attr(tip)}"' if tip else ""
+        if href:
+            tag, attrs = "a", (f' href="{_dr_attr(href)}" target="_blank"'
+                               f' rel="noopener"{attrs}')
+        else:
+            tag = "div"
+        out.append(
+            f'<{tag} class="dr-row" data-kind="{_dr_attr(r.get("kind") or kind)}"'
+            f'{attrs}><span class="dr-lead{" date" if dated else ""}">'
+            f'{html_escape(r["lead"])}{marker}</span>'
+            f'<span class="dr-text">{html_escape(r["text"])}</span></{tag}>')
+    return f'<div class="dr-list {kind}">{"".join(out)}</div>'
+
+
+def _drivers_and_risks(api_base: str, ticker: str, feed_rows=None) -> None:
+    """Drivers and risks, the first section of the Catalysts tab (company-scorecard.md 1.5
+    and 5.4): Drivers, the events of the next 12 months, value-bearing first, beside Risks,
+    the exclusivity losses of the next 24 months, readouts that slipped and crowded
+    patient pools.
+
+    It reads only what the page already holds for the minute: the scorecard inside the
+    Comps payload for the exclusivity losses, the focal company's comps-context for the
+    events and the pools, and the change feed for the slips. ``drivers.section`` ranks
+    and words every row, the same function Key insights takes its Next from, so the two
+    tabs cannot disagree about what comes first."""
+    import drivers as DRV
+    if getattr(DRV, "REVISION", 0) < 4:
+        DRV = importlib.reload(DRV)
+
+    company, today, board_problem = None, None, None
+    try:
+        board = (_comps_valuation_payload(api_base) or {}).get("scorecard")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        board, board_problem = None, str(exc)
+    if isinstance(board, dict) and not board.get("error"):
+        company = (board.get("companies") or {}).get(ticker)
+        today = board.get("today")
+    elif board_problem is None:
+        board_problem = (str(board.get("error")) if isinstance(board, dict)
+                         else "no scorecard in the answer")
+    try:
+        context = _comps_context(api_base, ticker)
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        context = {"error": str(exc)}
+
+    part = DRV.section(ticker, context, company, feed_rows or [], today)
+    drivers_part, risks_part = part["drivers"], part["risks"]
+    notes = []
+    if part["state"] == "ok" and part.get("message"):
+        notes.append(part["message"])
+    if isinstance(context, dict) and context.get("complete") is False:
+        # The API answers before the model's values are warm and says so. The ranking
+        # then has no value to lead with, so the reader is told rather than shown a list
+        # that will reorder in a minute. Key insights reads the same answer.
+        notes.append("Model values are still being computed. Reload in a minute.")
+    if board_problem:
+        notes.append(f"The scorecard did not load: {board_problem.rstrip('.')}. "
+                     "Exclusivity losses are left out.")
+
+    def _notes_html(skip=None) -> str:
+        return "".join(f'<div class="dr-note">{html_escape(n)}</div>'
+                       for n in notes if n != skip)
+
+    section(html_escape(part["title"]), basis=part["basis"])
+    if part["state"] != "ok":
+        st.markdown(_DR_CSS + '<div class="dr-wrap"><div class="dr-empty">'
+                    f'{html_escape(part["message"])}</div>{_notes_html(part["message"])}'
+                    "</div>", unsafe_allow_html=True)
+        return
+
+    # A list with no row is not drawn and the other takes the width (1.5).
+    shown = [k for k, rows in (("drivers", drivers_part["rows"]),
+                               ("risks", risks_part["rows"])) if rows]
+    slots = (dict(zip(shown, st.columns([1.25, 1], gap="large")))
+             if len(shown) == 2 else {shown[0]: st.container()})
+    if "drivers" in slots:
+        with slots["drivers"]:
+            st.markdown(
+                _DR_CSS + '<div class="dr-wrap"><div class="dr-h"><span class="k">'
+                f'{html_escape(drivers_part["title"])}</span><span class="b">'
+                f'{html_escape(drivers_part["basis"])}</span></div>'
+                + _dr_list(drivers_part["shown"], "driver") + "</div>",
+                unsafe_allow_html=True)
+            if drivers_part["more"]:
+                with st.expander(drivers_part["more_label"], expanded=False):
+                    st.markdown(_dr_list(drivers_part["more"], "driver"),
+                                unsafe_allow_html=True)
+    if "risks" in slots:
+        with slots["risks"]:
+            st.markdown(
+                _DR_CSS + '<div class="dr-wrap"><div class="dr-h"><span class="k">'
+                f'{html_escape(risks_part["title"])}</span></div>'
+                + _dr_list(risks_part["rows"], "risk") + "</div>",
+                unsafe_allow_html=True)
+            # The exclusivity losses left out for slips and pools, as Drivers folds its rest.
+            if risks_part.get("more"):
+                with st.expander(risks_part["more_label"], expanded=False):
+                    st.markdown(_dr_list(risks_part["more"], "risk"),
+                                unsafe_allow_html=True)
+    if notes:
+        st.markdown(f'<div class="dr-wrap">{_notes_html()}</div>', unsafe_allow_html=True)
 
 
 def _catalyst_spine_item(cat) -> dict:
@@ -4368,7 +9815,7 @@ with main:
         _wanted.append(("themes", "Themes"))
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
-    _wanted += [("comps", "Comps"), ("news", "News")]
+    _wanted += [("comps", "Comps"), ("holdings", "Holdings")]
     _panels = dict(zip([name for name, _label in _wanted],
                        st.tabs([label for _name, label in _wanted])))
     universe_tab = _panels["universe"]
@@ -4380,9 +9827,10 @@ with main:
     forecast_tab = _panels["forecast"]
     themes_tab = _panels.get("themes")
     comps_tab = _panels["comps"]
-    news_tab = _panels["news"]
+    holdings_tab = _panels["holdings"]
     portfolio_tab = _panels.get("portfolio")
     runway_tab = _panels.get("runway")
+    universe_page.click_pending_tab()
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:
@@ -4457,254 +9905,19 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
+        elif (_universe_redesigned(ticker, _view, (company or {}).get("engine"))
+              and universe_page.render(api_base, ticker)):
+            pass
         else:
             _universe_overview(api_base, engine, _engine_name, _covered,
                                _all_changes, universe_feed)
 
     with insights_tab:
-        # A briefing opens with where the company stands, then layers on what moved.
-        # Built only from diffs it read as empty for most companies: LLY showed zero.
-        pipeline_rows = api_get(api_base, "/pipeline")
-        mine = next((r for r in pipeline_rows if r["ticker"] == ticker), {})
-        phases = mine.get("phases") or {}
-        # Counted the same way the Pipeline tab counts, so the two tabs cannot disagree.
-        # Phase 4 is work on approved products, so it is not development; long-term
-        # follow-up and extension studies carry a development phase but are lifecycle
-        # work, counted from the title by /pipeline and subtracted here too.
-        in_development = (sum(count for phase, count in phases.items()
-                              if phase not in POST_APPROVAL)
-                          - (mine.get("follow_up") or 0))
-        late = sum(phases.get(p, 0) for p in ("Phase 3", "Phase 2/3"))
-
-        def _next(kind):
-            dates = sorted((it["date"] or "")[:10] for it in feed
-                           if it["kind"] == kind and it["date"])
-            return dates[0] if dates else None
-
-        points = prices.get("points") or []
-
-        def _move(series):
-            if len(series) < 2 or not series[0]["close"]:
-                return None
-            return (series[-1]["close"] - series[0]["close"]) / series[0]["close"] * 100
-
-        intraday = api_get(api_base, f"/companies/{ticker}/intraday")
-        bars = intraday.get("points") or []
-        change = _move(points)   # whole stored history
-        # From the intraday bars, so the headline number and the sparkline beneath it
-        # describe the same window rather than two nearly-equal ones.
-        recent = _move(bars) if bars else _move(points[-SPARK_SESSIONS:])
-        high = sum(1 for it in feed if it["significance"] == "high")
-
-        cells = [
-            ("last close", T.num(prices["latest"]["close"], 2) if points else "—",
-             "" if points else "none", prices.get("currency") or ""),
-            # The headline move matches the sparkline beneath it; the long run is the
-            # context under it rather than a second number competing with it.
-            (f'{len(intraday.get("sessions") or []) or SPARK_SESSIONS} day', T.pct(recent),
-             "up" if (recent or 0) >= 0 else "down",
-             f"5y {T.pct(change)}" if change is not None else ""),
-            ("in development", str(in_development) if mine else "—",
-             "" if mine else "none", f"{late} in late phase" if mine else ""),
-            ("next catalyst", _next("catalyst") or "none", "" if _next("catalyst") else "none",
-             "readouts and PDUFA"),
-            ("next loe", _next("loe") or "none", "" if _next("loe") else "none",
-             "inside 24 months"),
-            ("flagged", str(len(feed)), "down" if high else "", f"{high} high" if high else "nothing high"),
-        ]
-        # The position strip and the two note actions share the top row: the strip fills
-        # the width, and Generate and Tearsheet stack small on the right at the same level.
-        strip_col, btn_col = st.columns([6, 0.75])
-        with strip_col:
-            st.markdown(
-                '<div class="pos">' + "".join(
-                    f'<span><span class="k">{k}</span>'
-                    f'<span class="v {cls}">{v}</span>'
-                    f'<span class="sub">{sub}</span></span>' for k, v, cls, sub in cells)
-                + "</div>", unsafe_allow_html=True)
-        with btn_col:
-            regenerate = st.button("Generate", key="gen_note", width="stretch")
-            write_sheet = st.button("Tearsheet", key="gen_sheet", width="stretch")
-
-        # Fifteen minute bars over the last five sessions, spanning the column above the
-        # note. A briefing wants the shape of the week, which daily closes cannot show:
-        # five points is a zigzag, not a market. Bars are butted together in order, never
-        # on a time axis that would draw a flat line through overnight hours that never
-        # traded; the session marks say where each trading day begins.
-        if bars:
-            closes = [b["close"] for b in bars]
-            session_starts = [i for i, b in enumerate(bars)
-                              if i and b["as_of"][:10] != bars[i - 1]["as_of"][:10]]
-            # Shallow on purpose. This is the shape of the week rather than a chart to
-            # read a level off, the Prices tab has the real one, and every pixel it takes
-            # comes out of the boxes below it on a tab that has to fit one screen.
-            R.show(CH.sparkline(closes, 832, 54, label_last=True, marks=session_starts),
-                   css_class="chart-mount stretch")
-
-        if write_sheet:
-            with st.spinner(f"Writing the {ticker} tearsheet"):
-                st.session_state["tearsheet"] = api_post(
-                    api_base, f"/companies/{ticker}/tearsheet")
-        made = st.session_state.get("tearsheet")
-        if made and made.get("ticker") == ticker:
-            st.markdown(
-                f'<div class="byline">Tearsheet written to '
-                f'<span class="mono">exports/{html_escape(made["filename"])}</span>. '
-                'Open it and print to A4, or save as PDF.</div>',
-                unsafe_allow_html=True)
-
-        # --- What happened, as headline boxes ----------------------------
-        # The same object the universe tab uses, for the same reason: a deal, a readout
-        # and a catalyst are three things that happened to one company, and holding each
-        # of them in its own list shape made them read as three unrelated features.
-        # Catalysts, exclusivity and filings come from the feed; deals and readouts from
-        # their own endpoints. The raw change list, trial status and date wording, stays
-        # out of this view: it read as jargon and the events that matter are here.
-        deals_data = api_get(api_base, f"/companies/{ticker}/deals").get("deals") or []
-        readouts_data = api_get(api_base, f"/companies/{ticker}/readouts").get("readouts") or []
-        catalyst_items = [it for it in feed if it["kind"] == "catalyst"]
-        loe_items = [it for it in feed if it["kind"] == "loe"]
-        filing_items = [it for it in feed if it["kind"] == "filing"]
-
-        # What happened: things with a result, newest first. Ordered by date rather than
-        # by kind on purpose. Grouped by kind, GSK's six readouts filled the row and its
-        # six deals never appeared at all, which is the opposite of what a row headed
-        # "what happened" should do. A date sort mixes them and answers the question.
-        happened = sorted(
-            [_readout_lead(r, ticker) for r in readouts_data]
-            + [_deal_lead(d, ticker) for d in deals_data]
-            + [_feed_lead(it) for it in filing_items],
-            key=lambda box: box["date"] or "", reverse=True)
-        # What is coming: things with a date in front of them, soonest first, so the row
-        # is cut at the far end rather than the near one.
-        ahead = sorted([_feed_lead(it) for it in catalyst_items + loe_items],
-                       key=lambda box: box["date"] or "9999-99-99")
-
-        if not (happened or ahead):
-            section("Nothing flagged")
-            state(f"Nothing coming up for {ticker}",
-                  "The position above is current either way. Catalysts, deals, readouts "
-                  "and exclusivity fill in as refreshes run; a refresh from the Prices "
-                  "tab pulls the latest.")
-        else:
-            size = deal_size(deals_data)
-            # A literal separator, not an entity: section() escapes the basis chip, so
-            # "&middot;" would print as itself.
-            basis = " · ".join(
-                part for part in (f"{len(readouts_data)} readouts" if readouts_data else "",
-                                  f"{len(deals_data)} deals" if deals_data else "",
-                                  size or "") if part)
-            section("What happened", len(happened) or None, basis)
-            if happened:
-                st.markdown(_leads(happened[:_INSIGHT_SHOWN], 6, 3),
-                            unsafe_allow_html=True)
-                note("Readouts are Phase 2 and 3 topline results classified from the "
-                     "press releases, each carrying the sentence it was read from. Deal "
-                     "values are announced consideration including milestones, not cash "
-                     "paid, so they are not the acquisitions line on the financials tab. "
-                     "Filings are material 8-K items beyond the deals themselves.")
-            else:
-                state(f"Nothing has landed for {ticker} in the window",
-                      "The dated items beside this are still ahead of it.")
-
-        # The note on one side, both lists stacked on the other, in equal halves.
-        #
-        # The note is read at its own length and never scrolls, so the layout's job is to
-        # put enough beside it to reach the same depth. One list could not do that: a note
-        # runs 850 to 1500 characters, which is 270 to 460 pixels of prose, while Vertex
-        # has a single dated item to put next to it and Biogen four. Both lists together
-        # always have the material, because a company quiet on one is busy on the other.
-        #
-        # Equal halves rather than three to two because the note sets its own measure at
-        # 68 characters and stops: given three fifths of the page it left a strip of empty
-        # column, and given two fifths it would have run half as wide and twice as deep.
-        _note_col, _side_col = st.columns(2, gap="medium")
-
-        with _note_col:
-            section("Morning note")
-            if regenerate:
-                with st.spinner(f"Writing the {ticker} note"):
-                    st.session_state["note"] = api_get(
-                        api_base, f"/companies/{ticker}/note?refresh=true")
-            elif st.session_state.get("note", {}).get("ticker") != ticker:
-                st.session_state["note"] = api_get(api_base, f"/companies/{ticker}/note")
-
-            # Not "note": this module runs top to bottom, so a name bound here shadows
-            # the note() helper for every tab below it, and the financials tab calls it.
-            written = st.session_state.get("note") or {}
-            if not written.get("body"):
-                state(f"No note for {ticker} yet",
-                      "Press Generate. Without an Anthropic key the note is the rules "
-                      "layer, which lists the flagged items grouped by kind.")
-            else:
-                st.markdown(note_html(written["body"], fit=True),
-                            unsafe_allow_html=True)
-                layer = ("rules layer, no Anthropic key set"
-                         if written.get("model") == "rules"
-                         else written.get("model") or "")
-                # One line, not two. It sits directly under the note and the note is what
-                # sets the height of this half of the tab, so a second line of provenance
-                # costs a line of the thing it is describing. The Generate button above
-                # already says how to rebuild it.
-                st.markdown(
-                    f'<div class="byline">{html_escape(layer)} · '
-                    f'{html_escape((written.get("generated_at") or "")[:16])} · '
-                    'the feed as it stood then</div>', unsafe_allow_html=True)
-            if written.get("error"):
-                state("The note fell back to the rules layer", written["error"],
-                      error=True)
-
-        # Both lists in the other half, dated first. What is coming has a claim on the eye
-        # that what already happened does not, and the changes underneath are the band
-        # that gives way: it is the one place on the tab where a reader is scanning rather
-        # than reading, so it takes whatever depth the note leaves and scrolls past that.
-        with _side_col:
-            section("Dated ahead", len(ahead) or None,
-                    "catalysts and exclusivity" if ahead else "")
-            if ahead:
-                st.markdown(_leads(ahead[:_INSIGHT_AHEAD], 2, 2), unsafe_allow_html=True)
-                note("Catalysts are readouts and PDUFA dates inside 60 days. Exclusivity "
-                     "is a molecule losing protection inside 24 months, from the Orange "
-                     "and Purple Books.")
-            else:
-                state(f"Nothing dated ahead for {ticker}",
-                      "No catalyst inside 60 days and no exclusivity loss inside 24 "
-                      "months.")
-
-            # The snapshot diff itself, which is the thing this app is for. The strip
-            # above counts 36 flagged items for GSK and the two bands account for 11 of
-            # them: the other 25 are approvals, trial completion dates moving and
-            # risk-factor sections being rewritten, every one a change to the case rather
-            # than an event with a press release.
-            changed = sorted(
-                (it for it in feed if it["kind"] == "change"),
-                key=lambda it: (_SEVERITY_RANK.get(it.get("significance"), 3),
-                                _flip_date(it.get("date"))))
-            if changed:
-                high = sum(1 for it in changed if it.get("significance") == "high")
-                section("What changed", len(changed),
-                        f"{high} high" if high else "since the last refresh")
-                # The list and its notes line go out as one element, so the notes stay
-                # under the last row rather than at the foot of the column. Streamlit
-                # gives each markdown call its own flex child, and this list is the one
-                # that shrinks: separated, the notes line sat wherever the shrinking left
-                # it, two hundred pixels below the list on a quiet company.
-                st.markdown(
-                    '<div class="changes-block"><div class="feed changes">'
-                    + "".join(change_row(it) for it in changed[:_CHANGES_SHOWN])
-                    + "</div>"
-                    + note_markup(
-                        "Every line is a difference between the last two snapshots of "
-                        "the same entity, not a headline. A trial completion date moving "
-                        "and a risk factor section being rewritten have no press release "
-                        "and are the reason the snapshots are kept. The full history is "
-                        "on the company's own News and Pipeline tabs.")
-                    + "</div>", unsafe_allow_html=True)
-
-        # Last on the tab, below the note and both lists. It is a count over the deals
-        # already shown under What happened, read one way, so it follows everything that
-        # is about this company today rather than standing in front of it.
-        _china_bd(api_base, ticker)
+        # The company on one page (company-scorecard.md 1.3): where it stands against its
+        # cohort and what changed. The sparkline, What happened and Dated ahead are gone:
+        # Prices owns the price, deals and readouts reach What changed through the feed,
+        # and Next is the head of the Catalysts list.
+        _key_insights_tab(api_base, ticker, feed, prices)
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
@@ -5007,226 +10220,98 @@ with main:
 
     # --- Comps -----------------------------------------------------------
     with comps_tab:
-        # Comparables means comparable. Every table, chart and screen on this tab is cut
-        # to the open engine's own cohort: ranking Lilly's net margin against a
-        # clinical-stage biotech with no revenue is not a comparison, and a scatter that
-        # mixes the two puts eighteen large caps in one corner and the rest on the axis.
-        # The engine's ticker list is already resolved above for the picker, so this
-        # needs no second request.
         # Two markers: one lets the theme size this tab's charts against the screen, the
         # other drops the horizon rail. The rail is one company's forward calendar and
         # this tab is every company at once, so its width belongs to the comparison.
         st.markdown('<span class="comps-anchor"></span><span class="no-rail"></span>',
                     unsafe_allow_html=True)
+        # The Indications and Pipelines views stay cut to the open engine's own cohort:
+        # ranking Lilly's pipeline against a clinical-stage biotech with no revenue is not
+        # a comparison. The engine's ticker list is already resolved above for the picker,
+        # so this needs no second request. The Companies view takes the whole universe:
+        # its scorecard ranks each fixed cohort, and its Table view chooses its own peers,
+        # so a peer from another engine can be added in it.
         _peers = set(tickers)
         _peer_rows = lambda rows: [r for r in rows if r.get("ticker") in _peers]
 
-        # --- R&D productivity, before the valuation comps ---------------------
-        # Every frame this tab draws is built first, in one place. The charts
-        # below then sit wherever the layout wants them: while the fetching was
-        # interleaved with the drawing, moving a chart moved its data with it and
-        # the phase grid lost the variable the comparables block defined.
+        # Three questions, three views. Companies opens first because it is the one an
+        # analyst comes to the tab for: how the company compares with its peers, as one
+        # chart of its cohort with the ranked table beside it, and the comparables table
+        # one click away. The two cohort views keep their own tabs.
+        _views = ["Companies"] + (["Indications", "Disease areas"]
+                                  if _engine == "pharma" else []) + ["Pipelines"]
+        _vt = dict(zip(_views, st.tabs(_views, default="Companies")))
+        with _vt["Companies"]:
+            _comps_valuation_view(api_base, ticker, engine, not asof_state)
+        if "Indications" in _vt:
+            with _vt["Indications"]:
+                _indication_landscape(api_base, ticker)
+        if "Disease areas" in _vt:
+            with _vt["Disease areas"]:
+                _disease_areas(api_base, ticker)
+
+        # --- R&D productivity and the phase matrix ----------------------------
+        # Every frame the Pipelines view draws is fetched first, in one place, and the
+        # charts below then sit wherever the layout wants them.
         board = api_get(api_base, "/productivity/scorecard")
         placed = _peer_rows(board["placed"])
-        ct = api_get(api_base, "/comps/trend")
-        ct_labels = ct.get("labels") or []
-        ct_by = {c["ticker"]: c for c in ct.get("companies") or []
-                 if c["ticker"] in _peers}
-        comps = _peer_rows(api_get(api_base, "/comps"))
-        screen_rows = {r["ticker"]: r for r in _peer_rows(api_get(api_base, "/screen"))}
-        spark_rows = {p["ticker"]: p["closes"] for p in
-                      _peer_rows(api_get(api_base, "/price-grid?days=90"))}
-        # The scatter and heatmap below keep reading this clean-named frame.
-        display = pd.DataFrame([{
-            "Ticker": c["ticker"], "Name": c["name"], "FY": c["fiscal_year"],
-            "Cur": c["currency"],
-            "Revenue": c["revenue"] / 1e9 if c["revenue"] else None,
-            "Growth": c["revenue_growth"] * 100 if c["revenue_growth"] is not None else None,
-            "Net margin": c["net_margin"] * 100 if c["net_margin"] is not None else None,
-            "R&D": c["rd_pct"] * 100 if c["rd_pct"] is not None else None,
-            "Mkt cap": c["market_cap"] / 1e9 if c["market_cap"] else None,
-            "P/E": c["pe"], "EV/Sales": c["ev_sales"]} for c in comps])
-
-        # The screen: comparables plus the derived analyst columns, one row per
-        # company, an inline 90-day sparkline per row. Any column missing an
-        # input is a dash, never a computed placeholder.
-        def _sc(tk, field, scale=1.0):
-            value = (screen_rows.get(tk) or {}).get(field)
-            return value * scale if value is not None else None
-
-        screen_table = pd.DataFrame([{
-            "Ticker": row["Ticker"],
-            "90d": spark_rows.get(row["Ticker"]) or None,
-            "Cur": row["Cur"],
-            # The converted figure, not the filed one: a column that ranks companies
-            # cannot hold kroner beside dollars. Cur still names what was filed.
-            "Revenue, $bn": _sc(row["Ticker"], "revenue", 1e-9),
-            "Growth, %": row["Growth"],
-            "Margin, %": row["Net margin"],
-            "R&D, %": row["R&D"],
-            "Late trials": _sc(row["Ticker"], "late_trials"),
-            "Rev/late trial, $bn": _sc(row["Ticker"], "revenue_per_late_trial", 1e-9),
-            "LOE 5y, %": _sc(row["Ticker"], "loe_share_5y", 100),
-            "Unpriced 5y": _sc(row["Ticker"], "loe_unpriced_5y"),
-            "Cat 12m": _sc(row["Ticker"], "catalysts_12m"),
-            "TTM px, %": _sc(row["Ticker"], "ttm_price_change", 100),
-            "Mkt cap, $bn": row["Mkt cap"],
-            "P/E": row["P/E"]} for _, row in display.iterrows()])
-        numeric_cols = [c for c in screen_table.columns
-                        if c not in ("Ticker", "Cur", "90d")]
-        int_cols = ("Late trials", "Unpriced 5y", "Cat 12m")
-        formats = {c: (lambda v, ic=(c in int_cols):
-                       T.num(v, 0 if ic else 1)) for c in numeric_cols}
-        styled = (screen_table.style
-                  .format(formats, na_rep="—", subset=numeric_cols)
-                  .map(lambda v: f"color:{T.P.oxblood}"
-                       if isinstance(v, (int, float)) and not pd.isna(v) and v < 0
-                       else "", subset=numeric_cols))
         rows = _peer_rows(api_get(api_base, "/pipeline"))
         unattributed = sum(r.get("unattributed", 0) for r in rows)
 
-        # Two questions, two rows. The top row is about the pair a reader picked: the
-        # measures side by side, and those same two companies drawn over time beside
-        # them, so the trend chart answers "and how did they get here" rather than being
-        # a second control asking who to plot. The row below is about everyone, which is
-        # where a scatter and a matrix belong.
-        #
-        # Growth against margin is gone. Both its axes are in the head to head, in the
-        # trend chart and in the grid at the foot of the tab, so it was the same two
-        # numbers a fourth time, taking room the others needed to be legible.
-        _pair_col, _time_col = st.columns([1, 1.35], gap="medium")
-
-        with _pair_col:
-            # Head to head. The charts below place every company at once, which answers
-            # "who is where" and never "how do these two compare", and that second question
-            # is the one an analyst actually asks out loud. Two picks, one line per measure,
-            # the better side marked. Better is stated per measure rather than assumed:
-            # more revenue is better, a nearer patent cliff is not.
-            _h2h = {r["ticker"]: r for r in comps}
-            for r in _peer_rows(api_get(api_base, "/screen")):
-                _h2h.setdefault(r["ticker"], {}).update(
-                    {k: v for k, v in r.items() if k not in ("ticker", "name")})
-            _order = sorted(_h2h, key=lambda t: -(_h2h[t].get("revenue") or 0))
-            if len(_order) >= 2:
-                section("Head to head", "pick two")
-                _pa, _pb = st.columns(2, gap="medium")
-                with _pa:
-                    _a = st.selectbox("A", _order, index=_order.index(ticker)
-                                      if ticker in _order else 0,
-                                      key=f"h2h_a_{engine}", label_visibility="collapsed")
-                with _pb:
-                    _rest = [t for t in _order if t != _a]
-                    _b = st.selectbox("B", _rest, index=0, key=f"h2h_b_{engine}",
-                                      label_visibility="collapsed")
-                st.markdown(_head_to_head(_h2h.get(_a) or {}, _h2h.get(_b) or {}, _a, _b),
-                            unsafe_allow_html=True)
-                note("Every figure is the one the tables below carry, put side by side. The "
-                     "marked side is the better of the two on that measure only, and better "
-                     "is stated per measure: more revenue and a higher margin are better, a "
-                     "nearer loss of exclusivity is not. A measure missing for either "
-                     "company is left unmarked rather than assumed to be worse.")
+        with _vt["Pipelines"]:
+            _intro("Every company at once: where each sits on research productivity "
+                   "against commercial performance, and how many compounds each has "
+                   "in each phase of development.")
+            # Everyone at once: where each company sits on research against commercial, and
+            # the shape of every pipeline in one matrix.
+            _score_col, _phase_col = st.columns(2, gap="medium")
+            with _score_col:
+                if placed:
+                    section("R&D against commercial performance", f"{len(placed)} placed")
+                    st.markdown(scorecard_chart.build(placed, highlight=ticker), unsafe_allow_html=True)
+                    note(f"Right of the dashed line, R&D output above the cohort's; above "
+                         f"it, commercial performance above the cohort's. Green is ahead on "
+                         f"both, {ticker} is ringed, and a triangle on the edge sits beyond "
+                         f"the plotted range. Hover a point for its scores.")
 
 
+                # The R&D productivity table is gone and its captions with it: a fourteen
+                # column grid and two hundred words of caveat were the tallest thing on a
+                # tab whose subject is comparison, and every figure in it is a ratio the
 
-        with _time_col:
-            if ct_labels and ct_by:
-                # Driven by the two picked beside it rather than by its own company
-                # control: one selection, one comparison, and the pills that used to
-                # duplicate it are gone.
-                section("Compare over time", f"{_a} against {_b}")
-                # Pills, not a radio and a dropdown: every company is one click away and the
-                # selection is readable without opening anything. A dropdown hid which
-                # companies were on the chart behind a closed control.
-                metric_label = st.pills(
-                    "Metric", ["Revenue growth", "Net margin"],
-                    default="Revenue growth", key="comps_metric",
-                    label_visibility="collapsed") or "Revenue growth"
-                metric_key = ("revenue_growth" if metric_label == "Revenue growth"
-                              else "net_margin")
-                # The two chosen for the head to head, in the order they were chosen.
-                picked = [t for t in (_a, _b) if t in ct_by]
-                palette = [TK.UP, TK.ORANGE_BOOK, TK.PURPLE_BOOK, TK.DOWN, TK.FLAG, TK.MUTED]
-                series = [{"name": tk,
-                           "values": [v * 100 if v is not None else None
-                                      for v in ct_by[tk][metric_key]],
-                           "colour": palette[i % len(palette)]}
-                          for i, tk in enumerate(picked)]
-                if series:
-                    R.show(CH.line_chart(series, ct_labels, 1040, 300,
-                                         y_fmt=lambda v: f"{v:.0f}%"),
-                           css_class="chart-mount stretch comps-pair")
+            with _phase_col:
+                # charts below already draw. This tab is read as charts.
+                section("Compounds in development by phase",
+                        "lead sponsored" + (f" · {unattributed} trials unattributed"
+                                            if unattributed else ""))
+                # No total column: it counts every phase, and carrying an all-phases figure
+                # beside development-only columns is the disagreement this view just lost.
+                grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
+                if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
+                    state("No compounds mapped",
+                          "Press Refresh all in the top bar to pull trials from "
+                          "ClinicalTrials.gov and bind each to the compound it studies.")
                 else:
-                    state("No history for these two",
-                          "Neither company has enough reported years to draw a line. "
-                          "Pick another pair beside this.")
-
-
-        # Everyone at once: where each company sits on research against commercial, and
-        # the shape of every pipeline in one matrix.
-        _score_col, _phase_col = st.columns(2, gap="medium")
-        with _score_col:
-            if placed:
-                section("R&D against commercial performance", f"{len(placed)} placed")
-                st.markdown(scorecard_chart.build(placed), unsafe_allow_html=True)
-
-
-            # The R&D productivity table is gone and its captions with it: a fourteen
-            # column grid and two hundred words of caveat were the tallest thing on a
-            # tab whose subject is comparison, and every figure in it is a ratio the
-
-        with _phase_col:
-            # charts below already draw. This tab is read as charts.
-            section("Compounds in development by phase",
-                    "lead sponsored" + (f" · {unattributed} trials unattributed"
-                                        if unattributed else ""))
-            # No total column: it counts every phase, and carrying an all-phases figure
-            # beside development-only columns is the disagreement this view just lost.
-            grid = pd.DataFrame([{"Ticker": r["ticker"], **r["compounds"]} for r in rows])
-            if grid[DISPLAY_PHASES].to_numpy().sum() == 0:
-                state("No compounds mapped",
-                      "Press Refresh all on the Comps tab to pull trials from "
-                      "ClinicalTrials.gov and bind each to the compound it studies.")
-            else:
-                charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
-                long = grid.melt(id_vars="Ticker", value_vars=charted,
-                                 var_name="Phase", value_name="Compounds")
-                long["Phase"] = long["Phase"].replace(PHASE_MERGE)
-                long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
-                # The count is printed in the cell, so colour is a second reading of the
-                # same number, never the only one. Sqrt weight keeps the largest pipeline
-                # from flattening everyone else into one tone.
-                peak = max(int(long["Compounds"].max()), 1)
-                cells = {(row.Ticker, row.Phase): {
-                            "count": int(row.Compounds),
-                            "weight": (row.Compounds / peak) ** 0.5}
-                         for row in long.itertuples() if row.Compounds}
-                # Eighteen rows of three: the matrix wants height, and its width was
-                # making it render short in a half-page column.
-                R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
-                                       700, 600))
+                    charted = [p for p in PIPELINE_PHASES if p not in POST_APPROVAL]
+                    long = grid.melt(id_vars="Ticker", value_vars=charted,
+                                     var_name="Phase", value_name="Compounds")
+                    long["Phase"] = long["Phase"].replace(PHASE_MERGE)
+                    long = long.groupby(["Ticker", "Phase"], as_index=False)["Compounds"].sum()
+                    # The count is printed in the cell, so colour is a second reading of the
+                    # same number, never the only one. Sqrt weight keeps the largest pipeline
+                    # from flattening everyone else into one tone.
+                    peak = max(int(long["Compounds"].max()), 1)
+                    cells = {(row.Ticker, row.Phase): {
+                                "count": int(row.Compounds),
+                                "weight": (row.Compounds / peak) ** 0.5}
+                             for row in long.itertuples() if row.Compounds}
+                    # Eighteen rows of three: the matrix wants height, and its width was
+                    # making it render short in a half-page column.
+                    R.show(CH.heatmap_grid(list(grid["Ticker"]), DISPLAY_PHASES, cells,
+                                           700, 600, highlight=ticker))
 
 
 
-        section("Comparables",
-                f'{len(_peers)} in {_ENGINE_LABELS.get(engine, "coverage").lower()}')
-        if st.button("Refresh all", key="refresh_all"):
-            run_refresh(api_base, "/refresh?scope=all", "all_run",
-                        "Refreshing the universe")
-            st.rerun()
-
-        # Multi-company comparison: pick a metric and the companies, one coloured line
-        # each over the fiscal years. Both ratios are currency-internal, so filers who
-        # report in different currencies still compare.
-        # A fixed height: seventeen companies at fourteen columns is a reference
-        # grid, not a view, and it was the last thing keeping this tab off one page.
-        st.dataframe(styled, width="stretch", hide_index=True, height=300,
-                     column_config={"90d": st.column_config.LineChartColumn(
-                         "90d", width="small")})
-
-        # A matrix of every company against every phase, so it belongs with the
-        # other cross-sectional views rather than in a tab that is otherwise one
-        # company at a time.
-        rows = _peer_rows(api_get(api_base, "/pipeline"))
     with pipeline_tab:
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of
@@ -5273,7 +10358,7 @@ with main:
         phase_pick: list = []
         if not every:
             state(f"No trials on file for {ticker}",
-                  "Press Refresh all on the Comps tab to pull ClinicalTrials.gov, "
+                  "Press Refresh all in the top bar to pull ClinicalTrials.gov, "
                   "or pick another company in the sidebar.")
         else:
             # A compound is placed once per area, at the furthest phase it has reached
@@ -5419,26 +10504,14 @@ with main:
             blocked = {m["asset_id"]: (m.get("missing") or [])
                        for m in (_v.get("refused") or []) if m.get("asset_id")}
 
-            def _value_cell(asset_id) -> str:
-                """The rightmost column: what the compound is worth a share, or why not.
+            # The launch floor of each valued line, so a launch year the registry and the
+            # FDA clock rule out is flagged on the figure it feeds.
+            launches = {m["asset_id"]: m.get("launch")
+                        for m in (_v.get("modelled") or []) if m.get("asset_id")}
 
-                Four states, and the difference between the last two is the point. "no
-                forecast" means nobody has written the assumptions. The refused row means
-                they were written, the engine read them and stopped on a named gap, which is
-                a piece of work with a next step attached rather than an absence.
-                """
-                if asset_id in valued:
-                    return (f'<span class="prog-v" title="rNPV a share, counted in the '
-                            f'company total">{T.num(valued[asset_id] or 0, 2)}</span>')
-                if asset_id in held:
-                    figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
-                    return (f'<span class="prog-v off" title="built on a placeholder curve, '
-                            f'so it is shown and not counted">{figure} *</span>')
-                if asset_id in blocked:
-                    want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
-                    return (f'<span class="prog-v off" title="the engine stopped on: '
-                            f'{html_escape(want)}">needs</span>')
-                return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
+            def _value_cell(asset_id) -> str:
+                return _prog_value_cell(asset_id, valued, held, blocked,
+                                        launches.get(asset_id))
 
             total_programmes = len(programmes)
             if area_pick:
@@ -5583,653 +10656,585 @@ with main:
                     'forecast tab: a figure where the engine builds it, "needs" where it '
                     'read the assumptions and stopped on a gap the tooltip names, a starred '
                     'figure where it ran on a placeholder curve and is shown without being '
-                    'counted, and a dash where no assumptions are on file at all.</div>',
+                    'counted, and a dash where no assumptions are on file at all. A figure '
+                    'underlined red launches in the model before the earliest approval the '
+                    'registry and the FDA review clock allow, amber where its seed cites a '
+                    'filing or readout not on file; its tooltip says which.</div>',
                     unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
     if portfolio_tab is not None:
         with portfolio_tab:
-            # The rail is a forward calendar and this tab is a record of what is
-            # already sold, so the marker tells the theme to hand its width back.
-            st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
-            approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
-            # Revenue-mix data fetched once here: the donut renders above the product cards
-            # (inside the else), and the product-revenue list below reuses these rows.
-            revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
-            curated = revenue_payload["rows"]
-            mix_year = max((r["fiscal_year"] for r in curated), default=None)
-            mix_rows = [r for r in curated if r["fiscal_year"] == mix_year]
-            mix_ccy = next((r["unit"] for r in mix_rows if r.get("unit")), None)
-            mix_reported = (revenue_payload.get("company_revenue") or {}).get(
-                str(mix_year)) or {}
-            mix_drivers, mix_tail = revenue_mix.split(mix_rows)
-            if not approvals:
-                state(f"No approvals on file for {ticker}",
-                      "openFDA files an approval under the legal entity that holds the "
-                      "application, which for an acquired product is the company that was "
-                      "bought. Press Refresh all on the Comps tab to pull it again.")
-            else:
-                today = dt.date.today()
+            # A fragment: a product card, an area pill or the profile's close button
+            # reruns this tab alone rather than the whole page, which renders every
+            # tab on every rerun. Everything it reads is set above it on the page.
+            @st.fragment
+            def _portfolio_tab():
+                # The rail is a forward calendar and this tab is a record of what is
+                # already sold, so the marker tells the theme to hand its width back.
+                st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+                approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
+                # Revenue-mix data fetched once here: the donut renders above the product cards
+                # (inside the else), and the product-revenue list below reuses these rows.
+                revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
+                curated = revenue_payload["rows"]
+                mix_year = max((r["fiscal_year"] for r in curated), default=None)
+                mix_rows = [r for r in curated if r["fiscal_year"] == mix_year]
+                mix_ccy = next((r["unit"] for r in mix_rows if r.get("unit")), None)
+                mix_reported = (revenue_payload.get("company_revenue") or {}).get(
+                    str(mix_year)) or {}
+                mix_drivers, mix_tail = revenue_mix.split(mix_rows)
+                if not approvals:
+                    state(f"No approvals on file for {ticker}",
+                          "openFDA files an approval under the legal entity that holds the "
+                          "application, which for an acquired product is the company that was "
+                          "bought. Press Refresh all in the top bar to pull it again.")
+                else:
+                    today = dt.date.today()
 
-                def _loe_year(p):
-                    try:
-                        return int(str(p["loe"])[:4]) if p.get("loe") else None
-                    except (ValueError, TypeError):
-                        return None
+                    def _loe_year(p):
+                        try:
+                            return int(str(p["loe"])[:4]) if p.get("loe") else None
+                        except (ValueError, TypeError):
+                            return None
 
-                # One card per product: approvals repeat per indication, but revenue and
-                # exclusivity are per asset and shared, so collapse to the product and keep
-                # the earliest approval date.
-                products: dict = {}
-                for a in approvals:
-                    key = a.get("brand_name") or a.get("application_number")
-                    p = products.get(key)
-                    if p is None:
-                        products[key] = dict(
-                            asset_id=a.get("asset_id"),
-                            application_number=a.get("application_number"),
-                            brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
-                            generic=a.get("generic_name"), modality=a.get("modality"),
-                            approved=a.get("approval_date"), loe=a.get("loe"),
-                            loe_basis=a.get("loe_basis"),
-                            loe_earliest_year=(int(a["loe_earliest"][:4])
-                                               if a.get("loe_earliest") else None),
-                            revenue=a.get("revenue"),
-                            revenue_unit=a.get("revenue_unit"),
-                            area=a.get("area"))
-                    elif a.get("approval_date") and (
-                            not p["approved"] or a["approval_date"] < p["approved"]):
-                        p["approved"] = a["approval_date"]
-                # openFDA drugsfda is CDER only, so a CBER cell or gene therapy (Casgevy) has
-                # no approval row there. Fold in Purple Book biologics from the exclusivities
-                # data, keyed by brand and only when not already present, so they still appear.
-                for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
-                           .get("assets") or []):
-                    brand = ex.get("brand_name")
-                    if not brand or brand in products:
-                        continue
-                    products[brand] = dict(
-                        asset_id=ex.get("asset_id"),
-                        brand=brand, generic=ex.get("generic_name"),
-                        modality=ex.get("modality"), approved=None,
-                        loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
-                        loe_earliest_year=ex.get("loe_earliest_year"),
-                        revenue=None, revenue_unit=None,
-                        # A Purple Book biologic has no drugsfda row, so no label to read an
-                        # area off; it groups under the unstated heading until one arrives.
-                        area=ex.get("area"))
-                prods = list(products.values())
-                rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
+                    # One card per product: approvals repeat per indication, but revenue and
+                    # exclusivity are per asset and shared, so collapse to the product and keep
+                    # the earliest approval date.
+                    products: dict = {}
+                    for a in approvals:
+                        key = a.get("brand_name") or a.get("application_number")
+                        p = products.get(key)
+                        if p is None:
+                            products[key] = dict(
+                                asset_id=a.get("asset_id"),
+                                application_number=a.get("application_number"),
+                                brand=a.get("brand_name") or a.get("generic_name") or "unnamed",
+                                generic=a.get("generic_name"), modality=a.get("modality"),
+                                approved=a.get("approval_date"), loe=a.get("loe"),
+                                loe_basis=a.get("loe_basis"),
+                                loe_earliest_year=(int(a["loe_earliest"][:4])
+                                                   if a.get("loe_earliest") else None),
+                                revenue=a.get("revenue"),
+                                revenue_unit=a.get("revenue_unit"),
+                                area=a.get("area"))
+                        elif a.get("approval_date") and (
+                                not p["approved"] or a["approval_date"] < p["approved"]):
+                            p["approved"] = a["approval_date"]
+                    # openFDA drugsfda is CDER only, so a CBER cell or gene therapy (Casgevy) has
+                    # no approval row there. Fold in Purple Book biologics from the exclusivities
+                    # data, keyed by brand and only when not already present, so they still appear.
+                    for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
+                               .get("assets") or []):
+                        brand = ex.get("brand_name")
+                        if not brand or brand in products:
+                            continue
+                        products[brand] = dict(
+                            asset_id=ex.get("asset_id"),
+                            brand=brand, generic=ex.get("generic_name"),
+                            modality=ex.get("modality"), approved=None,
+                            loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                            loe_earliest_year=ex.get("loe_earliest_year"),
+                            revenue=None, revenue_unit=None,
+                            # A Purple Book biologic has no drugsfda row, so no label to read an
+                            # area off; it groups under the unstated heading until one arrives.
+                            area=ex.get("area"))
+                    prods = list(products.values())
+                    rev_unit = next((p["revenue_unit"] for p in prods if p.get("revenue_unit")), "")
 
-                total_rev = sum(p["revenue"] for p in prods if p.get("revenue"))
-                horizon = today.year + 5
-                at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
-                              and (_loe_year(p) or 9999) <= horizon)
+                    total_rev = sum(p["revenue"] for p in prods if p.get("revenue"))
+                    horizon = today.year + 5
+                    at_risk = sum(p["revenue"] for p in prods if p.get("revenue")
+                                  and (_loe_year(p) or 9999) <= horizon)
 
-                # The charts on one side, the products on the other. Stacked, the two
-                # donuts and the cliff filled a screen before a single product card
-                # appeared; side by side each half is read at a glance and the tab stops
-                # being a scroll. The charts keep the wider half: two donuts need the
-                # room for their outside labels, and the cliff shares their x axis of
-                # years.
-                # Near enough equal. Three to two left the charts with air they did not
-                # use and pushed the cards into a strip against the right edge.
-                _charts_col, _products_col = st.columns([1.08, 1], gap="medium")
+                    # The charts on one side, the products on the other. Stacked, the two
+                    # donuts and the cliff filled a screen before a single product card
+                    # appeared; side by side each half is read at a glance and the tab stops
+                    # being a scroll. The charts keep the wider half: two donuts need the
+                    # room for their outside labels, and the cliff shares their x axis of
+                    # years.
+                    # Near enough equal. Three to two left the charts with air they did not
+                    # use and pushed the cards into a strip against the right edge.
+                    _charts_col, _products_col = st.columns([1.08, 1], gap="medium")
 
-                with _charts_col:
-                    # The heading and its three figures lead the left column, so
-                    # the products column starts level with them and the space
-                    # that sat empty beside the figures is the cards.
-                    section(f"{ticker} portfolio")
-                    st.markdown(
-                        '<div class="pos">'
-                        f'<div><span class="k">products</span>'
-                        f'<span class="v">{len(prods)}</span>'
-                        f'<span class="sub">approved or protected</span></div>'
-                        f'<div><span class="k">tagged revenue</span>'
-                        f'<span class="v{"" if total_rev else " none"}">'
-                        f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
-                        f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
-                        f'<div><span class="k">rolling off by {horizon}</span>'
-                        f'<span class="v {"down" if at_risk else "none"}">'
-                        f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
-                        f'<span class="sub">'
-                        f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
-                        f'</span></div>'
-                        '</div>', unsafe_allow_html=True)
+                    with _charts_col:
+                        # The heading and its three figures lead the left column, so
+                        # the products column starts level with them and the space
+                        # that sat empty beside the figures is the cards.
+                        section(f"{ticker} portfolio")
+                        st.markdown(
+                            '<div class="pos">'
+                            f'<div><span class="k">products</span>'
+                            f'<span class="v">{len(prods)}</span>'
+                            f'<span class="sub">approved or protected</span></div>'
+                            f'<div><span class="k">tagged revenue</span>'
+                            f'<span class="v{"" if total_rev else " none"}">'
+                            f'{T.num(total_rev / 1e9, 1) if total_rev else "none"}</span>'
+                            f'<span class="sub">{rev_unit} bn, latest FY</span></div>'
+                            f'<div><span class="k">rolling off by {horizon}</span>'
+                            f'<span class="v {"down" if at_risk else "none"}">'
+                            f'{T.num(at_risk / 1e9, 1) if at_risk else "none"}</span>'
+                            f'<span class="sub">'
+                            f'{str(round(at_risk / total_rev * 100)) + "% of tagged" if total_rev and at_risk else "loses exclusivity"}'
+                            f'</span></div>'
+                            '</div>', unsafe_allow_html=True)
 
 
-                    # The left column stacked four panels and the last of them was a
-                    # placeholder until a card was clicked. The two charts are layers
-                    # now, and the fact sheet sits above them rather than among them: a
-                    # card click is a request to read that product, and st.tabs keeps
-                    # the selected label across a rerun, so adding a "Fact sheet" tab
-                    # left the reader looking at the revenue mix they had already seen.
-                    # Filled after the cards are drawn, since the click that selects a
-                    # product happens in the column beside this one.
-                    _profile_slot = st.container()
-                    st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
-                    _pf_names = ["Revenue mix", "By area", "Exclusivity"]
-                    _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
+                        # The left column stacked four panels and the last of them was a
+                        # placeholder until a card was clicked. The two charts are layers
+                        # now, and the fact sheet sits above them rather than among them: a
+                        # card click is a request to read that product, and st.tabs keeps
+                        # the selected label across a rerun, so adding a "Fact sheet" tab
+                        # left the reader looking at the revenue mix they had already seen.
+                        # Filled after the cards are drawn, since the click that selects a
+                        # product happens in the column beside this one.
+                        _profile_slot = st.container()
+                        st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
+                        # Medicare demand is a layer only where CMS has a brand of this
+                        # company's, and a failed read leaves it out rather than the tab.
+                        try:
+                            _mc_book = api_get(api_base, f"/companies/{ticker}/demand/split")
+                        except (urllib.error.URLError, OSError):
+                            _mc_book = None
+                        _mc_book_html = _medicare_book_html(_mc_book) if _mc_book else ""
+                        _pf_names = ["Revenue mix", "By area", "Exclusivity"] + (
+                            ["Medicare demand"] if _mc_book_html else [])
+                        _pf = dict(zip(_pf_names, st.tabs(_pf_names)))
 
-                    with _pf["Revenue mix"]:
-                        # The layer leads the tab: what the company earns, by product, before
-                        # the cliff charts say what is at risk.
+                        with _pf["Revenue mix"]:
+                            # The layer leads the tab: what the company earns, by product, before
+                            # the cliff charts say what is at risk.
+                            if mix_drivers:
+                                # The build first, the ring under it. The build says where the
+                                # revenue goes, the same products as bands out to the horizon
+                                # with the reported line over them; the ring says where one year
+                                # of it comes from. It is the forecast tab's chart, drawn here
+                                # because this is the tab about the book that produces it.
+                                try:
+                                    _bv = api_get(api_base,
+                                                  f"/companies/{ticker}/forecast-verdict")
+                                except (urllib.error.URLError, OSError):
+                                    _bv = None
+                                if _bv and _bv.get("ok"):
+                                    _revenue_build(_bv)
+
+                                section("Revenue mix", f"FY{mix_year}")
+                                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
+
+                                def _slice_href(row):
+                                    """The fact sheet for the product a wedge measures.
+
+                                    A bracketed tail, a reported segment line and revenue the
+                                    filing attributes to nothing are not products, hold no asset
+                                    and so open nothing."""
+                                    aid = row.get("asset_id")
+                                    if not aid:
+                                        return None
+                                    return (f"?ticker={urllib.parse.quote(ticker)}"
+                                            f"&product={aid}")
+
+                                slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
+                                           "value": p["value"], "colour": ramp[i % len(ramp)],
+                                           "href": _slice_href(p)}
+                                          for i, p in enumerate(mix_drivers)]
+                                if mix_tail:
+                                    slices.append({"label": f"{len(mix_tail)} smaller products",
+                                                   "value": sum(p["value"] for p in mix_tail),
+                                                   "colour": TK.RULE_STRONG, "muted": True})
+                                # The money no product carries used to be one anonymous wedge.
+                                # Where the company reports it as a line and the app carries that
+                                # line, it has a name, and the name is worth more than the grey.
+                                # The composition is in revenue_mix, which is pure and tested;
+                                # this is only the colouring.
+                                rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
+                                named_lines, remainder, over = revenue_mix.line_slices(
+                                    revenue_payload.get("lines"), rest, mix_year,
+                                    mix_reported.get("value"))
+                                named_lines = [{"label": ln["line"], "value": ln["value"],
+                                                "colour": TK.MUTED, "muted": True}
+                                               for ln in named_lines]
+                                slices.extend(named_lines)
+                                if remainder:
+                                    slices.append({"label": "not attributed by product",
+                                                   "value": remainder, "colour": TK.PANEL,
+                                                   "muted": True})
+                                # The same revenue twice: by product, and by the disease the label says
+                                # each product treats. One says which drugs carry the company, the other
+                                # says which franchise does, and a portfolio held in one area reads very
+                                # differently from the same revenue spread across four.
+                                # The revenue rows carry their own area, so a product that earns under
+                                # this company but is approved to another still lands in a franchise.
+                                area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
+                                                 if p.get("asset_id")}
+                                by_area: dict = {}
+                                for row in mix_rows:
+                                    area = (row.get("area")
+                                            or area_by_asset.get(row.get("asset_id"))
+                                            or "area not stated")
+                                    by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
+                                area_order = sorted(by_area, key=lambda a: (a == "area not stated",
+                                                                            -by_area[a]))
+                                # A donut half the width cannot carry "Immunology and inflammation" as
+                                # a leader label, so the long areas go by their head word here. The
+                                # product grid below keeps the full names.
+                                short = AREA_SHORT
+                                # Categories, not magnitudes: a lightness ramp would say oncology is
+                                # more than neuroscience. Hue carries the area, each area keeps its own
+                                # colour across companies, and the two donuts stop looking like one
+                                # chart drawn twice.
+                                area_colour = area_colours(
+                                    [a for a in area_order if a != "area not stated"])
+                                area_slices = [
+                                    {"label": short.get(area, area), "value": by_area[area],
+                                     "colour": (TK.RULE_STRONG if area == "area not stated"
+                                                else area_colour[area]),
+                                     "muted": area == "area not stated"}
+                                    for area in area_order]
+                                # A segment line has no disease area, so it lands here under its
+                                # own name too. "MedTech" is a truer answer to which area carries
+                                # the revenue than "not attributed" was.
+                                area_slices.extend(named_lines)
+                                if remainder:
+                                    area_slices.append({"label": "not attributed by product",
+                                                        "value": remainder, "colour": TK.PANEL,
+                                                        "muted": True})
+
+                                # One ring, the width of the column. Two of them side by side
+                                # inside half a page left each about 390 pixels for a chart
+                                # drawn at 470 with labels on leader lines outside it, so the
+                                # names crushed into the middle and the cut nobody was reading
+                                # took half the room from the cut they were. The disease-area
+                                # cut is the same revenue and gets its own layer.
+                                total_mix = sum(sl["value"] for sl in slices) / 1e9
+                                named = len([a for a in area_order if a != "area not stated"])
+                                R.show(CH.donut(
+                                    slices, 840, 330, centre_label=T.num(total_mix, 1),
+                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                    css_class="chart-mount mix-donut")
+                                if named_lines:
+                                    note("The grey wedges are revenue the company reports as a "
+                                         "line rather than a product: "
+                                         + ", ".join(f"{sl['label']} at "
+                                                     f"{T.num(sl['value'] / 1e9, 2)}bn"
+                                                     for sl in named_lines)
+                                         + ". They are carried in the forecast as streams, which "
+                                           "is why the model reconciles to the reported total "
+                                           "rather than to the products alone.")
+                                if over:
+                                    note(f"The lines on file come to {T.num(over / 1e9, 2)}bn more "
+                                         "than the revenue no product carries, so they are drawn "
+                                         "as one wedge instead of by name. A line worth more than "
+                                         "the gap is counting a product twice, which is a defect "
+                                         "in the line rather than in the chart.")
+
+                        # The same revenue, cut by the disease each label names. Its own
+                        # layer rather than a second ring beside the first: they are the
+                        # same total and only one is being read at a time.
                         if mix_drivers:
-                            # The build first, the ring under it. The build says where the
-                            # revenue goes, the same products as bands out to the horizon
-                            # with the reported line over them; the ring says where one year
-                            # of it comes from. It is the forecast tab's chart, drawn here
-                            # because this is the tab about the book that produces it.
-                            try:
-                                _bv = api_get(api_base,
-                                              f"/companies/{ticker}/forecast-verdict")
-                            except (urllib.error.URLError, OSError):
-                                _bv = None
-                            if _bv and _bv.get("ok"):
-                                _revenue_build(_bv)
-
-                            section("Revenue mix", f"FY{mix_year}")
-                            ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
-
-                            def _slice_href(row):
-                                """The fact sheet for the product a wedge measures.
-
-                                A bracketed tail, a reported segment line and revenue the
-                                filing attributes to nothing are not products, hold no asset
-                                and so open nothing."""
-                                aid = row.get("asset_id")
-                                if not aid:
-                                    return None
-                                return (f"?ticker={urllib.parse.quote(ticker)}"
-                                        f"&product={aid}")
-
-                            slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                                       "value": p["value"], "colour": ramp[i % len(ramp)],
-                                       "href": _slice_href(p)}
-                                      for i, p in enumerate(mix_drivers)]
-                            if mix_tail:
-                                slices.append({"label": f"{len(mix_tail)} smaller products",
-                                               "value": sum(p["value"] for p in mix_tail),
-                                               "colour": TK.RULE_STRONG, "muted": True})
-                            # The money no product carries used to be one anonymous wedge.
-                            # Where the company reports it as a line and the app carries that
-                            # line, it has a name, and the name is worth more than the grey.
-                            # The composition is in revenue_mix, which is pure and tested;
-                            # this is only the colouring.
-                            rest = revenue_mix.residual(mix_rows, mix_reported.get("value"))
-                            named_lines, remainder, over = revenue_mix.line_slices(
-                                revenue_payload.get("lines"), rest, mix_year,
-                                mix_reported.get("value"))
-                            named_lines = [{"label": ln["line"], "value": ln["value"],
-                                            "colour": TK.MUTED, "muted": True}
-                                           for ln in named_lines]
-                            slices.extend(named_lines)
-                            if remainder:
-                                slices.append({"label": "not attributed by product",
-                                               "value": remainder, "colour": TK.PANEL,
-                                               "muted": True})
-                            # The same revenue twice: by product, and by the disease the label says
-                            # each product treats. One says which drugs carry the company, the other
-                            # says which franchise does, and a portfolio held in one area reads very
-                            # differently from the same revenue spread across four.
-                            # The revenue rows carry their own area, so a product that earns under
-                            # this company but is approved to another still lands in a franchise.
-                            area_by_asset = {p.get("asset_id"): p.get("area") for p in prods
-                                             if p.get("asset_id")}
-                            by_area: dict = {}
-                            for row in mix_rows:
-                                area = (row.get("area")
-                                        or area_by_asset.get(row.get("asset_id"))
-                                        or "area not stated")
-                                by_area[area] = by_area.get(area, 0) + (row.get("value") or 0)
-                            area_order = sorted(by_area, key=lambda a: (a == "area not stated",
-                                                                        -by_area[a]))
-                            # A donut half the width cannot carry "Immunology and inflammation" as
-                            # a leader label, so the long areas go by their head word here. The
-                            # product grid below keeps the full names.
-                            short = AREA_SHORT
-                            # Categories, not magnitudes: a lightness ramp would say oncology is
-                            # more than neuroscience. Hue carries the area, each area keeps its own
-                            # colour across companies, and the two donuts stop looking like one
-                            # chart drawn twice.
-                            area_colour = area_colours(
-                                [a for a in area_order if a != "area not stated"])
-                            area_slices = [
-                                {"label": short.get(area, area), "value": by_area[area],
-                                 "colour": (TK.RULE_STRONG if area == "area not stated"
-                                            else area_colour[area]),
-                                 "muted": area == "area not stated"}
-                                for area in area_order]
-                            # A segment line has no disease area, so it lands here under its
-                            # own name too. "MedTech" is a truer answer to which area carries
-                            # the revenue than "not attributed" was.
-                            area_slices.extend(named_lines)
-                            if remainder:
-                                area_slices.append({"label": "not attributed by product",
-                                                    "value": remainder, "colour": TK.PANEL,
-                                                    "muted": True})
-
-                            # One ring, the width of the column. Two of them side by side
-                            # inside half a page left each about 390 pixels for a chart
-                            # drawn at 470 with labels on leader lines outside it, so the
-                            # names crushed into the middle and the cut nobody was reading
-                            # took half the room from the cut they were. The disease-area
-                            # cut is the same revenue and gets its own layer.
-                            total_mix = sum(sl["value"] for sl in slices) / 1e9
-                            named = len([a for a in area_order if a != "area not stated"])
-                            R.show(CH.donut(
-                                slices, 840, 330, centre_label=T.num(total_mix, 1),
-                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                css_class="chart-mount mix-donut")
-                            if named_lines:
-                                note("The grey wedges are revenue the company reports as a "
-                                     "line rather than a product: "
-                                     + ", ".join(f"{sl['label']} at "
-                                                 f"{T.num(sl['value'] / 1e9, 2)}bn"
-                                                 for sl in named_lines)
-                                     + ". They are carried in the forecast as streams, which "
-                                       "is why the model reconciles to the reported total "
-                                       "rather than to the products alone.")
-                            if over:
-                                note(f"The lines on file come to {T.num(over / 1e9, 2)}bn more "
-                                     "than the revenue no product carries, so they are drawn "
-                                     "as one wedge instead of by name. A line worth more than "
-                                     "the gap is counting a product twice, which is a defect "
-                                     "in the line rather than in the chart.")
-
-                    # The same revenue, cut by the disease each label names. Its own
-                    # layer rather than a second ring beside the first: they are the
-                    # same total and only one is being read at a time.
-                    if mix_drivers:
-                        with _pf["By area"]:
-                            st.markdown(
-                                f'<div class="subhead">By disease area<span>{named} areas'
-                                '</span></div>', unsafe_allow_html=True)
-                            R.show(CH.donut(
-                                area_slices, 840, 330, centre_label=T.num(total_mix, 1),
-                                centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
-                                value_fmt=lambda v: T.num(v / 1e9, 2)),
-                                css_class="chart-mount mix-donut")
+                            with _pf["By area"]:
+                                st.markdown(
+                                    f'<div class="subhead">By disease area<span>{named} areas'
+                                    '</span></div>', unsafe_allow_html=True)
+                                R.show(CH.donut(
+                                    area_slices, 840, 330, centre_label=T.num(total_mix, 1),
+                                    centre_sub=f"{mix_ccy or ''} bn FY{mix_year}",
+                                    value_fmt=lambda v: T.num(v / 1e9, 2)),
+                                    css_class="chart-mount mix-donut")
 
 
-                    with _pf["Exclusivity"]:
-                        # Loss of exclusivity by year. Two cuts of the same expiries. The count
-                        # cliff shows every product with a published expiry, so nothing is hidden by
-                        # the free-data revenue gap. The revenue chart below weights only the few
-                        # products with tagged revenue, which is sparse and must not read as the
-                        # whole cliff.
-                        count_by_year: dict = {}
-                        rev_by_year: dict = {}
-                        for p in prods:
-                            y, r = _loe_year(p), p.get("revenue")
-                            if y and today.year <= y <= today.year + 10:
-                                count_by_year[y] = count_by_year.get(y, 0) + 1
-                                if r:
-                                    rev_by_year[y] = rev_by_year.get(y, 0) + r
-                        # The cliff, full width. The revenue-at-risk chart that used to sit
-                        # beside it is gone: it weighted only the products whose revenue the
-                        # filer happens to tag, which for Lilly is four of the fourteen expiring
-                        # in the window, and a bar chart of a quarter of the truth read as the
-                        # whole of it. The count below hides nothing, because it draws every
-                        # product with a published expiry whether or not its revenue is known.
-                        if count_by_year:
-                            years = list(range(today.year, today.year + 11))
-                            section("Loss of exclusivity by year", "products, next 10 years")
-                            bars = [{"label": f"'{y % 100:02d}",
-                                     "value": count_by_year.get(y, 0), "colour": TK.DOWN,
-                                     "show_value": count_by_year.get(y, 0) > 0}
-                                    for y in years]
-                            R.show(CH.bar_chart(bars, 1100, 118,
-                                                value_fmt=lambda v: str(int(v))),
-                                   css_class="chart-mount stretch")
-                            note("Every marketed product losing US exclusivity that year, "
-                                 "expiries from the Orange and Purple Books, counted whether or "
-                                 "not its revenue is tagged. A small molecule is placed at its "
-                                 "latest patent, a biologic at the later of its listed expiry "
-                                 "and the 12-year floor. A product with no published expiry "
-                                 "cannot be placed and is left out, never estimated: open its "
-                                 "card to see whether that is protection already lapsed or "
-                                 "nothing published yet.")
+                        with _pf["Exclusivity"]:
+                            # Loss of exclusivity by year. Two cuts of the same expiries. The count
+                            # cliff shows every product with a published expiry, so nothing is hidden by
+                            # the free-data revenue gap. The revenue chart below weights only the few
+                            # products with tagged revenue, which is sparse and must not read as the
+                            # whole cliff.
+                            count_by_year: dict = {}
+                            rev_by_year: dict = {}
+                            for p in prods:
+                                y, r = _loe_year(p), p.get("revenue")
+                                if y and today.year <= y <= today.year + 10:
+                                    count_by_year[y] = count_by_year.get(y, 0) + 1
+                                    if r:
+                                        rev_by_year[y] = rev_by_year.get(y, 0) + r
+                            # The cliff, full width. The revenue-at-risk chart that used to sit
+                            # beside it is gone: it weighted only the products whose revenue the
+                            # filer happens to tag, which for Lilly is four of the fourteen expiring
+                            # in the window, and a bar chart of a quarter of the truth read as the
+                            # whole of it. The count below hides nothing, because it draws every
+                            # product with a published expiry whether or not its revenue is known.
+                            if count_by_year:
+                                years = list(range(today.year, today.year + 11))
+                                section("Loss of exclusivity by year", "products, next 10 years")
+                                bars = [{"label": f"'{y % 100:02d}",
+                                         "value": count_by_year.get(y, 0), "colour": TK.DOWN,
+                                         "show_value": count_by_year.get(y, 0) > 0}
+                                        for y in years]
+                                R.show(CH.bar_chart(bars, 1100, 118,
+                                                    value_fmt=lambda v: str(int(v))),
+                                       css_class="chart-mount stretch")
+                                note("Every marketed product losing US exclusivity that year, "
+                                     "expiries from the Orange and Purple Books, counted whether or "
+                                     "not its revenue is tagged. A small molecule is placed at its "
+                                     "latest patent, a biologic at the later of its listed expiry "
+                                     "and the 12-year floor. A product with no published expiry "
+                                     "cannot be placed and is left out, never estimated: open its "
+                                     "card to see whether that is protection already lapsed or "
+                                     "nothing published yet.")
 
-                        # The fact sheet, under the cliff rather than inside the card grid.
-                        # Opening above the cards pushed them down the page on every click;
-                        # here it fills the column the charts leave, and the cards it is
-                        # about stay where they were.
+                            # The fact sheet, under the cliff rather than inside the card grid.
+                            # Opening above the cards pushed them down the page on every click;
+                            # here it fills the column the charts leave, and the cards it is
+                            # about stay where they were.
+
+                        if _mc_book_html:
+                            with _pf["Medicare demand"]:
+                                section("Medicare demand", len(_mc_book["brands"]),
+                                        f"CMS calendar {_mc_book.get('latest_year')}")
+                                st.markdown(_mc_book_html, unsafe_allow_html=True)
 
 
 
-                with _products_col:
-                    section("Products",
-                            f"{len(prods)} &middot; click one for its fact sheet")
+                    with _products_col:
+                        section("Products",
+                                f"{len(prods)} &middot; click one for its fact sheet")
 
-                    def _product_card_html(p):
-                        mod = (p.get("modality") or "").lower()
-                        cls = "bio" if "bio" in mod else "small" if mod else ""
-                        y = _loe_year(p)
-                        near = y is not None and y <= today.year + 3
-                        rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
-                                   if p.get("revenue") is not None else "no free data")
-                        to_loe = f' · {y - today.year}y' if y else ""
-                        # A small molecule usually has several Orange Book patents; the latest
-                        # overstates the real cliff since generics can challenge the earlier ones.
-                        # Show the earliest-to-latest range so the wall reads as a window, not a
-                        # single hard date. Biologics keep the single merged floor.
-                        ey = p.get("loe_earliest_year")
-                        is_range = cls == "small" and ey and y and ey != y
-                        loe_label = "exclusivity" if is_range else "exclusivity to"
-                        loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
-                        # Past means the event has happened, so the card says so rather
-                        # than counting down to a date that has gone.
-                        if p.get("loe_past") and y:
-                            loe_label, loe_txt, is_range = "exclusivity", f"lapsed {y}", False
-                        # The patent that sets the date, named on the card. Which of a
-                        # product's twenty patents is the cliff is the question the stack
-                        # exists to answer, and the answer belongs where the date is.
-                        patent_txt = (f' &middot; {html_escape(str(p["loe_identifier"]))}'
-                                      if p.get("loe_identifier") else "")
-                        # Where there is no expiry, say which kind of nothing it is. The
-                        # Orange Book lists only unexpired patents and unexpired
-                        # exclusivities, so no rows means either every one of them has run
-                        # out or none was ever listed, and those are opposite facts. Age
-                        # separates them: a small molecule's protection cannot outlast its
-                        # approval by more than about fourteen years, so an older product
-                        # with nothing listed has lost it, and a recent one has simply not
-                        # had anything published. Neither is a date and neither is guessed.
-                        status, status_why = "", ""
-                        if not y:
-                            approved_year = int((p.get("approved") or "0000")[:4] or 0)
-                            age = today.year - approved_year if approved_year else 0
-                            if approved_year and age >= _LOE_LAPSED_AFTER_YEARS:
-                                status = "protection lapsed"
-                                status_why = (f"Approved {age} years ago and no unexpired "
-                                              "patent or exclusivity is listed, so the "
-                                              "protection it had has run out. Generics or "
-                                              "biosimilars may already be on sale. Not a "
-                                              "date: the register says only that nothing "
-                                              "unexpired remains.")
-                            else:
-                                status = "none listed"
-                                status_why = ("No patent or exclusivity is published for "
-                                              "this product yet. Recently approved products "
-                                              "are often listed late, so this is an absence "
-                                              "of data rather than an absence of protection.")
-                        basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
-                                 f'<span class="pf-k"></span>'
-                                 f'<span class="pf-v none" style="font-size:9px">'
-                                 f'{html_escape(p.get("loe_basis") or "")}</span></div>'
-                                 if p.get("loe_basis") else "")
-                        if status:
-                            basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
+                        def _product_card_html(p):
+                            mod = (p.get("modality") or "").lower()
+                            cls = "bio" if "bio" in mod else "small" if mod else ""
+                            y = _loe_year(p)
+                            near = y is not None and y <= today.year + 3
+                            rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
+                                       if p.get("revenue") is not None else "no free data")
+                            to_loe = f' · {y - today.year}y' if y else ""
+                            # A small molecule usually has several Orange Book patents; the latest
+                            # overstates the real cliff since generics can challenge the earlier ones.
+                            # Show the earliest-to-latest range so the wall reads as a window, not a
+                            # single hard date. Biologics keep the single merged floor.
+                            ey = p.get("loe_earliest_year")
+                            is_range = cls == "small" and ey and y and ey != y
+                            loe_label = "exclusivity" if is_range else "exclusivity to"
+                            loe_txt = f'{ey}–{y}' if is_range else (f'{y}{to_loe}' if y else "—")
+                            # Past means the event has happened, so the card says so rather
+                            # than counting down to a date that has gone.
+                            if p.get("loe_past") and y:
+                                loe_label, loe_txt, is_range = "exclusivity", f"lapsed {y}", False
+                            # The patent that sets the date, named on the card. Which of a
+                            # product's twenty patents is the cliff is the question the stack
+                            # exists to answer, and the answer belongs where the date is.
+                            patent_txt = (f' &middot; {html_escape(str(p["loe_identifier"]))}'
+                                          if p.get("loe_identifier") else "")
+                            # Where there is no expiry, say which kind of nothing it is. The
+                            # Orange Book lists only unexpired patents and unexpired
+                            # exclusivities, so no rows means either every one of them has run
+                            # out or none was ever listed, and those are opposite facts. Age
+                            # separates them: a small molecule's protection cannot outlast its
+                            # approval by more than about fourteen years, so an older product
+                            # with nothing listed has lost it, and a recent one has simply not
+                            # had anything published. Neither is a date and neither is guessed.
+                            status, status_why = "", ""
+                            if not y:
+                                approved_year = int((p.get("approved") or "0000")[:4] or 0)
+                                age = today.year - approved_year if approved_year else 0
+                                if approved_year and age >= _LOE_LAPSED_AFTER_YEARS:
+                                    status = "protection lapsed"
+                                    status_why = (f"Approved {age} years ago and no unexpired "
+                                                  "patent or exclusivity is listed, so the "
+                                                  "protection it had has run out. Generics or "
+                                                  "biosimilars may already be on sale. Not a "
+                                                  "date: the register says only that nothing "
+                                                  "unexpired remains.")
+                                else:
+                                    status = "none listed"
+                                    status_why = ("No patent or exclusivity is published for "
+                                                  "this product yet. Recently approved products "
+                                                  "are often listed late, so this is an absence "
+                                                  "of data rather than an absence of protection.")
+                            basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
                                      f'<span class="pf-k"></span>'
                                      f'<span class="pf-v none" style="font-size:9px">'
-                                     f'{status}</span></div>')
-                        return (
-                            f'<div class="pf-card {cls}">'
-                            f'<div class="pf-head">'
-                            f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
-                            f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
-                            f'{html_escape(p.get("modality") or "")}</span></div>'
-                            f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
-                            f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
-                            f'<span class="pf-k">approved</span>'
-                            f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
-                            f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
-                            f'<span class="pf-k">revenue</span>'
-                            f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
-                            f'{rev_txt}</span></div>'
-                            f'<div class="pf-row" title="{html_escape(_WHY_LAPSED if p.get("loe_past") else (_WHY_RANGE if is_range else _WHY_LOE))}">'
-                            f'<span class="pf-k">{loe_label}</span>'
-                            f'<span class="pf-v {"near" if near else ""}">'
-                            f'{loe_txt}<span class="pf-pat">{patent_txt}</span>'
-                            f'</span></div>'
-                            f'{basis}</div>')
+                                     f'{html_escape(p.get("loe_basis") or "")}</span></div>'
+                                     if p.get("loe_basis") else "")
+                            if status:
+                                basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
+                                         f'<span class="pf-k"></span>'
+                                         f'<span class="pf-v none" style="font-size:9px">'
+                                         f'{status}</span></div>')
+                            return (
+                                f'<div class="pf-card {cls}">'
+                                f'<div class="pf-head">'
+                                f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
+                                f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
+                                f'{html_escape(p.get("modality") or "")}</span></div>'
+                                f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                                f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
+                                f'<span class="pf-k">approved</span>'
+                                f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
+                                f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
+                                f'<span class="pf-k">revenue</span>'
+                                f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
+                                f'{rev_txt}</span></div>'
+                                f'<div class="pf-row" title="{html_escape(_WHY_LAPSED if p.get("loe_past") else (_WHY_RANGE if is_range else _WHY_LOE))}">'
+                                f'<span class="pf-k">{loe_label}</span>'
+                                f'<span class="pf-v {"near" if near else ""}">'
+                                f'{loe_txt}<span class="pf-pat">{patent_txt}</span>'
+                                f'</span></div>'
+                                f'{basis}</div>')
 
-                    prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
-                                                                _loe_year(p) or 9999))
-                    # The card itself is the hit area: the grid renders inside a component that
-                    # returns the clicked asset id, so there is no separate button and hovering a
-                    # card shows it is live. The selection lives in session state and a native
-                    # rerun keeps the Portfolio tab active, so the profile opens in place.
-                    # An approval clicked on the Universe timeline arrives as an application
-                    # number, which is the only product identifier that survives the change feed.
-                    # Resolve it here, where the products are known, and consume it so a later
-                    # rerun does not keep reopening the same sheet.
-                    pending = st.session_state.pop("pending_product", None)
-                    if pending:
-                        match = next((p for p in prods
-                                      if str(p.get("application_number") or "").replace(" ", "")
-                                      == pending), None)
-                        if match and match.get("asset_id"):
-                            st.session_state["profile_asset"] = match["asset_id"]
-                    sel_aid = st.session_state.get("profile_asset")
-                    # The profile sits above the grid, so a click does not push it below a long
-                    # card list. Guarded to this company's products, so switching ticker drops a
-                    # stale selection rather than asking the API for another company's asset.
-                    sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
-                    # Grouped by the disease the label says the product treats, biggest area
-                    # first and biggest product inside it. A portfolio is held by franchise, so
-                    # a flat list by revenue hid the shape of it: four metabolic drugs reading
-                    # as one bet is the fact, not their order. A product whose label is not on
-                    # file sits under its own heading rather than being filed under a guess.
-                    groups: dict = {}
-                    for p in prods_sorted:
-                        if p.get("asset_id") is None:
-                            continue
-                        groups.setdefault(p.get("area") or "Area not stated", []).append(p)
+                        prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
+                                                                    _loe_year(p) or 9999))
+                        # The card itself is the hit area: the grid renders inside a component that
+                        # returns the clicked asset id, so there is no separate button and hovering a
+                        # card shows it is live. The selection lives in session state and a native
+                        # rerun keeps the Portfolio tab active, so the profile opens in place.
+                        # An approval clicked on the Universe timeline arrives as an application
+                        # number, which is the only product identifier that survives the change feed.
+                        # Resolve it here, where the products are known, and consume it so a later
+                        # rerun does not keep reopening the same sheet.
+                        pending = st.session_state.pop("pending_product", None)
+                        if pending:
+                            match = next((p for p in prods
+                                          if str(p.get("application_number") or "").replace(" ", "")
+                                          == pending), None)
+                            if match and match.get("asset_id"):
+                                st.session_state["profile_asset"] = match["asset_id"]
+                        sel_aid = st.session_state.get("profile_asset")
+                        # The profile sits above the grid, so a click does not push it below a long
+                        # card list. Guarded to this company's products, so switching ticker drops a
+                        # stale selection rather than asking the API for another company's asset.
+                        sel = next((p for p in prods_sorted if p.get("asset_id") == sel_aid), None)
+                        # Grouped by the disease the label says the product treats, biggest area
+                        # first and biggest product inside it. A portfolio is held by franchise, so
+                        # a flat list by revenue hid the shape of it: four metabolic drugs reading
+                        # as one bet is the fact, not their order. A product whose label is not on
+                        # file sits under its own heading rather than being filed under a guess.
+                        groups: dict = {}
+                        for p in prods_sorted:
+                            if p.get("asset_id") is None:
+                                continue
+                            groups.setdefault(p.get("area") or "Area not stated", []).append(p)
 
-                    def _area_revenue(area):
-                        return sum(p.get("revenue") or 0 for p in groups[area])
+                        def _area_revenue(area):
+                            return sum(p.get("revenue") or 0 for p in groups[area])
 
-                    order = sorted(groups, key=lambda a: (a == "Area not stated",
-                                                          -_area_revenue(a)))
-                    card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
-                                   "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
-                                   "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
-                                   "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                                   "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
-                                   "font-ui": TK.FONT_UI}
-                    # One area at a time, picked from a row of pills. Six areas stacked as six
-                    # card grids was most of this tab's height and pushed the tables under it
-                    # two screens down, and a reader looks at one franchise at a time anyway.
-                    # Each pill carries its own count, so the shape of the portfolio is still
-                    # readable without opening any of them.
-                    _labels = {a: f"{a} ({len(groups[a])})" for a in order}
-                    _picked = st.pills(
-                        "Disease area", [_labels[a] for a in order],
-                        default=_labels[order[0]] if order else None,
-                        key=f"prod_area_{ticker}", label_visibility="collapsed")
-                    _chosen = next((a for a in order if _labels[a] == _picked),
-                                   order[0] if order else None)
-                    for area in [a for a in order if a == _chosen]:
-                        revenue = _area_revenue(area)
-                        section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
-                                if revenue else len(groups[area]))
-                        clicked = prodcards.product_cards(
-                            [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
-                             for p in groups[area]],
-                            tokens=card_tokens,
-                            # Keyed per company and area: a fixed key would carry one grid's
-                            # last click into the next.
-                            selected=sel_aid,
-                            key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
-                        # A click is only acted on once: the nonce changes per click, so a rerun
-                        # triggered by anything else does not reopen a closed profile.
-                        if isinstance(clicked, dict) and clicked.get("nonce") != \
-                                st.session_state.get("prod_click_nonce"):
-                            st.session_state["prod_click_nonce"] = clicked.get("nonce")
-                            st.session_state["profile_asset"] = clicked.get("asset_id")
-                            st.rerun()
+                        order = sorted(groups, key=lambda a: (a == "Area not stated",
+                                                              -_area_revenue(a)))
+                        card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
+                                       "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
+                                       "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
+                                       "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
+                                       "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
+                                       "font-ui": TK.FONT_UI}
+                        # One area at a time, picked from a row of pills. Six areas stacked as six
+                        # card grids was most of this tab's height and pushed the tables under it
+                        # two screens down, and a reader looks at one franchise at a time anyway.
+                        # Each pill carries its own count, so the shape of the portfolio is still
+                        # readable without opening any of them.
+                        _labels = {a: f"{a} ({len(groups[a])})" for a in order}
+                        _picked = st.pills(
+                            "Disease area", [_labels[a] for a in order],
+                            default=_labels[order[0]] if order else None,
+                            key=f"prod_area_{ticker}", label_visibility="collapsed")
+                        _chosen = next((a for a in order if _labels[a] == _picked),
+                                       order[0] if order else None)
+                        for area in [a for a in order if a == _chosen]:
+                            revenue = _area_revenue(area)
+                            section(area, f"{len(groups[area])} &middot; {T.num(revenue / 1e9, 1)}bn"
+                                    if revenue else len(groups[area]))
+                            clicked = prodcards.product_cards(
+                                [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
+                                 for p in groups[area]],
+                                tokens=card_tokens,
+                                # Keyed per company and area: a fixed key would carry one grid's
+                                # last click into the next.
+                                selected=sel_aid,
+                                key=f"prod_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', area.lower())}")
+                            # A click is only acted on once: the nonce changes per click, so a rerun
+                            # triggered by anything else does not reopen a closed profile.
+                            if isinstance(clicked, dict) and clicked.get("nonce") != \
+                                    st.session_state.get("prod_click_nonce"):
+                                st.session_state["prod_click_nonce"] = clicked.get("nonce")
+                                st.session_state["profile_asset"] = clicked.get("asset_id")
+                                _rerun_here()
 
-                # Nothing where no card has been clicked. The panel used to hold a
-                # placeholder saying to click one, which spent a quarter of the column on
-                # an instruction; the hint now sits on the Products heading, next to the
-                # cards it is about.
-                if sel is not None:
-                    with _profile_slot:
-                        _render_product_profile(api_base, ticker, sel, today)
+                    # Nothing where no card has been clicked. The panel used to hold a
+                    # placeholder saying to click one, which spent a quarter of the column on
+                    # an instruction; the hint now sits on the Products heading, next to the
+                    # cards it is about.
+                    if sel is not None:
+                        with _profile_slot:
+                            _render_product_profile(api_base, ticker, sel, today)
+
+            _portfolio_tab()
 
         # --- Catalysts -------------------------------------------------------
     with catalysts_tab:
-        # What each event is worth before when it lands: the modelled swing between the
-        # success and failure legs, at this company's share of the economics, ranked by
-        # size rather than by date. A catalyst is priced only where the analyst has put
-        # both legs on file; the rest say which two keys would price them.
-        try:
-            stakes = api_get(api_base, f"/companies/{ticker}/catalysts/stakes")
-        except (urllib.error.URLError, OSError):
-            stakes = None
-        if stakes and (stakes.get("priced") or stakes.get("unpriced")):
-            section("At stake", basis="rNPV swing, ranked by size")
-            for row in stakes["priced"]:
-                info_col, act_col = st.columns([5, 1])
-                with info_col:
-                    per_share = (f" · {row['per_share']:+,.2f}/sh"
-                                 if row.get("per_share") is not None else "")
-                    st.markdown(
-                        f'<div class="byline"><b>{html_escape(row["asset_name"])}</b> '
-                        f'{row["expected_date"]} · {html_escape(row["catalyst_type"])} · '
-                        f'{html_escape(calendar_view._shorten(row["title"], 64))}<br>'
-                        f'swing <b>{row["swing"]:,.0f}mm</b> · this company '
-                        f'{row["share"]:.0%}: <b>{row["share_swing"]:,.0f}mm</b>'
-                        f'{per_share} · PoS {row["pos_now"]:.2f} now, '
-                        f'{row["pos_success"]:.2f} met, {row["pos_failure"]:.2f} missed'
-                        "</div>", unsafe_allow_html=True)
-                with act_col:
-                    # Two clicks, not one: resolving steps the live PoS and writes
-                    # history, and a stray click should never do that. The first click
-                    # arms; the second, on the same outcome, commits.
-                    armed_key = f"cat_arm_{ticker}_{row['id']}"
-                    armed = st.session_state.get(armed_key)
-                    met_col, miss_col = st.columns(2)
-                    clicked = None
-                    with met_col:
-                        label = "sure?" if armed == "met" else "met"
-                        if st.button(label, key=f"cat_met_{ticker}_{row['id']}"):
-                            clicked = "met"
-                    with miss_col:
-                        label = "sure?" if armed == "missed" else "missed"
-                        if st.button(label, key=f"cat_miss_{ticker}_{row['id']}"):
-                            clicked = "missed"
-                    if clicked:
-                        if armed == clicked:
-                            try:
-                                api_post_json(
-                                    api_base,
-                                    f"/companies/{ticker}/catalysts/{row['id']}"
-                                    "/resolve", {"outcome": clicked})
-                                st.session_state.pop(armed_key, None)
-                                api_get.clear()
-                                st.rerun()
-                            except (urllib.error.URLError, OSError) as exc:
-                                st.error(f"resolve failed: {exc}")
-                        else:
-                            st.session_state[armed_key] = clicked
-                            st.rerun()
-            for row in stakes["unpriced"][:6]:
-                st.markdown(
-                    f'<div class="byline">{html_escape(row["asset_name"])} '
-                    f'{row["expected_date"]} · '
-                    f'{html_escape(calendar_view._shorten(row["title"], 64))} · '
-                    f'unpriced: add {html_escape(", ".join(row["missing"]))} on the '
-                    "Forecast tab</div>", unsafe_allow_html=True)
-            if len(stakes["unpriced"]) > 6:
-                note(f'{len(stakes["unpriced"]) - 6} more unpriced catalysts sit in '
-                     "the calendar below")
+        # A company in the redesign set opens on what can move the share, on one screen:
+        # every readout in the next 24 months, soonest first, each priced gate's odds and
+        # value at risk and to gain on its row, each row's full card a click away, the
+        # gate's drawn with the Next gate block's own builders. Every other company keeps the tab below exactly, and so does this one
+        # when the view's read fails.
+        drawn = (_catalysts_redesigned(ticker)
+                 and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT))
+        if not drawn:
+            _catalysts_today(api_base, ticker, feed)
 
-        # Derived only, and for the selected company alone. Readouts come from Phase 3
-        # primary completion dates on every refresh, so the calendar is rebuilt rather
-        # than maintained. The add form is gone: a date typed in once goes stale
-        # silently and nothing tells you.
-        section(f"Catalyst calendar for {ticker}", "derived on refresh")
-        # One window, so no control. Two years is the span a readout calendar is read
-        # over, and a shorter one hid the far half of what is already known.
-        window = CALENDAR_MONTHS
-        calendar = api_get(
-            api_base,
-            f"/catalysts?within_days={window * 31}"
-            f"&ticker={urllib.parse.quote(ticker)}")
-        if not calendar:
-            state(f"Nothing dated for {ticker} in the next {window} months",
-                  "Readouts are derived from Phase 3 primary completion dates on every "
-                  "refresh, so this fills once trials are fetched. PDUFA dates are read "
-                  "out of the 8-K that announces the acceptance, which needs "
-                  "ANTHROPIC_API_KEY set; without it that half stays empty.")
-        else:
-            st.markdown(calendar_view.render(calendar, months=window),
-                        unsafe_allow_html=True)
-            st.markdown(f'<div class="byline">{calendar_view.caption(calendar, window)}'
-                        ' A readout date is an estimate and moves, so a refresh updates '
-                        'it in place and withdraws the row if the trial stops. A PDUFA '
-                        'date is only written when the date, the product name and a '
-                        'verbatim quote all appear in the filing.</div>',
-                        unsafe_allow_html=True)
-
-            with st.expander("The rows behind the calendar"):
-                st.dataframe(pd.DataFrame([{
-                    "Date": c["expected_date"], "Type": c["catalyst_type"],
-                    "Precision": c["date_confidence"], "Title": c["title"],
-                    "Evidence": c["source_url"] or "—"} for c in calendar]),
-                    width="stretch", hide_index=True,
-                    column_config={"Evidence": st.column_config.LinkColumn(
-                        "Evidence", display_text=r"NCT\w+")})
+        # The readout list carries its own calendar, a click on its index, so the fold is
+        # drawn for every company it does not draw.
+        if not drawn:
+            # Derived only, and for the selected company alone, rebuilt on every refresh
+            # rather than maintained. Folded: open, it shows the Drivers' events a second
+            # time by month, and a grid of registry titles was most of the tab's words. The
+            # rows sit under the grid in the same fold, since a fold cannot hold another.
+            # One window, so no control. Two years is the span a readout calendar is read
+            # over, and a shorter one hid the far half of what is already known.
+            if getattr(calendar_view, "REVISION", 0) < 2:
+                importlib.reload(calendar_view)
+            window = CALENDAR_MONTHS
+            try:
+                calendar = api_get(
+                    api_base,
+                    f"/catalysts?within_days={window * 31}"
+                    f"&ticker={urllib.parse.quote(ticker)}") or []
+                calendar_problem = None
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                calendar, calendar_problem = [], str(exc)
+            in_grid = calendar_view.within(calendar, window)
+            with st.expander(calendar_view.expander_label(calendar, window), expanded=False):
+                if calendar_problem:
+                    state("The calendar did not load", html_escape(calendar_problem),
+                          error=True)
+                elif not in_grid:
+                    state(f"Nothing dated for {ticker} in the next {window} months",
+                          calendar_view.SOURCES)
+                else:
+                    st.markdown(calendar_view.render(calendar, months=window),
+                                unsafe_allow_html=True)
+                    # Padded by the rem Streamlit's markdown pulls back, or the rows under
+                    # the caption sit on its last line.
+                    st.markdown(f'<div class="byline" style="padding-bottom: 1rem">'
+                                f'{calendar_view.caption(calendar, window)}</div>',
+                                unsafe_allow_html=True)
+                    # The link shows the trial's id: the pattern needs a group, or the cell
+                    # prints the pattern itself.
+                    st.dataframe(pd.DataFrame([{
+                        "Date": c["expected_date"], "Type": c["catalyst_type"],
+                        "Precision": c["date_confidence"], "Title": c["title"],
+                        "Evidence": c["source_url"] or None} for c in in_grid]),
+                        width="stretch", hide_index=True,
+                        column_config={"Evidence": st.column_config.LinkColumn(
+                            "Evidence", display_text=r"(NCT\d{8})")})
 
     # --- Labels ----------------------------------------------------------
-    # --- News ------------------------------------------------------------
     with forecast_tab:
         _render_forecast_tab(api_base, ticker)
 
-    with news_tab:
-        news = api_get(api_base, f"/companies/{ticker}/news")["news"]
-        section(f"News and announcements for {ticker}", len(news))
-        if not news:
-            state(f"No news on file for {ticker}",
-                  "Press Refresh all to pull EDGAR 8-K and 6-K material events and the "
-                  "FDA press, drug and safety feeds matched to this company. European "
-                  "filers submit 6-K, not 8-K.")
-        else:
-            # The same list the rest of the app uses, not a spreadsheet. A grid widget
-            # gave a headline the same weight as a cell of a table, put the link in its
-            # own column as the word "Link", and looked like a different application from
-            # the tab beside it. Each row is now the anchor itself.
-            st.markdown('<div class="feed news">' + "".join(
-                news_row(n) for n in news[:_NEWS_SHOWN]) + "</div>",
-                unsafe_allow_html=True)
-            note("EDGAR 8-K and 6-K material events, plus the FDA press, drug and "
-                 "MedWatch feeds matched to this company by name or brand. The full FDA "
-                 "feed is on the Universe tab."
-                 + (f" Showing the {_NEWS_SHOWN} most recent of {len(news)}."
-                    if len(news) > _NEWS_SHOWN else ""))
-
-        # --- Filing text changes ---
-        # The numbers in a 10-K change on their own schedule; the words change once a
-        # year. A rewritten risk factors section is a real signal with no structured
-        # field, so it is diffed against the last filing of the same form.
-        section("Filing text changes", "risk factors, latest filings")
-        ftext = api_get(api_base, f"/companies/{ticker}/filing-text").get("sections") or []
-        risk = [s for s in ftext
-                if s["section"] == "risk_factors" and s.get("added") is not None]
-        if not risk:
-            state(f"No filing text comparison for {ticker}",
-                  "Two filings of the same form are needed to diff the words. US filers "
-                  "get a 10-K and 10-Q comparison on refresh; a foreign 20-F filer lays "
-                  "its sections out under different item numbers and is a labelled future "
-                  "add. Press Refresh all if this looks empty.")
-        else:
-            for s in risk:
-                changed = (f" · {round((1 - s['ratio']) * 100)}% changed"
-                           if s.get("ratio") is not None else "")
-                st.markdown(
-                    f'<div class="byline"><b>{s["form"]} risk factors</b> · '
-                    f'{s["added"]} added, {s["removed"]} removed vs {s["prior_date"]}'
-                    f'{changed}</div>', unsafe_allow_html=True)
-                if s.get("added_passages"):
-                    st.markdown("".join(
-                        f'<div class="rf-add">{html_escape(p[:400])}'
-                        f'{"…" if len(p) > 400 else ""}</div>'
-                        for p in s["added_passages"][:5]), unsafe_allow_html=True)
+    with holdings_tab:
+        # The user's own Trading 212 account beside the model (holdings_view.py). The same
+        # whichever company is picked: it is the account, not the company in focus.
+        import holdings_view
+        holdings_view.render(api_base)
 
     # --- Themes: the universe read by modality rather than by ticker ------
     # Absent on big pharma: see the tab list above.

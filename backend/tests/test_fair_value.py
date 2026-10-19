@@ -190,3 +190,43 @@ def test_takeover_precedents_read_the_file_and_skip_small_targets(tmp_path):
     assert got["deals"] == 5                         # T5's 300mm of revenue is left out
     assert got["peer_quartiles"] == pytest.approx((5.0, 6.0, 6.4))   # multiples 4, 5, 6, 6.4, 10
     assert got["mid"] == pytest.approx(6.0 * own["revenue_ps"] + own["net_cash_ps"])
+
+
+def _band(low, high):
+    return [{"key": "sotp_wacc", "lens": "sum of the parts, discount rate ±1 point",
+             "low": low, "mid": 100.0, "high": high},
+            # Another way of pricing the share, not the model's own range: never widens it.
+            {"key": "targets", "lens": "analyst price targets", "low": 10.0, "mid": 50.0,
+             "high": 900.0}]
+
+
+@pytest.mark.parametrize("close, call", [(79.0, "Strong buy"), (95.0, "Buy"),
+                                         (100.0, "Hold"), (115.0, "Hold"),
+                                         (121.0, "Sell")])
+def test_the_rating_is_where_the_price_sits_in_the_models_own_range(close, call):
+    got = F.rating(100.0, close, 0.08, 2.0, _band(80.0, 120.0))
+    assert got["ok"] and got["rating"] == call
+    assert got["lenses"] == ["sotp_wacc"]
+
+
+def test_the_twelve_month_value_rolls_at_the_cost_of_equity_less_the_dividend():
+    got = F.rating(100.0, 90.0, 0.08, 2.0, _band(80.0, 120.0))
+    assert got["forward_12m"] == pytest.approx(106.0)
+    assert got["forward_low"] == pytest.approx(80.0 * 1.08 - 2.0)
+    assert got["upside_12m"] == pytest.approx(106.0 / 90.0 - 1)
+    assert got["total_return"] == pytest.approx(108.0 / 90.0 - 1)
+
+
+def test_a_fairly_priced_share_is_a_hold_not_a_buy_on_the_cost_of_equity():
+    """At the price the model reads as fair, the twelve-month value sits above the price
+    by the cost of equity. That is the return the share owes, not upside."""
+    got = F.rating(100.0, 100.0, 0.08, 0.0, _band(80.0, 120.0))
+    assert got["upside_12m"] == pytest.approx(0.08)
+    assert got["rating"] == "Hold"
+
+
+def test_no_value_or_no_price_is_a_reason_not_a_rating():
+    assert F.rating(None, 100.0, 0.08, 0.0, [])["ok"] is False
+    assert F.rating(100.0, None, 0.08, 0.0, [])["reason"] == "no share price on file"
+    lone = F.rating(100.0, 90.0, None, None, [])
+    assert lone["rating"] is None and lone["reason"] and lone["forward_12m"] is None

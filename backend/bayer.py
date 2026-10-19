@@ -66,6 +66,14 @@ MILLION = 1_000_000.0
 
 URL_TEMPLATE = ("https://reports.bayer.com/annual-report-{year}/en/_assets/downloads/"
                 "entire-bayer-ar{yy:02d}.xlsx")
+# The half-year report publishes the same "all tables" workbook, early each August, linked
+# from https://www.bayer.com/en/investors/financial-reports as "the digital Q2 report". Its
+# product table gives each best-selling product for the first half of this year and last,
+# which is the latest like-for-like comparison Bayer prints between annual reports.
+HALF_YEAR_URL_TEMPLATE = ("https://reports.bayer.com/half-year-financial-report-q2-{year}/en/"
+                          "_assets/downloads/entire-bayer-ir2{yy:02d}.xlsx")
+HALF_YEAR_SHEETS = ("cmr-best-selling-pharm-products", "cmr-key-data-pharmaceuticals")
+HALF_YEAR_NOTE = "Bayer half-year report workbook, all tables"
 
 INCOME_SHEET = "cfs-income-statement"
 BALANCE_SHEET = "cfs-financial-position"
@@ -166,6 +174,16 @@ def source_urls(today: dt.date | None = None) -> list[str]:
     return [URL_TEMPLATE.format(year=y, yy=y % 100) for y in (year - 1, year - 2)]
 
 
+def half_year_urls(today: dt.date | None = None) -> list[str]:
+    """The half-year workbook addresses to try, this year's first.
+
+    This year's is published in August, so until then it is a 404 and last year's is the
+    latest half there is.
+    """
+    year = (today or dt.date.today()).year
+    return [HALF_YEAR_URL_TEMPLATE.format(year=y, yy=y % 100) for y in (year, year - 1)]
+
+
 # --- reading a sheet --------------------------------------------------------
 def cells(worksheet) -> list[list]:
     return [[cell.value for cell in row] for row in worksheet.iter_rows()]
@@ -213,6 +231,20 @@ def year_columns(head: list) -> dict:
             year = int(value.strip())
         if year is not None and year not in out:
             out[year] = index
+    return out
+
+
+def half_columns(head: list) -> dict:
+    """{year: column} for first-half money columns, headed "H1 2026".
+
+    First occurrence only: the change columns beside them are headed "Reported" and
+    "Fx & p adj.", and a quarter is headed "Q2 2026".
+    """
+    out: dict[int, int] = {}
+    for index, value in enumerate(head):
+        match = re.fullmatch(r"H1 (\d{4})", clean(value)) if isinstance(value, str) else None
+        if match and int(match.group(1)) not in out:
+            out[int(match.group(1))] = index
     return out
 
 
@@ -461,10 +493,15 @@ def reconcile_cashflow(rows: list[list]) -> list[str]:
 
 
 # --- products and the share count --------------------------------------------
-def parse_products(rows: list[list]) -> tuple[list[dict], dict]:
-    """The best-selling products for each full year, and the table's own total."""
-    years = year_columns(header(rows))
+def parse_products(rows: list[list], columns=None,
+                   period: str = "FY") -> tuple[list[dict], dict]:
+    """The best-selling products for each period, and the table's own total.
+
+    Full years by default; ``half_columns`` and period "H1" read the half-year report's
+    first-half columns from the same table shape.
+    """
     head = header(rows)
+    years = (columns or year_columns)(head)
     begin = next((i for i, row in enumerate(rows) if row is head), None)
     out, total = [], {}
     if begin is None:
@@ -481,12 +518,13 @@ def parse_products(rows: list[list]) -> tuple[list[dict], dict]:
             value = _value(row, column)
             if value is not None:
                 out.append({"product": label, "region": None, "fiscal_year": year,
-                            "value": value * MILLION, "unit": CURRENCY})
+                            "period": period, "value": value * MILLION,
+                            "unit": CURRENCY})
     return out, total
 
 
-def division_sales(rows: list[list]) -> dict:
-    years = year_columns(header(rows))
+def division_sales(rows: list[list], columns=None) -> dict:
+    years = (columns or year_columns)(header(rows))
     row = _first(rows, "Sales")
     return {y: _value(row, c) * MILLION for y, c in years.items()
             if _value(row, c) is not None}
@@ -552,3 +590,26 @@ def read_book(book) -> tuple[list[dict], list[str]]:
     else:
         records += [{**r, "kind": "product"} for r in products]
     return records, notes
+
+
+def read_half_year(book) -> tuple[list[dict], list[str]]:
+    """The half-year report's product table, first half of this year and last, and what
+    failed. Products only: the half-year statements are condensed and unaudited, and the
+    book's balance sheet stays on the audited year end the claims are read at.
+
+    The same checks as the annual table: the products sum to the table's own total, and
+    the total cannot exceed the division's first-half sales.
+    """
+    missing = [name for name in HALF_YEAR_SHEETS if name not in book.sheetnames]
+    if missing:
+        return [], [f"the half-year workbook no longer carries {', '.join(missing)}, so "
+                    f"no first-half product row was written"]
+    products, total = parse_products(cells(book[PRODUCT_SHEET]), half_columns, "H1")
+    if not products:
+        return [], ["the half-year product table has no H1 columns, so nothing was written"]
+    notes = reconcile_products(products, total,
+                               division_sales(cells(book[DIVISION_SHEET]), half_columns))
+    if notes:
+        return [], notes + ["the half-year product table did not tie, so no first-half "
+                            "product revenue was written"]
+    return [{**r, "kind": "product"} for r in products], []

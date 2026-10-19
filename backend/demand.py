@@ -41,6 +41,9 @@ def company_demand(db_path, ticker: str) -> list[dict] | None:
     for row in rows:
         key = (row["asset_id"], row["part"])
         drug = drugs.setdefault(key, {
+            # The id, so a reader can pick its own product out of the list rather than
+            # matching a brand or generic substring against CMS's spelling of it.
+            "asset_id": row["asset_id"],
             "brand": row["brand_name"] or row["asset_brand"],
             "generic": row["generic_name"],
             "part": row["part"], "part_label": PART_LABEL.get(row["part"], row["part"]),

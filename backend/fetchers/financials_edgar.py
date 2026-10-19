@@ -23,6 +23,7 @@ import os
 import urllib.request
 
 import db
+import statements
 from fetchers.base import BaseFetcher, RefreshResult
 
 # The parser is shared with the ESEF fetcher, so it lives in ``companyfacts`` rather than
@@ -60,6 +61,22 @@ TTL_SECONDS = 24 * 60 * 60
 COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 _TIMEOUT_S = 30
 _ANNUAL_FORMS = ("10-K", "20-F")
+
+
+def _revenue_taxonomy(parsed: dict) -> str | None:
+    """The taxonomy that supplied the latest annual revenue fact, "us-gaap" or
+    "ifrs-full", or None when no revenue line was read.
+
+    Recorded in the snapshot so a reader can name the accounting standard from the facts
+    themselves. The foreign-issuer flag cannot: three 20-F filers carry it as 0.
+    """
+    periods = ((parsed.get("lines") or {}).get("Revenues") or {}).get("periods") or {}
+    keys = [key for key in periods if key[1] == statements.FY] or list(periods)
+    if not keys:
+        return None
+    concept = periods[max(keys)].get("concept")
+    line = statements.LINES_BY_KEY["Revenues"]
+    return next((taxonomy for taxonomy, name in line.candidates if name == concept), None)
 
 
 # --- fetcher -------------------------------------------------------------
@@ -133,6 +150,7 @@ class FinancialsEdgarFetcher(BaseFetcher):
                     "shares": (self._parsed["shares"] or {}).get("val"),
                     "cash": self._parsed["cash"],
                     "total_debt": self._parsed["total_debt"],
+                    "taxonomy": _revenue_taxonomy(self._statements),
                     "source": EDGAR_SOURCE,
                     "fetch_kind": "live",
                 },

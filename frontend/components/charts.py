@@ -162,7 +162,8 @@ def sparkline(values: Sequence[Optional[float]], width: int = 140,
 def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900,
                height: int = 300, y_fmt: Callable[[float], str] = None,
                hover: bool = True, y_span=None, markers: Sequence[dict] = (),
-               points: Sequence[dict] = (), shade=None, zero: bool = False) -> str:
+               points: Sequence[dict] = (), shade=None, zero: bool = False,
+               marker_size: float = 8.5) -> str:
     """Multi-series line. Each series: {name, values, colour, axis: left|right}.
 
     Series marked axis=right scale on their own zero-free domain; both ends are
@@ -183,7 +184,8 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
     to_index), a tint behind the plot for the years after it. All three share the left
     axis, and the dots count toward its domain so a reported year is never clipped.
     ``zero`` holds the left axis to zero: a revenue path has no negative years, and an
-    axis that pads below zero prints a figure nothing can take.
+    axis that pads below zero prints a figure nothing can take. ``marker_size`` is the
+    marker labels' type size.
     """
     y_fmt = y_fmt or (lambda v: _fmt(v, 1))
     pad_l, pad_r, top, bottom = 54, 54, 12, 24
@@ -226,7 +228,7 @@ def line_chart(series: Sequence[dict], x_labels: Sequence[str], width: int = 900
                    f' stroke="{colour}" stroke-width="1" stroke-dasharray="3,3"'
                    ' class="marker"/>')
         if m.get("label"):
-            out.append(_text(mx, top - 3, m["label"], 8.5, colour, "middle", MONO,
+            out.append(_text(mx, top - 3, m["label"], marker_size, colour, "middle", MONO,
                              "600"))
     for pt in points:
         for i, v in enumerate(pt["values"]):
@@ -537,7 +539,7 @@ def _blend(low: str, high: str, t: float) -> str:
 
 def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
                  cells: dict, width: int = 980, height: int = 460,
-                 flag_note: str = "uncurated") -> str:
+                 flag_note: str = "uncurated", highlight: str | None = None) -> str:
     """Universe grid. cells[(row, col)] = {count, weight 0..1, flagged bool}.
 
     A missing cell stays ground with no figure: absence of data is not a zero.
@@ -554,8 +556,14 @@ def heatmap_grid(row_labels: Sequence[str], col_labels: Sequence[str],
                          "middle", MONO))
     for i, row in enumerate(row_labels):
         cy = pad_t + ch * i
-        out.append(_text(pad_l - 8, cy + ch / 2 + 3.5, row, 10, TK.TEXT, "end", MONO,
-                         "600"))
+        # The open company's row is marked, so it can be found among eighteen.
+        mine = highlight is not None and row == highlight
+        if mine:
+            out.append(f'<rect x="2" y="{cy + 1:.1f}" width="{width - 4:.1f}"'
+                       f' height="{ch - 2:.1f}" fill="none" stroke="{TK.FLAG}"'
+                       f' stroke-width="1.4"/>')
+        out.append(_text(pad_l - 8, cy + ch / 2 + 3.5, row, 10,
+                         TK.FLAG if mine else TK.TEXT, "end", MONO, "700" if mine else "600"))
         for j, col in enumerate(col_labels):
             cx = pad_l + cw * j
             cell = cells.get((row, col))
@@ -631,6 +639,550 @@ def dumbbell(rows: Sequence[dict], width: int = 900, height: int = 400,
     out.append("</svg>")
     return "".join(out)
 
+
+
+# Mechanism colours, all from the tokens. Red is left out: on this chart it would read as
+# a warning about a drug rather than as a name for its mechanism.
+BR_PALETTE = (TK.UP, TK.FLAG, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.TEXT, TK.MUTED)
+
+
+def benefit_risk(points: Sequence[dict], width: int = 760, height: int = 440,
+                 x_label: str = "benefit against comparator",
+                 highlight: str | None = None) -> str:
+    """One point per drug: benefit across, tolerability up, so top right is best.
+
+    Each point: {name, ticker, x, y (or None), group, tip}. x is the benefit over the
+    comparator in the measure's own units, oriented so right is always better; y is the
+    tolerability gap in percentage points, oriented so up means fewer people stopping for
+    side effects than on control. A drug with no tolerability figure sits on a strip under
+    the plot rather than being guessed onto it. Colour marks the ``group`` (mechanism),
+    with a legend; the quadrants are named in words, so colour is never the only signal.
+    """
+    usable = [p for p in points if p.get("x") is not None]
+    if not usable:
+        return ""
+    groups = []
+    for p in usable:
+        g = p.get("group") or "mechanism not known"
+        if g not in groups:
+            groups.append(g)
+    shown = groups[:len(BR_PALETTE) - 1]
+    colour = {g: BR_PALETTE[i] for i, g in enumerate(shown)}
+    other = TK.MUTED
+
+    pad_l, pad_r, pad_t = 54, 24, 22
+    legend_h = 18 * ((min(len(groups), len(shown) + 1) + 1) // 2) + 8
+    strip_h = 34 if any(p.get("y") is None for p in usable) else 0
+    plot_b = height - 40 - strip_h - legend_h
+    xs = [p["x"] for p in usable] + [0.0]
+    ys = [p["y"] for p in usable if p.get("y") is not None] + [0.0]
+    xd = _domain(xs, pad=0.12)
+    yd = _domain(ys, pad=0.18)
+    x = _scale(xd, (pad_l, width - pad_r))
+    y = _scale((yd[1], yd[0]), (pad_t, plot_b))
+    out = [_svg_open(width, height, "benefit against tolerability, one point per drug")]
+    # Quadrant names, faint, in the corners.
+    for tx, ty, anchor, text in (
+            (width - pad_r - 4, pad_t + 12, "end", "more benefit, easier to tolerate"),
+            (width - pad_r - 4, plot_b - 6, "end", "more benefit, harder to tolerate"),
+            (pad_l + 4, pad_t + 12, "start", "less benefit, easier to tolerate"),
+            (pad_l + 4, plot_b - 6, "start", "less benefit, harder to tolerate")):
+        out.append(_text(tx, ty, text, 9.5, TK.MUTED, anchor))
+    # Zero lines: no difference from the comparator, the same dropouts as control.
+    out.append(f'<line x1="{x(0):.1f}" y1="{pad_t}" x2="{x(0):.1f}" y2="{plot_b}"'
+               f' stroke="{TK.RULE_STRONG}" stroke-dasharray="3 3"/>')
+    if yd[0] <= 0 <= yd[1]:
+        out.append(f'<line x1="{pad_l}" y1="{y(0):.1f}" x2="{width - pad_r}" y2="{y(0):.1f}"'
+                   f' stroke="{TK.RULE_STRONG}" stroke-dasharray="3 3"/>')
+    out.append(f'<rect x="{pad_l}" y="{pad_t}" width="{width - pad_l - pad_r}"'
+               f' height="{plot_b - pad_t}" fill="none" stroke="{TK.RULE}"/>')
+    out.append(_text((pad_l + width - pad_r) / 2, plot_b + 26, x_label + "  →  better",
+                     10, TK.MUTED, "middle"))
+    out.append(f'<text x="14" y="{(pad_t + plot_b) / 2:.1f}" font-size="10" fill="{TK.MUTED}"'
+               f' text-anchor="middle" transform="rotate(-90 14 {(pad_t + plot_b) / 2:.1f})">'
+               f'easier to tolerate  →</text>')
+    for v in (xd[0], (xd[0] + xd[1]) / 2, xd[1]):
+        out.append(_text(x(v), plot_b + 12, _fmt(v, 1), 9, TK.MUTED, "middle", MONO))
+    placed: list = []
+    def put(label, px_, py_):
+        w = len(label) * 6.2
+        for dy in (0, -12, 12, -24, 24):
+            for side in (1, -1):
+                lx = px_ + 7 if side == 1 else px_ - 7 - w
+                box = (lx, py_ + dy - 9, lx + w, py_ + dy + 3)
+                if all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
+                       for b in placed):
+                    placed.append(box)
+                    return lx, py_ + dy
+        return px_ + 7, py_
+    strip_y = plot_b + 44
+    if strip_h:
+        out.append(_text(pad_l, strip_y - 12, "no tolerability figure posted:", 9,
+                         TK.MUTED, "start"))
+    for p in sorted(usable, key=lambda p: -(p["x"])):
+        fill = colour.get(p.get("group") or "mechanism not known", other)
+        px_ = x(p["x"])
+        py_ = y(p["y"]) if p.get("y") is not None else strip_y
+        tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
+        mine = highlight and p.get("ticker") == highlight
+        r = 5.5 if mine else 4.5
+        if p.get("y") is None:
+            out.append(f'<rect x="{px_ - 3.5:.1f}" y="{py_ - 3.5:.1f}" width="7" height="7"'
+                       f' fill="none" stroke="{fill}" stroke-width="1.6">{tip}</rect>')
+        else:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r}" fill="{fill}"'
+                       f' stroke="{TK.GROUND}" stroke-width="1">{tip}</circle>')
+        lx, ly = put(p["name"], px_, py_)
+        out.append(_text(lx, ly + 3, p["name"], 10, TK.FLAG if mine else TK.TEXT, "start",
+                         weight="700" if mine else "400"))
+    # Legend, two columns.
+    ly0 = height - legend_h + 6
+    items = [(g, colour[g]) for g in shown] + (
+        [("other mechanisms", other)] if len(groups) > len(shown) else [])
+    for i, (g, c) in enumerate(items):
+        lx = pad_l + (i % 2) * (width - pad_l) / 2
+        ly = ly0 + (i // 2) * 18
+        out.append(f'<circle cx="{lx + 4:.1f}" cy="{ly:.1f}" r="4" fill="{c}"/>')
+        out.append(_text(lx + 12, ly + 3.5, _short_label(g, 58), 9.5, TK.TEXT, "start"))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def score_map(points: Sequence[dict], width: int = 760, height: int = 500,
+              highlight: str | None = None, max_labels: int = 10,
+              x_caption: str = "efficacy score") -> str:
+    """Every scored drug on two axes from 0 to 100: efficacy across, safety and
+    tolerability up, so top right is where a drug wants to be.
+
+    Each point: {name, ticker, x, y, evidence (0 to 100, or None), stage, boxed, rank,
+    tip, nosize, id}. A point with an ``id`` is drawn as a hit area: its bubble and
+    label carry ``data-drug``, which the page's click listener reads. Bubble size is the
+    weight of evidence, so a position resting on one small trial looks small, and each
+    bubble carries its rank in the table, so the two read together without a label. The
+    focal company's drugs (``highlight`` ticker) are drawn in the accent with a gap
+    ringed round each, so two that overlap stay two. The
+    top five by rank are labelled first, then the focal company's drugs, then peers best
+    first as far as there is room; a label that cannot sit beside its bubble is drawn in
+    free space with a thin leader line to it, or left off. Stage is the fill: solid for a
+    marketed drug, half for Phase 3, hollow earlier, so colour is never the only signal.
+    An amber ring marks an FDA boxed warning; a dotted outline and a dagger mark a drug
+    whose size of effect could not be compared with its peers (``nosize``).
+    """
+    def draw(p, px_, py_, r, mine):
+        colour = TK.UP if mine else TK.MUTED
+        stage = p.get("stage") or ""
+        if stage == "Marketed":
+            fill, opacity = colour, "0.9"
+        elif "Phase 3" in stage or "Phase 2/3" in stage or stage.startswith("Marketed"):
+            fill, opacity = colour, "0.45"
+        else:
+            fill, opacity = "none", "1"
+        tip = f"<title>{_esc(p.get('tip') or p['name'])}</title>"
+        out = []
+        # A point with an id is a hit area: grouped under data-drug, with a ring the page's
+        # stylesheet shows on hover and focus (theme.py, the drug card block).
+        if p.get("id") is not None:
+            out.append(f'<g class="sc-pt" data-drug="{_esc(str(p["id"]))}" tabindex="0"'
+                       f' role="button" aria-label="{_esc(p["name"])}: open its card">')
+            out.append(f'<circle class="sc-ring" cx="{px_:.1f}" cy="{py_:.1f}"'
+                       f' r="{r + 4:.1f}" fill="none" stroke="{TK.TEXT}"'
+                       f' stroke-width="1.4" opacity="0"/>')
+        if p.get("boxed"):
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 3:.1f}" fill="none"'
+                       f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="2 2"/>')
+        if mine:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 1.6:.1f}" fill="none"'
+                       f' stroke="{TK.GROUND}" stroke-width="2.4"/>')
+        dots = ' stroke-dasharray="1.5 2"' if p.get("nosize") else ""
+        out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}" fill="{fill}"'
+                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4"{dots}>'
+                   f'{tip}</circle>')
+        if p.get("rank") is not None:
+            out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine))
+        if p.get("id") is not None:
+            out.append("</g>")
+        return out
+
+    keys = [
+        ("marketed", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                                    f' fill-opacity="0.9" stroke="{TK.MUTED}"/>'),
+        ("Phase 3", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="{TK.MUTED}"'
+                                   f' fill-opacity="0.45" stroke="{TK.MUTED}"/>'),
+        ("Phase 2", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4" fill="none"'
+                                   f' stroke="{TK.MUTED}" stroke-width="1.4"/>'),
+        ("boxed warning", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="5" fill="none"'
+                                         f' stroke="{TK.FLAG}" stroke-dasharray="2 2"/>'),
+        ("bigger: more evidence", _key_bigger)]
+    if any(p.get("nosize") for p in points
+           if p.get("x") is not None and p.get("y") is not None):
+        keys.append(("† size not compared",
+                     lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                    f' fill="none" stroke="{TK.MUTED}"'
+                                    f' stroke-width="1.4"'
+                                    f' stroke-dasharray="1.5 2"/>'))
+    return _bubble_map(
+        points, width, height, highlight=highlight, max_labels=max_labels,
+        label=("efficacy score against safety and tolerability score, "
+               "one bubble per drug, sized by weight of evidence"),
+        corners=("stronger and safer", "stronger, harder to tolerate",
+                 "weaker, easier to tolerate", "weaker and harder to tolerate"),
+        x_title=f"{x_caption}  →  better",
+        y_title="safety and tolerability score  →  better",
+        draw=draw, keys=keys,
+        label_of=lambda p: p["name"] + (" †" if p.get("nosize") else ""),
+        reach=lambda p, r: r + (3 if p.get("boxed") else 0),
+        label_attr=lambda p: (f' class="sc-label" data-drug="{_esc(str(p["id"]))}"'
+                              if p.get("id") is not None else ""))
+
+
+def _bubble_rank(rank, px_: float, py_: float, opacity: str, mine: bool) -> str:
+    """The rank printed inside a bubble: ground on a solid fill, text on a light one."""
+    ink = TK.GROUND if opacity == "0.9" else TK.TEXT
+    return (f'<text x="{px_:.1f}" y="{py_ + 3:.1f}" font-size="8"'
+            f' fill="{ink}" text-anchor="middle" font-family="{MONO}"'
+            f' font-weight="{"700" if mine else "400"}"'
+            f' pointer-events="none">{int(rank)}</text>')
+
+
+def _key_bigger(cx, ky) -> str:
+    """The key's size glyph: a small circle beside a larger one."""
+    return (f'<circle cx="{cx - 3}" cy="{ky - 2}" r="2.5"'
+            f' fill="none" stroke="{TK.MUTED}"/>'
+            f'<circle cx="{cx + 5}" cy="{ky - 4}" r="5"'
+            f' fill="none" stroke="{TK.MUTED}"/>')
+
+
+def _bubble_map(points: Sequence[dict], width: int, height: int, *, highlight, max_labels,
+                label: str, corners: tuple, x_title: str, y_title: str,
+                draw: Callable, keys: list, label_of: Callable, reach: Callable,
+                label_attr: Callable = None, leader_attr: str = "") -> str:
+    """The drawing ``score_map`` and ``company_map`` share: two scores from 0 to 100,
+    the better quarter tinted, a bubble per point sized by ``evidence`` (radius 6 to 15),
+    the highlighted company's bubbles last so they sit on top, labels placed beside
+    their bubbles or out in free space with a leader, and a one-line key.
+
+    ``corners`` are the captions top right, bottom right, top left and bottom left.
+    ``draw(p, px, py, r, mine)`` returns the marks of one bubble; ``keys`` is a list of
+    ``(label, draw(cx, ky))``; ``label_of(p)`` is a bubble's label and ``reach(p, r)``
+    how far it must clear the centre. ``label_attr(p)`` adds attributes to a label's
+    text and ``leader_attr`` to every leader line. ``max_labels`` counts the peers
+    labelled beyond the top five by rank and the highlighted company.
+    """
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    # The corner captions sit in the margins, above the plot and on the axis title's row,
+    # so a drug scored 0 or 100 never lands on one.
+    pad_l, pad_r, pad_t, pad_b = 46, 18, 24, 58
+    plot_r, plot_b = width - pad_r, height - pad_b
+    # The scales run a little past 0 and 100, so a bubble at either end is drawn whole.
+    x = _scale((-6.0, 106.0), (pad_l, plot_r))
+    y = _scale((106.0, -6.0), (pad_t, plot_b))
+    out = [_svg_open(width, height, label)]
+    # The better half on each axis, tinted once where both meet.
+    out.append(f'<rect x="{x(50):.1f}" y="{y(100):.1f}" width="{x(100) - x(50):.1f}"'
+               f' height="{y(50) - y(100):.1f}" fill="{TK.PANEL}"/>')
+    for v in (0, 25, 50, 75, 100):
+        strong = v == 50
+        out.append(f'<line x1="{x(v):.1f}" y1="{y(100):.1f}" x2="{x(v):.1f}" y2="{y(0):.1f}"'
+                   f' stroke="{TK.RULE_STRONG if strong else TK.RULE}"'
+                   + (' stroke-dasharray="3 3"' if strong else "") + "/>")
+        out.append(f'<line x1="{x(0):.1f}" y1="{y(v):.1f}" x2="{x(100):.1f}" y2="{y(v):.1f}"'
+                   f' stroke="{TK.RULE_STRONG if strong else TK.RULE}"'
+                   + (' stroke-dasharray="3 3"' if strong else "") + "/>")
+        if v not in (0, 100):
+            out.append(_text(x(v), plot_b + 13, str(v), 9, TK.MUTED, "middle", MONO))
+        out.append(_text(pad_l - 6, y(v) + 3, str(v), 9, TK.MUTED, "end", MONO))
+    placed: list = []
+    for tx, ty, anchor_, text in (
+            (x(100), pad_t - 8, "end", corners[0]),
+            (x(100), plot_b + 28, "end", corners[1]),
+            (x(0), pad_t - 8, "start", corners[2]),
+            (x(0), plot_b + 28, "start", corners[3])):
+        out.append(_text(tx, ty, text, 9.5, TK.MUTED, anchor_))
+        w = len(text) * 5.4
+        left_ = tx - w if anchor_ == "end" else tx
+        placed.append((left_, ty - 9, left_ + w, ty + 3))
+    out.append(_text(x(0), plot_b + 13, "0", 9, TK.MUTED, "middle", MONO))
+    out.append(_text(x(100), plot_b + 13, "100", 9, TK.MUTED, "middle", MONO))
+    out.append(_text((pad_l + plot_r) / 2, plot_b + 28, x_title, 10,
+                     TK.MUTED, "middle"))
+    mid_y = (pad_t + plot_b) / 2
+    out.append(f'<text x="12" y="{mid_y:.1f}" font-size="10" fill="{TK.MUTED}"'
+               f' text-anchor="middle" font-family="{UI}"'
+               f' transform="rotate(-90 12 {mid_y:.1f})">{_esc(y_title)}</text>')
+
+    def radius(p):
+        ev = p.get("evidence")
+        return 6.0 + 9.0 * ((ev if ev is not None else 0.0) / 100.0)
+
+    def mine(p):
+        return bool(highlight) and p.get("ticker") == highlight
+
+    def free(box):
+        return all(box[2] < b[0] or box[0] > b[2] or box[3] < b[1] or box[1] > b[3]
+                   for b in placed)
+
+    def put(label, px_, py_, r):
+        """Where a label goes: beside its bubble where there is room, else further out in
+        free space; (x, y, far) or None. The text is drawn on a baseline 3 below the spot,
+        so its glyphs run from about 5 above the spot to 6 below; the box is that, plus a
+        pixel."""
+        w = len(label) * 5.9
+        for gap, dys in ((4, (0,)), (4, (-12, 12)), (14, (-18, 18, -30, 30, 0)),
+                         (30, (-24, 24, -42, 42, 0, -60, 60))):
+            for dy in dys:
+                for side in (1, -1):
+                    lx = px_ + r + gap if side == 1 else px_ - r - gap - w
+                    if lx < pad_l or lx + w > plot_r or py_ + dy - 6 < pad_t \
+                            or py_ + dy + 7 > plot_b:
+                        continue
+                    box = (lx, py_ + dy - 6, lx + w, py_ + dy + 7)
+                    if free(box):
+                        placed.append(box)
+                        return lx, py_ + dy, (gap > 4 or abs(dy) > r)
+        return None
+
+    # Large bubbles first, so a small one is never hidden under a large one; the focal
+    # company last, on top.
+    order = sorted(usable, key=lambda p: (mine(p), -radius(p)))
+    for p in order:
+        px_, py_, r = x(p["x"]), y(p["y"]), radius(p)
+        out.extend(draw(p, px_, py_, r, mine(p)))
+        placed.append((px_ - r, py_ - r, px_ + r, py_ + r))
+    # Labels: the top five by rank, then the focal company's drugs, then peers best first
+    # while room lasts.
+    ranked = sorted(usable, key=lambda p: ((p.get("rank") or 999) > 5, not mine(p),
+                                           p.get("rank") or 999))
+    peers_labelled = 0
+    for p in ranked:
+        top = (p.get("rank") or 999) <= 5
+        if not mine(p) and not top and peers_labelled >= max_labels:
+            continue
+        # A label clears any ring drawn round the bubble as well as the bubble.
+        reach_ = reach(p, radius(p))
+        name = label_of(p)
+        px_, py_ = x(p["x"]), y(p["y"])
+        spot = put(name, px_, py_, reach_)
+        if spot is None:
+            continue
+        if not mine(p) and not top:
+            peers_labelled += 1
+        lx, ly, far = spot
+        if far:
+            # A thin leader from the bubble's edge to the label's near end.
+            tx_ = lx if lx > px_ else lx + len(name) * 5.9
+            dx, dy = tx_ - px_, ly - py_
+            dist = math.hypot(dx, dy) or 1.0
+            out.append(f'<line{leader_attr} x1="{px_ + dx / dist * reach_:.1f}"'
+                       f' y1="{py_ + dy / dist * reach_:.1f}" x2="{tx_:.1f}" y2="{ly:.1f}"'
+                       f' stroke="{TK.MUTED}" stroke-width="0.6"/>')
+        out.append(_text(lx, ly + 3, name, 10,
+                         TK.TEXT if mine(p) else TK.MUTED, "start",
+                         weight="700" if mine(p) else "400",
+                         extra=label_attr(p) if label_attr else ""))
+    # Key, one line.
+    ky = height - 10
+    kx = pad_l
+    for key_label, draw_key in keys:
+        out.append(draw_key(kx + 5, ky))
+        lead = 22 if key_label.startswith("bigger") else 14
+        out.append(_text(kx + lead, ky, key_label, 9.5, TK.MUTED, "start"))
+        kx += lead + len(key_label) * 5.4 + 16
+    if highlight:
+        out.append(f'<circle cx="{kx + 5}" cy="{ky - 3}" r="4" fill="{TK.UP}"'
+                   f' stroke="{TK.UP}"/>')
+        out.append(_text(kx + 14, ky, highlight, 9.5, TK.TEXT, "start", weight="700"))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def company_map(points: Sequence[dict], width: int = 760, height: int = 480,
+                open_ticker: str | None = None, max_labels: int | None = None) -> str:
+    """The company scorecard's chart (design company-scorecard.md 3.1): one bubble per
+    company of a cohort, company score across and value score up, so top right is a
+    stronger business at lower multiples than its cohort.
+
+    Each point: {ticker, x, y, size (0 to 100: market cap against the cohort's largest),
+    rank, complete, tip, aria}. The open company is drawn in the accent with a gap ring,
+    every other company muted; a bubble is solid when every business pillar is scored and
+    hollow when one is missing, and carries its rank in the table. Each bubble is a
+    ``<g class="cm-pt">`` with ``data-ticker`` and a hidden ``cm-ring`` the frame shows
+    for a company open in the panel or picked for Compare, so the frame binds clicks and
+    never rebuilds the drawing. ``max_labels`` is the most labels drawn: every company
+    in a cohort of 20 or fewer, else 12 (the top five, the open company, then peers best
+    first while room lasts). No trend line and no error bars: a rank range is not a
+    score interval.
+    """
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    if max_labels is None:
+        max_labels = len(usable) if len(usable) <= 20 else 12
+    fixed = sum(1 for p in usable if p.get("ticker") == open_ticker
+                or (p.get("rank") or 999) <= 5)
+    peer_cap = max(0, max_labels - fixed)
+    shaped = [{**p, "name": p.get("ticker") or "", "evidence": p.get("size")} for p in usable]
+
+    def draw(p, px_, py_, r, mine):
+        colour = TK.UP if mine else TK.MUTED
+        fill, opacity = (colour, "0.9") if p.get("complete") else ("none", "1")
+        ticker = _esc(p.get("ticker") or "")
+        aria = _esc(p.get("aria") or p.get("ticker") or "")
+        out = [f'<g class="cm-pt" data-ticker="{ticker}" tabindex="0" role="button"'
+               f' aria-label="{aria}">',
+               f'<circle class="cm-ring" cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 4:.1f}"'
+               f' fill="none" stroke="{TK.TEXT}" stroke-width="1.4" opacity="0"/>']
+        if mine:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 1.6:.1f}" fill="none"'
+                       f' stroke="{TK.GROUND}" stroke-width="2.4"/>')
+        out.append(f'<circle class="cm-dot" cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}"'
+                   f' fill="{fill}" fill-opacity="{opacity}" stroke="{colour}"'
+                   f' stroke-width="1.4"><title>{_esc(p.get("tip") or p["name"])}</title>'
+                   f'</circle>')
+        if p.get("rank") is not None:
+            out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine)
+                       .replace("<text ", '<text class="cm-rank" ', 1))
+        out.append("</g>")
+        return out
+
+    keys = [
+        ("every pillar scored", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                               f' fill="{TK.MUTED}" fill-opacity="0.9"'
+                                               f' stroke="{TK.MUTED}"/>'),
+        ("some pillars missing", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                                f' fill="none" stroke="{TK.MUTED}"'
+                                                f' stroke-width="1.4"/>'),
+        ("bigger: larger market cap", _key_bigger)]
+    return _bubble_map(
+        shaped, width, height, highlight=open_ticker, max_labels=peer_cap,
+        label=("company score against value score, one bubble per company, "
+               "sized by market cap"),
+        corners=("stronger, lower multiples", "stronger, higher multiples",
+                 "weaker, lower multiples", "weaker, higher multiples"),
+        x_title="company score  →  stronger",
+        y_title="value score  →  lower multiples",
+        draw=draw, keys=keys, label_of=lambda p: p["name"],
+        # The label clears the ring the frame draws for an open or picked company.
+        reach=lambda p, r: r + 5,
+        label_attr=lambda p: f' class="cm-label" data-ticker="{_esc(p["name"])}"',
+        leader_attr=' class="cm-leader"')
+
+
+def area_map(points: Sequence[dict], width: int = 720, height: int = 480,
+             highlight: str | None = None) -> str:
+    """A disease area's scorecard chart: one bubble per company present, its value today
+    score across and its pipeline score up, so top right holds the most value now and
+    the most to come.
+
+    Each point: {ticker, x, y, size (the clinical quality score, or None), rank,
+    complete, tip}. Bubble size is clinical quality, the smallest where no drug is
+    scored; a bubble is solid when all four pillars are scored and hollow when one is
+    missing, and carries its rank in the table. The highlighted company is drawn in the
+    accent with a gap ring. Every bubble is labelled with its ticker.
+    """
+    usable = [p for p in points if p.get("x") is not None and p.get("y") is not None]
+    if not usable:
+        return ""
+    shaped = [{**p, "name": p.get("ticker") or "", "evidence": p.get("size")} for p in usable]
+
+    def draw(p, px_, py_, r, mine):
+        colour = TK.UP if mine else TK.MUTED
+        fill, opacity = (colour, "0.9") if p.get("complete") else ("none", "1")
+        out = []
+        if mine:
+            out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r + 1.6:.1f}" fill="none"'
+                       f' stroke="{TK.GROUND}" stroke-width="2.4"/>')
+        out.append(f'<circle cx="{px_:.1f}" cy="{py_:.1f}" r="{r:.1f}" fill="{fill}"'
+                   f' fill-opacity="{opacity}" stroke="{colour}" stroke-width="1.4">'
+                   f'<title>{_esc(p.get("tip") or p["name"])}</title></circle>')
+        if p.get("rank") is not None:
+            out.append(_bubble_rank(p["rank"], px_, py_, opacity, mine))
+        return out
+
+    keys = [
+        ("all four pillars scored", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                                   f' fill="{TK.MUTED}" fill-opacity="0.9"'
+                                                   f' stroke="{TK.MUTED}"/>'),
+        ("a pillar missing", lambda cx, ky: f'<circle cx="{cx}" cy="{ky - 3}" r="4"'
+                                            f' fill="none" stroke="{TK.MUTED}"'
+                                            f' stroke-width="1.4"/>'),
+        ("bigger: higher clinical quality", _key_bigger)]
+    return _bubble_map(
+        shaped, width, height, highlight=highlight, max_labels=len(shaped),
+        label=("value today score against pipeline score, one bubble per company, "
+               "sized by clinical quality"),
+        corners=("more value today, deeper pipeline", "more value today, thinner pipeline",
+                 "less value today, deeper pipeline", "less value today, thinner pipeline"),
+        x_title="value today score  →  more",
+        y_title="pipeline score  →  deeper",
+        draw=draw, keys=keys, label_of=lambda p: p["name"], reach=lambda p, r: r + 2)
+
+
+def _short_label(text: str, limit: int) -> str:
+    text = text or ""
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + "…"
+
+
+def against_reference(rows: Sequence[dict], width: int = 900, height: int = None,
+                      value_fmt: Callable[[float], str] = None,
+                      delta_fmt: Callable[[float], str] = None,
+                      label_width: int = 230, ref_label: str = "placebo",
+                      drug_colour: str = None) -> str:
+    """Each row a drug's value beside its own reference, on one shared axis.
+
+    Each row: {label, value, reference?, group?}. The reference (a placebo arm, or a
+    placebo rate) is an open circle and the value a filled one; the difference is printed
+    at the right. Neither direction is coloured good or bad: a fall is the goal for body
+    weight and a harm for bone density, and the chart does not know which it is showing.
+    Rows sharing a ``group`` are banded together, so one trial's arms read as one block.
+    """
+    value_fmt = value_fmt or (lambda v: _fmt(v, 1))
+    delta_fmt = delta_fmt or (lambda v: ("+" if v > 0 else MINUS if v < 0 else "")
+                              + _fmt(abs(v), 1))
+    usable = [r for r in rows if r.get("value") is not None]
+    if not usable:
+        return ""
+    colour = drug_colour or TK.UP
+    row_h = 20
+    pad_t, pad_r = 26, 84
+    height = height or int(pad_t + row_h * len(usable) + 12)
+    values = [r["value"] for r in usable] + [r["reference"] for r in usable
+                                             if r.get("reference") is not None]
+    dom = _domain(values, zero=True, pad=0.06)
+    x = _scale(dom, (label_width, width - pad_r))
+    out = [_svg_open(width, height, "values against a reference")]
+    for frac in (0.0, 0.5, 1.0):
+        gx = dom[0] + (dom[1] - dom[0]) * frac
+        out.append(f'<line x1="{x(gx):.1f}" y1="{pad_t - 6}" x2="{x(gx):.1f}"'
+                   f' y2="{height - 6}" stroke="{TK.RULE}"/>')
+        out.append(_text(x(gx), pad_t - 12, value_fmt(gx), 9, TK.MUTED, "middle", MONO))
+    if dom[0] < 0 < dom[1]:
+        out.append(f'<line x1="{x(0):.1f}" y1="{pad_t - 6}" x2="{x(0):.1f}"'
+                   f' y2="{height - 6}" stroke="{TK.MUTED}" stroke-dasharray="2 3"/>')
+    last_group = object()
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        if r.get("group") != last_group and i:
+            out.append(f'<line x1="8" y1="{cy - row_h / 2:.1f}" x2="{width - 8}"'
+                       f' y2="{cy - row_h / 2:.1f}" stroke="{TK.RULE}"/>')
+        last_group = r.get("group")
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        xv = x(r["value"])
+        if r.get("reference") is not None:
+            xr = x(r["reference"])
+            out.append(f'<line x1="{xr:.1f}" y1="{cy:.1f}" x2="{xv:.1f}" y2="{cy:.1f}"'
+                       f' stroke="{TK.MUTED}" stroke-width="1.5"/>')
+            out.append(f'<circle cx="{xr:.1f}" cy="{cy:.1f}" r="3.4" fill="{TK.GROUND}"'
+                       f' stroke="{TK.MUTED}" stroke-width="1.4"><title>{_esc(ref_label)}'
+                       f' {_esc(value_fmt(r["reference"]))}</title></circle>')
+            out.append(_text(width - pad_r + 10, cy + 3.5,
+                             delta_fmt(r["value"] - r["reference"]), 9.5, TK.TEXT,
+                             "start", MONO, "600"))
+        out.append(f'<circle cx="{xv:.1f}" cy="{cy:.1f}" r="3.8" fill="{colour}">'
+                   f'<title>{_esc(r["label"])} {_esc(value_fmt(r["value"]))}</title></circle>')
+    out.append("</svg>")
+    return "".join(out)
 
 
 def tornado(rows: Sequence[dict], width: int = 520, height: int = 160,
@@ -730,19 +1282,30 @@ def football_field(rows: Sequence[dict], width: int = 760, height: int = 220,
 
 
 # --- 7. waterfall ---------------------------------------------------------
+def _tip(step: dict) -> str:
+    """The close of a bar's rect: its own hover where the step carries one."""
+    tip = step.get("tip")
+    return f"><title>{_esc(tip)}</title></rect>" if tip else "/>"
+
+
 def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
               value_fmt: Callable[[float], str] = None,
-              reference: Optional[dict] = None) -> str:
+              reference: Optional[dict] = None, pad_l: int = 52) -> str:
     """Running decomposition. Each step: {label, value, kind: start|step|end|null}.
 
     A null step hatches at the running level with no height, saying "something
     belongs here whose size is unknown" without inventing the size. ``reference`` is
     {label, value, colour?}, a dashed rule across the plot: the share price a
     per-share bridge is read against, which the bars have to be compared with and
-    which is not one of them.
+    which is not one of them. It is drawn under the bars and their figures, and each
+    figure sits on a patch of the ground, so the rule never strikes through a value:
+    on Amgen it ran through the dividend's minus sign and -9.45 read as 9.45. With
+    no label the rule is drawn alone and the caller names the price in the section
+    chip, because a label at the right end sits on the last bar. ``pad_l`` is the left
+    margin, which a bridge drawn with no y axis does not need.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
-    pad_l, top, bottom = 52, 16, 34
+    top, bottom = 16, 34
     floor = height - bottom
     running = 0.0
     peaks = [0.0]
@@ -765,6 +1328,20 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
     zero_y = y(0)
     out.append(f'<line x1="{pad_l - 4}" y1="{zero_y:.1f}" x2="{width - 8}"'
                f' y2="{zero_y:.1f}" stroke="{TK.RULE_STRONG}"/>')
+    if reference and reference.get("value") is not None:
+        ry = y(reference["value"])
+        colour = reference.get("colour") or TK.FLAG
+        out.append(f'<line x1="{pad_l - 4}" y1="{ry:.1f}" x2="{width - 8}"'
+                   f' y2="{ry:.1f}" stroke="{colour}" stroke-width="1"'
+                   ' stroke-dasharray="4,3" class="reference"/>')
+    def figure(cx: float, base: float, text: str, colour: str, weight: str = "") -> str:
+        # A patch of the ground the width of the figure, in the mono face's 0.6em
+        # advance, so a rule behind it stops at its edges rather than between digits.
+        w = len(text) * 5.4 + 4
+        return (f'<rect class="figure-ground" x="{cx - w / 2:.1f}" y="{base - 8.5:.1f}"'
+                f' width="{w:.1f}" height="11" fill="{TK.GROUND}"/>'
+                + _text(cx, base, text, 9, colour, "middle", MONO, weight))
+
     running = 0.0
     prev_edge = None
     for i, s in enumerate(steps):
@@ -778,16 +1355,16 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
             y0, y1 = sorted((y(level or 0.0), zero_y))
             out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
                        f' width="{bar_w:.1f}" height="{max(y1 - y0, 1):.1f}"'
-                       f' fill="{TK.PANEL}" stroke="{TK.RULE_STRONG}"/>')
-            out.append(_text(cx, y0 - 5, value_fmt(level or 0.0), 9, TK.TEXT,
-                             "middle", MONO, "600"))
+                       f' fill="{TK.PANEL}" stroke="{TK.RULE_STRONG}"{_tip(s)}')
+            out.append(figure(cx, y0 - 5, value_fmt(level or 0.0), TK.TEXT, "600"))
             edge = y(level or 0.0)
         elif v is None:
             out.append(f'<rect x="{cx - bar_w / 2:.1f}"'
                        f' y="{y(running) - 9:.1f}" width="{bar_w:.1f}" height="18"'
                        f' fill="url(#{hid})" stroke="{TK.RULE_STRONG}"'
                        f' stroke-width="0.5" class="nullband">'
-                       f"<title>no free data</title></rect>")
+                       f"<title>{_esc(' · '.join(t for t in ('no free data', s.get('tip')) if t))}"
+                       f"</title></rect>")
             edge = y(running)
         else:
             start_level = running
@@ -796,8 +1373,8 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
             colour = TK.DOWN if v < 0 else TK.UP
             out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
                        f' width="{bar_w:.1f}" height="{max(y1 - y0, 1.2):.1f}"'
-                       f' fill="{colour}"/>')
-            out.append(_text(cx, y0 - 5, value_fmt(v), 9, colour, "middle", MONO))
+                       f' fill="{colour}"{_tip(s)}')
+            out.append(figure(cx, y0 - 5, value_fmt(v), colour))
             edge = y(running)
         if prev_edge is not None:
             out.append(f'<line x1="{cx - slot / 2 + bar_w * 0.19:.1f}"'
@@ -805,16 +1382,22 @@ def waterfall(steps: Sequence[dict], width: int = 760, height: int = 280,
                        f' y2="{prev_edge:.1f}" stroke="{TK.MUTED}"'
                        f' stroke-width="0.8" stroke-dasharray="2,2"/>')
         prev_edge = edge
-        out.append(_text(cx, height - 10, s["label"], 9, TK.MUTED, "middle", UI))
-    if reference and reference.get("value") is not None:
-        ry = y(reference["value"])
-        colour = reference.get("colour") or TK.FLAG
-        out.append(f'<line x1="{pad_l - 4}" y1="{ry:.1f}" x2="{width - 8}"'
-                   f' y2="{ry:.1f}" stroke="{colour}" stroke-width="1"'
-                   ' stroke-dasharray="4,3" class="reference"/>')
-        out.append(_text(width - 8, ry - 4, f"{reference.get('label') or ''} "
-                         f"{value_fmt(reference['value'])}".strip(), 9, colour, "end",
-                         MONO, "600"))
+        label = str(s["label"])
+        # A label wider than its slot takes two lines: at fourteen steps "growth
+        # capital" ran into "launches" and "FY25 EV" as one phrase.
+        if len(label) * 4.9 > slot - 6 and " " in label:
+            first, _, second = label.rpartition(" ")
+            out.append(f'<text x="{cx:.1f}" font-size="9" fill="{TK.MUTED}"'
+                       f' text-anchor="middle" font-family="{UI}">'
+                       f'<tspan x="{cx:.1f}" y="{height - 19}">{_esc(first)}</tspan>'
+                       f'<tspan x="{cx:.1f}" y="{height - 9}">{_esc(second)}</tspan>'
+                       "</text>")
+        else:
+            out.append(_text(cx, height - 10, label, 9, TK.MUTED, "middle", UI))
+    if reference and reference.get("value") is not None and reference.get("label"):
+        out.append(_text(width - 8, y(reference["value"]) - 4,
+                         f"{reference['label']} {value_fmt(reference['value'])}", 9,
+                         reference.get("colour") or TK.FLAG, "end", MONO, "600"))
     out.append("</svg>")
     return "".join(out)
 
@@ -1282,5 +1865,647 @@ def donut(slices: Sequence[dict], width: int = 760, height: int = 300,
                          "700"))
     if centre_sub:
         out.append(_text(cx, cy + 13, centre_sub, 9, TK.MUTED, "middle", UI))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- pillar bars (Key insights, company-scorecard.md 1.3 and 5.3) -------------
+_PB_ROW = 24          # a bar row
+_PB_NOTE = 12         # what a note line adds under its label
+_PB_SEP = 26          # the separator row between the business and the price
+_PB_LABEL = 150       # the label column, wide enough for a note under the label
+_PB_NUM = 36          # the number column at the right
+_PB_BAR = 8           # bar thickness
+_PB_UP_AT = 75        # a score this high or higher is drawn in UP
+_PB_DOWN_AT = 25      # a score this low or lower is drawn in DOWN
+
+
+def _pb_tone(score) -> Optional[str]:
+    """UP at 75 or more, DOWN at 25 or less, otherwise None (the caller's neutral)."""
+    if score is None:
+        return None
+    if score >= _PB_UP_AT:
+        return TK.UP
+    if score <= _PB_DOWN_AT:
+        return TK.DOWN
+    return None
+
+
+def _pb_fit(text, width_px: float, size: float) -> str:
+    """Cut a string to roughly what fits in ``width_px`` at ``size``, with an ellipsis.
+    Archivo runs about half its size a character."""
+    text = str(text or "")
+    room = max(4, int(width_px / (size * 0.5)))
+    return text if len(text) <= room else text[:room - 1].rstrip() + "…"
+
+
+def pillar_bars(rows: Sequence[dict], width: int = 520,
+                label: str = "Pillar scores against the cohort") -> str:
+    """One horizontal bar a pillar, scores from 0 to 100, the cohort median as a tick.
+
+    ``rows`` holds ``{id, label, score, median, note, reason}`` dicts and, where the
+    business ends and the price begins, one ``{separator: "Price, not in the score"}``.
+    The label is in TEXT on the left; under it, in MUTED, a note where the row has one.
+    The track is RULE, the bar MUTED, and both the bar and the number at the right turn
+    UP at 75 or more and DOWN at 25 or less. The cohort median is a 1 px TEXT tick. A
+    pillar with no score draws no bar and no number: its reason sits in MUTED where the
+    bar would be, so a gap reads as a gap and never as a zero.
+    """
+    if not rows:
+        return ""
+    x0 = _PB_LABEL
+    x1 = width - _PB_NUM
+    track = max(1.0, x1 - x0)
+    height = 0
+    for row in rows:
+        if "separator" in row:
+            height += _PB_SEP
+        else:
+            height += _PB_ROW + (_PB_NOTE if row.get("note") else 0)
+    height += 2
+    out = [_svg_open(width, height, label)]
+    y = 0.0
+    for row in rows:
+        if "separator" in row:
+            mid = y + _PB_SEP / 2 + 1
+            out.append(_text(0, mid + 3.5, row["separator"], 10, TK.MUTED, "start", UI,
+                             extra=' class="pb-sep"'))
+            out.append(f'<line x1="{x0:.1f}" y1="{mid:.1f}" x2="{x1:.1f}" y2="{mid:.1f}"'
+                       f' stroke="{TK.RULE_STRONG}" stroke-width="1"'
+                       f' stroke-dasharray="3 3"/>')
+            y += _PB_SEP
+            continue
+        note = row.get("note")
+        score = row.get("score")
+        median = row.get("median")
+        name = row.get("label") or ""
+        cy = y + _PB_ROW / 2
+        tip = name if score is None else f"{name} {score:.0f}"
+        if score is None and row.get("reason"):
+            tip += f": {row['reason']}"
+        if median is not None:
+            tip += f"; cohort median {median:.0f}"
+        pid = _esc(row.get("id") or name)
+        out.append(f'<g class="pb-row" data-pillar="{pid}"><title>{_esc(tip)}</title>')
+        out.append(_text(0, cy + 4, name, 11.5, TK.TEXT, "start", UI,
+                         extra=' class="pb-label"'))
+        if note:
+            out.append(_text(0, cy + 4 + _PB_NOTE, _pb_fit(note, x0 - 6, 9.5), 9.5,
+                             TK.MUTED, "start", UI, extra=' class="pb-note"'))
+        if score is None:
+            reason = row.get("reason") or "no score"
+            out.append(_text(x0, cy + 3.5, _pb_fit(reason, x1 - x0 + _PB_NUM, 10), 10,
+                             TK.MUTED, "start", UI, extra=' class="pb-reason"'))
+        else:
+            s = min(100.0, max(0.0, float(score)))
+            tone = _pb_tone(score)
+            out.append(f'<rect class="pb-track" x="{x0:.1f}" y="{cy - _PB_BAR / 2:.1f}"'
+                       f' width="{track:.1f}" height="{_PB_BAR}" fill="{TK.RULE}"/>')
+            out.append(f'<rect class="pb-bar" x="{x0:.1f}" y="{cy - _PB_BAR / 2:.1f}"'
+                       f' width="{track * s / 100:.1f}" height="{_PB_BAR}"'
+                       f' fill="{tone or TK.MUTED}"/>')
+            if median is not None:
+                mx = x0 + track * min(100.0, max(0.0, float(median))) / 100
+                out.append(f'<line class="pb-med" x1="{mx:.1f}" y1="{cy - 7:.1f}"'
+                           f' x2="{mx:.1f}" y2="{cy + 7:.1f}" stroke="{TK.TEXT}"'
+                           f' stroke-width="1"/>')
+            out.append(_text(width - 2, cy + 4, f"{score:.0f}", 11.5, tone or TK.TEXT,
+                             "end", MONO, "600", extra=' class="pb-num"'))
+        out.append("</g>")
+        y += _PB_ROW + (_PB_NOTE if note else 0)
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- key insights ----------------------------------------------------------
+# The four pictures the Key insights tab draws (docs/design/key-insights.md 4.1). Each is
+# pure, returns "" when there is nothing to draw, takes its colours from the tokens or a
+# blend of two, never draws a null as a zero, and puts a <title> on every mark.
+
+_TONES = {"up": TK.UP, "down": TK.DOWN}
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
+           "Dec")
+
+
+def _iso(value):
+    import datetime as _dt
+    try:
+        return _dt.date.fromisoformat(str(value)[:10])
+    except (ValueError, TypeError):
+        return None
+
+
+def _nice_ticks(lo: float, hi: float, count: int = 3) -> list:
+    """About ``count`` round values inside [lo, hi]."""
+    span = hi - lo
+    if span <= 0:
+        return [lo]
+    raw = span / max(count, 1)
+    mag = 10 ** math.floor(math.log10(raw))
+    step = next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
+    first = math.ceil(lo / step) * step
+    return [first + i * step for i in range(count + 1) if first + i * step <= hi]
+
+
+def price_call(closes: Sequence[Optional[float]], dates: Sequence[str],
+               close: Optional[float], model: Optional[dict] = None,
+               street: Optional[dict] = None, width: int = 800, height: int = 168,
+               value_fmt: Callable[[float], str] = None) -> str:
+    """A year of closes with the call beside it: a gutter at the right holds the model's
+    twelve-month value (a dot on its range) and the street target (a ring).
+
+    The close runs on as a dashed rule into the gutter, so the reader sees at once which
+    side of today's price each mark sits. No line joins today to a mark, because neither is
+    a path. ``model`` is {mid, low, high, tone, tip}; ``street`` is {value, tip}.
+    """
+    pts = [(i, v) for i, v in enumerate(closes) if v is not None and v == v]
+    if not pts:
+        return ""
+    value_fmt = value_fmt or (lambda v: f"{v:,.0f}")
+    has_model = bool(model and model.get("mid") is not None)
+    has_street = bool(street and street.get("value") is not None)
+    gutter = 150 if (has_model or has_street) else 0
+    pad_l, pad_r, top, bottom = 40, 6, 16, 18
+    plot_r = width - pad_r - gutter
+    span_vals = [v for _, v in pts] + ([close] if close is not None else [])
+    if has_model:
+        span_vals += [v for v in (model.get("low"), model.get("high"), model["mid"])
+                      if v is not None]
+    if has_street:
+        span_vals.append(street["value"])
+    dom = _domain(span_vals, pad=0.08)
+    y = _scale(dom, (height - bottom, top))
+    n = max(len(closes) - 1, 1)
+    x = lambda i: pad_l + (plot_r - pad_l) * i / n
+    out = [_svg_open(width, height, "price against the call")]
+    ticks = _nice_ticks(dom[0], dom[1], 3)
+    if len(ticks) < 2:
+        # One tick is no scale: AZN's 150 to 226 gave only 200 at a step of 50.
+        ticks = _nice_ticks(dom[0], dom[1], 5)
+    for t in ticks:
+        gy = y(t)
+        out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{plot_r}" y2="{gy:.1f}"'
+                   f' stroke="{TK.RULE}" stroke-width="0.6"/>')
+        out.append(_text(pad_l - 6, gy + 3, value_fmt(t), 9, TK.MUTED, "end", MONO))
+    seen = set()
+    for i, d in enumerate(dates):
+        day = _iso(d)
+        if day is None or day.month not in (1, 4, 7, 10) or (day.year, day.month) in seen:
+            continue
+        seen.add((day.year, day.month))
+        if 0 < i < len(dates) - 1:
+            # A label near the plot's right edge ends there rather than centring on its
+            # tick, or with no gutter beside it "Oct 26" is clipped to "Oct 2".
+            anchor = "end" if x(i) > plot_r - 16 else "middle"
+            out.append(_text(min(x(i), plot_r), height - 5,
+                             f"{_MONTHS[day.month - 1]} {day.year % 100:02d}",
+                             9, TK.MUTED, anchor, MONO))
+    _polyline_runs(out, [v if v is not None and v == v else None for v in closes], x, y,
+                   TK.TEXT, 1.4)
+    last_i, last_v = pts[-1]
+    end_date = dates[last_i] if last_i < len(dates) else ""
+    out.append(f'<circle cx="{x(last_i):.1f}" cy="{y(last_v):.1f}" r="3" fill="{TK.TEXT}">'
+               f"<title>{_esc(value_fmt(last_v))} {_esc(end_date)}</title></circle>")
+    if close is not None:
+        cy = y(close)
+        out.append(f'<line x1="{x(last_i):.1f}" y1="{cy:.1f}" x2="{width - pad_r}" y2="{cy:.1f}"'
+                   f' stroke="{TK.FLAG}" stroke-width="1" stroke-dasharray="4,3"'
+                   ' class="reference"/>')
+    if gutter:
+        gx = plot_r + 14
+        out.append(_text(gx + (gutter - 14) / 2, top - 6, "in 12 months", 9, TK.MUTED,
+                         "middle", UI))
+    if has_model:
+        tone = _TONES.get(model.get("tone"), TK.TEXT)
+        mx = gx + 10
+        lo, hi = model.get("low"), model.get("high")
+        if lo is not None and hi is not None:
+            y0, y1 = sorted((y(lo), y(hi)))
+            out.append(f'<rect x="{mx - 3}" y="{y0:.1f}" width="6" height="{max(y1 - y0, 2):.1f}"'
+                       f' fill="{_blend(tone, TK.GROUND, 0.45)}"/>')
+        my = y(model["mid"])
+        out.append(f'<circle cx="{mx}" cy="{my:.1f}" r="4.5" fill="{tone}"'
+                   f' stroke="{TK.GROUND}" stroke-width="1.2">'
+                   f"<title>{_esc(model.get('tip') or '')}</title></circle>")
+        out.append(_text(mx + 9, my + 3, f"model {value_fmt(model['mid'])}", 9, tone, "start",
+                         UI))
+    if has_street:
+        sx = gx + 78
+        sy = y(street["value"])
+        out.append(f'<circle cx="{sx}" cy="{sy:.1f}" r="4" fill="none" stroke="{TK.MUTED}"'
+                   f' stroke-width="1.4"><title>{_esc(street.get("tip") or "")}</title>'
+                   "</circle>")
+        out.append(_text(sx + 8, sy + 3, f"street {value_fmt(street['value'])}", 9, TK.MUTED,
+                         "start", UI))
+    out.append("</svg>")
+    return "".join(out)
+
+
+def peer_dots(peers: Sequence[dict], focal: dict, better: str = "higher",
+              width: int = 150, height: int = 18, median: Optional[float] = None,
+              tone: Optional[str] = None, label: str = "") -> str:
+    """One measure across a cohort: every peer a small dot, the cohort median a tick, the
+    company a larger dot in its tone. The axis runs so that right is always better: it is
+    reversed for a measure where lower is better. Ties are offset so none hides another.
+    Each dot: {ticker, value, text}."""
+    fv = (focal or {}).get("value")
+    vals = [p.get("value") for p in peers if p.get("value") is not None]
+    if fv is None or not vals:
+        return ""
+    lo, hi = min(vals + [fv]), max(vals + [fv])
+    if hi == lo:
+        hi = lo + (abs(lo) * 0.1 or 1.0)
+    padv = (hi - lo) * 0.06
+    lo, hi = lo - padv, hi + padv
+    r0, r1 = (6, width - 6) if better != "lower" else (width - 6, 6)
+    x = _scale((lo, hi), (r0, r1))
+    mid = height / 2
+    out = [_svg_open(width, height, label or "peers")]
+    out.append(f'<line x1="4" y1="{mid}" x2="{width - 4}" y2="{mid}" stroke="{TK.RULE}"/>')
+    if median is not None:
+        mx = x(median)
+        out.append(f'<line x1="{mx:.1f}" y1="{mid - 7}" x2="{mx:.1f}" y2="{mid + 7}"'
+                   f' stroke="{TK.TEXT}" stroke-width="1"><title>median</title></line>')
+    # The company is drawn once, as itself; a peer moves off the line only where it would
+    # cover another, by a step that keeps both whole.
+    drawn: list = []
+    me = (focal or {}).get("ticker")
+    for p in peers:
+        if p.get("value") is None or p is focal or (me and p.get("ticker") == me):
+            continue
+        px = x(p["value"])
+        near = sum(1 for qx in drawn if abs(qx - px) < 4.4)
+        drawn.append(px)
+        dy = 0 if near == 0 else (5 if near % 2 else -5)
+        out.append(f'<circle cx="{px:.1f}" cy="{mid + dy}" r="2.2" fill="{TK.MUTED}"'
+                   f' opacity="0.7"><title>{_esc(p.get("ticker") or "")} '
+                   f'{_esc(p.get("text") or "")}</title></circle>')
+    colour = _TONES.get(tone, TK.TEXT)
+    out.append(f'<circle cx="{x(fv):.1f}" cy="{mid}" r="4.5" fill="{colour}" stroke="{TK.GROUND}"'
+               f' stroke-width="1.5"><title>{_esc(focal.get("ticker") or "")} '
+               f'{_esc(focal.get("text") or "")}</title></circle>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- Medicare growth split ------------------------------------------------------------
+# The three factors of the split, in a fixed order that never cycles: patients, use per
+# patient, cost per claim, from the token palette (purple, the phase ramp's teal,
+# orange), which keeps every pair apart for a reader with any colour vision. A step CMS
+# gave no patient count for splits into claims and price, and claims take the muted
+# tone, since they stand in for patients and use together.
+SPLIT_COLOURS = {"patients": TK.PURPLE_BOOK, "intensity": TK.PHASE_RAMP["Phase 1"],
+                 "price": TK.ORANGE_BOOK, "claims": TK.MUTED}
+SPLIT_ORDER = ("patients", "intensity", "claims", "price")
+_SPLIT_NAMES = {"patients": "Patients", "intensity": "Use per patient",
+                "price": "Cost per claim", "claims": "Claims"}
+
+
+def growth_split(steps: Sequence[dict], width: int = 760, height: int = 240,
+                 baseline: Optional[Sequence[dict]] = None,
+                 value_fmt: Callable[[float], str] = None,
+                 factor_labels: Optional[dict] = None) -> str:
+    """Medicare spend growth per year, split into its factors as diverging columns.
+
+    Each step is {from, to, spend, <factor>: growth, points: {factor: fraction},
+    like_for_like, provisional}. A column stacks the factors' points of spend growth,
+    rises above zero and falls below it by sign, and a dot marks the spend growth the
+    points add up to. ``baseline`` is [{from, to, spend, n}], the tracked median for the
+    same years, drawn as a short tick. A step whose containers changed hatches its
+    patient segments, a provisional one is drawn hollow, and a step with no split draws
+    its dot over a hatched band: a gap, never a zero.
+    """
+    shown = [s for s in steps or [] if s.get("spend") is not None]
+    if not shown:
+        return ""
+    names = {**_SPLIT_NAMES, **(factor_labels or {})}
+    value_fmt = value_fmt or (lambda v: f"{v:+.1f}")
+    base_by = {(b.get("from"), b.get("to")): b for b in (baseline or [])
+               if b and b.get("spend") is not None}
+
+    def pts(s):
+        return {k: v * 100 for k, v in (s.get("points") or {}).items() if v is not None}
+
+    reach = [0.0]
+    for s in shown:
+        p = pts(s)
+        reach += [sum(v for v in p.values() if v > 0), sum(v for v in p.values() if v < 0),
+                  s["spend"] * 100]
+        b = base_by.get((s.get("from"), s.get("to")))
+        if b:
+            reach.append(b["spend"] * 100)
+    dom = _domain(reach, zero=True)
+    top, bottom, pad_l, pad_r = 40, 24, 44, 10
+    y = _scale(dom, (height - bottom, top))
+    n = len(shown)
+    slot = (width - pad_l - pad_r) / n
+    bar_w = min(slot * 0.5, 24)
+    hid, over = _uid("hatch"), _uid("hatch")
+    # The not-like-for-like hatch is drawn over a coloured segment, so its stripes are
+    # the ground's colour rather than the null band's grey, which vanishes on purple.
+    out = [_svg_open(width, height, "Medicare spend growth split"),
+           f"<defs>{_hatch(hid)}{_hatch(over, TK.GROUND)}</defs>"]
+
+    for tick in _nice_ticks(dom[0], dom[1], 4):
+        ty = y(tick)
+        out.append(f'<line x1="{pad_l}" y1="{ty:.1f}" x2="{width - pad_r}" y2="{ty:.1f}"'
+                   f' stroke="{TK.RULE_FAINT}" stroke-width="1"/>')
+        out.append(_text(pad_l - 6, ty + 3, f"{_fmt(tick, 0)}", 9, TK.MUTED, "end", MONO))
+    out.append(_text(4, top - 10, "points of spend growth", 9, TK.MUTED, "start", UI))
+    zero_y = y(0)
+    out.append(f'<line x1="{pad_l}" y1="{zero_y:.1f}" x2="{width - pad_r}"'
+               f' y2="{zero_y:.1f}" stroke="{TK.RULE_STRONG}" class="zero"/>')
+
+    used = set()
+    for i, s in enumerate(shown):
+        cx = pad_l + slot * i + slot / 2
+        p = pts(s)
+        hollow = bool(s.get("provisional"))
+        hatched = s.get("like_for_like") is False
+        out.append(f'<g class="split-step" data-to="{_esc(s.get("to"))}">')
+        if not p:
+            out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{zero_y - 8:.1f}"'
+                       f' width="{bar_w:.1f}" height="16" fill="url(#{hid})"'
+                       f' stroke="{TK.RULE_STRONG}" stroke-width="0.5" class="nullband">'
+                       f"<title>not split: CMS gives too little for this year</title></rect>")
+        up, down = 0.0, 0.0
+        for key in SPLIT_ORDER:
+            if key not in p:
+                continue
+            v = p[key]
+            used.add(key)
+            if v >= 0:
+                y0, y1 = y(up + v), y(up)
+                up += v
+            else:
+                y0, y1 = y(down), y(down + v)
+                down += v
+            h = max(y1 - y0, 0.8)
+            # A surface gap between touching segments, taken out of the segment itself.
+            if h > 3:
+                y0, h = y0 + 1, h - 2
+            colour = SPLIT_COLOURS[key]
+            growth = s.get(key)
+            tip = (f"{names.get(key, key)} "
+                   + (f"{growth * 100:+.1f}% " if growth is not None else "")
+                   + f"({_fmt(v, 1)} pts)")
+            fill = (f'fill="none" stroke="{colour}" stroke-width="1.2"' if hollow
+                    else f'fill="{colour}"')
+            out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}" width="{bar_w:.1f}"'
+                       f' height="{h:.1f}" {fill} class="seg seg-{key}">'
+                       f"<title>{_esc(tip)}</title></rect>")
+            if hatched and key in ("patients", "intensity"):
+                out.append(f'<rect x="{cx - bar_w / 2:.1f}" y="{y0:.1f}"'
+                           f' width="{bar_w:.1f}" height="{h:.1f}" fill="url(#{over})"'
+                           f' class="nlfl"><title>containers changed: not like for like'
+                           f"</title></rect>")
+        b = base_by.get((s.get("from"), s.get("to")))
+        if b:
+            by = y(b["spend"] * 100)
+            n_txt = f", {b['n']} brands" if b.get("n") else ""
+            out.append(f'<line x1="{cx - bar_w * 0.95:.1f}" y1="{by:.1f}"'
+                       f' x2="{cx + bar_w * 0.95:.1f}" y2="{by:.1f}" stroke="{TK.MUTED}"'
+                       f' stroke-width="2" class="baseline"><title>'
+                       f"{_esc('Tracked median spend ' + format(b['spend'] * 100, '+.1f') + '%' + n_txt)}"
+                       f"</title></line>")
+        sy = y(s["spend"] * 100)
+        out.append(f'<circle cx="{cx:.1f}" cy="{sy:.1f}" r="4"'
+                   f' fill="{"none" if hollow else TK.TEXT}" stroke="'
+                   f'{TK.TEXT if hollow else TK.GROUND}" stroke-width="2" class="spend">'
+                   f"<title>{_esc('Spend ' + format(s['spend'] * 100, '+.1f') + '%')}"
+                   f"</title></circle>")
+        out.append(_text(cx + bar_w / 2 + 4, sy + 3, value_fmt(s["spend"] * 100), 9,
+                         TK.TEXT, "start", MONO))
+        span_years = (s.get("to") or 0) - (s.get("from") or 0)
+        label = (str(s.get("to")) if span_years == 1
+                 else f"{s.get('from')} to {s.get('to')}")
+        out.append(_text(cx, height - 8, label, 9, TK.MUTED, "middle", UI))
+        out.append("</g>")
+
+    # The legend: every factor drawn, then the dot and the tick, in text tokens.
+    lx = pad_l
+    for key in SPLIT_ORDER:
+        if key not in used:
+            continue
+        out.append(f'<rect x="{lx:.1f}" y="6" width="9" height="9"'
+                   f' fill="{SPLIT_COLOURS[key]}" class="key"/>')
+        word = names.get(key, key)
+        out.append(_text(lx + 13, 14, word, 9.5, TK.MUTED, "start", UI))
+        lx += 13 + len(word) * 4.9 + 14
+    out.append(f'<circle cx="{lx + 4:.1f}" cy="10.5" r="3.5" fill="{TK.TEXT}"/>')
+    out.append(_text(lx + 12, 14, "spend", 9.5, TK.MUTED, "start", UI))
+    lx += 12 + 5 * 5.4 + 14
+    if base_by:
+        out.append(f'<line x1="{lx:.1f}" y1="10.5" x2="{lx + 12:.1f}" y2="10.5"'
+                   f' stroke="{TK.MUTED}" stroke-width="2"/>')
+        out.append(_text(lx + 16, 14, "tracked median", 9.5, TK.MUTED, "start", UI))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- share strip ----------------------------------------------------------------------
+def share_strip(segments: Sequence[dict], width: int = 300, height: int = 26,
+                label: str = "share strip") -> str:
+    """One bar the full width, split in proportion to each segment's count.
+
+    Each segment is {label, value, colour}. Built for a mix that has an order and a
+    whole, such as the tiers a brand sits on across a release's formularies, where a
+    label column would take a third of a narrow panel. A segment's label is printed in
+    it where it fits and always in its tooltip. A segment with no value is left out, not
+    drawn as a sliver, and nothing to draw returns an empty string.
+    """
+    shown = [s for s in segments or [] if s.get("value")]
+    total = sum(s["value"] for s in shown)
+    if not total:
+        return ""
+    out = [_svg_open(width, height, label)]
+    x = 0.0
+    for s in shown:
+        w = width * s["value"] / total
+        out.append(f'<rect x="{x:.1f}" y="0" width="{max(w, 0.8):.1f}" height="{height}"'
+                   f' fill="{s["colour"]}" class="seg"><title>{_esc(s["label"])}: '
+                   f'{_esc(_fmt(s["value"], 0))}</title></rect>')
+        text = str(s["label"])
+        if w >= 9 + 6 * len(text):
+            out.append(_text(x + w / 2, height / 2 + 3.5, text, 9.5, TK.GROUND, "middle",
+                             MONO, extra=' class="seg-label"'))
+        x += w
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- forest ---------------------------------------------------------------------------
+def forest(rows: Sequence[dict], width: int = 760, ratio: bool = False,
+           value_fmt: Callable[[float], str] = None, label_width: int = 300,
+           caption: str = "") -> str:
+    """Each row an effect against its comparator with its interval, on one shared axis.
+
+    Each row: {label, value, lo, hi, note?}. ``ratio`` draws a hazard or odds ratio on a
+    log axis with its reference rule at 1; otherwise a difference on a linear axis with
+    the rule at 0. A row with no value is left off, and a row with no interval is drawn
+    as its point alone, never with an invented spread. The estimate and its interval are
+    printed at the right, so the geometry is never the only signal. ``caption`` says
+    which side favours the drug.
+    """
+    usable = [r for r in rows if r.get("value") is not None
+              and (not ratio or r["value"] > 0)]
+    if not usable:
+        return ""
+    value_fmt = value_fmt or (lambda v: _fmt(v, 2))
+    row_h, pad_t, pad_r, pad_b = 22, 22, 150, 24 if caption else 10
+    height = int(pad_t + row_h * len(usable) + pad_b)
+    t = (lambda v: math.log(v)) if ratio else (lambda v: v)
+    ends = [r["value"] for r in usable] + [x for r in usable for x in (r.get("lo"), r.get("hi"))
+                                           if x is not None and (not ratio or x > 0)]
+    ends.append(1.0 if ratio else 0.0)
+    lo_d, hi_d = _domain([t(v) for v in ends], pad=0.08)
+    x = _scale((lo_d, hi_d), (label_width, width - pad_r))
+    out = [_svg_open(width, height, "effects against their comparators, with intervals")]
+    ref = x(t(1.0 if ratio else 0.0))
+    if ratio:
+        ticks = [v for v in (0.1, 0.2, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0)
+                 if lo_d <= math.log(v) <= hi_d]
+    else:
+        # Round steps of 1, 2 or 5 a power of ten, about four of them across the axis.
+        raw = (hi_d - lo_d) / 5 or 1.0
+        mag = 10 ** math.floor(math.log10(raw))
+        step = next(m * mag for m in (1, 2, 5, 10) if m * mag >= raw)
+        ticks = [step * k for k in range(math.ceil(lo_d / step), math.floor(hi_d / step) + 1)]
+    for tv in ticks:
+        gx = x(t(tv)) if ratio else x(tv)
+        out.append(f'<line x1="{gx:.1f}" y1="{pad_t - 4}" x2="{gx:.1f}"'
+                   f' y2="{height - pad_b}" stroke="{TK.RULE}"/>')
+        out.append(_text(gx, pad_t - 9, value_fmt(tv) if ratio else _fmt(tv, 0 if step >= 1
+                                                                       else 1), 9,
+                         TK.MUTED, "middle", MONO))
+    out.append(f'<line x1="{ref:.1f}" y1="{pad_t - 4}" x2="{ref:.1f}" y2="{height - pad_b}"'
+               f' stroke="{TK.MUTED}" stroke-dasharray="2 3"/>')
+    for i, r in enumerate(usable):
+        cy = pad_t + row_h * i + row_h / 2
+        out.append(_text(label_width - 10, cy + 3.5, r["label"], 10, TK.TEXT, "end"))
+        lo, hi = r.get("lo"), r.get("hi")
+        if lo is not None and hi is not None and (not ratio or (lo > 0 and hi > 0)):
+            out.append(f'<line x1="{x(t(lo)):.1f}" y1="{cy:.1f}" x2="{x(t(hi)):.1f}"'
+                       f' y2="{cy:.1f}" stroke="{TK.TEXT}" stroke-width="1.4"/>')
+            for e in (lo, hi):
+                out.append(f'<line x1="{x(t(e)):.1f}" y1="{cy - 4:.1f}" x2="{x(t(e)):.1f}"'
+                           f' y2="{cy + 4:.1f}" stroke="{TK.TEXT}" stroke-width="1.2"/>')
+            span = f" ({value_fmt(lo)} to {value_fmt(hi)})"
+        else:
+            span = ""
+        tip = f'{r["label"]}: {value_fmt(r["value"])}{span}' + (
+            f'. {r["note"]}' if r.get("note") else "")
+        out.append(f'<rect x="{x(t(r["value"])) - 4:.1f}" y="{cy - 4:.1f}" width="8"'
+                   f' height="8" fill="{TK.UP}"><title>{_esc(tip)}</title></rect>')
+        out.append(_text(width - pad_r + 10, cy + 3.5, value_fmt(r["value"]) + span, 9.5,
+                         TK.TEXT, "start", MONO))
+    if caption:
+        out.append(_text(label_width, height - 6, caption, 9.5, TK.MUTED, "start"))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- paired bars ----------------------------------------------------------------------
+def paired_bars(rows: Sequence[dict], width: int = 520,
+                value_fmt: Callable[[float], str] = None, label_width: int = 170,
+                names: tuple = ("drug", "control")) -> str:
+    """Each row the drug's figure over its control's, two bars on one axis from zero.
+
+    Each row: {label, value, reference?}. The drug's bar is in the measured colour and
+    the control's in the muted one, each with its figure at its end, so colour is never
+    the only signal. A row with no drug figure is left off; a missing control draws no
+    bar and says so, never a zero.
+    """
+    usable = [r for r in rows if r.get("value") is not None]
+    if not usable:
+        return ""
+    value_fmt = value_fmt or (lambda v: _fmt(v, 1))
+    bar_h, gap, row_h, pad_t, pad_r = 9, 2, 30, 20, 70
+    height = int(pad_t + row_h * len(usable) + 4)
+    top = max([r["value"] for r in usable]
+              + [r["reference"] for r in usable if r.get("reference") is not None])
+    x = _scale((0.0, top * 1.05 or 1.0), (label_width, width - pad_r))
+    out = [_svg_open(width, height, "the drug's figures against its control's")]
+    lx = label_width
+    for colour, word in ((TK.UP, names[0]), (TK.MUTED, names[1])):
+        out.append(f'<rect x="{lx:.1f}" y="5" width="9" height="9" fill="{colour}"/>')
+        out.append(_text(lx + 13, 13, word, 9.5, TK.MUTED))
+        lx += 13 + len(word) * 5.4 + 16
+    for i, r in enumerate(usable):
+        y0 = pad_t + row_h * i + (row_h - 2 * bar_h - gap) / 2
+        out.append(_text(label_width - 10, y0 + bar_h + 4, r["label"], 10, TK.TEXT, "end"))
+        for j, (v, colour) in enumerate(((r["value"], TK.UP),
+                                         (r.get("reference"), TK.MUTED))):
+            yy = y0 + j * (bar_h + gap)
+            if v is None:
+                out.append(_text(label_width + 4, yy + bar_h - 1, f"no {names[1]} figure",
+                                 9, TK.MUTED))
+                continue
+            w = max(x(v) - label_width, 1.2)
+            out.append(f'<rect x="{label_width}" y="{yy:.1f}" width="{w:.1f}"'
+                       f' height="{bar_h}" fill="{colour}"><title>{_esc(r["label"])},'
+                       f' {_esc(names[j])}: {_esc(value_fmt(v))}</title></rect>')
+            out.append(_text(label_width + w + 5, yy + bar_h - 1, value_fmt(v), 9,
+                             TK.TEXT if j == 0 else TK.MUTED, "start", MONO))
+    out.append("</svg>")
+    return "".join(out)
+
+
+# --- date strip -----------------------------------------------------------------------
+def date_strip(items: Sequence[dict], start: str, width: int = 760) -> str:
+    """Dated events on one horizontal time axis from ``start`` (an ISO date, the day the
+    page reads as today) to the last event, with a tick at each year.
+
+    Each item: {date (ISO), label, filled?, note?}. A filled diamond is an event with a
+    figure on it, a hollow one an event without; the label sits above or below its mark,
+    on whichever of two rows leaves it clear of its neighbour. An item with no date is
+    left off.
+    """
+    import datetime as _dt
+
+    def day(s):
+        try:
+            return _dt.date.fromisoformat(str(s)[:10])
+        except (TypeError, ValueError):
+            return None
+    t0 = day(start)
+    usable = sorted(((day(i.get("date")), i) for i in items if day(i.get("date"))),
+                    key=lambda p: p[0])
+    if not usable or t0 is None:
+        return ""
+    t1 = max(usable[-1][0], t0 + _dt.timedelta(days=180))
+    pad_l, pad_r, axis_y, height = 16, 16, 58, 112
+    x = _scale((0.0, float((t1 - t0).days) or 1.0), (pad_l, width - pad_r))
+    px = lambda d: x(float((d - t0).days))  # noqa: E731
+    out = [_svg_open(width, height, "dated events on a time axis")]
+    out.append(f'<line x1="{pad_l}" y1="{axis_y}" x2="{width - pad_r}" y2="{axis_y}"'
+               f' stroke="{TK.RULE_STRONG}"/>')
+    for year in range(t0.year + 1, t1.year + 1):
+        gx = px(_dt.date(year, 1, 1))
+        out.append(f'<line x1="{gx:.1f}" y1="{axis_y - 4}" x2="{gx:.1f}" y2="{axis_y + 4}"'
+                   f' stroke="{TK.MUTED}"/>')
+        out.append(_text(gx, height - 4, str(year), 9, TK.MUTED, "middle", MONO))
+    out.append(_text(pad_l, height - 4, "today", 9, TK.MUTED, "start"))
+    ends = {-1: -1e9, 1: -1e9}          # the right edge of the last label on each row
+    for i, (d, it) in enumerate(usable):
+        cx = px(d)
+        filled = bool(it.get("filled"))
+        tip = f'{d.strftime("%-d %b %Y")}: {it.get("label") or ""}' + (
+            f'. {it["note"]}' if it.get("note") else "")
+        out.append(f'<path d="M{cx:.1f},{axis_y - 5} l5,5 l-5,5 l-5,-5 z"'
+                   f' fill="{TK.UP if filled else TK.GROUND}" stroke="{TK.UP if filled else TK.MUTED}"'
+                   f' stroke-width="1.3"><title>{_esc(tip)}</title></path>')
+        text = f'{d.strftime("%b %Y")} {it.get("label") or ""}'.strip()
+        w = len(text) * 5.3
+        lx = min(max(cx - w / 2, pad_l), width - pad_r - w)
+        side = -1 if ends[-1] <= ends[1] else 1
+        if ends[side] > lx - 6:
+            side = -side
+        ends[side] = lx + w
+        ly = axis_y - 14 if side == -1 else axis_y + 22
+        out.append(f'<line x1="{cx:.1f}" y1="{axis_y + (-5 if side == -1 else 5)}"'
+                   f' x2="{cx:.1f}" y2="{ly + (4 if side == -1 else -10):.1f}"'
+                   f' stroke="{TK.RULE_STRONG}"/>')
+        out.append(_text(lx, ly, text, 9.5, TK.TEXT if filled else TK.MUTED))
     out.append("</svg>")
     return "".join(out)

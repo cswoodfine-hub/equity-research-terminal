@@ -1,0 +1,2715 @@
+{
+ "today": "2026-10-01",
+ "companies": {
+  "AZN": {
+   "company": {
+    "ticker": "AZN",
+    "name": "AstraZeneca PLC"
+   },
+   "rows": [
+    {
+     "id": 265,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Arcus Biosciences",
+     "event_date": "2024-10-03",
+     "quote": "AstraZeneca stock rises on collaboration with Arcus Biosciences for renal cancer treatment",
+     "source_url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxQMFB0cnRQNTA1b2gwMHBqbmp1a3pVdUV2Nll6cjhMWjJKYy1EOTh6cEdLdVBVLXpocWNheEx5RGhDZVNKTklXc2hzLWVJVllfbU1ya09IVkZEd3ZneHpPTGVMc25zTnZ4THJlUnFVUzg2Nm1zZm9lOE1lbWV5alB1TlZhNGd6TFljX1JUYTUtbDdQSmg4STZ2TF9ibnVVcU5EVEJIbU9hMV9lMHlYVHBRRVVrNWFXMUtLUldZZmNQbGZaWHlwOXVtRXE4c2dzTmhBVzZ0UkdR?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxQMFB0cnRQNTA1b2gwMHBqbmp1a3pVdUV2Nll6cjhMWjJKYy1EOTh6cEdLdVBVLXpocWNheEx5RGhDZVNKTklXc2hzLWVJVllfbU1ya09IVkZEd3ZneHpPTGVMc25zTnZ4THJlUnFVUzg2Nm1zZm9lOE1lbWV5alB1TlZhNGd6TFljX1JUYTUtbDdQSmg4STZ2TF9ibnVVcU5EVEJIbU9hMV9lMHlYVHBRRVVrNWFXMUtLUldZZmNQbGZaWHlwOXVtRXE4c2dzTmhBVzZ0UkdR?oc=5"
+    },
+    {
+     "id": 124,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "EsoBiotec",
+     "event_date": "2025-03-17",
+     "quote": "AstraZeneca to acquire EsoBiotec to advance cell therapy ambition",
+     "source_url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxNR0E2c0NhRUpLTW9zSmJiclhpOWdwcVY0S3F1WkdvTktkZ2tnTnYySGw0bnFoeTdYOTc0ZUsydkZRRzV0ZXNLVHJ4S1pVSGhHemFRcExXRWxnZ01OUnN1b1FSY3gwQ0EwWmxyTk9SVU03NEpOSTJHNWpaLUR4TUlvLUdGckZubXRTVmhRdktiazMwUUI4RHB4bmhVNU8zMWc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMinwFBVV95cUxNR0E2c0NhRUpLTW9zSmJiclhpOWdwcVY0S3F1WkdvTktkZ2tnTnYySGw0bnFoeTdYOTc0ZUsydkZRRzV0ZXNLVHJ4S1pVSGhHemFRcExXRWxnZ01OUnN1b1FSY3gwQ0EwWmxyTk9SVU03NEpOSTJHNWpaLUR4TUlvLUdGckZubXRTVmhRdktiazMwUUI4RHB4bmhVNU8zMWc?oc=5"
+    },
+    {
+     "id": 135,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Covis Pharma",
+     "event_date": "2025-03-17",
+     "quote": "Azurity acquires Covis Pharma from existing investors",
+     "source_url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE12Ymh2R29UUmtkc3VhN0JfcWFRWU1wTmtBRXVMZ0twTkxGZVB6UndCVWJsLUZ1MW93VkltbU15MGZKYXJ2eVZzaUppNy1xTU0wMnpKaUhRSk14b3hFUHppdVhfa2tRdW14b2x6TzZRNzc4bVMwbGI0?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE12Ymh2R29UUmtkc3VhN0JfcWFRWU1wTmtBRXVMZ0twTkxGZVB6UndCVWJsLUZ1MW93VkltbU15MGZKYXJ2eVZzaUppNy1xTU0wMnpKaUhRSk14b3hFUHppdVhfa2tRdW14b2x6TzZRNzc4bVMwbGI0?oc=5"
+    },
+    {
+     "id": 57,
+     "accession": "0001654954-26-000730",
+     "deal_type": "collaboration",
+     "counterparty": "CSPC Pharmaceuticals",
+     "event_date": "2025-06-13",
+     "quote": "AstraZeneca strengthens its weight management portfolio through a new strategic collaboration agreement with CSPC Pharmaceuticals to advance the development of multiple next-generation therapies for obesity and type 2 diabetes across eight programmes.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/901832/000165495426000730/a0031r.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNR19zTmNNVGZBdFRDbUxrM1loU0xGSDNYNUJuS0ZZT3JYZHZpalRweFNTbkl1WU9VQVBjRHg3ZWk2VWYyb0dYYmloTWVLeFVKNUhmVng4dGRWR0hBb3FoSEZQQ3l5MkpmaWpLaDFpTWlhMmVBNi1yTG9id1BpbGtOZUJJbEZaRlFsNE16T0xSeTRjUHkwN3p0Sjl1dzVVM1lzTzBrcHNOUFRKZDdKNzhPSjdoVQ?oc=5"
+    },
+    {
+     "id": 123,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Modella AI",
+     "event_date": "2026-01-13",
+     "quote": "AstraZeneca to acquire Modella AI to speed oncology drug research",
+     "source_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPNVVZbXI1TEM1Wk9QTHRhWW1iaHBJZ0lfeGk1ZTBVQjdmNlNGX282bGYyb0phenY2azd3dEpZWXhfUDVfcU1zZ1ExOFpSa2wyandQSHdNMkRMZWVsR2x3eGdxcHZxRHBTbW4yTE4yN3oxNkpEVVR6U2hPaHRxNkV6LWdjbXBmLUNIejE0NjZHQ1hrT2xQSmktNGd2cUFYTk9YU3BRMVRsVGU3d2tLX1dHUWNR?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxPNVVZbXI1TEM1Wk9QTHRhWW1iaHBJZ0lfeGk1ZTBVQjdmNlNGX282bGYyb0phenY2azd3dEpZWXhfUDVfcU1zZ1ExOFpSa2wyandQSHdNMkRMZWVsR2x3eGdxcHZxRHBTbW4yTE4yN3oxNkpEVVR6U2hPaHRxNkV6LWdjbXBmLUNIejE0NjZHQ1hrT2xQSmktNGd2cUFYTk9YU3BRMVRsVGU3d2tLX1dHUWNR?oc=5"
+    },
+    {
+     "id": 826,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Haisco",
+     "event_date": "2026-06-22",
+     "quote": "Nuvectis gains two experimental drugs in licensing deal with China's Haisco",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOZFpZcGtNNF91S0U4Q2dvNGRzUml5S2UtMTdHUkh2OEM3VkxveHhWZmFkYndZaWwtNVVCVW8zZGhpNkd5Q2ZybkN1Yk1TVGxyclNSWVU1LWo0M2JOLXhnVUctcWxlTUQ0WWRyeVhtazJBRGd0dXVnZjF2NUgzc1ptb2NBZnBzMVV1X0JKSl9rbG1lcW5pWVFQSDZzZEFPaGxLZC1GekxmMUlZTGxQd3hqOWxKb3MyczZVZm9odmNqNDJVZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOZFpZcGtNNF91S0U4Q2dvNGRzUml5S2UtMTdHUkh2OEM3VkxveHhWZmFkYndZaWwtNVVCVW8zZGhpNkd5Q2ZybkN1Yk1TVGxyclNSWVU1LWo0M2JOLXhnVUctcWxlTUQ0WWRyeVhtazJBRGd0dXVnZjF2NUgzc1ptb2NBZnBzMVV1X0JKSl9rbG1lcW5pWVFQSDZzZEFPaGxLZC1GekxmMUlZTGxQd3hqOWxKb3MyczZVZm9odmNqNDJVZw?oc=5"
+    },
+    {
+     "id": 1102,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "CSPC",
+     "event_date": "2026-07-05",
+     "quote": "AstraZeneca (AZN) Partners with CSPC on Kidney Disease Treatments Worth $1.77B",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNM0p0TGZoZEpmYVpRRkw5eHVmNVJQa2JEdU1oUmJlVmM5VXhEVWJzVWlhMG9wSW1POW9qbTEyQjV1SnhoM3VpWkh3bUxieENtSDZBZGpBc1RqUi1uOGRzdV9odVFsNDBQcXFUTm8xV1Z6cmtDSVNXOS10WUJ5V1hRcEx5dUpvc0hYanlpZzZBZ2RhcV9YUEdzeTdzV09saGRSWFpzanA4SEROVy1XQUtqU0h4TQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNM0p0TGZoZEpmYVpRRkw5eHVmNVJQa2JEdU1oUmJlVmM5VXhEVWJzVWlhMG9wSW1POW9qbTEyQjV1SnhoM3VpWkh3bUxieENtSDZBZGpBc1RqUi1uOGRzdV9odVFsNDBQcXFUTm8xV1Z6cmtDSVNXOS10WUJ5V1hRcEx5dUpvc0hYanlpZzZBZ2RhcV9YUEdzeTdzV09saGRSWFpzanA4SEROVy1XQUtqU0h4TQ?oc=5"
+    },
+    {
+     "id": 3,
+     "accession": "0001654954-26-006637",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-07-14",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/901832/000165495426006637/a2449m.htm",
+     "article_url": null
+    },
+    {
+     "id": 972,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "This Merger Talk",
+     "event_date": "2026-08-11",
+     "quote": "AstraZeneca PLC (AZN) vs. Bristol-Myers Squibb Company (BMY): Wall Street Doesn’t Buy This Merger Talk",
+     "source_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOMFZvMnQwT3BFYzdCc2tlTTM1R3d4RzFRb3NyNUxHbjBBdmU0WnpRbUx6YUxtS0dVT2tyT2lLLUUyV3o5Z29Zc0RfUl9lcFl6b3paT0xQOXJFbkRnWDVOTHkzbjRNZmJreEZpaGNremhRc3lmZUQ3ZW42UWFFNUVrWThQcldEa2ZlV2xHclBYR191bF9pOUNleEdpVQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOMFZvMnQwT3BFYzdCc2tlTTM1R3d4RzFRb3NyNUxHbjBBdmU0WnpRbUx6YUxtS0dVT2tyT2lLLUUyV3o5Z29Zc0RfUl9lcFl6b3paT0xQOXJFbkRnWDVOTHkzbjRNZmJreEZpaGNremhRc3lmZUQ3ZW42UWFFNUVrWThQcldEa2ZlV2xHclBYR191bF9pOUNleEdpVQ?oc=5"
+    },
+    {
+     "id": 1069,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "ZEGFROVY",
+     "event_date": "2026-09-01",
+     "quote": "AstraZeneca acquires ZEGFROVY rights for $600 million",
+     "source_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNSkU0MS1sVWpuY0xCLVlqLWNtd2JicDdPUEpJUEd5SEhjZUZudGJRNUhMUGtpb2gwbFppZm9LU29LUExCUWhZVjZiZ25wSERRTEdkNHRGNThJVGpEZWg1anRiSTFFVUhkMUtXNFNPbTliU0pxa0Z2Yi1QbXQ0RXM4QTNaaENHb2VGX2FQMF9JSGQ5YkVqaGRsaTdXX3RvZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNSkU0MS1sVWpuY0xCLVlqLWNtd2JicDdPUEpJUEd5SEhjZUZudGJRNUhMUGtpb2gwbFppZm9LU29LUExCUWhZVjZiZ25wSERRTEdkNHRGNThJVGpEZWg1anRiSTFFVUhkMUtXNFNPbTliU0pxa0Z2Yi1QbXQ0RXM4QTNaaENHb2VGX2FQMF9JSGQ5YkVqaGRsaTdXX3RvZw?oc=5"
+    }
+   ]
+  },
+  "LLY": {
+   "company": {
+    "ticker": "LLY",
+    "name": "Eli Lilly and Company"
+   },
+   "rows": [
+    {
+     "id": 86,
+     "accession": "0000059478-25-000202",
+     "deal_type": "acquisition",
+     "counterparty": "Verve Therapeutics",
+     "event_date": "2025-08-07",
+     "quote": "Lilly to acquire Verve Therapeutics to advance one-time treatments for people with high cardiovascular risk (announcement).",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947825000202/lly-20250807.htm",
+     "article_url": null
+    },
+    {
+     "id": 87,
+     "accession": "0000059478-25-000202",
+     "deal_type": "acquisition",
+     "counterparty": "SiteOne Therapeutics",
+     "event_date": "2025-08-07",
+     "quote": "Lilly to expand its pain pipeline with acquisition of SiteOne Therapeutics (announcement).",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947825000202/lly-20250807.htm",
+     "article_url": null
+    },
+    {
+     "id": 88,
+     "accession": "0000059478-25-000202",
+     "deal_type": "collaboration",
+     "counterparty": "Purdue University",
+     "event_date": "2025-08-07",
+     "quote": "Lilly plans to expand Purdue University collaboration with up to a $250 million investment to accelerate pharmaceutical innovation (announcement).",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947825000202/lly-20250807.htm",
+     "article_url": null
+    },
+    {
+     "id": 85,
+     "accession": "0001193125-25-184093",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-20",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000119312525184093/d929636d8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 886,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Adverum Biotechnologies",
+     "event_date": "2025-10-24",
+     "quote": "Lilly to Acquire Adverum Biotechnologies",
+     "source_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOcDd2d2pCLXFnRE1fQ2JOeldjeFVRbmllanZFSnRpaVpTX01VbFpPMHlZWFl0VDdlam8wVDJmNHZuNVJ4cU1LdFlhQ3JURE5wRjZ6VXZITFcyc0txRWN1R1FDVGNCYnVKTnduTDktNXY0TkZyU183UUpvemdyLWRDU3NzSFQ3UjlrQ2xsaTZYTGNEZE1KdGEybFRqWmc0R2Nh?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOcDd2d2pCLXFnRE1fQ2JOeldjeFVRbmllanZFSnRpaVpTX01VbFpPMHlZWFl0VDdlam8wVDJmNHZuNVJ4cU1LdFlhQ3JURE5wRjZ6VXZITFcyc0txRWN1R1FDVGNCYnVKTnduTDktNXY0TkZyU183UUpvemdyLWRDU3NzSFQ3UjlrQ2xsaTZYTGNEZE1KdGEybFRqWmc0R2Nh?oc=5"
+    },
+    {
+     "id": 107,
+     "accession": "0000059478-26-000008",
+     "deal_type": "collaboration",
+     "counterparty": "NVIDIA",
+     "event_date": "2025-10-28",
+     "quote": "NVIDIA and Lilly Announce Co-Innovation AI Lab to Reinvent Drug Discovery In the Age of AI (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000008/lly-20260204.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxOVFBnTXFpakN2RjFiSlNxQWpWMVFIMndua0hIZ3lTa2I5ZVJJZjc0aElBSDVDT3J1RUpZY2x5elVFaHpycHdacl9GaTZndmN3WExvbDR5TDIycy0yM1hUUk5MSE8yU3NzYklod0c3ektoRXBROF83a2Uybk1PUTlPSUh6UUxxS0lzY19PQkhRR29mTjl5cDZEbjg0SXFLQ3ZrU1E4Uy1leGRxZ1J6TDh4S28xMjU3TUE?oc=5"
+    },
+    {
+     "id": 76,
+     "accession": "0000059478-25-000251",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-10-30",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947825000251/lly-20251030.htm",
+     "article_url": null
+    },
+    {
+     "id": 108,
+     "accession": "0000059478-26-000008",
+     "deal_type": "acquisition",
+     "counterparty": "Ventyx Biosciences",
+     "event_date": "2026-01-07",
+     "quote": "Lilly to acquire Ventyx Biosciences to advance oral therapies targeting inflammatory-mediated diseases (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000008/lly-20260204.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxQYjdwYWFSNE1WN3JMRkFzUnk5NGk4cWo3N05TMGhrdHphaFJDajVYeUZDRnR3TG43Q0ZXUm1lZXN6QXM4LURmWldsX1NkaWgyY3R5VWpjd2Z4RmZOY1ZuZWZ3NjNYLUVYUm5NdHg0dFVURlpMbnY1dU5mUVJtV0lOLUVlNEk2U0RDMklxSXNrcEVIUW8yUWNYeE05TUZQOWhVMXhvaFZfaWdwbXJYUlVOUGZ4Z2h3UXA5?oc=5"
+    },
+    {
+     "id": 109,
+     "accession": "0000059478-26-000008",
+     "deal_type": "acquisition",
+     "counterparty": "Adverum",
+     "event_date": "2026-02-04",
+     "quote": "Lilly and Adverum announce expiration and completion of Adverum tender offer and acquisition (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000008/lly-20260204.htm",
+     "article_url": null
+    },
+    {
+     "id": 1050,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Innovent Biologics",
+     "event_date": "2026-02-08",
+     "quote": "Eli Lilly to Enter Strategic Collaboration With Innovent Biologics",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNTGVzY1duZWRxSERsRE1iQTAtVGU4V1pPYXlKTk9rOWZ1T1RRTWl4QmlNMmprRTNSYkJoUXQ4ZGhtQjAta2poenc4TU14c0hGa3hZeHl0eTcwaE5ycnBFRVpxUEI1ODVRSGk4Zlh4cVNQeEVqY3JSZEUzUnhUX0hGTkNZWGNVaXg2R3pQVEw2TWxzcDM3UWpYUGFGWHFHcDdQSkNFRTduLU0xNk9pcDhmczhYWQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNTGVzY1duZWRxSERsRE1iQTAtVGU4V1pPYXlKTk9rOWZ1T1RRTWl4QmlNMmprRTNSYkJoUXQ4ZGhtQjAta2poenc4TU14c0hGa3hZeHl0eTcwaE5ycnBFRVpxUEI1ODVRSGk4Zlh4cVNQeEVqY3JSZEUzUnhUX0hGTkNZWGNVaXg2R3pQVEw2TWxzcDM3UWpYUGFGWHFHcDdQSkNFRTduLU0xNk9pcDhmczhYWQ?oc=5"
+    },
+    {
+     "id": 24,
+     "accession": "0000059478-26-000043",
+     "deal_type": "acquisition",
+     "counterparty": "Orna Therapeutics",
+     "event_date": "2026-02-09",
+     "quote": "Lilly to acquire Orna Therapeutics to advance cell therapies (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000043/lly-20260430.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxPNjJPdWRMNEFCbVRhaU5rcjU3RFowY2JtMkZOa1RINS1LNk85emM2S2Z0TnhOeV9LQUxjbVJqU3pVX3NjcTZ3STI5Y0ZGbHJiemYyV1BfWTNRZGxWU3poT09QcVQ5TmtBYU1WaTVsbmhSenJhVVl3X1ZLSHBrV1hCdVZsM25zSmJlOW1MRmJieWd3RldrVk10UTIyM3gxOWh6QV9fenVaM1NPTHVEMmR0LUlEQVFrSG8?oc=5"
+    },
+    {
+     "id": 199,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "CAR-T",
+     "event_date": "2026-02-10",
+     "quote": "Lilly acquires CAR-T therapy biotech Orna Therapeutics for $2.4bn",
+     "source_url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxPVDVCMFdvSndCM2piVHhMczA3c0NXQWRpU3VWd3ltaFhvQk9HbDg1OGlpWXNqRmZBMndlUTZucVUxX1JETU9HY2VvR194Q3lWRFZNbmNpaVBnSExHdDB4YVk0X1lvemZXZ0ctaktQU3oxdS05dUhQeFBlQnA3LW5naGU1ZGRFdWRSc3I3VFJRQTNNMGxmeUdBa20wZnVpZS1UN1ZyVjdvdjlxWU9EcEx4SHBmRkRReVZMTnNLV1lEMUpJWF9wMjd0aA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxPVDVCMFdvSndCM2piVHhMczA3c0NXQWRpU3VWd3ltaFhvQk9HbDg1OGlpWXNqRmZBMndlUTZucVUxX1JETU9HY2VvR194Q3lWRFZNbmNpaVBnSExHdDB4YVk0X1lvemZXZ0ctaktQU3oxdS05dUhQeFBlQnA3LW5naGU1ZGRFdWRSc3I3VFJRQTNNMGxmeUdBa20wZnVpZS1UN1ZyVjdvdjlxWU9EcEx4SHBmRkRReVZMTnNLV1lEMUpJWF9wMjd0aA?oc=5"
+    },
+    {
+     "id": 806,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "CSL Limited",
+     "event_date": "2026-02-18",
+     "quote": "Eli Lilly Enters $100 Million Licensing Agreement with CSL Limited for Clazakizumab",
+     "source_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQNWRKWWJDX25YSmVfWlEzMnhlOVlXaEp4bnYzTlRmV3NPNE1rVXI2WFpjNzdvU29WQnlOX2V2ZVBTem96Y3RCQl9uT2c2Qm1BdnlxZGE0bGN2WC1jVjJnX2RkX0YzNVVmTUJWTWVHRXFicWw0dy1QRGtZTkYwU2dMa041WjdRZk12ME5Sd245V2N1MFNhelJkZ3NzNm5LR05lUmhN?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQNWRKWWJDX25YSmVfWlEzMnhlOVlXaEp4bnYzTlRmV3NPNE1rVXI2WFpjNzdvU29WQnlOX2V2ZVBTem96Y3RCQl9uT2c2Qm1BdnlxZGE0bGN2WC1jVjJnX2RkX0YzNVVmTUJWTWVHRXFicWw0dy1QRGtZTkYwU2dMa041WjdRZk12ME5Sd245V2N1MFNhelJkZ3NzNm5LR05lUmhN?oc=5"
+    },
+    {
+     "id": 25,
+     "accession": "0000059478-26-000043",
+     "deal_type": "acquisition",
+     "counterparty": "Centessa Pharmaceuticals",
+     "event_date": "2026-03-31",
+     "quote": "Lilly to acquire Centessa Pharmaceuticals to advance treatments for sleep-wake disorders (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000043/lly-20260430.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxQMHljYmxDSmNqV3FyQXgwc0c4eUE3enFaNE10NTRQdmRNVU9LcHItam1KRlFIQ3pGN1NqcUlyS1BkT3c2X1IyeEN3TlphQ1hyaUh3NTZjVHJTbU1kSTZpVXU2VEFaOUUxY1Naa3o3MmlWTFVoYXVBU0tkUlNSX2FIeHFrTDhzVUV6VG4tRTN2RWxWV0NjTWZXWEpVZTJYaGV3YjllbmF0TWFuMWhSVnRQNEZhakdzMW5TbnZnanBaaWVZSzloaUV3R2dR?oc=5"
+    },
+    {
+     "id": 200,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "CrossBridge Bio",
+     "event_date": "2026-04-14",
+     "quote": "Maryland-Based Life Sciences Firm Scores Early Exit as Eli Lilly and Company Acquires CrossBridge Bio for Up to $300M",
+     "source_url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxPaVBWNTZDd0Y5NzBqOGdVSUoxQi1JMlhYd2hRbzBaZWVXaUxDY2ZCRWpkcnJjWmdrQmtTTHJwY1N4RUxvMUx3Z0RncjNOaVc4SUJzTnR0cTRyS2NCVEk5N2t3X2RNc0NCUEF1Tm5BV2pyUXctbTBQNnpfLWlzUkdmeGtjUnJUUUI4TEE2cE5LcGF3eE1Lb0lMRTliSGxKZTVPWHlUZENuc3JJTXlZclVhcmRsVU1acG9sWVM0c0FBV0ZhUDNrbFVTOVg2YzFYMlh1Tno0T1VIRFo?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxPaVBWNTZDd0Y5NzBqOGdVSUoxQi1JMlhYd2hRbzBaZWVXaUxDY2ZCRWpkcnJjWmdrQmtTTHJwY1N4RUxvMUx3Z0RncjNOaVc4SUJzTnR0cTRyS2NCVEk5N2t3X2RNc0NCUEF1Tm5BV2pyUXctbTBQNnpfLWlzUkdmeGtjUnJUUUI4TEE2cE5LcGF3eE1Lb0lMRTliSGxKZTVPWHlUZENuc3JJTXlZclVhcmRsVU1acG9sWVM0c0FBV0ZhUDNrbFVTOVg2YzFYMlh1Tno0T1VIRFo?oc=5"
+    },
+    {
+     "id": 26,
+     "accession": "0000059478-26-000043",
+     "deal_type": "acquisition",
+     "counterparty": "Kelonia Therapeutics",
+     "event_date": "2026-04-20",
+     "quote": "Lilly to acquire Kelonia Therapeutics to advance in vivo CAR-T cell therapies (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000043/lly-20260430.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNS2F2ZGNMbl9FNHhWSFA3d1RuRUNsOG9xTm9GZXZGTXRZb2NMRVFPdTdvSUxONC1pWVk5dHU4dnRsU2JoekR5d1FkMHY5OFhQWnM4X3ZqN0YwVDdXZ181cXM3Q2pjRWZQZW5DWUNIc01UWGE2S3g2YWNVb1RCOFRveWRBRUc1ZE1TMGJxamZYWmo3VzgzcXQ3SUZYQlo5UDM1ay1HY2pUQjMxNDVlMUxZNDB1MHd2MG1nelNXMQ?oc=5"
+    },
+    {
+     "id": 27,
+     "accession": "0000059478-26-000043",
+     "deal_type": "acquisition",
+     "counterparty": "Ajax Therapeutics",
+     "event_date": "2026-04-27",
+     "quote": "Lilly to acquire Ajax Therapeutics to advance outcomes for patients with myelofibrosis and polycythemia vera (announcement)",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000043/lly-20260430.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxQc1BYSEg3RkFfb19UcElSYjM3aTBmLUFCXzRfNkJCN1BjeXhQZmFEQmduUWVydjRsWS14V2RwaUpWbXFtU1JzX05hNEs0andnaUNqMU9DaWxqQ2dsSkpqMkpWTTJvUFJVYzJfdW1FMEZScTZYSDVvLXlFbDllVkRIdm9XUTFheWxZM3V2anItRVhGVi1iZV9GaU1PTk9ELVRQWHI2SjZPZTJhV0FEbEdFZ1U2Q0hjems4VVRZMQ?oc=5"
+    },
+    {
+     "id": 11,
+     "accession": "0001193125-26-232707",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-20",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000119312526232707/d148580d8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 201,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Engage Bio",
+     "event_date": "2026-05-20",
+     "quote": "Lilly Acquires Engage Bio In $202 Million Deal",
+     "source_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQNmtYZGlyc1VlV2NrNTVidUtWbE5RLVA0M1lNOG1sbTdwNEJ1bUlEdmlRY2picFhJbWpvZ1FjeWFiVjFNN0p4dFA1V3VsbUJlYXpDSUpLMXZUWHNFMUZjelZPM3JldnFMeVk5bjB1ODdNVXBJcldvaF9aSU51RzluY0FWQkxuaUFEZHo5bW5vbUNxUzDSAZgBQVVfeXFMTURDeXpQcTZ0NzB4R2xodGJIbjFGSlVfVExuUkZjejdGSFVGMDRyOHJjQWxYYk5EeUR1R01XY1pQYkVmUnVrMlJ1WDdtbm5YVmk5aWhvQ3B2VE9UYWFJRkFKcnA0cnJXQmo4STBKbGtWaW1iY19fRzBEUUFqUU1Ubks0LWpCYnZxTmdzc2Z4UnB4UmhfMHBqX2Q?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQNmtYZGlyc1VlV2NrNTVidUtWbE5RLVA0M1lNOG1sbTdwNEJ1bUlEdmlRY2picFhJbWpvZ1FjeWFiVjFNN0p4dFA1V3VsbUJlYXpDSUpLMXZUWHNFMUZjelZPM3JldnFMeVk5bjB1ODdNVXBJcldvaF9aSU51RzluY0FWQkxuaUFEZHo5bW5vbUNxUzDSAZgBQVVfeXFMTURDeXpQcTZ0NzB4R2xodGJIbjFGSlVfVExuUkZjejdGSFVGMDRyOHJjQWxYYk5EeUR1R01XY1pQYkVmUnVrMlJ1WDdtbm5YVmk5aWhvQ3B2VE9UYWFJRkFKcnA0cnJXQmo4STBKbGtWaW1iY19fRzBEUUFqUU1Ubks0LWpCYnZxTmdzc2Z4UnB4UmhfMHBqX2Q?oc=5"
+    },
+    {
+     "id": 885,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Engage",
+     "event_date": "2026-05-20",
+     "quote": "Lilly snaps up Engage to advance non-viral genetic medicines",
+     "source_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxPelpfWXR5RzF4S0NhWWNJQmF4M0I0bHJTZXhoXzRiMVhCQllsV0hiYU9GeXpvazNNcnpLamtTU0RIYjROVUM3SUM3RS1wZEhYVV9ZOG1NSjU2dDc2VXpYTWRtZTN1VFE2aU1tWG5yUEdLT0pUVWt1N2M5NEhPU2psWkRzZHNNVzFmUFp3bXhYaHlRSVkzM0thUDBn?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxPelpfWXR5RzF4S0NhWWNJQmF4M0I0bHJTZXhoXzRiMVhCQllsV0hiYU9GeXpvazNNcnpLamtTU0RIYjROVUM3SUM3RS1wZEhYVV9ZOG1NSjU2dDc2VXpYTWRtZTN1VFE2aU1tWG5yUEdLT0pUVWt1N2M5NEhPU2psWkRzZHNNVzFmUFp3bXhYaHlRSVkzM0thUDBn?oc=5"
+    },
+    {
+     "id": 1108,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Bothell Vaccine Company Curevo",
+     "event_date": "2026-05-28",
+     "quote": "Eli Lilly to Acquire Bothell Vaccine Company Curevo to Advance Shingles Prevention",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxQZkdfSkFYaVYwUnpFdlVoSGtOYUtVOTR2OHA2bklNTlV6c2tBZnYxOFZkVkJkajBIY1I3b3d3QUtrQUpQcWh6bC1nWG1QczVrTUY3aVFfMFg4M3FwcHcyc0l2bVZ6OXZtbDZHSDRkUHVNMzZrT3RWY2d1OVphWUgtUkpyeTJVOEd0S0RLdjNtc0pUTmI4MGZDTjNZcnZvR2I5bzZyNFAxVThMYkY4bmJOQVMwaE5kZlRBdjVHN0EwNXlnZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxQZkdfSkFYaVYwUnpFdlVoSGtOYUtVOTR2OHA2bklNTlV6c2tBZnYxOFZkVkJkajBIY1I3b3d3QUtrQUpQcWh6bC1nWG1QczVrTUY3aVFfMFg4M3FwcHcyc0l2bVZ6OXZtbDZHSDRkUHVNMzZrT3RWY2d1OVphWUgtUkpyeTJVOEd0S0RLdjNtc0pUTmI4MGZDTjNZcnZvR2I5bzZyNFAxVThMYkY4bmJOQVMwaE5kZlRBdjVHN0EwNXlnZw?oc=5"
+    },
+    {
+     "id": 978,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Sangamo",
+     "event_date": "2026-06-23",
+     "quote": "Eli Lilly Enters Into Agreement to Acquire Sangamo Assets as Stalking Horse Bidder in Chapter 11 Auction",
+     "source_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQQUhFUVJ1OFFiNzdKQWliWkZsa1o3eXJvUjh6VU1qYUtkRllCOVo5VjFNRkxZRW1sV2x2dngxWlhMRkJZUW5jWGhHZzNZb1BmV3U3MDVySHYtOXQ2a0FRTEk5dWlZSG5uYWl6cXJrNDNtelFMcmVZN0VWNVlTMHZVV0Y2Z0h4UG1pUDMwZ2J2M1F5RkZBai1KNlozOHltWnlwMzc5MDJHN25jNEtQUHQ4WW1Ga2JPaGNOYm83WGNlRXJNOHg3Z0d3ZnlZQy1tcV83VWZxRnMtTUozWEdnUjdrU0dOM1JNUQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxQQUhFUVJ1OFFiNzdKQWliWkZsa1o3eXJvUjh6VU1qYUtkRllCOVo5VjFNRkxZRW1sV2x2dngxWlhMRkJZUW5jWGhHZzNZb1BmV3U3MDVySHYtOXQ2a0FRTEk5dWlZSG5uYWl6cXJrNDNtelFMcmVZN0VWNVlTMHZVV0Y2Z0h4UG1pUDMwZ2J2M1F5RkZBai1KNlozOHltWnlwMzc5MDJHN25jNEtQUHQ4WW1Ga2JPaGNOYm83WGNlRXJNOHg3Z0d3ZnlZQy1tcV83VWZxRnMtTUozWEdnUjdrU0dOM1JNUQ?oc=5"
+    },
+    {
+     "id": 198,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "AtaiBeckley",
+     "event_date": "2026-07-16",
+     "quote": "Lilly to acquire AtaiBeckley to advance therapies for treatment-resistant depression and other mental health conditions",
+     "source_url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQS280WDZmcXhMU2J5MmdnQ0hKejh0X1prSWN3MDJUTko1NG1lSENxWXlLN1lfUGNVMDUtQktXYzVLd0p1c3A2WjdCUW9jUWw0OWhIek5DdlR2WTBCYmtXYWpOTTFWMnBCZjRDNzduTl9BTDlWWlJPdWc4eUd2emlJNnYzUmc3VUd5NU5OZmwxajlRMXdwTTdpZXNYUDFXeTctMTVmWnBnXzhlMk5yTjBwbFh1SF82b3BSM29tMnVhNTYyeFU?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxQS280WDZmcXhMU2J5MmdnQ0hKejh0X1prSWN3MDJUTko1NG1lSENxWXlLN1lfUGNVMDUtQktXYzVLd0p1c3A2WjdCUW9jUWw0OWhIek5DdlR2WTBCYmtXYWpOTTFWMnBCZjRDNzduTl9BTDlWWlJPdWc4eUd2emlJNnYzUmc3VUd5NU5OZmwxajlRMXdwTTdpZXNYUDFXeTctMTVmWnBnXzhlMk5yTjBwbFh1SF82b3BSM29tMnVhNTYyeFU?oc=5"
+    },
+    {
+     "id": 798,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Resilience",
+     "event_date": "2026-07-30",
+     "quote": "Eli Lilly Expands Collaboration With Resilience to Boost KwikPen Production",
+     "source_url": "https://news.google.com/rss/articles/CBMixwFBVV95cUxNcVBGQXozdTRfaDJXb3RRUmlTRlJIXzlIT3RZbHBYeTNMM0JCX0hKV1Rnd0NLSlR3VUdMaU5uY0ZwcTJTc1BqZjNEWEk1Z1V1VUo2X3RVM0NwT2EwMldqMVBLLUxZLXlvUTRDLWVWVXFsVjM5Vk90c0tKWkNKX3JJWDBDZTkzaXdDWmFkeG9rZHNtZlB2d09CaGVIa2FaMlBFUXpyaXZqRXNldVFSYmV5cDVzTHEtS0RHbEVIaXlsX1gzN3dBcVhB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMixwFBVV95cUxNcVBGQXozdTRfaDJXb3RRUmlTRlJIXzlIT3RZbHBYeTNMM0JCX0hKV1Rnd0NLSlR3VUdMaU5uY0ZwcTJTc1BqZjNEWEk1Z1V1VUo2X3RVM0NwT2EwMldqMVBLLUxZLXlvUTRDLWVWVXFsVjM5Vk90c0tKWkNKX3JJWDBDZTkzaXdDWmFkeG9rZHNtZlB2d09CaGVIa2FaMlBFUXpyaXZqRXNldVFSYmV5cDVzTHEtS0RHbEVIaXlsX1gzN3dBcVhB?oc=5"
+    },
+    {
+     "id": 845,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Cialis",
+     "event_date": "2026-08-03",
+     "quote": "Zuellig Pharma Acquires Cialis® (Tadalafil) from Lilly in Singapore",
+     "source_url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxOaFZNcEdHZUVVbzc2NHVVNlRNTnl4S3Z5VXdwM3o0SHlNNU5wc1pHZUc5cEJUMWpCN2p0YXRFLU1uVnJmdW1XWU50eDlzMElsTnJsTS1EUGpESGJ6RTlMSDBjMEFpY0hKRjVCN08tZTR3UGxUX2R3dktKazByaTdfQkt5T2hablN6RnhQQ1NCR3JOVjIwTXVtbzUtOXMzSkdyUTRMdHFSelV3YmI3MjZuLVNSbUJ4S1FrOUJPUjU1N213aWdDbzRlbg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiyAFBVV95cUxOaFZNcEdHZUVVbzc2NHVVNlRNTnl4S3Z5VXdwM3o0SHlNNU5wc1pHZUc5cEJUMWpCN2p0YXRFLU1uVnJmdW1XWU50eDlzMElsTnJsTS1EUGpESGJ6RTlMSDBjMEFpY0hKRjVCN08tZTR3UGxUX2R3dktKazByaTdfQkt5T2hablN6RnhQQ1NCR3JOVjIwTXVtbzUtOXMzSkdyUTRMdHFSelV3YmI3MjZuLVNSbUJ4S1FrOUJPUjU1N213aWdDbzRlbg?oc=5"
+    },
+    {
+     "id": 951,
+     "accession": "0000059478-26-000077",
+     "deal_type": "acquisition",
+     "counterparty": "Orna Therapeutics, Inc.",
+     "event_date": "2026-08-05",
+     "quote": "Business development activity in Q2 2026 included the completed acquisitions of Orna Therapeutics, Inc., Ajax Therapeutics, Inc., Centessa Pharmaceuticals plc. and Kelonia Therapeutics, Inc.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/lly-20260805.htm",
+     "article_url": null
+    },
+    {
+     "id": 952,
+     "accession": "0000059478-26-000077",
+     "deal_type": "acquisition",
+     "counterparty": "Ajax Therapeutics, Inc.",
+     "event_date": "2026-08-05",
+     "quote": "Business development activity in Q2 2026 included the completed acquisitions of Orna Therapeutics, Inc., Ajax Therapeutics, Inc., Centessa Pharmaceuticals plc. and Kelonia Therapeutics, Inc.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/lly-20260805.htm",
+     "article_url": null
+    },
+    {
+     "id": 953,
+     "accession": "0000059478-26-000077",
+     "deal_type": "acquisition",
+     "counterparty": "Centessa Pharmaceuticals plc.",
+     "event_date": "2026-08-05",
+     "quote": "Business development activity in Q2 2026 included the completed acquisitions of Orna Therapeutics, Inc., Ajax Therapeutics, Inc., Centessa Pharmaceuticals plc. and Kelonia Therapeutics, Inc.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/lly-20260805.htm",
+     "article_url": null
+    },
+    {
+     "id": 954,
+     "accession": "0000059478-26-000077",
+     "deal_type": "acquisition",
+     "counterparty": "Kelonia Therapeutics, Inc.",
+     "event_date": "2026-08-05",
+     "quote": "Business development activity in Q2 2026 included the completed acquisitions of Orna Therapeutics, Inc., Ajax Therapeutics, Inc., Centessa Pharmaceuticals plc. and Kelonia Therapeutics, Inc.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/lly-20260805.htm",
+     "article_url": null
+    },
+    {
+     "id": 955,
+     "accession": "0000059478-26-000077",
+     "deal_type": "acquisition",
+     "counterparty": "AtaiBeckley, Inc.",
+     "event_date": "2026-08-05",
+     "quote": "Subsequent to quarter end, we completed three acquisitions to build an infectious disease portfolio and entered into an agreement to acquire AtaiBeckley, Inc.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/59478/000005947826000077/lly-20260805.htm",
+     "article_url": null
+    },
+    {
+     "id": 1063,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Merida Biosciences",
+     "event_date": "2026-08-31",
+     "quote": "Lilly to acquire Merida Biosciences to advance treatments for serious autoimmune and allergic diseases",
+     "source_url": "https://news.google.com/rss/articles/CBMi7wFBVV95cUxPQ3RNRXE2R3BKZU9VZ1NrcFVjWXZtNlY0Y0tIUWN2RHhlZ0ZmaDROZUV1aGdxT0lTT1RwaVlJZFh4VmVDc3pEMnVtUXhzS3pYRk9CazkyeTBWMmd1UU5DU3o0aEZ0Y3RUMjlBbUNXZURIa2hiY01iTHBmY21obTRPOFlMSlBKUVFCMjExLVFCUHdsSTAwSTVXTk9NR2pPeGE0Wktva2J2TF9ZbWhtM09BblJXNEJRZjE5TWxTTjJlSDNVM3ZfU1NPSXRiSVRORUp1bzNJbkd5NklYdG9QbUQ4NUh4YXVRQi16U3BIczJ1QQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi7wFBVV95cUxPQ3RNRXE2R3BKZU9VZ1NrcFVjWXZtNlY0Y0tIUWN2RHhlZ0ZmaDROZUV1aGdxT0lTT1RwaVlJZFh4VmVDc3pEMnVtUXhzS3pYRk9CazkyeTBWMmd1UU5DU3o0aEZ0Y3RUMjlBbUNXZURIa2hiY01iTHBmY21obTRPOFlMSlBKUVFCMjExLVFCUHdsSTAwSTVXTk9NR2pPeGE0Wktva2J2TF9ZbWhtM09BblJXNEJRZjE5TWxTTjJlSDNVM3ZfU1NPSXRiSVRORUp1bzNJbkd5NklYdG9QbUQ4NUh4YXVRQi16U3BIczJ1QQ?oc=5"
+    },
+    {
+     "id": 1114,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Goodles",
+     "event_date": "2026-09-04",
+     "quote": "Deal Dispatch: Nvidia Buys Hugging Face for $12.9 Billion, Barilla Acquires Goodles, Park Place Partners Bankruptcy",
+     "source_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxONlJNdm9jcUN2Y2JlMXNEXy1iX0JCV3FQdXdlYnM4aHJhVkZHRjg3YXI3aWNPVkNQbkxWUkw5RG5QY0tFRnUtZm9fYy1menFYRG0xcTZjbjBpcGZtcU85YWZ2ZDRtNEVVTlRseG5qRW81ZjhiYXhIcTczTWY2Q0hVVnRrRF8zUERGUUY0UTBCWDlDTzczZnhDcE9NV21Rc1dSSjlrR3ZiTTFPVFc2cGYxQi1YMmtYU2lqaHN4Z21wX29Ra3RCN1U3ZHlaeUxoWi10TXg0NFJGeXhDbDdmdm1NZzUzUXpGbEVJc3I0?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxONlJNdm9jcUN2Y2JlMXNEXy1iX0JCV3FQdXdlYnM4aHJhVkZHRjg3YXI3aWNPVkNQbkxWUkw5RG5QY0tFRnUtZm9fYy1menFYRG0xcTZjbjBpcGZtcU85YWZ2ZDRtNEVVTlRseG5qRW81ZjhiYXhIcTczTWY2Q0hVVnRrRF8zUERGUUY0UTBCWDlDTzczZnhDcE9NV21Rc1dSSjlrR3ZiTTFPVFc2cGYxQi1YMmtYU2lqaHN4Z21wX29Ra3RCN1U3ZHlaeUxoWi10TXg0NFJGeXhDbDdmdm1NZzUzUXpGbEVJc3I0?oc=5"
+    },
+    {
+     "id": 1155,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Miro",
+     "event_date": "2026-09-11",
+     "quote": "Deal Dispatch: Bending Spoons Acquires Miro For $1.35B, Kinetik Up For Sale, LIV Golf Bankruptcy",
+     "source_url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxQYzhtV2JiME1xRHdFM3pnRmpSQlV6SUhJRGhnYTQxcF9qSEs0RFRQLUYyV3R1U3pwWDZIekZaVmNXc2VYaWZMRUR1dHdTNEJROUFXV3RPZkVNTXJaVnlVa3NNeVUzbDI1ZzRVQmdNLV95c1RjUXRaMWJGNEZNZHBWbFcxNjZHTEpmNnVITDM2R0thakNlTG42TXlGWWQ5S2tOMFoySjlzOW94cG5SdzFTU0JLZTZlM3hrX1hjUUlVU2RtZDYzcE9sTmxDNnNJOHJxcXc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi0gFBVV95cUxQYzhtV2JiME1xRHdFM3pnRmpSQlV6SUhJRGhnYTQxcF9qSEs0RFRQLUYyV3R1U3pwWDZIekZaVmNXc2VYaWZMRUR1dHdTNEJROUFXV3RPZkVNTXJaVnlVa3NNeVUzbDI1ZzRVQmdNLV95c1RjUXRaMWJGNEZNZHBWbFcxNjZHTEpmNnVITDM2R0thakNlTG42TXlGWWQ5S2tOMFoySjlzOW94cG5SdzFTU0JLZTZlM3hrX1hjUUlVU2RtZDYzcE9sTmxDNnNJOHJxcXc?oc=5"
+    },
+    {
+     "id": 1169,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Anthropic",
+     "event_date": "2026-09-17",
+     "quote": "Novo Nordisk Partners with Anthropic, ByteDance Spin-off Anew Labs Raises $290 Million, Igniting AI Drug Discovery Stocks",
+     "source_url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE9fc2pPSzlwcXJwdnkzZHBndUVTdUFjWUdSREtFc25MQTNtVVpBYWF6Tnh0OGF1RzZ0dTJmbW9OdklwUHZOQjlrQkRlXzZ6V0xsQnBWZGQzb2tGYTY1UGh1ODBxSTBEZ00yT3A0NENHQjlFMnR1eWc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE9fc2pPSzlwcXJwdnkzZHBndUVTdUFjWUdSREtFc25MQTNtVVpBYWF6Tnh0OGF1RzZ0dTJmbW9OdklwUHZOQjlrQkRlXzZ6V0xsQnBWZGQzb2tGYTY1UGh1ODBxSTBEZ00yT3A0NENHQjlFMnR1eWc?oc=5"
+    }
+   ]
+  },
+  "VRTX": {
+   "company": {
+    "ticker": "VRTX",
+    "name": "Vertex Pharmaceuticals Inc"
+   },
+   "rows": [
+    {
+     "id": 93,
+     "accession": "0000875320-25-000213",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532025000213/vrtx-20250804.htm",
+     "article_url": null
+    },
+    {
+     "id": 71,
+     "accession": "0000875320-25-000230",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-03",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532025000230/vrtx-20251103.htm",
+     "article_url": null
+    },
+    {
+     "id": 918,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Ahead",
+     "event_date": "2025-12-12",
+     "quote": "2 Healthcare Stocks to Buy Ahead of the New Year",
+     "source_url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxOQkQ0UGJONndVQjYwdmZvTThrUmJweE5oMG5oRklvQ2ltalRsX0xsY25McHVwb19HU2lPXzk3U0JGZ0RJN2ZFOHZoMEhERjMzckRETzNISTFJTVdqMHdGQ3lNLVhQTVpYb0tfV3hwVjRVTlBlM1M5SWlkV1U3Ym1xY1QyaWpSQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxOQkQ0UGJONndVQjYwdmZvTThrUmJweE5oMG5oRklvQ2ltalRsX0xsY25McHVwb19HU2lPXzk3U0JGZ0RJN2ZFOHZoMEhERjMzckRETzNISTFJTVdqMHdGQ3lNLVhQTVpYb0tfV3hwVjRVTlBlM1M5SWlkV1U3Ym1xY1QyaWpSQQ?oc=5"
+    },
+    {
+     "id": 46,
+     "accession": "0000875320-26-000034",
+     "deal_type": "licensing",
+     "counterparty": "WuXi Biologics",
+     "event_date": "2026-02-12",
+     "quote": "An exclusive global license agreement with WuXi Biologics to develop and commercialize a trispecific T cell engager for B cell-mediated autoimmune diseases, which is currently in preclinical development.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532026000034/vrtx-20260212.htm",
+     "article_url": null
+    },
+    {
+     "id": 41,
+     "accession": "0000875320-26-000147",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-03-31",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532026000147/vrtx-20260331.htm",
+     "article_url": null
+    },
+    {
+     "id": 21,
+     "accession": "0000875320-26-000171",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532026000171/vrtx-20260504.htm",
+     "article_url": null
+    },
+    {
+     "id": 4,
+     "accession": "0001193125-26-296710",
+     "deal_type": "acquisition",
+     "counterparty": "Crinetics Pharmaceuticals",
+     "event_date": "2026-07-06",
+     "quote": "Vertex has agreed to acquire all outstanding shares of Crinetics for $85/share in an all-cash transaction",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000119312526296710/d113650d8k.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxQcU1YdUJxLTdWY04wZ1k3YmxCa3A3TUUtcEJ6czMxUzB3bUgwWS0yQmVfcTZaUlBLcFNoanJuS1FXeHFIOWZnQTZTZTVPZWRaQjd0aENOYmk1d0pYd205MDJ3blV4eUJWMTRWek1OQzZGWGQ2TzNQVEJUY3h2SWJjTk1sWVpEbzVDY21Tc1FpdVBpMGFjeU04aC1nbFpZZkZ3OFJhN2ExNUZabk9WX09aNGpVZDZkdy03MmxDctIBckFVX3lxTE5PNHhBeGJ1WWR3WDU1aG9GMmp3VFFlUUpIa0cyMXVINk14dUg4Ni1ORURjRXcwbGRycmJzbkRGbmlMQ2xPN2IweTZaU2pEZnhKaWJjSk1adzMzY1ctWWhoMDRZbXVsQXF1XzdyS1FMNzRDUQ?oc=5"
+    },
+    {
+     "id": 909,
+     "accession": "0000875320-26-000256",
+     "deal_type": "acquisition",
+     "counterparty": "Crinetics Pharmaceuticals",
+     "event_date": "2026-08-03",
+     "quote": "In July, Vertex and Crinetics Pharmaceuticals entered into a definitive agreement under which Vertex will acquire Crinetics for $85.00 per share in cash, for a total equity value of approximately $10.0 billion, or approximately $8.8 billion net of estimated cash acquired.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875320/000087532026000256/vrtx-20260803.htm",
+     "article_url": null
+    }
+   ]
+  },
+  "CRSP": {
+   "company": {
+    "ticker": "CRSP",
+    "name": "CRISPR Therapeutics AG"
+   },
+   "rows": [
+    {
+     "id": 782,
+     "accession": "0000950170-25-090170",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-06-26",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000095017025090170/crsp-20250626.htm",
+     "article_url": null
+    },
+    {
+     "id": 747,
+     "accession": "0000950170-25-102027",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000095017025102027/crsp-20250804.htm",
+     "article_url": null
+    },
+    {
+     "id": 676,
+     "accession": "0001193125-25-240282",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-10-15",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312525240282/crsp-20251015.htm",
+     "article_url": null
+    },
+    {
+     "id": 549,
+     "accession": "0001193125-25-273329",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-10",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312525273329/crsp-20251110.htm",
+     "article_url": null
+    },
+    {
+     "id": 913,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Ahead",
+     "event_date": "2025-12-12",
+     "quote": "2 Healthcare Stocks to Buy Ahead of the New Year",
+     "source_url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxOQkQ0UGJONndVQjYwdmZvTThrUmJweE5oMG5oRklvQ2ltalRsX0xsY25McHVwb19HU2lPXzk3U0JGZ0RJN2ZFOHZoMEhERjMzckRETzNISTFJTVdqMHdGQ3lNLVhQTVpYb0tfV3hwVjRVTlBlM1M5SWlkV1U3Ym1xY1QyaWpSQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxOQkQ0UGJONndVQjYwdmZvTThrUmJweE5oMG5oRklvQ2ltalRsX0xsY25McHVwb19HU2lPXzk3U0JGZ0RJN2ZFOHZoMEhERjMzckRETzNISTFJTVdqMHdGQ3lNLVhQTVpYb0tfV3hwVjRVTlBlM1M5SWlkV1U3Ym1xY1QyaWpSQQ?oc=5"
+    },
+    {
+     "id": 484,
+     "accession": "0001193125-26-009880",
+     "deal_type": "collaboration",
+     "counterparty": "Eli Lilly",
+     "event_date": "2026-01-12",
+     "quote": "The Company has established a collaboration and clinical supply agreement with Eli Lilly to evaluate zugo-cel together with pirtobrutinib in aggressive B-cell lymphomas, further expanding the program's development in oncology.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526009880/crsp-20260112.htm",
+     "article_url": null
+    },
+    {
+     "id": 457,
+     "accession": "0001193125-26-048873",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-12",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526048873/crsp-20260212.htm",
+     "article_url": null
+    },
+    {
+     "id": 414,
+     "accession": "0001193125-26-101073",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-03-11",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526101073/crsp-20260310.htm",
+     "article_url": null
+    },
+    {
+     "id": 404,
+     "accession": "0001193125-26-108333",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-03-16",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526108333/crsp-20260316.htm",
+     "article_url": null
+    },
+    {
+     "id": 358,
+     "accession": "0001193125-26-204147",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526204147/crsp-20260504.htm",
+     "article_url": null
+    },
+    {
+     "id": 596,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Case",
+     "event_date": "2026-05-06",
+     "quote": "Crispr Therapeutics Q1 Earnings: Casgevy Growth, H2 In-Vivo Catalysts Make Buy Case (CRSP)",
+     "source_url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxOSWxiNzlVa1lpU1pSU3Rna3BBQW9UTjlmc0FGel9ueXdxYWNMV25NN3RlTE5wSThNc2kzQ0oyUmVSY0kxN2dfZWpfczhweUNZMzEwV2loX1ZQSkJ1OE1aMlJoSUl5dnFDSUxXQlV5UnRhS1A5SUx4S21aSlhjVjdnUWgtYVF6T3o5Y3JyZVlJdFhIMmJadlNpNkFLeWY3X3BXVkhZX2tGbmxNdWI0ai1kQm9wQ1ZyT2NQemRMbUFtQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxOSWxiNzlVa1lpU1pSU3Rna3BBQW9UTjlmc0FGel9ueXdxYWNMV25NN3RlTE5wSThNc2kzQ0oyUmVSY0kxN2dfZWpfczhweUNZMzEwV2loX1ZQSkJ1OE1aMlJoSUl5dnFDSUxXQlV5UnRhS1A5SUx4S21aSlhjVjdnUWgtYVF6T3o5Y3JyZVlJdFhIMmJadlNpNkFLeWY3X3BXVkhZX2tGbmxNdWI0ai1kQm9wQ1ZyT2NQemRMbUFtQQ?oc=5"
+    },
+    {
+     "id": 904,
+     "accession": "0001193125-26-330644",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-08-03",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1674416/000119312526330644/crsp-20260803.htm",
+     "article_url": null
+    }
+   ]
+  },
+  "GPCR": {
+   "company": {
+    "ticker": "GPCR",
+    "name": "Structure Therapeutics Inc."
+   },
+   "rows": [
+    {
+     "id": 1146,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Sage Therapeutics",
+     "event_date": "2025-07-31",
+     "quote": "Supernus Pharmaceuticals Completes Acquisition of Sage Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxPcGhPaC1kLVhvWmdlcWc2XzZ2YlVRUW8tT1hDTXRqZzktOTdfVENqbm9qNWNXaElKRHliTndHWjBZbU1HLUdWaVR4WFd5b3VValRIcm50MlFhbGRRME1pb3VrMkxGQ05SckFQNkZQSWQ2dVdjTThHTXJNMUxoU0ZEQnRrT05fZkkxN1RtQlAtRXlsQmN3Wk4zcmV1RFNOZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxPcGhPaC1kLVhvWmdlcWc2XzZ2YlVRUW8tT1hDTXRqZzktOTdfVENqbm9qNWNXaElKRHliTndHWjBZbU1HLUdWaVR4WFd5b3VValRIcm50MlFhbGRRME1pb3VrMkxGQ05SckFQNkZQSWQ2dVdjTThHTXJNMUxoU0ZEQnRrT05fZkkxN1RtQlAtRXlsQmN3Wk4zcmV1RFNOZw?oc=5"
+    },
+    {
+     "id": 742,
+     "accession": "0001104659-25-074712",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465925074712/tm2522431d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1128,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Metsera",
+     "event_date": "2025-09-22",
+     "quote": "Pfizer Buys Obesity Drug Developer Metsera: Buy Today And Benefit From CVRs (NASDAQ:MTSR)",
+     "source_url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPVi1nSFd1MU00UDdJLTJjTGxmeWg5em54NUtBclI4Mzlsek9wckFYYTRwTnlvdkRHaDlvdEswcXltUm40UlJBM3oxRk4xaWxiOHBoay1vQktfcU5XcllTT2NvTlB2M0NIYlpXcVBwd1RKR3FxUm9sWkxPQVlCYkVJeWdCVXZsbWIxQ3AyVjB6Ri1vZXdFM3Ryc0ptZ0toSEJfVFg4Rnhld29lcGpZS3V2Q2R3WEwtUQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxPVi1nSFd1MU00UDdJLTJjTGxmeWg5em54NUtBclI4Mzlsek9wckFYYTRwTnlvdkRHaDlvdEswcXltUm40UlJBM3oxRk4xaWxiOHBoay1vQktfcU5XcllTT2NvTlB2M0NIYlpXcVBwd1RKR3FxUm9sWkxPQVlCYkVJeWdCVXZsbWIxQ3AyVjB6Ri1vZXdFM3Ryc0ptZ0toSEJfVFg4Rnhld29lcGpZS3V2Q2R3WEwtUQ?oc=5"
+    },
+    {
+     "id": 567,
+     "accession": "0001104659-25-107740",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465925107740/tm2530323d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 524,
+     "accession": "0001104659-25-119095",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-12-08",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465925119095/tm2532078d2_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 522,
+     "accession": "0001104659-25-120015",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-12-10",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465925120015/tm2532078d5_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1158,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Sanofi",
+     "event_date": "2025-12-15",
+     "quote": "Dren Bio Expands Strategic Collaboration with Sanofi to Develop Next-Generation B-Cell Depletion Therapy",
+     "source_url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxQbk5nRXpLbFFCQUxseHVTZ0dnWkZ1UFc3Wm9LWHlRV1JJR0tGUmU3djVQSXI4LTVoVy1tTEQzeFA2Y2Y1Q2hTcUhrSzlQc24tWFE5d0pVck1WQnlMQ3E2Y2U3Wi1HdVU1LXZMOFMyRjJSV1RmQ3c0U09MNjZaUWNkZkE2N0ctdm1rWVRlWkpaVQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxQbk5nRXpLbFFCQUxseHVTZ0dnWkZ1UFc3Wm9LWHlRV1JJR0tGUmU3djVQSXI4LTVoVy1tTEQzeFA2Y2Y1Q2hTcUhrSzlQc24tWFE5d0pVck1WQnlMQ3E2Y2U3Wi1HdVU1LXZMOFMyRjJSV1RmQ3c0U09MNjZaUWNkZkE2N0ctdm1rWVRlWkpaVQ?oc=5"
+    },
+    {
+     "id": 508,
+     "accession": "0001104659-26-000620",
+     "deal_type": "licensing",
+     "counterparty": "Genentech, Inc.",
+     "event_date": "2025-12-30",
+     "quote": "Under the GNE Agreement, Gasherbrum, on behalf of itself and its affiliates, granted to GNE and its affiliates a non-exclusive, sublicensable, royalty-bearing license, under certain patents owned or controlled by Gasherbrum or its affiliates (\"Licensed Patents\"), to make, use, sell, offer for sale and import products that contain CT-996, a proprietary compound owned by GNE, as an active ingredient (\"GNE Products\") and a covenant not to assert certain potential future patents with respect to GNE's and its affiliates' manufacture, use, sale, offer for sale or importation of GNE Products.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926000620/tm261919d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 509,
+     "accession": "0001104659-26-000620",
+     "deal_type": "licensing",
+     "counterparty": "F. Hoffmann-La Roche Ltd",
+     "event_date": "2025-12-30",
+     "quote": "Under the GNE Agreement, Gasherbrum, on behalf of itself and its affiliates, granted to GNE and its affiliates a non-exclusive, sublicensable, royalty-bearing license, under certain patents owned or controlled by Gasherbrum or its affiliates (\"Licensed Patents\"), to make, use, sell, offer for sale and import products that contain CT-996, a proprietary compound owned by GNE, as an active ingredient (\"GNE Products\") and a covenant not to assert certain potential future patents with respect to GNE's and its affiliates' manufacture, use, sale, offer for sale or importation of GNE Products.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926000620/tm261919d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1134,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Mersana Therapeutics",
+     "event_date": "2026-01-06",
+     "quote": "Day One Completes Acquisition of Mersana Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPMHNsUHgzRUZSRDhYMm5KX0pOVUQ0ZWxpUnFMaVlaelBqRExzNFpqdTBmd1NXb3pwYTdYYUpQWmxsUjNrX2JwR01oQ2ppZmV2bWJHWmxFOTRVdENSTlB0UlJBdFhmWFVqc002VnpsVkxPclhKajBJZ3AzVHdsOFNiRU9SX3BvQktZQ19R?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPMHNsUHgzRUZSRDhYMm5KX0pOVUQ0ZWxpUnFMaVlaelBqRExzNFpqdTBmd1NXb3pwYTdYYUpQWmxsUjNrX2JwR01oQ2ppZmV2bWJHWmxFOTRVdENSTlB0UlJBdFhmWFVqc002VnpsVkxPclhKajBJZ3AzVHdsOFNiRU9SX3BvQktZQ19R?oc=5"
+    },
+    {
+     "id": 1145,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Cidara Therapeutics",
+     "event_date": "2026-01-07",
+     "quote": "Merck to Complete Acquisition of Cidara Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOVkt5Q2NBelgwa0Nra1F0MzdLcU5UdTh0NkdhTlF3NExMTUROUG8zLWdoU1M1aXZFYkdzSkY0bVBGWGFrSmZXWnhnMVB1Rm5Bd2JTbnFKWS1NNkE2ZEJXZTdQM1E1WWdOQnlVb3VXN1BpVUc2VWRkeEItNWxMeGp1eU93Y2lGczBhMXRYa01pWVRHZlJmYVFn?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxOVkt5Q2NBelgwa0Nra1F0MzdLcU5UdTh0NkdhTlF3NExMTUROUG8zLWdoU1M1aXZFYkdzSkY0bVBGWGFrSmZXWnhnMVB1Rm5Bd2JTbnFKWS1NNkE2ZEJXZTdQM1E1WWdOQnlVb3VXN1BpVUc2VWRkeEItNWxMeGp1eU93Y2lGczBhMXRYa01pWVRHZlJmYVFn?oc=5"
+    },
+    {
+     "id": 439,
+     "accession": "0001104659-26-020494",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-26",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926020494/tm267321d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 405,
+     "accession": "0001104659-26-028023",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-03-16",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926028023/tm268880d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1144,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Daiichi Sankyo",
+     "event_date": "2026-04-16",
+     "quote": "Interna Therapeutics Announces Research Collaboration with Daiichi Sankyo to Advance MNM-Based Targeted Delivery Technologies",
+     "source_url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxPVWZlUXNQdTNFTFV1dDJQSkZzMWd5Y3hqclI5ZGdHR0dtSEgySEd2NzF0dUNZVTFNSlRfNnhTMnZuRnc1bDh0Mi1TUkNFTDNqaEJOU2xMY2hqQUl3eTFyLTJ6cmc4MlB0ZTMwMDRCcnJkLWJITERYMk5HMzlxaUxGbFN2d3VHUlBEM3B0MkJpazFvWEh3MUxwT29yLWFvMHJQOE1rNFVCeXpjcjRPemdRSHdHNnJfOTAtYm03OEJqRQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxPVWZlUXNQdTNFTFV1dDJQSkZzMWd5Y3hqclI5ZGdHR0dtSEgySEd2NzF0dUNZVTFNSlRfNnhTMnZuRnc1bDh0Mi1TUkNFTDNqaEJOU2xMY2hqQUl3eTFyLTJ6cmc4MlB0ZTMwMDRCcnJkLWJITERYMk5HMzlxaUxGbFN2d3VHUlBEM3B0MkJpazFvWEh3MUxwT29yLWFvMHJQOE1rNFVCeXpjcjRPemdRSHdHNnJfOTAtYm03OEJqRQ?oc=5"
+    },
+    {
+     "id": 1143,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Amicus Therapeutics",
+     "event_date": "2026-04-28",
+     "quote": "BioMarin acquires Amicus Therapeutics for $4.8bn",
+     "source_url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPdFEyUjd1UHdyalJPRkFhdGdaV25HNUdhVWNxNnpScEpkcy0zWHdKZmpGMlZRME14bno0VG02UWVRU0xhdWdDRWFKVi02XzBveVVqYTFUbjRFa2xhMUtmeGstWVhsQUNPZE9XZ045M2U3X0trUVhGaGM3NFc4YWRDVTAtTU9ZMld5ZzBjMXpEbE5VWElJTUU4dkdrdXRBV2ZUVTdzZkJBUnhqTFJx?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPdFEyUjd1UHdyalJPRkFhdGdaV25HNUdhVWNxNnpScEpkcy0zWHdKZmpGMlZRME14bno0VG02UWVRU0xhdWdDRWFKVi02XzBveVVqYTFUbjRFa2xhMUtmeGstWVhsQUNPZE9XZ045M2U3X0trUVhGaGM3NFc4YWRDVTAtTU9ZMld5ZzBjMXpEbE5VWElJTUU4dkdrdXRBV2ZUVTdzZkJBUnhqTFJx?oc=5"
+    },
+    {
+     "id": 343,
+     "accession": "0001104659-26-057226",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-07",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926057226/tm2613721d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1133,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Thermo Fisher Scientific",
+     "event_date": "2026-07-02",
+     "quote": "Arcturus Therapeutics Announces Strategic Collaboration with Thermo Fisher Scientific to Advance ARCT-032 for Cystic Fibrosis",
+     "source_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxPVnpTMjViR2lVZXd5dWxOdDIyblJMTmlXRFc5MHlIQ01GS1NsUFNlMGRwUWpzMWZlSlBDbGNmaWFqaFROU3VJZ0huSHFUcXlrdGpHbVBKOTFJVVpqUmlmQ2sxTDZ2b3lXOFNhQm1PdUtQNEFRcFlIaFNyMHBiSERZN01nMnUwbUhMMlRpZ0djLVpDRTB6bWg5cjlpN2JGelZWeVVmdUdhYkRYUUJZUHdKQWR2aDBnQ3M?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxPVnpTMjViR2lVZXd5dWxOdDIyblJMTmlXRFc5MHlIQ01GS1NsUFNlMGRwUWpzMWZlSlBDbGNmaWFqaFROU3VJZ0huSHFUcXlrdGpHbVBKOTFJVVpqUmlmQ2sxTDZ2b3lXOFNhQm1PdUtQNEFRcFlIaFNyMHBiSERZN01nMnUwbUhMMlRpZ0djLVpDRTB6bWg5cjlpN2JGelZWeVVmdUdhYkRYUUJZUHdKQWR2aDBnQ3M?oc=5"
+    },
+    {
+     "id": 1127,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Now",
+     "event_date": "2026-07-03",
+     "quote": "Structure Therapeutics (GPCR) Is A Hidden Biotech Multibagger Stock To Buy Now",
+     "source_url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPdXdnWnJySVF3SW9VcUpYd255ZC1VSF96cGhpS1FpVkk2b2JhSzdpYkpJUTRvZjFIbS0tNVc0TkUxMG5MS1JaVzVsRTdERTRCRjdSTHg1VExOZG1HMG1rYWRoanhLTWF4dFllTjJiY2lWZTdiM1hSaHpGeDRZd0JJQjl6cHJlSUFpMU15cFc4c2xHRXplSmptck53alNlS3RjeHRTaTFR?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPdXdnWnJySVF3SW9VcUpYd255ZC1VSF96cGhpS1FpVkk2b2JhSzdpYkpJUTRvZjFIbS0tNVc0TkUxMG5MS1JaVzVsRTdERTRCRjdSTHg1VExOZG1HMG1rYWRoanhLTWF4dFllTjJiY2lWZTdiM1hSaHpGeDRZd0JJQjl6cHJlSUFpMU15cFc4c2xHRXplSmptck53alNlS3RjeHRTaTFR?oc=5"
+    },
+    {
+     "id": 1153,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Vega Therapeutics",
+     "event_date": "2026-07-06",
+     "quote": "Incyte Completes Acquisition of Vega Therapeutics, a Wholly Owned Subsidiary of Star Therapeutics, Expanding its Hematology Portfolio",
+     "source_url": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxPOWhDbFVWMmNreVRWWHpLS0RWOG5ZYXFWZlJJSFV2MXRfTnluWDhXUGRNVnViaFlESUFyWF9VZUhmWENRaktUZU9iWVRmOGxZaGhBbDdldVZkeW1zR2wxdGUybnRDSUpNa2VoNHFsWHo2UkpnWkUzT3ZjZHlhaGtteG1ZMXc5b0NxZTFwLXR1MUU2MW1iRXFfc1ZoX3RzZkRvdlpJZW9pX1dqWDQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxPOWhDbFVWMmNreVRWWHpLS0RWOG5ZYXFWZlJJSFV2MXRfTnluWDhXUGRNVnViaFlESUFyWF9VZUhmWENRaktUZU9iWVRmOGxZaGhBbDdldVZkeW1zR2wxdGUybnRDSUpNa2VoNHFsWHo2UkpnWkUzT3ZjZHlhaGtteG1ZMXc5b0NxZTFwLXR1MUU2MW1iRXFfc1ZoX3RzZkRvdlpJZW9pX1dqWDQ?oc=5"
+    },
+    {
+     "id": 1159,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Vidya Therapeutics",
+     "event_date": "2026-07-29",
+     "quote": "Processa Pharmaceuticals Acquires Vidya Therapeutics and Secures $200 Million Financing to Advance BTK Inhibitor Pipeline",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxPUnR1ZXBvbHhGMnlJc0VnMWxvTkVnVzZEcG03SGEtMG01SVJWR081LVJrb3NkUk5fLW1ZQTIwTXprUFpJbU8zbi1ETm91UmxRMXVhSzFhMmQ0XzFBNFdES1pST0JmNGhjLWFqdzI4WEVQQjNtNmpuZkw0RW5YY09xYjRhMURCdjl1Y09IVl9UMkFGUkhnVGU2TlhMMkpqZGRGcGRDZEIweWc4RGJRTm1SQ0Q0bw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxPUnR1ZXBvbHhGMnlJc0VnMWxvTkVnVzZEcG03SGEtMG01SVJWR081LVJrb3NkUk5fLW1ZQTIwTXprUFpJbU8zbi1ETm91UmxRMXVhSzFhMmQ0XzFBNFdES1pST0JmNGhjLWFqdzI4WEVQQjNtNmpuZkw0RW5YY09xYjRhMURCdjl1Y09IVl9UMkFGUkhnVGU2TlhMMkpqZGRGcGRDZEIweWc4RGJRTm1SQ0Q0bw?oc=5"
+    },
+    {
+     "id": 937,
+     "accession": "0001104659-26-092017",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-08-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926092017/tm2622407d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1129,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Dutch",
+     "event_date": "2026-08-31",
+     "quote": "Asteria Group acquires Dutch label maker GT Etiketten",
+     "source_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOZVBBeVBVZExWSjZJTHR0VjM2VUhoZGEycTlzRmlZT2hlNGVaQ3A5SVBMang3U3ZLcnlOZTJxZXJDWTdBazRUVE92Z0ZHUGFENDFDOHJ3QmxkN0kzSFlodmlXMngycXdMbi1hcXNaZVo4ZUlYcnluZHBTaDlzV3F4ckRQUWZvWUtBeU5nd0hEeE5DUWtfV3pEZEdYM3E1TEQ2?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxOZVBBeVBVZExWSjZJTHR0VjM2VUhoZGEycTlzRmlZT2hlNGVaQ3A5SVBMang3U3ZLcnlOZTJxZXJDWTdBazRUVE92Z0ZHUGFENDFDOHJ3QmxkN0kzSFlodmlXMngycXdMbi1hcXNaZVo4ZUlYcnluZHBTaDlzV3F4ckRQUWZvWUtBeU5nd0hEeE5DUWtfV3pEZEdYM3E1TEQ2?oc=5"
+    },
+    {
+     "id": 1136,
+     "accession": "0001104659-26-105688",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-09-08",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1888886/000110465926105688/tm2624945d1_8k.htm",
+     "article_url": null
+    }
+   ]
+  },
+  "JNJ": {
+   "company": {
+    "ticker": "JNJ",
+    "name": "Johnson & Johnson"
+   },
+   "rows": [
+    {
+     "id": 266,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Intra-Cellular Therapies",
+     "event_date": "2025-01-13",
+     "quote": "Johnson & Johnson to Acquire Intra-Cellular in $15 Billion Deal",
+     "source_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPeHFnYTZmalFVVEFqejNCQWNGTENKcUx5SDBLQkxlZXlTUWxLRlpPRXRRREVJZ1htRlBaUDZEcU05Y2k2TmtveXR6VS1nTUhZRU5vU3pOSm91Q0hXU0dPV3lKdTBoMnBKWV8yWE16cTUxMWhEaldMU3RCYmd4WVFVWldId3F4WlU1a1A2eWRfelRsZ3pPU2FwOFdka1NySFpkN2M5b01lYVE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPeHFnYTZmalFVVEFqejNCQWNGTENKcUx5SDBLQkxlZXlTUWxLRlpPRXRRREVJZ1htRlBaUDZEcU05Y2k2TmtveXR6VS1nTUhZRU5vU3pOSm91Q0hXU0dPV3lKdTBoMnBKWV8yWE16cTUxMWhEaldMU3RCYmd4WVFVWldId3F4WlU1a1A2eWRfelRsZ3pPU2FwOFdka1NySFpkN2M5b01lYVE?oc=5"
+    },
+    {
+     "id": 822,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Intra-Cellular",
+     "event_date": "2025-01-13",
+     "quote": "Johnson & Johnson to Acquire Intra-Cellular in $15 Billion Deal",
+     "source_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPeHFnYTZmalFVVEFqejNCQWNGTENKcUx5SDBLQkxlZXlTUWxLRlpPRXRRREVJZ1htRlBaUDZEcU05Y2k2TmtveXR6VS1nTUhZRU5vU3pOSm91Q0hXU0dPV3lKdTBoMnBKWV8yWE16cTUxMWhEaldMU3RCYmd4WVFVWldId3F4WlU1a1A2eWRfelRsZ3pPU2FwOFdka1NySFpkN2M5b01lYVE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPeHFnYTZmalFVVEFqejNCQWNGTENKcUx5SDBLQkxlZXlTUWxLRlpPRXRRREVJZ1htRlBaUDZEcU05Y2k2TmtveXR6VS1nTUhZRU5vU3pOSm91Q0hXU0dPV3lKdTBoMnBKWV8yWE16cTUxMWhEaldMU3RCYmd4WVFVWldId3F4WlU1a1A2eWRfelRsZ3pPU2FwOFdka1NySFpkN2M5b01lYVE?oc=5"
+    },
+    {
+     "id": 103,
+     "accession": "0000200406-25-000170",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-07-16",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/200406/000020040625000170/jnj-20250716.htm",
+     "article_url": null
+    },
+    {
+     "id": 81,
+     "accession": "0000200406-25-000201",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-10-14",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/200406/000020040625000201/jnj-20251014.htm",
+     "article_url": null
+    },
+    {
+     "id": 851,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Kenvue",
+     "event_date": "2025-11-03",
+     "quote": "Kimberly-Clark to acquire Kenvue in $48.7B deal",
+     "source_url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE1rRkpQUi1HdWpKRFJ1R1JURG1GYVg4aVFYbjJfcnQ1WmRkMy1FQkFvdmtLWTZ5cU56anJQcmlESnhsRUZNOTNSUEp1YVBJWHBxOGVERE4ySDd3cmhFV1lOeHJVLWtHRy14dnVra3R4SE1ITHYtRHc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMidkFVX3lxTE1rRkpQUi1HdWpKRFJ1R1JURG1GYVg4aVFYbjJfcnQ1WmRkMy1FQkFvdmtLWTZ5cU56anJQcmlESnhsRUZNOTNSUEp1YVBJWHBxOGVERE4ySDd3cmhFV1lOeHJVLWtHRy14dnVra3R4SE1ITHYtRHc?oc=5"
+    },
+    {
+     "id": 1083,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Tylenol",
+     "event_date": "2025-11-03",
+     "quote": "Kimberly-Clark to buy Tylenol maker Kenvue in landmark $40bn merger",
+     "source_url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxOeU03MjYtcldYTzZIaFAxMnZQLUVxWElkNVpPY0RYLTFWeV83d1BWYmZSNV9DMTA2QzFGZ0w5cHpwa184SWw2cS1DZW5yVHVwZlBPYzBQblFLc2xEcEVzTmhKWDNIdVNmZEZaNVN1ZEZjUndmdU9Hei1XNld2Qm5QaTctalAtRUZBTkMySUxwQnUxM0dDd211Vw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimAFBVV95cUxOeU03MjYtcldYTzZIaFAxMnZQLUVxWElkNVpPY0RYLTFWeV83d1BWYmZSNV9DMTA2QzFGZ0w5cHpwa184SWw2cS1DZW5yVHVwZlBPYzBQblFLc2xEcEVzTmhKWDNIdVNmZEZaNVN1ZEZjUndmdU9Hei1XNld2Qm5QaTctalAtRUZBTkMySUxwQnUxM0dDd211Vw?oc=5"
+    },
+    {
+     "id": 189,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Halda Therapeutics",
+     "event_date": "2025-11-17",
+     "quote": "Johnson & Johnson acquires Halda Therapeutics for $3 billion, a big win for a buzzy new technology",
+     "source_url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxQRWRfdE1vNnNPdWlvUnBvUHVVVUFxR3ZpWEVUbElnMVhGdnhDTWcxZDItOEhOQXprNklIRnRpZEpZRlpEV1ZhWWFyV2hwWldCb0t0UlRjNnhaa2ZPcGFDb2RZYm5pRy1pdHdsZ1IwWXZpZ2p6UmhhSl96M1ZMeUp4SnNLSGU3WDg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxQRWRfdE1vNnNPdWlvUnBvUHVVVUFxR3ZpWEVUbElnMVhGdnhDTWcxZDItOEhOQXprNklIRnRpZEpZRlpEV1ZhWWFyV2hwWldCb0t0UlRjNnhaa2ZPcGFDb2RZYm5pRy1pdHdsZ1IwWXZpZ2p6UmhhSl96M1ZMeUp4SnNLSGU3WDg?oc=5"
+    },
+    {
+     "id": 196,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "CT-based Halda Therapeutics",
+     "event_date": "2025-11-17",
+     "quote": "Johnson & Johnson to acquire CT-based Halda Therapeutics for $3.05B",
+     "source_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxNREV0Mk1nN0Z1YWQtRzhHNUFmcE9kZXFaYlU2SUdsc3ZGT0JjWXNGaUJqSjJ6T0FzVEtQMFdLT0tnZmJoQlctX2hBYnZzd3VPNHEtQmEwM1l6RF9Ld2ItdEtvTWF3dzV4T2RERGtQLUxZeTN3aEc5NDU4TUZRY2FRaWhVMUFsMDhnRXExTmJ6ZFlVZVVCNUVHNUc4LWJBY1NtekJBeg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxNREV0Mk1nN0Z1YWQtRzhHNUFmcE9kZXFaYlU2SUdsc3ZGT0JjWXNGaUJqSjJ6T0FzVEtQMFdLT0tnZmJoQlctX2hBYnZzd3VPNHEtQmEwM1l6RF9Ld2ItdEtvTWF3dzV4T2RERGtQLUxZeTN3aEc5NDU4TUZRY2FRaWhVMUFsMDhnRXExTmJ6ZFlVZVVCNUVHNUc4LWJBY1NtekJBeg?oc=5"
+    },
+    {
+     "id": 883,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Connecticut",
+     "event_date": "2025-11-17",
+     "quote": "J&J to acquire Connecticut biotech in $3.05B oncology deal",
+     "source_url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1yYUJITmpJVTFOQV91YzFCNklLZjZiUnBlTG5qaU42emptZHlvaG4tcXhZdlYzdFpmejB0VEJZNk8yTkZyWnpvUDVfeXhvLXFZZVlVVGRQU3V4cVFRWWlnMFNtVlhDQWRZNFlFTDZTbGo?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1yYUJITmpJVTFOQV91YzFCNklLZjZiUnBlTG5qaU42emptZHlvaG4tcXhZdlYzdFpmejB0VEJZNk8yTkZyWnpvUDVfeXhvLXFZZVlVVGRQU3V4cVFRWWlnMFNtVlhDQWRZNFlFTDZTbGo?oc=5"
+    },
+    {
+     "id": 195,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Prostate Cancer Treatment-Maker Halda",
+     "event_date": "2025-11-18",
+     "quote": "Johnson & Johnson Buys Prostate Cancer Treatment-Maker Halda for $3.1 Billion",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOTlo1YjV3al9yeERNWFRFUE83S2FsQV94Q0NhX21aOWk2VVhmVWtxczJ2X1MxV3hodWZsOHJXZnFZakg1b00xOElRVGg5eUt6cmotUWJZX2RERVBQb1BPSU9MS1BxQm42XzZ3QjJTT0RmSkpDTkp0SnBqODRNNW5oNVB0UTlZUDRzZzBDa2JwcTBqYWVlalNRblJBRWh3cUU4d3RxWWcyMGJZaURVZllaakk2Yw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOTlo1YjV3al9yeERNWFRFUE83S2FsQV94Q0NhX21aOWk2VVhmVWtxczJ2X1MxV3hodWZsOHJXZnFZakg1b00xOElRVGg5eUt6cmotUWJZX2RERVBQb1BPSU9MS1BxQm42XzZ3QjJTT0RmSkpDTkp0SnBqODRNNW5oNVB0UTlZUDRzZzBDa2JwcTBqYWVlalNRblJBRWh3cUU4d3RxWWcyMGJZaURVZllaakk2Yw?oc=5"
+    },
+    {
+     "id": 59,
+     "accession": "0000200406-26-000002",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-01-21",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000002/jnj-20260121.htm",
+     "article_url": null
+    },
+    {
+     "id": 1176,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "NeuWave",
+     "event_date": "2026-02-25",
+     "quote": "Quantum Acquires NeuWave from Johnson & Johnson",
+     "source_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxNb3Fjc2hNNnNMTGVYblJxVG55OUVpQlNoOWszUWpWbVFNMlJFNXpfc1FmWkZGaUhfQzRGV2RhckUxQXdhQmlhRE1qTmlBRVNSQjhMMUpGYWhRQXRnaWQ4SVFUZ3U3WDlSTGJ4QXBHUkI4YjR3RlF0UFpESlNqX01mNEJJSEF4alIyRmZtbUJZbFc4aG1HWU4xNGJwQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxNb3Fjc2hNNnNMTGVYblJxVG55OUVpQlNoOWszUWpWbVFNMlJFNXpfc1FmWkZGaUhfQzRGV2RhckUxQXdhQmlhRE1qTmlBRVNSQjhMMUpGYWhRQXRnaWQ4SVFUZ3U3WDlSTGJ4QXBHUkI4YjR3RlF0UFpESlNqX01mNEJJSEF4alIyRmZtbUJZbFc4aG1HWU4xNGJwQQ?oc=5"
+    },
+    {
+     "id": 821,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Mayo Clinic",
+     "event_date": "2026-03-17",
+     "quote": "Aveeno Partners With Mayo Clinic",
+     "source_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxOOWlIZm45c1pMWXhaOXAwWWRpYmhBUnV0bHJ1SUVfTzZnemVqMkRVZDh5UjBFYi16ckxjR3poZEtlc194Y0dpaklYamlhTlJ0UndDUW14WGhfTmdzSy15bFRYNUowM1NjWWJQdUZiSEFiNjBITHVOTmlGQTgxMTNNTkxWbkhzSXh1a1BqQ2JYSjlkX0E?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxOOWlIZm45c1pMWXhaOXAwWWRpYmhBUnV0bHJ1SUVfTzZnemVqMkRVZDh5UjBFYi16ckxjR3poZEtlc194Y0dpaklYamlhTlJ0UndDUW14WGhfTmdzSy15bFRYNUowM1NjWWJQdUZiSEFiNjBITHVOTmlGQTgxMTNNTkxWbkhzSXh1a1BqQ2JYSjlkX0E?oc=5"
+    },
+    {
+     "id": 36,
+     "accession": "0000200406-26-000076",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-04-14",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000076/jnj-20260414.htm",
+     "article_url": null
+    },
+    {
+     "id": 194,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Viz.ai",
+     "event_date": "2026-04-22",
+     "quote": "Johnson & Johnson teams up with Viz.ai on hematoma detection",
+     "source_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxQWGYyUE96enFHakZxSTVGdlRDTF9OVGV0b1NuSTVEUFlyVVljRUwwMk92SlNsTDl6LW1MV3UtRkZZYVZIbHZ1YXkxVm9XZVAyZTJGYllYazY2azgzbzFWaC05T2t6OU1NeGJoTkRreEY2U2l3UWJiZ2JuWE9raF94bHE3bl9UX0h4SG5YeQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxQWGYyUE96enFHakZxSTVGdlRDTF9OVGV0b1NuSTVEUFlyVVljRUwwMk92SlNsTDl6LW1MV3UtRkZZYVZIbHZ1YXkxVm9XZVAyZTJGYllYazY2azgzbzFWaC05T2t6OU1NeGJoTkRreEY2U2l3UWJiZ2JuWE9raF94bHE3bl9UX0h4SG5YeQ?oc=5"
+    },
+    {
+     "id": 191,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Atraverse Medical",
+     "event_date": "2026-04-24",
+     "quote": "Johnson & Johnson to acquire AtraVerse Medical and its transseptal access system",
+     "source_url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE9aZzFsSWJxSk5Fcl8yUWNxWWxRd1hOOHUxOXVHMldXdzZycDkzQjJtQnlSaHVydTRYY3c2emRJRHgyV1F3M3RQTTNiZ2ZreXVJMDZ1UFlqN213N0s3RW9kQktaTzVTempJYmZXcjZrQkFvVlVGb2VaeWMzS24?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMifEFVX3lxTE9aZzFsSWJxSk5Fcl8yUWNxWWxRd1hOOHUxOXVHMldXdzZycDkzQjJtQnlSaHVydTRYY3c2emRJRHgyV1F3M3RQTTNiZ2ZreXVJMDZ1UFlqN213N0s3RW9kQktaTzVTempJYmZXcjZrQkFvVlVGb2VaeWMzS24?oc=5"
+    },
+    {
+     "id": 1081,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Atraverse Medical To Expand Cardiac",
+     "event_date": "2026-04-24",
+     "quote": "Johnson & Johnson (JNJ) to Acquire Atraverse Medical to Expand C",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxQQTBpa01xdkFkQ0tJMDBpT0dKSjlFdFhxWldmT2Y3eFVLQUJkTnkwbjZKdjVpT2xlMXRQQ3pJMHBuSWtYd2pvMzFCVmV4V1dydU4zaHFZUFliRGVyeU5vNzM2OHk4ODJRWXdRQ0ozZnFHYzZ5b0hRYU9vZDdlZEtMZ1VOU0M2akJQYS1PS0U2UTRPRm41bDRVeUFkUmhRNWZUeXJ3YmJFa3FrT1ZEVDNQT3Fva2dHbTJtZGFkbjBvR1hVdw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxQQTBpa01xdkFkQ0tJMDBpT0dKSjlFdFhxWldmT2Y3eFVLQUJkTnkwbjZKdjVpT2xlMXRQQ3pJMHBuSWtYd2pvMzFCVmV4V1dydU4zaHFZUFliRGVyeU5vNzM2OHk4ODJRWXdRQ0ozZnFHYzZ5b0hRYU9vZDdlZEtMZ1VOU0M2akJQYS1PS0U2UTRPRm41bDRVeUFkUmhRNWZUeXJ3YmJFa3FrT1ZEVDNQT3Fva2dHbTJtZGFkbjBvR1hVdw?oc=5"
+    },
+    {
+     "id": 1191,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Amplitude Vascular Systems",
+     "event_date": "2026-05-07",
+     "quote": "Stryker completes acquisition of Amplitude Vascular Systems",
+     "source_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxOMkQycUM0NmZjTDdTQ0JMWTh1U1ZBR2V3TktwckRHbE9wREFTLW1WOXJSOERKdGtnXzF3eUM0cmlEVVVSSFJmLTc3X0otMldsSTZ0X2tiZ3FBX2kyQnNyY3I1Uk1GM3ZJdGFfSWNVTzNiX21GcjY3QWZ3RTJBMXp5c2pHQ014Q2ZyYzZNNg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxOMkQycUM0NmZjTDdTQ0JMWTh1U1ZBR2V3TktwckRHbE9wREFTLW1WOXJSOERKdGtnXzF3eUM0cmlEVVVSSFJmLTc3X0otMldsSTZ0X2tiZ3FBX2kyQnNyY3I1Uk1GM3ZJdGFfSWNVTzNiX21GcjY3QWZ3RTJBMXp5c2pHQ014Q2ZyYzZNNg?oc=5"
+    },
+    {
+     "id": 190,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Firefly Bio",
+     "event_date": "2026-06-08",
+     "quote": "Johnson & Johnson acquires Firefly Bio for $1 billion",
+     "source_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxNemtlV3ZWTy1EYTBvWGpSbDhxTTJfclRzN1RERjZrZTcwcWw2OHU0MXFMTkZjVnNqUkdFZ1JKLVFLd2dXb0tPdE9fN0k5WURHZ2lLaGNTQ2R1YUQ0cDAxajlyMWZYbzhJR3hySkJWWlVLOXhjSDBHQ18wWjdGbktIWVJVbmVla2FTX2VNVW5YNk9HUGR3TVlPcnl3OHp0V3M5YVQyckNpZ0s?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxNemtlV3ZWTy1EYTBvWGpSbDhxTTJfclRzN1RERjZrZTcwcWw2OHU0MXFMTkZjVnNqUkdFZ1JKLVFLd2dXb0tPdE9fN0k5WURHZ2lLaGNTQ2R1YUQ0cDAxajlyMWZYbzhJR3hySkJWWlVLOXhjSDBHQ18wWjdGbktIWVJVbmVla2FTX2VNVW5YNk9HUGR3TVlPcnl3OHp0V3M5YVQyckNpZ0s?oc=5"
+    },
+    {
+     "id": 1173,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Firefly Bio To Deepen Oncology",
+     "event_date": "2026-06-08",
+     "quote": "J&J to acquire Firefly, maker of ‘degrader’ antibody drugs, for $1B",
+     "source_url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxPcUhnVFczcEt6TEdEODNqRVMwYXRUZngwVjJOWW00aDRrbF9WR2RDQVVXMHBEWWlBdWR5ZXZvWjYzSVFsUllVV3dvc2xiVnNCbGljNk9PUk9yUF9zM0JqVDlhaElIZGdKTzNKUWQ0OGNzNmVFUmFDS3R3a19uRnVJRllIS2dVS0FwOVVmQWJMNjJXRW44QmctN2JUVnBYNm5RYUR1YmFUTnk2UQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxPcUhnVFczcEt6TEdEODNqRVMwYXRUZngwVjJOWW00aDRrbF9WR2RDQVVXMHBEWWlBdWR5ZXZvWjYzSVFsUllVV3dvc2xiVnNCbGljNk9PUk9yUF9zM0JqVDlhaElIZGdKTzNKUWQ0OGNzNmVFUmFDS3R3a19uRnVJRllIS2dVS0FwOVVmQWJMNjJXRW44QmctN2JUVnBYNm5RYUR1YmFUTnk2UQ?oc=5"
+    },
+    {
+     "id": 2,
+     "accession": "0000200406-26-000146",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-07-15",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/200406/000020040626000146/jnj-20260715.htm",
+     "article_url": null
+    },
+    {
+     "id": 882,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "AtaiBeckley",
+     "event_date": "2026-07-16",
+     "quote": "Lilly buys AtaiBeckley for $2.8B upfront to challenge J&J for psychedelic mental health market",
+     "source_url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxNR2Z4dWs4Yms1QzVzLV85MTA4V0oxOXdOUUpZVTRzU3ZYekRYN0RUNmk3VjRKeHJjT1NiNHAzZVV2dUV5VUZjOThRdlMxNDVrNDEwbU1kQUZtZzhEN0N3ZHBjSlN3d01ZWGhTMXpCZ0dzY1FFcW1JTXlkaDh4RWxSWkpobm1DQ1RqS05RNldHUWRNOExFMG8tdGhLYVNNTEFnVjJKUnZFRzBocERFN1VueWp5UXUzNVMtanRVX0JB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxNR2Z4dWs4Yms1QzVzLV85MTA4V0oxOXdOUUpZVTRzU3ZYekRYN0RUNmk3VjRKeHJjT1NiNHAzZVV2dUV5VUZjOThRdlMxNDVrNDEwbU1kQUZtZzhEN0N3ZHBjSlN3d01ZWGhTMXpCZ0dzY1FFcW1JTXlkaDh4RWxSWkpobm1DQ1RqS05RNldHUWRNOExFMG8tdGhLYVNNTEFnVjJKUnZFRzBocERFN1VueWp5UXUzNVMtanRVX0JB?oc=5"
+    },
+    {
+     "id": 1005,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Expanding Innovations",
+     "event_date": "2026-07-16",
+     "quote": "DePuy Synthes Acquires Expanding Innovations™",
+     "source_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQRzVwSlA0V3FfSzJXYUl0QmVLRUNFQ0pNenVEUkNQSURnNHVPMHh0QlZyeHVNV1lJaERIY2tLN3ZobHp5YVQ0UC16ODloRDhaSDdCeVBDaUFiUjczS3dZNExrLUNoM1NGRE9lOFROcG1LZDZISnB5Qy11MkM0cDkyX0ZZMXlsbEpHdGFLOHFVLUp5a2dFWVNyOExzd05jdjBwa013?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxQRzVwSlA0V3FfSzJXYUl0QmVLRUNFQ0pNenVEUkNQSURnNHVPMHh0QlZyeHVNV1lJaERIY2tLN3ZobHp5YVQ0UC16ODloRDhaSDdCeVBDaUFiUjczS3dZNExrLUNoM1NGRE9lOFROcG1LZDZISnB5Qy11MkM0cDkyX0ZZMXlsbEpHdGFLOHFVLUp5a2dFWVNyOExzd05jdjBwa013?oc=5"
+    },
+    {
+     "id": 967,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Spine Tech And Wins FDA",
+     "event_date": "2026-07-19",
+     "quote": "Johnson & Johnson (JNJ) Buys Spine Tech And Wins FDA Nod For Heart Device",
+     "source_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOSXBKakRHS3NTT2lvYVl1OUkxWVZORWFQaWNqMW5SQ3dhcFlDTDRWcTZsOVFQN3JlMVJqd2VXZWxhQ2o5WGRiXy1SOUVhUkcxdl9JWmdFaG14ZzdsTXJuYTFVQzkwQjVrZFQ4OGwyS3BGMDdCTTlXLTJBSkRDWEFEc0lNTU9iRDI4LXFCc2RjMXRlRE5Sbnc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOSXBKakRHS3NTT2lvYVl1OUkxWVZORWFQaWNqMW5SQ3dhcFlDTDRWcTZsOVFQN3JlMVJqd2VXZWxhQ2o5WGRiXy1SOUVhUkcxdl9JWmdFaG14ZzdsTXJuYTFVQzkwQjVrZFQ4OGwyS3BGMDdCTTlXLTJBSkRDWEFEc0lNTU9iRDI4LXFCc2RjMXRlRE5Sbnc?oc=5"
+    },
+    {
+     "id": 786,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Sail Biomedicines",
+     "event_date": "2026-07-29",
+     "quote": "Johnson & Johnson Announces Collaboration with Sail Biomedicines to Advance in vivo CAR-T Programs and Transform Autoimmune Disease Through Immune Reset - Carroll County Mirror-Democrat",
+     "source_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxQQWtqR0tpY2NZR3U5VmN0bHpWTWMydHJNOEp2a2pKUktENEhjZ2NsTFBMZEpxM09CMUNNTzRhYl9ZZTU5WkFLNDVGb1Z1c1hOb0dlWUZOZnpUSlEyVmFUTlVTSTY0QUdsMlMwMlFHSThQeHVlSVNuRk5tZUxPMjNjdF81Y2VKUG5mMkRfRGllOHlGRnY4Wi12bGtEUGFndXVWTldRRG9iMy15dVdKRTFKeUZoTGwxTTg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxQQWtqR0tpY2NZR3U5VmN0bHpWTWMydHJNOEp2a2pKUktENEhjZ2NsTFBMZEpxM09CMUNNTzRhYl9ZZTU5WkFLNDVGb1Z1c1hOb0dlWUZOZnpUSlEyVmFUTlVTSTY0QUdsMlMwMlFHSThQeHVlSVNuRk5tZUxPMjNjdF81Y2VKUG5mMkRfRGllOHlGRnY4Wi12bGtEUGFndXVWTldRRG9iMy15dVdKRTFKeUZoTGwxTTg?oc=5"
+    },
+    {
+     "id": 1107,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Singapore Economic Development Board",
+     "event_date": "2026-09-02",
+     "quote": "Johnson & Johnson Innovation announces collaboration with Singapore Economic Development Board to help transform Singapore’s life science innovation ecosystem",
+     "source_url": "https://news.google.com/rss/articles/CBMi_gFBVV95cUxQdHpsMmczclVrRnBhUTV5YTFlTTFDWGZFQ0tqaGNlLVdidXpSM2t5d0U1QmI4SEFQVTBrb2tKMjBHcHVKTFdzQ1RHaDNEV3FBRUNPQU1wYjlmc2tyZko2eHl6LXVMRUZHeWcza2J5b2o0ZEVnM1lDalBfTjhlRWVZdkhPdFM0WURFUnhoR2ktcjZoakcxSWFMT0R2LVp3YjNsVGlFMU9BX2I2RkRjQkhwekR4cWtUSU5RWFY2dnl5Y3dTVm9DWGNUYXhGeWZuTENxbmZ2OEp5Q0M1TC1EY2hjMFF2ZE4zMkRBdmp1MkdhNDB6Z2RhMmF4djB4WFJrZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi_gFBVV95cUxQdHpsMmczclVrRnBhUTV5YTFlTTFDWGZFQ0tqaGNlLVdidXpSM2t5d0U1QmI4SEFQVTBrb2tKMjBHcHVKTFdzQ1RHaDNEV3FBRUNPQU1wYjlmc2tyZko2eHl6LXVMRUZHeWcza2J5b2o0ZEVnM1lDalBfTjhlRWVZdkhPdFM0WURFUnhoR2ktcjZoakcxSWFMT0R2LVp3YjNsVGlFMU9BX2I2RkRjQkhwekR4cWtUSU5RWFY2dnl5Y3dTVm9DWGNUYXhGeWZuTENxbmZ2OEp5Q0M1TC1EY2hjMFF2ZE4zMkRBdmp1MkdhNDB6Z2RhMmF4djB4WFJrZw?oc=5"
+    },
+    {
+     "id": 1164,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "AFib",
+     "event_date": "2026-09-15",
+     "quote": "Newly formed Jaguar acquires AFib device assets from J&J",
+     "source_url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxOSFJwR2RUajR0N3FXZ0xiaW5Fbm1LQWZlRmJhR3lqZ0F3QW9BMENpQnh0bUtDbFBza2JPMFM0WjRhR0stalZidmVia1VRNk9wa0RkSzIzT1I3Z0l0VWRPcW9NQW8wWWxpaUlqQ1JDVVBPRlZreTZIcmIyMkJ2U0RYODYxYW9aTDVCU2ZUTk15S2loZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxOSFJwR2RUajR0N3FXZ0xiaW5Fbm1LQWZlRmJhR3lqZ0F3QW9BMENpQnh0bUtDbFBza2JPMFM0WjRhR0stalZidmVia1VRNk9wa0RkSzIzT1I3Z0l0VWRPcW9NQW8wWWxpaUlqQ1JDVVBPRlZreTZIcmIyMkJ2U0RYODYxYW9aTDVCU2ZUTk15S2loZw?oc=5"
+    }
+   ]
+  },
+  "IOVA": {
+   "company": {
+    "ticker": "IOVA",
+    "name": "Iovance Biotherapeutics, Inc."
+   },
+   "rows": [
+    {
+     "id": 777,
+     "accession": "0001104659-25-067940",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-07-15",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925067940/tm2520947d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 881,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Despite Likely Approval For Rival",
+     "event_date": "2025-07-18",
+     "quote": "Iovance: I'm Switching From Sell To Buy Despite Likely Approval For Rival Drug",
+     "source_url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxNaWJrZnBVVFpYLW5kdF9pd3ZILVVUSHVRMGJVbzhwemRNNm9VQjBmNGdwZnZ5V3lRaFZkYTNFX3FZUFRMdWlyZnBQSmR2UnVVcGFDZmlVdFdodVd5RUM4bFNta2lhNnZwLTFZejBYNDRpdnFWV0pNSXJMenFKYWI0TUlMVFVkU3lsYzlkRE1IUjZEa3JHSGdLTTdDczNCVTBrY2ZfRWdobTBqdkRSWUE4ajB6QXM3dHdG?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxNaWJrZnBVVFpYLW5kdF9pd3ZILVVUSHVRMGJVbzhwemRNNm9VQjBmNGdwZnZ5V3lRaFZkYTNFX3FZUFRMdWlyZnBQSmR2UnVVcGFDZmlVdFdodVd5RUM4bFNta2lhNnZwLTFZejBYNDRpdnFWV0pNSXJMenFKYWI0TUlMVFVkU3lsYzlkRE1IUjZEa3JHSGdLTTdDczNCVTBrY2ZfRWdobTBqdkRSWUE4ajB6QXM3dHdG?oc=5"
+    },
+    {
+     "id": 731,
+     "accession": "0001104659-25-075175",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-07",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925075175/tm2522769d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 712,
+     "accession": "0001104659-25-080304",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-19",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925080304/tm2523802d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 708,
+     "accession": "0001104659-25-081953",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-22",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925081953/tm2524060d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 795,
+     "accession": "0001104659-25-085650",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-29",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925085650/tm2524604d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 560,
+     "accession": "0001104659-25-107426",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465925107426/tm2530236d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 502,
+     "accession": "0001104659-26-002323",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-01-09",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926002323/tm262669d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 447,
+     "accession": "0001104659-26-018837",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-24",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926018837/tm266992d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 966,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Westin Savannah Harbor Golf Resort",
+     "event_date": "2026-02-25",
+     "quote": "Hersha acquires Westin Savannah Harbor Golf Resort",
+     "source_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxPeDlKOUt5MDZaVnhubk1FaG1Wa1FQN1RCWUxYS3VJVkF3YXBhVXYzVVFCbDcweEV3b0RkYllMbEpsRHlRZFJyUjNjcVdnLXJzVEc3bDI1NVM3b1RPR0ZWSGN0NS1PSVhkQ3ZPZVQ4TFFvcHl6VWQ5OWtfbjZSQzd5T2FNY19ncjB4VU1FRQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxPeDlKOUt5MDZaVnhubk1FaG1Wa1FQN1RCWUxYS3VJVkF3YXBhVXYzVVFCbDcweEV3b0RkYllMbEpsRHlRZFJyUjNjcVdnLXJzVEc3bDI1NVM3b1RPR0ZWSGN0NS1PSVhkQ3ZPZVQ4TFFvcHl6VWQ5OWtfbjZSQzd5T2FNY19ncjB4VU1FRQ?oc=5"
+    },
+    {
+     "id": 964,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Logistics",
+     "event_date": "2026-03-25",
+     "quote": "Echo Global Logistics Completes Acquisition of ITS Logistics, Expanding Integrated Full Supply Chain Solutions",
+     "source_url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPUkZ6Rk1ROU4tVlI3dGw2Y0FON1l2cVYtYlpOUHAzTTFOMG9PRkdOaS1xRWhzUDdEbEpSbHFjRFRobjN2S2syUTc1MFdfSDdjNlhPelVWanUwXzc3N3duN0RFenU5VmpHNXlDUE13QkNkeDh5OXFmQk1LRGdCcjJZbGh4WnVtUWdwWElTV2J4Mkl4NUZrTTV4U3dFMUpsUDhqR2FlajZtMnREcEpa?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMirAFBVV95cUxPUkZ6Rk1ROU4tVlI3dGw2Y0FON1l2cVYtYlpOUHAzTTFOMG9PRkdOaS1xRWhzUDdEbEpSbHFjRFRobjN2S2syUTc1MFdfSDdjNlhPelVWanUwXzc3N3duN0RFenU5VmpHNXlDUE13QkNkeDh5OXFmQk1LRGdCcjJZbGh4WnVtUWdwWElTV2J4Mkl4NUZrTTV4U3dFMUpsUDhqR2FlajZtMnREcEpa?oc=5"
+    },
+    {
+     "id": 609,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Pullback",
+     "event_date": "2026-04-06",
+     "quote": "Iovance Biotherapeutics: Positioned For Multi-Year Growth, Buy The Pullback (NASDAQ:IOVA)",
+     "source_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxQSDA3R2JrTzBzaFgzRFlCNlRMd3R6YmxYd2VQbGNDU2tPdjc1eW9hMXF3QXpwbFRTWnphQlp4N3RpdllVd1Yza3hMN3Y1SVlLZ3VqeFRxNTY4V1FUS3VPZ00xc1NRc2tOWUFiMnpXczcyb1N4NGlRMmlJUU5yOUVEd0VtT0tnWnVqVUdDV2VzSmZJUkItU0pGS0hzYmJzNk1OZWNWem5Pd2c5UWR6NzVMNHRB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxQSDA3R2JrTzBzaFgzRFlCNlRMd3R6YmxYd2VQbGNDU2tPdjc1eW9hMXF3QXpwbFRTWnphQlp4N3RpdllVd1Yza3hMN3Y1SVlLZ3VqeFRxNTY4V1FUS3VPZ00xc1NRc2tOWUFiMnpXczcyb1N4NGlRMmlJUU5yOUVEd0VtT0tnWnVqVUdDV2VzSmZJUkItU0pGS0hzYmJzNk1OZWNWem5Pd2c5UWR6NzVMNHRB?oc=5"
+    },
+    {
+     "id": 959,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Telix Pharmaceuticals Limited",
+     "event_date": "2026-04-19",
+     "quote": "Regeneron Pharmaceuticals (REGN) Announces Collaboration With Telix Pharmaceuticals Limited",
+     "source_url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxNT0poOXpBWGlJVDFpdThWcGNOMTBOUEV6RlhTSjhITmxFa1h1bHQwblJVazJ2aF94TDdVT1FMMkw3Z3hITnI0UF8yRzZ5YnRiaEdZRkMzTVNzVVZiTkpRaTRNR1ZZbnN5cDJtTVBBSzNDZEtRcWhwbWw5SVZGdjQ3VWFoNkZhczV5SE5zamRCUFo0RERNeXhMMTFxLVNMZnlxWHhjZmNFTE1hRTRDR3M3cFRMb0kwS0xTWENDTVEybGU?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxNT0poOXpBWGlJVDFpdThWcGNOMTBOUEV6RlhTSjhITmxFa1h1bHQwblJVazJ2aF94TDdVT1FMMkw3Z3hITnI0UF8yRzZ5YnRiaEdZRkMzTVNzVVZiTkpRaTRNR1ZZbnN5cDJtTVBBSzNDZEtRcWhwbWw5SVZGdjQ3VWFoNkZhczV5SE5zamRCUFo0RERNeXhMMTFxLVNMZnlxWHhjZmNFTE1hRTRDR3M3cFRMb0kwS0xTWENDTVEybGU?oc=5"
+    },
+    {
+     "id": 340,
+     "accession": "0001104659-26-056782",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-07",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926056782/tm2613648d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1025,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Microsoft",
+     "event_date": "2026-05-20",
+     "quote": "ZIGUP plc announces strategic collaboration with Microsoft to accelerate its AI-powered smarter mobility",
+     "source_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxOay03TUIyb1diS3NHVzl3VjdKbjBRazF0d01iYlpBZWNoWENDaVpLTDBhMURnN1FFeEFKcUJQQ0VlZGZVYTRfVTExUEV0cVFiakVQTWZ6Y1hwbEFlb3lsX0EzSmFPRVZyaWRoV25pU2MtNUFwUEFnZUhsSXg2ODJYWWdQSUlBazc3MTRkdWY2Q1AyaVZNTzh4RHlidDFJX3JHeVZLOXJaUmx3SFFZd09JT1F3?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisgFBVV95cUxOay03TUIyb1diS3NHVzl3VjdKbjBRazF0d01iYlpBZWNoWENDaVpLTDBhMURnN1FFeEFKcUJQQ0VlZGZVYTRfVTExUEV0cVFiakVQTWZ6Y1hwbEFlb3lsX0EzSmFPRVZyaWRoV25pU2MtNUFwUEFnZUhsSXg2ODJYWWdQSUlBazc3MTRkdWY2Q1AyaVZNTzh4RHlidDFJX3JHeVZLOXJaUmx3SFFZd09JT1F3?oc=5"
+    },
+    {
+     "id": 965,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Family First Homecare",
+     "event_date": "2026-06-02",
+     "quote": "Aveanna Healthcare Holdings Completes Acquisition of Family First Homecare and Updates Full Year 2026 Guidance",
+     "source_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxPRFpLcnBKaUpDeHFORlQyME15b3JDU0ZqQzJ2Ylg0SGNYMDRrVDFRcmpsamNGUXRtN0dMc2tQSWJmdWpnQkJ2RFVlQVFMQUVZVk04VzZjSE9ELWpjQW1vcnEzXzZod25jNTBSVExKZUJoRmRHOE9hblV3MUUyU29Eb0NtNTFfQllsMENvakNmSGNnXzBTMmJWV3ZUNEhVR25MSG00VmpJU2F0U1MyOUpGYWRpOGJ3YXVrRHc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxPRFpLcnBKaUpDeHFORlQyME15b3JDU0ZqQzJ2Ylg0SGNYMDRrVDFRcmpsamNGUXRtN0dMc2tQSWJmdWpnQkJ2RFVlQVFMQUVZVk04VzZjSE9ELWpjQW1vcnEzXzZod25jNTBSVExKZUJoRmRHOE9hblV3MUUyU29Eb0NtNTFfQllsMENvakNmSGNnXzBTMmJWV3ZUNEhVR25MSG00VmpJU2F0U1MyOUpGYWRpOGJ3YXVrRHc?oc=5"
+    },
+    {
+     "id": 301,
+     "accession": "0001104659-26-072408",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-06-10",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926072408/tm2613648d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 280,
+     "accession": "0001104659-26-080409",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-07-02",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926080409/tm2618989d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 938,
+     "accession": "0001104659-26-092145",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-08-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926092145/tm2622463d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 939,
+     "accession": "0001104659-26-091619",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-08-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1425205/000110465926091619/tm2622322d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 1042,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Pep Boys",
+     "event_date": "2026-08-20",
+     "quote": "Mavis Completes Acquisition of Pep Boys from Icahn Enterprises",
+     "source_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxPZlZZeWNWLXllWFFnYmI1M3JhcmplYVQxb0M2MUhqcElaMHRxMG1xMTNSQ21remtHcUtzV3ZUVFZWbVNXSF9CZkRyd2JGRVk5bmlhRVlwTzVLaUtKcUNZaV95QjJhVEhURGZqTUYxUVVmR0NfYUNkbW1xZ25ienRxbjJDdDZZeGs5R215UGlfR05mS1h4SUtLQlhFbnlxY044QzJZ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxPZlZZeWNWLXllWFFnYmI1M3JhcmplYVQxb0M2MUhqcElaMHRxMG1xMTNSQ21remtHcUtzV3ZUVFZWbVNXSF9CZkRyd2JGRVk5bmlhRVlwTzVLaUtKcUNZaV95QjJhVEhURGZqTUYxUVVmR0NfYUNkbW1xZ25ienRxbjJDdDZZeGs5R215UGlfR05mS1h4SUtLQlhFbnlxY044QzJZ?oc=5"
+    }
+   ]
+  },
+  "GSK": {
+   "company": {
+    "ticker": "GSK",
+    "name": "GSK plc"
+   },
+   "rows": [
+    {
+     "id": 179,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "CMG1A46",
+     "event_date": "2024-10-29",
+     "quote": "GSK enters agreement to acquire CMG1A46 from Chimagen Biosciences to expand immunology pipeline",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNdmY5azBENHRVYy1CekdWQ045Sks3RkNFTk9tMFNjSTZDcFE2ZnhMeFRMSDRQM1BoVzhRWUh1QUx3SkJYOElPT3ZlemtnaGJ6QVBaM0g5UGpnRkFUb2MzOE9wWS1KcHNUN0VWa0xlcTlBblNvZGxtX3kwRXlNcWFVbW8zNlRRdGpLc1BSRHRXNC1ndXVCeXVxc1ZaR1pwOG41aEl1RE5xWm9Kd0d6NFIwNFVLVQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNdmY5azBENHRVYy1CekdWQ045Sks3RkNFTk9tMFNjSTZDcFE2ZnhMeFRMSDRQM1BoVzhRWUh1QUx3SkJYOElPT3ZlemtnaGJ6QVBaM0g5UGpnRkFUb2MzOE9wWS1KcHNUN0VWa0xlcTlBblNvZGxtX3kwRXlNcWFVbW8zNlRRdGpLc1BSRHRXNC1ndXVCeXVxc1ZaR1pwOG41aEl1RE5xWm9Kd0d6NFIwNFVLVQ?oc=5"
+    },
+    {
+     "id": 1190,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Zhifei",
+     "event_date": "2024-12-05",
+     "quote": "GSK extends strategic vaccine collaboration with Zhifei",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPNTFZWHhsblA5SXlEZXBSQnA2NTRVQ2tMZnVRc1hzT3ZzS09jVTZUaVZQekctZW9tU2dCREsyTl9xdG5Wa1IzNTBqeGNDRU5HOThGQk80VGI2bF9waTBISkZfcEZKQU5vU1lMWDI2NlMtSnN2V3N5bEktRmY5UkFRdHFMdU05Rlp5clZoRGRWbGtqRjNKRWc2bFdVYTZlWFM5UEl0MERSTk1XWmNpanBic1cxTDZWR2t3YVlyTndsN0IwQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxPNTFZWHhsblA5SXlEZXBSQnA2NTRVQ2tMZnVRc1hzT3ZzS09jVTZUaVZQekctZW9tU2dCREsyTl9xdG5Wa1IzNTBqeGNDRU5HOThGQk80VGI2bF9waTBISkZfcEZKQU5vU1lMWDI2NlMtSnN2V3N5bEktRmY5UkFRdHFMdU05Rlp5clZoRGRWbGtqRjNKRWc2bFdVYTZlWFM5UEl0MERSTk1XWmNpanBic1cxTDZWR2t3YVlyTndsN0IwQQ?oc=5"
+    },
+    {
+     "id": 183,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "IDRx",
+     "event_date": "2025-01-13",
+     "quote": "GSK Acquires IDRx",
+     "source_url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5aTi1TUmRiX1AteTlLVzI4MXFaRUF3ZEZzc0FqRGVwWTNzaFBsTkd4eWFrU21vOUFIakJYWGpheDdKOUREaC1LWXljTFJOVGV0UjVsdnBEaVNTcXEwdXZKX0ZiWWJ1RGdWWG45NkxtWFg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5aTi1TUmRiX1AteTlLVzI4MXFaRUF3ZEZzc0FqRGVwWTNzaFBsTkd4eWFrU21vOUFIakJYWGpheDdKOUREaC1LWXljTFJOVGV0UjVsdnBEaVNTcXEwdXZKX0ZiWWJ1RGdWWG45NkxtWFg?oc=5"
+    },
+    {
+     "id": 914,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Massachusetts",
+     "event_date": "2025-01-13",
+     "quote": "GSK acquires Massachusetts cancer biotech in $1.1B deal",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQVERMQVBTTGlpTW9mTzFjTVoyY2xwRzNFN0w4MVlCLVlXZF9NYTN4NkZpZHhZTGNLazZFbEt1YU84NEItemR0OEg4RmUtYWprSVdIa2FWUXNOa1lNZVZTbmZlN3JHV0RGWU0ySWQ4WV85UTJid1dnNnd3emF5Tl9kSldLR2VHWE90YjNzT2xuSEVzQkJSTXg4NmxoMVRJVUVwWThNSktDcmZHelVrS2J3Zm5TONIBuwFBVV95cUxPcFM3S3lwU1g3eGpIdEU2MkNfaUhpeWpyQUNPb0JwUjJxd0Vjd3Z5U01xMC1HamZDUXgya0xPX1BfbFBQdWdtSV80SnhDdE8xa2NGZE9ieEQ4eld6aWdFbUkyRW55dkJHYnN1dUI2SE1XMkNGU3E1TzljTEJFRTRBU3N2VFN4YWN3al9tWUliR1otVWJVWmo5UGVhblJuY3dvMWVkc0xqS1ZnaWdVYlJzMzVQMEdpWEdaWU40?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQVERMQVBTTGlpTW9mTzFjTVoyY2xwRzNFN0w4MVlCLVlXZF9NYTN4NkZpZHhZTGNLazZFbEt1YU84NEItemR0OEg4RmUtYWprSVdIa2FWUXNOa1lNZVZTbmZlN3JHV0RGWU0ySWQ4WV85UTJid1dnNnd3emF5Tl9kSldLR2VHWE90YjNzT2xuSEVzQkJSTXg4NmxoMVRJVUVwWThNSktDcmZHelVrS2J3Zm5TONIBuwFBVV95cUxPcFM3S3lwU1g3eGpIdEU2MkNfaUhpeWpyQUNPb0JwUjJxd0Vjd3Z5U01xMC1HamZDUXgya0xPX1BfbFBQdWdtSV80SnhDdE8xa2NGZE9ieEQ4eld6aWdFbUkyRW55dkJHYnN1dUI2SE1XMkNGU3E1TzljTEJFRTRBU3N2VFN4YWN3al9tWUliR1otVWJVWmo5UGVhblJuY3dvMWVkc0xqS1ZnaWdVYlJzMzVQMEdpWEdaWU40?oc=5"
+    },
+    {
+     "id": 175,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "RAPT Therapeutics",
+     "event_date": "2026-01-20",
+     "quote": "GSK acquires RAPT Therapeutics for $2.2bn",
+     "source_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxNLU1IWmhZRjR1ZHNOOFZrY09XWWd0QTNZa25EVE9kYjBiRkpqcWRtVGFpWWxncjViOHJYU3U5OVhMMTVCbWwwQW00bVI2c25aMzhpRGtzaHhVbHRZd0Rsd3dwYmd1OUJFaVZaUGZxdDZ6aGtHUTRhc2tQdjFuNUNfZmVuRXR0N1ZtUUR2c0Q4Nl94T0t0X0Y1MzlQdXI5ZlFUYXBzTXQ3NUJlcGRwc0FnZA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxNLU1IWmhZRjR1ZHNOOFZrY09XWWd0QTNZa25EVE9kYjBiRkpqcWRtVGFpWWxncjViOHJYU3U5OVhMMTVCbWwwQW00bVI2c25aMzhpRGtzaHhVbHRZd0Rsd3dwYmd1OUJFaVZaUGZxdDZ6aGtHUTRhc2tQdjFuNUNfZmVuRXR0N1ZtUUR2c0Q4Nl94T0t0X0Y1MzlQdXI5ZlFUYXBzTXQ3NUJlcGRwc0FnZA?oc=5"
+    },
+    {
+     "id": 878,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "US-based",
+     "event_date": "2026-01-20",
+     "quote": "GSK to acquire US-based biopharma company RAPT Therapeutics via a $2.2 billion deal — Details here",
+     "source_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxNbFF4Rl91OEtybnoycDZhUmpGaVJ5dUpvNF9Pb1l0R29wMmY5Z1A2R2VIc3VCVFIxTnNUSDRSTE1XSklERkdVMlRjZTdXRTV2LThEejAwWU1wbFdKa2tHQ0NNUWZsSTBITE90QUQtSjlNMjJfd0lxamZiY0Q2UjNXZS1tOUJtTE9GN19odk52ZFJ0MDQwM216SzF4bkgtRXhLMWpEMThpVkZkUk10WVJXdkJ2anRPc2ZZNFNMRXpfblRWQ2dJZDA3NmVMSVJsU0dtWjN2ZENOQlhtSmhBOW1QV1Y5Nm93OE9tbk130gHwAUFVX3lxTE9FOWFVMGdScFZhdG9KMkt5Zm1ZUlFiYlptOF9BY1lQcEFLaXBlVGtIeVFhQktaeXRKRWRjeTQyQmkxcnZmY3pCSHEtZ2g4OHRkVU9mcjJKZUg3UGN5M0piU1NsSUQ1WmRlTjFDT3M2T053bzJxN2w0Z3c3YnB1T2VYdE5Bb2NyOXRGWWx4bzZZNUdnUk44ekpLSG1nSlY5R3JYY19sbERtN0ZyN3VkWG93c3ByOWgxclZ0QzhiS01LNzBKQS1aem5rX1ZmaUplRlIwNzgxZlNSYnVuRTJIYjJFdEZlU1VuVG0yLWFEVWRSVQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxNbFF4Rl91OEtybnoycDZhUmpGaVJ5dUpvNF9Pb1l0R29wMmY5Z1A2R2VIc3VCVFIxTnNUSDRSTE1XSklERkdVMlRjZTdXRTV2LThEejAwWU1wbFdKa2tHQ0NNUWZsSTBITE90QUQtSjlNMjJfd0lxamZiY0Q2UjNXZS1tOUJtTE9GN19odk52ZFJ0MDQwM216SzF4bkgtRXhLMWpEMThpVkZkUk10WVJXdkJ2anRPc2ZZNFNMRXpfblRWQ2dJZDA3NmVMSVJsU0dtWjN2ZENOQlhtSmhBOW1QV1Y5Nm93OE9tbk130gHwAUFVX3lxTE9FOWFVMGdScFZhdG9KMkt5Zm1ZUlFiYlptOF9BY1lQcEFLaXBlVGtIeVFhQktaeXRKRWRjeTQyQmkxcnZmY3pCSHEtZ2g4OHRkVU9mcjJKZUg3UGN5M0piU1NsSUQ1WmRlTjFDT3M2T053bzJxN2w0Z3c3YnB1T2VYdE5Bb2NyOXRGWWx4bzZZNUdnUk44ekpLSG1nSlY5R3JYY19sbERtN0ZyN3VkWG93c3ByOWgxclZ0QzhiS01LNzBKQS1aem5rX1ZmaUplRlIwNzgxZlNSYnVuRTJIYjJFdEZlU1VuVG0yLWFEVWRSVQ?oc=5"
+    },
+    {
+     "id": 176,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Alfasigma",
+     "event_date": "2026-03-09",
+     "quote": "GSK Reaches up to $690 Million Licensing Agreement With Alfasigma",
+     "source_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxOTElmSkp4WXVYbERrN2VLNDAtTmdlNTlfZWY5cWJubXlPSWVLUzQtdUVqc0Y5dWo0N0FmV3FBcktZbmRHUEp4Mjc2UnZlWTNPOXZlRV85dGFmQ1ZBMXNWR2JMLXBsUzRnMXpWbk13THl6RjgxUWJyQVZxTkJ5bWowVmU2RUgxVDI5YWhFY0pFMi14WURObTJfZ2M2S2N0LVMwMXg1YzZzOFNHdmtxb3VILQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxOTElmSkp4WXVYbERrN2VLNDAtTmdlNTlfZWY5cWJubXlPSWVLUzQtdUVqc0Y5dWo0N0FmV3FBcktZbmRHUEp4Mjc2UnZlWTNPOXZlRV85dGFmQ1ZBMXNWR2JMLXBsUzRnMXpWbk13THl6RjgxUWJyQVZxTkJ5bWowVmU2RUgxVDI5YWhFY0pFMi14WURObTJfZ2M2S2N0LVMwMXg1YzZzOFNHdmtxb3VILQ?oc=5"
+    },
+    {
+     "id": 254,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Alfasigma For Linerixibat",
+     "event_date": "2026-03-09",
+     "quote": "GSK Reaches up to $690 Million Licensing Agreement With Alfasigma",
+     "source_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxOTElmSkp4WXVYbERrN2VLNDAtTmdlNTlfZWY5cWJubXlPSWVLUzQtdUVqc0Y5dWo0N0FmV3FBcktZbmRHUEp4Mjc2UnZlWTNPOXZlRV85dGFmQ1ZBMXNWR2JMLXBsUzRnMXpWbk13THl6RjgxUWJyQVZxTkJ5bWowVmU2RUgxVDI5YWhFY0pFMi14WURObTJfZ2M2S2N0LVMwMXg1YzZzOFNHdmtxb3VILQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxOTElmSkp4WXVYbERrN2VLNDAtTmdlNTlfZWY5cWJubXlPSWVLUzQtdUVqc0Y5dWo0N0FmV3FBcktZbmRHUEp4Mjc2UnZlWTNPOXZlRV85dGFmQ1ZBMXNWR2JMLXBsUzRnMXpWbk13THl6RjgxUWJyQVZxTkJ5bWowVmU2RUgxVDI5YWhFY0pFMi14WURObTJfZ2M2S2N0LVMwMXg1YzZzOFNHdmtxb3VILQ?oc=5"
+    },
+    {
+     "id": 14,
+     "accession": "0001654954-26-004645",
+     "deal_type": "collaboration",
+     "counterparty": "Sino Biopharmaceutical, (SBP Group), through its subsidiary Chia Tai Tianqing Pharmaceutical Group Co., Ltd. (CTTQ)",
+     "event_date": "2026-05-11",
+     "quote": "GSK plc (LSE/NYSE: GSK) today announced that it has entered into an exclusive strategic collaboration with Sino Biopharmaceutical, (SBP Group), through its subsidiary Chia Tai Tianqing Pharmaceutical Group Co., Ltd. (CTTQ), to accelerate bepirovirsen in mainland China at launch.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1131399/000165495426004645/a7648d.htm",
+     "article_url": null
+    },
+    {
+     "id": 177,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "SBP Group",
+     "event_date": "2026-05-11",
+     "quote": "GSK enters exclusive collaboration with SBP Group, a market leader in hepatology in China, to accelerate bepirovirsen at launch",
+     "source_url": "https://news.google.com/rss/articles/CBMigwJBVV95cUxPS29zeFJ4R0wwRmVyd1R1Zy11VDJ4bk9uWTVQR2UyVlQ1RTNGQU54c2s3UmZwVnUzUDJJVnoxdWgtUWVET1k5RHFfbFRPeWw3LV9nQXpqbEJKMEpleDdNb1p5TTg2OTN4UTloN0V6LVl0Tmt4N0ptdzNzdmU3ZjBxYmEwaUtidE9ybXhrU3FRYV9qZTE3UF96OGU5M2RxWDdpZXYtRE5sTmVCdEljSGhsQXpTaWpuenBWSHhHdHQ5VFhEa2ZiZm1tU0NDVVlsMElwLUtEX2N4QjB5U21vQkdCSlRVNUpESkxDQmNPSDVmMzR1NkpIYXRZU3VzbUdCMmdZczY4?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMigwJBVV95cUxPS29zeFJ4R0wwRmVyd1R1Zy11VDJ4bk9uWTVQR2UyVlQ1RTNGQU54c2s3UmZwVnUzUDJJVnoxdWgtUWVET1k5RHFfbFRPeWw3LV9nQXpqbEJKMEpleDdNb1p5TTg2OTN4UTloN0V6LVl0Tmt4N0ptdzNzdmU3ZjBxYmEwaUtidE9ybXhrU3FRYV9qZTE3UF96OGU5M2RxWDdpZXYtRE5sTmVCdEljSGhsQXpTaWpuenBWSHhHdHQ5VFhEa2ZiZm1tU0NDVVlsMElwLUtEX2N4QjB5U21vQkdCSlRVNUpESkxDQmNPSDVmMzR1NkpIYXRZU3VzbUdCMmdZczY4?oc=5"
+    },
+    {
+     "id": 9,
+     "accession": "0001654954-26-005800",
+     "deal_type": "acquisition",
+     "counterparty": "Nuvalent, Inc.",
+     "event_date": "2026-06-09",
+     "quote": "GSK plc (LSE/NYSE: GSK) today announced that it has entered an agreement to acquire Nuvalent, Inc. (\"Nuvalent\") (NASDAQ: NUVL) a Boston-based clinical-stage biopharmaceutical company focused on creating precisely targeted oncology therapies, for $10.6 billion.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1131399/000165495426005800/a5507h.htm",
+     "article_url": null
+    },
+    {
+     "id": 174,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Nuvalent",
+     "event_date": "2026-06-09",
+     "quote": "GSK enters agreement to acquire Nuvalent, Inc.",
+     "source_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPTTc3SFlzWjNlX0Q2b0xBdnl5N1kzazBFeG9UWUF3YVVRTjR0VEIxY200Wk85QXdUUnhwVFdVV0hJYmpHcUFoTzVZdExfRUlIM0FxM1ZCQVZTQjEtOGoxZFFEdldJMTNPMExRbFBUR3dqdnJXa2pSWC1tMmtReWZpSndMaUJCMlU1a254V011SnNpMXc3RkE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPTTc3SFlzWjNlX0Q2b0xBdnl5N1kzazBFeG9UWUF3YVVRTjR0VEIxY200Wk85QXdUUnhwVFdVV0hJYmpHcUFoTzVZdExfRUlIM0FxM1ZCQVZTQjEtOGoxZFFEdldJMTNPMExRbFBUR3dqdnJXa2pSWC1tMmtReWZpSndMaUJCMlU1a254V011SnNpMXc3RkE?oc=5"
+    },
+    {
+     "id": 1171,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Nuvalent Inc June",
+     "event_date": "2026-06-09",
+     "quote": "GSK enters agreement to acquire Nuvalent, Inc.",
+     "source_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPTTc3SFlzWjNlX0Q2b0xBdnl5N1kzazBFeG9UWUF3YVVRTjR0VEIxY200Wk85QXdUUnhwVFdVV0hJYmpHcUFoTzVZdExfRUlIM0FxM1ZCQVZTQjEtOGoxZFFEdldJMTNPMExRbFBUR3dqdnJXa2pSWC1tMmtReWZpSndMaUJCMlU1a254V011SnNpMXc3RkE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxPTTc3SFlzWjNlX0Q2b0xBdnl5N1kzazBFeG9UWUF3YVVRTjR0VEIxY200Wk85QXdUUnhwVFdVV0hJYmpHcUFoTzVZdExfRUlIM0FxM1ZCQVZTQjEtOGoxZFFEdldJMTNPMExRbFBUR3dqdnJXa2pSWC1tMmtReWZpSndMaUJCMlU1a254V011SnNpMXc3RkE?oc=5"
+    },
+    {
+     "id": 8,
+     "accession": "0001654954-26-006168",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-06-24",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1131399/000165495426006168/a6263j.htm",
+     "article_url": null
+    },
+    {
+     "id": 1,
+     "accession": "0001654954-26-006663",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-07-15",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1131399/000165495426006663/a5060m.htm",
+     "article_url": null
+    },
+    {
+     "id": 1062,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "ADS",
+     "event_date": "2026-08-26",
+     "quote": "GSK (NYSE: GSK) president acquires ADS in savings plan",
+     "source_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxNUG1lU1hQZjlFN08tclRvU3Rzb0lmQm1PWmpBY2hwVk14VFVHaDlrNDVSTDBkR1hUM1hzby0zS2NaT2xNd2lyNnJPMzFxUEhreFBWeGIxeEpyM0M3ZHBLTTdUeHVHYjVQb01kQVBpVnVoN2E3bjVmSnBJODA1OS1VZGZ6N0hReldvMjBUbk92Q2hQbGZJUEZPb2hWX1FJQ04xT3REYg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxNUG1lU1hQZjlFN08tclRvU3Rzb0lmQm1PWmpBY2hwVk14VFVHaDlrNDVSTDBkR1hUM1hzby0zS2NaT2xNd2lyNnJPMzFxUEhreFBWeGIxeEpyM0M3ZHBLTTdUeHVHYjVQb01kQVBpVnVoN2E3bjVmSnBJODA1OS1VZGZ6N0hReldvMjBUbk92Q2hQbGZJUEZPb2hWX1FJQ04xT3REYg?oc=5"
+    },
+    {
+     "id": 1166,
+     "accession": "0001654954-26-008359",
+     "deal_type": "acquisition",
+     "counterparty": "Chimagen Biosciences",
+     "event_date": "2026-09-15",
+     "quote": "GSK plc (LSE/NYSE: GSK) today announced it has entered an agreement to acquire a potential best-in-class trispecific T cell-engager (TCE) from Chimagen Biosciences (Chimagen), a privately held biotechnology company.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1131399/000165495426008359/a6888u.htm",
+     "article_url": null
+    },
+    {
+     "id": 1163,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Chimagen T",
+     "event_date": "2026-09-16",
+     "quote": "Key facts: GSK plc Sponsored ADR Upgraded; Acquires Chimagen T‑cell Asset",
+     "source_url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQS1ROYUFqdk5rSGRReld4N0NPY2ttNXYySnF5dDExQnlpd21EVEdSNFdheGF1VVRmRnRkVTREMVV4VVNFOGRyQS00NDJQZ2lQNXplTVIxdEJSN0d4dHFtMVRoNDhIZ1A0Rk1IX0tNd1NBWk5IQlNmd3UzdkRxTWU1MTFRUWI1ai1VUUo3dFNlNTI0ejFNRG9LQklIYU4wcFhqNnlsNjVsUFZ3MkdMc2tocWxpS01XcWFaeElVa0tmMjNXekNIaXZYS3Jva3RJZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQS1ROYUFqdk5rSGRReld4N0NPY2ttNXYySnF5dDExQnlpd21EVEdSNFdheGF1VVRmRnRkVTREMVV4VVNFOGRyQS00NDJQZ2lQNXplTVIxdEJSN0d4dHFtMVRoNDhIZ1A0Rk1IX0tNd1NBWk5IQlNmd3UzdkRxTWU1MTFRUWI1ai1VUUo3dFNlNTI0ejFNRG9LQklIYU4wcFhqNnlsNjVsUFZ3MkdMc2tocWxpS01XcWFaeElVa0tmMjNXekNIaXZYS3Jva3RJZw?oc=5"
+    }
+   ]
+  },
+  "NVS": {
+   "company": {
+    "ticker": "NVS",
+    "name": "Novartis AG"
+   },
+   "rows": [
+    {
+     "id": 227,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Kate Therapeutics",
+     "event_date": "2024-11-22",
+     "quote": "Novartis acquires Kate Therapeutics to advance gene therapies",
+     "source_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPQy1jMk0zWGNvSUI0VHNKTENvRm1QTEpaTXVYM2VUZUVqZDdacm5pNm9SR2pNYndxUU9xNkNueC1DbXc3YWR3RUVMVmQ5Q3AtVDdqMF95bFlDa1JtUXZiN1dFZTlHbi15Nkh3SXZMN3NFNEtsdDdSaVcwdEtzNkVjV3c5LVl6LWRhZmk0?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxPQy1jMk0zWGNvSUI0VHNKTENvRm1QTEpaTXVYM2VUZUVqZDdacm5pNm9SR2pNYndxUU9xNkNueC1DbXc3YWR3RUVMVmQ5Q3AtVDdqMF95bFlDa1JtUXZiN1dFZTlHbi15Nkh3SXZMN3NFNEtsdDdSaVcwdEtzNkVjV3c5LVl6LWRhZmk0?oc=5"
+    },
+    {
+     "id": 932,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Regulus Therapeutics",
+     "event_date": "2025-06-25",
+     "quote": "Novartis completes acquisition of Regulus Therapeutics and initiates Nasdaq delisting",
+     "source_url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxNNmV0X1dRVzR2QVJ4SFpyQmI3dy1hdEFnSkc0OXZJM1pPT2Z0SG9ra0lZcmFFb1VXRHIydTZXX3F3eV9QZ2RTZVNHdGdabUpnaVVad191Vlhfbm5OQlM2bFl1cmF0SEMwOURqWXFrZ29GbWFHRXRHRzdQZ3ZsMEg0cXJVQTJRU0w0M1BjSk9vNGxPeC15RjBzTkVib0NfMmhEUXlCeXFQRlVhVTFkbWtBaXpOUHlUTjNsVE9ZdmxPQnRGWlpFYXQ5RFFZdW01ZG1pc25XZXZhR2E?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxNNmV0X1dRVzR2QVJ4SFpyQmI3dy1hdEFnSkc0OXZJM1pPT2Z0SG9ra0lZcmFFb1VXRHIydTZXX3F3eV9QZ2RTZVNHdGdabUpnaVVad191Vlhfbm5OQlM2bFl1cmF0SEMwOURqWXFrZ29GbWFHRXRHRzdQZ3ZsMEg0cXJVQTJRU0w0M1BjSk9vNGxPeC15RjBzTkVib0NfMmhEUXlCeXFQRlVhVTFkbWtBaXpOUHlUTjNsVE9ZdmxPQnRGWlpFYXQ5RFFZdW01ZG1pc25XZXZhR2E?oc=5"
+    },
+    {
+     "id": 893,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "China's",
+     "event_date": "2025-09-03",
+     "quote": "Novartis signs up to $5.2 billion licensing deal with China's biotech Argo for heart drugs",
+     "source_url": "https://news.google.com/rss/articles/CBMi5wFBVV95cUxNUmU3OUctRkVvYWdEbVROYVBDbklxYkZScVd2QzdIcU5iUzZ4b1NwZHcySzhqa0MxU0FrTmNWb3dFcnNUSlRjTXp4WVRyMEU3N2QtamxsaUpKUDloSGpabDlMd3RGM2JvYVpVMWhpa2Q5UnNsQm5lT2dLeDUxN2JPeU03YW9xQ05pS1BhLURFWEpiM2tDcXBxa2JtTHlRZjB5SjlDTWJ6b2c3b0prejF5WmJnZEh4LXZRN3lfVlhxZmIyNURrRmdBMnhSM2pvWWdrQ0I0Y25Cd3JCR0J5X2ZXMG44RDZ1bFU?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi5wFBVV95cUxNUmU3OUctRkVvYWdEbVROYVBDbklxYkZScVd2QzdIcU5iUzZ4b1NwZHcySzhqa0MxU0FrTmNWb3dFcnNUSlRjTXp4WVRyMEU3N2QtamxsaUpKUDloSGpabDlMd3RGM2JvYVpVMWhpa2Q5UnNsQm5lT2dLeDUxN2JPeU03YW9xQ05pS1BhLURFWEpiM2tDcXBxa2JtTHlRZjB5SjlDTWJ6b2c3b0prejF5WmJnZEh4LXZRN3lfVlhxZmIyNURrRmdBMnhSM2pvWWdrQ0I0Y25Cd3JCR0J5X2ZXMG44RDZ1bFU?oc=5"
+    },
+    {
+     "id": 1094,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "RNA",
+     "event_date": "2025-09-03",
+     "quote": "Novartis licenses RNA drugs in deal with China-based Argo",
+     "source_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxNMjhabXRyS3cybG42MXdOTkNXd1J4QXVYRGZKMkFjR3RUUUh2YnhUNzZYV24xWmkzZXI1ZjFCUzRFaUpmZFVTWHBMUHhlQ0ZNZVI2cXhzUmFtWU9idnZiMHI1NzY5WnNZX0VOaFZGVEtibm1jcDJFdkFZLVE2QURsSkc0M04waFVGT3FWSFVqS3lIZHc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxNMjhabXRyS3cybG42MXdOTkNXd1J4QXVYRGZKMkFjR3RUUUh2YnhUNzZYV24xWmkzZXI1ZjFCUzRFaUpmZFVTWHBMUHhlQ0ZNZVI2cXhzUmFtWU9idnZiMHI1NzY5WnNZX0VOaFZGVEtibm1jcDJFdkFZLVE2QURsSkc0M04waFVGT3FWSFVqS3lIZHc?oc=5"
+    },
+    {
+     "id": 974,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Tourmaline Bio",
+     "event_date": "2025-09-08",
+     "quote": "Novartis Acquires Tourmaline Bio at 59% Premium, Expands Cardiovascular Pipeline",
+     "source_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQbTdMS2xaeFVJS0VTSTVTd09yYnAwWnI5UjNXU1VxaDVTQloyOGItQTB5MlNLemRZeDBhMWhMb1FnOWRyT1pKWnVJdWowdXpienp1VWRFRlVfWUtvS09iX0ZlNTFJU1FRel81WDJFYmtnRXI0NEltdjNSNXI1ekVLQUFrYTNtbjNURVM3dEduU2lXT1pFYlpETzhGdUpBcm9BZlp6WHRuVGJhdFNjdGdqSlMzV1JfVnU2bkE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxQbTdMS2xaeFVJS0VTSTVTd09yYnAwWnI5UjNXU1VxaDVTQloyOGItQTB5MlNLemRZeDBhMWhMb1FnOWRyT1pKWnVJdWowdXpienp1VWRFRlVfWUtvS09iX0ZlNTFJU1FRel81WDJFYmtnRXI0NEltdjNSNXI1ekVLQUFrYTNtbjNURVM3dEduU2lXT1pFYlpETzhGdUpBcm9BZlp6WHRuVGJhdFNjdGdqSlMzV1JfVnU2bkE?oc=5"
+    },
+    {
+     "id": 226,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Monte Rosa Therapeutics",
+     "event_date": "2025-09-15",
+     "quote": "Novartis signs up to $5.7 billion licensing deal with Monte Rosa Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMi3AFBVV95cUxNdG9FYUFjUVpGNWRwNFc5VjJTNG9BdTU5aUdOSzJ5WUxaQkJMRks3eGxPTktTcGxHQUdRVmd0cllIUV9aWmtzUlZHVUN2dV8xajF3V0FkVFgteERsN2JudEl2V3dKX3V0b1gtVmxnX05HNEVnTDY3b28tQ3V0ZGg2VmItbEQtX21xZjVlaExsaUlPa3RwMkpZSXNIbi1QY09GOWR0SHRYMF90US0xNl9pVGw0bV9FdnhqMS1wWWJreTJoRThoT2JUMkstVVY2ZWlzd2hnYUUwOXY3ZXg5?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi3AFBVV95cUxNdG9FYUFjUVpGNWRwNFc5VjJTNG9BdTU5aUdOSzJ5WUxaQkJMRks3eGxPTktTcGxHQUdRVmd0cllIUV9aWmtzUlZHVUN2dV8xajF3V0FkVFgteERsN2JudEl2V3dKX3V0b1gtVmxnX05HNEVnTDY3b28tQ3V0ZGg2VmItbEQtX21xZjVlaExsaUlPa3RwMkpZSXNIbi1QY09GOWR0SHRYMF90US0xNl9pVGw0bV9FdnhqMS1wWWJreTJoRThoT2JUMkstVVY2ZWlzd2hnYUUwOXY3ZXg5?oc=5"
+    },
+    {
+     "id": 225,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Avidity Biosciences",
+     "event_date": "2025-10-26",
+     "quote": "Novartis to buy Avidity Biosciences for $12bn",
+     "source_url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxNcERyNUR4Q0NIOTkxMThSR3ZFUGpPbF9KZ21IZ0w4SFNXQUl5TnNnWXhCYkdFZFlHRDJGZWkwc0ZrSHNVSEJnYUh4SndTZ0gxeEQ1UmNWaDJvY29SX0c3RXB3TnJuVGE1QnY0d2UyYUtZcnJUcy01d0N6eHR5ZWE4RlFtRk0?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxNcERyNUR4Q0NIOTkxMThSR3ZFUGpPbF9KZ21IZ0w4SFNXQUl5TnNnWXhCYkdFZFlHRDJGZWkwc0ZrSHNVSEJnYUh4SndTZ0gxeEQ1UmNWaDJvY29SX0c3RXB3TnJuVGE1QnY0d2UyYUtZcnJUcy01d0N6eHR5ZWE4RlFtRk0?oc=5"
+    },
+    {
+     "id": 891,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "U.S",
+     "event_date": "2025-10-26",
+     "quote": "Novartis to buy U.S. biotech firm Avidity Biosciences for about $12 billion in cash",
+     "source_url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE5aM2J3elR2QkxVV2xrTEdLNFV2NUk4ZTA3bDJwTkRXdlJxVld6YkFkRTBwQk9IVzdNLXdtWEl6VjN3R3FjcnYxdVJxcnd2NXEwTnktd0NIOVpKRDJvQ0RzYVNGU0c1YWtLN1JVRW5kOUE0Sl9FRzRZcDQyZ9IBgAFBVV95cUxOeXpLMkVMZk1XdnVDVVkwa194SGRUQXNvdTNVSW0wRHJONVpSblFUR0MzMHVHanh6U2k5V2FpMm80cnhFOWk2RHpPR3dxQWNGSmlYeHlRSEtQUElKcXl6UUNIVlYwb0RYWUJpNGJ5c1JQcmZPUXJkbVZhM1lON0FrcA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE5aM2J3elR2QkxVV2xrTEdLNFV2NUk4ZTA3bDJwTkRXdlJxVld6YkFkRTBwQk9IVzdNLXdtWEl6VjN3R3FjcnYxdVJxcnd2NXEwTnktd0NIOVpKRDJvQ0RzYVNGU0c1YWtLN1JVRW5kOUE0Sl9FRzRZcDQyZ9IBgAFBVV95cUxOeXpLMkVMZk1XdnVDVVkwa194SGRUQXNvdTNVSW0wRHJONVpSblFUR0MzMHVHanh6U2k5V2FpMm80cnhFOWk2RHpPR3dxQWNGSmlYeHlRSEtQUElKcXl6UUNIVlYwb0RYWUJpNGJ5c1JQcmZPUXJkbVZhM1lON0FrcA?oc=5"
+    },
+    {
+     "id": 1008,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Drug",
+     "event_date": "2026-03-20",
+     "quote": "Novartis to Buy Breast Cancer Drug for as Much as $3 Billion",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOckp6LVVyTUk4bGc1MjNlUlZxSmpiU09OREsySGczSWpnUlJneE5XbkZRNGRWUUpTSHI2LXktT1J6b3U2cHNOa1pKSVFNMXNSZ293VGxreS1aTHRENkxOX3hzckZ0UkdCc2VCdlhPOTZYTXljWmZuV29haHlocDBNMldNVC1mejhOYkdORkxodXk1WnJGc2FJTHdQR0hxY0Nna0VkUWdyUnlBblF4UVBuNVdNNA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxOckp6LVVyTUk4bGc1MjNlUlZxSmpiU09OREsySGczSWpnUlJneE5XbkZRNGRWUUpTSHI2LXktT1J6b3U2cHNOa1pKSVFNMXNSZ293VGxreS1aTHRENkxOX3hzckZ0UkdCc2VCdlhPOTZYTXljWmZuV29haHlocDBNMldNVC1mejhOYkdORkxodXk1WnJGc2FJTHdQR0hxY0Nna0VkUWdyUnlBblF4UVBuNVdNNA?oc=5"
+    },
+    {
+     "id": 1033,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Excellergy",
+     "event_date": "2026-03-27",
+     "quote": "Novartis agrees to acquire Excellergy, Inc., building on allergy leadership with next-generation anti-IgE innovation",
+     "source_url": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxQYm1xVHpTS1Boekp5RjFFQVROLW05cUpYQWNyMXNJR1JocWlWaE9xRVNwY29ZSTM0TE1IRzdYclNzenBncjlQVE5ubnpCOUJGZzNJTEhEd2ZCZzFxd21sYjZiUDJtUHZXWFlKelRKZTU0NEJBaWdKRkthM0hJUk9ic3RjZnpOZmtkckV6RHNTdjRyTEQ3V21sdk9EUzdUYkJxMEdXMGpuZHdEeHNnMTBnRkNKbHR3elVoMERveF9mMkhGVDVpVk1QMGY5YkdYTHloNGwtQy1FaGtHVkV5QklMSw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxQYm1xVHpTS1Boekp5RjFFQVROLW05cUpYQWNyMXNJR1JocWlWaE9xRVNwY29ZSTM0TE1IRzdYclNzenBncjlQVE5ubnpCOUJGZzNJTEhEd2ZCZzFxd21sYjZiUDJtUHZXWFlKelRKZTU0NEJBaWdKRkthM0hJUk9ic3RjZnpOZmtkckV6RHNTdjRyTEQ3V21sdk9EUzdUYkJxMEdXMGpuZHdEeHNnMTBnRkNKbHR3elVoMERveF9mMkhGVDVpVk1QMGY5YkdYTHloNGwtQy1FaGtHVkV5QklMSw?oc=5"
+    },
+    {
+     "id": 1032,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Myricx Bio",
+     "event_date": "2026-07-06",
+     "quote": "Novartis agrees to acquire Myricx Bio, advancing next-generation antibody-drug conjugate innovation with a novel NMTi payload, expanding options for cancer patients",
+     "source_url": "https://news.google.com/rss/articles/CBMingJBVV95cUxPNDJPejBFVFlCenNZTkZ5NjdPb2tDcldBaUxlOGQwQVl0RHZ6MTBRcFdLZTgwQlY1SHotLWJtdWM3dWNYdWQ3MWdreWl2SDNKTTNROG9TbXp6MmdfbFNxUnF1Rjl1a1dSNlFnZmk0ZW55dEhrcVRHRlVYUVg3aWdxUGFFZzFXZ183NkFSelZwc2xsTzhXYmc1UUFvZnRNamFrQnRXZ1poRmFTVVROdXFCamdzZ1VSNnRlb0plSW1OS1hWb1M1OXFwV0oxTWZtQllHeXptbWZ0czc1YWc4MmM2R3QxbmFfZ3ZwcExja09xS1lMOVFVSXlhVUVhNWZPM1ZzMXdiMFNNVElNX1pZbnd4cVVhNUlBdTQ1aHVZbHhB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMingJBVV95cUxPNDJPejBFVFlCenNZTkZ5NjdPb2tDcldBaUxlOGQwQVl0RHZ6MTBRcFdLZTgwQlY1SHotLWJtdWM3dWNYdWQ3MWdreWl2SDNKTTNROG9TbXp6MmdfbFNxUnF1Rjl1a1dSNlFnZmk0ZW55dEhrcVRHRlVYUVg3aWdxUGFFZzFXZ183NkFSelZwc2xsTzhXYmc1UUFvZnRNamFrQnRXZ1poRmFTVVROdXFCamdzZ1VSNnRlb0plSW1OS1hWb1M1OXFwV0oxTWZtQllHeXptbWZ0czc1YWc4MmM2R3QxbmFfZ3ZwcExja09xS1lMOVFVSXlhVUVhNWZPM1ZzMXdiMFNNVElNX1pZbnd4cVVhNUlBdTQ1aHVZbHhB?oc=5"
+    },
+    {
+     "id": 892,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Swiss",
+     "event_date": "2026-07-30",
+     "quote": "PE firm ChrysCapital acquires Swiss parent's stake in Novartis India",
+     "source_url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxNM2xrN2ZHVjFDNF9IYUtscUE2a0lENE5iYlFhcGplZDhjRGpPQzExcjFueFhQajF0RVQ4cEVHTlJzS3N4ZlJJU0ViRlJNZk0xdjJyaE9MRERPOHBPZE1NWEZ4SllCRHB4R2lNV2NxQnJJTThoYlEySW9SZWUwTWFTVXdpcGJVSHB1SHNvZWRLZDBJU19NQ2czdnJTOWdXeEFRbi1LaEdtVXhOVDBZLVVHU180ZGFWWjRuZTRnWEVGYjZkNGlYZzNLT3d5NUYtd0XSAdYBQVVfeXFMTXdaS2xUREZPR2FBRGt1N3ItWE5FUHh2bG85ZjlLT3BfUkY4SEJOTFQ5QktwTVIxM2laa1BnbDhXMi1MdnRsWVI0WGJvUy1EOGQ4SFkyZmJscGdtalRkWWNWNFdLLThNXzI0b2RTZmZfR2FjenNjMWxSVF9jRzE2UC1zTG56LS1WbWxHZUFJalVlbFZ0OGQ0T3BTRnBsek4xM3pxWEdnbGZqaERibkQ5YjU0cnQ1UDFSRHJ1OWUxeEVMaGVKSFBRT2VkLVJIelc5V2dJX0Rhdw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxNM2xrN2ZHVjFDNF9IYUtscUE2a0lENE5iYlFhcGplZDhjRGpPQzExcjFueFhQajF0RVQ4cEVHTlJzS3N4ZlJJU0ViRlJNZk0xdjJyaE9MRERPOHBPZE1NWEZ4SllCRHB4R2lNV2NxQnJJTThoYlEySW9SZWUwTWFTVXdpcGJVSHB1SHNvZWRLZDBJU19NQ2czdnJTOWdXeEFRbi1LaEdtVXhOVDBZLVVHU180ZGFWWjRuZTRnWEVGYjZkNGlYZzNLT3d5NUYtd0XSAdYBQVVfeXFMTXdaS2xUREZPR2FBRGt1N3ItWE5FUHh2bG85ZjlLT3BfUkY4SEJOTFQ5QktwTVIxM2laa1BnbDhXMi1MdnRsWVI0WGJvUy1EOGQ4SFkyZmJscGdtalRkWWNWNFdLLThNXzI0b2RTZmZfR2FjenNjMWxSVF9jRzE2UC1zTG56LS1WbWxHZUFJalVlbFZ0OGQ0T3BTRnBsek4xM3pxWEdnbGZqaERibkQ5YjU0cnQ1UDFSRHJ1OWUxeEVMaGVKSFBRT2VkLVJIelc5V2dJX0Rhdw?oc=5"
+    },
+    {
+     "id": 1121,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Minipress",
+     "event_date": "2026-09-07",
+     "quote": "Novartis India buys Minipress brands from Pfizer for ₹1,250 crore",
+     "source_url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxObWZEQ3lRYzRpTXpabUQ2ajJXNjI5ZmZNckVmeVViOE45VTluQVE2b3BlWi1haGZHT2RzZml5ZmFXS0tRaHhHLTNmREVPMzRhSFNHVGJTTklJOWR0N0RNMmI1Tmh0R21YVHNLOUwwMXp0dmlPbVBtR3BoU05FSEQ2LUpJYnM0VzYwd3pBc1lXaWhORE85YXY4QXlvVVVjV0VBbndxbW9TcDE3dk13bk5HSHd6VWZ1cldjQWt5MGtlZUtCZVpwTEFUT0FnZHBvd9IB0wFBVV95cUxOdkF6UWhWaTc4cnYwN3J2X1RzT3FZb3VSVlJBeXhVTnItOUhwVXRlN2R1Zm9yaktoRGtkRmhFUW1Hd0RqelFJUXZ1T1RKdWU4SnN6MUJhQmVObk1FVHhOTC00U3MtVkk3M1YxWloxUlRFeWNReFpwUDNydzA4c19uSzU0SXpHUXkxamNhSE5aUlNFT1Mzd0ZXVXN4NnRzaFlfMzMyN1VRcjJMRi1aN3ExTGNIaEtOZllCOFFXT0p3YUhYMEtJQjR5UDdoUlk0a2h1MjVN?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxObWZEQ3lRYzRpTXpabUQ2ajJXNjI5ZmZNckVmeVViOE45VTluQVE2b3BlWi1haGZHT2RzZml5ZmFXS0tRaHhHLTNmREVPMzRhSFNHVGJTTklJOWR0N0RNMmI1Tmh0R21YVHNLOUwwMXp0dmlPbVBtR3BoU05FSEQ2LUpJYnM0VzYwd3pBc1lXaWhORE85YXY4QXlvVVVjV0VBbndxbW9TcDE3dk13bk5HSHd6VWZ1cldjQWt5MGtlZUtCZVpwTEFUT0FnZHBvd9IB0wFBVV95cUxOdkF6UWhWaTc4cnYwN3J2X1RzT3FZb3VSVlJBeXhVTnItOUhwVXRlN2R1Zm9yaktoRGtkRmhFUW1Hd0RqelFJUXZ1T1RKdWU4SnN6MUJhQmVObk1FVHhOTC00U3MtVkk3M1YxWloxUlRFeWNReFpwUDNydzA4c19uSzU0SXpHUXkxamNhSE5aUlNFT1Mzd0ZXVXN4NnRzaFlfMzMyN1VRcjJMRi1aN3ExTGNIaEtOZllCOFFXT0p3YUhYMEtJQjR5UDdoUlk0a2h1MjVN?oc=5"
+    },
+    {
+     "id": 1148,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Pfizer",
+     "event_date": "2026-09-07",
+     "quote": "Novartis India to acquire Pfizer hypertension brand Minipress for ₹1250 crore",
+     "source_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxOZm5RTFFaUXVJeV9PdHBqRjJVVWZKVldVdUZRQVJsODhrTklkWXE3ZDZ5TWJpRWp3SktkdG9SNm53Vl9oZ190Yk9aSXFRdDJVYUVXcnB6Q05acVMtM2laYTVRVXlGVUVidUxpdTRLUWltOXVSVWZhdDJjbkwyZFZBTUJrYXJyU3lVMTljMi1sdEQyQ1JfTU1XSVZVUE43MGgzQVdZVjB2dTRONFB6U19VSTczZGV2aHRzamkwc3M4ZV91MVZnc3F1cWU5YzZ1bU42WmtHWTZfVDZfWmRwU3JhbnY3UzlSd9IB6wFBVV95cUxQR0lrTTIwWEdJd3Y5amVKQWZISnBGZUQ4YThzMWQ1NjB6dkdFMTVIRzlybEV5Qjl2RDdHbFNSOERBeVFLWmlSSFFKZnZvdXZJQnhHV2s4SW50bDdGRUdHOWpiZ1FtaGRoQlRrYVU5Ni1xUnpVdmJJRmJUX0dOTXEzVDAtZUpYZlR3N054NnRqSUtkSHJrT1NMODlIMFFsUGx6QnVxcU9ET3Y2SlNzcG5IRE9LLXNURDdnaFNqX3JQcDFMX3NsT0x2eTFhWHRFWEZ3YVNIYlB4dnBRQjIyNkxIdVVlQUVidG9PUF9V?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxOZm5RTFFaUXVJeV9PdHBqRjJVVWZKVldVdUZRQVJsODhrTklkWXE3ZDZ5TWJpRWp3SktkdG9SNm53Vl9oZ190Yk9aSXFRdDJVYUVXcnB6Q05acVMtM2laYTVRVXlGVUVidUxpdTRLUWltOXVSVWZhdDJjbkwyZFZBTUJrYXJyU3lVMTljMi1sdEQyQ1JfTU1XSVZVUE43MGgzQVdZVjB2dTRONFB6U19VSTczZGV2aHRzamkwc3M4ZV91MVZnc3F1cWU5YzZ1bU42WmtHWTZfVDZfWmRwU3JhbnY3UzlSd9IB6wFBVV95cUxQR0lrTTIwWEdJd3Y5amVKQWZISnBGZUQ4YThzMWQ1NjB6dkdFMTVIRzlybEV5Qjl2RDdHbFNSOERBeVFLWmlSSFFKZnZvdXZJQnhHV2s4SW50bDdGRUdHOWpiZ1FtaGRoQlRrYVU5Ni1xUnpVdmJJRmJUX0dOTXEzVDAtZUpYZlR3N054NnRqSUtkSHJrT1NMODlIMFFsUGx6QnVxcU9ET3Y2SlNzcG5IRE9LLXNURDdnaFNqX3JQcDFMX3NsT0x2eTFhWHRFWEZ3YVNIYlB4dnBRQjIyNkxIdVVlQUVidG9PUF9V?oc=5"
+    }
+   ]
+  },
+  "ROG": {
+   "company": {
+    "ticker": "ROG",
+    "name": "Roche Holding AG"
+   },
+   "rows": [
+    {
+     "id": 900,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Sanofi's New Jersey",
+     "event_date": "2025-07-16",
+     "quote": "Thermo Fisher acquires Sanofi's New Jersey manufacturing site",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQUHFtWkd2UkJucVcyYy1yVENZcUluR0xrTHUzeV9RU3VEb1Z4YUZvTGJIU2N6bnZmVE5HZEtqYW1zU3VTTWRtMWJNZUxSR1FQOGVvY2prTkV4V3kwN2FWNzc4bDdZNFFHMDFVczRwZGNPVWRBOUREQzJYWU5ERXBoVmt1LWhfay13ZWtqX0hRSFpJTGxzZDVTTHRKTllnYmNRdF9HNDljQUhDeldDU0NXSEVJNA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQUHFtWkd2UkJucVcyYy1yVENZcUluR0xrTHUzeV9RU3VEb1Z4YUZvTGJIU2N6bnZmVE5HZEtqYW1zU3VTTWRtMWJNZUxSR1FQOGVvY2prTkV4V3kwN2FWNzc4bDdZNFFHMDFVczRwZGNPVWRBOUREQzJYWU5ERXBoVmt1LWhfay13ZWtqX0hRSFpJTGxzZDVTTHRKTllnYmNRdF9HNDljQUhDeldDU0NXSEVJNA?oc=5"
+    },
+    {
+     "id": 897,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Biopharmceutical Firm",
+     "event_date": "2025-09-18",
+     "quote": "Roche to Buy Biopharmceutical Firm 89bio in $3.5 Billion Deal",
+     "source_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxPRTZZLWZKQ3RpLWZFakUwMTlxTkZOckNnbGJvZ2o5Y2JhLWppU2xHbDJ4TFpCMVdNWVJTRGZ4LUduSDFEc01ULWtfb3R3LXRvSm8xRkgyRmZSejhEcm81dnRma0sxbkEwdklIX3JIWXZ2OFVBYjJXcUxhV0FVdmF6Q0lja1RNVWt4WnZsQjVERkk1T09kLWU4aVpwamRfX18wVnpJaThfeUlPQmlqZVVHQQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMisAFBVV95cUxPRTZZLWZKQ3RpLWZFakUwMTlxTkZOckNnbGJvZ2o5Y2JhLWppU2xHbDJ4TFpCMVdNWVJTRGZ4LUduSDFEc01ULWtfb3R3LXRvSm8xRkgyRmZSejhEcm81dnRma0sxbkEwdklIX3JIWXZ2OFVBYjJXcUxhV0FVdmF6Q0lja1RNVWt4WnZsQjVERkk1T09kLWU4aVpwamRfX18wVnpJaThfeUlPQmlqZVVHQQ?oc=5"
+    },
+    {
+     "id": 1099,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Biz",
+     "event_date": "2025-09-18",
+     "quote": "Sidley-Led Roche To Buy US Pharma Biz For $3.5B",
+     "source_url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxNS0pSYUVGdEtnVzRGNGVocWI2RmF0aGNZZ3BVbHl6V0dsNWlGSXhOaml5d3hLZHZtWGRWZnpQei1hejI3SE1oTmdKYnJhMjZ6cWp2ckFPcnVVTnRldEhQdE1Ecnk4UzhHSVV2WndrX2xXZjRkODNya2JfeFMwV1NBQVVWdWFZRnJGc2RoMW84MNIBVkFVX3lxTE1vUGlsVHhiLVdtUFI2Y0Y3NGNaNS14VVpDQkxvZnE1bU9haWJUQXRoZmpMeTh0U0hQX2pHX2JwOWozQWZOMWpacnFkZk9JRkJCYnRSanVB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijwFBVV95cUxNS0pSYUVGdEtnVzRGNGVocWI2RmF0aGNZZ3BVbHl6V0dsNWlGSXhOaml5d3hLZHZtWGRWZnpQei1hejI3SE1oTmdKYnJhMjZ6cWp2ckFPcnVVTnRldEhQdE1Ecnk4UzhHSVV2WndrX2xXZjRkODNya2JfeFMwV1NBQVVWdWFZRnJGc2RoMW84MNIBVkFVX3lxTE1vUGlsVHhiLVdtUFI2Y0Y3NGNaNS14VVpDQkxvZnE1bU9haWJUQXRoZmpMeTh0U0hQX2pHX2JwOWozQWZOMWpacnFkZk9JRkJCYnRSanVB?oc=5"
+    },
+    {
+     "id": 246,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Chugai Pharma",
+     "event_date": "2025-10-17",
+     "quote": "Rani Therapeutics signs up to $1.09 billion licensing deal with Japan's Chugai Pharma",
+     "source_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxPZXJnVnZpRDZYOVExZExISWFBNUh1UFhOb3ZickdWVkl2Mk1STC1FcERrcmxXdlRZekROaEdLb1Jybzh3Sl9vRUNXdzJzaVRYZzVOZHhJVi1YU21VUkdwVXU3dk9kaEtkUmt0TU1GTV9EalZFUDdyOUhhZWdnNEdCMDdncVFndXdRNHVlYkQ3QURTM1MzRUNacHVueW9HTGNIVnBkSTlUSk5QT3FzV3o0OHp0RmJldkVHSFhHSHRGdm15Q2E2VnNseG9kYU54LTd6SkYxbk51WDIzbXo1LVFKYXBRcEZ1UQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi5gFBVV95cUxPZXJnVnZpRDZYOVExZExISWFBNUh1UFhOb3ZickdWVkl2Mk1STC1FcERrcmxXdlRZekROaEdLb1Jybzh3Sl9vRUNXdzJzaVRYZzVOZHhJVi1YU21VUkdwVXU3dk9kaEtkUmt0TU1GTV9EalZFUDdyOUhhZWdnNEdCMDdncVFndXdRNHVlYkQ3QURTM1MzRUNacHVueW9HTGNIVnBkSTlUSk5QT3FzV3o0OHp0RmJldkVHSFhHSHRGdm15Q2E2VnNseG9kYU54LTd6SkYxbk51WDIzbXo1LVFKYXBRcEZ1UQ?oc=5"
+    },
+    {
+     "id": 1039,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Now",
+     "event_date": "2025-11-18",
+     "quote": "2 No-Brainer Healthcare Stocks to Buy Now",
+     "source_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxNN0VVRkEzV1ZzcUdoeHNNdml1RzAxekFnQlVNWDRENlJCVV80WWxmQkVHRE5zZEYwMXB6ejEwN1EwZUwtb2I4QU9fbjB1R1Q4Ull5QmYyeDNTTjQ0NkZnLVZHekxaQUZPYndXX0JHcVZ5REREQUY2b3Z4SVI4UE84ZVBSLS03bTdVcURFWg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijAFBVV95cUxNN0VVRkEzV1ZzcUdoeHNNdml1RzAxekFnQlVNWDRENlJCVV80WWxmQkVHRE5zZEYwMXB6ejEwN1EwZUwtb2I4QU9fbjB1R1Q4Ull5QmYyeDNTTjQ0NkZnLVZHekxaQUZPYndXX0JHcVZ5REREQUY2b3Z4SVI4UE84ZVBSLS03bTdVcURFWg?oc=5"
+    },
+    {
+     "id": 808,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Sanegene",
+     "event_date": "2026-02-03",
+     "quote": "Genentech licenses Sanegene’s RNAi asset in $1.7B deal",
+     "source_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxPaXptSUxvR3JFdzVrd2Q5cEthX19ZaEszLW5OXzNJRk1Od09RMVFPOEZSenZ1NWJ3b1ItUk5Id281Q1pyaE1PNnNndF9VT3ptSWZKUkNqNHRCS1JISk1Gb2o1NjAtTEN2RlhFU19hNU1YSHhPWEM2Ni1TcGRnTnZMZjh3bHAzTXVwMkx2eG93akEyQm5ubFVB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxPaXptSUxvR3JFdzVrd2Q5cEthX19ZaEszLW5OXzNJRk1Od09RMVFPOEZSenZ1NWJ3b1ItUk5Id281Q1pyaE1PNnNndF9VT3ptSWZKUkNqNHRCS1JISk1Gb2o1NjAtTEN2RlhFU19hNU1YSHhPWEM2Ni1TcGRnTnZMZjh3bHAzTXVwMkx2eG93akEyQm5ubFVB?oc=5"
+    },
+    {
+     "id": 1038,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Apellis Pharmaceuticals",
+     "event_date": "2026-04-06",
+     "quote": "Biogen Acquires Apellis Pharmaceuticals in $5.6 Billion Move into Immunology - The Chronicle-Journal",
+     "source_url": "https://news.google.com/rss/articles/CBMi7gFBVV95cUxOdVNFeGxlcW5JYzZ4MzFrYzduOF8xcWV4LXpTMjFMaEF1YWJoZThRU0tOZzEtQ0JmZ2hsMlY5MlNfQWJpUWd0T2piSW5DaFBYb2lfOW9pVDBPeXZSNGNTVUtnLVpLb1VPUlp3b0xyczF3VWwyOXJzd244S3ROSVZMdzQ0SnM2RER0YXI4Z3g0QlBBSERWVnVDWDhJckppbVpaWkRWR3JNUWlGNE5VdDMzRWlFT1RnZGRiODZkbXBySWdEVGVaVWN0NWpCSDBUbVNpb1FxWWREeFRwdzBDc0d4aUVRSXZNRjM1RmlpMG93?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi7gFBVV95cUxOdVNFeGxlcW5JYzZ4MzFrYzduOF8xcWV4LXpTMjFMaEF1YWJoZThRU0tOZzEtQ0JmZ2hsMlY5MlNfQWJpUWd0T2piSW5DaFBYb2lfOW9pVDBPeXZSNGNTVUtnLVpLb1VPUlp3b0xyczF3VWwyOXJzd244S3ROSVZMdzQ0SnM2RER0YXI4Z3g0QlBBSERWVnVDWDhJckppbVpaWkRWR3JNUWlGNE5VdDMzRWlFT1RnZGRiODZkbXBySWdEVGVaVWN0NWpCSDBUbVNpb1FxWWREeFRwdzBDc0d4aUVRSXZNRjM1RmlpMG93?oc=5"
+    },
+    {
+     "id": 243,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "PathAI",
+     "event_date": "2026-05-07",
+     "quote": "Switzerland's Roche agrees to acquire US-based PathAI",
+     "source_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPSkQwdWdRR3pSTzdjem1GSlJ5aVVEX0VCdmdBQWtQRDZIaDNhMkU5TWd2UWVZblJTUklwTC1qQlJTTi1tWUdsSUt5eDhsSEg1TW1JR3FZTXNSeS1MR1pWcDRkaWVmZmVHVGRRZTJRU2xlVVV2czd2d1lVUWJ3WVRnQ1JkZFRKNVVaQl91ZmF6THRLU2wxNjlGUEhUMlJMQ2tIV1k5SA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPSkQwdWdRR3pSTzdjem1GSlJ5aVVEX0VCdmdBQWtQRDZIaDNhMkU5TWd2UWVZblJTUklwTC1qQlJTTi1tWUdsSUt5eDhsSEg1TW1JR3FZTXNSeS1MR1pWcDRkaWVmZmVHVGRRZTJRU2xlVVV2czd2d1lVUWJ3WVRnQ1JkZFRKNVVaQl91ZmF6THRLU2wxNjlGUEhUMlJMQ2tIV1k5SA?oc=5"
+    },
+    {
+     "id": 1012,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "MRK",
+     "event_date": "2026-05-20",
+     "quote": "EXEL Collaborates With MRK for Late-Stage Colorectal Cancer Study",
+     "source_url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxPTmhwSTROU0pGeWJ3cWlmMEV0WHozdG1qSXpSLWtpOGFqUW80aEotS0NJYjRKd296aTZ4M013cW14d1B0UTBfYTVBU2Q4VUtkY2VmZUNwMWZsVl9PcFk4anI2MHFCTVVYZmhOdDV4NDBCX3puVHJ2ZDQwYWlvVUlRWm12OXNxdHFYdUFUZlhJT0l0VXIwYVlvTUNvVDhNazF5MVBQSjFqcFRleS1SbG1nS21xQ1FGU0lZc19tT25n?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMivgFBVV95cUxPTmhwSTROU0pGeWJ3cWlmMEV0WHozdG1qSXpSLWtpOGFqUW80aEotS0NJYjRKd296aTZ4M013cW14d1B0UTBfYTVBU2Q4VUtkY2VmZUNwMWZsVl9PcFk4anI2MHFCTVVYZmhOdDV4NDBCX3puVHJ2ZDQwYWlvVUlRWm12OXNxdHFYdUFUZlhJT0l0VXIwYVlvTUNvVDhNazF5MVBQSjFqcFRleS1SbG1nS21xQ1FGU0lZc19tT25n?oc=5"
+    }
+   ]
+  },
+  "MRK": {
+   "company": {
+    "ticker": "MRK",
+    "name": "Merck & Co Inc"
+   },
+   "rows": [
+    {
+     "id": 216,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Yale-spinout Modifi Bio",
+     "event_date": "2024-10-23",
+     "quote": "Merck acquires Yale-spinout Modifi Bio in $1.3B deal",
+     "source_url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxPclg2T2pxVnZPMF92dHR3eE50cHJLZlVsRnhNY2JIdlMyaEl5Mk43cEhxNVh3RjMtbGY1TFFyOHRSSzN6c0ctTEJsd2VkVC1yUFJkaHF1VXdwaUxxWTAzUDgwQWxqUEJfV3BRM0RwMDFKbkh5VUtQdTZoNDc1eGZ2MmZYVm9DMzNCajd4ZVBXdDFhdw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMikgFBVV95cUxPclg2T2pxVnZPMF92dHR3eE50cHJLZlVsRnhNY2JIdlMyaEl5Mk43cEhxNVh3RjMtbGY1TFFyOHRSSzN6c0ctTEJsd2VkVC1yUFJkaHF1VXdwaUxxWTAzUDgwQWxqUEJfV3BRM0RwMDFKbkh5VUtQdTZoNDc1eGZ2MmZYVm9DMzNCajd4ZVBXdDFhdw?oc=5"
+    },
+    {
+     "id": 207,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Lilly",
+     "event_date": "2025-01-17",
+     "quote": "Purdue aims to speed evolution of pharma manufacturing in collaboration with Lilly and Merck",
+     "source_url": "https://news.google.com/rss/articles/CBMizAFBVV95cUxON2ZIMDI5UHlZeVY1aUZlLUduQ1ZFbmxoUTROTUl0SmVsOUpTZ080MlRVVWc4cTJtbEZYWm5LLWJ6Rk9JektrRFFXTk5KbEk4NnUtZHZsanNGSncwcy10QXZKNnh3b2hrVTZVMmVXeFhiMzZKc0FYSWdrdzFmRmlKS0pkNHR5Q3AzMzVYX0xlc2k4azRISmxGdWxJTTh1M2RJel9rcEJTNnl0SzlxRjUwT2h6dUEwWWhCQXFZdHJlNGtxcXVMMUxzVU9pc2M?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMizAFBVV95cUxON2ZIMDI5UHlZeVY1aUZlLUduQ1ZFbmxoUTROTUl0SmVsOUpTZ080MlRVVWc4cTJtbEZYWm5LLWJ6Rk9JektrRFFXTk5KbEk4NnUtZHZsanNGSncwcy10QXZKNnh3b2hrVTZVMmVXeFhiMzZKc0FYSWdrdzFmRmlKS0pkNHR5Q3AzMzVYX0xlc2k4azRISmxGdWxJTTh1M2RJel9rcEJTNnl0SzlxRjUwT2h6dUEwWWhCQXFZdHJlNGtxcXVMMUxzVU9pc2M?oc=5"
+    },
+    {
+     "id": 102,
+     "accession": "0001104659-25-071380",
+     "deal_type": "acquisition",
+     "counterparty": "Verona Pharma plc",
+     "event_date": "2025-07-09",
+     "quote": "On July 9, 2025, the Company furthered its science-led business development strategy by announcing an agreement under which the Company, through a subsidiary, will acquire Verona Pharma plc (Verona Pharma) for $107 per American Depository Share, each of which represents eight Verona Pharma ordinary shares, for a total transaction value of approximately $10 billion.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465925071380/tm2521736d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 206,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Verona Pharma",
+     "event_date": "2025-07-09",
+     "quote": "Merck to Acquire Verona Pharma, Expanding its Portfolio to Include Ohtuvayre® (ensifentrine), a First-In-Class COPD Maintenance Treatment for Adults and Expected to Drive Growth into the Next Decade",
+     "source_url": "https://news.google.com/rss/articles/CBMi6gJBVV95cUxNMGhDd29NTnVMLW9zR1pDVTJGamp2M3ZUN2NCX0NNTTA4dVlSU1d5aHpvbTRZSm4yX24xeVNkelMzN1lkeks4Z1Z6SzN3bmlPMjhxWmJRU09FVEVZbDhwWi1xSklmNlJ2VXFtNnhZTVR3U1NLSFl6dmtnZExLZi1oODZTSE5pMGM3WUltaVFaOUJXTzBTdG9TRWl0SUM1dy1SeFFzVnB3ZjAwcWtndzU1UDQ0SThnNzlES0FWU2dDczAxaW4ta2UzQVJ5R0dja0NkODM4aDVoWTVicC1ocm14LUYzVDFsM2lxdnhzZFIzYm03enpyQlpUQ0FlbG5hQjdZY0h0ZFhQbGg0eW9IMHJzb282V0o2UWhXeVpnTmVoRmpnYWtsQlUzMW13LVdTSEU0MVJOeF9iaGNrZDRGZEozWHNtMUxnMkxOLUdYelk2UGhoZVJrSFhFZE5jeWVWbERrSkRNRVg4dmk1UQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi6gJBVV95cUxNMGhDd29NTnVMLW9zR1pDVTJGamp2M3ZUN2NCX0NNTTA4dVlSU1d5aHpvbTRZSm4yX24xeVNkelMzN1lkeks4Z1Z6SzN3bmlPMjhxWmJRU09FVEVZbDhwWi1xSklmNlJ2VXFtNnhZTVR3U1NLSFl6dmtnZExLZi1oODZTSE5pMGM3WUltaVFaOUJXTzBTdG9TRWl0SUM1dy1SeFFzVnB3ZjAwcWtndzU1UDQ0SThnNzlES0FWU2dDczAxaW4ta2UzQVJ5R0dja0NkODM4aDVoWTVicC1ocm14LUYzVDFsM2lxdnhzZFIzYm03enpyQlpUQ0FlbG5hQjdZY0h0ZFhQbGg0eW9IMHJzb282V0o2UWhXeVpnTmVoRmpnYWtsQlUzMW13LVdTSEU0MVJOeF9iaGNrZDRGZEozWHNtMUxnMkxOLUdYelk2UGhoZVJrSFhFZE5jeWVWbERrSkRNRVg4dmk1UQ?oc=5"
+    },
+    {
+     "id": 887,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Firm",
+     "event_date": "2025-07-09",
+     "quote": "Verona Pharma Stock Soars to All-Time High as Merck Buys Firm for $10B",
+     "source_url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQcGR3UHd1R0NvY2dRWVJmU1VBODZzMXVZNkpHcU1ZLUFaVHJBc2Y5NGZvaVBSOVlDdUlwV3FGU0F3bTRtMWRJM3pTN3otSk1odlNucGlNRWxLWjQ0NkJ0aTU0UHotbjRQYVlWOV94S2JOVFZ1UXBTaEYzN2RKbVJGc00yR0RKVy04bnBTcGMyTk8zMlF2bXNXcHBlcTUwYS1EaFlpZTVFSmhjNW83NV9r?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxQcGR3UHd1R0NvY2dRWVJmU1VBODZzMXVZNkpHcU1ZLUFaVHJBc2Y5NGZvaVBSOVlDdUlwV3FGU0F3bTRtMWRJM3pTN3otSk1odlNucGlNRWxLWjQ0NkJ0aTU0UHotbjRQYVlWOV94S2JOVFZ1UXBTaEYzN2RKbVJGc00yR0RKVy04bnBTcGMyTk8zMlF2bXNXcHBlcTUwYS1EaFlpZTVFSmhjNW83NV9r?oc=5"
+    },
+    {
+     "id": 84,
+     "accession": "0000310158-25-000047",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-09-09",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000031015825000047/mrk-20250909.htm",
+     "article_url": null
+    },
+    {
+     "id": 78,
+     "accession": "0001104659-25-103974",
+     "deal_type": "acquisition",
+     "counterparty": "Verona Pharma plc",
+     "event_date": "2025-10-30",
+     "quote": "The Company also completed its acquisition of Verona Pharma plc (Verona Pharma) in October 2025, strengthening its cardio-pulmonary portfolio with the addition of OHTUVAYRE, an FDA-approved, first-in-class maintenance treatment for chronic obstructive pulmonary disease (COPD) in adult patients.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465925103974/tm2529620d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 203,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Cidara Therapeutics",
+     "event_date": "2025-11-14",
+     "quote": "Merck to Acquire Cidara Therapeutics, Inc., Diversifying Its Portfolio to Include Late-Phase Antiviral Agent",
+     "source_url": "https://news.google.com/rss/articles/CBMi9gFBVV95cUxNczdlYTJ2bm1IMDY3eXZvRlpodjJhenNUbmRmcWZOaFd6ZWYya0R3U1VEUFF0bmZ3VDFCZ3ZCbkhscE8tRWxmVEt2d2swNUx5ZjFDS2FlT1FLTE9NQlFCRnc2eEpEbGp3Wk1icG9XYVJvaG9aUUY4WUM2bmlBaW5hRWptSjhlSVdxZzV6VzJUOC1mQ3c1Y1llaG1weThHZG5oS2hUZktEcXFhN1VpbWw0Q1N2N0JoZUFqWFFoX2JnWXlENHFoZk9xYk4zcFpUa2FkcEZoRzVacHJRN3lETlNpRGJMLTZkMkdQTmRvb0lLbm1aOUJQd3c?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi9gFBVV95cUxNczdlYTJ2bm1IMDY3eXZvRlpodjJhenNUbmRmcWZOaFd6ZWYya0R3U1VEUFF0bmZ3VDFCZ3ZCbkhscE8tRWxmVEt2d2swNUx5ZjFDS2FlT1FLTE9NQlFCRnc2eEpEbGp3Wk1icG9XYVJvaG9aUUY4WUM2bmlBaW5hRWptSjhlSVdxZzV6VzJUOC1mQ3c1Y1llaG1weThHZG5oS2hUZktEcXFhN1VpbWw0Q1N2N0JoZUFqWFFoX2JnWXlENHFoZk9xYk4zcFpUa2FkcEZoRzVacHJRN3lETlNpRGJMLTZkMkdQTmRvb0lLbm1aOUJQd3c?oc=5"
+    },
+    {
+     "id": 63,
+     "accession": "0001628280-25-055388",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-12-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000162828025055388/mrk-20251204.htm",
+     "article_url": null
+    },
+    {
+     "id": 54,
+     "accession": "0001104659-26-009495",
+     "deal_type": "acquisition",
+     "counterparty": "Cidara Therapeutics, Inc.",
+     "event_date": "2026-02-03",
+     "quote": "In 2026, completed acquisition of Cidara Therapeutics, Inc. (Cidara) for a total transaction value of approximately $9.2 billion.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465926009495/tm264564d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 55,
+     "accession": "0001104659-26-009495",
+     "deal_type": "licensing",
+     "counterparty": "Falk",
+     "event_date": "2026-02-03",
+     "quote": "Entered into an agreement with Falk for certain development and commercialization rights to MK-8690, an investigational anti-CD30 ligand monoclonal antibody.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465926009495/tm264564d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 202,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Terns Pharmaceuticals",
+     "event_date": "2026-03-25",
+     "quote": "Merck Acquires Terns Pharmaceuticals for $6.7 Billion",
+     "source_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxNeGVocWFpNC0zSmRLRHh5SDJhU0dQb0hxT1loUDJ2TVRxRkgtVDI2aXJyeXV0a0dkRnBjcEdxOEtOU0RNU2hkWmZpSWdtMGpCaWVyVzRMSGZwX1A4TU1qS2QwZGphazdvckU0ajdPakdHNHA4RGRtdUdibnBNbU4tYnVXOFFNdDdiS1pB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxNeGVocWFpNC0zSmRLRHh5SDJhU0dQb0hxT1loUDJ2TVRxRkgtVDI2aXJyeXV0a0dkRnBjcEdxOEtOU0RNU2hkWmZpSWdtMGpCaWVyVzRMSGZwX1A4TU1qS2QwZGphazdvckU0ajdPakdHNHA4RGRtdUdibnBNbU4tYnVXOFFNdDdiS1pB?oc=5"
+    },
+    {
+     "id": 205,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Google Cloud",
+     "event_date": "2026-04-22",
+     "quote": "Merck to partner with Google Cloud on AI initiatives",
+     "source_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNX2xKSGxmOUFlY2FBdkRKT3A4UDlyOHp4YVNqZzh4VGozRnFaS2ppdlJrSTdJcXBpT3lMSTJmNzBIVlo0RE9XOTItTDV4WmVEWjM0N2t1b0p2U2w1bjRTM2lqeHVCdGtWODVjdnZvci1MQmE0UFFXSWVuRUpJREFHVnR1eExwOG1GTjhXd1h5blFDVlZaendvQU1UanV6enN2?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxNX2xKSGxmOUFlY2FBdkRKT3A4UDlyOHp4YVNqZzh4VGozRnFaS2ppdlJrSTdJcXBpT3lMSTJmNzBIVlo0RE9XOTItTDV4WmVEWjM0N2t1b0p2U2w1bjRTM2lqeHVCdGtWODVjdnZvci1MQmE0UFFXSWVuRUpJREFHVnR1eExwOG1GTjhXd1h5blFDVlZaendvQU1UanV6enN2?oc=5"
+    },
+    {
+     "id": 28,
+     "accession": "0001104659-26-052081",
+     "deal_type": "acquisition",
+     "counterparty": "Terns Pharmaceuticals, Inc.",
+     "event_date": "2026-04-30",
+     "quote": "Announced an agreement to acquire Terns Pharmaceuticals, Inc. (Terns) through a subsidiary.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465926052081/tm2612241d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 29,
+     "accession": "0001104659-26-052081",
+     "deal_type": "collaboration",
+     "counterparty": "Mayo Clinic",
+     "event_date": "2026-04-30",
+     "quote": "The Company and Mayo Clinic Announced New Research and Development Collaboration to Support AI-Enabled Drug Discovery and Precision Medicine",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465926052081/tm2612241d1_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 10,
+     "accession": "0001628280-26-037738",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-22",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000162828026037738/mrk-20260522.htm",
+     "article_url": null
+    },
+    {
+     "id": 204,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "TARGAN",
+     "event_date": "2026-06-11",
+     "quote": "Merck Animal Health to Acquire TARGAN",
+     "source_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxQOFFYUHRiYV9hZl9MenI4alBxV2xIRTRCckFFQkdkZ0FCYlJHbklGN1dGZWJaQXJGd1J6a1JaYk51VTN6ZlMyLVZRcXIyN2lObEt5WU9uM20yV0NKb3hzcG4tT19OcldabTJHTHNqdVFWV2QzYlFoLVVnek1Hb2Z1ZzVnTFIzcUhpa0ozLXRFU3NBeTVwUWF0QnVB?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxQOFFYUHRiYV9hZl9MenI4alBxV2xIRTRCckFFQkdkZ0FCYlJHbklGN1dGZWJaQXJGd1J6a1JaYk51VTN6ZlMyLVZRcXIyN2lObEt5WU9uM20yV0NKb3hzcG4tT19OcldabTJHTHNqdVFWV2QzYlFoLVVnek1Hb2Z1ZzVnTFIzcUhpa0ozLXRFU3NBeTVwUWF0QnVB?oc=5"
+    },
+    {
+     "id": 926,
+     "accession": "0001104659-26-090045",
+     "deal_type": "acquisition",
+     "counterparty": "Terns Pharmaceuticals, Inc.",
+     "event_date": "2026-08-04",
+     "quote": "Completed acquisition of Terns for $6.8 billion.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/310158/000110465926090045/tm2621496d1_8k.htm",
+     "article_url": null
+    }
+   ]
+  },
+  "BIIB": {
+   "company": {
+    "ticker": "BIIB",
+    "name": "Biogen Inc"
+   },
+   "rows": [
+    {
+     "id": 912,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Sage Therapeutics",
+     "event_date": "2025-06-16",
+     "quote": "Supernus Pharmaceuticals to Acquire Sage Therapeutics, Strengthening its Neuropsychiatry Product Portfolio",
+     "source_url": "https://news.google.com/rss/articles/CBMijgJBVV95cUxOWmxxTE15UmE3alNkMVotWEV6OHlGdnlocmVDYUoxUGVzVHJIdjVZeXN2TFVrQlhsdzN5M2I5Wlo1LTFXSThXdzRKbUJ2M3ZtOTFTZEdYdzljTGprN1VxVUFwakZyQTN4N1kzOTIwTW9aMGtfNEpHQmZjT1Z3ZGRycWtCSUp2Z2toc2gzOHBGeDNYSEFMdW5TdUI1WEpnTEZJeFlLdXdZUU9TRTVPNGRSRWlJRkg5UFRNdUxJdHRYUDJjQkZ6aUZDblZJWmV2a0xHS2xyaGdZa1JXZlFyZkdmR182OEE0SVVjRVdnQXFJZ3JjUVBqcTkwdGdIYWNCZzFzdDFYMEFVcnIzQkt3aXc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijgJBVV95cUxOWmxxTE15UmE3alNkMVotWEV6OHlGdnlocmVDYUoxUGVzVHJIdjVZeXN2TFVrQlhsdzN5M2I5Wlo1LTFXSThXdzRKbUJ2M3ZtOTFTZEdYdzljTGprN1VxVUFwakZyQTN4N1kzOTIwTW9aMGtfNEpHQmZjT1Z3ZGRycWtCSUp2Z2toc2gzOHBGeDNYSEFMdW5TdUI1WEpnTEZJeFlLdXdZUU9TRTVPNGRSRWlJRkg5UFRNdUxJdHRYUDJjQkZ6aUZDblZJWmV2a0xHS2xyaGdZa1JXZlFyZkdmR182OEE0SVVjRVdnQXFJZ3JjUVBqcTkwdGdIYWNCZzFzdDFYMEFVcnIzQkt3aXc?oc=5"
+    },
+    {
+     "id": 104,
+     "accession": "0000875045-25-000027",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-07-07",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504525000027/biib-20250707.htm",
+     "article_url": null
+    },
+    {
+     "id": 98,
+     "accession": "0000875045-25-000035",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-07-31",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504525000035/biib-20250731.htm",
+     "article_url": null
+    },
+    {
+     "id": 148,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Alcyone Therapeutics",
+     "event_date": "2025-09-18",
+     "quote": "Biogen Completes Acquisition of Alcyone Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNOGRybmhqVmpTUUxzQ2xtbEllRDNCdjdyREVVbjdyUEp1XzFaVl9zaFN2TUV2b1YtQXZLY0p2Ulc0eG9BaE9ZdDJ3SlJFVUczMzJMYXZFRHlmMlF1cG42V1RIY0ZLNmI4N2pIVFRLc2VLSGxrX0JVNGVybF9XRV9ZZFdMZXMtS3JNNGh4X3FqdDFqUUxLSWkzYTJiZFh0T3ItaTMxWGRmV0JSSUpKcWxoYjhnbw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxNOGRybmhqVmpTUUxzQ2xtbEllRDNCdjdyREVVbjdyUEp1XzFaVl9zaFN2TUV2b1YtQXZLY0p2Ulc0eG9BaE9ZdDJ3SlJFVUczMzJMYXZFRHlmMlF1cG42V1RIY0ZLNmI4N2pIVFRLc2VLSGxrX0JVNGVybF9XRV9ZZFdMZXMtS3JNNGh4X3FqdDFqUUxLSWkzYTJiZFh0T3ItaTMxWGRmV0JSSUpKcWxoYjhnbw?oc=5"
+    },
+    {
+     "id": 80,
+     "accession": "0000875045-25-000040",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-10-14",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504525000040/biib-20251014.htm",
+     "article_url": null
+    },
+    {
+     "id": 1000,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Oral C5aR1 Antagonist",
+     "event_date": "2025-10-24",
+     "quote": "Biogen Licenses Oral C5aR1 Antagonist from Vanqua Bio to Expand Immunology Portfolio",
+     "source_url": "https://news.google.com/rss/articles/CBMi7AFBVV95cUxPd3k5WmpqeXFUNkJLR2s1X2RDNi1RS1Y3Qnd3TWp6SEtyNVlQX3o3ZnZtTFdNc2duNjZTazhwR3lkLV8tdVRxT0RBZ1cyOTZUYzJzVmxZd1VuWW1BWDhpcnpFSjVUMzFiZkZyenZyVDZEX3JVc3JmZ0szSDNzQThBOWhKa1NBak12UndxemVFdUhFVVJjU2hkRnFPejVVazVZenNibzFnNFRzRHg0aW5jSHp1OGN1dXhlb3FKeHlWQU51UURPSzd0MGhXTThwS2VsSWJHUnZ6N0FaYmNCbXQ5VTlFd21fSFpwU1R5Tg?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi7AFBVV95cUxPd3k5WmpqeXFUNkJLR2s1X2RDNi1RS1Y3Qnd3TWp6SEtyNVlQX3o3ZnZtTFdNc2duNjZTazhwR3lkLV8tdVRxT0RBZ1cyOTZUYzJzVmxZd1VuWW1BWDhpcnpFSjVUMzFiZkZyenZyVDZEX3JVc3JmZ0szSDNzQThBOWhKa1NBak12UndxemVFdUhFVVJjU2hkRnFPejVVazVZenNibzFnNFRzRHg0aW5jSHp1OGN1dXhlb3FKeHlWQU51UURPSzd0MGhXTThwS2VsSWJHUnZ6N0FaYmNCbXQ5VTlFd21fSFpwU1R5Tg?oc=5"
+    },
+    {
+     "id": 74,
+     "accession": "0000875045-25-000047",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-10-30",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504525000047/biib-20251030.htm",
+     "article_url": null
+    },
+    {
+     "id": 60,
+     "accession": "0000875045-26-000003",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-01-14",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000003/biib-20260113.htm",
+     "article_url": null
+    },
+    {
+     "id": 49,
+     "accession": "0000875045-26-000011",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000011/biib-20260206.htm",
+     "article_url": null
+    },
+    {
+     "id": 47,
+     "accession": "0001193125-26-046803",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-11",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000119312526046803/d937279d8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 31,
+     "accession": "0000875045-26-000042",
+     "deal_type": "acquisition",
+     "counterparty": "Apellis Pharmaceuticals",
+     "event_date": "2026-03-31",
+     "quote": "Proposed acquisition of Apellis Pharmaceuticals bolsters growth outlook, adding commercialized medicines in immune-mediated retinal disease and nephrology, and deepening the foundation for Biogen's growing nephrology franchise.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000042/biib-20260429.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMi2gJBVV95cUxOV2V3Z0N4VVM1cV9maVRuWURtZ2ljTnkyaXdTNGRaQ2o2TUNZLWQtdFR6dm92UnRmR3g1Q0NEMlQ4WmVOM2VCQWxkSGhoVFVleTN5NEdGOEtDMHVzdWJ5d3ZFaDA0a0tELXVRM0VoVTBVampLTHZzb2JtVDd5eUZ6ZjY5U1ktd1NJR1VaNEZOT2NwWVpibmpmenBHV3RWZjBxZHJjQzBpUHFYS3l0ai1XbTNEQk1tUmx5TjNpel9QbXJ6RkxzclFjdndYaEx6eWx0bVpjX1lUMXBNN0tNLXJBZDVhYU9zTU9BazREVnlXNkc3Y1FITGdrMXBtV3ZQV3piNlFGLW1LN0lFTzkzTlZIUmduZkJKemRlUTlwZU16bWRWckZ5SmhwdGhWRzNXSEtsQ3hWejlvSDJKb1l3QXozRjI4RTVfbTYyVkF3TVFzZ3VWbDhuS0g4OWJB?oc=5"
+    },
+    {
+     "id": 40,
+     "accession": "0001193125-26-134889",
+     "deal_type": "acquisition",
+     "counterparty": "Apellis Pharmaceuticals, Inc.",
+     "event_date": "2026-03-31",
+     "quote": "WHEREAS, contemporaneously with the execution of this Agreement, Parent, Purchaser and the Company are entering into that certain Agreement and Plan of Merger, dated as of the date hereof (as it may be amended or supplemented from time to time pursuant to the terms thereof, the \" Merger Agreement \"), pursuant to which, among other things, (a) Parent has agreed to cause Purchaser to commence a tender offer (as it may be extended, amended or supplemented from time to time in accordance with the Merger Agreement, the \" Offer \") to acquire all of the outstanding Shares and (b) as soon as practicable following the consummation of the Offer, Purchaser will merge with and into the Company (the \" Merger \") in accordance with Section 251(h) of the General Corporation Law of the State of Delaware (the \" DGCL \"), with the Company surviving the Merger as a wholly owned subsidiary of Parent, all upon the terms and subject to the conditions set forth in the Merger Agreement; and",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000119312526134889/d14986d8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 873,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Waltham",
+     "event_date": "2026-03-31",
+     "quote": "Biogen to buy Waltham biotech for $5.6B",
+     "source_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNN21Zell3RlNfaHhXcEZjMVEyNEFIdzQzWlN2bUJVbDRCaDk1NTkwelZubEJhWmhickVZbTU0Q2VUSEtqdTBpQ19VaTVRMTdGMElTY3ptRXZxUWtpa2ptT3phb0dsbUFuUVNnYUNJVncxY09YSTFwNllGcmJpLUo4Nko3aTl6bEFNMWFlWWl1WEliUkNnczBVM0Jn?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimgFBVV95cUxNN21Zell3RlNfaHhXcEZjMVEyNEFIdzQzWlN2bUJVbDRCaDk1NTkwelZubEJhWmhickVZbTU0Q2VUSEtqdTBpQ19VaTVRMTdGMElTY3ptRXZxUWtpa2ptT3phb0dsbUFuUVNnYUNJVncxY09YSTFwNllGcmJpLUo4Nko3aTl6bEFNMWFlWWl1WEliUkNnczBVM0Jn?oc=5"
+    },
+    {
+     "id": 38,
+     "accession": "0000875045-26-000039",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-04-06",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000039/biib-20260406.htm",
+     "article_url": null
+    },
+    {
+     "id": 32,
+     "accession": "0000875045-26-000042",
+     "deal_type": "licensing",
+     "counterparty": "TJ Biopharma",
+     "event_date": "2026-04-29",
+     "quote": "Nephrology franchise further enhanced by agreement with TJ Biopharma to acquire exclusive rights to felzartamab in the Greater China region, potentially one of the largest patient populations globally for IgAN",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000042/biib-20260429.htm",
+     "article_url": null
+    },
+    {
+     "id": 13,
+     "accession": "0001193125-26-222908",
+     "deal_type": "acquisition",
+     "counterparty": "Apellis Pharmaceuticals, Inc.",
+     "event_date": "2026-05-14",
+     "quote": "Biogen Inc . (Nasdaq: BIIB) today announced the successful completion of the acquisition of Apellis Pharmaceuticals, Inc . (Nasdaq: APLS).",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000119312526222908/d109852d8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 147,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "RayThera",
+     "event_date": "2026-06-17",
+     "quote": "Biogen Expands Immunology Pipeline with Agreement to Acquire RayThera Inc.",
+     "source_url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxNc0RqN0ZqUGNwMHBUdDhPcDlKYkdpWG5vc3ZfVUpQckMxbVdLLUhQVi1SMUlXRlpCMGZGb013VEJzcUdldi1sTzkwcFh3ZE03aDFsakIwWXlGbGxLRXhBVUxoQzRVN3BNekY1UTR2QmdzMXpLa01Mc0dVcXRlSUpQV0lta0hDVXc4cFM0eWxwV0tOdkV2ZU1XTWVrQ1U2LTdGTmlQNWQtZlNaNTQ1N2lQTEtmRlhzek1EblhUMlhqS3VTTWc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwwFBVV95cUxNc0RqN0ZqUGNwMHBUdDhPcDlKYkdpWG5vc3ZfVUpQckMxbVdLLUhQVi1SMUlXRlpCMGZGb013VEJzcUdldi1sTzkwcFh3ZE03aDFsakIwWXlGbGxLRXhBVUxoQzRVN3BNekY1UTR2QmdzMXpLa01Mc0dVcXRlSUpQV0lta0hDVXc4cFM0eWxwV0tOdkV2ZU1XTWVrQ1U2LTdGTmlQNWQtZlNaNTQ1N2lQTEtmRlhzek1EblhUMlhqS3VTTWc?oc=5"
+    },
+    {
+     "id": 7,
+     "accession": "0000875045-26-000068",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-07-01",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000068/biib-20260701.htm",
+     "article_url": null
+    },
+    {
+     "id": 810,
+     "accession": "0000875045-26-000073",
+     "deal_type": "acquisition",
+     "counterparty": "Apellis",
+     "event_date": "2026-07-29",
+     "quote": "Apellis acquisition now completed with strong second quarter 2026 revenue performance for SYFOVRE and EMPAVELI.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000073/biib-20260729.htm",
+     "article_url": null
+    },
+    {
+     "id": 811,
+     "accession": "0000875045-26-000073",
+     "deal_type": "licensing",
+     "counterparty": "Ionis",
+     "event_date": "2026-07-29",
+     "quote": "In the second quarter of 2026, Biogen exercised its option to obtain from Ionis a worldwide exclusive, royalty-bearing license to develop and commercialize BIIB147, a Phase 1 ready investigational antisense oligonucleotide targeting stathmin-2 pre-mRNA in people with broad ALS.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/875045/000087504526000073/biib-20260729.htm",
+     "article_url": null
+    }
+   ]
+  },
+  "BMY": {
+   "company": {
+    "ticker": "BMY",
+    "name": "Bristol-Myers Squibb Co"
+   },
+   "rows": [
+    {
+     "id": 99,
+     "accession": "0000014272-25-000129",
+     "deal_type": "collaboration",
+     "counterparty": "BioNTech",
+     "event_date": "2025-07-31",
+     "quote": "In June 2025, the company entered into an agreement with BioNTech for the global co-development and co-commercialization of BioNTech's investigational bispecific antibody BNT327 across numerous solid tumor types.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427225000129/bmy-20250731.htm",
+     "article_url": null
+    },
+    {
+     "id": 100,
+     "accession": "0000014272-25-000129",
+     "deal_type": "licensing",
+     "counterparty": "Philochem AG",
+     "event_date": "2025-07-31",
+     "quote": "Also in June 2025, RayzeBio, Inc., a Bristol Myers Squibb company, entered into a definitive agreement under which Philochem AG, a wholly-owned subsidiary of the Philogen Group, will license the exclusive worldwide rights to develop, manufacture and commercialize OncoACP3, a clinical-stage therapeutic and diagnostic agent targeting prostate cancer, to RayzeBio.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427225000129/bmy-20250731.htm",
+     "article_url": null
+    },
+    {
+     "id": 101,
+     "accession": "0000014272-25-000129",
+     "deal_type": "collaboration",
+     "counterparty": "Bain Capital",
+     "event_date": "2025-07-31",
+     "quote": "In July 2025, the company announced the creation of a new, independent biopharmaceutical company with Bain Capital focused on developing new therapies for autoimmune diseases that address significant unmet needs of patients.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427225000129/bmy-20250731.htm",
+     "article_url": null
+    },
+    {
+     "id": 75,
+     "accession": "0000014272-25-000147",
+     "deal_type": "acquisition",
+     "counterparty": "Orbital Therapeutics",
+     "event_date": "2025-10-10",
+     "quote": "In October 2025, the company announced a definitive agreement to acquire Orbital Therapeutics.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427225000147/bmy-20251030.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMiqgFBVV95cUxNYU5Rd01Qay13QjVPTURoX2V0SUpfOWo5R0tHd3ZLbmN2V0dpaGxqSXIxYXIwVzJNTEpua2hTU1l6a3BTY1l5ZnZfNU5lTjNDYk16cWVmdFEyamlpc1JOSm5jUkotQnpQbzdPMnNMVTgyYnNZdFhXT0F1YThMbHkwMkIyVGE4ckZvUHVWTFAzcWJZZmFmano4eWVBTmtxcklWM241LWVRbC15dw?oc=5"
+    },
+    {
+     "id": 70,
+     "accession": "0001140361-25-040066",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-03",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000114036125040066/ef20058056_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 67,
+     "accession": "0001140361-25-041380",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-10",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000114036125041380/ny20057651x6_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 65,
+     "accession": "0001140361-25-042607",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-18",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000114036125042607/ef20059419_8k.htm",
+     "article_url": null
+    },
+    {
+     "id": 106,
+     "accession": "0000014272-26-000002",
+     "deal_type": "collaboration",
+     "counterparty": "Microsoft",
+     "event_date": "2026-01-20",
+     "quote": "In January 2026, the company announced an agreement with Microsoft aimed at accelerating early detection of lung cancer.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000002/bmy-20260205.htm",
+     "article_url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxQLUQ3Qm1UaDNMM2FiaEdtanFTdWZDOXhkdk9WMENXMkZySHUwWnB6YUU1Q191QjhkSzJwQl9UZmh5bnZISHdaLTRZQzJWT1ZOX0tocThwZl9Bd2ROcFJKb1cyT3BZMjFsSjU2RWt1aUY0U1lfVTl3Z3lFOVhQZ3N3c3JEdjJLcXBiMjVHZGdPRjdpMVFKV2h0NElpOVBnRnZkeGxEYW42NFRlR1NvM1M2cWkwVTI3S3hqc2prNjdRaXk2bEt5d1g2ZHczUnFKN3ZNcEZyaDd5bUU?oc=5"
+    },
+    {
+     "id": 933,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Tubulis",
+     "event_date": "2026-04-07",
+     "quote": "Gilead to buy Germany's Tubulis for up to $5 billion to boost cancer pipeline",
+     "source_url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOUGNSRm5Yc0IxZ0lvMDRibFcwdkh6U0pwbUZCWGpDSk0zcXljUUFjdXFkMVV0eXdaVTVxd1NPRFEwRl9JdlpEMFNzR29zREdSX0Q0Nm1PTGdfUnpKSmhGaS1GMlN2QUlIYkh3SXNOMHV6MldwdGlFUTdrdVJscDlDMW1FSGY1OVF2bk11LWlrR3VVLUZQVlc1dEFXUm0?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxOUGNSRm5Yc0IxZ0lvMDRibFcwdkh6U0pwbUZCWGpDSk0zcXljUUFjdXFkMVV0eXdaVTVxd1NPRFEwRl9JdlpEMFNzR29zREdSX0Q0Nm1PTGdfUnpKSmhGaS1GMlN2QUlIYkh3SXNOMHV6MldwdGlFUTdrdVJscDlDMW1FSGY1OVF2bk11LWlrR3VVLUZQVlc1dEFXUm0?oc=5"
+    },
+    {
+     "id": 23,
+     "accession": "0000014272-26-000008",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-04-30",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000008/bmy-20260430.htm",
+     "article_url": null
+    },
+    {
+     "id": 156,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Hengrui",
+     "event_date": "2026-05-11",
+     "quote": "Bristol-Myers Inks Up to $15 Billion Licensing Deal With Hengrui",
+     "source_url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxPMVZhcnlfTGlwcllQUGZGYnBaZkhYek0zRWNPZjY5V3NkNnMzSmgyd0JMR3ExRVVQbGpucjRHZ3F1SjI5RlV6Q0drelBNUy1Wc3lUalBrNU5EbUc4YlAwZGVKUHVxQkFQQWdxY01hOXhYaVA4SVJqVk01MUdnSHRXQllRaDgtM0JWX0lxSlhNRE9XdnlLMlNveWdFQ1RGUGp3emJKTnRYOURGOE1Nc09xWGRkU0U?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxPMVZhcnlfTGlwcllQUGZGYnBaZkhYek0zRWNPZjY5V3NkNnMzSmgyd0JMR3ExRVVQbGpucjRHZ3F1SjI5RlV6Q0drelBNUy1Wc3lUalBrNU5EbUc4YlAwZGVKUHVxQkFQQWdxY01hOXhYaVA4SVJqVk01MUdnSHRXQllRaDgtM0JWX0lxSlhNRE9XdnlLMlNveWdFQ1RGUGp3emJKTnRYOURGOE1Nc09xWGRkU0U?oc=5"
+    },
+    {
+     "id": 157,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "BMS",
+     "event_date": "2026-05-15",
+     "quote": "Tempus broadens collaboration with BMS for clinical trials",
+     "source_url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE90WkRQSkZGMy1YOV9ZOWFnTl8xY1ZLWmtzT0xvV2FGRlZkWDRvMkFZbzdIa0I3bE1oblBkOUVUdVZVQ05GcDFwLXJldmxkV3JtU2NkX05uTG50ZzVEVmdWR2F6cGF0cUVrYVdZb3R1Q2t1YkU0S3VV?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMid0FVX3lxTE90WkRQSkZGMy1YOV9ZOWFnTl8xY1ZLWmtzT0xvV2FGRlZkWDRvMkFZbzdIa0I3bE1oblBkOUVUdVZVQ05GcDFwLXJldmxkV3JtU2NkX05uTG50ZzVEVmdWR2F6cGF0cUVrYVdZb3R1Q2t1YkU0S3VV?oc=5"
+    },
+    {
+     "id": 1070,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Heng",
+     "event_date": "2026-05-15",
+     "quote": "Biopharma Collaboration: Bristol Myers Squibb Partners with Heng",
+     "source_url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxOX3ktbG90TkRsSVliTzEyaktRdmVaWFVzc3hIMF9yTlRKR0xRTFA5aFQ0bzExWkZjbC0ybVJ0UUdUZDVpYVV2YXlvaENKb1Z2Z00xTVhQWmdKZ2pfOXJacjhGSXktemRKenpwbXhSZVZoOTlMbTFxeERLcXhVU21oSEpad1IxcUlVSzJHakVycHViMUpLSWZrWXUtdzBOMjA4NEkxUFpzODg4Z1cxY2c?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMirgFBVV95cUxOX3ktbG90TkRsSVliTzEyaktRdmVaWFVzc3hIMF9yTlRKR0xRTFA5aFQ0bzExWkZjbC0ybVJ0UUdUZDVpYVV2YXlvaENKb1Z2Z00xTVhQWmdKZ2pfOXJacjhGSXktemRKenpwbXhSZVZoOTlMbTFxeERLcXhVU21oSEpad1IxcUlVSzJHakVycHViMUpLSWZrWXUtdzBOMjA4NEkxUFpzODg4Z1cxY2c?oc=5"
+    },
+    {
+     "id": 875,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Nvidia's",
+     "event_date": "2026-07-20",
+     "quote": "Bristol Myers buys Nvidia's latest AI computing system for drug research",
+     "source_url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNUGRmTWZOVGRTRWJYaTkzaWM1VzNVbl96dXFSQlpHc191TktCWTVZbC1fYUpmWFkwWkFJSXhRSmtLendkZXhBUGlMd0t3RUZvTFFwZjBma3l2N0UzSXlaa1FmUWZqSW81a1hMQmtCbkt4bjFZWlh1cVp5LUtPWmhKNFhtZUlCbnZyRzhjVGtaOUZ1Q3lwLXF3VmxZSHRjMVZxYmhSTkE5eVhMZ0J0VjFDVWljT2xaWlRKbkctTw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMivAFBVV95cUxNUGRmTWZOVGRTRWJYaTkzaWM1VzNVbl96dXFSQlpHc191TktCWTVZbC1fYUpmWFkwWkFJSXhRSmtLendkZXhBUGlMd0t3RUZvTFFwZjBma3l2N0UzSXlaa1FmUWZqSW81a1hMQmtCbkt4bjFZWlh1cVp5LUtPWmhKNFhtZUlCbnZyRzhjVGtaOUZ1Q3lwLXF3VmxZSHRjMVZxYmhSTkE5eVhMZ0J0VjFDVWljT2xaWlRKbkctTw?oc=5"
+    },
+    {
+     "id": 861,
+     "accession": "0000014272-26-000018",
+     "deal_type": "collaboration",
+     "counterparty": "NVIDIA",
+     "event_date": "2026-07-30",
+     "quote": "In July 2026, the company announced an expansion of its existing collaboration with NVIDIA to deploy NVIDIA's newest AI infrastructure, Vera Rubin NVL72, for running predictive models at scale and training large AI models on BMS's own data.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000018/bmy-20260730.htm",
+     "article_url": null
+    },
+    {
+     "id": 862,
+     "accession": "0000014272-26-000018",
+     "deal_type": "collaboration",
+     "counterparty": "Anthropic",
+     "event_date": "2026-07-30",
+     "quote": "In May 2026, the company announced a strategic agreement with Anthropic to deploy Claude across Bristol Myers Squibb's research, clinical development, manufacturing, commercial and corporate functions.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000018/bmy-20260730.htm",
+     "article_url": null
+    },
+    {
+     "id": 863,
+     "accession": "0000014272-26-000018",
+     "deal_type": "collaboration",
+     "counterparty": "Hengrui Pharma",
+     "event_date": "2026-07-30",
+     "quote": "Also in May 2026, the company entered into global strategic collaboration and licensing agreements with Hengrui Pharma to advance a portfolio of 13 early-stage programs in oncology, hematology and immunology.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/14272/000001427226000018/bmy-20260730.htm",
+     "article_url": null
+    },
+    {
+     "id": 1079,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "ZEGFROVY",
+     "event_date": "2026-09-01",
+     "quote": "AstraZeneca acquires ZEGFROVY rights for $600 million",
+     "source_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNSkU0MS1sVWpuY0xCLVlqLWNtd2JicDdPUEpJUEd5SEhjZUZudGJRNUhMUGtpb2gwbFppZm9LU29LUExCUWhZVjZiZ25wSERRTEdkNHRGNThJVGpEZWg1anRiSTFFVUhkMUtXNFNPbTliU0pxa0Z2Yi1QbXQ0RXM4QTNaaENHb2VGX2FQMF9JSGQ5YkVqaGRsaTdXX3RvZw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNSkU0MS1sVWpuY0xCLVlqLWNtd2JicDdPUEpJUEd5SEhjZUZudGJRNUhMUGtpb2gwbFppZm9LU29LUExCUWhZVjZiZ25wSERRTEdkNHRGNThJVGpEZWg1anRiSTFFVUhkMUtXNFNPbTliU0pxa0Z2Yi1QbXQ0RXM4QTNaaENHb2VGX2FQMF9JSGQ5YkVqaGRsaTdXX3RvZw?oc=5"
+    }
+   ]
+  },
+  "NVO": {
+   "company": {
+    "ticker": "NVO",
+    "name": "Novo Nordisk A/S"
+   },
+   "rows": [
+    {
+     "id": 224,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Benchmark Genetics",
+     "event_date": "2024-11-25",
+     "quote": "Novo Holdings to acquire Benchmark Genetics, a leader in aqu",
+     "source_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPS3NWeEZVb09PLXpXaFN2TVlZaUZ0U1lMbHdfY2ZORmJwSVY0UzJwWk8yQUROSUg3T09lcExfSmtuVjNuWU1qMXNCZ0RWUGR4Y0czbUNkMHNfVlFQR2xFQTJVOWRpN3NJSnNTc0VFOXotOVIxV3ZHSW56VDRNa2I2cThqdTZ0SkY2SHpHd2IzMURaNFFsb1MwUUN1a1MwaFFDMnJad09VZTc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiqAFBVV95cUxPS3NWeEZVb09PLXpXaFN2TVlZaUZ0U1lMbHdfY2ZORmJwSVY0UzJwWk8yQUROSUg3T09lcExfSmtuVjNuWU1qMXNCZ0RWUGR4Y0czbUNkMHNfVlFQR2xFQTJVOWRpN3NJSnNTc0VFOXotOVIxV3ZHSW56VDRNa2I2cThqdTZ0SkY2SHpHd2IzMURaNFFsb1MwUUN1a1MwaFFDMnJad09VZTc?oc=5"
+    },
+    {
+     "id": 1177,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Microsoft Quantum Computer With Denmark",
+     "event_date": "2025-07-17",
+     "quote": "Novo Nordisk Owner Buys Microsoft Quantum Computer With Denmark",
+     "source_url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxPdFRPa05LYzl5aGFzQXRIWkJxVF9SYXR4T1NmSlFmV1pzWEFZYnJFOFRWcEJ4T3ZibTlVMzlmWDlYVjFjTHo4QV91dmNrT0hOR3lKa2VSWTJRSGNkc0EtYXRSSi15TDdjbmVXUllNREg1RDlqeThZV2J5WlF6NmJBSjNRUVR2M3VCb1hub1hrU2MxclIta25rbkMxcU1GR3FPUWg5RkZ1RGctNEhLNDlSQ0x2Qnk?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxPdFRPa05LYzl5aGFzQXRIWkJxVF9SYXR4T1NmSlFmV1pzWEFZYnJFOFRWcEJ4T3ZibTlVMzlmWDlYVjFjTHo4QV91dmNrT0hOR3lKa2VSWTJRSGNkc0EtYXRSSi15TDdjbmVXUllNREg1RDlqeThZV2J5WlF6NmJBSjNRUVR2M3VCb1hub1hrU2MxclIta25rbkMxcU1GR3FPUWg5RkZ1RGctNEhLNDlSQ0x2Qnk?oc=5"
+    },
+    {
+     "id": 1043,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Pocketpills",
+     "event_date": "2025-09-18",
+     "quote": "Novo Nordisk partners with Pocketpills for online sales of Ozempic, Wegovy",
+     "source_url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxQZDF4ZTdsUDJWODJ1TWFmdE9wLUE4bFFzMzJBWE5ZM2RCOWZ0M1RBdjlXQ2dZYVpfTWZYQnZfM0xUNFJaU3RTQXdBTE5kQUd3MUIyMW5Cb2s5TEtJTmpkaVFuSTk4RUVuRXNpeG50bWNwYjJPSllPTUJMVC03dlFXY2J4ZHFFLXFYR2pZb3VGTDZuNUU2ci1SS2VQVUV1TXZ3SG1XSHVGVnU2d0VPT3kyekJXLVVBQlNWRXJmWE5QTVM?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwAFBVV95cUxQZDF4ZTdsUDJWODJ1TWFmdE9wLUE4bFFzMzJBWE5ZM2RCOWZ0M1RBdjlXQ2dZYVpfTWZYQnZfM0xUNFJaU3RTQXdBTE5kQUd3MUIyMW5Cb2s5TEtJTmpkaVFuSTk4RUVuRXNpeG50bWNwYjJPSllPTUJMVC03dlFXY2J4ZHFFLXFYR2pZb3VGTDZuNUU2ci1SS2VQVUV1TXZ3SG1XSHVGVnU2d0VPT3kyekJXLVVBQlNWRXJmWE5QTVM?oc=5"
+    },
+    {
+     "id": 221,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Akero Therapeutics",
+     "event_date": "2025-10-09",
+     "quote": "Novo Nordisk to acquire Akero Therapeutics and its promising phase 3 FGF21 analogue to expand MASH portfolio",
+     "source_url": "https://news.google.com/rss/articles/CBMijAJBVV95cUxQbFRXN3A1N0NkbGthQzY5a2E5YjhDSXhvUlZ4Q1pXR0xHREw1akQ4V0RPSndncmJfQ3BmeUthdDMzOWsxNGxELU5rVE1RMkF1cXI4TkJ4NXdhWmF6NGx2ZVp1WnVWWFZRb2ZVeGFSaHFGX2xfMDVRYzVYQjV6TUR0ZEpULUNsTU5YdWdWWjVpZnd1ZFlvTGJhU292QUtGTzEzdWNybGY2TG1WSGpmMlVkRWdLSlV5cEhSLVFmTlVnbEFTZnJIMlh6UzZWYXVzX1YyVnBLb092TUFXWlYzN0lWdWNHdFREZy1mMXotcTNvSTZnNEVfaVZoS3ozbFByM0lxaHZ6eDdoSS1TLVZP?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMijAJBVV95cUxQbFRXN3A1N0NkbGthQzY5a2E5YjhDSXhvUlZ4Q1pXR0xHREw1akQ4V0RPSndncmJfQ3BmeUthdDMzOWsxNGxELU5rVE1RMkF1cXI4TkJ4NXdhWmF6NGx2ZVp1WnVWWFZRb2ZVeGFSaHFGX2xfMDVRYzVYQjV6TUR0ZEpULUNsTU5YdWdWWjVpZnd1ZFlvTGJhU292QUtGTzEzdWNybGY2TG1WSGpmMlVkRWdLSlV5cEhSLVFmTlVnbEFTZnJIMlh6UzZWYXVzX1YyVnBLb092TUFXWlYzN0lWdWNHdFREZy1mMXotcTNvSTZnNEVfaVZoS3ozbFByM0lxaHZ6eDdoSS1TLVZP?oc=5"
+    },
+    {
+     "id": 1087,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Akero",
+     "event_date": "2025-10-09",
+     "quote": "Novo Nordisk Acquires Akero — A $5.2B MASH Bet",
+     "source_url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPUjFaR2lVc2dMMzc5V3NQRDBuYTRjM2ZjbElPeXdzd0VFQmJwcGlhWVFoU2gzTlZBTTc1bXA5T1ExUUdMQ1o0WTBWdWVjRlM0STB1ZERCb1VwaTYzN0dRcnl1bmIwcWdXQS0tVDNEVVJfTENhei12MlVuSzJXREFoUmhQaEtuVHF5Z0FCSTNRejlOMlY1VTI1Ym9wbXVDbExqVnZ3Z0RadlBTWEl5dkpn?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMirwFBVV95cUxPUjFaR2lVc2dMMzc5V3NQRDBuYTRjM2ZjbElPeXdzd0VFQmJwcGlhWVFoU2gzTlZBTTc1bXA5T1ExUUdMQ1o0WTBWdWVjRlM0STB1ZERCb1VwaTYzN0dRcnl1bmIwcWdXQS0tVDNEVVJfTENhei12MlVuSzJXREFoUmhQaEtuVHF5Z0FCSTNRejlOMlY1VTI1Ym9wbXVDbExqVnZ3Z0RadlBTWEl5dkpn?oc=5"
+    },
+    {
+     "id": 222,
+     "accession": null,
+     "deal_type": "licensing",
+     "counterparty": "Omeros",
+     "event_date": "2025-10-15",
+     "quote": "Novo Nordisk signs up to $2.1 billion licensing deal with Omeros in rare disease push",
+     "source_url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxOOXBHYTMwTDROcTNNVExYajJGeVZocmlYX2dsNWVIOG5VcXN1OVVwQ25OcUZUajVjYzFZMFBYcVZWYVV3WXB2ZWU0d1FCazdta19vZWN6WnJhUnlrdzdOemF4cE9GaXZhZ2dZY1l6Y0hROXV6NzZKc3EySWlxR01FR1pNZTVINlEwOVBZOEZkVXNRREFUYkpGN29Ua3kzeWZYLS1SZW9fYnNMNTRDUTJpRU8wMG1YQ3pkVE5YUjNJSWlwY0F1Wl8yd0lESUFEcDMyZHRxYXNOblJtbGlMclVCa0xWUQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi4wFBVV95cUxOOXBHYTMwTDROcTNNVExYajJGeVZocmlYX2dsNWVIOG5VcXN1OVVwQ25OcUZUajVjYzFZMFBYcVZWYVV3WXB2ZWU0d1FCazdta19vZWN6WnJhUnlrdzdOemF4cE9GaXZhZ2dZY1l6Y0hROXV6NzZKc3EySWlxR01FR1pNZTVINlEwOVBZOEZkVXNRREFUYkpGN29Ua3kzeWZYLS1SZW9fYnNMNTRDUTJpRU8wMG1YQ3pkVE5YUjNJSWlwY0F1Wl8yd0lESUFEcDMyZHRxYXNOblJtbGlMclVCa0xWUQ?oc=5"
+    },
+    {
+     "id": 219,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Metsera",
+     "event_date": "2025-10-30",
+     "quote": "Novo Nordisk submits proposal to acquire Metsera, Inc.",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOVENRRlJZbDZmeVlscXpXdTFSVjE2NmI1a0ttMnpFNXFibV9nUEM3YWo0dEJwYjNLeEc5aTRDbllOVjN5cFZXalYyc05xa3dmMmZWUDYtYzYwWVltbHVpeVlMODlTZEJOSXdscV92RGEyUkRfRFpGWm56aGdyUFhhMkphdko1REVDbmp0Q05sRFVjR21YQjdFOTR4cU1fT2lFQWVOQzhZRjF6eHRUZWhuTjNQOUEzMGZ0WUppMVplNFpUdw?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxOVENRRlJZbDZmeVlscXpXdTFSVjE2NmI1a0ttMnpFNXFibV9nUEM3YWo0dEJwYjNLeEc5aTRDbllOVjN5cFZXalYyc05xa3dmMmZWUDYtYzYwWVltbHVpeVlMODlTZEJOSXdscV92RGEyUkRfRFpGWm56aGdyUFhhMkphdko1REVDbmp0Q05sRFVjR21YQjdFOTR4cU1fT2lFQWVOQzhZRjF6eHRUZWhuTjNQOUEzMGZ0WUppMVplNFpUdw?oc=5"
+    },
+    {
+     "id": 890,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Health-Tech Startup",
+     "event_date": "2025-12-11",
+     "quote": "Novo Nordisk (NVO) Partners With Indian Health-Tech Startup",
+     "source_url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxNa3ZWRWYyaVI3Y2RuX21vXzRoVU9aYnVDVDhXcmxGNC1EU29uMnVER0phRnFYZVdGcFZKeTVNY2NZNE5laVRmTGxURVJnMTdNS043ZjNGTldIbEdtZGJpOEVqT2c0VzFMVHNuSmRuTmstNHFENFVVNnBMVnFUN3BFMGl3MXE?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMihAFBVV95cUxNa3ZWRWYyaVI3Y2RuX21vXzRoVU9aYnVDVDhXcmxGNC1EU29uMnVER0phRnFYZVdGcFZKeTVNY2NZNE5laVRmTGxURVJnMTdNS043ZjNGTldIbEdtZGJpOEVqT2c0VzFMVHNuSmRuTmstNHFENFVVNnBMVnFUN3BFMGl3MXE?oc=5"
+    },
+    {
+     "id": 220,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Vivtex",
+     "event_date": "2026-02-25",
+     "quote": "Novo Nordisk partners with Vivtex in up to $2.1 billion deal for oral obesity drugs",
+     "source_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxNSkc5NWlQQmVjb01XVG5HdVVHLV9sQ21yQ1BmX3UzSEpZX0R5dmZlc3QtV1llMlByTmpTT083cVAtUWFaNWktYmJXSkpLZUMwZG03X1JweWFETDFVOS1KTHZLRlBBdGlzYU1pcTlVU2pVWW04M1ozVWVMengzU0F1TjFBVkhwcUdWYzlOclB4aS1xMDNLWXpwekZoaEdoU3Zqa0pmcnp1YzRadFJfT05MYk55ajBRVW1mTGwyVWNsN3JIUQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiwgFBVV95cUxNSkc5NWlQQmVjb01XVG5HdVVHLV9sQ21yQ1BmX3UzSEpZX0R5dmZlc3QtV1llMlByTmpTT083cVAtUWFaNWktYmJXSkpLZUMwZG03X1JweWFETDFVOS1KTHZLRlBBdGlzYU1pcTlVU2pVWW04M1ozVWVMengzU0F1TjFBVkhwcUdWYzlOclB4aS1xMDNLWXpwekZoaEdoU3Zqa0pmcnp1YzRadFJfT05MYk55ajBRVW1mTGwyVWNsN3JIUQ?oc=5"
+    },
+    {
+     "id": 217,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Hims",
+     "event_date": "2026-03-07",
+     "quote": "Novo Nordisk To Partner With Hims & Hers To Sell Weight-Loss Drugs: Report",
+     "source_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxNVHBCVlJkaUZLb2lZR3hDa2FPc2JzSVI0T2R4eGg1RUVQQ25NZTQ4a2dCbUs1VHZRNEtXb3gtbm9kelo5enRKdVUyb0NaZkF5VDBvTUZMd25tUDQzdzBsSk52YzBCQVRZekM1ZGZBSllMSmZFanVsM25sSnpfUlRTTXJ2S1dQdHpHQVNYaldjMi1RbEpjYThQV2pMSUVGVERvelAtVFkzZW5JX2V2UEdoUTFxWGFUSVJyS2c?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxNVHBCVlJkaUZLb2lZR3hDa2FPc2JzSVI0T2R4eGg1RUVQQ25NZTQ4a2dCbUs1VHZRNEtXb3gtbm9kelo5enRKdVUyb0NaZkF5VDBvTUZMd25tUDQzdzBsSk52YzBCQVRZekM1ZGZBSllMSmZFanVsM25sSnpfUlRTTXJ2S1dQdHpHQVNYaldjMi1RbEpjYThQV2pMSUVGVERvelAtVFkzZW5JX2V2UEdoUTFxWGFUSVJyS2c?oc=5"
+    },
+    {
+     "id": 627,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "OpenAI",
+     "event_date": "2026-04-14",
+     "quote": "Novo Nordisk (NVO) Teams Up With OpenAI in Major AI Drug Development Push",
+     "source_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxNN0FoREM2V2Znb1dPRXR2RjRaZHZGVGJGWU5qVHp2SENvUUtRd2N2UUlmb2ZSajNMQ0N5UU55YXoteUlzRTVtUWNQQkdNdk9tTUxkWHBlUkFaU3ZIUXVjcEdJSHZqWWhTZWR3R3JISjdBaEF2UU96YlcyWjRvbmFlQjRkNHB2dm9VOVhLUFRCSjVRX1hhUnRBLW4yNA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxNN0FoREM2V2Znb1dPRXR2RjRaZHZGVGJGWU5qVHp2SENvUUtRd2N2UUlmb2ZSajNMQ0N5UU55YXoteUlzRTVtUWNQQkdNdk9tTUxkWHBlUkFaU3ZIUXVjcEdJSHZqWWhTZWR3R3JISjdBaEF2UU96YlcyWjRvbmFlQjRkNHB2dm9VOVhLUFRCSjVRX1hhUnRBLW4yNA?oc=5"
+    },
+    {
+     "id": 979,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Amazon",
+     "event_date": "2026-08-13",
+     "quote": "Novo Nordisk Partners with Amazon to Boost Drug Discovery",
+     "source_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOTm9DYV9UUE5vbkl4M3BkVkg3Q0liQkZIZXVkUDBwV1o4eUV4RGx0cGtrV0IwdXVTWXdBbDB1LVNpY2lkS3pmSDY5WTItQ0hmZzZ5OFdVTEhJRV95UFlnS21PMkRLVGJDUXZySnZBdHpzckM5VExfN3hQOFNFM1lSNGdYamY4QVpHQkZlNmo5bjU0Qy1XWE1jM2F5NA?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxOTm9DYV9UUE5vbkl4M3BkVkg3Q0liQkZIZXVkUDBwV1o4eUV4RGx0cGtrV0IwdXVTWXdBbDB1LVNpY2lkS3pmSDY5WTItQ0hmZzZ5OFdVTEhJRV95UFlnS21PMkRLVGJDUXZySnZBdHpzckM5VExfN3hQOFNFM1lSNGdYamY4QVpHQkZlNmo5bjU0Qy1XWE1jM2F5NA?oc=5"
+    },
+    {
+     "id": 1168,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Anthropic",
+     "event_date": "2026-09-16",
+     "quote": "Novo-Nordisk A/S partners with Anthropic to leverage Claude in accelerating new drug development.",
+     "source_url": "https://news.google.com/rss/articles/CBMiogFBVV95cUxQTmZmdGo3c1B0R3E0NktYQ0s2NVYzSC1wODAwNFRyMV9RTjdSMmtrXzVHMDhZZVJvbUp5dmFfc0plMlotaV8zUHU0NlJxaTEyRVd0d3NlR2ViWXk1emxXbjNjQXVIcVQ5bjlXZVlNV3UtYng1SFJKZklTN0x6a3kwcW1DUGFpM2dIZ0NvRXYydHQ0T3Y0SU0tbUFRZ1JleEx0Qnc?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiogFBVV95cUxQTmZmdGo3c1B0R3E0NktYQ0s2NVYzSC1wODAwNFRyMV9RTjdSMmtrXzVHMDhZZVJvbUp5dmFfc0plMlotaV8zUHU0NlJxaTEyRVd0d3NlR2ViWXk1emxXbjNjQXVIcVQ5bjlXZVlNV3UtYng1SFJKZklTN0x6a3kwcW1DUGFpM2dIZ0NvRXYydHQ0T3Y0SU0tbUFRZ1JleEx0Qnc?oc=5"
+    }
+   ]
+  },
+  "BEAM": {
+   "company": {
+    "ticker": "BEAM",
+    "name": "Beam Therapeutics Inc."
+   },
+   "rows": [
+    {
+     "id": 746,
+     "accession": "0000950170-25-102389",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-08-05",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000095017025102389/beam-20250805.htm",
+     "article_url": null
+    },
+    {
+     "id": 872,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Cambridge",
+     "event_date": "2025-10-10",
+     "quote": "Bristol Myers Squibb buys Cambridge biotech for $1.5B",
+     "source_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxNQ0VXUmt5SU4xd0o5NVdMMWZXVk1LRDlTUXo5SHQ1bVJqdS1IVUFibEp6R2FwRkZWUGlFby1jclhjSy1lczQ3NFl4ckh1Vlo2QV8zQjl0U1FyMUFEbFRqb3ZpQ3B3cF9PQjlMeEUxLVJFcHJxTXFLWTd1dTlOVTQzUW9CaFVxaTBkbXhSaWRfaGdCZ3ZPWExZ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxNQ0VXUmt5SU4xd0o5NVdMMWZXVk1LRDlTUXo5SHQ1bVJqdS1IVUFibEp6R2FwRkZWUGlFby1jclhjSy1lczQ3NFl4ckh1Vlo2QV8zQjl0U1FyMUFEbFRqb3ZpQ3B3cF9PQjlMeEUxLVJFcHJxTXFLWTd1dTlOVTQzUW9CaFVxaTBkbXhSaWRfaGdCZ3ZPWExZ?oc=5"
+    },
+    {
+     "id": 652,
+     "accession": "0001193125-25-263536",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-11-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312525263536/beam-20251104.htm",
+     "article_url": null
+    },
+    {
+     "id": 1125,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "CRISPR",
+     "event_date": "2025-11-04",
+     "quote": "Cathie Wood’s ARK buys CRISPR stock, sells Teradyne and Roku",
+     "source_url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxNUUkzQUNrX3JLazRSRV84bGpYQkdNM04tekhkZ25mLUg2VGs2aGpmZnh0aFBqNkdoN2VUbF95a2ZHRG1MS2pyX3BoRHBfQ1FkTFBTQ3ZMMlk4eXI3bVQ4YlJMcEpYTDJrTXdpc2ZsSlVHeldnZGVuMTVkQXBmVXc4ck9ic0ZzalM1VWQ3UzVHUlhEUnhVSEhpN3NZZzlRVm4tVFV1WHpJZHNfSG1KQndiRmc4NGJEUQ?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMitgFBVV95cUxNUUkzQUNrX3JLazRSRV84bGpYQkdNM04tekhkZ25mLUg2VGs2aGpmZnh0aFBqNkdoN2VUbF95a2ZHRG1MS2pyX3BoRHBfQ1FkTFBTQ3ZMMlk4eXI3bVQ4YlJMcEpYTDJrTXdpc2ZsSlVHeldnZGVuMTVkQXBmVXc4ck9ic0ZzalM1VWQ3UzVHUlhEUnhVSEhpN3NZZzlRVm4tVFV1WHpJZHNfSG1KQndiRmc4NGJEUQ?oc=5"
+    },
+    {
+     "id": 518,
+     "accession": "0001193125-25-316043",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2025-12-11",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312525316043/beam-20251208.htm",
+     "article_url": null
+    },
+    {
+     "id": 483,
+     "accession": "0001193125-26-009722",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-01-12",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526009722/beam-20260111.htm",
+     "article_url": null
+    },
+    {
+     "id": 456,
+     "accession": "0001193125-26-048684",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-12",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526048684/beam-20260209.htm",
+     "article_url": null
+    },
+    {
+     "id": 448,
+     "accession": "0001193125-26-065191",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-02-24",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526065191/beam-20260224.htm",
+     "article_url": null
+    },
+    {
+     "id": 425,
+     "accession": "0001193125-26-093914",
+     "deal_type": "licensing",
+     "counterparty": "Bio Palette Co., Ltd.",
+     "event_date": "2026-03-02",
+     "quote": "On March 2, 2026 (the \"Termination Date\"), Beam Therapeutics Inc. (the \"Company\") and Bio Palette Co., Ltd. (\"Bio Palette\") mutually terminated the License Agreement by and between the Company and Bio Palette dated March 27, 2019 (the \"License Agreement\") in connection with the planned dissolution of Bio Palette.",
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526093914/beam-20260302.htm",
+     "article_url": null
+    },
+    {
+     "id": 341,
+     "accession": "0001193125-26-210299",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-05-07",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526210299/beam-20260507.htm",
+     "article_url": null
+    },
+    {
+     "id": 1140,
+     "accession": null,
+     "deal_type": "collaboration",
+     "counterparty": "Roche",
+     "event_date": "2026-07-21",
+     "quote": "Nurix Therapeutics Announces HSR Clearance of Global Collaboration with Roche to Co-Develop and Co-Commercialize Potential Best-in-Class BTK Degrader Bexobrutideg Across Malignant Hematology, Immunology and Neurology",
+     "source_url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPWTJmUEF4ZDdpeTQyZjJUQ2F0OTdxMy1jaUVrZVlMenc4VDdEa0hhd0hDUGRTOGdfSFctMFRob1pmQ3p2dW5zeF9lcTFOUnBmb3phX0JNWDkzbzBaZ0dSTUV4NWdTNXFHOVN0ZXA2U2YwNDcwVXh1Wk8yaDZHQWdGa3ltRE1pYUZRbXFkVVZyaHJyNVNYQWtEcER2RjVxN1VaUXRHc0dn?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMipgFBVV95cUxPWTJmUEF4ZDdpeTQyZjJUQ2F0OTdxMy1jaUVrZVlMenc4VDdEa0hhd0hDUGRTOGdfSFctMFRob1pmQ3p2dW5zeF9lcTFOUnBmb3phX0JNWDkzbzBaZ0dSTUV4NWdTNXFHOVN0ZXA2U2YwNDcwVXh1Wk8yaDZHQWdGa3ltRE1pYUZRbXFkVVZyaHJyNVNYQWtEcER2RjVxN1VaUXRHc0dn?oc=5"
+    },
+    {
+     "id": 921,
+     "accession": "0001193125-26-331522",
+     "deal_type": "none",
+     "counterparty": null,
+     "event_date": "2026-08-04",
+     "quote": null,
+     "source_url": "https://www.sec.gov/Archives/edgar/data/1745999/000119312526331522/beam-20260804.htm",
+     "article_url": null
+    },
+    {
+     "id": 1132,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Robinhood",
+     "event_date": "2026-09-09",
+     "quote": "Cathie Wood Sells Palantir and AMD, Buys Robinhood and Cerebras Stock: Here's What Else Ark Traded",
+     "source_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxOZjNiRkx0dndoWVAzYWw2MW91TlE2RmJRY3ZlU1g1SGdHZGZybnBxbVlfem1YbnNtS3RFWTFoeFcwQndqX0F0ZVp1aEFoR2o1LWV6QkJZTEsyaW1rMGhDZGN3ZFFpTEVrSnRMQVFaRUY2UVhhVkdJLWVleDdtT1BtMkhOd0dWTnJTMHFvcnlmUUh6VXpsTjJMSlZCc0NjbjNzMjRscDk4ajd2ZzdENlZrTndfVTZRQi1POXYyZ1lDRXRGMDN4eWFYZDUzMndDMWQxU2x1bFoxM1k0X255TUFLNUhadFh0eUd2X3VR?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMi6wFBVV95cUxOZjNiRkx0dndoWVAzYWw2MW91TlE2RmJRY3ZlU1g1SGdHZGZybnBxbVlfem1YbnNtS3RFWTFoeFcwQndqX0F0ZVp1aEFoR2o1LWV6QkJZTEsyaW1rMGhDZGN3ZFFpTEVrSnRMQVFaRUY2UVhhVkdJLWVleDdtT1BtMkhOd0dWTnJTMHFvcnlmUUh6VXpsTjJMSlZCc0NjbjNzMjRscDk4ajd2ZzdENlZrTndfVTZRQi1POXYyZ1lDRXRGMDN4eWFYZDUzMndDMWQxU2x1bFoxM1k0X255TUFLNUhadFh0eUd2X3VR?oc=5"
+    },
+    {
+     "id": 1141,
+     "accession": null,
+     "deal_type": "acquisition",
+     "counterparty": "Meta",
+     "event_date": "2026-09-09",
+     "quote": "Cathie Wood’s ARK sells Alphabet stock, buys Meta and Beam Therapeutics",
+     "source_url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxOeXYwZ0lKRzJ0WU9raVVTRnAzSjZsYmpLOFU3M1VVUVRJb0NtZnJBRi1WRU5jeUpjQ3d5dnFPNHp4aHk3MzQwMFlORC1vaUd1Z0ZzVVIxOGFRR0dlTUIxT2VtZFFtakw3a0dQZm1yd3VBTWJmT2dHTXJHSF9oMEpuN3kzQWRtTVNVTERQSGd4OVVzZVVHNk9TSWVPYTZ5Y0F6RlZWejdwTWR0cVBLb0JIOHFNTjJBRjM3R0VlRFhCUUQ3ZmpBRFQ5UU1B?oc=5",
+     "article_url": "https://news.google.com/rss/articles/CBMiygFBVV95cUxOeXYwZ0lKRzJ0WU9raVVTRnAzSjZsYmpLOFU3M1VVUVRJb0NtZnJBRi1WRU5jeUpjQ3d5dnFPNHp4aHk3MzQwMFlORC1vaUd1Z0ZzVVIxOGFRR0dlTUIxT2VtZFFtakw3a0dQZm1yd3VBTWJmT2dHTXJHSF9oMEpuN3kzQWRtTVNVTERQSGd4OVVzZVVHNk9TSWVPYTZ5Y0F6RlZWejdwTWR0cVBLb0JIOHFNTjJBRjM3R0VlRFhCUUQ3ZmpBRFQ5UU1B?oc=5"
+    }
+   ]
+  }
+ }
+}

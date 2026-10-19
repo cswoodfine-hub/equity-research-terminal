@@ -32,11 +32,9 @@ def test_an_unknown_disease_returns_none():
     assert E.for_indication("") is None
 
 
-def test_every_name_in_the_file_matches_an_indication_the_book_knows():
+def test_every_name_in_the_file_matches_an_indication_the_book_knows(book):
     """A row keyed on a name the indications table does not use reaches nothing."""
-    conn = db.get_connection()
-    known = {r["name"] for r in conn.execute("SELECT name FROM indications")}
-    conn.close()
+    known = {r["name"] for r in book.execute("SELECT name FROM indications")}
     unmatched = [n for n in E.load() if n not in known]
     assert unmatched == [], f"these names reach no indication: {unmatched}"
 
@@ -75,18 +73,16 @@ def test_the_disease_figure_fills_a_gap_but_never_overrides_the_asset(tmp_path):
     assert [f["key"] for f in kept["epidemiology"]] == ["incidence"]
 
 
-def test_no_two_assets_disagree_about_how_many_people_have_a_disease():
+def test_no_two_assets_disagree_about_how_many_people_have_a_disease(book):
     """The guard. Four assets said multiple myeloma was 36,110 people and a fifth said
     36,000; two said follicular lymphoma was 13,619 and 13,960. Prevalence is a fact
     about a disease, so a disagreement is one of them being wrong."""
-    conn = db.get_connection()
-    rows = conn.execute(
+    rows = book.execute(
         """SELECT i.name, COUNT(DISTINCT s.value) n,
                   GROUP_CONCAT(DISTINCT CAST(s.value AS TEXT)) vals
              FROM assumptions s JOIN indications i ON i.id = s.indication_id
             WHERE s.key = 'prevalence' AND s.scenario = 'base'
             GROUP BY s.indication_id HAVING n > 1""").fetchall()
-    conn.close()
     assert rows == [], "; ".join(f"{r['name']}: {r['vals']}" for r in rows)
 
 

@@ -1,0 +1,275 @@
+{
+ "asset_id": 1453,
+ "ticker": "GSK",
+ "brand": "Shingrix",
+ "generic": "Zoster Vaccine Recombinant, Adjuvanted",
+ "prescribing": {
+  "year": 2024,
+  "scope_label": "Medicare Part D only, 2024",
+  "source": "CMS Medicare Part D Prescribers, by Geography and Drug (national) and by Provider and Drug",
+  "cms_brands": [
+   [
+    "Shingrix",
+    "Varicella-Zoster Ge/As01b/Pf"
+   ]
+  ],
+  "national": {
+   "upper_bound": false,
+   "prescribers": 118452,
+   "claims": 3944670,
+   "fills_30d": 3976455.1,
+   "beneficiaries": 2932055,
+   "beneficiaries_65_plus": 2688870,
+   "drug_cost": 775347086.57,
+   "note": null
+  },
+  "days_covered": {
+   "value": 0.1115,
+   "label": "a proxy, not a PDC",
+   "above_one": false,
+   "applies": false,
+   "note": "A vaccine is given once or in a short series, so days covered says nothing about adherence",
+   "file_value": null,
+   "file_note": "file-based days covered held back: the file carries 94.1% of national claims, under the 95% it needs"
+  },
+  "file": {
+   "status": "complete",
+   "population": "prescribers with 11 or more claims for the drug (the file population)",
+   "why": null,
+   "prescribers": 35428,
+   "claims": 3710214,
+   "claims_share": 0.940564,
+   "deciles": [
+    0.758366,
+    0.055085,
+    0.041711,
+    0.033765,
+    0.027912,
+    0.023239,
+    0.019377,
+    0.016031,
+    0.013381,
+    0.011132
+   ],
+   "top1pct": 0.672391,
+   "top10pct": 0.758366,
+   "prescribers_for_50pct": 33,
+   "prescribers_for_80pct": 6107,
+   "hhi": 119.57,
+   "median_claims": 27.0,
+   "days_per_claim": 1.97,
+   "note": "file-based days covered held back: the file carries 94.1% of national claims, under the 95% it needs"
+  },
+  "volume_deciles": {
+   "value": null,
+   "note": "Not computed: CMS does not say whether its national prescriber count includes prescribers with fewer than 11 claims, so the prescribers missing from the file cannot be ranked"
+  },
+  "specialties": [
+   {
+    "specialty": "Family Practice",
+    "prescribers": 6498,
+    "claims": 1278799,
+    "claims_share": 0.34467
+   },
+   {
+    "specialty": "Pharmacist",
+    "prescribers": 20978,
+    "claims": 773745,
+    "claims_share": 0.208545
+   },
+   {
+    "specialty": "Internal Medicine",
+    "prescribers": 4089,
+    "claims": 586864,
+    "claims_share": 0.158175
+   },
+   {
+    "specialty": "Emergency Medicine",
+    "prescribers": 149,
+    "claims": 453082,
+    "claims_share": 0.122117
+   },
+   {
+    "specialty": "Hospitalist",
+    "prescribers": 62,
+    "claims": 123322,
+    "claims_share": 0.033239
+   },
+   {
+    "specialty": "Preventive Medicine",
+    "prescribers": 36,
+    "claims": 108912,
+    "claims_share": 0.029355
+   },
+   {
+    "specialty": "Otolaryngology",
+    "prescribers": 6,
+    "claims": 68498,
+    "claims_share": 0.018462
+   },
+   {
+    "specialty": "Cardiology",
+    "prescribers": 31,
+    "claims": 60006,
+    "claims_share": 0.016173
+   },
+   {
+    "specialty": "Nurse Practitioner",
+    "prescribers": 1842,
+    "claims": 59355,
+    "claims_share": 0.015998
+   },
+   {
+    "specialty": "Obstetrics & Gynecology",
+    "prescribers": 44,
+    "claims": 52773,
+    "claims_share": 0.014224
+   },
+   {
+    "specialty": "Other",
+    "prescribers": 1693,
+    "claims": 144858,
+    "claims_share": 0.039043
+   }
+  ],
+  "series": [
+   {
+    "year": 2020,
+    "prescribers": 146915,
+    "claims": 5045804,
+    "beneficiaries": 3604109,
+    "days_covered": 0.1164
+   },
+   {
+    "year": 2021,
+    "prescribers": 148661,
+    "claims": 3668325,
+    "beneficiaries": 2743262,
+    "days_covered": 0.1106
+   },
+   {
+    "year": 2022,
+    "prescribers": 142443,
+    "claims": 3918636,
+    "beneficiaries": 2802512,
+    "days_covered": 0.1157
+   },
+   {
+    "year": 2023,
+    "prescribers": 140416,
+    "claims": 5694531,
+    "beneficiaries": 3893010,
+    "days_covered": 0.1209
+   },
+   {
+    "year": 2024,
+    "prescribers": 118452,
+    "claims": 3944670,
+    "beneficiaries": 2932055,
+    "days_covered": 0.1115
+   }
+  ],
+  "caveats": [
+   "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses. It can pass 1 where supplies overlap, as when two strengths are filled together or a refill comes early, and where fills run under 30 days, since CMS counts each as one 30-day fill, as for a drug given every week or two.",
+   "The provider file leaves out any prescriber with fewer than 11 claims for the drug, so its figures, the deciles among them, describe that population and not every prescriber."
+  ],
+  "part_b_note": null
+ },
+ "formulary": {
+  "release_date": "2026-09-16",
+  "contract_year": 2026,
+  "scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026; excludes employer, PACE and demonstration plans",
+  "source": "CMS Monthly Prescription Drug Plan Formulary and Pharmacy Network Information",
+  "formularies_total": 328,
+  "formularies_listing": 328,
+  "pa_formularies": 5,
+  "st_formularies": 0,
+  "ql_formularies": 262,
+  "listed_share": 1.0,
+  "pa_share": 0.01524390243902439,
+  "st_share": 0.0,
+  "plans_total": 5496,
+  "plans_listing": 5496,
+  "mapd": {
+   "plans": 5129,
+   "listing": 5129
+  },
+  "pdp": {
+   "plans": 367,
+   "listing": 367
+  },
+  "pa_plans": 849,
+  "st_plans": 0,
+  "ql_plans": 3818,
+  "by_plan_type": {
+   "MA-PD": {
+    "plans": 5129,
+    "listing": 5129,
+    "pa": 776,
+    "st": 0,
+    "ql": 3554
+   },
+   "PDP": {
+    "plans": 367,
+    "listing": 367,
+    "pa": 73,
+    "st": 0,
+    "ql": 264
+   }
+  },
+  "tiers": [
+   {
+    "tier": 1,
+    "formularies": 184
+   },
+   {
+    "tier": 2,
+    "formularies": 9
+   },
+   {
+    "tier": 3,
+    "formularies": 99
+   },
+   {
+    "tier": 6,
+    "formularies": 36
+   }
+  ],
+  "specialty_plans_listing": 0,
+  "selected_drug": false,
+  "rxcuis_known": 2,
+  "rxcuis_listed": 2,
+  "note": null,
+  "zero_reason": null,
+  "history": [
+   {
+    "release_date": "2026-09-16",
+    "contract_year": 2026,
+    "listed_share": 1.0,
+    "pa_share": 0.01524390243902439,
+    "st_share": 0.0
+   }
+  ],
+  "caveats": [
+   "Excludes employer, PACE and demonstration plans. Counts formularies and plans, not people: the file carries no enrolment. Tiers are each plan's own, so only the specialty tier count compares across plans."
+  ]
+ },
+ "medicaid": null,
+ "codes": {
+  "source": "RxNav, U.S. National Library of Medicine",
+  "brand_rxcuis": 2,
+  "brand_ndc9s": 7,
+  "unbranded_ndc9s": 0,
+  "basis": "rxnav_brand_name",
+  "rxnorm_version": "05-Oct-2026",
+  "looked_up_at": "2026-10-05 15:28:41",
+  "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+ },
+ "why_empty": {
+  "prescribing": null,
+  "formulary": null,
+  "medicaid": "No Medicaid claims on file for this brand's NDCs"
+ },
+ "co_marketed": null,
+ "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+}

@@ -1,0 +1,331 @@
+{
+ "ticker": "AMGN",
+ "asset_id": 1631,
+ "name": "Olpasiran",
+ "price_year": 2018,
+ "ok": true,
+ "currency": "USD",
+ "fx": {
+  "currency": "USD",
+  "rate": null,
+  "as_of": null
+ },
+ "portion": 1.0,
+ "portion_basis": "the owner's own asset",
+ "tax_rate": 0.1236,
+ "after_tax": true,
+ "tax_basis": "after tax at the asset's 12.4%, the company bearing the cost being on the pharma engine",
+ "wacc": 0.07218470144000001,
+ "anchor": "2025-12-31",
+ "anchor_basis": "31 December of the valuation year",
+ "area": "Cardiovascular",
+ "cost_area": "Cardiovascular",
+ "area_basis": "Cardiovascular read as Sertkaya's Cardiovascular",
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2028-06-15",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "trial": {
+   "nct_id": "NCT07293260",
+   "phase": "Phase 3",
+   "status": "Recruiting",
+   "primary_completion": "2028-06-15",
+   "enrollment": 406,
+   "indications": [
+    "Cardiovascular Diseases"
+   ]
+  },
+  "p": 0.5731121281464531,
+  "p_evidence": "published",
+  "p_published": 0.5730968504537431,
+  "stated_pos": false,
+  "placed": null,
+  "pos_success": 0.874,
+  "pos_now": 0.5009,
+  "success_leg": 3786.312916780387,
+  "success_leg_per_share": 6.98581718963171,
+  "ev": 2169.9818535644117,
+  "ev_per_share": 4.0036565563919035,
+  "rnpv": 2169.9818535644117,
+  "rnpv_per_share": 4.0036565563919035,
+  "cost": 216.534198296098,
+  "cost_per_share": 0.39950959095221034,
+  "net": 1953.4476552683136,
+  "net_per_share": 3.604146965439693,
+  "breakeven_p": 0.05718866957256755,
+  "funds": true,
+  "cost_usd_mm": 307.7942854871166,
+  "full_usd_mm": 377.35610399999996,
+  "unread": false,
+  "route": "registry",
+  "grade": "convention",
+  "basis": "2 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+  "high": {
+   "cost": 619.2926567169478,
+   "cost_per_share": 1.1426063777065458,
+   "net": 1550.6891968474638,
+   "net_per_share": 2.8610501786853577,
+   "breakeven_p": 0.16356087579881026,
+   "funds": true,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  },
+  "held": {
+   "open": 1,
+   "ncts": [
+    "NCT07136012"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Coronary Disease"
+   ],
+   "pos": 0.4554,
+   "note": "A miss leaves 1 other Phase 3 open, and the model holds it at 46% until it reads out."
+  },
+  "legs_basis": "Phase 3 to NDA/BLA 57.3% then NDA/BLA to approval 87.4% for Cardiovascular and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme"
+ },
+ "ladder": {
+  "label": "after later trial costs",
+  "rows": [
+   {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2028-06-15",
+    "p": 0.5731121281464531,
+    "cost": 216.534198296098,
+    "value_if_passed": 3784.39275403521,
+    "ev_at_gate": 2168.881385007136,
+    "net": 1952.347186711038,
+    "breakeven_p": 0.057217686527174696,
+    "funds": true,
+    "value_if_passed_floored": 3784.39275403521,
+    "floored": false,
+    "cost_per_share": 0.39950959095221034,
+    "value_if_passed_per_share": 6.982274453939502,
+    "net_per_share": 3.6021165806476714
+   },
+   {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "p": 0.8740423330708874,
+    "cost": 1.9201627451769312,
+    "value_if_passed": 4331.955986018936,
+    "ev_at_gate": 3786.3129167803872,
+    "net": 3784.39275403521,
+    "breakeven_p": 0.0004432553681002561,
+    "funds": true,
+    "value_if_passed_floored": 4331.955986018936,
+    "floored": false,
+    "cost_per_share": 0.00354273569220836,
+    "value_if_passed_per_share": 7.992538719592131,
+    "net_per_share": 6.982274453939502
+   }
+  ],
+  "value_on_approval": 4331.955986018936,
+  "risked_cost": 217.6346668533739,
+  "value_today": 1952.347186711038,
+  "rnpv": 2169.9818535644117,
+  "npv": 4332.165808673211,
+  "value_today_per_share": 3.6021165806476714,
+  "risked_cost_per_share": 0.4015399757442323,
+  "high": {
+   "rows": [
+    {
+     "gate": "p3_to_nda",
+     "label": "Phase 3 readout",
+     "date": "2028-06-15",
+     "p": 0.5731121281464531,
+     "cost": 619.2926567169478,
+     "value_if_passed": 3784.39275403521,
+     "ev_at_gate": 2168.881385007136,
+     "net": 1549.588728290188,
+     "breakeven_p": 0.1636438649388625,
+     "funds": true,
+     "value_if_passed_floored": 3784.39275403521,
+     "floored": false,
+     "cost_per_share": 1.1426063777065458,
+     "value_if_passed_per_share": 6.982274453939502,
+     "net_per_share": 2.859019793893336
+    },
+    {
+     "gate": "nda_to_approval",
+     "label": "FDA decision",
+     "date": null,
+     "p": 0.8740423330708874,
+     "cost": 1.9201627451769312,
+     "value_if_passed": 4331.955986018936,
+     "ev_at_gate": 3786.3129167803872,
+     "net": 3784.39275403521,
+     "breakeven_p": 0.0004432553681002561,
+     "funds": true,
+     "value_if_passed_floored": 4331.955986018936,
+     "floored": false,
+     "cost_per_share": 0.00354273569220836,
+     "value_if_passed_per_share": 7.992538719592131,
+     "net_per_share": 6.982274453939502
+    }
+   ],
+   "risked_cost": 620.3931252742237,
+   "value_today": 1549.588728290188,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  }
+ },
+ "stages": [
+  {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "route": "registry",
+   "studies": [
+    {
+     "nct_id": "NCT07136012",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "OCEAN(a)-PreEvent - Olpasiran Trials of Cardiovascular Events And LipoproteiN(a) Reduction to Prevent First Major Cardiovascular Events",
+     "enrollment": 11000,
+     "start": "2025-08-22",
+     "primary_completion": "2031-10-20",
+     "per_patient_usd": 33084.0,
+     "full_usd_mm": 363.924,
+     "share_ahead": 0.8177777777777778,
+     "ahead_usd_mm": 297.60896,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2031-10-20",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "82% of its run from 2025-08-22 to 2031-10-20 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Cardiovascular Diseases",
+      "Coronary Disease"
+     ]
+    },
+    {
+     "nct_id": "NCT07293260",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "Olpasiran Trials of Cardiovascular Events and Lipoprotein(a) Reduction - Coronary Computed Tomography Angiography Trial",
+     "enrollment": 406,
+     "start": "2026-03-23",
+     "primary_completion": "2028-06-15",
+     "per_patient_usd": 33084.0,
+     "full_usd_mm": 13.432104,
+     "share_ahead": 0.758282208588957,
+     "ahead_usd_mm": 10.185325487116565,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-06-15",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "76% of its run from 2026-03-23 to 2028-06-15 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Cardiovascular Diseases"
+     ]
+    }
+   ],
+   "outside": [
+    {
+     "nct_id": "NCT05581303",
+     "phase": "Phase 3",
+     "status": "Active not recruiting",
+     "title": "Olpasiran Trials of Cardiovascular Events and Lipoprotein(a) Reduction (OCEAN(a)) - Outcomes Trial",
+     "enrollment": 7297,
+     "start": "2022-12-14",
+     "primary_completion": "2028-03-31",
+     "per_patient_usd": 33084.0,
+     "full_usd_mm": 241.413948,
+     "share_ahead": 0.28024819027921405,
+     "ahead_usd_mm": 67.65582203516028,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-03-31",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "28% of its run from 2022-12-14 to 2028-03-31 is ahead, on a straight line",
+     "fit": "unmapped",
+     "indications": [],
+     "why": "it carries MeSH terms that match none of the conditions it lists"
+    }
+   ],
+   "date": "2028-06-15",
+   "date_basis": "primary completion on the registry",
+   "cost_usd_mm": 307.7942854871166,
+   "full_usd_mm": 377.35610399999996,
+   "grade": "convention",
+   "basis": "2 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+   "p": 0.5731121281464531,
+   "p_implied": false
+  },
+  {
+   "gate": "nda_to_approval",
+   "label": "FDA decision",
+   "route": "review",
+   "studies": [],
+   "outside": [],
+   "cost_usd_mm": 2.6,
+   "full_usd_mm": 2.6,
+   "date": null,
+   "date_basis": "the FDA decision follows the review; no date is computed here",
+   "grade": "analogue",
+   "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+   "p": 0.8740423330708874,
+   "p_implied": false
+  }
+ ],
+ "outside": {
+  "studies": [
+   {
+    "nct_id": "NCT05581303",
+    "phase": "Phase 3",
+    "status": "Active not recruiting",
+    "title": "Olpasiran Trials of Cardiovascular Events and Lipoprotein(a) Reduction (OCEAN(a)) - Outcomes Trial",
+    "enrollment": 7297,
+    "start": "2022-12-14",
+    "primary_completion": "2028-03-31",
+    "per_patient_usd": 33084.0,
+    "full_usd_mm": 241.413948,
+    "share_ahead": 0.28024819027921405,
+    "ahead_usd_mm": 67.65582203516028,
+    "missing": null,
+    "spend_from": "2026-10-06",
+    "spend_to": "2028-03-31",
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "28% of its run from 2022-12-14 to 2028-03-31 is ahead, on a straight line",
+    "fit": "unmapped",
+    "indications": [],
+    "why": "it carries MeSH terms that match none of the conditions it lists"
+   }
+  ],
+  "cost_usd_mm": 67.65582203516028,
+  "cost": 53.40975431080887,
+  "cost_per_share": 0.09854198212326361,
+  "uncosted": [],
+  "note": "Every other open Phase 2 and 3 study of the asset: outside the indications the forecast values, matched to none, not needed for an FDA gate, or run beside the gate rather than on the path to it. Their remaining cost, as one figure for the whole programme, never in the headline."
+ },
+ "next_12m": {
+  "named_usd_mm": 65.05216485889571,
+  "named": 65.05216485889571,
+  "basis": "registry studies' spend in the next 12 months, pre-tax, unrisked, undiscounted, at the company's share"
+ },
+ "sources": [
+  "Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and Research and Development Intensity in the US, 2000-2018. JAMA Netw Open 2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 dollars",
+  "DiMasi JA, Grabowski HG, Hansen RW. Innovation in the pharmaceutical industry: new estimates of R&D costs. J Health Econ 2016;47:20-33, doi:10.1016/j.jhealeco.2016.01.012, Table 2, 2013 dollars"
+ ],
+ "paid_note": "Already paid inside the company's R&D ratio, so none of it is taken off the value."
+}

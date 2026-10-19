@@ -123,6 +123,26 @@ def test_derive_readouts_is_idempotent_and_tracks_a_slip(tmp_path):
     assert next(r for r in rows if r["ticker"] == "LLY")["expected_date"] == slipped
 
 
+def test_a_readout_follows_its_study_to_the_company_that_holds_it(tmp_path):
+    """Pombiliti's Phase 3 readout sat under Structure Therapeutics after the study had
+    been filed there by mistake and gone back to BioMarin: the derivation updated the
+    date and never the company."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    mrk = conn.execute("SELECT id FROM companies WHERE ticker = 'MRK'").fetchone()[0]
+    conn.execute("UPDATE trials SET sponsor_company_id = ? WHERE nct_id = 'NCT_P3'", (mrk,))
+    conn.commit()
+    conn.close()
+
+    assert catalysts.derive_readouts(db_file)["updated"] == 1
+    held = [r["ticker"] for r in catalysts.list_catalysts(db_file, within_days=365)
+            if r["source_url"].endswith("NCT_P3")]
+    assert held == ["MRK"]
+    assert catalysts.derive_readouts(db_file)["updated"] == 0      # settled
+
+
 def test_accepting_a_readout_protects_it_from_the_next_refresh(tmp_path):
     """The analyst's judgement outranks the derivation."""
     db_file = tmp_path / "test.db"
@@ -157,6 +177,79 @@ def test_derived_rows_are_withdrawn_when_the_trial_stops(tmp_path):
 
     assert catalysts.derive_readouts(db_file)["withdrawn"] == 1
     assert {r["ticker"] for r in catalysts.list_catalysts(db_file, within_days=365)} == {"MRK"}
+
+
+def test_a_resolved_readout_is_history_the_derivation_never_touches(tmp_path):
+    """A readout resolved met or missed is evidence pos_granular reads. Neither a slip,
+    a retitle nor the trial leaving the window may edit or delete it, and its trial
+    gets no second pending row. A stale pending row is still withdrawn."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    resolved = conn.execute("SELECT id, expected_date, title FROM catalysts"
+                            " WHERE source_url LIKE '%NCT_P3'").fetchone()
+    conn.close()
+    catalysts.set_status(db_file, resolved["id"], "missed")
+
+    slipped = (dt.date.today() + dt.timedelta(days=200)).isoformat()
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET primary_completion_date = ?, title = 'Renamed'"
+                 " WHERE nct_id = 'NCT_P3'", (slipped,))
+    conn.commit()
+    conn.close()
+    again = catalysts.derive_readouts(db_file)
+    assert again["added"] == 0 and again["updated"] == 0
+
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET overall_status = 'Completed'"
+                 " WHERE nct_id IN ('NCT_P3', 'NCT_P3B')")
+    conn.commit()
+    conn.close()
+    gone = catalysts.derive_readouts(db_file)
+
+    conn = db.get_connection(db_file)
+    rows = [dict(r) for r in conn.execute(
+        "SELECT id, status, expected_date, title, source_url FROM catalysts")]
+    conn.close()
+    assert gone["withdrawn"] == 1                     # MRK's pending row, not the resolved
+    assert len(rows) == 1
+    kept = rows[0]
+    assert kept["id"] == resolved["id"] and kept["status"] == "missed"
+    assert (kept["expected_date"], kept["title"]) == (resolved["expected_date"],
+                                                      resolved["title"])
+
+
+def test_a_resolved_readout_keeps_the_day_it_was_recorded(tmp_path):
+    """pos_granular dates a resolved readout from updated_at. Accepting the row later,
+    or recording the same outcome again, must not move that day; a new outcome does."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM catalysts WHERE source_url LIKE '%NCT_P3'"
+                       ).fetchone()[0]
+    conn.close()
+    assert catalysts.set_status(db_file, cid, "missed") is True
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE catalysts SET updated_at = '2026-09-20 10:00:00' WHERE id = ?",
+                 (cid,))
+    conn.commit()
+    conn.close()
+
+    def row():
+        conn = db.get_connection(db_file)
+        try:
+            return tuple(conn.execute("SELECT is_curated, status, updated_at FROM catalysts"
+                                      " WHERE id = ?", (cid,)).fetchone())
+        finally:
+            conn.close()
+
+    assert catalysts.accept_catalyst(db_file, cid) is False, "a resolved row is history"
+    assert catalysts.set_status(db_file, cid, "missed") is True
+    assert row() == (0, "missed", "2026-09-20 10:00:00")
+    catalysts.set_status(db_file, cid, "met")
+    assert row()[1] == "met" and row()[2] != "2026-09-20 10:00:00"
 
 
 def test_month_only_dates_are_marked_and_do_not_say_readout_twice(tmp_path):

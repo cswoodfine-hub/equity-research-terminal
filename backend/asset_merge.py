@@ -40,6 +40,8 @@ Idempotent: a second run finds nothing to merge.
 
 from __future__ import annotations
 
+import csv
+import pathlib
 import re
 
 import assets_util
@@ -65,7 +67,7 @@ _ELEMENTS = {"AC", "AT", "BI", "C", "CU", "F", "GA", "GD", "H", "HO", "I", "IN",
 # and cell lines sit here too: AAVrh74 is a capsid serotype and HEK-293 is what the vector
 # is grown in, and neither is a compound anyone is developing.
 _BIOLOGY = {"AAV", "AAVRH", "ACE", "ANG", "APOE", "BCMA", "CAR", "CART", "CD", "COV",
-            "COVID", "DUX", "EGFR", "FC", "GIP", "GLP", "HBV", "HDL", "HEK", "HER",
+            "COVID", "DUX", "EGFR", "FC", "FGF", "GIP", "GLP", "HBV", "HDL", "HEK", "HER",
             "HIV", "HLA", "HPV", "IGG", "IL", "KRAS", "LDL", "LNP", "LRRC", "MHC", "MMP",
             "NK", "PD", "PDL", "PEG", "PSA", "RH", "RSV", "SARS", "TCR", "TDP", "TNF",
             "VEGF"}
@@ -432,6 +434,85 @@ def _absorb(conn, survivor_id: int, loser_id: int) -> int:
     return moved
 
 
+PROGRAMME_NAMES = (pathlib.Path(__file__).resolve().parent.parent
+                   / "data" / "programme_names.csv")
+
+
+def name_programmes(conn, path=None) -> dict:
+    """Give a derived programme the INN its company files it under. Returns counts.
+
+    A derived row takes the shortest spelling a study used, and the registry often never
+    uses the INN at all: Praxis files relutrigine as "1.0mg/kg/day PRAX-562" and
+    "PRAX-562", ulixacaltamide as "60 mg ulixacaltamide", and misspells vormatrigine as
+    "vormatrogine". A seed, a decision date and an exclusivity row all join on the name,
+    so the programme answers to its INN only where a row of ``data/programme_names.csv``
+    says so, each with the filing that gives the name.
+
+    Three guards. Only an unmarketed row is renamed, since a product's name is its label's.
+    The row must be the one asset of its company answering to ``name`` as its generic, its
+    code or an alias, so a spelling two rows share renames neither. And where another row
+    already carries the INN nothing is renamed: two rows of one molecule are a fold, which
+    is data/asset_alias_map.csv's job. The old spelling is kept as a curated alias, so
+    trial mapping still binds it and the derivation never makes the row again.
+
+    Idempotent: a row already carrying its INN is left alone.
+    """
+    source = pathlib.Path(path) if path else PROGRAMME_NAMES
+    out = {"renamed": 0, "skipped": []}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    for row in rows:
+        ticker = (row.get("ticker") or "").strip().upper()
+        name = (row.get("name") or "").strip()
+        inn = (row.get("inn") or "").strip()
+        if not (ticker and name and inn):
+            continue
+        company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (ticker,)).fetchone()
+        if company is None:
+            out["skipped"].append((ticker, name, "no such company"))
+            continue
+        holders = [r["id"] for r in conn.execute(
+            "SELECT id FROM assets WHERE owner_company_id = ?"
+            "   AND LOWER(TRIM(COALESCE(generic_name, ''))) = LOWER(?)",
+            (company["id"], inn))]
+        hits = {r["id"]: r for r in conn.execute(
+            """SELECT a.id, a.generic_name, a.is_marketed FROM assets a
+                WHERE a.owner_company_id = ?
+                  AND (LOWER(TRIM(COALESCE(a.generic_name, ''))) = LOWER(?)
+                       OR LOWER(TRIM(COALESCE(a.internal_code, ''))) = LOWER(?)
+                       OR a.id IN (SELECT asset_id FROM asset_aliases
+                                    WHERE LOWER(TRIM(internal_code)) = LOWER(?)))""",
+            (company["id"], name, name, name))}
+        if len(hits) != 1:
+            out["skipped"].append((ticker, name, f"{len(hits)} rows answer to the name"))
+            continue
+        asset = next(iter(hits.values()))
+        if asset["is_marketed"]:
+            out["skipped"].append((ticker, name, "a marketed product keeps its own name"))
+            continue
+        if holders == [asset["id"]]:
+            continue                        # already named
+        if holders:
+            out["skipped"].append((ticker, name, f"another row already carries {inn}"))
+            continue
+        old = (asset["generic_name"] or "").strip()
+        if old:
+            conn.execute(
+                "INSERT INTO asset_aliases (internal_code, asset_id, note) VALUES (?, ?, ?)"
+                " ON CONFLICT(internal_code) DO UPDATE SET asset_id = excluded.asset_id,"
+                "   note = excluded.note",
+                (old, asset["id"],
+                 f"curated: the registry's spelling of {inn} (data/programme_names.csv)"))
+        conn.execute("UPDATE assets SET generic_name = ?, updated_at = datetime('now')"
+                     " WHERE id = ?", (inn, asset["id"]))
+        out["renamed"] += 1
+    return out
+
+
 def merge(db_path=None) -> dict:
     """Both passes: derived into marketed, then derived rows that share a code."""
     conn = db.get_connection(db_path)
@@ -467,6 +548,10 @@ def merge(db_path=None) -> dict:
                     merged += 1
                     by_brand += 1
         by_alias = 0
+        # A programme's INN before the hand-kept aliases, so an alias row can name the
+        # programme by its INN on a database rebuilt from scratch, where the derived row
+        # still carries the registry's spelling until this runs.
+        named = name_programmes(conn)["renamed"]
         # The hand-kept names first, so an override applies on a database rebuilt from
         # scratch rather than only where someone remembered to write the row.
         programme_alias.load_curated(conn)
@@ -510,4 +595,5 @@ def merge(db_path=None) -> dict:
         conn.close()
     return {"merged": merged, "trials_moved": moved, "by_code": by_code,
             "by_brand": by_brand, "by_formulation": by_formulation,
-            "by_alias": by_alias, "duplicate_rows_collapsed": dict(DROPPED)}
+            "by_alias": by_alias, "named": named,
+            "duplicate_rows_collapsed": dict(DROPPED)}

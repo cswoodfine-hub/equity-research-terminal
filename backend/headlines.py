@@ -246,7 +246,65 @@ def _deals(conn, tickers, since) -> list:
             "url": row["source_url"],
             "rank": row["headline_usd"],
         })
+    return out + _announced_deals(conn, tickers, since, out)
+
+
+def _announced_deals(conn, tickers, since, termed) -> list:
+    """Deals known from the headlines alone, with the value the headline states.
+
+    A licence announced by press release with no filing behind it (Novartis and Abogen,
+    up to $7.8 billion, 2026-10-02) has no terms on file but does have a figure, which is
+    what tells it from a headline about nothing. Each is read again under the reader's
+    current rules, so a party an older, looser reading took ("AFib") never reaches the
+    page, and one already shown with filed terms is not shown twice.
+    """
+    from fetchers.deals_news import parse_deal, search_names, value_usd
+    have = {(d["ticker"], _first(_party(d))) for d in termed}
+    out = []
+    for row in conn.execute(
+            "SELECT c.ticker, c.name, d.counterparty, d.deal_type, d.event_date, d.area,"
+            "       d.announced_value, d.quote, d.source_url"
+            "  FROM deals d JOIN companies c ON c.id = d.company_id"
+            " WHERE d.headline_usd IS NULL AND d.announced_value IS NOT NULL"
+            "   AND d.quote IS NOT NULL AND d.event_date >= ?", (since,)):
+        if tickers is not None and row["ticker"] not in tickers:
+            continue
+        names = ({row["name"], row["ticker"], row["name"].split()[0]}
+                 | set(search_names(row["ticker"], row["name"])))
+        read = parse_deal(row["quote"], names)
+        if not read or _first(read["counterparty"]) != _first(row["counterparty"]):
+            continue
+        key = (row["ticker"], _first(row["counterparty"]))
+        usd = value_usd(row["quote"])
+        if key in have or not usd:
+            continue
+        have.add(key)
+        summary = [_pair("Announced", row["announced_value"]),
+                   _pair("Counterparty", row["counterparty"])]
+        if row["area"]:
+            summary.append(_pair("For", row["area"]))
+        out.append({
+            "kind": "deal", "ticker": row["ticker"], "name": row["name"],
+            "date": (row["event_date"] or "")[:10],
+            "headline": (f"{row['ticker']} {row['deal_type'] or 'deal'} with "
+                         f"{row['counterparty']}"),
+            "figure": _money(usd),
+            "detail": f"{row['announced_value']} announced; terms not filed",
+            "summary": summary,
+            "evidence": row["quote"],
+            "url": row["source_url"],
+            "rank": usd,
+        })
     return out
+
+
+def _first(name) -> str:
+    return (name or "").split()[0].lower().strip(".,'\u2019") if name else ""
+
+
+def _party(deal: dict) -> str:
+    return next((p["value"] for p in deal.get("summary") or []
+                 if p.get("label") == "Counterparty"), "")
 
 
 def _from_feed(feed, tickers, kinds, kind, figure, since="", matching=None) -> list:

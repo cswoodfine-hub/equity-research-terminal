@@ -52,8 +52,9 @@ def name_of(row) -> str:
 
 
 def population(conn) -> list[dict]:
-    """Every asset the sort covers: not marketed, no assumptions, at least one indication
-    at Phase 2, 2/3 or 3, and not excluded. Returned with the keys a sort row joins on."""
+    """Every asset the sort covers: not marketed, no assumptions, not retired as a stopped
+    programme, at least one indication at Phase 2, 2/3 or 3, and not excluded. Returned
+    with the keys a sort row joins on."""
     phases = ",".join("?" * len(LATE_PHASES))
     excluded = ",".join("?" * len(EXCLUDED_TICKERS))
     rows = conn.execute(
@@ -62,6 +63,7 @@ def population(conn) -> list[dict]:
              WHERE a.is_marketed = 0
                AND c.ticker NOT IN ({excluded})
                AND NOT EXISTS (SELECT 1 FROM assumptions s WHERE s.asset_id = a.id)
+               AND NOT EXISTS (SELECT 1 FROM retired_programmes r WHERE r.asset_id = a.id)
                AND EXISTS (SELECT 1 FROM asset_indications ai
                             WHERE ai.asset_id = a.id AND ai.phase IN ({phases}))
              ORDER BY c.ticker, a.id""",

@@ -1,0 +1,1149 @@
+"""Every candidate for one indication, compared whatever its modality or mechanism.
+
+The asset-indication pair is the unit of analysis (CLAUDE.md), and every other view in
+the terminal reads it one company at a time. An analyst asking who wins in obesity or in
+first-line lung cancer needs the other axis: every drug aimed at the disease, from every
+company, side by side on what it is, what its trials showed and what the model says it
+is worth.
+
+Three layers, each only what a free source states:
+
+- **Commercial.** Where the book models the drug: success probability, peak revenue and
+  year, value per share, and, where several claim one patient pool, each one's share of
+  it before and after the pool is counted once (``pool_crowding``).
+- **Scientific.** Modality, mechanism, target, class, route and boxed warning
+  (``asset_pharmacology``, from ChEMBL and the openFDA label).
+- **Clinical.** The results the sponsors posted to ClinicalTrials.gov: every arm of every
+  primary endpoint against its placebo arm, grouped where two trials measured the same
+  thing in the same unit, and the safety record per drug against placebo in the same
+  trials (serious adverse events, withdrawals for adverse events, deaths, the commonest
+  events).
+
+A drug joins the landscape three ways, and each row says which: the pipeline records it
+in the indication, the model sizes a pool for it there, or one of its trials names the
+indication. The last is how an incumbent enters: most marketed products have no running
+trial and so no pipeline row, but their completed trials name the disease.
+
+Nothing is computed across trials beyond placing numbers side by side. Two trials of one
+endpoint differ in population, duration and background therapy, and the rows carry the
+trial, its size and its time point so a reader can see how far the comparison stretches.
+
+Big pharma owners only for now, the same rule as the engine split.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import time
+from collections import defaultdict
+
+import db
+import forecast_view
+import indication_mapping as IM
+import pool_crowding
+
+LATE = ("Phase 2", "Phase 2/3", "Phase 3")
+_PHASE_RANK = {"Early Phase 1": 0, "Phase 1": 1, "Phase 1/2": 2, "Phase 2": 3,
+               "Phase 2/3": 4, "Phase 3": 5, "Phase 4": 6}
+
+# A condition a completed trial names reaches an indication when this share of the
+# indication's own words is in it. Stricter than the pipeline's half, because a completed
+# trial carries no MeSH descriptor to anchor on: three quarters keeps "Arthritis,
+# Psoriatic" out of rheumatoid arthritis while "Type 2 Diabetes" still meets "Diabetes
+# Mellitus, Type 2".
+CONDITION_MATCH = 0.75
+# One word for a malignancy however the sponsor spells it, so "Breast Cancer" meets
+# "Breast Neoplasms" and "Non-Small Cell Lung Cancer" meets "Carcinoma, Non-Small-Cell Lung".
+_SYNONYMS = {"cancer": "neoplasm", "cancers": "neoplasm", "carcinoma": "neoplasm",
+             "carcinomas": "neoplasm", "neoplasms": "neoplasm", "tumor": "neoplasm",
+             "tumors": "neoplasm", "tumour": "neoplasm", "tumours": "neoplasm",
+             "mellitus": None}
+_PLACEBO = re.compile(r"\b(placebo|vehicle|sham|dummy)\b", re.I)
+# An arm the sponsor names as the control, which in oncology is rarely a placebo.
+_CONTROL = re.compile(r"\b(standard of care|soc|control|best supportive care|"
+                      r"investigator'?s choice|physician'?s choice|observation|"
+                      r"chemotherapy alone|usual care)\b", re.I)
+_VERDICT_TTL_S = 15 * 60
+_verdicts: dict = {}
+_big: dict = {}
+
+
+# --- words and matching -------------------------------------------------------------
+def _words(text: str) -> set:
+    out = set()
+    for w in IM.tokens(text):
+        w = _SYNONYMS.get(w, w)
+        if w:
+            out.add(w)
+    return out
+
+
+def condition_matches(condition: str, indication: str) -> bool:
+    """Whether a sponsor's free-text condition names this indication."""
+    if not IM.is_indication(condition):
+        return False
+    ind, cond = _words(indication), _words(condition)
+    if not ind or not cond:
+        return False
+    nums_i, nums_c = IM._numbers(ind), IM._numbers(cond)
+    if nums_i and nums_c and not (nums_i & nums_c):
+        return False            # Type 1 is not Type 2
+    if ("non" in ind) != ("non" in cond):
+        return False            # small cell is not non-small cell, Hodgkin not non-Hodgkin
+    return len(ind & cond) / len(ind) >= CONDITION_MATCH
+
+
+def is_placebo(title: str | None, names=()) -> bool:
+    """A placebo, vehicle or sham arm. One that also names the drug, or any part of it,
+    is the drug given with a matching dummy (a double-dummy design), so it is the drug's
+    arm, not placebo; "Placebo + Metformin" is still placebo, on background therapy.
+    ``names`` is a list of names or a ``drug_identity``."""
+    text = (title or "").lower()
+    return bool(_PLACEBO.search(text)) and not mentions_drug(text, drug_identity(names))
+
+
+# --- whose arm it is ------------------------------------------------------------------
+# An arm the drug's own trial runs after, or beside, its randomised comparison: a
+# crossover, an extension or an open-label phase ("Extension Phase of Docetaxel Arm:
+# Nivolumab"). It is never the comparator, and never counted as a third arm.
+_SWITCH_ARM = re.compile(r"switch|cross[- ]?over|extension|open[- ]label|\bole\b|\blte\b|"
+                         r"long[- ]term|follow[- ]up|rollover", re.I)
+# A development code in an arm's title (ABP 215, PF-06439535): in a trial of a biologic
+# whose plain name is on another arm, the sign of a biosimilar's comparison with its
+# reference product.
+_DEV_CODE = re.compile(r"\b[A-Z]{1,5}[- ]?\d{2,}[A-Z]?\b")
+# A drug named in an arm's description in one of these settings is not the arm's drug: a
+# placebo for it, a premedication given with the arm's own drug, background therapy, or
+# what a non-responder is moved on to ("Placebo for ixekizumab", "Dexamethasone
+# coadministered", "rescued with baricitinib").
+_DESC_BEFORE = re.compile(r"\b(placebo|dummy|matching|matched|premedicat\w*|co-?administ\w*|"
+                          r"background|rescue\w*|switch\w*|cross\w*|in addition to|"
+                          r"on top of|stable dose)\W+(\w+\W+){0,3}$", re.I)
+_DESC_AFTER = re.compile(r"^\W*(\w+\W+){0,1}\b(placebo|dummy|matching|co-?administ\w*|"
+                         r"premedicat\w*)", re.I)
+
+
+def _salt_free(name: str) -> str:
+    from fetchers.pharmacology import _SALTS
+    words = name.split()
+    kept = [w for w in words if w.lower().strip(",") not in _SALTS]
+    return " ".join(kept) if kept else name
+
+
+def drug_identity(cand) -> dict:
+    """The names an arm is read against, in three kinds.
+
+    ``whole``: any one of them names the drug. Its filed names (brand, generic, code,
+    active ingredient) and its compound name, each also without a salt word, so
+    "Osimertinib 80 mg" names osimertinib mesylate.
+    ``plain``: a biologic's name without its FDA suffix ("Cemiplimab" for
+    cemiplimab-rwlc). A biosimilar shares it with its reference product, so it is used
+    only where no other candidate holds it as a whole name (``endpoints`` and ``safety``
+    strike it there) and never in a trial with a development code on another arm.
+    ``parts``: a combination's components ("Insulin degludec + Liraglutide"), which name
+    it only all together; a filed name that is one component alone is not a whole name.
+
+    ``cand`` may be a list of names (each read as whole), a candidate, or an identity."""
+    if isinstance(cand, dict) and "whole" in cand:
+        return cand
+    if not isinstance(cand, dict):
+        names = [n for n in (cand or []) if n]
+        whole = list(dict.fromkeys([*names, *(_salt_free(n) for n in names)]))
+        plain = [p for p in dict.fromkeys(_BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", n))
+                                          for n in whole) if p not in whole]
+        return {"whole": whole, "plain": plain, "parts": []}
+    filed = [n for n in (cand.get("_names") or []) if n]
+    comps = [p.strip() for p in (cand.get("name") or "").split(" + ") if p.strip()]
+    if len(comps) >= 2:
+        low = {c.lower() for c in comps}
+        whole = [n for n in filed if _salt_free(n).lower() not in low
+                 and _clean_generic(n).lower() not in low]
+        parts = [list(dict.fromkeys([c, *(n for n in filed if _clean_generic(n).lower()
+                                          == c.lower())]))
+                 for c in comps]
+        return {"whole": list(dict.fromkeys(whole)), "plain": [], "parts": parts}
+    base = drug_identity(filed)
+    known = {n.lower() for n in base["whole"] + base["plain"]}
+    # The compound name is the generic cleaned, so for a biologic it is the plain name.
+    base["whole"] += [c for c in comps if c.lower() not in known]
+    return base
+
+
+def _found(text: str, names) -> list[str]:
+    """The names (four letters or more) a lower-cased text holds, as written."""
+    return [n for n in names if n and len(n) >= 4 and n.lower() in text]
+
+
+def names_drug(text: str | None, ident: dict, plain: bool = True) -> list[str]:
+    """The drug's names a text holds where together they name the drug: one whole name,
+    one plain name, or every part of a combination. Empty where they do not."""
+    t = (text or "").lower()
+    got = _found(t, ident["whole"]) + (_found(t, ident["plain"]) if plain else [])
+    if ident["parts"]:
+        hits = [_found(t, alts) for alts in ident["parts"]]
+        if all(hits):
+            got += [h for hs in hits for h in hs]
+    return got
+
+
+def mentions_drug(text: str | None, ident: dict) -> bool:
+    """Whether a text names the drug or any part of it: such an arm is never a clean
+    control or placebo."""
+    t = (text or "").lower()
+    return bool(names_drug(t, ident) or any(_found(t, alts) for alts in ident["parts"]))
+
+
+def _described(desc: str | None, ident: dict) -> bool:
+    """Whether an arm's description names the drug as the arm's own treatment: at least
+    one mention not in a placebo, premedication, background or rescue setting."""
+    text = (desc or "").lower()
+    for name in names_drug(text, ident):
+        start = 0
+        n = name.lower()
+        while True:
+            i = text.find(n, start)
+            if i < 0:
+                break
+            if not (_DESC_BEFORE.search(text[max(0, i - 60):i])
+                    or _DESC_AFTER.search(text[i + len(n):i + len(n) + 30])):
+                return True
+            start = i + len(n)
+    return False
+
+
+def _core_arms(arms: list[dict]) -> list[dict]:
+    return [a for a in arms if not _SWITCH_ARM.search(a["group_title"] or "")]
+
+
+def comparator(arms: list[dict], names) -> tuple[dict | None, str | None]:
+    """The arm a drug's arm is read against, and what kind it is.
+
+    A placebo arm where there is one. Otherwise an arm the sponsor names as the control
+    (standard of care, investigator's choice), which is how an oncology trial is built.
+    Otherwise, where exactly one of the trial's randomised arms does not name the drug
+    and at least one does, that one: Keytruda against docetaxel, three doses of
+    tirzepatide against semaglutide. An extension, crossover or open-label arm is not
+    counted. None where the trial gives no way to tell, or where the drug is named only
+    by a biologic's plain name and another arm carries a development code (a biosimilar
+    against its reference product). ``names`` is a list of names or a
+    ``drug_identity``."""
+    ident = drug_identity(names)
+    placebo = next((a for a in arms if is_placebo(a["group_title"], ident)), None)
+    if placebo:
+        return placebo, "placebo"
+
+    def named(a):
+        return (mentions_drug(a["group_title"], ident)
+                or _described(a.get("group_description"), ident))
+    control = next((a for a in arms if _CONTROL.search(a["group_title"] or "")
+                    and not named(a)), None)
+    if control:
+        return control, "control"
+    core = _core_arms(arms)
+    others = [a for a in core if not named(a)]
+    if len(others) == 1 and len(core) >= 2:
+        strong = {**ident, "plain": []}
+        by_plain = not any(names_drug(a["group_title"], strong)
+                           or _described(a.get("group_description"), strong)
+                           for a in core if a is not others[0])
+        if by_plain and _DEV_CODE.search(others[0]["group_title"] or ""):
+            return None, None
+        return others[0], "comparator"
+    return None, None
+
+
+def weeks_of(*texts) -> float | None:
+    """The time point of an endpoint in weeks, from its title or time frame. The last one
+    named, since "baseline to week 52" is measured at week 52."""
+    found = []
+    for text in texts:
+        for n, unit in re.findall(r"(\d+(?:\.\d+)?)\s*[- ]?\s*(weeks?|months?|days?|years?)",
+                                  text or "", re.I):
+            found.append(float(n) * {"w": 1, "m": 4.345, "d": 1 / 7, "y": 52.18}[unit[0].lower()])
+        for unit, n in re.findall(r"\b(week|month|day|year)\s*(\d+(?:\.\d+)?)", text or "", re.I):
+            found.append(float(n) * {"w": 1, "m": 4.345, "d": 1 / 7, "y": 52.18}[unit[0].lower()])
+    return round(max(found), 1) if found else None
+
+
+_TIME_WORDS = re.compile(r"\b(at|by|through|to|from|over|up)?\s*(week|month|day|year)s?\s*\d+"
+                         r"|\b\d+\s*(week|month|day|year)s?\b", re.I)
+_STEMS = {"percentage": "percent", "%": "percent", "participants": "participant",
+          "patients": "participant", "subjects": "participant", "change": "change",
+          "changes": "change"}
+
+
+def endpoint_key(title: str, unit: str | None) -> str:
+    """Two trials' endpoints are the same measure when their titles, with the time point
+    and word order taken out, share every word, and their unit agrees."""
+    core = _TIME_WORDS.sub(" ", (title or "").lower())
+    words = sorted({_STEMS.get(w, w) for w in re.split(r"[^a-z0-9%]+", core)
+                    if w and w not in IM._STOPWORDS and not w.isdigit()})
+    unit_words = sorted({_STEMS.get(w, w) for w in re.split(r"[^a-z0-9%]+", (unit or "").lower())
+                         if w})
+    return " ".join(words) + " | " + " ".join(unit_words)
+
+
+# --- the universe it reads ----------------------------------------------------------
+def _big_pharma_ids(conn) -> set:
+    now = time.time()
+    if _big.get("at", 0) > now - _VERDICT_TTL_S:
+        return _big["ids"]
+    import pos_granular
+    ids = {r["id"] for r in conn.execute("SELECT id FROM companies")
+           if pos_granular.big_pharma(conn, r["id"])}
+    _big.update(at=now, ids=ids)
+    return ids
+
+
+def _members(conn, indication_id: int) -> list[dict]:
+    """The indication and every name its population is grouped under."""
+    group = pool_crowding.group_of(conn, indication_id)
+    rows = conn.execute(
+        """SELECT i.id, i.name FROM indication_groups g
+             JOIN indications i ON i.name = g.indication_name WHERE g.group_key = ?""",
+        (group,)).fetchall()
+    own = conn.execute("SELECT id, name FROM indications WHERE id = ?",
+                       (indication_id,)).fetchone()
+    out = {r["id"]: r["name"] for r in rows}
+    if own:
+        out[own["id"]] = own["name"]
+    return [{"id": k, "name": v} for k, v in out.items()]
+
+
+def indications(db_path=None, limit: int = 250) -> list[dict]:
+    """The indications a landscape can be drawn for: at least one big pharma candidate
+    that is marketed or in Phase 2 and later, most contested first."""
+    conn = db.get_connection(db_path)
+    try:
+        big = _big_pharma_ids(conn)
+        if not big:
+            return []
+        marks = ",".join("?" * len(big))
+        rows = conn.execute(
+            f"""SELECT i.id, i.name, i.therapeutic_area,
+                       COUNT(DISTINCT a.id) AS assets,
+                       COUNT(DISTINCT a.owner_company_id) AS companies,
+                       GROUP_CONCAT(DISTINCT c.ticker) AS tickers,
+                       MAX(CASE ai.phase WHEN 'Phase 3' THEN 3 WHEN 'Phase 2/3' THEN 2
+                                         WHEN 'Phase 2' THEN 1 ELSE 0 END) AS top
+                  FROM asset_indications ai
+                  JOIN assets a ON a.id = ai.asset_id
+                  JOIN indications i ON i.id = ai.indication_id
+                  JOIN companies c ON c.id = a.owner_company_id
+                 WHERE a.owner_company_id IN ({marks})
+                   AND a.id NOT IN (SELECT asset_id FROM retired_programmes)
+                   AND (a.is_marketed = 1 OR ai.phase IN ('Phase 2','Phase 2/3','Phase 3'))
+                 GROUP BY i.id
+                 ORDER BY companies DESC, assets DESC, i.name
+                 LIMIT ?""", (*big, limit)).fetchall()
+        return [{**dict(r), "tickers": sorted((r["tickers"] or "").split(","))}
+                for r in rows if IM.is_indication(r["name"])]
+    finally:
+        conn.close()
+
+
+# --- candidates ---------------------------------------------------------------------
+# A development code opening a name, as sponsors write it: letters then digits, with or
+# without a hyphen or a space ("AZD9291", "MK-3475", "PF 06463922").
+_CODE = re.compile(r"([A-Z]{2,6})[- ]?(\d{3,8}[A-Z]?)(?![\w-])")
+_COMBINATION = re.compile(r"\+|\bplus\b|\bwith\b|\band\b|combination", re.I)
+
+
+def _codes(name: str) -> list[str]:
+    """The development code a name opens with, written the three ways a registry arm
+    writes it: "AZD9291 80 mg/40 mg" gives AZD9291, AZD-9291 and AZD 9291, so an arm
+    titled "AZD9291 80mg" names osimertinib. Only a code the name opens with, so a
+    vaccine's carrier protein ("... Diphtheria CRM197 Protein") is not read as its code,
+    and never from a combination's name, whose code would be one component's alone."""
+    m = _CODE.match((name or "").strip())
+    if not m or m.group(1).upper() in ("NDA", "BLA", "ANDA") or _COMBINATION.search(name):
+        return []
+    a, b = m.group(1), m.group(2)
+    return [f"{a}{b}", f"{a}-{b}", f"{a} {b}"]
+
+
+def _names(asset: dict, aliases=()) -> list[str]:
+    """The names an asset's trial arms may call it: brand, generic, code and active
+    ingredients, the development names it is known by (``aliases``, from asset_aliases),
+    and the code any of them opens with in each way a registry writes it."""
+    names = [asset.get("brand_name"), asset.get("generic_name"), asset.get("internal_code")]
+    try:
+        names += json.loads(asset.get("active_ingredients") or "[]")
+    except (TypeError, ValueError):
+        pass
+    names += list(aliases)
+    names = [n.strip() for n in names if n and n.strip()]
+    names += [c for n in names for c in _codes(n)]
+    return [n for n in dict.fromkeys(names)
+            if not re.fullmatch(r"(NDA|BLA|ANDA)\s*\d+", n, re.I)]
+
+
+def candidates(conn, members: list[dict]) -> dict:
+    """{asset_id: candidate} for every big pharma asset linked to these indications, with
+    how it was linked and the trials that link it."""
+    big = _big_pharma_ids(conn)
+    ids = [m["id"] for m in members]
+    names = [m["name"] for m in members]
+    if not big or not ids:
+        return {}
+    bm, im = ",".join("?" * len(big)), ",".join("?" * len(ids))
+    found: dict = {}
+
+    def add(asset_id, how, phase=None):
+        c = found.setdefault(asset_id, {"asset_id": asset_id, "linked_by": [],
+                                        "phase_here": None, "trials": {}})
+        if how not in c["linked_by"]:
+            c["linked_by"].append(how)
+        if phase and _PHASE_RANK.get(phase, -1) > _PHASE_RANK.get(c["phase_here"] or "", -1):
+            c["phase_here"] = phase
+
+    retired = f"AND a.id NOT IN (SELECT asset_id FROM retired_programmes)"
+    for r in conn.execute(
+            f"""SELECT ai.asset_id, ai.phase FROM asset_indications ai
+                  JOIN assets a ON a.id = ai.asset_id
+                 WHERE ai.indication_id IN ({im}) AND a.owner_company_id IN ({bm}) {retired}""",
+            (*ids, *big)):
+        add(r["asset_id"], "pipeline", r["phase"])
+    for r in conn.execute(
+            f"""SELECT DISTINCT s.asset_id FROM assumptions s JOIN assets a ON a.id = s.asset_id
+                 WHERE s.indication_id IN ({im}) AND a.owner_company_id IN ({bm}) {retired}""",
+            (*ids, *big)):
+        add(r["asset_id"], "model")
+
+    # Trials, running and completed, whose conditions name the indication. Running ones
+    # carry MeSH and so already sit in asset_indications; this is how a marketed product
+    # with only completed studies arrives, and how every study is attached to its drug.
+    for table, done in (("trials", "primary_completion_date"),
+                        ("completed_trials", "completion_date")):
+        status = "overall_status" if table == "trials" else "'COMPLETED'"
+        for r in conn.execute(
+                f"""SELECT t.nct_id, t.asset_id, t.phase, t.title, t.conditions, t.enrollment,
+                           {status} AS status, t.{done} AS done
+                      FROM {table} t JOIN assets a ON a.id = t.asset_id
+                     WHERE a.owner_company_id IN ({bm}) {retired}""", tuple(big)):
+            try:
+                conds = json.loads(r["conditions"] or "[]")
+            except (TypeError, ValueError):
+                conds = []
+            # The disease the trial is about, not one it lists in passing: Invokana's
+            # and Exforge's studies list obesity among their conditions without being
+            # obesity trials. The first condition a sponsor names, or the title.
+            lead = conds[:1]
+            if not (any(condition_matches(c, n) for c in lead for n in names)
+                    or any(condition_matches(r["title"] or "", n) for n in names)):
+                continue
+            if r["phase"] not in LATE and r["asset_id"] not in found:
+                continue            # an early study alone does not make a candidate
+            add(r["asset_id"], "trial", r["phase"] if r["phase"] in _PHASE_RANK else None)
+            found[r["asset_id"]]["trials"][r["nct_id"]] = {
+                "nct_id": r["nct_id"], "phase": r["phase"], "title": r["title"],
+                "status": r["status"], "enrollment": r["enrollment"], "completion": r["done"]}
+
+    if not found:
+        return {}
+    am = ",".join("?" * len(found))
+    # The development names an asset is known by beyond its own row (asset_aliases: a
+    # code absorbed by a merge, a programme name from the filings).
+    aliases = defaultdict(list)
+    for r in conn.execute(f"SELECT asset_id, internal_code FROM asset_aliases"
+                          f" WHERE asset_id IN ({am})", tuple(found)):
+        aliases[r["asset_id"]].append(r["internal_code"])
+    for r in conn.execute(
+            f"""SELECT a.id, a.generic_name, a.brand_name, a.internal_code, a.active_ingredients,
+                       a.modality, a.is_marketed, a.molecule_id, c.ticker, c.name AS company
+                  FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                 WHERE a.id IN ({am})""", tuple(found)):
+        c = found[r["id"]]
+        c.update({"name": r["brand_name"] or r["generic_name"] or r["internal_code"],
+                  "generic": r["generic_name"], "brand": r["brand_name"],
+                  "code": r["internal_code"], "molecule_id": r["molecule_id"],
+                  "ticker": r["ticker"],
+                  "company": r["company"], "is_marketed": bool(r["is_marketed"]),
+                  "modality": r["modality"],
+                  "_names": _names(dict(r), aliases.get(r["id"], ()))})
+    # Where nothing on this indication stages the asset (a seed alone links it), its
+    # furthest phase anywhere, marked as such.
+    for aid, c in found.items():
+        if c["phase_here"] is None and not c.get("is_marketed"):
+            top = conn.execute(
+                "SELECT phase FROM asset_indications WHERE asset_id = ?", (aid,)).fetchall()
+            best = max((r["phase"] for r in top), key=lambda p: _PHASE_RANK.get(p, -1),
+                       default=None)
+            if best:
+                c["phase_here"] = best
+                c["phase_elsewhere"] = True
+    # An asset kept only by early studies and no late phase anywhere is not a candidate.
+    return {k: v for k, v in found.items()
+            if v.get("is_marketed") or v["phase_here"] in LATE or "model" in v["linked_by"]}
+
+
+def on_label(conn, ids: list[int], names: list[str]) -> set:
+    """The marketed products whose own label's indications name the disease."""
+    if not ids:
+        return set()
+    wanted = [w for w in (_words(n) for n in names) if w]
+    out = set()
+    for r in conn.execute(
+            f"SELECT asset_id, indications_text FROM labels WHERE asset_id IN"
+            f" ({','.join('?' * len(ids))}) AND indications_text IS NOT NULL", ids):
+        text = _words(r["indications_text"])
+        if any(len(w & text) / len(w) >= CONDITION_MATCH for w in wanted):
+            out.add(r["asset_id"])
+    return out
+
+
+def _pharmacology(conn, ids: list[int]) -> dict:
+    out: dict = defaultdict(lambda: defaultdict(list))
+    if not ids:
+        return out
+    for r in conn.execute(
+            f"SELECT asset_id, kind, value, detail, source, source_url FROM asset_pharmacology"
+            f" WHERE asset_id IN ({','.join('?' * len(ids))}) ORDER BY kind, value", ids):
+        out[r["asset_id"]][r["kind"]].append(
+            {"value": r["value"], "detail": r["detail"], "source": r["source"],
+             "url": r["source_url"]})
+    return out
+
+
+def _model_lines(db_path, tickers: set, verdict_for=None) -> dict:
+    """{asset_id: the book's modelled line}, from each company's verdict.
+
+    ``verdict_for(ticker)`` hands back a verdict already computed (the API passes its
+    response cache), so a landscape across thirteen companies does not rebuild thirteen
+    books cold: 27 seconds for lung cancer against under one."""
+    out = {}
+    now = time.time()
+    for t in tickers:
+        hit = _verdicts.get(t)
+        if not hit or hit[0] < now - _VERDICT_TTL_S:
+            v = verdict_for(t) if verdict_for else None
+            try:
+                v = v or forecast_view.company_verdict(db_path, t) or {}
+            except Exception:
+                v = {}
+            hit = (now, {m["asset_id"]: m for m in v.get("modelled") or []},
+                   ((v.get("sotp") or {}).get("fx") or {}).get("currency") or "USD")
+            _verdicts[t] = hit
+        for aid, line in hit[1].items():
+            out[aid] = {**line, "currency": hit[2]}
+    return out
+
+
+def _pool(conn, members: list[dict]) -> dict:
+    """The patient pool the modelled claimants share, and each one's peak share of the
+    patients it starts, before and after the pool is counted once."""
+    for m in members:
+        claims = pool_crowding.claimants(conn, m["id"])
+        if not claims:
+            continue
+        starts = [c["start"] for c in claims if c["start"]]
+        first = int(min(starts)) if starts else 0
+        last = int(max(starts)) if starts else 0
+        got = pool_crowding.solve(claims, years=(last - first) + 22, first_year=first)
+        if not got.get("assets"):
+            continue
+        summary = pool_crowding.summary(got) if len(claims) > 1 else {}
+        return {"pool": got.get("pool"), "indication": m["name"],
+                # A pool of a year's diagnoses is a figure a year, not a standing count.
+                "per_year": bool(got.get("pool_per_year")),
+                "claimants": len(claims), "pooled": got.get("pooled"),
+                "assets": {a["asset_id"]: {"peak_uncrowded": max(a["uncrowded"] or [0]),
+                                           "peak_crowded": max(a["crowded"] or [0]),
+                                           "ratio": a["ratio"], "pooled": a["pooled"]}
+                           for a in got["assets"]},
+                "peak_year": summary.get("peak_year"),
+                "uncrowded_share": summary.get("uncrowded_share"),
+                "crowded_share": summary.get("crowded_share")}
+    return {}
+
+
+# --- clinical ------------------------------------------------------------------------
+def _arm_is_drug(arm_title: str, arm_desc: str, names: list[str]) -> bool:
+    text = f"{arm_title or ''} {arm_desc or ''}".lower()
+    return any(n.lower() in text for n in names if len(n) >= 4)
+
+
+def _results(conn, ncts: list[str]) -> tuple[dict, dict, dict, dict]:
+    if not ncts:
+        return {}, {}, {}, {}
+    marks = ",".join("?" * len(ncts))
+    outcomes = defaultdict(list)
+    for r in conn.execute(
+            f"SELECT * FROM trial_result_outcomes WHERE nct_id IN ({marks})"
+            f" AND outcome_type = 'PRIMARY' ORDER BY nct_id, outcome_index, id", ncts):
+        outcomes[(r["nct_id"], r["outcome_index"])].append(dict(r))
+    analyses = defaultdict(list)
+    for r in conn.execute(f"SELECT * FROM trial_result_analyses WHERE nct_id IN ({marks})", ncts):
+        analyses[(r["nct_id"], r["outcome_index"])].append(dict(r))
+    safety = defaultdict(list)
+    for r in conn.execute(f"SELECT * FROM trial_result_safety WHERE nct_id IN ({marks})", ncts):
+        safety[r["nct_id"]].append(dict(r))
+    events = defaultdict(list)
+    for r in conn.execute(f"SELECT * FROM trial_result_events WHERE nct_id IN ({marks})", ncts):
+        events[r["nct_id"]].append(dict(r))
+    return outcomes, analyses, safety, events
+
+
+def _analysis_for(analyses: list, arm: str, placebo: str | None) -> dict | None:
+    for a in analyses:
+        try:
+            groups = set(json.loads(a["group_ids"] or "[]"))
+        except (TypeError, ValueError):
+            continue
+        if arm in groups and (placebo is None or placebo in groups) and len(groups) == 2:
+            return a
+    return None
+
+
+_ANALYSIS_KEYS = ("method", "param_type", "param_value", "ci_pct", "ci_lower", "ci_upper",
+                  "p_value")
+
+
+def _pair_analyses(analyses: list, arm: str, ref: str | None) -> list[dict]:
+    """Every analysis row that compares exactly this arm with its comparator arm, in the
+    registry's order, with the fields the scorecard reads: the method, the estimate and
+    its type, its interval and level, and the p-value."""
+    if ref is None:
+        return []
+    out = []
+    for a in analyses:
+        try:
+            groups = set(json.loads(a["group_ids"] or "[]"))
+        except (TypeError, ValueError):
+            continue
+        if arm in groups and ref in groups and len(groups) == 2:
+            out.append({k: a.get(k) for k in _ANALYSIS_KEYS})
+    return out
+
+
+def _names_of(cand: dict) -> list[str]:
+    """The names an arm title is read against: the drug's filed names, its compound name
+    and each component of a combination ("Insulin degludec + Liraglutide")."""
+    parts = [p.strip() for p in (cand.get("name") or "").split(" + ")]
+    return list(dict.fromkeys([*(cand.get("_names") or []), *[p for p in parts if p]]))
+
+
+def _title_names(title: str | None, names) -> bool:
+    """Whether a title holds one of these names in full (four letters or more)."""
+    text = (title or "").lower()
+    return any(n.lower() in text for n in names if n and len(n) >= 4)
+
+
+def _is_control_arm(title: str | None, names) -> bool:
+    """An arm that is itself a placebo or a named control, which is never the drug's arm
+    whatever its description mentions. ``names`` is a list of names or a
+    ``drug_identity``."""
+    ident = drug_identity(names)
+    return bool(is_placebo(title, ident)
+                or (_CONTROL.search(title or "") and not mentions_drug(title, ident)))
+
+
+def identities(cands: dict) -> dict:
+    """{asset_id: drug_identity} for every candidate, a biologic's plain name struck where
+    another candidate holds it as a whole name: "Bevacizumab" is Avastin's, not a
+    biosimilar's."""
+    out = {aid: drug_identity(c) for aid, c in cands.items()}
+    whole = defaultdict(set)
+    for aid, ident in out.items():
+        for n in ident["whole"]:
+            whole[n.lower()].add(aid)
+    for aid, ident in out.items():
+        ident["plain"] = [p for p in ident["plain"] if not (whole.get(p.lower(), set()) - {aid})]
+    return out
+
+
+def claimed_by_other(title: str | None, ref_title: str | None, aid, idents: dict) -> bool:
+    """Whether an arm's title names another candidate that the drug's own names do not
+    cover and the control arm does not name: the arm is that drug's, or a combination
+    with it ("Nivolumab + Ipilimumab" is not nivolumab alone; "Liraglutide 1.8 mg" in a
+    semaglutide trial is liraglutide's). A backbone both arms share ("Pembrolizumab +
+    Pemetrexed" against "Placebo + Pemetrexed") claims nothing."""
+    text = (title or "").lower()
+    mine = [n.lower() for n in names_drug(text, idents[aid])]
+    for o, ident in idents.items():
+        if o == aid:
+            continue
+        theirs = names_drug(text, ident)
+        if not theirs or all(any(t.lower() in m for m in mine) for t in theirs):
+            continue
+        if not names_drug(ref_title, ident):
+            return True
+    return False
+
+
+def endpoints(cands: dict, outcomes: dict, analyses: dict) -> list[dict]:
+    """Every primary endpoint of every candidate's trials, per arm, against placebo,
+    grouped by measure. Groups more than one drug shares come first.
+
+    Beside the figures a view shows, each row carries what the clinical scorecard needs to
+    test it (landscape_score): which result and category it is, the arm's and the
+    comparator's own spread or interval, every analysis row the sponsor posted for the
+    pair, and whose arm it is: whether the arm names the drug or is itself a control,
+    whether the comparator arm holds the drug too, and the other candidate a head-to-head
+    comparator arm names."""
+    trial_owner = {nct: aid for aid, c in cands.items() for nct in c["trials"]}
+    idents = identities(cands)
+    own_names = {aid: [c.get("name") or ""] for aid, c in cands.items()}
+    groups: dict = {}
+    for (nct, index), rows in outcomes.items():
+        aid = trial_owner.get(nct)
+        if aid is None:
+            continue
+        c = cands[aid]
+        first = rows[0]
+        key = endpoint_key(first["title"], first["unit"])
+        g = groups.setdefault(key, {"key": key, "title": first["title"], "unit": first["unit"],
+                                    "param_type": first["param_type"], "rows": [],
+                                    "assets": set()})
+        by_cat = defaultdict(list)
+        for r in rows:
+            by_cat[r["category"]].append(r)
+        for cat_index, (cat, arms) in enumerate(by_cat.items()):
+            ident = idents[aid]
+            placebo, kind = comparator(arms, ident)
+            ref_title = placebo["group_title"] if placebo else None
+            for arm in arms:
+                if placebo is not None and arm is placebo:
+                    continue
+                mine = _arm_is_drug(arm["group_title"], arm["group_description"], c["_names"])
+                delta = (arm["value"] - placebo["value"]
+                         if placebo and arm["value"] is not None and placebo["value"] is not None
+                         else None)
+                stat = _analysis_for(analyses.get((nct, index), []), arm["group_id"],
+                                     placebo["group_id"] if placebo else None)
+                pair = _pair_analyses(analyses.get((nct, index), []), arm["group_id"],
+                                      placebo["group_id"] if placebo else None)
+                # The other candidate a head-to-head comparator arm names and this arm
+                # does not: a trial of one drug against another, not an add-on to a
+                # shared backbone. Never through placebo.
+                h2h = (next((o for o in cands if o != aid
+                             and _title_names(ref_title, own_names[o])
+                             and not _title_names(arm["group_title"], own_names[o])), None)
+                       if placebo is not None and kind != "placebo" else None)
+                g["rows"].append({
+                    "asset_id": aid, "name": c["name"], "ticker": c["ticker"],
+                    "nct_id": nct, "phase": c["trials"][nct]["phase"],
+                    "weeks": weeks_of(first["title"], first["time_frame"]),
+                    "time_frame": first["time_frame"], "category": cat,
+                    "arm": arm["group_title"], "arm_is_drug": mine,
+                    # Read by the scorecard's regimen columns (dose, frequency), never scored.
+                    "arm_description": arm["group_description"],
+                    "n": arm["n_analysed"], "value": arm["value"],
+                    "value_text": arm["value_text"], "spread": arm["spread"],
+                    "dispersion": first["dispersion_type"],
+                    "placebo": placebo["value"] if placebo else None,
+                    "reference_kind": kind if placebo else None,
+                    "reference_arm": placebo["group_title"] if placebo else None,
+                    "placebo_n": placebo["n_analysed"] if placebo else None,
+                    "delta": delta,
+                    "p_value": stat["p_value"] if stat else None,
+                    "estimate": stat["param_value"] if stat else None,
+                    "ci": ([stat["ci_lower"], stat["ci_upper"]]
+                           if stat and stat["ci_lower"] is not None else None),
+                    # What the scorecard reads to test the row (landscape_score).
+                    "outcome_index": index, "outcome_type": first["outcome_type"],
+                    "category_index": cat_index, "param": first["param_type"],
+                    "lower": arm["lower"], "upper": arm["upper"],
+                    "reference_spread": placebo["spread"] if placebo else None,
+                    "reference_lower": placebo["lower"] if placebo else None,
+                    "reference_upper": placebo["upper"] if placebo else None,
+                    "arm_is_control": _is_control_arm(arm["group_title"], ident),
+                    # The drug's arm by its title, or by its description where that names
+                    # it as the arm's treatment and not as a placebo, premedication or
+                    # rescue; never an arm whose title names another candidate the
+                    # control lacks.
+                    "arm_names_drug": bool(
+                        (names_drug(arm["group_title"], ident)
+                         or _described(arm["group_description"], ident))
+                        and not claimed_by_other(arm["group_title"], ref_title, aid, idents)),
+                    "reference_is_drug": bool(placebo is not None
+                                              and mentions_drug(ref_title, ident)),
+                    "head_to_head": h2h,
+                    "analyses": pair})
+                g["assets"].add(aid)
+    out = []
+    for g in groups.values():
+        g["n_assets"] = len(g["assets"])
+        g["assets"] = sorted(g["assets"])
+        g["rows"].sort(key=lambda r: (r["name"] or "", r["nct_id"], r["arm"] or ""))
+        out.append(g)
+    out.sort(key=lambda g: (-g["n_assets"], -len(g["rows"]), g["title"] or ""))
+    return out
+
+
+def _rate(affected, at_risk):
+    return (affected / at_risk) if (affected is not None and at_risk) else None
+
+
+def _stratum(nct: str, phase, rows: list[dict], ref, kind, cand: dict,
+             idents: dict | None = None) -> dict:
+    """One trial's safety counts for the drug, kept per arm, and its control arm's, so the
+    clinical scorecard can average the drug against its control trial by trial.
+
+    Each count is [people with the event, people at risk]. A safety arm has a title and
+    no description, so the drug's arms are those whose title names it (a filed name, its
+    compound name or either without its salt word: "Sitagliptin 100 mg" is sitagliptin
+    phosphate); where none does, every arm that is not the control. An arm whose title
+    names another candidate the control arm lacks is never the drug's ("Nivolumab +
+    Ipilimumab"). The scorer applies the period and switch rules to ``arm_rows``."""
+    idents = idents or {cand["asset_id"]: drug_identity(cand)}
+    ident = idents[cand["asset_id"]]
+    ref_title = ref["group_title"] if ref is not None else None
+    eligible = [r for r in rows if r is not ref
+                and not claimed_by_other(r["group_title"], ref_title, cand["asset_id"], idents)]
+    named = [r for r in eligible if names_drug(r["group_title"], ident)]
+    control = {k: [0, 0] for k in ("serious", "withdrawn", "deaths")}
+    arm_rows = []
+    for r in rows:
+        if ref is not None and r is ref:
+            one = control
+        elif any(r is x for x in (named or eligible)):
+            one = {"title": r["group_title"], "is_control": _is_control_arm(r["group_title"], ident),
+                   "serious": [0, 0], "withdrawn": [0, 0], "deaths": [0, 0]}
+            arm_rows.append(one)
+        else:
+            continue
+        at_risk = r["serious_at_risk"] or r["other_at_risk"]
+        for key, aff, risk in (("serious", r["serious_affected"], r["serious_at_risk"]),
+                               ("deaths", r["deaths_affected"], r["deaths_at_risk"]),
+                               ("withdrawn", r["withdrawn_ae"], at_risk)):
+            if aff is not None and risk:
+                one[key] = [one[key][0] + aff, one[key][1] + risk]
+    return {"nct_id": nct, "phase": phase, "kind": kind if ref is not None else None,
+            "arms": len(arm_rows),
+            "control_title": ref["group_title"] if ref is not None else None,
+            "control_is_drug": bool(ref is not None and mentions_drug(ref_title, ident)),
+            "control": control if ref is not None else None,
+            "arm_rows": arm_rows}
+
+
+def safety(cands: dict, safety_rows: dict, events: dict, pharm: dict) -> list[dict]:
+    """Per candidate, its arms and the placebo arms of the same trials pooled: serious
+    adverse events, withdrawals for adverse events and deaths over the number at risk, and
+    the commonest events with the placebo rate beside each. ``strata`` keeps the same
+    counts trial by trial, for the clinical scorecard."""
+    out = []
+    idents = identities(cands)
+    for aid, c in cands.items():
+        drug = {"serious": [0, 0], "withdrawn": [0, 0], "deaths": [0, 0], "any": [0, 0]}
+        placebo = {k: [0, 0] for k in drug}
+        drug_groups, placebo_groups = defaultdict(set), defaultdict(set)
+        trials = 0
+        kinds: set = set()
+        strata = []
+        for nct in c["trials"]:
+            rows = safety_rows.get(nct) or []
+            if not rows:
+                continue
+            trials += 1
+            rows = [r for r in rows
+                    if (r["group_title"] or "").strip().lower() != "total"]
+            named = [r for r in rows if names_drug(r["group_title"], idents[aid])]
+            ref, kind = comparator(rows, idents[aid])
+            strata.append(_stratum(nct, c["trials"][nct].get("phase"), rows, ref, kind,
+                                   {**c, "asset_id": aid}, idents))
+            if ref is not None:
+                kinds.add(kind)
+            for r in rows:
+                if ref is not None and r is ref:
+                    bucket, gset = placebo, placebo_groups
+                elif (named and r in named) or (not named and r is not ref):
+                    bucket, gset = drug, drug_groups
+                else:
+                    continue            # an active comparator's arm is not this drug
+                gset[nct].add(r["group_id"])
+                at_risk = r["serious_at_risk"] or r["other_at_risk"]
+                for key, aff, risk in (("serious", r["serious_affected"], r["serious_at_risk"]),
+                                       ("deaths", r["deaths_affected"], r["deaths_at_risk"]),
+                                       ("withdrawn", r["withdrawn_ae"], at_risk),
+                                       ("any", r["other_affected"], r["other_at_risk"])):
+                    if aff is not None and risk:
+                        bucket[key][0] += aff
+                        bucket[key][1] += risk
+        if not trials:
+            p = pharm.get(aid) or {}
+            if p.get("boxed_warning"):
+                out.append({"asset_id": aid, "name": c["name"], "ticker": c["ticker"],
+                            "trials": 0, "boxed_warning": p["boxed_warning"][0]["value"]})
+            continue
+        terms: dict = {}
+        for nct in c["trials"]:
+            for e in events.get(nct) or []:
+                side = ("drug" if e["group_id"] in drug_groups.get(nct, set()) else
+                        "placebo" if e["group_id"] in placebo_groups.get(nct, set()) else None)
+                if side is None or e["at_risk"] is None:
+                    continue
+                t = terms.setdefault(e["term"], {"term": e["term"], "serious": e["serious"],
+                                                 "organ_system": e["organ_system"],
+                                                 "drug": [0, 0], "placebo": [0, 0]})
+                t[side][0] += e["affected"] or 0
+                t[side][1] += e["at_risk"]
+        top = sorted((t for t in terms.values() if t["drug"][1]),
+                     key=lambda t: -(t["drug"][0] / t["drug"][1]))[:6]
+        p = pharm.get(aid) or {}
+        out.append({
+            "asset_id": aid, "name": c["name"], "ticker": c["ticker"], "trials": trials,
+            # What the control arms were: placebo, a named control, or the other arm.
+            "control_kind": (next(iter(kinds)) if len(kinds) == 1 else
+                             "mixed" if kinds else None),
+            "participants": drug["serious"][1] or drug["any"][1],
+            "placebo_participants": placebo["serious"][1] or placebo["any"][1],
+            **{f"{k}_rate": _rate(*drug[k]) for k in drug},
+            **{f"placebo_{k}_rate": _rate(*placebo[k]) for k in placebo},
+            "top_events": [{"term": t["term"], "serious": bool(t["serious"]),
+                            "organ_system": t["organ_system"],
+                            "rate": _rate(*t["drug"]), "placebo_rate": _rate(*t["placebo"])}
+                           for t in top],
+            "boxed_warning": (p.get("boxed_warning") or [{}])[0].get("value"),
+            "strata": strata})
+    out.sort(key=lambda s: (-(s.get("trials") or 0), s["name"] or ""))
+    return out
+
+
+def _readout_quotes(conn, cands: dict) -> dict:
+    """Press-release readouts that name the drug, newest first, three per drug."""
+    out: dict = defaultdict(list)
+    rows = conn.execute(
+        "SELECT r.company_id, r.drug, r.phase, r.outcome, r.event_date, r.quote, r.source_url,"
+        " c.ticker FROM trial_readouts r JOIN companies c ON c.id = r.company_id"
+        " WHERE r.quote IS NOT NULL ORDER BY r.event_date DESC").fetchall()
+    for aid, cand in cands.items():
+        names = [n.lower() for n in cand["_names"] if len(n) >= 4]
+        for r in rows:
+            if r["ticker"] != cand["ticker"]:
+                continue
+            text = f"{r['drug'] or ''} {r['quote'] or ''}".lower()
+            if any(n in text for n in names):
+                out[aid].append({"date": r["event_date"], "outcome": r["outcome"],
+                                 "phase": r["phase"], "quote": r["quote"],
+                                 "url": r["source_url"]})
+                if len(out[aid]) >= 3:
+                    break
+    return out
+
+
+# --- compounds, not brands ------------------------------------------------------------
+_BIOLOGIC_SUFFIX = re.compile(r"-[a-z]{4}$", re.I)       # FDA's four-letter suffix: -nxki
+_PREFIX = re.compile(r"^(fam|ado)-", re.I)
+
+
+def _clean_generic(name: str | None) -> str | None:
+    """A generic name as the compound's name: no salt word, no biologic suffix, no
+    'fam-' prefix. 'Osimertinib Mesylate' is osimertinib; 'Fam-Trastuzumab
+    Deruxtecan-Nxki' is trastuzumab deruxtecan."""
+    if not name or not name.strip():
+        return None
+    from fetchers.pharmacology import _SALTS
+    words = [w for w in name.strip().split() if w.lower().strip(",") not in _SALTS]
+    text = " ".join(words) or name.strip()
+    text = _BIOLOGIC_SUFFIX.sub("", _PREFIX.sub("", text))
+    if text.isupper() or text.istitle():
+        # A development code keeps its capitals: UBT251, not Ubt251.
+        text = " ".join(w.upper() if any(ch.isdigit() for ch in w) else w.lower()
+                        for w in text.split())
+    return text[:1].upper() + text[1:]
+
+
+def compound_name(cand: dict, pharm: dict) -> str:
+    """The name of what the drug is: ChEMBL's name for the molecule where it resolved,
+    else the generic name cleaned, else the code the company uses, else the brand."""
+    rows = (pharm or {}).get("molecule") or [
+        {"value": x["detail"]} for x in (pharm or {}).get("molecule_type", []) if x.get("detail")]
+    chembl = [_clean_generic(x["value"]) for x in rows if x.get("value")]
+    if chembl:
+        return " + ".join(dict.fromkeys(n for n in chembl if n))
+    code = cand.get("code") or ""
+    if re.fullmatch(r"(NDA|BLA|ANDA)\s*\d+", code, re.I):
+        code = ""
+    return (_clean_generic(cand.get("generic")) or code or cand.get("brand")
+            or cand.get("name") or "unnamed")
+
+
+def compound_groups(cands: dict, pharm: dict) -> list[list[int]]:
+    """A company's assets that are one compound: the book's molecule, ChEMBL's, or the
+    compound name, since ChEMBL files a salt (osimertinib mesylate) apart from its parent."""
+    parent = {a: a for a in cands}
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def join(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    seen: dict = {}
+    for aid, c in cands.items():
+        keys = [("mol", c.get("molecule_id"))] if c.get("molecule_id") else []
+        ph = pharm.get(aid) or {}
+        chembl = sorted({x["ref"] for x in (ph.get("molecule") or ph.get("molecule_type", []))
+                         if x.get("ref")})
+        if chembl:
+            keys.append(("chembl", tuple(chembl)))
+        name = compound_name(c, ph).lower()
+        if name != "unnamed":
+            keys.append(("name", name))
+        for k in keys:
+            key = (c.get("ticker"), k)
+            if key in seen:
+                join(seen[key], aid)
+            else:
+                seen[key] = aid
+    out: dict = {}
+    for aid in cands:
+        out.setdefault(find(aid), []).append(aid)
+    return list(out.values())
+
+
+def _merge(ids: list[int], cands: dict, pharm: dict, lines: dict, pool: dict,
+           quotes: dict, labelled: set) -> dict:
+    """One compound from its brands: trials and links pooled, the furthest stage, the
+    model's values summed across brands, the pharmacology unioned."""
+    members = [cands[a] for a in ids]
+    rep = min(ids, key=lambda a: (not cands[a].get("is_marketed"), a))
+    base = dict(cands[rep])
+    trials: dict = {}
+    names, linked = [], []
+    for c in members:
+        trials.update(c["trials"])
+        names += c.get("_names") or []
+        linked += [x for x in c["linked_by"] if x not in linked]
+    best_phase = max((c["phase_here"] for c in members if c["phase_here"]),
+                     key=lambda p: _PHASE_RANK.get(p, -1), default=None)
+    p: dict = {}
+    for a in ids:
+        for kind, items in (pharm.get(a) or {}).items():
+            have = {x["value"] for x in p.get(kind, [])}
+            p.setdefault(kind, []).extend(x for x in items if x["value"] not in have)
+    base.update({"trials": trials, "_names": list(dict.fromkeys(names)),
+                 "linked_by": linked, "phase_here": best_phase,
+                 "is_marketed": any(c.get("is_marketed") for c in members),
+                 "phase_elsewhere": all(c.get("phase_elsewhere") for c in members),
+                 "modality": next((c.get("modality") for c in members if c.get("modality")),
+                                  None)})
+    base["name"] = compound_name(base, p)
+    brands = sorted({c["brand"] for c in members if c.get("brand")
+                     and c["brand"].lower() != base["name"].lower()})
+    model_lines = [lines[a] for a in ids if lines.get(a)]
+    line = None
+    if model_lines:
+        years = [y for ln in model_lines
+                 for y, v in zip(ln.get("years") or [], ln.get("revenue_share") or [])
+                 if v and v > 0]
+        values = [ln.get("per_share") for ln in model_lines if ln.get("per_share") is not None]
+        peaks = [ln.get("peak_revenue") for ln in model_lines if ln.get("peak_revenue")]
+        line = {"per_share": sum(values) if values else None,
+                "pos": max((ln.get("pos") for ln in model_lines if ln.get("pos") is not None),
+                           default=None),
+                "peak_revenue": sum(peaks) if peaks else None,
+                "peak_year": max((ln.get("peak_year") for ln in model_lines
+                                  if ln.get("peak_year")), default=None),
+                "first_year": min(years) if years else None,
+                "counted": any(ln.get("counted", True) for ln in model_lines),
+                "currency": model_lines[0].get("currency"),
+                "brands_modelled": len(model_lines)}
+    pooled = [(pool.get("assets") or {}).get(a) for a in ids]
+    pooled = [x for x in pooled if x]
+    return {"_cand": base, "_pharm": p, "_line": line, "asset_ids": sorted(ids),
+            "brands": brands, "on_label": any(a in labelled for a in ids),
+            "pool": max(pooled, key=lambda x: x.get("peak_uncrowded") or 0) if pooled else None,
+            "readouts": sorted((q for a in ids for q in quotes.get(a, [])),
+                               key=lambda q: q.get("date") or "", reverse=True)[:3]}
+
+
+# --- the view ------------------------------------------------------------------------
+def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
+    conn = db.get_connection(db_path)
+    try:
+        members = _members(conn, indication_id)
+        if not members:
+            return None
+        own = next(m for m in members if m["id"] == indication_id)
+        cands = candidates(conn, members)
+        ids = list(cands)
+        pharm = _pharmacology(conn, ids)
+        pool = _pool(conn, members)
+        ncts = sorted({n for c in cands.values() for n in c["trials"]})
+        have = {r["nct_id"] for r in conn.execute(
+            f"SELECT nct_id FROM trial_result_fetches WHERE has_results = 1 AND nct_id IN"
+            f" ({','.join('?' * len(ncts)) or 'NULL'})", ncts)} if ncts else set()
+        outcomes, analyses, safety_rows, events = _results(conn, sorted(have))
+        quotes = _readout_quotes(conn, cands)
+        labelled = on_label(conn, [a for a, c in cands.items() if c.get("is_marketed")],
+                            [m["name"] for m in members])
+    finally:
+        conn.close()
+    lines = _model_lines(db_path, {c["ticker"] for c in cands.values()}, verdict_for)
+
+    # One row a compound, not a brand. Zepbound and Mounjaro are one drug, tirzepatide,
+    # sold under two names for two labels; comparing them as rivals, or naming the
+    # compound by whichever brand a trial happened to be filed under, misreads the
+    # landscape. A company's assets are one compound where the book's molecule grouping
+    # or the ChEMBL molecule says so (Rybelsus, filed with no generic name, is
+    # semaglutide by ChEMBL); two companies' versions of one molecule stay apart, since
+    # a biosimilar is a rival.
+    groups = compound_groups(cands, pharm)
+    merged: dict = {}
+    for members_ids in groups:
+        rep = min(members_ids, key=lambda a: (not cands[a].get("is_marketed"), a))
+        merged[rep] = _merge(members_ids, cands, pharm, lines, pool, quotes, labelled)
+    cands_by_rep = {rep: m["_cand"] for rep, m in merged.items()}
+    pharm_by_rep = {rep: m["_pharm"] for rep, m in merged.items()}
+
+    rows = []
+    for rep, m in merged.items():
+        c, p, line = m["_cand"], m["_pharm"], m["_line"]
+        rows.append({
+            "asset_id": rep, "asset_ids": m["asset_ids"], "name": c["name"],
+            "brands": m["brands"], "generic": None,
+            "ticker": c["ticker"], "company": c["company"],
+            # A marketed product reached by its trials is on sale for something, not
+            # necessarily for this: Verzenio was trialled in lung cancer and is sold for
+            # breast. Its own label says which, and where the label does not name the
+            # disease the stage says what it reached here beside the fact it sells.
+            "stage": ("Marketed" if c["is_marketed"] and (
+                          m["on_label"] or not c["phase_here"])
+                      else f'Marketed · {c["phase_here"]} here' if c["is_marketed"]
+                      else (c["phase_here"] or "not staged")),
+            "on_label": m["on_label"],
+            "phase_here": c["phase_here"], "is_marketed": c["is_marketed"],
+            "phase_elsewhere": bool(c.get("phase_elsewhere")),
+            "linked_by": c["linked_by"], "modality": c.get("modality"),
+            "molecule_type": [x["value"] for x in p.get("molecule_type", [])],
+            "mechanisms": [{"value": x["value"], "action": x["detail"]}
+                           for x in p.get("mechanism", [])],
+            "targets": sorted({x["value"] for x in p.get("target", [])}),
+            "classes": [x["value"] for x in p.get("epc_class", [])],
+            "route": [x["value"] for x in p.get("route", [])],
+            "boxed_warning": (p.get("boxed_warning") or [{}])[0].get("value"),
+            "pharmacology_source": sorted({x["source"] for k in p for x in p[k]}),
+            "trials": sorted(c["trials"].values(), key=lambda t: t["completion"] or "",
+                             reverse=True),
+            "with_results": sum(1 for n in c["trials"] if n in have),
+            "model": line,
+            "pool": m["pool"],
+            "readouts": m["readouts"],
+        })
+    rank = {"Marketed": 9}
+    rows.sort(key=lambda r: (-(rank.get(r["stage"]) or (8 if r["is_marketed"] else
+                                                         _PHASE_RANK.get(r["stage"], -1))),
+                             -((r["model"] or {}).get("per_share") or 0), r["name"] or ""))
+    return {
+        "ok": True,
+        "indication": {"id": own["id"], "name": own["name"],
+                       "members": [m["name"] for m in members]},
+        "candidates": rows,
+        "companies": sorted({r["ticker"] for r in rows}),
+        "pool": {k: v for k, v in pool.items() if k != "assets"} if pool else None,
+        "endpoints": endpoints(cands_by_rep, outcomes, analyses),
+        "safety": safety(cands_by_rep, safety_rows, events, pharm_by_rep),
+        "coverage": {
+            "candidates": len(rows),
+            "with_mechanism": sum(1 for r in rows if r["mechanisms"]),
+            "with_model": sum(1 for r in rows if r["model"]),
+            "trials": len(ncts), "trials_with_results": len(have)},
+    }

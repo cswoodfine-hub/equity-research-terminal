@@ -1,0 +1,46 @@
+{
+ "105260": {
+  "properties": {
+   "rxcui": "105260",
+   "name": "azithromycin 40 MG/ML Oral Suspension [Zithromax]",
+   "synonym": "Zithromax 40 MG/ML Oral Suspension",
+   "tty": "SBD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ },
+ "141963": {
+  "properties": {
+   "rxcui": "141963",
+   "name": "azithromycin 40 MG/ML Oral Suspension",
+   "synonym": "azithromycin 200 MG per 5 ML Oral Suspension",
+   "tty": "SCD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ },
+ "211307": {
+  "properties": {
+   "rxcui": "211307",
+   "name": "azithromycin 20 MG/ML Oral Suspension [Zithromax]",
+   "synonym": "Zithromax 20 MG/ML Oral Suspension",
+   "tty": "SBD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ },
+ "308459": {
+  "properties": {
+   "rxcui": "308459",
+   "name": "azithromycin 20 MG/ML Oral Suspension",
+   "synonym": "azithromycin 100 MG per 5 ML Oral Suspension",
+   "tty": "SCD",
+   "language": "ENG",
+   "suppress": "N",
+   "umlscui": ""
+  }
+ }
+}

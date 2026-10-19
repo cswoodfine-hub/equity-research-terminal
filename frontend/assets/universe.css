@@ -1,0 +1,843 @@
+/* The redesigned Universe tab (frontend/universe_cc.py, the builders; universe_page.py,
+   the page). One root class, .uv, and every rule under a .uv- class or, for the week
+   across the group, a .uw- class.
+
+   Read by theme.py, which injects it into the Streamlit page after research.css, and by
+   components/uvboard, which receives it as its css arg, since an iframe inherits none of
+   the page's styles.
+
+   Rules for this file, the same as research.css:
+   - It reads only the custom properties of tokens.css and the :root of research.css. No
+     colour literal of any kind: every colour is a token or a color-mix() of tokens.
+   - No bare element selectors: a rule opts in through a .uv- or .uw- class, the page's own keyed
+     containers (.st-key-uv_*), or the one Streamlit dialog that holds a .uv-dg body.
+   - Sizes are the house scale (system/app.css, measured on the live page).
+
+   The page fits one 1440 by 780 screen: the control row, the band (the news and the
+   board), the ribbon and one tabbed panel of fixed height. Under 1180px wide it stacks
+   and scrolls, as it did before. */
+
+:root {
+  /* The company in focus: a wash and a rail, as on Key insights. */
+  --uv-rail: inset 2px 0 0 var(--up);
+  /* A floating card's shadow, mixed from the ground rather than a literal black. */
+  --uv-shadow: 0 10px 28px color-mix(in oklab, var(--ground) 70%, transparent);
+  /* Columns of the small multiples; the builder sets its own on the grid. */
+  --sm-cols: 9;
+  /* The tabbed panel's body takes the rest of the screen: what is left of the viewport
+     under the app's header, the control row, the band and the ribbon (the body's top is
+     at 651px at 1440 wide, and Streamlit keeps 9px under it), so the page never scrolls:
+     120px at 780 tall, which holds every change, and 240px at 900, which holds the
+     tallest tab (the approvals lanes). A shorter screen scrolls inside the panel. */
+  --uv-panel-h: clamp(96px, calc(100vh - 660px), 440px);
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Root: Archivo for text, Plex Mono for figures. Markdown blocks otherwise fall back  */
+/* to Streamlit's own sans, so the family is set here on the view's own root.          */
+/* ---------------------------------------------------------------------------------- */
+.uv { font-family: var(--font-ui); color: var(--text); }
+/* A kind's colour, set on each item, row and cell that has one; the rule colour otherwise. */
+.uv { --accent: var(--rule-strong); }
+.uv svg text { font-family: var(--font-ui); }
+.uv svg text.m { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.uv svg text.cap { letter-spacing: 0.08em; }
+.uv svg text.halo { paint-order: stroke; stroke: var(--ground); stroke-width: 3px;
+  stroke-linejoin: round; }
+.uv .sec-label { font-family: var(--font-ui); }
+.uv-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The page's blocks sit at the house 8px gap and no more.                             */
+/* ---------------------------------------------------------------------------------- */
+/* Streamlit pulls a markdown block up by a line under its last paragraph; these blocks
+   end on a div, so the pull let one block run under the next. Scoped to the tab: the
+   company dialog's body is a .uv block too, and it keeps the spacing it was drawn with. */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) [data-testid="stMarkdownContainer"]:has(> .uv) {
+  margin-bottom: 0; }
+/* The band's frame is an inline element: as a block it loses the descender gap under it. */
+.st-key-uv_board iframe { display: block; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Control row: the window, a one-line lead, the close and the notes                  */
+/* ---------------------------------------------------------------------------------- */
+/* The control row: the theme clears every segmented control by most of a line above
+   and below, which here would push the band away from the row. */
+.stApp [data-testid="stLayoutWrapper"]:has(.st-key-uv_window) { margin-top: 0;
+  margin-bottom: 0; }
+/* With the command centre drawn, the Universe view switch (Overview, Markets, Policy) moves
+   to the right end of the window control's row, so the page opens on one control line.
+   The row keeps an empty last column where it sits. Any other view, and any other
+   company, keeps the switch where it was. */
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) { position: relative; }
+[data-baseweb="tab-panel"]:has(.st-key-uv_window) .st-key-universe_view {
+  position: absolute; top: 6px; right: 0; width: auto; z-index: 3; }
+/* The week, the lead and the window are each as wide as they need, so the lead never
+   cuts and the window's three options never wrap; the window's column takes the rest,
+   which puts the close at the right, and the last column stands under the view switch,
+   which is drawn over it. The column ratios universe_page.py passes are only the
+   fallback. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; }
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"]:nth-child(2) { flex: 1 1 0 !important; min-width: 0; }
+/* The window switch keeps its three buttons on one line; the regional line beside it is
+   the column that gives way (it ends in an ellipsis, its full text on hover). */
+.st-key-uv_window div { flex-wrap: nowrap !important; }
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+  > [data-testid="stColumn"]:last-child { flex: 0 0 212px !important; }
+.uv-lead { font-family: var(--font-ui); font-size: 13px; line-height: 20px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-lead b { font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.01em; }
+.uv-lead b.up { color: var(--up); }
+.uv-lead b.down { color: var(--down); }
+.uv-lead .rk { font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  padding: 1px 5px; margin: 0 2px; background: color-mix(in oklab, var(--down) 26%, transparent); }
+.uv-lead .rk.up { background: color-mix(in oklab, var(--up) 22%, transparent); }
+.uv-lead .rk.even { background: color-mix(in oklab, var(--muted) 22%, transparent); }
+.uv-status { display: flex; justify-content: flex-end; align-items: baseline; gap: 10px;
+  font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* The page's notes behind a hover, where the folded byline used to take a line. */
+.uv-nt { position: relative; cursor: help; color: var(--muted);
+  border-bottom: 1px dotted var(--rule-strong); outline: none; }
+.uv-nt:hover, .uv-nt:focus { color: var(--text); }
+.uv-nt-c { display: none; position: absolute; right: 0; top: calc(100% + 6px); z-index: 70;
+  width: 440px; white-space: normal; text-align: left; font-family: var(--font-ui);
+  font-size: 11.5px; line-height: 1.45; color: var(--text); padding: 8px 10px;
+  background: var(--panel); border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
+.uv-nt:hover .uv-nt-c, .uv-nt:focus .uv-nt-c { display: block; }
+/* A read taken while the API was still valuing the group: the control row leads its
+   status with the count valued, in the flag colour; the dialog says it in a line. */
+.uv-nt.uv-pt { color: var(--flag); border-bottom-color: var(--flag); }
+.uv-nt.uv-pt:hover, .uv-nt.uv-pt:focus { color: var(--flag); }
+.uv-partial { font-size: 12px; line-height: 1.4; color: var(--flag); margin: 0; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The company against the group: eight cells on one hairline, three lines each        */
+/* ---------------------------------------------------------------------------------- */
+.uv-sp { display: grid; grid-template-columns: minmax(0, 1.32fr) repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule); }
+/* Each cell is a size container. One narrower than the 1440 design (a narrower window,
+   or the sidebar open) drops its value's unit before the value and its place can touch:
+   the label names the measure. If they would still meet, the place wraps under the value
+   rather than printing over it. A container is its own stacking context, so the hovered
+   cell is lifted for its card to sit over the cells beside it. */
+.uv-sp > div { position: relative; padding: 5px 8px;
+  border-left: 1px solid var(--rule); min-width: 0; container-type: inline-size; }
+.uv-sp > div:first-child { border-left: 0; padding-left: 2px; }
+.uv-sp > div:hover { background: var(--panel); z-index: 2; }
+.uv-sp .k { display: flex; justify-content: space-between; align-items: baseline; gap: 6px;
+  font-size: 10px; line-height: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); white-space: nowrap; }
+.uv-sp .k > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The caret that says the cell opens a ranking of every company on hover. The glyph
+   printed about 4 by 3px in muted grey and read as a speck; it is drawn instead, 8 by
+   5px, halfway from muted to the text colour, and green while the card is open. A cell
+   with a card takes the help cursor, as the page's other hovers do. */
+.uv-sp .k .all { flex: 0 0 auto; align-self: center; width: 0; height: 0; overflow: hidden;
+  font-size: 0; line-height: 0; border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid color-mix(in oklab, var(--text) 50%, var(--muted)); }
+.uv-sp > div:hover .k .all { border-top-color: var(--up); }
+.uv-sp > div:has(> .uv-hc) { cursor: help; }
+.uv-sp .vr { display: flex; flex-wrap: wrap; justify-content: space-between;
+  align-items: baseline; gap: 0 6px; min-width: 0; }
+.uv-sp .v { font-family: var(--font-mono); font-size: 19px; font-weight: 600;
+  letter-spacing: -0.02em; line-height: 26px; white-space: nowrap; min-width: 0; }
+.uv-sp .c0 .v { font-size: 22px; }
+.uv-sp .v.up { color: var(--up); }
+.uv-sp .v.down { color: var(--down); }
+.uv-sp .v.none { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.uv-sp .v .u { font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px;
+  letter-spacing: 0; }
+.uv-sp .r { flex: 0 0 auto; margin-left: auto; font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.uv-sp .r b { color: var(--text); font-weight: 600; }
+.uv-sp .r.up { color: var(--up); }
+.uv-sp .r.down { color: var(--down); }
+.uv-sp .s { font-size: 10.5px; line-height: 14px; color: var(--muted); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.uv-sp .uv-rng { display: block; width: 100%; max-width: 196px; height: 13px; margin-top: 1px; }
+/* The thresholds are the cells' content widths at 1440 (152px, and 213px for the price):
+   any narrower and the unit goes. */
+@container (max-width: 151.98px) { .uv-sp .v .u { display: none; } }
+@container (max-width: 211.98px) { .uv-sp .c0 .v .u { display: none; } }
+
+/* A cell's hover card: the whole cohort, ranked, the median where it falls. */
+.uv-hc { display: none; position: absolute; left: 0; top: calc(100% + 2px); z-index: 60;
+  width: 236px; padding: 8px 10px; background: var(--panel);
+  border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); }
+.uv-sp > div:hover .uv-hc { display: block; }
+.uv-sp > div:nth-last-child(-n+2) .uv-hc { left: auto; right: 0; }
+.uv-hc .hc-t { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 4px; }
+.uv-hc .hc-r { display: grid; grid-template-columns: 22px 1fr auto; font-family: var(--font-mono);
+  font-size: 11px; line-height: 16px; color: var(--muted); }
+.uv-hc .hc-r.me { color: var(--up); font-weight: 600; background: var(--active-wash); }
+.uv-hc .hc-r span:last-child { text-align: right; color: var(--text); }
+.uv-hc .hc-med { font-family: var(--font-mono); font-size: 9.5px; color: var(--flag);
+  border-top: 1px dashed var(--flag); margin: 2px 0; padding-top: 1px; }
+.uv-hc .hc-n { font-size: 10.5px; color: var(--muted); margin-top: 6px; line-height: 1.35;
+  white-space: normal; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Legends                                                                             */
+/* ---------------------------------------------------------------------------------- */
+/* A legend is one line under its chart; what does not fit is clipped, never wrapped
+   onto a second line the screen cannot spare. */
+.uv-leg { display: flex; align-items: center; gap: 4px 14px; flex-wrap: nowrap;
+  overflow: hidden; font-size: 10.5px; line-height: 16px; color: var(--muted); margin-top: 2px; }
+.uv-leg span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.uv-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.uv-leg i.sq { border-radius: 1px; width: 8px; height: 8px; }
+.uv-leg i.ring { background: transparent; border: 1.5px solid var(--text); }
+.uv-leg i.bar { width: 14px; height: 3px; border-radius: 0; }
+.uv-leg i.dia { width: 8px; height: 8px; transform: rotate(45deg); border-radius: 0; }
+.uv-leg i.wh { width: 2px; height: 12px; border-radius: 0; background: var(--up); }
+.uv-leg i.tri { width: 0; height: 0; border-radius: 0; background: transparent;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--up); }
+.uv-leg i.tri.dn { border-bottom: 0; border-top: 8px solid var(--down); }
+/* The closing hint gives way first, and ends in an ellipsis rather than a cut word. */
+.uv-leg .sp { display: block; flex: 0 1 auto; min-width: 0; margin-left: auto;
+  overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The tabbed panel: one fixed height, whatever the tab. A tab taller or wider than it */
+/* scrolls inside the panel, never the page.                                          */
+/* ---------------------------------------------------------------------------------- */
+.st-key-uv_panel { margin-top: 0; }
+.st-key-uv_panel .stTabs [data-baseweb="tab-list"] { gap: 1.6rem; }
+/* A slimmer strip than the app's own: the panel's body gets the height. */
+.st-key-uv_panel .stTabs [data-baseweb="tab"] { padding: 0.15rem 0; }
+.st-key-uv_panel .stTabs [data-baseweb="tab-panel"] { height: var(--uv-panel-h);
+  box-sizing: border-box; padding-top: 6px; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin; }
+.uv-th { display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+  font-size: 11px; line-height: 16px; color: var(--muted); margin: 0 0 3px;
+  white-space: nowrap; }
+.uv-th .b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.uv-th .c { flex: 0 0 auto; font-family: var(--font-mono); }
+.uv-th .uv-leg { margin: 0; }
+.uv-tab .chart-mount { margin: 0; }
+.uv-tab .chart-mount svg { display: block; max-width: 100%; height: auto; }
+.uv-tab .chart-mount.wide svg { width: 100%; }
+
+/* Key and value rows: an opened item, the dialog's exposure rows. */
+.uv-kv { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 0.6rem;
+  align-items: baseline; font-size: 12px; padding: 4px 0; border-top: 1px solid var(--rule); }
+.uv-kv > :first-child { color: var(--muted); font-size: 10px; letter-spacing: 0.04em;
+  text-transform: uppercase; }
+.uv-kv > :last-child { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.45; }
+
+/* Rates and the company's value: rates, currencies and the value, three columns. */
+.uv-rates { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
+  column-gap: 32px; align-items: start; }
+.uv-rates .uv-sub { margin-top: 0; }
+.uv-rates .uv-fxg { grid-template-columns: minmax(0, 1fr); }
+.uv-rates .uv-azn { margin-top: 0; }
+.uv-rt { display: grid; grid-template-columns: 104px minmax(0, 1fr) 54px 46px 40px;
+  column-gap: 8px; align-items: center; height: 30px; border-bottom: 1px solid var(--rule); }
+.uv-rt .n { font-size: 12px; white-space: nowrap; }
+.uv-rt svg { display: block; width: 100%; max-width: 132px; height: 24px; }
+.uv-rt .v { font-family: var(--font-mono); font-size: 14px; font-weight: 600; text-align: right; }
+.uv-rt .c { font-family: var(--font-mono); font-size: 11px; color: var(--text); text-align: right; }
+.uv-rt .a { font-family: var(--font-mono); font-size: 10px; color: var(--muted); text-align: right;
+  white-space: nowrap; }
+.uv-sub { display: flex; justify-content: space-between; align-items: baseline; font-size: 10px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); margin: 12px 0 3px;
+  font-weight: 600; }
+.uv-sub span { font-family: var(--font-mono); letter-spacing: 0; text-transform: none;
+  color: var(--muted); font-size: 10.5px; font-weight: 400; }
+.uv-fxg { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+.uv-fx { display: grid; grid-template-columns: 30px 52px 46px minmax(0, 1fr); column-gap: 6px;
+  align-items: center; height: 22px; border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono); font-size: 11px; }
+.uv-fx .n { font-weight: 600; }
+.uv-fx .v, .uv-fx .c { text-align: right; }
+.uv-fx .c.down { color: var(--down); }
+.uv-fx .c.up { color: var(--up); }
+.uv-fx .w { color: var(--muted); text-align: right; font-size: 10.5px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.uv-bm { display: flex; gap: 16px; align-items: baseline; font-family: var(--font-mono);
+  font-size: 11px; margin: 6px 0 0; color: var(--text); }
+.uv-bm b { font-weight: 600; }
+.uv-bm i { font-style: normal; }
+.uv-bm i.down { color: var(--down); }
+.uv-bm i.up { color: var(--up); }
+.uv-bm em { font-style: normal; color: var(--muted); margin-left: auto; font-size: 10px; }
+.uv-azn { margin-top: 10px; padding: 8px 10px 8px 12px; background: var(--active-wash);
+  box-shadow: var(--uv-rail); }
+.uv-azn .hd { font-size: 12.5px; line-height: 1.45; }
+.uv-azn .hd b { font-family: var(--font-mono); font-weight: 600; }
+.uv-azn .hd b:first-child { color: var(--up); }
+.uv-azn svg { display: block; margin: 4px 0 2px; max-width: 100%; height: auto; }
+.uv-azn .nt { font-size: 11px; line-height: 1.45; color: var(--muted); }
+
+/* Medicare and exclusivity: two column charts, each ranked on its own measure. */
+.uv-exp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; }
+.uv-cap { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 4px; }
+.uv-cap b { color: var(--up); font-family: var(--font-mono); }
+
+/* Approvals and readouts: the legend is the tab's first line. */
+.uv-lanes { display: block; }
+.uv-leg-lanes { margin: 0; }
+
+/* Prices, 12 months: small multiples. */
+.uv-sms { display: grid; grid-template-columns: repeat(var(--sm-cols, 9), minmax(0, 1fr));
+  gap: 8px 12px; margin-top: 4px; }
+.uv-sm { display: block; color: var(--text); border-top: 1px solid var(--rule-strong);
+  padding-top: 4px; transition: transform 120ms ease-out; min-width: 0; }
+.uv-sm:hover { transform: translateY(-1px); border-top-color: var(--muted); }
+.uv-sm svg { display: block; width: 100%; height: auto; }
+.uv-sm-h { display: flex; justify-content: space-between; align-items: baseline; }
+.uv-sm-h .tk { font-family: var(--font-mono); font-weight: 600; font-size: 12px; }
+.uv-sm-h .v { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
+.uv-sm-h .v.up { color: var(--up); }
+.uv-sm-h .v.down { color: var(--down); }
+.uv-sm-f { display: flex; justify-content: space-between; font-family: var(--font-mono);
+  font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+/* The focal tile's wash bleeds 3px above, 4px either side and 2px below its cell; its
+   2px rule and padding put its text on the same lines as the tiles beside it. */
+.uv-sm.me { border-top: 2px solid var(--up); background: var(--active-wash);
+  padding: 6px 4px 2px; margin: -3px -4px -2px; }
+.uv-sm.me .tk { color: var(--up); }
+
+/* Policy calendar: the two lanes, and the company events and open dockets beside them. */
+.uv-polg { display: grid; grid-template-columns: minmax(0, 840px) minmax(0, 1fr);
+  column-gap: 32px; align-items: start; }
+.uv-polg .uv-sub { margin-top: 0; }
+.uv-pol { display: block; max-width: 100%; height: auto; }
+.uv-am { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 8px; font-size: 12px;
+  line-height: 21px; border-left: 2px solid var(--accent, var(--rule-strong)); padding-left: 8px;
+  border-bottom: 1px solid var(--rule); }
+.uv-am .d { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.uv-am .h { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-am .tk { font-family: var(--font-mono); font-weight: 600; margin-right: 4px; }
+.uv-pol-foot { font-size: 11.5px; line-height: 1.45; color: var(--muted); margin-top: 8px; }
+.uv-pol-foot b { color: var(--flag); font-weight: 600; }
+
+/* ---------------------------------------------------------------------------------- */
+/* The company dialog (st.dialog, width large), squared                                */
+/* ---------------------------------------------------------------------------------- */
+div[role="dialog"]:has(.uv-dg) { border-radius: var(--radius) !important;
+  border: 1px solid var(--rule-strong); background: var(--ground); }
+div[role="dialog"]:has(.uv-dg) h2 { font-family: var(--font-ui); }
+/* The dialog's buttons sit on their own rule, under the grid. */
+div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
+  border-top: 1px solid var(--rule-strong); padding-top: 12px; margin-top: 10px; }
+.uv-dg-sub { font-size: 12px; color: var(--muted); margin: -6px 0 12px;
+  font-family: var(--font-mono); }
+.uv-dg-figs { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 18px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--rule-strong); }
+.uv-dg-figs .ki-f .v { font-size: 17px; }
+.uv-dg-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 32px; row-gap: 18px; }
+.uv-dg-grid .chart-mount { margin: 6px 0 0; }
+.uv-dg-grid .chart-mount svg { display: block; max-width: 100%; height: auto; }
+.uv-s2 { margin-top: 12px; }
+.uv-pns { margin-top: 8px; }
+.uv-pn { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 6px;
+  font-size: 12px; line-height: 21px; border-bottom: 1px solid var(--rule); }
+.uv-pn span { font-size: 9px; }
+.uv-pn.up span { color: var(--up); }
+.uv-pn.down span { color: var(--down); }
+.uv-pn em { font-style: normal; font-family: var(--font-mono); font-size: 9.5px;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; text-align: right; }
+.uv-evh, .uv-ev { display: grid;
+  grid-template-columns: 62px 96px 70px minmax(0, 1fr) 64px 72px; column-gap: 8px;
+  align-items: center; }
+.uv-evh { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); height: 20px; margin-top: 4px; white-space: nowrap; }
+.uv-evh span:nth-child(5), .uv-ev .e { text-align: right; }
+.uv-ev { height: 22px; border-bottom: 1px solid var(--rule); font-size: 12px; }
+.uv-ev .d { font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+.uv-ev .d i { font-style: normal; color: var(--muted); font-size: 9px; margin-right: 5px; }
+.uv-ev .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-ev .n.none { font-weight: 400; color: var(--muted); }
+.uv-ev .w { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.uv-ev .e { font-family: var(--font-mono); font-size: 11px; }
+.uv-ev .s { font-size: 10.5px; color: var(--muted); background-image: var(--hatch);
+  padding: 0 4px; white-space: nowrap; }
+.uv-ev .s.priced { background-image: none; color: var(--text); font-family: var(--font-mono);
+  font-size: 11px; text-align: right; }
+.uv-ph { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px;
+  color: var(--text); white-space: nowrap; }
+.uv-ph::before { content: ""; width: 8px; height: 8px; background: var(--c, var(--phase-filed)); }
+.uv-ph.p1 { --c: var(--phase-1); }
+.uv-ph.p2 { --c: var(--phase-2); }
+.uv-ph.p3 { --c: var(--phase-3); }
+.uv-ph.filed { --c: var(--phase-filed); }
+.uv-dg-foot { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Inside the uvboard frame. The iframe inherits nothing from the page, so the section */
+/* rule and the chart mount it draws are restated here, as the page draws them.        */
+/* ---------------------------------------------------------------------------------- */
+.uv-frame { font-size: 14px; -webkit-font-smoothing: antialiased; }
+.uv-frame .sec { display: flex; align-items: baseline; justify-content: flex-start;
+  border-bottom: 1px solid var(--rule-strong); padding: 0 0 0.2rem; margin: 0 0 4px; }
+.uv-frame .sec-label { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); flex: 0 0 auto; }
+.uv-frame .sec-count { font-size: 11px; color: var(--muted); font-family: var(--font-mono);
+  text-align: right; min-width: 0; margin-left: auto; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; padding-left: 8px; }
+.uv-frame .sec-basis { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; color: var(--text);
+  border: 1px solid var(--rule-strong); border-radius: var(--radius-small); padding: 1px 6px;
+  margin-left: 0.6rem; flex: 0 0 auto; position: relative; top: -1px; }
+.uv-frame .chart-mount svg { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.uv-frame .chart-mount.stretch svg { width: 100%; }
+
+/* ---------------------------------------------------------------------------------- */
+/* Narrower than the 1440 design. A section's count keeps one line and drops below its */
+/* label when the row is full, rather than shrinking to a letter a line. The bands      */
+/* stack as the page narrows and the page scrolls; the panel grows to its content, and  */
+/* the full-width lanes scroll sideways rather than scaling their 9px labels below      */
+/* legibility.                                                                          */
+/* ---------------------------------------------------------------------------------- */
+.uv .sec, .uv-frame .sec { flex-wrap: wrap; row-gap: 2px; }
+.uv .sec-count { white-space: nowrap; flex: 0 0 auto; padding-left: 8px; }
+@media (max-width: 1179.98px) {
+  /* The lead drops to its own line under the controls. */
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window) {
+    flex-wrap: wrap; row-gap: 2px; }
+  [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] .st-key-uv_window)
+    > [data-testid="stColumn"]:nth-child(2) { order: 9; flex: 1 1 100% !important; }
+  .uv-lead { white-space: normal; }
+  .uv-sp { grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12px; }
+  .uv-leg { flex-wrap: wrap; overflow: visible; }
+  .st-key-uv_panel .stTabs [data-baseweb="tab-list"] { overflow-x: auto; }
+  .st-key-uv_panel .stTabs [data-baseweb="tab-panel"] { height: auto; overflow: visible; }
+  .uv-th { flex-wrap: wrap; white-space: normal; }
+  .uv-tab .chart-mount.wide { overflow-x: auto; }
+  .uv-tab .chart-mount.wide svg { width: 1408px; max-width: none; }
+  .uv-rates { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 16px; }
+  .uv-rates > :last-child { grid-column: 1 / -1; }
+  .uv-exp, .uv-polg { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
+  .uv-sms { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+/* The band's frame is the page less its gutters (17px and 16px), so inside the frame
+   the page's 1180px breakpoint falls at 1147px. Between the two the page is one screen,
+   and the frame keeps the news and the board side by side rather than stacking them
+   under a page that does not. */
+@media (min-width: 1147px) and (max-width: 1179.98px) {
+  .uv-frame .uw-band { grid-template-columns: minmax(0, 1fr) 470px; row-gap: 0; }
+  .uv-frame .uw-bcard { left: auto; right: calc(100% + 14px); top: 0; }
+  .uv-frame .uw-hd { white-space: nowrap; }
+}
+@media (max-width: 899.98px) {
+  .uv-sp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .uv-rates { grid-template-columns: minmax(0, 1fr); }
+  .uv-sms { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .uv-dg-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .uv-dg-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ================================================================================== */
+/* The week across the group: the news-first page (universe_cc.front_html and friends). */
+/* One type scale: 9.5 tags and captions, 10.5 meta and figures in rows, 11.5 board    */
+/* cells, 12.5 headlines and section labels, 16 ranked figures, 15 the deck, 27 the     */
+/* lead headline and 32 its figure. Green and red mean up and down, cheap and           */
+/* expensive; the kinds of news take the other colours (universe_cc.KIND_COLOUR).       */
+/* ================================================================================== */
+:root {
+  /* The band's height at 1440: the board's eighteen rows and its heads. The news column
+     and the board are both drawn to it; the ribbon sits under them. */
+  --uw-row: 17px;
+  /* What each row, tile and cell sets on itself: a tint's strength, a tile's colour, the
+     grid's column count and a board row's place in each sort. */
+  --uw-a: 0%;
+  --uw-bg: var(--panel);
+  --uw-n: 18;
+  --uw-ow: 0;
+  --uw-on: 0;
+  --uw-ox: 0;
+}
+
+/* The control row's kicker: the week the band covers. */
+.uw-kick0 { display: flex; align-items: baseline; gap: 8px; white-space: nowrap;
+  padding-right: 12px; border-right: 1px solid var(--rule-strong); }
+.uw-kick0 .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); }
+.uw-kick0 .dt { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text);
+  border: 1px solid var(--rule-strong); padding: 1px 6px; }
+
+/* The band: the news and the board side by side. */
+.uw-front { padding-top: 2px; }
+.uw-band { display: grid; grid-template-columns: minmax(0, 1fr) 470px; column-gap: 28px;
+  align-items: stretch; }
+.uw-news { position: relative; display: flex; flex-direction: column; min-width: 0; }
+
+/* A kind's tag: its name in mono capitals after a rule in its colour. */
+.uw-tag { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; line-height: 12px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); white-space: nowrap;
+  border-left: 3px solid var(--accent, var(--rule-strong)); padding-left: 5px; }
+.uw-tks { font-family: var(--font-mono); font-size: 10.5px; white-space: nowrap; }
+.uw-tks b { font-weight: 600; color: var(--text); }
+.uw-tks b.all { color: var(--muted); font-weight: 500; }
+.uw-tks b.me { background: var(--active-wash); box-shadow: inset 0 -1px 0 var(--up);
+  padding: 0 2px; }
+.uw-tks b[data-ticker]:hover { text-decoration: underline; text-underline-offset: 2px; }
+.uw-tks i { font-style: normal; color: var(--muted); margin: 0 3px; }
+.uw-dt { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+
+/* The lead story. */
+.uw-lead { position: relative; padding: 0 0 6px; outline: none; }
+.uw-kick { display: flex; align-items: baseline; gap: 10px; line-height: 16px; }
+.uw-kick .uw-more { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--muted); cursor: help; border-bottom: 1px dotted var(--rule-strong); }
+.uw-kick .uw-more:hover { color: var(--text); }
+.uw-kick .uw-src { font-family: var(--font-mono); font-size: 10.5px; color: var(--up);
+  text-decoration: none; }
+.uw-hd { font-family: var(--font-ui); font-weight: 700; font-size: 25px; line-height: 32px;
+  letter-spacing: -0.015em; color: var(--text); margin: 4px 0 2px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.uw-deck { font-family: var(--font-prose); font-size: 15px; line-height: 20px; margin: 0;
+  color: color-mix(in oklab, var(--text) 78%, var(--muted)); display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.uw-deck .by { font-family: var(--font-ui); font-size: 10.5px; color: var(--muted);
+  margin-left: 6px; }
+.uw-viz { display: flex; align-items: flex-end; gap: 28px; margin-top: 8px; }
+.uw-fig { flex: 0 0 auto; min-width: 112px; }
+.uw-fig b { display: block; font-family: var(--font-mono); font-size: 32px; font-weight: 600;
+  line-height: 34px; letter-spacing: -0.03em; color: var(--text); }
+.uw-fig b.none { font-size: 16px; line-height: 20px; color: var(--muted); letter-spacing: 0; }
+.uw-fig small { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.uw-lbar svg, .uw-lmv svg { display: block; }
+.uw-lmv { display: flex; flex-wrap: wrap; align-items: center; column-gap: 20px; row-gap: 2px; }
+.uw-lmv .uw-cap { flex: 1 0 100%; }
+.uw-ds { display: flex; align-items: center; gap: 8px; }
+.uw-ds b { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; min-width: 34px; }
+.uw-ds b.me { background: var(--active-wash); box-shadow: inset 0 -1px 0 var(--up); }
+.uw-ds .mv { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; min-width: 46px; }
+.uw-ds .mv.up { color: var(--up); }
+.uw-ds .mv.down { color: var(--down); }
+.uw-ds .mv.none { color: var(--muted); font-weight: 400; }
+.uw-cap { font-size: 9.5px; color: var(--muted); }
+
+/* Detail cards: hidden until a hover settles, held open by a click (focus). */
+.uw-card, .uw-bcard, .uw-rc, .uw-gcard { visibility: hidden; opacity: 0; position: absolute;
+  z-index: 40; box-sizing: border-box; padding: 9px 12px 10px; background: var(--panel);
+  border: 1px solid var(--rule-strong); box-shadow: var(--uv-shadow); overflow: auto;
+  scrollbar-width: thin; transition: opacity 90ms linear, visibility 0s linear 90ms;
+  font-family: var(--font-ui); font-size: 12px; line-height: 1.4; color: var(--text);
+  white-space: normal; text-align: left; letter-spacing: 0; text-transform: none; cursor: default; }
+.uw-card .ck, .uw-bcard .ck, .uw-rc .ck, .uw-gcard .ck { display: flex; align-items: baseline;
+  gap: 8px; margin-bottom: 5px; }
+.uw-card .ck b, .uw-bcard .ck b, .uw-rc .ck b, .uw-gcard .ck b { font-weight: 600; }
+.uw-bcard .ck span, .uw-rc .ck span, .uw-gcard .ck span { font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--muted); }
+.uw-card .hh { font-size: 13px; line-height: 1.4; margin-bottom: 6px; }
+.uw-card .nt { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.uw-card .src { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); }
+.uw-card .src a { color: var(--up); text-decoration: none; }
+.uw-card .uv-kv { grid-template-columns: 7.5rem minmax(0, 1fr); }
+.uw-lead .uw-lc { top: 100%; right: 0; width: 470px; max-height: 260px; }
+.uw-lead:has(.uw-more:hover) .uw-lc, .uw-lead:focus-within .uw-lc,
+.uw-it:hover .uw-card, .uw-it:focus-within .uw-card,
+.uw-moreh:hover .uw-card, .uw-moreh:focus .uw-card,
+.uw-br:hover .uw-bcard, .uw-tile:hover .uw-rc,
+.uw-grid .gc:hover .uw-gcard, .uw-grid .gc:focus .uw-gcard {
+  visibility: visible; opacity: 1; transition-delay: 160ms; }
+
+/* This week, ranked: two columns of items, each its kind, tickers, headline, chart and
+   figure. A card covers the other column, so it never leaves the frame. */
+.uw-rk { position: relative; flex: 1 1 auto; display: flex; flex-direction: column;
+  min-height: 0; }
+/* The two band heads are one height with their labels on one line, so "This week,
+   ranked" and "Company board" and their rules sit level whatever the board's sort
+   chips need. */
+.uw-rkh, .uw-bh { box-sizing: border-box; height: 22px; align-items: center !important; }
+.uw-rkh { display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid var(--rule-strong); padding: 0 0 3px; }
+.uw-rkh .lbl, .uw-bh .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.uw-rkh .c { display: flex; align-items: baseline; gap: 12px; font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.uw-moreh { color: var(--text); cursor: help; border-bottom: 1px dotted var(--rule-strong);
+  outline: none; }
+.uw-moreh .uw-mc { top: 22px; right: 0; width: calc(50% - 14px); max-height: calc(100% - 24px); }
+.uw-mr { display: grid; grid-template-columns: 16px 70px minmax(0, 1fr) 44px; column-gap: 8px;
+  align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rule); font-size: 11.5px;
+  line-height: 1.3; }
+.uw-mr .n { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.uw-mr .f { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-align: right; }
+.uw-rkc { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 28px; }
+.uw-it { display: grid; grid-template-columns: 14px minmax(0, 1fr) 100px 62px; column-gap: 10px;
+  align-items: center; box-sizing: border-box; height: 66px; padding: 0 4px 0 6px;
+  border-bottom: 1px solid var(--rule); outline: none; transition: background-color 120ms linear; }
+.uw-it:hover, .uw-it:focus-within { background: var(--panel); }
+.uw-it.me { background: var(--active-wash); box-shadow: var(--uv-rail); }
+.uw-it .n { align-self: start; padding-top: 8px; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--muted); }
+.uw-it .bd { min-width: 0; }
+.uw-it .k { display: flex; align-items: baseline; gap: 8px; line-height: 13px; min-width: 0;
+  margin-top: 6px; }
+.uw-it .k .uw-dt { margin-left: auto; }
+.uw-it .h { font-size: 13.5px; line-height: 16px; font-weight: 600; color: var(--text);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.uw-it .ch svg { display: block; }
+.uw-it .f { text-align: right; white-space: nowrap; }
+.uw-it .f b { display: block; font-family: var(--font-mono); font-size: 16px; font-weight: 600;
+  line-height: 19px; letter-spacing: -0.02em; color: var(--text); }
+.uw-it .f b.none { font-size: 11.5px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.uw-it .f small { display: block; font-size: 9.5px; color: var(--muted); margin-top: 1px; }
+.uw-rkc > .col:first-child .uw-card { top: 0; right: 0; width: calc(50% - 14px); max-height: 100%; }
+.uw-rkc > .col:last-child .uw-card { top: 0; left: 0; width: calc(50% - 14px); max-height: 100%; }
+
+/* The company board. Sorts are radio inputs read by :has(); each row carries its place in
+   every order. A row's card opens over the news, level with the board's top. */
+.uw-board { position: relative; min-width: 0; display: flex; flex-direction: column; }
+.uw-r { display: none; }
+.uw-bh { display: flex; align-items: baseline; justify-content: space-between;
+  border-bottom: 1px solid var(--rule-strong); padding: 0 0 3px; }
+.uw-sort { display: flex; align-items: baseline; gap: 4px; font-size: 10.5px; color: var(--muted); }
+.uw-sort > span { margin-right: 2px; }
+.uw-sort label { cursor: pointer; padding: 0 7px; line-height: 16px; border: 1px solid var(--rule-strong);
+  color: var(--muted); white-space: nowrap; }
+.uw-sort label:hover { color: var(--text); }
+.uw-board:has(#uwbs-w:checked) label[for="uwbs-w"],
+.uw-board:has(#uwbs-n:checked) label[for="uwbs-n"],
+.uw-board:has(#uwbs-x:checked) label[for="uwbs-x"] { color: var(--text); border-color: var(--up);
+  background: var(--active-wash); }
+.uw-bk { display: flex; justify-content: space-between; gap: 8px; font-size: 9.5px;
+  color: var(--muted); line-height: 14px; margin-top: 3px; white-space: nowrap; }
+.uw-bk em { font-style: normal; }
+.uw-bk em.fda { color: var(--fda); }
+.uw-bk i.dia { display: inline-block; width: 6px; height: 6px; background: var(--text);
+  transform: rotate(45deg); margin: 0 5px 1px 1px; }
+/* A firm date's diamond sits in the date's own gutter, so every date starts on one line. */
+.uw-br .nd { position: relative; padding-left: 11px; }
+.uw-br .nd.firm::before { content: ""; position: absolute; left: 1px; top: 50%; width: 6px;
+  height: 6px; margin-top: -3px; background: var(--text); transform: rotate(45deg); }
+.uw-br .nd.firm.fda::before { background: var(--fda); }
+.uw-bcols, .uw-br { display: grid; grid-template-columns: 40px 64px 32px 58px minmax(0, 1fr) 26px;
+  column-gap: 8px; align-items: center; padding: 0 4px 0 6px; }
+.uw-bcols { height: 18px; border-bottom: 1px solid var(--rule); font-size: 9.5px;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.uw-bcols .nh { grid-column: 4 / span 2; padding-left: 11px; }
+.uw-bcols .r, .uw-br .c9, .uw-br .wk { text-align: right; }
+.uw-bcols .c, .uw-br .nw { text-align: center; }
+.uw-bb { display: flex; flex-direction: column; }
+.uw-br { order: var(--uw-ow); box-sizing: border-box; height: var(--uw-row); line-height: 16px;
+  border-bottom: 1px solid var(--rule-faint); font-size: 11.5px; cursor: pointer;
+  transition: background-color 120ms linear; }
+.uw-board:has(#uwbs-n:checked) .uw-br { order: var(--uw-on); }
+.uw-board:has(#uwbs-x:checked) .uw-br { order: var(--uw-ox); }
+.uw-br:hover { background: var(--panel); }
+.uw-br.me { background: var(--active-wash); box-shadow: var(--uv-rail); }
+.uw-br .tk { font-family: var(--font-mono); font-weight: 600; }
+.uw-br .wk { font-family: var(--font-mono); font-weight: 600; line-height: 16px; padding: 0 6px;
+  background: color-mix(in oklab, var(--down) var(--uw-a), transparent); }
+.uw-br .wk.up { background: color-mix(in oklab, var(--up) var(--uw-a), transparent); }
+.uw-br .wk.none { background: none; color: var(--muted); font-weight: 400; font-size: 9.5px; }
+.uw-br .nw, .uw-br .c9 { font-family: var(--font-mono); }
+.uw-br .z { color: var(--muted); }
+.uw-br .nd { font-family: var(--font-mono); font-size: 10.5px; white-space: nowrap; }
+.uw-br .nd.est { color: var(--muted); }
+.uw-br .nx { min-width: 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.uw-br .nx.none { color: var(--muted); }
+.uw-br .fda { color: var(--fda); }
+.uw-bx { order: var(--uw-ow); height: 0; border-top: 1px dashed var(--muted); margin-top: -1px;
+  position: relative; z-index: 1; }
+.uw-board:has(#uwbs-n:checked) .uw-bx, .uw-board:has(#uwbs-x:checked) .uw-bx { display: none; }
+.uw-bcard { top: 0; right: calc(100% + 14px); width: 440px; max-height: 100%; }
+.uw-bcard .bs { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 6px 0 2px; }
+.uw-bcard .bn { display: grid; grid-template-columns: 42px 58px minmax(0, 1fr); column-gap: 8px;
+  align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rule); font-size: 12px; }
+.uw-bcard .bn .d { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.uw-bcard .bn .t:only-child { grid-column: 1 / -1; }
+.uw-bcard .bn.none { display: block; color: var(--muted); }
+.uw-bcard .hint { font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+
+/* Cheap to expensive: one ribbon, green for cheap fading through to red for expensive. */
+.uw-rib { display: grid; grid-template-columns: 150px minmax(0, 1fr); column-gap: 12px;
+  align-items: end; margin-top: 8px; }
+.uw-rib .lab { display: flex; flex-direction: column; padding-bottom: 3px; }
+.uw-rib .lab b { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; white-space: nowrap; }
+.uw-rib .lab span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.uw-cells { display: flex; gap: 3px; padding-top: 12px; min-width: 0; }
+.uw-tile { position: relative; flex: 1 1 0; min-width: 0; height: 36px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--uw-bg); cursor: pointer; }
+.uw-tile:hover { box-shadow: inset 0 0 0 1px var(--muted); }
+.uw-tile .tk { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; line-height: 14px; }
+.uw-tile .v { font-family: var(--font-mono); font-size: 11.5px; line-height: 15px; white-space: nowrap; }
+.uw-tile.na { background-image: var(--hatch); }
+.uw-tile.na .v { font-family: var(--font-ui); font-size: 9.5px; color: var(--muted); }
+.uw-tile.me { box-shadow: inset 0 0 0 2px var(--text); }
+.uw-zero { flex: 0 0 2px; position: relative; background: var(--text); margin: 0 3px; }
+.uw-zero span { position: absolute; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 12px; color: var(--muted);
+  white-space: nowrap; }
+.uw-rc { bottom: calc(100% + 6px); left: 0; width: 300px; font-family: var(--font-mono);
+  font-size: 11px; line-height: 1.5; }
+.uw-rc .ck b { font-family: var(--font-ui); font-size: 12px; }
+.uw-tile.rt .uw-rc { left: auto; right: 0; }
+
+/* Every change, the panel's first tab: company by kind, a card listing a cell's changes
+   over the far half of the grid. */
+.uw-grid { position: relative; display: grid;
+  grid-template-columns: 208px repeat(var(--uw-n), minmax(0, 1fr)); column-gap: 2px; row-gap: 1px; }
+.uw-grid .gh { display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  height: 22px; padding-bottom: 1px; box-sizing: border-box; font-family: var(--font-mono);
+  font-size: 10.5px; }
+.uw-grid .gh .t { font-weight: 600; line-height: 13px; }
+.uw-grid .gh .v { font-size: 9.5px; color: var(--muted); line-height: 11px; }
+.uw-grid .gh.me { background: var(--active-wash); box-shadow: inset 0 2px 0 var(--up); }
+.uw-grid .gh.lab { align-items: flex-start; font-family: var(--font-ui); }
+.uw-grid .gh.lab span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+/* The rows share what the panel leaves under the head: 14px at 1440 by 780, 24px from
+   840 tall, so the grid fills the panel rather than leaving it half empty. */
+.uw-grid .gl { display: flex; justify-content: space-between; align-items: center;
+  height: clamp(14px, calc((var(--uv-panel-h) - 36px) / 6), 24px);
+  padding: 0 10px 0 7px; border-left: 3px solid var(--accent); font-size: 11px; white-space: nowrap; }
+.uw-grid .gl b { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; }
+.uw-grid .gc { height: clamp(14px, calc((var(--uv-panel-h) - 36px) / 6), 24px); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 10.5px; outline: none;
+  background: color-mix(in oklab, var(--accent) var(--uw-a), transparent); cursor: help; }
+.uw-grid .gc.z { background: var(--rule-faint); cursor: default; }
+.uw-grid .gc.me { box-shadow: inset 1px 0 0 var(--up), inset -1px 0 0 var(--up); }
+.uw-grid .gc:hover { box-shadow: inset 0 0 0 1px var(--text); }
+.uw-gcard { top: 0; right: 0; width: 520px; max-height: calc(var(--uv-panel-h) - 12px); }
+.uw-gcard.lf { right: auto; left: 210px; }
+.uw-gcard .li { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 8px;
+  padding: 2px 0; border-top: 1px solid var(--rule); font-size: 11.5px; }
+.uw-gcard .li > span:first-child { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.uw-gcard .li.mo { display: block; color: var(--muted); }
+
+/* The company against the group, behind the panel's last tab: a cell's ranking opens
+   over the cell itself in four columns, so the whole cohort fits the panel's height. */
+.st-key-uv_panel .uv-hc { top: 0; width: 560px; column-count: 4; column-gap: 14px; }
+.st-key-uv_panel .uv-hc .hc-t, .st-key-uv_panel .uv-hc .hc-n { column-span: all; }
+.st-key-uv_panel .uv-hc .hc-r { break-inside: avoid; }
+.st-key-uv_panel .uv-hc .hc-med { break-inside: avoid; }
+/* Rates and FX for the group: the rates and the currencies, two columns. */
+.uv-rates.uv-rates2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* Under 1180px the band stacks and the page scrolls. */
+@media (max-width: 1179.98px) {
+  .uw-band { grid-template-columns: minmax(0, 1fr); row-gap: 16px; }
+  .uw-bcard { right: auto; left: 0; top: 100%; }
+  .uw-hd { white-space: normal; }
+  .uw-grid { overflow-x: auto; }
+}
+@media (max-width: 899.98px) {
+  .uw-rkc { grid-template-columns: minmax(0, 1fr); }
+  .uw-rkc > .col .uw-card { left: 0; right: 0; width: auto; }
+  .uw-cells { flex-wrap: wrap; }
+  .uw-tile { flex: 1 0 60px; }
+}
+
+/* The group's equal-weighted index, the head of the tab: as tall as the screen leaves
+   above the frame. The lines stretch with the box; every label is HTML, never scaled. */
+.uw-idx { display: flex; flex-direction: column; height: clamp(100px, calc(100vh - 668px), 330px);
+  margin: 2px 0 6px; padding: 8px 12px 0; box-sizing: border-box;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--panel) 85%, transparent),
+    transparent 80%);
+  border: 1px solid var(--rule); border-radius: 6px; }
+.uw-ih { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.uw-ih .lbl { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.uw-ih .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+  white-space: nowrap; cursor: help; border-bottom: 1px dotted var(--rule-strong); }
+.uw-ih .kvs { margin-left: auto; display: flex; align-items: baseline; gap: 22px; min-width: 0; }
+.uw-ih .kv { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.uw-ih .kv .k { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted); }
+.uw-ih .kv b { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); }
+.uw-ih .kv.big b { font-size: 24px; font-weight: 700; letter-spacing: -0.01em; }
+.uw-ih .kv .chg { font-family: var(--font-mono); font-size: 13px; font-weight: 700;
+  padding: 1px 7px; border-radius: 10px; }
+.uw-ih .kv .chg.up { color: var(--up); background: color-mix(in oklab, var(--up) 18%, transparent); }
+.uw-ih .kv .chg.down { color: var(--down); background: color-mix(in oklab, var(--down) 18%, transparent); }
+.uw-ih .up { color: var(--up); }
+.uw-ih .down { color: var(--down); }
+.uw-ic { position: relative; flex: 1 1 auto; min-height: 0; padding: 10px 40px 20px 34px; }
+.uw-ic .plot { position: relative; width: 100%; height: 100%; }
+.uw-ic svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.uw-ic .gr line { stroke: var(--rule); stroke-width: 1; stroke-opacity: 0.6; }
+.uw-ic .gr line.m { stroke: var(--rule-faint); stroke-dasharray: 2 4; }
+.uw-ic polygon.band { fill: var(--text); fill-opacity: 0.06; }
+.uw-ic polygon.up { fill: url(#uwUp); }
+.uw-ic polygon.dn { fill: url(#uwDn); }
+.uw-ic line.base { stroke: var(--rule-strong); stroke-width: 1; }
+.uw-ic polyline.ix { stroke: var(--text); stroke-width: 2.2; stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px color-mix(in oklab, var(--text) 45%, transparent)); }
+.uw-ic polyline.bm { stroke: var(--muted); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.uw-ic polyline.mk { stroke: var(--muted); stroke-width: 1; stroke-opacity: 0.45; }
+.uw-ic .end.mk { opacity: 0.6; }
+.uw-ih .kv.faint { opacity: 0.6; }
+.uw-ic .yl { position: absolute; right: calc(100% + 8px); transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.uw-ic .yl.b { color: var(--text); }
+.uw-ic .xl { position: absolute; top: calc(100% + 5px); transform: translateX(-50%);
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.uw-ic .xl.first { transform: none; }
+.uw-ic .end { position: absolute; left: calc(100% + 8px); transform: translateY(-50%);
+  font-family: var(--font-mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.uw-ic .dot { position: absolute; left: 100%; width: 9px; height: 9px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: var(--text); }
+.uw-ic .dot.up { box-shadow: 0 0 0 4px color-mix(in oklab, var(--up) 30%, transparent),
+  0 0 14px 2px color-mix(in oklab, var(--up) 55%, transparent); }
+.uw-ic .dot.down { box-shadow: 0 0 0 4px color-mix(in oklab, var(--down) 30%, transparent),
+  0 0 14px 2px color-mix(in oklab, var(--down) 55%, transparent); }
+.uw-ic .hv { position: absolute; top: 0; bottom: 0; --x: 0%; --y: 0%; }
+.uw-ic .hv i, .uw-ic .hv em { display: none; }
+.uw-ic .hv:hover::before { content: ""; position: absolute; top: 0; bottom: 0; left: var(--x);
+  border-left: 1px dashed var(--muted); }
+.uw-ic .hv:hover i { display: block; position: absolute; left: var(--x); top: var(--y);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--text);
+  transform: translate(-50%, -50%); }
+.uw-ic .hv:hover em { display: block; position: absolute; top: -4px; left: calc(var(--x) + 8px);
+  font-style: normal; font-family: var(--font-mono); font-size: 10.5px; color: var(--text);
+  white-space: nowrap; background: var(--panel); border: 1px solid var(--rule-strong);
+  padding: 2px 6px; z-index: 2; }
+.uw-ic .hv.r:hover em { left: auto; right: calc(100% - var(--x) + 8px); }
+
+/* The year's FDA approvals on one line, between the band and the ribbon: markers by
+   application on 1 January to 31 December, names above and below where they fit. */
+.uw-fda { display: grid; grid-template-columns: 150px minmax(0, 1fr); column-gap: 12px;
+  margin: 6px 0 2px; }
+.uw-fda .lab { display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.uw-fda .lab b { font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.uw-fda .lab span { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.uw-fda .lab .key { display: flex; align-items: center; gap: 4px; font-size: 9.5px; }
+.uw-fda .key i { display: inline-block; width: 7px; height: 7px; margin-left: 3px; }
+.uw-fda .key i:first-child { margin-left: 0; }
+.uw-fda .key i.nda { border-radius: 50%; background: var(--fda); }
+.uw-fda .key i.bla { background: var(--fda-bio); transform: rotate(45deg) scale(0.85); }
+.uw-fda .key i.anda { border-radius: 50%; border: 1.5px solid var(--muted); box-sizing: border-box; }
+.uw-fda .key i.ahead { border-radius: 50%; border: 1.5px dashed var(--fda); box-sizing: border-box; }
+.uw-fda .tl { position: relative; height: 52px; }
+.uw-fda .ax { position: absolute; left: 0; right: 0; top: 22px; border-top: 1px solid var(--rule-strong); }
+.uw-fda .mo { position: absolute; bottom: 0; height: 10px; line-height: 10px; padding-left: 3px;
+  border-left: 1px solid var(--rule); font-family: var(--font-mono); font-size: 9.5px;
+  color: var(--muted); }
+.uw-fda .today { position: absolute; top: 4px; bottom: 12px; border-left: 1px dashed var(--muted); }
+.uw-fda .fm { position: absolute; top: 22px; width: 8px; height: 8px; box-sizing: border-box;
+  transform: translate(-50%, -50%); cursor: pointer; z-index: 2; }
+.uw-fda .fm.nda { border-radius: 50%; background: var(--fda); }
+.uw-fda .fm.bla { width: 7px; height: 7px; background: var(--fda-bio);
+  transform: translate(-50%, -50%) rotate(45deg); }
+.uw-fda .fm.anda { width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid var(--muted);
+  background: var(--ground); }
+.uw-fda .fm.ahead { width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--fda);
+  background: var(--ground); }
+.uw-fda .fm:hover { box-shadow: 0 0 0 3px color-mix(in oklab, var(--fda) 35%, transparent); }
+.uw-fda .fl { position: absolute; transform: translateX(-50%); white-space: nowrap; font-size: 10.5px;
+  line-height: 12px; color: var(--text); cursor: pointer; }
+.uw-fda .fl.t0 { top: 3px; }
+.uw-fda .fl.t1 { top: 28px; }
+.uw-fda .fl i { font-style: normal; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); }
+.uw-fda .fl.ahead { color: var(--fda); }
+.uw-fda .fl b { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; }

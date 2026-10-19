@@ -1,0 +1,1555 @@
+{
+ "area": "Metabolic",
+ "as_of": "2026-10-07",
+ "cards": [
+  {
+   "detail": "$225.6bn marketed, 85% of its value; $24.3bn pipeline, 2 in Phase 3 or filed.",
+   "headline": "Eli Lilly leads at 82 of 100, on 4 of 4 pillars",
+   "kind": "leader",
+   "title": "Area leader"
+  },
+  {
+   "detail": "Most value in Cagrilintide $18.0bn, Zenagamtide $7.0bn, UBT251 $2.6bn.",
+   "headline": "Novo Nordisk: $29.6bn risked, 2 in Phase 3 or filed",
+   "kind": "pipeline",
+   "title": "Deepest pipeline"
+  },
+  {
+   "detail": "10% of its revenue here. Trulicity 2027.",
+   "headline": "Eli Lilly: $4.3bn of revenue loses exclusivity by 2030",
+   "kind": "risk",
+   "title": "Biggest exclusivity risk"
+  },
+  {
+   "detail": "Cagrilintide Mar 2027 $29.5bn, Zenagamtide Jun 2028 $11.3bn. 23 readouts due by Aug 2028.",
+   "headline": "Novo Nordisk: $51.1bn at stake in 4 priced readouts",
+   "kind": "readouts",
+   "title": "Biggest readouts ahead"
+  }
+ ],
+ "companies": [
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 3,
+      "mean": 85.95910590197025,
+      "name": "Tirzepatide"
+     },
+     {
+      "indications": 2,
+      "mean": 80.06906908355921,
+      "name": "Dulaglutide"
+     },
+     {
+      "indications": 3,
+      "mean": 73.20422926787457,
+      "name": "Orforglipron"
+     },
+     {
+      "indications": 1,
+      "mean": 68.80340191059253,
+      "name": "Eloralintide"
+     },
+     {
+      "indications": 3,
+      "mean": 66.16603931652982,
+      "name": "Insulin lispro"
+     },
+     {
+      "indications": 2,
+      "mean": 62.98944779075961,
+      "name": "Insulin glargine"
+     }
+    ],
+    "mean": 72.86521554521433
+   },
+   "counts": {
+    "filed": 0,
+    "late": 2,
+    "marketed": 16,
+    "phase2": 6
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 4.276,
+    "fiscal_year": 2025,
+    "products": [
+     {
+      "loe": "2027-12-31",
+      "name": "Trulicity",
+      "usd_bn": 4.276
+     }
+    ],
+    "revenue_usd_bn": 40.784,
+    "share": 0.10484503726951745
+   },
+   "name": "Eli Lilly and Company",
+   "overall": 81.68928923428892,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 8,
+    "depth": 2,
+    "depth_score": 82.14285714285714,
+    "late": [
+     {
+      "name": "Retatrutide",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "Eloralintide",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Retatrutide",
+      "usd_bn": 18.080549138978235
+     },
+     {
+      "name": "Eloralintide",
+      "usd_bn": 4.482576609180062
+     },
+     {
+      "name": "LY3457263",
+      "usd_bn": 0.8016011806873813
+     },
+     {
+      "name": "Macupatide",
+      "usd_bn": 0.6207287098054441
+     },
+     {
+      "name": "VERVE-102",
+      "usd_bn": 0.1406989610998616
+     }
+    ],
+    "usd_bn": 24.266651677890597,
+    "value_score": 92.3076923076923,
+    "valued": 7
+   },
+   "rank": 1,
+   "ranked": true,
+   "readouts": {
+    "count": 34,
+    "first": "2026-11",
+    "last": "2028-10",
+    "priced": 4,
+    "stake_usd_bn": 27.987681352049172,
+    "top": [
+     {
+      "asset": "Retatrutide",
+      "date": "2026-11",
+      "priced": true,
+      "usd_bn": 18.466956303434117
+     },
+     {
+      "asset": "Eloralintide",
+      "date": "2028-01",
+      "priced": true,
+      "usd_bn": 7.347906668423003
+     },
+     {
+      "asset": "Macupatide",
+      "date": "2027-03",
+      "priced": true,
+      "usd_bn": 1.7363757204665957
+     },
+     {
+      "asset": "VERVE-102",
+      "date": "2028-08",
+      "priced": true,
+      "usd_bn": 0.43644265972545304
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 72.86521554521433,
+    "durability": 44.44444444444444,
+    "pipeline": 87.22527472527472,
+    "value": 100.0
+   },
+   "ticker": "LLY",
+   "value": {
+    "basis": null,
+    "products": 16,
+    "share": 0.8531496666903842,
+    "top": [
+     {
+      "name": "Mounjaro",
+      "usd_bn": 131.0406058562556
+     },
+     {
+      "name": "Zepbound",
+      "usd_bn": 64.0263801663775
+     },
+     {
+      "name": "Foundayo",
+      "usd_bn": 28.064494092262404
+     },
+     {
+      "name": "Trulicity",
+      "usd_bn": 2.517299553878123
+     }
+    ],
+    "usd_bn": 225.64877966877364,
+    "valued": 4
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 4,
+      "mean": 83.09450759947502,
+      "name": "Semaglutide"
+     },
+     {
+      "indications": 2,
+      "mean": 79.75373454468294,
+      "name": "Insulin degludec + Liraglutide"
+     },
+     {
+      "indications": 4,
+      "mean": 73.07732734119878,
+      "name": "Liraglutide"
+     },
+     {
+      "indications": 3,
+      "mean": 69.36804244681795,
+      "name": "Insulin aspart"
+     },
+     {
+      "indications": 3,
+      "mean": 62.2610119422057,
+      "name": "Insulin icodec"
+     },
+     {
+      "indications": 2,
+      "mean": 61.56211114082761,
+      "name": "Insulin degludec"
+     },
+     {
+      "indications": 2,
+      "mean": 54.51936049393411,
+      "name": "Insulin detemir"
+     }
+    ],
+    "mean": 69.09087078702031
+   },
+   "counts": {
+    "filed": 0,
+    "late": 2,
+    "marketed": 23,
+    "phase2": 2
+   },
+   "currency": "DKK",
+   "durability": {
+    "at_risk_usd_bn": 2.9377464513625964,
+    "fiscal_year": 2025,
+    "products": [
+     {
+      "loe": "2026-03-31",
+      "name": "Fiasp",
+      "usd_bn": 0.42484704402852286
+     },
+     {
+      "loe": "2029-12-31",
+      "name": "Tresiba",
+      "usd_bn": 1.8165301751240852
+     },
+     {
+      "loe": "2029-12-31",
+      "name": "Xultophy",
+      "usd_bn": 0.6963692322099884
+     }
+    ],
+    "revenue_usd_bn": 27.4522350060872,
+    "share": 0.10701301554176505
+   },
+   "name": "Novo Nordisk A/S",
+   "overall": 76.54057483961222,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 4,
+    "depth": 2,
+    "depth_score": 82.14285714285714,
+    "late": [
+     {
+      "name": "Zenagamtide",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "Cagrilintide",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Cagrilintide",
+      "usd_bn": 18.002002250073115
+     },
+     {
+      "name": "Zenagamtide",
+      "usd_bn": 6.974629118947588
+     },
+     {
+      "name": "UBT251",
+      "usd_bn": 2.6166767290507633
+     },
+     {
+      "name": "NNC0662-0419",
+      "usd_bn": 1.9985220560876136
+     }
+    ],
+    "usd_bn": 29.591830154159076,
+    "value_score": 100.0,
+    "valued": 4
+   },
+   "rank": 2,
+   "ranked": true,
+   "readouts": {
+    "count": 23,
+    "first": "2026-12-14",
+    "last": "2028-08-28",
+    "priced": 4,
+    "stake_usd_bn": 51.05622508371091,
+    "top": [
+     {
+      "asset": "Cagrilintide",
+      "date": "2027-03-01",
+      "priced": true,
+      "usd_bn": 29.509151524010164
+     },
+     {
+      "asset": "Zenagamtide",
+      "date": "2028-06-06",
+      "priced": true,
+      "usd_bn": 11.290052298001441
+     },
+     {
+      "asset": "UBT251",
+      "date": "2027-01-14",
+      "priced": true,
+      "usd_bn": 5.8154177304982015
+     },
+     {
+      "asset": "NNC0662-0419",
+      "date": "2026-12-14",
+      "priced": true,
+      "usd_bn": 4.441603531201105
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 69.09087078702031,
+    "durability": 33.333333333333336,
+    "pipeline": 91.07142857142857,
+    "value": 90.0
+   },
+   "ticker": "NVO",
+   "value": {
+    "basis": null,
+    "products": 23,
+    "share": 0.5904854709033297,
+    "top": [
+     {
+      "name": "Ozempic",
+      "usd_bn": 29.970060651340045
+     },
+     {
+      "name": "Rybelsus",
+      "usd_bn": 6.417744834739196
+     },
+     {
+      "name": "Tresiba",
+      "usd_bn": 5.345739292805703
+     },
+     {
+      "name": "Xultophy",
+      "usd_bn": 2.038372902011492
+     },
+     {
+      "name": "Human Insulin",
+      "usd_bn": 1.7218018893902587
+     }
+    ],
+    "usd_bn": 47.630315266993975,
+    "valued": 9
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 2,
+      "mean": 76.64946403511956,
+      "name": "Evolocumab"
+     }
+    ],
+    "mean": 76.64946403511956
+   },
+   "counts": {
+    "filed": 0,
+    "late": 1,
+    "marketed": 6,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 1.34,
+    "fiscal_year": 2025,
+    "products": [
+     {
+      "loe": "2026-04-11",
+      "name": "Krystexxa",
+      "usd_bn": 1.34
+     }
+    ],
+    "revenue_usd_bn": 9.757,
+    "share": 0.13733729630009225
+   },
+   "name": "Amgen Inc",
+   "overall": 67.76905099046488,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 1,
+    "depth": 1,
+    "depth_score": 53.57142857142857,
+    "late": [
+     {
+      "name": "Maridebart Cafraglutide",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Maridebart Cafraglutide",
+      "usd_bn": 15.10698148441868
+     }
+    ],
+    "usd_bn": 15.10698148441868,
+    "value_score": 84.61538461538461,
+    "valued": 1
+   },
+   "rank": 3,
+   "ranked": true,
+   "readouts": {
+    "count": 14,
+    "first": "2027-01-21",
+    "last": "2028-06-30",
+    "priced": 1,
+    "stake_usd_bn": 24.76359015521822,
+    "top": [
+     {
+      "asset": "Maridebart Cafraglutide",
+      "date": "2027-01-21",
+      "priced": true,
+      "usd_bn": 24.76359015521822
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 76.64946403511956,
+    "durability": 22.22222222222222,
+    "pipeline": 69.0934065934066,
+    "value": 80.0
+   },
+   "ticker": "AMGN",
+   "value": {
+    "basis": null,
+    "products": 6,
+    "share": 0.32893238513137607,
+    "top": [
+     {
+      "name": "Evenity",
+      "usd_bn": 9.11763479729732
+     },
+     {
+      "name": "Prolia",
+      "usd_bn": 7.822694087236789
+     },
+     {
+      "name": "Tepezza",
+      "usd_bn": 6.945728675203786
+     },
+     {
+      "name": "Krystexxa",
+      "usd_bn": 2.05957213850634
+     }
+    ],
+    "usd_bn": 25.945629698244236,
+    "valued": 4
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 2,
+      "mean": 76.98723050255958,
+      "name": "Saxagliptin"
+     },
+     {
+      "indications": 4,
+      "mean": 75.60562625586715,
+      "name": "Dapagliflozin"
+     },
+     {
+      "indications": 1,
+      "mean": 73.38209389622011,
+      "name": "Rosuvastatin"
+     },
+     {
+      "indications": 2,
+      "mean": 66.56835526967471,
+      "name": "Pramlintide"
+     }
+    ],
+    "mean": 73.13582648108039
+   },
+   "counts": {
+    "filed": 0,
+    "late": 3,
+    "marketed": 7,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 0.0,
+    "fiscal_year": 2025,
+    "products": [],
+    "revenue_usd_bn": 0.698,
+    "share": 0.0
+   },
+   "name": "AstraZeneca PLC",
+   "overall": 66.06600790232137,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 3,
+    "depth": 3,
+    "depth_score": 100.0,
+    "late": [
+     {
+      "name": "AZD6234",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "Elecoglipron",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "AZD0780",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Elecoglipron",
+      "usd_bn": 6.32977795720346
+     },
+     {
+      "name": "AZD6234",
+      "usd_bn": 5.09650348952178
+     },
+     {
+      "name": "AZD0780",
+      "usd_bn": 1.052361861937441
+     }
+    ],
+    "usd_bn": 12.478643308662681,
+    "value_score": 76.92307692307692,
+    "valued": 3
+   },
+   "rank": 4,
+   "ranked": true,
+   "readouts": {
+    "count": 12,
+    "first": "2027-01-04",
+    "last": "2028-08-11",
+    "priced": 2,
+    "stake_usd_bn": 18.574672079099493,
+    "top": [
+     {
+      "asset": "Elecoglipron",
+      "date": "2028-04-06",
+      "priced": true,
+      "usd_bn": 10.289747407041421
+     },
+     {
+      "asset": "AZD6234",
+      "date": "2028-08-08",
+      "priced": true,
+      "usd_bn": 8.28492467205807
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 73.13582648108039,
+    "durability": 77.77777777777777,
+    "pipeline": 88.46153846153845,
+    "value": 40.0
+   },
+   "ticker": "AZN",
+   "value": {
+    "basis": null,
+    "products": 7,
+    "share": 0.10056957489942342,
+    "top": [
+     {
+      "name": "Lokelma",
+      "usd_bn": 2.9365582654411773
+     }
+    ],
+    "usd_bn": 2.9365582654411773,
+    "valued": 1
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 1,
+      "mean": 71.34992429497085,
+      "name": "Inclisiran"
+     }
+    ],
+    "mean": 71.34992429497085
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 4,
+    "phase2": 1
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 0.0,
+    "fiscal_year": 2025,
+    "products": [],
+    "revenue_usd_bn": 2.411,
+    "share": 0.0
+   },
+   "name": "Novartis AG",
+   "overall": 54.96843345469509,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 1,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": null,
+    "value_score": null,
+    "valued": 0
+   },
+   "rank": 5,
+   "ranked": true,
+   "readouts": {
+    "count": 6,
+    "first": "2026-10-26",
+    "last": "2028-03-21",
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": 71.34992429497085,
+    "durability": 77.77777777777777,
+    "pipeline": 17.857142857142858,
+    "value": 60.0
+   },
+   "ticker": "NVS",
+   "value": {
+    "basis": null,
+    "products": 4,
+    "share": 0.0865057064888931,
+    "top": [
+     {
+      "name": "Leqvio",
+      "usd_bn": 8.692814207075799
+     },
+     {
+      "name": "Sandostatin",
+      "usd_bn": 5.58995084022868
+     }
+    ],
+    "usd_bn": 14.282765047304478,
+    "valued": 2
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [],
+    "mean": null
+   },
+   "counts": {
+    "filed": 0,
+    "late": 2,
+    "marketed": 2,
+    "phase2": 1
+   },
+   "currency": "CHF",
+   "durability": {
+    "at_risk_usd_bn": 0.0,
+    "fiscal_year": 2025,
+    "products": [],
+    "revenue_usd_bn": 0.4382857142857143,
+    "share": 0.0
+   },
+   "name": "Roche Holding AG",
+   "overall": 54.78449328449329,
+   "pillars": 3,
+   "pipeline": {
+    "assets": 3,
+    "depth": 2,
+    "depth_score": 82.14285714285714,
+    "late": [
+     {
+      "name": "Petrelintide",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "Enicepatide",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Enicepatide",
+      "usd_bn": 5.441297289815349
+     },
+     {
+      "name": "Petrelintide",
+      "usd_bn": 2.0170797640761293
+     },
+     {
+      "name": "RO7795081",
+      "usd_bn": 1.767511598757137
+     }
+    ],
+    "usd_bn": 9.225888652648617,
+    "value_score": 69.23076923076923,
+    "valued": 3
+   },
+   "rank": 6,
+   "ranked": true,
+   "readouts": {
+    "count": 8,
+    "first": "2026-12-16",
+    "last": "2028-08-07",
+    "priced": 1,
+    "stake_usd_bn": 8.807999668985762,
+    "top": [
+     {
+      "asset": "Enicepatide",
+      "date": "2028-02-24",
+      "priced": true,
+      "usd_bn": 8.807999668985762
+     }
+    ]
+   },
+   "scores": {
+    "clinical": null,
+    "durability": 77.77777777777777,
+    "pipeline": 75.68681318681318,
+    "value": 30.0
+   },
+   "ticker": "ROG",
+   "value": {
+    "basis": null,
+    "products": 2,
+    "share": 0.0744216370754101,
+    "top": [
+     {
+      "name": "Enspryng",
+      "usd_bn": 1.1031343118875685
+     }
+    ],
+    "usd_bn": 1.1031343118875685,
+    "valued": 1
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 1,
+      "mean": 77.53766462225163,
+      "name": "Alirocumab"
+     },
+     {
+      "indications": 1,
+      "mean": 74.11019354185792,
+      "name": "Aflibercept"
+     },
+     {
+      "indications": 1,
+      "mean": 72.6016681079684,
+      "name": "Evinacumab"
+     }
+    ],
+    "mean": 74.74984209069265
+   },
+   "counts": {
+    "filed": 0,
+    "late": 2,
+    "marketed": 1,
+    "phase2": 3
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 0.0,
+    "fiscal_year": 2025,
+    "products": [],
+    "revenue_usd_bn": 0.16219999999999998,
+    "share": 0.0
+   },
+   "name": "Regeneron Pharmaceuticals Inc",
+   "overall": 54.3527535629662,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 5,
+    "depth": 2,
+    "depth_score": 82.14285714285714,
+    "late": [
+     {
+      "name": "Mibavademab",
+      "stage": "Phase 3"
+     },
+     {
+      "name": "ALN-CIDEB",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Olatorepatide",
+      "usd_bn": 1.3422946724475817
+     },
+     {
+      "name": "Mibavademab",
+      "usd_bn": 0.058992196076905166
+     },
+     {
+      "name": "ALN-ANG3",
+      "usd_bn": 0.011337639499253808
+     }
+    ],
+    "usd_bn": 1.4126245080237407,
+    "value_score": 53.84615384615385,
+    "valued": 3
+   },
+   "rank": 7,
+   "ranked": true,
+   "readouts": {
+    "count": 3,
+    "first": "2027-06-18",
+    "last": "2028-05-19",
+    "priced": 2,
+    "stake_usd_bn": 3.8470538295562573,
+    "top": [
+     {
+      "asset": "Olatorepatide",
+      "date": "2028-01-21",
+      "priced": true,
+      "usd_bn": 3.754825324061724
+     },
+     {
+      "asset": "Mibavademab",
+      "date": "2028-05-19",
+      "priced": true,
+      "usd_bn": 0.09222850549453346
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 74.74984209069265,
+    "durability": 77.77777777777777,
+    "pipeline": 67.99450549450549,
+    "value": 20.0
+   },
+   "ticker": "REGN",
+   "value": {
+    "basis": null,
+    "products": 1,
+    "share": 0.04794523093993966,
+    "top": [
+     {
+      "name": "Evkeeza",
+      "usd_bn": 0.7244051667313605
+     }
+    ],
+    "usd_bn": 0.7244051667313605,
+    "valued": 1
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 1,
+      "mean": 85.37251750332172,
+      "name": "Enlicitide decanoate"
+     },
+     {
+      "indications": 2,
+      "mean": 81.65663500731189,
+      "name": "Sitagliptin"
+     },
+     {
+      "indications": 2,
+      "mean": 75.91494976820496,
+      "name": "Ertugliflozin pidolate"
+     }
+    ],
+    "mean": 80.98136742627952
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 9,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 3.597,
+    "fiscal_year": 2025,
+    "products": [
+     {
+      "loe": "2026-11-24",
+      "name": "Janumet",
+      "usd_bn": 0.94
+     },
+     {
+      "loe": "2026-11-24",
+      "name": "Januvia",
+      "usd_bn": 1.604
+     },
+     {
+      "loe": "2030-07-31",
+      "name": "Lenvima",
+      "usd_bn": 1.053
+     }
+    ],
+    "revenue_usd_bn": 3.597,
+    "share": 1.0
+   },
+   "name": "Merck & Co Inc",
+   "overall": 48.90056163678966,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 0,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": 0.0,
+    "value_score": 15.384615384615385,
+    "valued": 0
+   },
+   "rank": 8,
+   "ranked": true,
+   "readouts": {
+    "count": 1,
+    "first": "2027-11-26",
+    "last": "2027-11-26",
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": 80.98136742627952,
+    "durability": 0.0,
+    "pipeline": 16.62087912087912,
+    "value": 70.0
+   },
+   "ticker": "MRK",
+   "value": {
+    "basis": null,
+    "products": 9,
+    "share": 0.07929713053307531,
+    "top": [
+     {
+      "name": "Lipfendra",
+      "usd_bn": 7.6950544061844175
+     },
+     {
+      "name": "Lenvima",
+      "usd_bn": 3.6095566832207764
+     },
+     {
+      "name": "Janumet",
+      "usd_bn": 2.022756039312552
+     },
+     {
+      "name": "Januvia",
+      "usd_bn": 1.7516034031549712
+     }
+    ],
+    "usd_bn": 15.078970531872717,
+    "valued": 4
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 1,
+      "mean": 66.04607262002571,
+      "name": "Berobenatide"
+     }
+    ],
+    "mean": 66.04607262002571
+   },
+   "counts": {
+    "filed": 0,
+    "late": 1,
+    "marketed": 17,
+    "phase2": 1
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": 0.0,
+    "fiscal_year": 2025,
+    "products": [],
+    "revenue_usd_bn": 0.446,
+    "share": 0.0
+   },
+   "name": "Pfizer Inc",
+   "overall": 46.066921085409355,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 2,
+    "depth": 1,
+    "depth_score": 53.57142857142857,
+    "late": [
+     {
+      "name": "Berobenatide",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "Berobenatide",
+      "usd_bn": 3.0913667594062466
+     },
+     {
+      "name": "PF-08653945",
+      "usd_bn": 1.0410813377123467
+     }
+    ],
+    "usd_bn": 4.132448097118593,
+    "value_score": 61.53846153846154,
+    "valued": 2
+   },
+   "rank": 9,
+   "ranked": true,
+   "readouts": {
+    "count": 7,
+    "first": "2027-08-04",
+    "last": "2028-05-04",
+    "priced": 2,
+    "stake_usd_bn": 7.381159726100034,
+    "top": [
+     {
+      "asset": "Berobenatide",
+      "date": "2027-09-21",
+      "priced": true,
+      "usd_bn": 5.067414660457379
+     },
+     {
+      "asset": "PF-08653945",
+      "date": "2027-08-04",
+      "priced": true,
+      "usd_bn": 2.313745065642655
+     }
+    ]
+   },
+   "scores": {
+    "clinical": 66.04607262002571,
+    "durability": 77.77777777777777,
+    "pipeline": 57.55494505494505,
+    "value": 10.0
+   },
+   "ticker": "PFE",
+   "value": {
+    "basis": null,
+    "products": 17,
+    "share": 0.04519736197336455,
+    "top": [
+     {
+      "name": "Genotropin",
+      "usd_bn": 0.540295549877701
+     }
+    ],
+    "usd_bn": 0.540295549877701,
+    "valued": 1
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 2,
+      "mean": 83.73392362598483,
+      "name": "Insulin glargine"
+     },
+     {
+      "indications": 3,
+      "mean": 76.12244176373801,
+      "name": "Lixisenatide"
+     }
+    ],
+    "mean": 79.92818269486142
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 9,
+    "phase2": 0
+   },
+   "currency": "EUR",
+   "durability": {
+    "at_risk_usd_bn": 1.5156805,
+    "fiscal_year": 2025,
+    "products": [
+     {
+      "loe": "2027-02-25",
+      "name": "Toujeo Solostar",
+      "usd_bn": 1.5156805
+     }
+    ],
+    "revenue_usd_bn": 3.5395929,
+    "share": 0.42820757720471186
+   },
+   "name": "Sanofi",
+   "overall": 43.3039321206018,
+   "pillars": 4,
+   "pipeline": {
+    "assets": 0,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": 0.0,
+    "value_score": 15.384615384615385,
+    "valued": 0
+   },
+   "rank": 10,
+   "ranked": true,
+   "readouts": {
+    "count": 1,
+    "first": "2028-06-06",
+    "last": "2028-06-06",
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": 79.92818269486142,
+    "durability": 11.11111111111111,
+    "pipeline": 16.62087912087912,
+    "value": 50.0
+   },
+   "ticker": "SNY",
+   "value": {
+    "basis": null,
+    "products": 9,
+    "share": 0.12680364989115384,
+    "top": [
+     {
+      "name": "Lantus Solostar",
+      "usd_bn": 6.18478966153463
+     },
+     {
+      "name": "Toujeo Solostar",
+      "usd_bn": 2.9681247400515534
+     },
+     {
+      "name": "Tzield",
+      "usd_bn": 0.14630617042447913
+     }
+    ],
+    "usd_bn": 9.299220572010661,
+    "valued": 3
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 2,
+      "mean": 83.18465710366499,
+      "name": "Finerenone"
+     }
+    ],
+    "mean": 83.18465710366499
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 2,
+    "phase2": 0
+   },
+   "currency": "EUR",
+   "durability": {
+    "at_risk_usd_bn": null,
+    "fiscal_year": null,
+    "products": [],
+    "revenue_usd_bn": null,
+    "share": null
+   },
+   "name": "Bayer AG",
+   "overall": null,
+   "pillars": 2,
+   "pipeline": {
+    "assets": 0,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": 0.0,
+    "value_score": 15.384615384615385,
+    "valued": 0
+   },
+   "rank": null,
+   "ranked": false,
+   "readouts": {
+    "count": 0,
+    "first": null,
+    "last": null,
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": 83.18465710366499,
+    "durability": null,
+    "pipeline": 16.62087912087912,
+    "value": null
+   },
+   "ticker": "BAYN",
+   "value": {
+    "basis": "no marketed product here carries a model value",
+    "products": 2,
+    "share": null,
+    "top": [],
+    "usd_bn": null,
+    "valued": 0
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [
+     {
+      "indications": 3,
+      "mean": 74.59052368679102,
+      "name": "Canagliflozin"
+     }
+    ],
+    "mean": 74.59052368679102
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 3,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": null,
+    "fiscal_year": null,
+    "products": [],
+    "revenue_usd_bn": null,
+    "share": null
+   },
+   "name": "Johnson & Johnson",
+   "overall": null,
+   "pillars": 2,
+   "pipeline": {
+    "assets": 0,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": 0.0,
+    "value_score": 15.384615384615385,
+    "valued": 0
+   },
+   "rank": null,
+   "ranked": false,
+   "readouts": {
+    "count": 0,
+    "first": null,
+    "last": null,
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": 74.59052368679102,
+    "durability": null,
+    "pipeline": 16.62087912087912,
+    "value": null
+   },
+   "ticker": "JNJ",
+   "value": {
+    "basis": "no marketed product here carries a model value",
+    "products": 3,
+    "share": null,
+    "top": [],
+    "usd_bn": null,
+    "valued": 0
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [],
+    "mean": null
+   },
+   "counts": {
+    "filed": 0,
+    "late": 1,
+    "marketed": 0,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": null,
+    "fiscal_year": null,
+    "products": [],
+    "revenue_usd_bn": null,
+    "share": null
+   },
+   "name": "Vertex Pharmaceuticals Inc",
+   "overall": null,
+   "pillars": 2,
+   "pipeline": {
+    "assets": 1,
+    "depth": 1,
+    "depth_score": 53.57142857142857,
+    "late": [
+     {
+      "name": "VX-880",
+      "stage": "Phase 3"
+     }
+    ],
+    "top": [
+     {
+      "name": "VX-880",
+      "usd_bn": 0.916943791013024
+     }
+    ],
+    "usd_bn": 0.916943791013024,
+    "value_score": 38.46153846153846,
+    "valued": 1
+   },
+   "rank": null,
+   "ranked": false,
+   "readouts": {
+    "count": 1,
+    "first": "2027-12-31",
+    "last": "2027-12-31",
+    "priced": 1,
+    "stake_usd_bn": 1.575078447119891,
+    "top": [
+     {
+      "asset": "VX-880",
+      "date": "2027-12-31",
+      "priced": true,
+      "usd_bn": 1.575078447119891
+     }
+    ]
+   },
+   "scores": {
+    "clinical": null,
+    "durability": null,
+    "pipeline": 46.01648351648352,
+    "value": 0.0
+   },
+   "ticker": "VRTX",
+   "value": {
+    "basis": "none marketed",
+    "products": 0,
+    "share": 0.013516881404626323,
+    "top": [],
+    "usd_bn": 0.0,
+    "valued": 0
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [],
+    "mean": null
+   },
+   "counts": {
+    "filed": 0,
+    "late": 1,
+    "marketed": 5,
+    "phase2": 1
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": null,
+    "fiscal_year": null,
+    "products": [],
+    "revenue_usd_bn": null,
+    "share": null
+   },
+   "name": "AbbVie Inc",
+   "overall": null,
+   "pillars": 1,
+   "pipeline": {
+    "assets": 2,
+    "depth": 1,
+    "depth_score": 53.57142857142857,
+    "late": [
+     {
+      "name": "Armour Thyroid",
+      "stage": "Phase 2/3"
+     }
+    ],
+    "top": [
+     {
+      "name": "ABBV-295",
+      "usd_bn": 1.3719743776596587
+     }
+    ],
+    "usd_bn": 1.3719743776596587,
+    "value_score": 46.15384615384615,
+    "valued": 1
+   },
+   "rank": null,
+   "ranked": false,
+   "readouts": {
+    "count": 2,
+    "first": "2027-09",
+    "last": "2028-03",
+    "priced": 1,
+    "stake_usd_bn": 3.049136346515975,
+    "top": [
+     {
+      "asset": "ABBV-295",
+      "date": "2028-03",
+      "priced": true,
+      "usd_bn": 3.049136346515975
+     }
+    ]
+   },
+   "scores": {
+    "clinical": null,
+    "durability": null,
+    "pipeline": 49.86263736263736,
+    "value": null
+   },
+   "ticker": "ABBV",
+   "value": {
+    "basis": "no marketed product here carries a model value",
+    "products": 5,
+    "share": 0.005648461168390083,
+    "top": [],
+    "usd_bn": null,
+    "valued": 0
+   }
+  },
+  {
+   "clinical": {
+    "drugs": [],
+    "mean": null
+   },
+   "counts": {
+    "filed": 0,
+    "late": 0,
+    "marketed": 2,
+    "phase2": 0
+   },
+   "currency": "USD",
+   "durability": {
+    "at_risk_usd_bn": null,
+    "fiscal_year": null,
+    "products": [],
+    "revenue_usd_bn": null,
+    "share": null
+   },
+   "name": "Bristol-Myers Squibb Co",
+   "overall": null,
+   "pillars": 1,
+   "pipeline": {
+    "assets": 0,
+    "depth": 0,
+    "depth_score": 17.857142857142858,
+    "late": [],
+    "top": [],
+    "usd_bn": 0.0,
+    "value_score": 15.384615384615385,
+    "valued": 0
+   },
+   "rank": null,
+   "ranked": false,
+   "readouts": {
+    "count": 0,
+    "first": null,
+    "last": null,
+    "priced": 0,
+    "stake_usd_bn": null,
+    "top": []
+   },
+   "scores": {
+    "clinical": null,
+    "durability": null,
+    "pipeline": 16.62087912087912,
+    "value": null
+   },
+   "ticker": "BMY",
+   "value": {
+    "basis": "no marketed product here carries a model value",
+    "products": 2,
+    "share": null,
+    "top": [],
+    "usd_bn": null,
+    "valued": 0
+   }
+  }
+ ],
+ "fx_as_of": "2026-10-06",
+ "horizon_end": 2030,
+ "method": {
+  "assignment": "A product counts in one area, the first indication on its label, else the disease it is modelled in, else what its trials study, with its whole value. A drug's clinical record counts in every area it is trialled in.",
+  "clinical": "the mean overall score of its drugs on the indication scorecard, across the indications in this area the Indications view offers: each drug's mean over the indications it is scored in, then the mean over its drugs. That mean is the score itself, already 0 to 100 and comparable across companies. No figure where none is scored.",
+  "currency": "Every value, revenue and stake is converted from the filer's reporting currency to USD at the book's latest ECB reference rates.",
+  "durability": "the share of its revenue in the area, each product's latest reported year, whose exclusivity ends within 5 years: the effective LOE of the cliff, orphan exclusivity left out. Less is better. No figure where no product in the area has revenue on file.",
+  "overall": "The overall weights value today 35%, pipeline 25%, clinical quality 25% and durability 15%, renormalised over the pillars a company has, the count shown beside it. A missing pillar is never filled in.",
+  "pipeline": "the risked value of its unmarketed assets in the area in USD bn, and its depth, the count in Phase 3 or filed, each scaled and then averaged. With no pipeline value modelled it rests on depth alone.",
+  "ranking": "A company needs at least 3 of the 4 pillars to be ranked. One with fewer is listed below the ranked companies as too little on file, with no rank and no overall, is left off the chart and is never a card's pick.",
+  "readouts": "Readouts are data readouts pending within 24 months on assets in the area. The value at stake sums the swings the catalyst stakes price; an unpriced readout adds to the count only.",
+  "scale": "Value today, pipeline and durability run from 0 to 100 by percentile rank among the companies with a figure: the share of the others it beats, a tie counting half. The best scores 100 and the weakest 0 whatever the spread; a company alone with a figure scores 50.",
+  "value": "the risked value of the company's marketed products in the area, in USD bn, each product's whole value. The area's share of the company's total product value is shown beside it and does not move the score. Nothing marketed in the area scores at the foot; marketed products with no model value give no figure."
+ },
+ "min_pillars": 3,
+ "readout_end": "2028-10-07",
+ "slug": "metabolic",
+ "totals": {
+  "at_risk_share": 0.15306466872558785,
+  "at_risk_usd_bn": 13.666426951362595,
+  "companies": 15,
+  "filed": 0,
+  "late": 15,
+  "marketed": 106,
+  "phase2": 15,
+  "pipeline_usd_bn": 98.50398605159468,
+  "priced_readouts": 18,
+  "ranked": 10,
+  "readouts": 112,
+  "revenue_usd_bn": 89.2853136203729,
+  "risked_usd_bn": 441.69406013073217,
+  "scored_drugs": 30,
+  "stake_usd_bn": 147.0425966883557,
+  "value_usd_bn": 343.1900740791375
+ },
+ "weights": {
+  "clinical": 0.25,
+  "durability": 0.15,
+  "pipeline": 0.25,
+  "value": 0.35
+ }
+}

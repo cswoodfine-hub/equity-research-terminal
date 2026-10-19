@@ -19,6 +19,26 @@ def _facts(name):
     return json.loads((FIXTURES / name).read_text())
 
 
+def test_jnj_years_that_end_in_january_keep_their_own_fiscal_year():
+    """Johnson & Johnson's fiscal 2022 ended on 1 January 2023 and its fiscal 2023 on 31
+    December 2023. Read off the end date, both were 2023, so the annual series kept one
+    and dropped the other, fiscal 2020 sat under 2021, and the stored rows carried two
+    revenue figures for 2023 and none for 2022."""
+    import companyfacts
+    parsed = companyfacts.parse_statements(_facts("companyfacts_jnj.json"))
+    revenue = parse_companyfacts(_facts("companyfacts_jnj.json"))["annual"]["Revenues"]
+    assert {y: v["val"] for y, v in revenue.items() if y >= 2020} == {
+        2020: 82_584_000_000, 2021: 78_740_000_000, 2022: 79_990_000_000,
+        2023: 85_159_000_000, 2024: 88_821_000_000, 2025: 94_193_000_000}
+    rows = [r for r in companyfacts.financial_rows(parsed)
+            if r["metric"] == "Revenues" and r["period_type"] == "FY"]
+    years = [r["fiscal_year"] for r in rows]
+    assert len(years) == len(set(years))              # one figure a year
+    by_end = {r["period_end"]: r["fiscal_year"] for r in rows}
+    assert by_end["2023-01-01"] == 2022 and by_end["2023-12-31"] == 2023
+    assert by_end["2021-01-03"] == 2020
+
+
 def test_parse_lly_us_gaap():
     r = parse_companyfacts(_facts("companyfacts_lly.json"))
 

@@ -47,3 +47,33 @@ decision, not a configuration one.
 
 The other 46 feeds are current, the newest between 15 and 22 days old at the time of the
 audit, which is the ordinary rhythm of a large-cap news page.
+
+## Payer feeds (added 2026-10-06)
+
+Four sources run in a late stage of the universe refresh, after the asset rows settle and
+before the diff (`refresh._payer_fetchers`), in this order. Each holds its own release
+guard, because the daily job runs forced and a forced run ignores every TTL. On a day with
+nothing new each costs a few metadata calls and writes a `cache` snapshot; a failure writes
+an `error` snapshot and marks the run partial.
+
+| Source | Snapshot source | What a quiet day costs | When it reads again |
+|---|---|---|---|
+| RxNav codes | `rxnav_codes` | one query of the book | an asset never looked up, its application numbers changed, or 30 days old |
+| Part D Prescribers | `partd_prescribers` | one `/data/stats` call | the provider series' `total_rows` moves, a geography year's catalogue date moves, or 30 days |
+| Medicaid SDUD | `medicaid_sdud` | one metastore call | a held year's dataset id or modified date moves |
+| Part D formulary | `partd_formulary` | the CMS catalogue, cached and re-read weekly | a release date or ZIP URL not yet in `partd_formulary_releases` |
+
+What to watch:
+
+- A Prescribers run that stops at its 900 s budget says how many brands were left in its
+  notes; the next run takes them. A brand whose rows do not match `/data/stats` is marked
+  incomplete and reported as an error, never stored as a wrong aggregate.
+- The formulary read depends on CMS honouring HTTP Range. If it stops, the fetcher refuses
+  the response before reading 2.3 GB, reports a soft error, and the panel keeps the last
+  release.
+- The CMS catalogue is cached on disk for 7 days (`backend/cache/cms_data.json`), so a
+  new monthly formulary is seen within a week of its posting.
+- Medicaid and the formulary read nothing until `drug_codes` holds codes: a fresh book
+  must not mark a release read with nothing kept.
+- A brand with no RxNorm code yet (493 of the 1,488 marketed assets on the 2026-10-05
+  copy) shows that reason rather than an empty panel.

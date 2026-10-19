@@ -20,6 +20,8 @@ from fetchers.financials_ir import FinancialsIrFetcher
 
 _FIX = pathlib.Path(__file__).resolve().parent / "fixtures"
 _BOOK = _FIX / "bayer_annual_report_tables.xlsx"
+# Bayer's real half-year workbook for 2026, cut to the two sheets the interim reader uses.
+_HALF = _FIX / "bayer_half_year_tables.xlsx"
 
 
 def _book():
@@ -176,7 +178,9 @@ def test_a_report_not_yet_published_falls_back_to_the_one_before(monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     fetcher = FinancialsIrFetcher("BAYN", None)
     raw = fetcher.fetch()
-    assert len(calls) == 2 and raw[0]["url"] == calls[1]
+    # The annual report falls back once; the half-year report is then asked for too.
+    assert raw[0]["url"] == calls[1] and "annual-report" in calls[1]
+    assert any("half-year" in url for url in calls[2:])
     assert any("not published yet" in note for note in fetcher._notes)
 
 
@@ -224,10 +228,68 @@ def test_upsert_writes_statements_cash_flow_and_products(tmp_path):
         assert revenue("Kovaltry") == 613_000_000
         assert revenue("Jivi") is None
         # Eylea and Xarelto are Bayer's sales outside the US of molecules the book holds
-        # under Regeneron and Johnson & Johnson. They are reported, not attached to a row
-        # that is someone else's.
-        unmatched = next(note for note in result.notes if "matched no asset" in note)
-        assert "Eylea" in unmatched and "Xarelto" in unmatched
+        # under Regeneron and Johnson & Johnson. They get rows of Bayer's own, never the
+        # partner's, and so do the old brands no FDA register carries.
+        assert revenue("Eylea") == 3_110_000_000
+        assert revenue("Xarelto") == 2_344_000_000
+        assert revenue("Adalat") == 503_000_000
+        owners = {r["brand_name"]: r["ticker"] for r in conn.execute(
+            """SELECT a.brand_name, c.ticker FROM assets a
+                 JOIN companies c ON c.id = a.owner_company_id
+                WHERE a.brand_name IN ('Eylea', 'Xarelto')""")}
+        assert owners == {"Eylea": "BAYN", "Xarelto": "BAYN"}
+        created = next(note for note in result.notes if "given one" in note)
+        assert "Eylea" in created and "CT Fluid Delivery" in created
+        assert not any("matched no asset" in note for note in result.notes)
+    finally:
+        conn.close()
+
+
+# --- the half-year report ------------------------------------------------------
+def test_the_half_year_report_is_this_years_first():
+    urls = bayer.half_year_urls(dt.date(2026, 10, 7))
+    assert urls[0].endswith(
+        "/half-year-financial-report-q2-2026/en/_assets/downloads/entire-bayer-ir226.xlsx")
+    assert "half-year-financial-report-q2-2025" in urls[1]
+
+
+def test_first_halves_parse_to_the_published_figures_and_tie():
+    records, notes = bayer.read_half_year(openpyxl.load_workbook(_HALF, data_only=True))
+    assert notes == []
+    got = {(r["product"], r["fiscal_year"]): r["value"] for r in records}
+    assert {r["period"] for r in records} == {"H1"}
+    assert got[("Eylea", 2026)] == 1_196_000_000 and got[("Eylea", 2025)] == 1_677_000_000
+    assert got[("Xarelto", 2026)] == 738_000_000
+    # The quarter columns sit beside the halves and are never read as them.
+    assert got[("Nubeqa", 2026)] == 1_629_000_000
+    assert sum(v for (p, y), v in got.items() if y == 2026) == 7_426_000_000
+
+
+def test_a_dropped_half_year_product_is_refused():
+    book = openpyxl.load_workbook(_HALF, data_only=True)
+    sheet = book[bayer.PRODUCT_SHEET]
+    for row in sheet.iter_rows():
+        if bayer.clean(row[0].value) == "Kerendia":
+            for cell in row:
+                cell.value = None
+    records, notes = bayer.read_half_year(book)
+    assert records == [] and any("did not tie" in note for note in notes)
+
+
+def test_upsert_writes_first_halves_beside_the_years(tmp_path):
+    path = _seeded(tmp_path)
+    fetcher = FinancialsIrFetcher("BAYN", path)
+    raw = [{"bytes": _BOOK.read_bytes()},
+           {"bytes": _HALF.read_bytes(), "interim": True}]
+    fetcher.upsert(fetcher.normalise(raw))
+    conn = db.get_connection(path)
+    try:
+        rows = {(r["fiscal_year"], r["period"]): (r["value"], r["source"]) for r in conn.execute(
+            """SELECT r.fiscal_year, r.period, r.value, r.source FROM asset_revenue r
+                 JOIN assets a ON a.id = r.asset_id WHERE a.brand_name = 'Nubeqa'""")}
+        assert rows[(2025, "FY")][0] == 2_385_000_000
+        assert rows[(2026, "H1")] == (1_629_000_000, bayer.HALF_YEAR_NOTE)
+        assert rows[(2025, "H1")][0] == 1_061_000_000
     finally:
         conn.close()
 

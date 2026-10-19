@@ -1,0 +1,29 @@
+{
+ "ok": true,
+ "ticker": "LLY",
+ "asset_id": 31,
+ "name": "Mounjaro",
+ "scenario": "base",
+ "per_share": 146.27768891327233,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 131547.5256397058,
+   "defined": false,
+   "per_share": 146.27768891327233
+  },
+  "base": {
+   "rnpv": 131547.5256397058,
+   "defined": true,
+   "per_share": 146.27768891327233
+  },
+  "bull": {
+   "rnpv": 131547.5256397058,
+   "defined": false,
+   "per_share": 146.27768891327233
+  }
+ },
+ "gate": null,
+ "gate_range": false,
+ "launch": null
+}

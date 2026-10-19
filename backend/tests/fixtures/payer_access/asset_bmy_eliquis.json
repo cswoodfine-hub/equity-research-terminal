@@ -1,0 +1,401 @@
+{
+ "asset_id": 198,
+ "ticker": "BMY",
+ "brand": "Eliquis",
+ "generic": "Apixaban",
+ "prescribing": {
+  "year": 2024,
+  "scope_label": "Medicare Part D only, 2024",
+  "source": "CMS Medicare Part D Prescribers, by Geography and Drug (national) and by Provider and Drug",
+  "cms_brands": [
+   [
+    "Eliquis",
+    "Apixaban"
+   ]
+  ],
+  "national": {
+   "upper_bound": false,
+   "prescribers": 556431,
+   "claims": 24054695,
+   "fills_30d": 38760676.6,
+   "beneficiaries": 4423497,
+   "beneficiaries_65_plus": 4139407,
+   "drug_cost": 20769270635.0,
+   "note": null
+  },
+  "days_covered": {
+   "value": 0.7202,
+   "label": "a proxy, not a PDC",
+   "above_one": false,
+   "applies": true,
+   "note": null,
+   "file_value": 0.6424,
+   "file_note": null
+  },
+  "file": {
+   "status": "complete",
+   "population": "prescribers with 11 or more claims for the drug (the file population)",
+   "why": null,
+   "prescribers": 264286,
+   "claims": 22996543,
+   "claims_share": 0.956011,
+   "deciles": [
+    0.490333,
+    0.166223,
+    0.101437,
+    0.070508,
+    0.051202,
+    0.03817,
+    0.028947,
+    0.022262,
+    0.017281,
+    0.013636
+   ],
+   "top1pct": 0.128219,
+   "top10pct": 0.490333,
+   "prescribers_for_50pct": 27568,
+   "prescribers_for_80pct": 93949,
+   "hhi": 0.16,
+   "median_claims": 38.0,
+   "days_per_claim": 45.1,
+   "note": null
+  },
+  "volume_deciles": {
+   "value": null,
+   "note": "Not computed: CMS does not say whether its national prescriber count includes prescribers with fewer than 11 claims, so the prescribers missing from the file cannot be ranked"
+  },
+  "specialties": [
+   {
+    "specialty": "Internal Medicine",
+    "prescribers": 57724,
+    "claims": 5267467,
+    "claims_share": 0.229055
+   },
+   {
+    "specialty": "Cardiology",
+    "prescribers": 17352,
+    "claims": 4541356,
+    "claims_share": 0.19748
+   },
+   {
+    "specialty": "Family Practice",
+    "prescribers": 60736,
+    "claims": 4490125,
+    "claims_share": 0.195252
+   },
+   {
+    "specialty": "Nurse Practitioner",
+    "prescribers": 63907,
+    "claims": 3759307,
+    "claims_share": 0.163473
+   },
+   {
+    "specialty": "Physician Assistant",
+    "prescribers": 21676,
+    "claims": 1212143,
+    "claims_share": 0.05271
+   },
+   {
+    "specialty": "Interventional Cardiology",
+    "prescribers": 4218,
+    "claims": 967012,
+    "claims_share": 0.04205
+   },
+   {
+    "specialty": "Clinical Cardiac Electrophysiology",
+    "prescribers": 2461,
+    "claims": 750463,
+    "claims_share": 0.032634
+   },
+   {
+    "specialty": "Hematology-Oncology",
+    "prescribers": 6191,
+    "claims": 377923,
+    "claims_share": 0.016434
+   },
+   {
+    "specialty": "Geriatric Medicine",
+    "prescribers": 1395,
+    "claims": 249838,
+    "claims_share": 0.010864
+   },
+   {
+    "specialty": "Hospitalist",
+    "prescribers": 6075,
+    "claims": 235487,
+    "claims_share": 0.01024
+   },
+   {
+    "specialty": "General Practice",
+    "prescribers": 3232,
+    "claims": 230073,
+    "claims_share": 0.010005
+   },
+   {
+    "specialty": "Other",
+    "prescribers": 19319,
+    "claims": 915349,
+    "claims_share": 0.039804
+   }
+  ],
+  "series": [
+   {
+    "year": 2020,
+    "prescribers": 428046,
+    "claims": 14845652,
+    "beneficiaries": 2641700,
+    "days_covered": 0.7013
+   },
+   {
+    "year": 2021,
+    "prescribers": 465891,
+    "claims": 17013314,
+    "beneficiaries": 3124610,
+    "days_covered": 0.6955
+   },
+   {
+    "year": 2022,
+    "prescribers": 496989,
+    "claims": 18969114,
+    "beneficiaries": 3504386,
+    "days_covered": 0.7026
+   },
+   {
+    "year": 2023,
+    "prescribers": 526725,
+    "claims": 21185751,
+    "beneficiaries": 3925487,
+    "days_covered": 0.706
+   },
+   {
+    "year": 2024,
+    "prescribers": 556431,
+    "claims": 24054695,
+    "beneficiaries": 4423497,
+    "days_covered": 0.7202
+   }
+  ],
+  "caveats": [
+   "Days covered is 30-day fills times 30 over beneficiaries times 365: a proxy, not a PDC. It falls when patients start or stop during the year as well as when they miss doses. It can pass 1 where supplies overlap, as when two strengths are filled together or a refill comes early, and where fills run under 30 days, since CMS counts each as one 30-day fill, as for a drug given every week or two.",
+   "The provider file leaves out any prescriber with fewer than 11 claims for the drug, so its figures, the deciles among them, describe that population and not every prescriber."
+  ],
+  "part_b_note": null
+ },
+ "formulary": {
+  "release_date": "2026-09-16",
+  "contract_year": 2026,
+  "scope_label": "Medicare Part D plans only, Sep 2026 release, contract year 2026; excludes employer, PACE and demonstration plans",
+  "source": "CMS Monthly Prescription Drug Plan Formulary and Pharmacy Network Information",
+  "formularies_total": 328,
+  "formularies_listing": 328,
+  "pa_formularies": 0,
+  "st_formularies": 0,
+  "ql_formularies": 305,
+  "listed_share": 1.0,
+  "pa_share": 0.0,
+  "st_share": 0.0,
+  "plans_total": 5496,
+  "plans_listing": 5496,
+  "mapd": {
+   "plans": 5129,
+   "listing": 5129
+  },
+  "pdp": {
+   "plans": 367,
+   "listing": 367
+  },
+  "pa_plans": 0,
+  "st_plans": 0,
+  "ql_plans": 5027,
+  "by_plan_type": {
+   "MA-PD": {
+    "plans": 5129,
+    "listing": 5129,
+    "pa": 0,
+    "st": 0,
+    "ql": 4720
+   },
+   "PDP": {
+    "plans": 367,
+    "listing": 367,
+    "pa": 0,
+    "st": 0,
+    "ql": 307
+   }
+  },
+  "tiers": [
+   {
+    "tier": 1,
+    "formularies": 61
+   },
+   {
+    "tier": 2,
+    "formularies": 10
+   },
+   {
+    "tier": 3,
+    "formularies": 257
+   }
+  ],
+  "specialty_plans_listing": 0,
+  "selected_drug": true,
+  "rxcuis_known": 8,
+  "rxcuis_listed": 3,
+  "note": null,
+  "zero_reason": null,
+  "history": [
+   {
+    "release_date": "2026-09-16",
+    "contract_year": 2026,
+    "listed_share": 1.0,
+    "pa_share": 0.0,
+    "st_share": 0.0
+   }
+  ],
+  "caveats": [
+   "Excludes employer, PACE and demonstration plans. Counts formularies and plans, not people: the file carries no enrolment. Tiers are each plan's own, so only the specialty tier count compares across plans."
+  ]
+ },
+ "medicaid": {
+  "scope_label": "Medicaid only, before rebates",
+  "source": "Medicaid State Drug Utilization Data",
+  "quarters": [
+   {
+    "year": 2024,
+    "quarter": 1,
+    "prescriptions": 497731,
+    "ffsu": 215064,
+    "mcou": 282667,
+    "reimbursed": 309677671.29999995,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2024,
+    "quarter": 2,
+    "prescriptions": 504256,
+    "ffsu": 211441,
+    "mcou": 292815,
+    "reimbursed": 319544597.16999996,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2024,
+    "quarter": 3,
+    "prescriptions": 526179,
+    "ffsu": 229231,
+    "mcou": 296948,
+    "reimbursed": 333735145.02,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2024,
+    "quarter": 4,
+    "prescriptions": 520391,
+    "ffsu": 219034,
+    "mcou": 301357,
+    "reimbursed": 329401269.24,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2025,
+    "quarter": 1,
+    "prescriptions": 528517,
+    "ffsu": 222974,
+    "mcou": 305543,
+    "reimbursed": 341910835.93,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2025,
+    "quarter": 2,
+    "prescriptions": 540095,
+    "ffsu": 223519,
+    "mcou": 316576,
+    "reimbursed": 348378374.46999997,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2025,
+    "quarter": 3,
+    "prescriptions": 563249,
+    "ffsu": 243849,
+    "mcou": 319400,
+    "reimbursed": 367702356.04999995,
+    "lower_bound": false,
+    "codes": 3
+   },
+   {
+    "year": 2025,
+    "quarter": 4,
+    "prescriptions": 556404,
+    "ffsu": 236548,
+    "mcou": 319856,
+    "reimbursed": 363295089.56,
+    "lower_bound": true,
+    "codes": 4
+   }
+  ],
+  "latest": {
+   "year": 2025,
+   "quarter": 4,
+   "prescriptions": 556404,
+   "growth": 0.06920373334665664,
+   "lower_bound": true
+  },
+  "years": [
+   {
+    "year": 2024,
+    "full_year": true,
+    "quarters": 4,
+    "prescriptions": 2048557,
+    "reimbursed": 1292358682.73,
+    "lower_bound": false,
+    "growth": null
+   },
+   {
+    "year": 2025,
+    "full_year": true,
+    "quarters": 4,
+    "prescriptions": 2188265,
+    "reimbursed": 1421286656.01,
+    "lower_bound": true,
+    "growth": 0.06819824881611791
+   }
+  ],
+  "unbranded": [],
+  "unbranded_note": null,
+  "reused_codes": null,
+  "caveats": [
+   "Fee-for-service and managed care prescriptions. Amounts are before Medicaid rebates, so this is volume, not revenue.",
+   "CMS suppresses small package rows, so a quarter that has any is a lower bound."
+  ]
+ },
+ "codes": {
+  "source": "RxNav, U.S. National Library of Medicine",
+  "brand_rxcuis": 8,
+  "brand_ndc9s": 22,
+  "unbranded_ndc9s": 0,
+  "basis": "rxnav_application",
+  "rxnorm_version": "05-Oct-2026",
+  "looked_up_at": "2026-10-05 15:28:40",
+  "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+ },
+ "why_empty": {
+  "prescribing": null,
+  "formulary": null,
+  "medicaid": null
+ },
+ "co_marketed": {
+  "owners": [
+   "PFE"
+  ],
+  "label": "Brand totals, not this company's share"
+ },
+ "attribution": "This product uses publicly available data from the U.S. National Library of Medicine (NLM), National Institutes of Health, Department of Health and Human Services; NLM is not responsible for the product and does not endorse or recommend this or any other product."
+}

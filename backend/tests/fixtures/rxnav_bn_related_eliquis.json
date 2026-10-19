@@ -1,0 +1,89 @@
+{
+ "relatedGroup": {
+  "rxcui": null,
+  "conceptGroup": [
+   {
+    "tty": "BPCK",
+    "conceptProperties": [
+     {
+      "rxcui": "1992428",
+      "name": "{74 (apixaban 5 MG Oral Tablet [Eliquis]) } Pack [Eliquis 30-Day Starter Pack]",
+      "synonym": "Eliquis 30-Day Starter Pack",
+      "tty": "BPCK",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "2749695",
+      "name": "{84 (apixaban 0.5 MG Tablet for Oral Suspension [Eliquis]) } Pack [Eliquis 1.5 MG Dose Pack]",
+      "synonym": "Eliquis 1.5 MG Dose Pack, 0.5 MG (84) Tablet for Oral Suspension",
+      "tty": "BPCK",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "2749698",
+      "name": "{112 (apixaban 0.5 MG Tablet for Oral Suspension [Eliquis]) } Pack [Eliquis 2 MG Dose Pack]",
+      "synonym": "Eliquis 2 MG Dose Pack, 0.5 MG (112) Tablet for Oral Suspension",
+      "tty": "BPCK",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "2749700",
+      "name": "{28 (apixaban 0.5 MG Tablet for Oral Suspension [Eliquis]) } Pack [Eliquis 0.5 MG Dose Pack]",
+      "synonym": "Eliquis 0.5 MG Dose Pack, 0.5 MG (28) Tablet for Oral Suspension",
+      "tty": "BPCK",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     }
+    ]
+   },
+   {
+    "tty": "SBD",
+    "conceptProperties": [
+     {
+      "rxcui": "1364441",
+      "name": "apixaban 2.5 MG Oral Tablet [Eliquis]",
+      "synonym": "Eliquis 2.5 MG Oral Tablet",
+      "tty": "SBD",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "1364447",
+      "name": "apixaban 5 MG Oral Tablet [Eliquis]",
+      "synonym": "Eliquis 5 MG Oral Tablet",
+      "tty": "SBD",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "2749583",
+      "name": "apixaban 0.15 MG Powder for Oral Suspension [Eliquis]",
+      "synonym": "Eliquis 0.15 MG Powder for Oral Suspension",
+      "tty": "SBD",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     },
+     {
+      "rxcui": "2749689",
+      "name": "apixaban 0.5 MG Tablet for Oral Suspension [Eliquis]",
+      "synonym": "Eliquis 0.5 MG Tablet for Oral Suspension",
+      "tty": "SBD",
+      "language": "ENG",
+      "suppress": "N",
+      "umlscui": ""
+     }
+    ]
+   }
+  ]
+ }
+}

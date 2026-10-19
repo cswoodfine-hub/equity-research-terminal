@@ -192,6 +192,32 @@ def split(conn, asset_id: int) -> dict | None:
     return None
 
 
+def us_series(conn, asset_id: int) -> dict:
+    """{fiscal_year: (value, unit, source) or None}: the product's US revenue per year.
+
+    The rule ``split`` uses for a year: a hand entered row outranks a fetched one, so
+    where any curated row exists for the year only the curated rows count, and exactly
+    one US row must then remain. Dupixent's FY2025 carries a fetched 'US' row and a
+    curated 'United States' row for the same sales; the curated one is read. Two
+    fetched US rows that disagree leave the year None rather than picking one.
+    """
+    out: dict = {}
+    years = [r["fiscal_year"] for r in conn.execute(
+        "SELECT DISTINCT fiscal_year FROM asset_revenue_regions WHERE asset_id = ?"
+        " ORDER BY fiscal_year", (asset_id,))]
+    for year in years:
+        rows = conn.execute(
+            """SELECT member, region, value, unit, source, is_curated
+                 FROM asset_revenue_regions
+                WHERE asset_id = ? AND fiscal_year = ? AND value IS NOT NULL""",
+            (asset_id, year)).fetchall()
+        if any(r["is_curated"] for r in rows):
+            rows = [r for r in rows if r["is_curated"]]
+        us = [r for r in rows if r["region"] == "US"]
+        out[year] = (us[0]["value"], us[0]["unit"], us[0]["source"]) if len(us) == 1 else None
+    return out
+
+
 def _eu_rows(conn) -> list[dict]:
     """Every originator EU authorisation, normalised once per state of the table. Keyed
     on the database file and what the table holds, never on the connection, whose id is

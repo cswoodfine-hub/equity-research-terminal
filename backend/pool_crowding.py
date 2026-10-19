@@ -29,6 +29,12 @@ to make.
 The module reports rather than mutates. ``solve`` returns each asset's crowded and
 uncrowded series and the ratio between them, so the cost of the correction can be read
 before it is taken.
+
+A rival counts in proportion to its odds of reaching the market. An asset's forecast is
+its success case, which rNPV then risks by its own probability; in that case its rivals
+are still uncertain, so each takes patients at its own probability rather than in full.
+Crowding on unrisked curves charged Vertex's VX-670 the whole of Dyne's DYNE-101, a launch
+the engine itself prices at 0.46. Where every claimant is certain the rule is the old one.
 """
 
 from __future__ import annotations
@@ -62,18 +68,18 @@ def _inputs(scalars: dict) -> dict | None:
 def _pool_rule(claim: dict) -> tuple[float, float]:
     """(carryover, opening pool) for a claimant, by the rule forecast.py applies.
 
-    A seed can state its carryover. Where it does not, a pool stated equal to its own
-    inflow is the year's diagnoses, how every cancer line and the COPD rows are written,
-    so nothing carries into the next year and there is no opening stock on top of the
-    first year's diagnoses. Reading a missing carryover as 1.0 here, where the engine
-    reads it as 0, crowded felcorekibart and lunsekimig by 5% and 7% on a pool the engine
-    never lets run short.
+    The answer is forecast.pool_rule's, not a copy of it. A seed can state its carryover.
+    Where it does not, a pool stated equal to its own inflow is the year's diagnoses, how
+    every cancer line and the COPD rows are written, so nothing carries into the next year
+    and there is no opening stock on top of the first year's diagnoses; a pool with an
+    inflow loses patients as fast as it gains them; a pool with none keeps them all. When
+    the two copies of this rule disagreed, reading a missing carryover as 1.0 here where
+    the engine read it as 0 crowded felcorekibart and lunsekimig by 5% and 7% on a pool
+    the engine never lets run short.
     """
-    carry = claim.get("carryover")
-    prevalence, incidence = claim["prevalence"], claim["incidence"]
-    if carry is None and prevalence and abs(prevalence - incidence) < 0.5:
-        return 0.0, 0.0
-    return (1.0 if carry is None else carry), prevalence
+    carry, opening, _basis = forecast.pool_rule(
+        claim["prevalence"], claim["incidence"], claim.get("carryover"))
+    return carry, (claim["prevalence"] if opening else 0.0)
 
 
 # Everything the pool identity needs, and where the engine reads each from. Pool factors
@@ -158,8 +164,37 @@ def claimants(conn, indication_id: int, scenario: str = "base") -> list[dict]:
                     "ticker": row["ticker"], "indication": name["name"] if name else None,
                     "indication_id": row["indication_id"],
                     "start": per_asset.get("forecast_start_year"),
-                    "stop": per_asset.get("discontinuation_pct"), **got})
+                    "stop": per_asset.get("discontinuation_pct"),
+                    "pos": claimant_pos(conn, row["asset_id"], per_asset), **got})
     return out
+
+
+def claimant_pos(conn, asset_id: int, scalars: dict) -> float:
+    """The probability the engine values this asset at, read the way assumptions.load
+    reads it: a stated value or factors, then pos_granular's gate for a big pharma Phase 2
+    or 3 asset, then the published rate for its area and phase. 1.0 where none resolves
+    (a marketed product states no probability; it is on the market)."""
+    import assumptions
+    import forecast
+    import pos_granular
+    import product_areas
+
+    phase = conn.execute(
+        """SELECT phase FROM asset_indications WHERE asset_id = ?
+            ORDER BY CASE phase WHEN 'Phase 4' THEN 6 WHEN 'Phase 3' THEN 5
+                     WHEN 'Phase 2/3' THEN 4 WHEN 'Phase 2' THEN 3
+                     WHEN 'Phase 1/2' THEN 2 WHEN 'Phase 1' THEN 1 ELSE 0 END DESC
+            LIMIT 1""", (asset_id,)).fetchone()
+    phase = phase["phase"] if phase else None
+    area = product_areas.area_for(conn, asset_id)
+    try:
+        granular = pos_granular.for_asset(conn, asset_id, area=area, phase=phase,
+                                          scalars=scalars)
+    except Exception:                       # a gate that cannot place is the table's case
+        granular = None
+    value, _basis = forecast.pos(scalars, phase, assumptions.pos_defaults(), area=area,
+                                 by_area=assumptions.pos_by_area(), granular=granular)
+    return 1.0 if value is None else max(0.0, min(1.0, float(value)))
 
 
 # {(group, scenario): {asset_id: ratio}} for the life of a process. The solve is cheap
@@ -269,28 +304,45 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
     pool = opening * lead["eligible_pct"]
     inc = lead["incidence"] * lead["eligible_pct"]
     claims_in = pooled
-    crowded = {c["asset_id"]: [] for c in claims}
     stops = {c["asset_id"]: ((c["stop"] or 0.0) if recycle else 0.0) for c in claims}
-    held = {c["asset_id"]: 0.0 for c in claims}
-    remaining, shared = pool, []
-    for year in calendar:
-        eligible = max(0.0, remaining + inc)
-        wanted = {c["asset_id"]: curve(c, year) * eligible for c in claims_in}
-        total = sum(wanted.values())
-        scale = min(1.0, eligible / total) if total > 0 else 1.0
-        quitting = 0.0
-        for asset_id, value in wanted.items():
-            new = value * scale
-            crowded[asset_id].append(new)
-            leaving = held[asset_id] * stops[asset_id]
-            held[asset_id] = held[asset_id] + new - leaving
-            quitting += leaving
-        taken = total * scale
-        shared.append({"year": year, "started": taken, "pool": eligible,
-                       "share": taken / eligible if eligible else 0.0,
-                       "treated": sum(held.values()),
-                       "rationed": scale < 1.0 - 1e-9})
-        remaining = max(0.0, remaining + inc - taken + quitting) * carry
+
+    def run(weights):
+        """The shared pool over the calendar with each claimant present at its weight:
+        what it would start is scaled by its weight before the pool is rationed, and
+        only the weighted starts deplete the pool. (crowded series, shared rows)."""
+        crowded = {c["asset_id"]: [] for c in claims}
+        held = {c["asset_id"]: 0.0 for c in claims}
+        remaining, shared = pool, []
+        for year in calendar:
+            eligible = max(0.0, remaining + inc)
+            wanted = {c["asset_id"]: curve(c, year) * eligible for c in claims_in}
+            total = sum(wanted[a] * weights[a] for a in wanted)
+            scale = min(1.0, eligible / total) if total > 0 else 1.0
+            quitting = 0.0
+            for asset_id, value in wanted.items():
+                new = value * scale
+                crowded[asset_id].append(new)
+                leaving = held[asset_id] * stops[asset_id]
+                held[asset_id] = held[asset_id] + new - leaving
+                quitting += leaving * weights[asset_id]
+            taken = total * scale
+            shared.append({"year": year, "started": taken, "pool": eligible,
+                           "share": taken / eligible if eligible else 0.0,
+                           "treated": sum(held[a] * weights[a] for a in held),
+                           "rationed": scale < 1.0 - 1e-9})
+            remaining = max(0.0, remaining + inc - taken + quitting) * carry
+        return crowded, shared
+
+    # The pool as the book draws it, every claimant in full: what the landscape views
+    # report. Each asset's own crowding is then its success case, its rivals at their
+    # odds; with every claimant certain that is this same run.
+    crowded, shared = run({c["asset_id"]: 1.0 for c in claims})
+    odds = {c["asset_id"]: c.get("pos", 1.0) for c in claims}
+    if any(odds[c["asset_id"]] < 1.0 - 1e-9 for c in claims_in):
+        for claim in claims_in:
+            me = claim["asset_id"]
+            own, _rows = run({a: (1.0 if a == me else p) for a, p in odds.items()})
+            crowded[me] = own[me]
 
     assets = []
     for claim in claims:
@@ -302,7 +354,13 @@ def solve(claims: list[dict], years: int = 30, first_year: int | None = None,
                        "uncrowded": up, "crowded": cp if in_pool else up,
                        "pooled": in_pool,
                        "ratio": (max(cp) / max(up)) if (in_pool and max(up)) else 1.0})
-    return {"years": calendar, "assets": assets, "shared": shared, "pool": pool,
+    # The population the pooled claimants draw on: the standing pool where there is one,
+    # else, for a pool of the year's own diagnoses (every cancer line), a year's eligible
+    # diagnoses. That pool has no opening stock, and reporting the stock gave every
+    # oncology landscape a pool of nil and every share of it nil with it.
+    size, per_year = (pool, False) if pool > 0 else (inc, True)
+    return {"years": calendar, "assets": assets, "shared": shared, "pool": size,
+            "pool_per_year": per_year, "pooled": len(claims_in),
             "unpooled": [{"name": c["name"], "ticker": c["ticker"],
                           "pool": round(c["prevalence"] * c["eligible_pct"], 2)}
                          for c in unpooled],

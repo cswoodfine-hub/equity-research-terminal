@@ -188,6 +188,25 @@ def test_xlsx_export_round_trips_through_openpyxl(tmp_path):
     conn.close()
 
 
+def test_a_product_built_from_revenue_exports_with_blank_patient_cells(tmp_path):
+    """A marketed product runs off reported revenue, so the engine returns no patient
+    count for a year. The export rounded each one and failed on the first, so the
+    download of any marketed product's forecast answered with a server error."""
+    import io
+
+    from openpyxl import load_workbook
+    path, conn = _seed(tmp_path)
+    result = {"years": [2026, 2027], "patients": {"total": [None, None]},
+              "revenue_after_loe": [1000.04, 1100.06], "wacc": 0.08, "pos": 1.0,
+              "npv": 5000.0, "rnpv": 5000.0}
+    blob = A.export_xlsx(conn, 1, "base", result)
+    forecast = load_workbook(io.BytesIO(blob))["Forecast"]
+    rows = {r[0]: r[1:] for r in forecast.iter_rows(values_only=True) if r and r[0]}
+    conn.close()
+    assert rows["new patients"] == (None, None)
+    assert rows["revenue, mm"] == (1000.0, 1100.1)
+
+
 def test_a_seed_can_name_a_compound_that_has_no_brand_yet(tmp_path):
     """Retatrutide, milvexian and every other Phase 3 asset carries a generic name and a
     null brand. A loader matching brand alone could seed marketed products and nothing in

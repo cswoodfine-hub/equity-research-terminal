@@ -1,0 +1,155 @@
+{
+ "_note": "Live https://data.cms.gov/data.json (read 2026-10-05) cut to four monthly Part D formulary releases and the newest quarterly one.",
+ "dataset": [
+  {
+   "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-07-29",
+   "modified": "2026-07-29",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2026-07-01",
+     "endDate": "2026-07-31"
+    }
+   ],
+   "distribution": [
+    {
+     "@type": "Distribution",
+     "downloadURL": "https://data.cms.gov/sites/default/files/2026-07/86072516-8629-44d7-9f0e-2d8877ef7fd3/2026_20260722.zip",
+     "mediaType": "application/zip",
+     "format": "ZIP",
+     "resourcesAPI": "https://data.cms.gov/data-api/v1/dataset-resources/a460bcca-d245-4658-81fb-fc209150b665",
+     "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-07-29",
+     "modified": "2026-07-29",
+     "temporal": [
+      {
+       "@type": "PeriodOfTime",
+       "startDate": "2026-07-01",
+       "endDate": "2026-07-31"
+      }
+     ],
+     "license": "https://www.usa.gov/government-works"
+    }
+   ]
+  },
+  {
+   "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-08-26",
+   "modified": "2026-08-26",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2026-08-01",
+     "endDate": "2026-08-31"
+    }
+   ],
+   "distribution": [
+    {
+     "@type": "Distribution",
+     "downloadURL": "https://data.cms.gov/sites/default/files/2026-08/d8c9b393-66f0-4973-a748-f66742fe0fd2/2026_20260819.zip",
+     "mediaType": "application/zip",
+     "format": "ZIP",
+     "resourcesAPI": "https://data.cms.gov/data-api/v1/dataset-resources/f2bcba91-c75f-46c8-b00b-3d9631767b4e",
+     "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-08-26",
+     "modified": "2026-08-26",
+     "temporal": [
+      {
+       "@type": "PeriodOfTime",
+       "startDate": "2026-08-01",
+       "endDate": "2026-08-31"
+      }
+     ],
+     "license": "https://www.usa.gov/government-works"
+    }
+   ]
+  },
+  {
+   "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-09-23",
+   "modified": "2026-09-23",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2026-09-01",
+     "endDate": "2026-09-30"
+    }
+   ],
+   "distribution": [
+    {
+     "@type": "Distribution",
+     "downloadURL": "https://data.cms.gov/sites/default/files/2026-09/903ba816-d276-4c17-9b5a-0224bbd4e949/2026_20260916.zip",
+     "mediaType": "application/zip",
+     "format": "ZIP",
+     "resourcesAPI": "https://data.cms.gov/data-api/v1/dataset-resources/65b3dbc0-3cb9-4809-9d0a-64af7ace0630",
+     "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2026-09-23",
+     "modified": "2026-09-23",
+     "temporal": [
+      {
+       "@type": "PeriodOfTime",
+       "startDate": "2026-09-01",
+       "endDate": "2026-09-30"
+      }
+     ],
+     "license": "https://www.usa.gov/government-works"
+    }
+   ]
+  },
+  {
+   "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2025-09-24",
+   "modified": "2025-09-24",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2025-09-01",
+     "endDate": "2025-09-30"
+    }
+   ],
+   "distribution": [
+    {
+     "@type": "Distribution",
+     "downloadURL": "https://data.cms.gov/sites/default/files/2025-09/2e433d96-8f6c-441f-88bd-ce68d11911b1/2025_20250918.zip",
+     "mediaType": "application/zip",
+     "format": "ZIP",
+     "resourcesAPI": "https://data.cms.gov/data-api/v1/dataset-resources/d3caf7a1-64b1-4ad3-9b9b-5811131466e9",
+     "title": "Monthly Prescription Drug Plan Formulary and Pharmacy Network Information : 2025-09-24",
+     "modified": "2025-09-24",
+     "temporal": [
+      {
+       "@type": "PeriodOfTime",
+       "startDate": "2025-09-01",
+       "endDate": "2025-09-30"
+      }
+     ],
+     "license": "https://www.usa.gov/government-works"
+    }
+   ]
+  },
+  {
+   "title": "Quarterly Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information : 2026-06-01",
+   "modified": "2026-07-29",
+   "temporal": [
+    {
+     "@type": "PeriodOfTime",
+     "startDate": "2026-04-01",
+     "endDate": "2026-06-30"
+    }
+   ],
+   "distribution": [
+    {
+     "@type": "Distribution",
+     "downloadURL": "https://data.cms.gov/sites/default/files/2026-07/64c8d9e1-f350-45e5-88d8-5a2acce2b2d4/SPUF_2026_20260701.zip",
+     "mediaType": "application/zip",
+     "format": "ZIP",
+     "resourcesAPI": "https://data.cms.gov/data-api/v1/dataset-resources/e216397d-3154-4ffb-9301-6536e9babd3d",
+     "title": "Quarterly Prescription Drug Plan Formulary, Pharmacy Network, and Pricing Information : 2026-06-01",
+     "modified": "2026-07-29",
+     "temporal": [
+      {
+       "@type": "PeriodOfTime",
+       "startDate": "2026-04-01",
+       "endDate": "2026-06-30"
+      }
+     ],
+     "license": "https://www.usa.gov/government-works"
+    }
+   ]
+  }
+ ]
+}

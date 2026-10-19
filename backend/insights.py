@@ -336,15 +336,121 @@ def generate_note(db_path=None, ticker: str = "LLY", days: int = 30,
     return out
 
 
+BRIEF_PROMPT = """You are a sell-side equity analyst covering large-cap pharma. Rewrite \
+the briefing on one company as the morning note a portfolio manager reads before the open: \
+after it, the reader should have the whole picture.
+
+You are given the facts the page shows, as labelled lines: the rating and the 12-month \
+value, what today's value is made of and what the price implies for the pipeline and \
+future launches, the share price and its moves against the sector, the company news of the \
+month, what the value rests on, the levers that would break it, the readouts ahead (marked \
+where they are on pipeline compounds), the nearest exclusivity loss, and where the company \
+ranks against its peers.
+
+Write three short paragraphs, at most 180 words in all.
+1. The call and the reasoning: the rating and the 12-month value against the close, then \
+what the price pays for against the model, so the reader sees where the upside or the \
+downside sits.
+2. The trading: the month and the year, each against the sector where the facts give it, \
+and the month's company news set beside the move. You may say a move came despite, with or \
+alongside news; never give news as the reason for a move, and never place a move in a week \
+or on a day the facts do not give, because the data says what happened, not why. Where the \
+facts give no company news, say so.
+3. What drives it and what to watch: what the value rests on and when its protection ends, \
+the levers that would break the call, whether the next readouts test the pipeline or \
+extend products already sold, the nearest exclusivity loss, and the rank against peers \
+with what the growth and margin places say together.
+
+Use judgement, but only on the facts given: compare, weigh and conclude from them. Never \
+invent a number, a date, a drug, a trial, a price, a counterparty or a reason. Keep every \
+figure exactly as given, and keep "est." on every date given as an estimate. Where a fact is \
+missing, leave it out.
+
+Voice. Direct, specific, the number first. Write prose, not a list; no headings. Capitalise \
+the first word of every sentence and every proper noun. No em dashes. Never use the words \
+additionally, highlight, underscore, pivotal, showcase, or testament."""
+
+
+def brief_hash(facts: str) -> str:
+    """The key a rewritten briefing is stored under: the facts it was written from, so a
+    rewrite is shown only while the page's figures are still the ones it read."""
+    import hashlib
+    return hashlib.sha1((facts or "").strip().encode("utf-8")).hexdigest()[:12]
+
+
+def write_brief(db_path=None, ticker: str = "LLY", facts: str = "") -> dict:
+    """Rewrite the page's briefing with the note model, from the facts the page built.
+
+    The page writes the rules briefing itself from the same facts and shows it whenever
+    there is no rewrite, so this never falls back to anything: without a model, or on an
+    error, it returns no body and says why. A rewrite is stored with the hash of its facts.
+    """
+    ticker = ticker.upper()
+    facts = (facts or "").strip()
+    if not facts:
+        return {"ticker": ticker, "body": None, "model": None, "error": "no facts given"}
+    conn = db.get_connection(db_path)
+    try:
+        known = conn.execute("SELECT 1 FROM companies WHERE ticker = ?", (ticker,)).fetchone()
+    finally:
+        conn.close()
+    if known is None:                   # before the model, so an unknown ticker costs nothing
+        return {"ticker": ticker, "body": None, "model": None,
+                "error": f"unknown ticker {ticker}"}
+    if llm.provider(NOTE_PROVIDER) is None:
+        return {"ticker": ticker, "body": None, "model": None,
+                "error": "no note model key is set, so the briefing stays as written"}
+    try:
+        generated = llm.complete(BRIEF_PROMPT, f"Company: {ticker}\n\n{facts}\n\nWrite the note.",
+                                 MAX_TOKENS, prefer=NOTE_PROVIDER,
+                                 thinking_budget=THINKING_BUDGET)
+    except Exception as exc:  # a dead API leaves the briefing as written
+        return {"ticker": ticker, "body": None, "model": None,
+                "error": f"{type(exc).__name__}: {exc}"}
+    body = _scrub(generated) if generated and generated.strip() else ""
+    if not body.strip():
+        return {"ticker": ticker, "body": None, "model": None,
+                "error": "empty response from the model"}
+    out = _store(db_path, ticker, body, llm.model_name(NOTE_PROVIDER), [],
+                 horizon=f"brief {brief_hash(facts)}")
+    out["error"] = None
+    return out
+
+
+def latest_brief(db_path=None, ticker: str = "LLY", facts_hash: str = ""):
+    """The newest rewrite of the briefing written from exactly these facts, or None."""
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT i.id, i.generated_at, i.horizon, i.body, i.model
+              FROM insights i JOIN companies c ON i.company_id = c.id
+             WHERE c.ticker = ? AND i.horizon = ?
+             ORDER BY i.generated_at DESC, i.id DESC
+             LIMIT 1
+            """,
+            (ticker.upper(), f"brief {facts_hash}"),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return None
+    out = dict(row)
+    out["ticker"] = ticker.upper()
+    return out
+
+
 def latest_note(db_path=None, ticker: str = "LLY"):
-    """The most recent stored note for a company, or None."""
+    """The most recent stored note for a company, or None. A rewrite of the Key insights
+    briefing is not a note: it holds only while the page's figures do, so it is left to
+    latest_brief."""
     conn = db.get_connection(db_path)
     try:
         row = conn.execute(
             """
             SELECT i.id, i.generated_at, i.horizon, i.body, i.model, i.source_change_ids
               FROM insights i JOIN companies c ON i.company_id = c.id
-             WHERE c.ticker = ?
+             WHERE c.ticker = ? AND COALESCE(i.horizon, '') NOT LIKE 'brief %'
              ORDER BY i.generated_at DESC, i.id DESC
              LIMIT 1
             """,

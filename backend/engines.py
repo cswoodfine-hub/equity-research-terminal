@@ -35,11 +35,23 @@ a rule about parsing rather than about the company.
 
 Every card carries a live figure computed by the same function the engine renders, so a
 card and the page it opens cannot disagree.
+
+The biotech engine is a chosen list rather than the rule's fourth branch. Covering every
+company the rule leaves over spread the work across forty names, most of them with no
+event ahead that anyone disagrees on. ``data/biotech_focus.csv`` is the catalyst focus
+list: a company on it is read on biotech whatever the rule says (Capricor, uniQure and
+Intellia are cell and gene by platform), and a company the rule calls biotech that is not
+on it sits on no engine, still reached by search. That is placement for the picker, the
+cards, the maps and the peer cohorts only. Valuation asks ``assign``, which the list
+never touches, so no figure moves when a name joins or leaves.
 """
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import os
+from pathlib import Path
 
 import catalysts
 import db
@@ -113,8 +125,28 @@ def assign(conn, company_id: int, revenue: float | None) -> str:
     return BIOTECH
 
 
-def home(db_path=None) -> dict:
-    """{ticker: engine} for the whole universe."""
+FOCUS_CSV = Path(__file__).resolve().parent.parent / "data" / "biotech_focus.csv"
+
+
+def focus_list(path=None) -> set | None:
+    """The tickers on the catalyst focus list, or None where there is no list to apply.
+
+    ER_TOOL_BIOTECH_FOCUS=0 switches it off, which the test suite does so that a fixture
+    universe is placed by the rule its tests are about."""
+    if os.environ.get("ER_TOOL_BIOTECH_FOCUS", "1") == "0":
+        return None
+    path = Path(path or FOCUS_CSV)
+    if not path.exists():
+        return None
+    with open(path, newline="", encoding="utf-8") as handle:
+        return {(r.get("ticker") or "").strip().upper() for r in csv.DictReader(handle)
+                if (r.get("ticker") or "").strip()}
+
+
+def rule_home(db_path=None) -> dict:
+    """{ticker: engine} by the rule alone, the focus list not applied. The scorecard's
+    cohorts read this: commercial and clinical are questions of comparability, and a
+    company left off the list is still a company to compare."""
     conn = db.get_connection(db_path)
     try:
         rates = fx.latest_usd_rates(db_path)
@@ -125,9 +157,22 @@ def home(db_path=None) -> dict:
         conn.close()
 
 
-def tickers_for(db_path=None, engine: str | None = None) -> list:
+def home(db_path=None, focus_path=None) -> dict:
+    """{ticker: engine} for the whole universe: the rule, then the focus list.
+
+    A listed company is on biotech. One the rule places on biotech that is not listed maps
+    to None, on no engine. Pharma and cell and gene keep the rule's answer."""
+    placed = rule_home(db_path)
+    focus = focus_list(focus_path)
+    if focus is None:
+        return placed
+    return {ticker: (BIOTECH if ticker in focus else None if engine == BIOTECH else engine)
+            for ticker, engine in placed.items()}
+
+
+def tickers_for(db_path=None, engine: str | None = None, focus_path=None) -> list:
     """The companies one engine covers, or every company when the engine is unknown."""
-    homes = home(db_path)
+    homes = home(db_path, focus_path)
     if engine not in ENGINES:
         return sorted(homes)
     return sorted(t for t, e in homes.items() if e == engine)
@@ -168,7 +213,7 @@ METRICS = {
 
 TAGLINES = {
     PHARMA: "Where the revenue comes from, and when it stops",
-    BIOTECH: "What reaches the market, and what it costs to get there",
+    BIOTECH: "The catalyst focus list: a dated event the market is split on",
     CELLGENE: "Which platform, who is furthest, who runs out first",
 }
 
@@ -274,7 +319,7 @@ def _biotech(rows, revenues) -> dict:
                     f"at {tightest['runway_months']:.0f} months of cash.")
     return {
         "key": BIOTECH,
-        "count_label": "mid-cap and clinical",
+        "count_label": "on the catalyst focus list",
         "headline": headline,
         "detail": (f"{len(earning)} book revenue of some kind, "
                    f"{len(funded)} have a measurable runway"),

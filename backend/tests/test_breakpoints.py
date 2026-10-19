@@ -1,11 +1,19 @@
 """The value each assumption must reach, moved alone, for the model to meet the price."""
 
 import math
+import os
+from pathlib import Path
 
 import pytest
 
 import breakpoints as B
 import db
+
+# A copy of the built book for the tests that need real companies, never the live file:
+# make one with sqlite3 backend/er_tool.db ".backup '/tmp/book.db'" and point
+# ER_TOOL_BOOK_COPY at it. Skipped where there is none.
+BOOK_COPY = os.environ.get("ER_TOOL_BOOK_COPY", "")
+LIVE_BOOK = Path(__file__).resolve().parents[1] / "er_tool.db"
 
 
 def test_solve_finds_the_crossing_from_the_current_value():
@@ -19,6 +27,17 @@ def test_solve_finds_the_crossing_from_the_current_value():
 def test_a_year_is_the_first_whole_year_that_crosses():
     got = B.solve(lambda y: y - 2031.4, 2028, 2013, 2058, integer=True)
     assert got == {"value": 2032, "reachable": True, "bound": None}
+
+
+def test_a_year_lever_that_turns_back_is_searched_both_ways_nearest_first():
+    # Crosses only inside the bounds, and both bounds sit on the same side as now.
+    bump = lambda y: 1.0 if y < 2033 or y > 2036 else -1.0
+    assert B.solve(bump, 2030, 2015, 2060, integer=True) == {
+        "value": 2033, "reachable": True, "bound": None}
+    # Two crossings, one each way: the nearer wins, the later on a tie.
+    twice = lambda y: -1.0 if y in (2026, 2032) else 1.0
+    assert B.solve(twice, 2029, 2015, 2060, integer=True)["value"] == 2032
+    assert B.solve(twice, 2028, 2015, 2060, integer=True)["value"] == 2026
 
 
 def test_a_lever_that_cannot_get_there_alone_says_so():
@@ -81,6 +100,35 @@ def test_the_break_point_is_where_equity_meets_the_price(tmp_path):
     trial = V.apply_lever(inputs, "revenue_growth_pct", growth["break"])
     moved = forecast.build(trial)["rnpv"]
     assert (moved * 1e6 + (1000e6 - 3000e6)) / 100e6 == pytest.approx(close, rel=1e-4)
+
+
+def test_an_loe_break_point_stops_at_the_year_before_the_window(tmp_path):
+    """The LOE lever is offered only where the record puts the cliff ahead, so the
+    earliest it can fall is the year before the window. A price that needs the cliff
+    four years ago is out of the lever's reach, named at that year, even though the engine
+    would value 2022 further down the curve; a price met at 2027 is found there."""
+    import assumptions
+    import forecast_view as V
+
+    def priced(name, close, loe):
+        path = _company(tmp_path / name, close=close)
+        conn = db.get_connection(path)
+        assumptions.save(conn, 1, [{"key": "loe_year", "value": loe, "unit": "year",
+                                    "source": "judgement"}])
+        conn.commit()
+        conn.close()
+        return path
+
+    at = {year: V.company_verdict(priced(f"v{year}", 1.0, year), "AMGN")["sotp"]
+          ["equity_per_share"] for year in (2022, 2023, 2026, 2027)}
+    assert at[2022] < at[2023] < at[2026] < at[2027]
+    got = B.company(priced("bp", (at[2022] + at[2023]) / 2.0, 2029), "AMGN")
+    assert got["ok"] and got["direction"] == "down"
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert not loe["reachable"] and loe["break"] is None and loe["bound"] == 2025
+    got = B.company(priced("near", (at[2026] + at[2027]) / 2.0, 2029), "AMGN")
+    loe = next(l for l in got["levers"] if l["key"] == "loe_year")
+    assert loe["reachable"] and loe["break"] == 2026
 
 
 def test_groups_read_the_file_and_match_what_the_company_carries(tmp_path):
@@ -346,3 +394,137 @@ def test_composition_alone_never_moves_the_carry(tmp_path):
 
     # A part the base book never had cannot move it either.
     assert book.rate_shift([{"asset_id": 9999, "wacc": 0.5}]) == pytest.approx(0.0)
+
+
+def _charged(monkeypatch):
+    """The fixture company is too small to measure a growth charge or a launch rate
+    from, so both are handed in: thirty cents per dollar of revenue added, and launches
+    worth 1,250mm per unit of launch productivity, which stands at 0.20."""
+    import forecast_view as V
+
+    monkeypatch.setattr(V, "growth_share", lambda conn, ticker: {
+        "value": 0.30, "basis": "thirty cents a dollar added"})
+
+    def future(db_path, parts, anchor, ticker="", rate_override=None):
+        rate = 0.20 if rate_override is None else rate_override
+        return {"value": 1250.0 * rate, "wacc": 0.08, "rate_used": rate}
+    monkeypatch.setattr(V, "_future_pipeline", future)
+
+
+def _probable(where, close, pos=0.5):
+    """The fixture with its product at a probability below one, so the probability is a
+    lever and the growth charge risks the product's revenue at it."""
+    import assumptions
+    path = _company(where, close=close)
+    conn = db.get_connection(path)
+    assumptions.save(conn, 1, [{"key": "pos", "value": pos, "source": "judgement"}])
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_every_path_from_the_book_reproduces_the_verdict_where_nothing_moves(
+        tmp_path, monkeypatch):
+    """A product's lever, a line's lever, launch productivity and "if it fails" all
+    start from ``Book.book`` rather than from the parts. That was enterprise value less
+    the launches, which still had the growth charge taken off, and price_gap takes it
+    off again on the trial's own revenue path: every one of those paths read low by the
+    whole charge, 58.18 a share on Lilly, 24.28 on Vertex and 3.71 on AstraZeneca. The
+    company-wide levers, built through gap_with, were right all along."""
+    import forecast_view as V
+
+    _charged(monkeypatch)
+    path = _probable(tmp_path, close=100.0)
+    sotp = V.company_verdict(path, "AMGN")["sotp"]
+    assert sotp["growth_investment"]["value"] > 0          # the charge that was doubled
+    equity = sotp["equity_per_share"]
+    book = B.Book(path, "AMGN")
+    assert book.ok
+
+    # The book a lever starts from is what the parts are worth, the same sum gap_with
+    # rebuilds, with neither the launches nor the growth charge in it.
+    assert book.book == pytest.approx(sum(B._part_value(p) for p in book.parts), rel=1e-12)
+    index = next(i for i, p in enumerate(book.parts) if p.get("asset_id") == 1)
+    assert book.asset_gap(index, book.inputs_by_asset[1]) + book.close == pytest.approx(
+        equity, abs=1e-9)
+    assert book.equity_without([]) == pytest.approx(equity, abs=1e-9)
+    assert book.price_gap(book.book, book.parts,
+                          rate=sotp["future"]["rate_used"]) + book.close == pytest.approx(
+        equity, abs=1e-9)
+
+
+@pytest.mark.parametrize("key", ["revenue_growth_pct", "pos"])
+def test_a_break_point_put_into_the_book_meets_the_price(tmp_path, monkeypatch, key):
+    """What a break-point claims, end to end: write the value into the product's rows and
+    the verdict reads the close. A double growth charge put the break short of it, and a
+    probability trial that kept the base probability charged the growth of the trial's
+    revenue at the old odds."""
+    import assumptions
+    import forecast_view as V
+
+    _charged(monkeypatch)
+    base = V.company_verdict(_probable(tmp_path / "a", 1.0), "AMGN")["sotp"]
+    close = base["equity_per_share"] * 1.2
+    path = _probable(tmp_path / "b", close)
+    got = B.company(path, "AMGN")
+    lever = next(l for l in got["levers"] if l["scope"] == "asset" and l["key"] == key)
+    assert lever["reachable"]
+
+    conn = db.get_connection(path)
+    assumptions.save(conn, 1, [{"key": key, "value": lever["break"],
+                                "source": "the break-point"}])
+    conn.commit()
+    conn.close()
+    assert V.company_verdict(path, "AMGN")["sotp"]["equity_per_share"] == pytest.approx(
+        close, rel=1e-6)
+
+
+def test_a_rebuilt_product_carries_what_its_trial_changed():
+    """The future pipeline and the growth charge read a part's probability, and the
+    future pipeline its exclusivity, so a rebuilt part that kept the base book's copies
+    risked a probability trial's rows at the old odds and carried an LOE trial's revenue
+    past the old date."""
+    import forecast_view as V
+
+    part = {"asset_id": 7, "name": "X", "share": 1.0, "rnpv_share": 10.0, "pos": 0.3,
+            "loe_year": 2032, "loe_in_base": False, "dcf_years": [2026],
+            "pnl_share": [{"revenue": 100.0}]}
+    result = {"rnpv": 20.0, "pos": 0.6, "loe_year": 2036, "loe_in_base": True,
+              "dcf_years": [2026], "pnl": [{"revenue": 100.0}], "wacc": 0.08}
+    new = B.Book.rebuilt(part, result, 1.0, {"terminal_growth_pct": 0.0})
+    assert (new["pos"], new["loe_year"], new["loe_in_base"]) == (0.6, 2036, True)
+
+    share = {"value": 0.5, "basis": "half a dollar per dollar added"}
+    charged = V.growth_charge([new], "2025-12-31", 0.0, share, opening=0.0)["value"]
+    assert charged == pytest.approx(0.5 * 100.0 * 0.6)     # at the trial's odds
+
+
+@pytest.mark.parametrize("ticker", ["LLY", "AZN", "VRTX"])
+def test_the_built_book_reproduces_its_verdict_through_every_path(ticker):
+    """The identity on real companies, where the growth charge is large: a product's
+    trial, a line's trial, launch productivity at its own rate and "if it fails" with
+    nothing removed each read the verdict's equity per share."""
+    if not BOOK_COPY or not os.path.exists(BOOK_COPY):
+        pytest.skip(f"no copy of the built book at {BOOK_COPY}")
+    if os.path.realpath(BOOK_COPY) == os.path.realpath(LIVE_BOOK):
+        pytest.skip("the live book is never used here; point ER_TOOL_BOOK_COPY at a copy")
+    book = B.Book(BOOK_COPY, ticker)
+    assert book.ok, book.reason
+    assert (book.sotp["growth_investment"].get("value") or 0.0) > 0
+    equity = book.equity
+
+    for part in sorted(book.counted, key=lambda l: -abs(l["rnpv_share"]))[:B.TOP_ASSETS]:
+        index = book.parts.index(part)
+        got = book.asset_gap(index, book.inputs_by_asset[part["asset_id"]]) + book.close
+        assert got == pytest.approx(equity, abs=1e-6), part["name"]
+    for part in sorted(book.streams, key=lambda s: -abs(s["rnpv"]))[:B.TOP_LINES]:
+        entry = book.line_entries.get(part["line"])
+        if entry is None:
+            continue
+        got = book.line_gap(book.parts.index(part), entry["scalars"]) + book.close
+        assert got == pytest.approx(equity, abs=1e-6), part["line"]
+    assert book.equity_without([]) == pytest.approx(equity, abs=1e-6)
+    rate = book.sotp["future"].get("rate_used")
+    if rate:
+        assert book.price_gap(book.book, book.parts, rate=rate) + book.close == (
+            pytest.approx(equity, abs=1e-6))

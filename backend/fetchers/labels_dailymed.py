@@ -42,7 +42,9 @@ class LabelsDailyMedFetcher(BaseFetcher):
         return conn.execute(
             """
             SELECT a.id, a.brand_name, a.generic_name,
-                   (SELECT l.setid FROM labels l WHERE l.asset_id = a.id) AS setid
+                   (SELECT l.setid FROM labels l WHERE l.asset_id = a.id) AS setid,
+                   (SELECT l.spl_version FROM labels l WHERE l.asset_id = a.id)
+                       AS known_version
               FROM assets a JOIN companies c ON a.owner_company_id = c.id
              WHERE c.ticker = ? AND a.is_marketed = 1 AND a.brand_name IS NOT NULL
             """,
@@ -70,8 +72,14 @@ class LabelsDailyMedFetcher(BaseFetcher):
                 time.sleep(_POLITE_SLEEP_S)
                 if not current:
                     continue
-                indications = dailymed.parse_indications(dailymed.spl_xml(setid))
-                time.sleep(_POLITE_SLEEP_S)
+                # The whole label is read only for a version not on file. Reading every
+                # label every day to keep none of it was 91 of the run's 160 minutes
+                # (2026-10-07): a version on file writes nothing new from its text.
+                indications = None
+                if not (asset["setid"] == setid
+                        and asset["known_version"] == current["spl_version"]):
+                    indications = dailymed.parse_indications(dailymed.spl_xml(setid))
+                    time.sleep(_POLITE_SLEEP_S)
                 rows.append({
                     "asset_id": asset["id"], "setid": setid,
                     "drug_name": asset["brand_name"],

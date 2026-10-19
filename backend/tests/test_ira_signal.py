@@ -98,6 +98,25 @@ def test_an_asset_with_no_part_d_row_is_counted_as_a_gap_not_a_zero(tmp_path):
     assert got["share"] == pytest.approx(0.20)       # a floor, not the whole figure
 
 
+def test_the_revenue_is_converted_at_the_rates_in_the_callers_database(tmp_path):
+    """fx takes a path, and with none it read the default database, so a caller holding
+    another one had its revenue converted at rates from a file it never opened."""
+    conn = _seed(tmp_path, rows=(
+        ("ELIQUIS", 2026, "111", 10.0, "2026-01-01", None, "New IPAY"),
+    ), assets=((1, "ELIQUIS"),), demand=((1, 2024, 2.2e9, 1e6),))
+    conn.execute("UPDATE companies SET reporting_currency = 'EUR' WHERE id = 1")
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 " period_end, value, unit) VALUES"
+                 " (1, 'Revenues', 'FY', 2025, '2025-12-31', 10e9, 'EUR')")
+    conn.execute("INSERT INTO fx_rates (base, quote, rate, as_of)"
+                 " VALUES ('EUR', 'USD', 1.1, '2026-09-24')")
+    conn.commit()
+    got = ira.company_exposure(conn, "BMY")
+    conn.close()
+    assert got["revenue_usd"] == pytest.approx(11e9)
+    assert got["share"] == pytest.approx(0.2)
+
+
 def test_the_note_stays_quiet_under_the_gate(tmp_path):
     """A selected drug is a fact for the feed whatever its size. A paragraph in a
     morning note needs the exposure to be worth a reader's attention."""

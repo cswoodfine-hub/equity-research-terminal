@@ -113,6 +113,15 @@ def _recent_changes(conn, days):
             # first, the way a company key does. The headline already opens with it.
             ticker = (r["entity_key"] or "").split("|")[0]
             headline = r["new_value"]
+        elif r["entity_type"] == "payer":
+            # A Part D coverage move, keyed "TICKER|asset|metric|release". The headline
+            # opens with the ticker, and the event is the release CMS posted, so it is
+            # dated by that rather than by when the diff saw it.
+            ticker = (r["entity_key"] or "").split("|")[0]
+            headline = r["new_value"]
+            release = (r["entity_key"] or "").split("|")[-1]
+            if re.match(r"^\d{4}-\d{2}-\d{2}$", release):
+                event_dates[date_key] = release
         elif r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],

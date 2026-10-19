@@ -1,0 +1,163 @@
+{
+ "ok": true,
+ "ticker": "NVO",
+ "asset_id": 2337,
+ "name": "Cagrilintide",
+ "scenario": "base",
+ "per_share": 4.055165963800609,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 133886.29038024985,
+   "defined": false,
+   "per_share": 4.521082315027294
+  },
+  "base": {
+   "rnpv": 120088.75086500972,
+   "defined": true,
+   "per_share": 4.055165963800609
+  },
+  "bull": {
+   "rnpv": 133886.29038024985,
+   "defined": false,
+   "per_share": 4.521082315027294
+  }
+ },
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2024-10-30",
+  "date_basis": "primary completion on the registry, passed with no readout on file",
+  "due": true,
+  "why": null,
+  "trial": {
+   "nct_id": "NCT05567796",
+   "indication": "Obesity",
+   "indications": [
+    "Obesity"
+   ],
+   "phase": "Phase 3",
+   "primary_completion": "2024-10-30"
+  },
+  "legs_basis": "derived",
+  "pos_now": 0.5452,
+  "pos_success": 0.8937,
+  "pos_failure": 0.0,
+  "p_gate": 0.6100481145798367,
+  "p_gate_published": 0.6100635963435609,
+  "placed": null,
+  "evidence": {
+   "p_gate": "published",
+   "success": "published",
+   "failure": "convention"
+  },
+  "stated_pos": false,
+  "share": 1.0,
+  "rnpv_now": 120088.75086500972,
+  "rnpv_success": 196851.2777844079,
+  "rnpv_failure": 0.0,
+  "per_share_now": 4.055165963800609,
+  "per_share_success": 6.64728874146846,
+  "per_share_failure": 0.0,
+  "held": {
+   "open": 10,
+   "ncts": [
+    "NCT05669755",
+    "NCT07564414",
+    "NCT07011667",
+    "NCT07253285",
+    "NCT06780449",
+    "NCT07220759",
+    "NCT07220642",
+    "NCT07745504",
+    "NCT07817251",
+    "NCT07282613"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Diabetes Mellitus, Type 2",
+    "Obesity",
+    "Overweight"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 10 other Phase 3s open, and the model holds it at 55% until they read out.",
+   "per_share": 4.055165963800609
+  },
+  "basis": "Phase 3 to NDA/BLA 61.0% then NDA/BLA to approval 89.4% for Metabolic, Peptide and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+  "band": {
+   "pos_low": 0.5286,
+   "pos_high": 0.5565,
+   "per_share_low": 3.9316961270451234,
+   "per_share_high": 4.139214708098017
+  }
+ },
+ "gate_range": true,
+ "launch": {
+  "asset_id": 2337,
+  "name": "Cagrilintide",
+  "status": "clear",
+  "flag": null,
+  "seed_year": 2027,
+  "seed_source": "convention: first full year after the current one",
+  "seed_scenario": "base",
+  "seed_basis": {
+   "cites": null,
+   "match": null
+  },
+  "first_possible_year": 2025,
+  "first_full_year": 2026,
+  "decision_date": "2025-06-29",
+  "standard": {
+   "review": "standard",
+   "months": 10,
+   "filing_period_days": 60,
+   "decision_date": "2025-10-29",
+   "first_possible_year": 2025,
+   "first_full_year": 2026
+  },
+  "evidence": {
+   "kind": "registry",
+   "nct_id": "NCT05567796",
+   "date": "2024-10-30",
+   "date_type": "actual",
+   "phase": "Phase 3",
+   "status": "Active not recruiting",
+   "enrollment": 3400,
+   "title": "A Research Study to See How Well CagriSema Helps People With Excess Body Weight Lose Weight",
+   "source_url": "https://clinicaltrials.gov/study/NCT05567796",
+   "fetched_at": "2026-10-05 07:49:00",
+   "stale": false
+  },
+  "clock": {
+   "pathway": "nme_nda_or_original_bla",
+   "pathway_how": "no marketed row for this molecule, so read as a new molecule or original biologic",
+   "review": "priority",
+   "months": 6,
+   "filing_period_days": 60,
+   "basis": "I.A.1.b and I.B.4.b: 'Review and act on 90 percent of priority NME NDA and original BLA submissions within 6 months of the 60-day filing date.' Under the Program 'the PDUFA review clock will begin at the conclusion of the 60-day filing review period that begins on the date of FDA receipt of the original submission' (I.B.4, page 9), so the goal is 6 months after a filing date 60 days from receipt",
+   "source": "PDUFA VII commitment letter FY2023-2027 (https://www.fda.gov/media/151712/download) pages 4 and 9",
+   "carries_to": "proposed PDUFA VIII letter FY2028-2032 (https://www.fda.gov/media/193977/download) Table 1: NME NDAs and original BLAs '90% in 6 months of the 60-day filing date', and I.B.4 keeps the clock start; proposed, not enacted",
+   "cross_check": "PDUFA FY2025 performance report (https://www.fda.gov/media/191112/download) Appendix A Table A-1: 29 first-cycle priority approvals marked NME took a median 8.0 months from receipt (6.2 to 12.3), parsed 2026-10-05",
+   "extension_months": 3,
+   "applied": true
+  },
+  "voucher": null,
+  "if_filed_today": "2027-06-05",
+  "slip": null,
+  "gate": {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "nct_id": "NCT05567796",
+   "date": "2024-10-30",
+   "due": true,
+   "decision_date": "2025-06-29",
+   "first_possible_year": 2025,
+   "first_full_year": 2026,
+   "why": null,
+   "same_as_governing": true
+  },
+  "modelled_floor": null,
+  "trials_considered": 11,
+  "message": "2027 in the model is clear of the earliest approval, Jun 2025. NCT05567796 reached primary completion 30 Oct 2024 (actual) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt."
+ }
+}

@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* An iframe inherits none of the host page's CSS: colour, family and size are set here
+     and the frame's own stylesheet arrives with the render call. */
+  html, body {
+    margin: 0; padding: 0; background: transparent; overflow: hidden;
+    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  [data-gate], [data-ev], [data-more], .cr-chip { cursor: pointer; }
+  [data-gate]:focus-visible, [data-ev]:focus-visible, [data-more]:focus-visible,
+  .cr-chip:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
+</style>
+<style id="frame"></style>
+</head>
+<body>
+<div id="b"></div>
+<script>
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+let wired = false;
+let areaFilter = "*";   // the area the list is filtered to; kept across reruns
+let fontsCopied = false;
+let lastHeight = 0;
+let lastMarkup = null;
+
+function copyFontFaces() {
+  // The host bundles its fonts as @font-face rules with base64 sources. The iframe is
+  // same-origin, so the rules are copied across rather than shipping the binaries twice.
+  // On any failure the font stack falls back to the system sans.
+  if (fontsCopied) return;
+  fontsCopied = true;
+  try {
+    let faces = "";
+    const sheets = window.parent.document.styleSheets;
+    for (let i = 0; i < sheets.length; i++) {
+      let rules;
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }
+      if (!rules) continue;
+      for (let j = 0; j < rules.length; j++) {
+        if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) faces += rules[j].cssText + "\n";
+      }
+    }
+    if (faces) {
+      const style = document.createElement("style");
+      style.textContent = faces;
+      document.head.appendChild(style);
+    }
+  } catch (e) { /* no access: the fallback stack stands */ }
+}
+
+function fit() {
+  const b = document.getElementById("b");
+  const h = Math.ceil(b.getBoundingClientRect().height) + 2;
+  if (h !== lastHeight) { lastHeight = h; Streamlit.height(h); }
+}
+
+function fill() {
+  // The page fills the screen: its height is the room the app's scroller leaves
+  // above and below the frame, read from the parent page (same origin). Narrower than
+  // 1180 px, or when the parent cannot be read, the page takes its own height.
+  const page = document.querySelector(".ca-page");
+  if (page) {
+    let h = null;
+    try {
+      const fe = window.frameElement;
+      const pd = window.parent.document;
+      const main = pd.querySelector('[data-testid="stMain"]');
+      const bc = pd.querySelector('[data-testid="stMainBlockContainer"]');
+      if (fe && main && bc && window.innerWidth >= 1180) {
+        const fr = fe.getBoundingClientRect(), mr = main.getBoundingClientRect();
+        const above = fr.top - mr.top + main.scrollTop;
+        const below = bc.getBoundingClientRect().bottom - fr.bottom;
+        h = Math.max(520, Math.floor(main.clientHeight - above - below) - 4);
+      }
+    } catch (e) { h = null; }
+    if (h) page.style.setProperty("--ca-h", h + "px");
+    else page.style.removeProperty("--ca-h");
+  }
+  fit();
+}
+
+function setFilter(area) {
+  // The list shows one disease area, or all: rows of other areas hide, a quarter with
+  // nothing left hides, and each heading prints its own count and sums for the area,
+  // worked out by the page and carried on the heading. Client side: no rerun.
+  areaFilter = area || "*";
+  const b = document.getElementById("b");
+  b.querySelectorAll(".cr-chip").forEach(function (c) {
+    c.classList.toggle("on", c.getAttribute("data-af") === areaFilter);
+  });
+  b.querySelectorAll(".cr-row").forEach(function (r) {
+    r.classList.toggle("off", areaFilter !== "*" && r.getAttribute("data-area") !== areaFilter);
+  });
+  b.querySelectorAll(".cr-gh").forEach(function (h) {
+    let st = {};
+    try { st = JSON.parse(h.getAttribute("data-st") || "{}"); } catch (e) { st = {}; }
+    const s = st[areaFilter];
+    h.classList.toggle("off", !s);
+    if (!s) return;
+    const sub = h.querySelector(".sub");
+    if (h.classList.contains("q") && sub) {
+      sub.textContent = s[0] + (s[0] === 1 ? " readout" : " readouts") + (s[1] ? " · " + s[1] + " priced" : "");
+    }
+    const sums = h.querySelectorAll(".s b");
+    if (sums.length === 2 && !h.classList.contains("later")) {
+      sums[0].textContent = s[2] || ""; sums[1].textContent = s[3] || "";
+    }
+  });
+  const rows = b.querySelector(".cr-rows");
+  if (rows) rows.scrollTop = 0;
+}
+
+function fire(target, ev) {
+  const chip = target.closest(".cr-chip");
+  if (chip) {
+    if (ev) ev.preventDefault();
+    const want = chip.getAttribute("data-af");
+    setFilter(want === areaFilter ? "*" : want);
+    return;
+  }
+  const gate = target.closest("[data-gate]");
+  if (gate) {
+    if (ev) ev.preventDefault();
+    Streamlit.value({ gate: gate.getAttribute("data-gate"), from: "the list", nonce: Date.now() });
+    return;
+  }
+  const row = target.closest("[data-ev]");
+  if (row) {
+    if (ev) ev.preventDefault();
+    Streamlit.value({ ev: row.getAttribute("data-ev"), nonce: Date.now() });
+    return;
+  }
+  const more = target.closest("[data-more]");
+  if (more) {
+    if (ev) ev.preventDefault();
+    // The calendar opens on the area the list is filtered to.
+    const key = more.getAttribute("data-more");
+    Streamlit.value({ more: key,
+                      area: more.getAttribute("data-area") || (key === "cal" && areaFilter !== "*" ? areaFilter : null),
+                      nonce: Date.now() });
+  }
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  const tk = a.tokens || {};
+  const root = document.documentElement;
+  // The page's custom properties do not cross into the iframe; the token values are
+  // passed in and set here, so tokens.py stays the one source.
+  Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
+  copyFontFaces();
+  const b = document.getElementById("b");
+  if (a.markup !== lastMarkup) {
+    // A rerun that hands the same markup leaves the frame as it is: the open area stays.
+    lastMarkup = a.markup;
+    document.getElementById("frame").textContent = a.css || "";
+    b.innerHTML = a.markup || "";
+    b.querySelectorAll("[data-gate], [data-ev], [data-more], .cr-chip").forEach(function (el) {
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("role", "button");
+    });
+    if (areaFilter !== "*") {
+      // A rerun keeps the filter while the area is still on the page.
+      const still = [...b.querySelectorAll(".cr-chip")].some(function (c) { return c.getAttribute("data-af") === areaFilter; });
+      setFilter(still ? areaFilter : "*");
+    }
+  }
+  requestAnimationFrame(fill);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fill);
+
+  if (!wired) {
+    wired = true;
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(b);
+    try { window.parent.addEventListener("resize", fill); } catch (err) { /* no access */ }
+    b.addEventListener("click", function (ev) { fire(ev.target, ev); });
+    b.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target, ev); }
+    });
+  }
+});
+Streamlit.ready();
+</script>
+</body>
+</html>

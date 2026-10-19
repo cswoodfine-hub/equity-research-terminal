@@ -74,6 +74,35 @@ def test_a_pool_of_the_years_own_diagnoses_carries_nothing_over():
     assert min(a["ratio"] for a in stated["assets"]) < 1.0
 
 
+def test_the_pool_rule_is_the_engines_own():
+    """The crowded solve and the engine read one rule, forecast.pool_rule, so a pool can
+    never carry its untreated patients forward in one and drop them in the other. When the
+    two held copies of it, the copies drifted and crowded felcorekibart and lunsekimig on
+    a pool the engine never lets run short."""
+    import forecast
+    cases = [
+        dict(prevalence=160_000, incidence=65_000, carryover=0.0),       # stated
+        dict(prevalence=192_650, incidence=192_650, carryover=None),     # equal pool
+        dict(prevalence=21_414_000, incidence=0.0, carryover=None),      # no inflow
+        dict(prevalence=107_592_242, incidence=4_478_747, carryover=None),  # prevalent
+    ]
+    for case in cases:
+        carry, opening, _basis = forecast.pool_rule(
+            case["prevalence"], case["incidence"], case["carryover"])
+        claim = _claim("x", 0.01, prevalence=case["prevalence"],
+                       incidence=case["incidence"], carryover=case["carryover"])
+        assert PC._pool_rule(claim) == (carry, case["prevalence"] if opening else 0.0)
+    prevalent = _claim("x", 0.01)
+    assert PC._pool_rule(prevalent) == (pytest.approx(100e6 / 101e6), 100e6)
+
+
+def test_a_prevalent_pool_holds_its_size_in_the_shared_solve_too():
+    """With no exit stated the shared pool loses patients as fast as it gains them, as in
+    the engine, rather than growing by the whole inflow every year."""
+    got = PC.solve([_claim("a", 1e-9), _claim("b", 1e-9)], years=20, recycle=False)
+    assert [row["pool"] for row in got["shared"]] == pytest.approx([101e6] * 20, rel=1e-6)
+
+
 def test_a_later_entrant_finds_the_pool_already_drawn_down():
     early = _claim("early", 0.05, start=2027)
     late = _claim("late", 0.05, start=2035)
@@ -130,6 +159,21 @@ def test_an_asset_that_has_not_launched_claims_nothing():
     late = next(a for a in got["assets"] if a["name"] == "late")
     assert late["crowded"][0] == 0.0
     assert late["uncrowded"][0] == 0.0
+
+
+def test_a_pool_of_the_years_own_diagnoses_reports_a_years_eligible_patients():
+    """Lung cancer read a shared pool of nil with fifteen claimants: a line of therapy
+    has no opening stock, and the stock was what the solve reported. The pool is then a
+    year's eligible diagnoses, and the shares of it are measured against that."""
+    cohort = dict(prevalence=192_650, incidence=192_650, eligible=0.0508, midpoint=3.0)
+    got = PC.solve([_claim("a", 0.20, **cohort), _claim("b", 0.20, **cohort)], years=20)
+    assert got["pool"] == pytest.approx(192_650 * 0.0508)
+    assert got["pool_per_year"] is True and got["pooled"] == 2
+    s = PC.summary(got)
+    assert 0 < s["crowded_share"] <= s["uncrowded_share"]
+    # A standing pool still reports its stock.
+    stock = PC.solve([_claim("c", 0.04), _claim("d", 0.04)], years=20)
+    assert stock["pool"] == pytest.approx(100e6) and stock["pool_per_year"] is False
 
 
 def test_summary_reports_what_was_claimed_against_what_one_pool_supplies():
@@ -246,3 +290,29 @@ def test_an_asset_that_states_a_pool_but_draws_no_share_is_not_a_claimant(tmp_pa
     names = {c["name"] for c in PC.claimants(conn, 367)}
     conn.close()
     assert names == {"alpha", "gamma"}
+
+
+def test_a_rival_counts_in_proportion_to_its_odds():
+    """An asset's forecast is its success case; its rivals are still uncertain there. A
+    rival at 0.46 takes from a certain asset less than a certain rival would, and the
+    certain asset takes from the rival as before. VX-670 was charged the whole of
+    DYNE-101, a launch the engine prices at 0.46."""
+    sure, rival = _claim("vx670", 0.60), _claim("dyne101", 0.60, start=2029)
+    full = PC.solve([sure, rival], years=25)
+    sure["pos"], rival["pos"] = 1.0, 0.46
+    odds = PC.solve([sure, rival], years=25)
+    by = {a["name"]: a for a in odds["assets"]}
+    was = {a["name"]: a for a in full["assets"]}
+    assert was["vx670"]["ratio"] < by["vx670"]["ratio"] < 1.0
+    assert by["dyne101"]["ratio"] == pytest.approx(was["dyne101"]["ratio"])
+    # The pool the landscape reports is the book's draw, every claimant in full.
+    assert odds["shared"] == full["shared"]
+
+
+def test_certain_claimants_keep_the_old_rule():
+    claims = [_claim("a", 0.30), _claim("b", 0.20, start=2029)]
+    before = PC.solve(claims, years=20)
+    for c in claims:
+        c["pos"] = 1.0
+    after = PC.solve(claims, years=20)
+    assert [a["crowded"] for a in after["assets"]] == [a["crowded"] for a in before["assets"]]

@@ -1,0 +1,163 @@
+{
+ "ok": true,
+ "ticker": "LLY",
+ "asset_id": 1492,
+ "name": "Retatrutide",
+ "scenario": "base",
+ "per_share": 20.22142872504549,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 20214.848775161812,
+   "defined": false,
+   "per_share": 22.47842630397177
+  },
+  "base": {
+   "rnpv": 18185.13085243341,
+   "defined": true,
+   "per_share": 20.22142872504549
+  },
+  "bull": {
+   "rnpv": 20214.848775161812,
+   "defined": false,
+   "per_share": 22.47842630397177
+  }
+ },
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2026-11",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "why": "NCT05882045 passed primary completion but has no MeSH terms on file, so it cannot be matched to an indication the forecast values",
+  "trial": {
+   "nct_id": "NCT06662383",
+   "indication": "Obesity",
+   "indications": [
+    "Obesity"
+   ],
+   "phase": "Phase 3",
+   "primary_completion": "2026-11"
+  },
+  "legs_basis": "derived",
+  "pos_now": 0.875,
+  "pos_success": 0.8937,
+  "pos_failure": 0.0,
+  "p_gate": 0.9790757524896497,
+  "p_gate_published": 0.6100635963435609,
+  "placed": null,
+  "evidence": {
+   "p_gate": "implied",
+   "success": "published",
+   "failure": "convention"
+  },
+  "stated_pos": true,
+  "share": 1.0,
+  "rnpv_now": 18185.13085243341,
+  "rnpv_success": 18573.773077508275,
+  "rnpv_failure": 0.0,
+  "per_share_now": 20.22142872504549,
+  "per_share_success": 20.653589544655038,
+  "per_share_failure": 0.0,
+  "held": {
+   "open": 5,
+   "ncts": [
+    "NCT06383390",
+    "NCT06859268",
+    "NCT07357415",
+    "NCT07035093",
+    "NCT07232719"
+   ],
+   "indications": [
+    "Cardiovascular Diseases",
+    "Kidney Failure, Chronic",
+    "Obesity",
+    "Overweight"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 5 other Phase 3s open; the model's own rule would hold it at 55%, but the stated PoS governs until it is cleared.",
+   "stated_governs": true,
+   "per_share": 12.599683361022631
+  },
+  "basis": "implied, not published: the stated PoS of 87.5% over the 89.4% the asset carries if its Phase 3 readout passes gives gate odds of 97.9%, against 61.0% published; a failure is taken at nil, the model's convention for a failed programme",
+  "band": null
+ },
+ "gate_range": true,
+ "launch": {
+  "asset_id": 1492,
+  "name": "Retatrutide",
+  "status": "clear",
+  "flag": null,
+  "seed_year": 2027,
+  "seed_source": "convention: first full year after the current one",
+  "seed_scenario": "base",
+  "seed_basis": {
+   "cites": null,
+   "match": null
+  },
+  "first_possible_year": 2026,
+  "first_full_year": 2027,
+  "decision_date": "2026-12-15",
+  "standard": {
+   "review": "standard",
+   "months": 10,
+   "filing_period_days": 60,
+   "decision_date": "2027-04-15",
+   "first_possible_year": 2027,
+   "first_full_year": 2028
+  },
+  "evidence": {
+   "kind": "registry",
+   "nct_id": "NCT05882045",
+   "date": "2026-04-16",
+   "date_type": "actual",
+   "phase": "Phase 3",
+   "status": "Active not recruiting",
+   "enrollment": 1946,
+   "title": "A Study of Retatrutide (LY3437943) in Participants With Obesity and Cardiovascular Disease",
+   "source_url": "https://clinicaltrials.gov/study/NCT05882045",
+   "fetched_at": "2026-07-30 08:49:18",
+   "stale": true
+  },
+  "clock": {
+   "pathway": "nme_nda_or_original_bla",
+   "pathway_how": "no marketed row for this molecule, so read as a new molecule or original biologic",
+   "review": "priority",
+   "months": 6,
+   "filing_period_days": 60,
+   "basis": "I.A.1.b and I.B.4.b: 'Review and act on 90 percent of priority NME NDA and original BLA submissions within 6 months of the 60-day filing date.' Under the Program 'the PDUFA review clock will begin at the conclusion of the 60-day filing review period that begins on the date of FDA receipt of the original submission' (I.B.4, page 9), so the goal is 6 months after a filing date 60 days from receipt",
+   "source": "PDUFA VII commitment letter FY2023-2027 (https://www.fda.gov/media/151712/download) pages 4 and 9",
+   "carries_to": "proposed PDUFA VIII letter FY2028-2032 (https://www.fda.gov/media/193977/download) Table 1: NME NDAs and original BLAs '90% in 6 months of the 60-day filing date', and I.B.4 keeps the clock start; proposed, not enacted",
+   "cross_check": "PDUFA FY2025 performance report (https://www.fda.gov/media/191112/download) Appendix A Table A-1: 29 first-cycle priority approvals marked NME took a median 8.0 months from receipt (6.2 to 12.3), parsed 2026-10-05",
+   "extension_months": 3,
+   "applied": true
+  },
+  "voucher": null,
+  "if_filed_today": "2027-06-05",
+  "slip": null,
+  "gate": {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "nct_id": "NCT06662383",
+   "date": "2026-11",
+   "due": false,
+   "decision_date": "2027-06-30",
+   "first_possible_year": 2027,
+   "first_full_year": 2028,
+   "why": null,
+   "same_as_governing": false
+  },
+  "modelled_floor": {
+   "nct_id": "NCT06662383",
+   "primary_completion": "2026-11",
+   "indications": [
+    "Obesity"
+   ],
+   "decision_date": "2027-06-30",
+   "first_possible_year": 2027,
+   "first_full_year": 2028
+  },
+  "trials_considered": 10,
+  "message": "2027 in the model is clear of the earliest approval, Dec 2026. NCT05882045 reached primary completion 16 Apr 2026 (actual) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt. The gate study is NCT06662383, completing Nov 2026, which puts the earliest approval from it at Jun 2027."
+ }
+}

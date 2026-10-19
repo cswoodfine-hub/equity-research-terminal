@@ -1,0 +1,398 @@
+{
+ "ticker": "LLY",
+ "asset_id": 1514,
+ "name": "Eloralintide",
+ "price_year": 2018,
+ "ok": true,
+ "currency": "USD",
+ "fx": {
+  "currency": "USD",
+  "rate": null,
+  "as_of": null
+ },
+ "portion": 1.0,
+ "portion_basis": "the owner's own asset",
+ "tax_rate": 0.1637,
+ "after_tax": true,
+ "tax_basis": "after tax at the asset's 16.4%, the company bearing the cost being on the pharma engine",
+ "wacc": 0.07945607424,
+ "anchor": "2025-12-31",
+ "anchor_basis": "31 December of the valuation year",
+ "area": "Metabolic",
+ "cost_area": "Endocrine",
+ "area_basis": "Metabolic read as Sertkaya's Endocrine: Sertkaya has no metabolic class, so the endocrine rates stand in for it",
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2028-01",
+  "date_basis": "primary completion on the registry",
+  "due": false,
+  "trial": {
+   "nct_id": "NCT07282600",
+   "phase": "Phase 3",
+   "status": "Recruiting",
+   "primary_completion": "2028-01",
+   "enrollment": 1035,
+   "indications": [
+    "Overweight",
+    "Obesity"
+   ]
+  },
+  "p": 0.6100481145798367,
+  "p_evidence": "published",
+  "p_published": 0.6100635963435609,
+  "stated_pos": false,
+  "placed": null,
+  "pos_success": 0.8937,
+  "pos_now": 0.5452,
+  "success_leg": 7405.20880147973,
+  "success_leg_per_share": 8.234414323896063,
+  "ev": 4517.533667412721,
+  "ev_per_share": 5.023388932961994,
+  "rnpv": 4517.533667412721,
+  "rnpv_per_share": 5.023388932961994,
+  "cost": 137.63392234581787,
+  "cost_per_share": 0.15304561586324683,
+  "net": 4379.899745066903,
+  "net_per_share": 4.870343317098747,
+  "breakeven_p": 0.01858609608932505,
+  "funds": true,
+  "cost_usd_mm": 184.09597264559653,
+  "full_usd_mm": 273.74809500000003,
+  "unread": false,
+  "route": "registry",
+  "grade": "convention",
+  "basis": "5 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+  "high": {
+   "cost": 393.6361004156986,
+   "cost_per_share": 0.4377138890422535,
+   "net": 4123.897566997022,
+   "net_per_share": 4.58567504391974,
+   "breakeven_p": 0.05315665107742014,
+   "funds": true,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  },
+  "held": {
+   "open": 4,
+   "ncts": [
+    "NCT07321886",
+    "NCT07353931",
+    "NCT07392190",
+    "NCT07369011"
+   ],
+   "indications": [
+    "Obesity",
+    "Osteoarthritis",
+    "Overweight",
+    "Sleep Apnea, Obstructive"
+   ],
+   "pos": 0.5452,
+   "note": "A miss leaves 4 other Phase 3s open, and the model holds it at 55% until they read out."
+  },
+  "legs_basis": "Phase 3 to NDA/BLA 61.0% then NDA/BLA to approval 89.4% for Metabolic, Peptide and Chronic high prevalence, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme"
+ },
+ "ladder": {
+  "label": "after later trial costs",
+  "rows": [
+   {
+    "gate": "p3_to_nda",
+    "label": "Phase 3 readout",
+    "date": "2028-01",
+    "p": 0.6100481145798367,
+    "cost": 137.63392234581787,
+    "value_if_passed": 7403.342937242929,
+    "ev_at_gate": 4516.395400452999,
+    "net": 4378.761478107181,
+    "breakeven_p": 0.018590780342410285,
+    "funds": true,
+    "value_if_passed_floored": 7403.342937242929,
+    "floored": false,
+    "cost_per_share": 0.15304561586324683,
+    "value_if_passed_per_share": 8.23233952768034,
+    "net_per_share": 4.869077591579207
+   },
+   {
+    "gate": "nda_to_approval",
+    "label": "FDA decision",
+    "date": null,
+    "p": 0.8937134955015414,
+    "cost": 1.8658642368008689,
+    "value_if_passed": 8285.886739714068,
+    "ev_at_gate": 7405.20880147973,
+    "net": 7403.342937242929,
+    "breakeven_p": 0.00022518582445229716,
+    "funds": true,
+    "value_if_passed_floored": 8285.886739714068,
+    "floored": false,
+    "cost_per_share": 0.0020747962157243068,
+    "value_if_passed_per_share": 9.213707038490012,
+    "net_per_share": 8.23233952768034
+   }
+  ],
+  "value_on_approval": 8285.886739714068,
+  "risked_cost": 138.7721893055402,
+  "value_today": 4378.761478107181,
+  "rnpv": 4517.533667412721,
+  "npv": 8286.011862459136,
+  "value_today_per_share": 4.869077591579207,
+  "risked_cost_per_share": 0.15431134138278685,
+  "high": {
+   "rows": [
+    {
+     "gate": "p3_to_nda",
+     "label": "Phase 3 readout",
+     "date": "2028-01",
+     "p": 0.6100481145798367,
+     "cost": 393.6361004156986,
+     "value_if_passed": 7403.342937242929,
+     "ev_at_gate": 4516.395400452999,
+     "net": 4122.7593000373,
+     "breakeven_p": 0.05317004814615439,
+     "funds": true,
+     "value_if_passed_floored": 7403.342937242929,
+     "floored": false,
+     "cost_per_share": 0.4377138890422535,
+     "value_if_passed_per_share": 8.23233952768034,
+     "net_per_share": 4.5844093184002
+    },
+    {
+     "gate": "nda_to_approval",
+     "label": "FDA decision",
+     "date": null,
+     "p": 0.8937134955015414,
+     "cost": 1.8658642368008689,
+     "value_if_passed": 8285.886739714068,
+     "ev_at_gate": 7405.20880147973,
+     "net": 7403.342937242929,
+     "breakeven_p": 0.00022518582445229716,
+     "funds": true,
+     "value_if_passed_floored": 8285.886739714068,
+     "floored": false,
+     "cost_per_share": 0.0020747962157243068,
+     "value_if_passed_per_share": 9.213707038490012,
+     "net_per_share": 8.23233952768034
+    }
+   ],
+   "risked_cost": 394.7743673754209,
+   "value_today": 4122.7593000373,
+   "label": "at DiMasi 2016's per-phase level, which includes long-term animal testing and the cost of compounds that fail within the phase; 2013 against 2018 dollars, so the ratio is if anything low"
+  }
+ },
+ "stages": [
+  {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "route": "registry",
+   "studies": [
+    {
+     "nct_id": "NCT07321886",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Study of Eloralintide (LY3841136) in Participants With Obesity, or Overweight Without Type 2 Diabetes",
+     "enrollment": 1980,
+     "start": "2026-02-06",
+     "primary_completion": "2028-03",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 96.53094,
+     "share_ahead": 0.6790450928381963,
+     "ahead_usd_mm": 65.54886111405835,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-03-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "68% of its run from 2026-02-06 to 2028-03-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Obesity",
+      "Overweight"
+     ]
+    },
+    {
+     "nct_id": "NCT07282600",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Study of Eloralintide (LY3841136) in Participants With Obesity or Overweight, and Type 2 Diabetes",
+     "enrollment": 1035,
+     "start": "2025-12-15",
+     "primary_completion": "2028-01",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 50.459355,
+     "share_ahead": 0.6050870147255689,
+     "ahead_usd_mm": 30.53230048192771,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-01-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "61% of its run from 2025-12-15 to 2028-01-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Overweight",
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07353931",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "Efficacy and Safety of Eloralintide (LY3841136) in Participants With Osteoarthritis Knee Pain and Obesity or Overweight",
+     "enrollment": 900,
+     "start": "2026-02-09",
+     "primary_completion": "2028-03",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 43.8777,
+     "share_ahead": 0.681757656458056,
+     "ahead_usd_mm": 29.91395792276964,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-03-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "68% of its run from 2026-02-09 to 2028-03-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Osteoarthritis",
+      "Overweight",
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07392190",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Study of Eloralintide (LY3841136) in Participants With Persistent Obesity Who Are Treated With a Weekly Incretin",
+     "enrollment": 900,
+     "start": "2026-02-10",
+     "primary_completion": "2028-06",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 43.8777,
+     "share_ahead": 0.7173396674584323,
+     "ahead_usd_mm": 31.47521472684085,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-06-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "72% of its run from 2026-02-10 to 2028-06-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Overweight",
+      "Obesity"
+     ]
+    },
+    {
+     "nct_id": "NCT07369011",
+     "phase": "Phase 3",
+     "status": "Recruiting",
+     "title": "A Study of Eloralintide (LY3841136) in Participants With Obstructive Sleep Apnea and Obesity or Overweight",
+     "enrollment": 800,
+     "start": "2026-02-10",
+     "primary_completion": "2028-03",
+     "per_patient_usd": 48753.0,
+     "full_usd_mm": 39.0024,
+     "share_ahead": 0.6826666666666666,
+     "ahead_usd_mm": 26.6256384,
+     "missing": null,
+     "spend_from": "2026-10-06",
+     "spend_to": "2028-03-01",
+     "grades": {
+      "per_patient": "analogue",
+      "enrollment": "measured",
+      "remaining": "convention"
+     },
+     "basis": "68% of its run from 2026-02-10 to 2028-03-01 is ahead, on a straight line",
+     "fit": "modelled",
+     "indications": [
+      "Sleep Apnea, Obstructive",
+      "Obesity",
+      "Overweight"
+     ]
+    }
+   ],
+   "outside": [],
+   "date": "2028-01",
+   "date_basis": "primary completion on the registry",
+   "cost_usd_mm": 184.09597264559653,
+   "full_usd_mm": 273.74809500000003,
+   "grade": "convention",
+   "basis": "5 open studies in an indication the forecast values, at enrolment x the area's per-patient rate x the share of each run still ahead",
+   "p": 0.6100481145798367,
+   "p_implied": false
+  },
+  {
+   "gate": "nda_to_approval",
+   "label": "FDA decision",
+   "route": "review",
+   "studies": [],
+   "outside": [],
+   "cost_usd_mm": 2.6,
+   "full_usd_mm": 2.6,
+   "date": null,
+   "date_basis": "the FDA decision follows the review; no date is computed here",
+   "grade": "analogue",
+   "basis": "Sertkaya's FDA review out of pocket, $2.6mm, spent as the review starts",
+   "p": 0.8937134955015414,
+   "p_implied": false
+  }
+ ],
+ "outside": {
+  "studies": [
+   {
+    "nct_id": "NCT06603571",
+    "phase": "Phase 2",
+    "status": "Active not recruiting",
+    "title": "A Study to Investigate Weight Management With LY3841136 and Tirzepatide (LY3298176), Alone or in Combination, in Adult Participants With Obesity or Overweight With Type 2 Diabetes",
+    "enrollment": 367,
+    "start": "2024-09-20",
+    "primary_completion": "2026-07-01",
+    "per_patient_usd": 51556.0,
+    "full_usd_mm": 18.921052,
+    "share_ahead": 0.0,
+    "ahead_usd_mm": 0.0,
+    "missing": null,
+    "spend_from": null,
+    "spend_to": null,
+    "grades": {
+     "per_patient": "analogue",
+     "enrollment": "measured",
+     "remaining": "convention"
+    },
+    "basis": "passed primary completion, so its cost is sunk",
+    "fit": "modelled",
+    "indications": [
+     "Obesity",
+     "Overweight"
+    ],
+    "why": "beside the gate, not on the path to it"
+   }
+  ],
+  "cost_usd_mm": 0.0,
+  "cost": 0.0,
+  "cost_per_share": 0.0,
+  "uncosted": [],
+  "note": "Every other open Phase 2 and 3 study of the asset: outside the indications the forecast values, matched to none, not needed for an FDA gate, or run beside the gate rather than on the path to it. Their remaining cost, as one figure for the whole programme, never in the headline."
+ },
+ "next_12m": {
+  "named_usd_mm": 130.7118430309777,
+  "named": 130.7118430309777,
+  "basis": "registry studies' spend in the next 12 months, pre-tax, unrisked, undiscounted, at the company's share"
+ },
+ "sources": [
+  "Sertkaya A, Beleche T, Jessup A, Sommers BD. Costs of Drug Development and Research and Development Intensity in the US, 2000-2018. JAMA Netw Open 2024;7(6):e2415445, doi:10.1001/jamanetworkopen.2024.15445, Table 1, 2018 dollars",
+  "DiMasi JA, Grabowski HG, Hansen RW. Innovation in the pharmaceutical industry: new estimates of R&D costs. J Health Econ 2016;47:20-33, doi:10.1016/j.jhealeco.2016.01.012, Table 2, 2013 dollars"
+ ],
+ "paid_note": "Already paid inside the company's R&D ratio, so none of it is taken off the value."
+}

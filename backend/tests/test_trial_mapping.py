@@ -403,6 +403,19 @@ def test_a_numbered_dose_regimen_is_the_study_labelling_its_arms():
     assert not NOT_A_COMPOUND.search(normalise("Tozorakimab"))
 
 
+def test_a_drug_class_is_a_choice_of_drugs_not_a_programme():
+    """Ultragenyx's Cosmic study (NCT05768854) compares setrusumab with "Bisphosphonate",
+    and its UX111 follow-up (NCT04360265) lists only "Adjuvant Immunomodulatory (IM)
+    Therapy": each had become an Ultragenyx programme."""
+    from trial_mapping import NOT_A_COMPOUND, normalise
+
+    for name in ("Bisphosphonate", "Bisphosphonates", "Oral Corticosteroids",
+                 "Adjuvant Immunomodulatory (IM) Therapy"):
+        assert NOT_A_COMPOUND.search(normalise(name)), name
+    for name in ("Setrusumab", "Zoledronic Acid", "Prednisolone", "UX111"):
+        assert not NOT_A_COMPOUND.search(normalise(name)), name
+
+
 def test_a_molecule_named_with_its_chemotherapy_is_a_regimen():
     """"Durvalumab + Chemotherapy" names what durvalumab was given alongside. Durvalumab
     already has a row; this made a second programme out of the protocol's shorthand. The
@@ -422,127 +435,87 @@ def test_a_delivery_device_is_formulation_not_molecule():
     assert canonical("PDS Implant with Ranibizumab") == canonical("PDS with Ranibizumab")
 
 
-# Contrave's registry spelling, as the Orexigen studies filed under Pfizer name it.
-CONTRAVE = "Naltrexone SR 32 mg/bupropion SR 360 mg/day"
+def _combo_book(tmp_path):
+    db_file = tmp_path / "combo.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    mono = _asset(conn, "JNJ", brand="Invokana", generic="Canagliflozin")
+    combo = _asset(conn, "JNJ", brand="Invokamet", generic="Canagliflozin")
+    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                 ('["Canagliflozin"]', mono))
+    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                 ('["Canagliflozin", "Metformin Hydrochloride"]', combo))
+    conn.commit()
+    return db_file, conn, mono, combo
 
 
-def test_components_split_a_combination_and_nothing_else():
-    assert tm.components(CONTRAVE) == ["naltrexone", "bupropion"]
-    assert tm.components("Oxycodone/naltrexone (ALO-02)") == ["oxycodone", "naltrexone"]
-    assert tm.components("Oxycodone Hydrochloride and Naltrexone Hydrochloride") == [
-        "oxycodone", "naltrexone"]
-    # A strength ratio, a placebo arm and a unit after a slash are not a second compound.
-    assert tm.components("BGF MDI 320/14.4/9.6 ug") == []
-    assert tm.components("Naltrexone/placebo") == []
-    assert tm.components("Insulin glargine 100 U/mL") == []
-    assert tm.components("Tirzepatide 5 mg") == []
+def test_a_combination_does_not_answer_to_one_of_its_ingredients(tmp_path):
+    """Invokamet carries "Canagliflozin" as its generic name. A canagliflozin and
+    phentermine obesity study (NCT02243202) was read onto it, which is canagliflozin with
+    metformin, and canagliflozin left the obesity landscape."""
+    db_file, conn, mono, combo = _combo_book(tmp_path)
+    _trial(conn, "NCT02243202", "JNJ", ["Canagliflozin", "Phentermine"])
+    _trial(conn, "NCT9", "JNJ", ["Canagliflozin/Metformin"])
+    conn.commit(); conn.close()
+    tm.map_trials(db_file)
+    conn = db.get_connection(db_file)
+    got = dict(conn.execute("SELECT nct_id, asset_id FROM trials"))
+    conn.close()
+    assert got["NCT02243202"] == mono
+    # Both ingredients together still find the combination, and before the single drug.
+    assert got["NCT9"] == combo
 
 
-def test_a_different_combination_does_not_name_a_combination_product():
-    """Troxyca ER is oxycodone with naltrexone, filed under its first ingredient."""
-    names = [("naltrexone hydrochloride", 46), ("troxyca er", 46), ("naltrexone", 46)]
-    names.sort(key=lambda n: len(n[0]), reverse=True)
-    troxyca = {46: {"naltrexone", "oxycodone"}}
-    assert tm.match_name(CONTRAVE, names, troxyca) is None
-    # Its own combination, and its own brand, still bind.
-    assert tm.match_name("Oxycodone/naltrexone (ALO-02)", names, troxyca) == 46
-    assert tm.match_name("Troxyca ER 40 mg", names, troxyca) == 46
-    # A study of the one molecule alone is not a combination and still binds, as a
-    # budesonide study binds to Breztri.
-    assert tm.match_name("Naltrexone 50 mg", names, troxyca) == 46
-    # Without the ingredient list the old answer stands, which is the defect.
-    assert tm.match_name(CONTRAVE, names) == 46
+def test_a_combination_named_for_every_ingredient_keeps_its_generic():
+    row = {"generic_name": "Sacubitril and Valsartan",
+           "active_ingredients": '["Sacubitril", "Valsartan"]'}
+    assert not tm._one_ingredient_of_a_combination(row)
+    row = {"generic_name": "Sacubitril", "active_ingredients": '["Sacubitril", "Valsartan"]'}
+    assert tm._one_ingredient_of_a_combination(row)
+    assert tm._combination_names(row) == ["sacubitril valsartan", "valsartan sacubitril"]
 
 
-def test_a_single_agent_still_binds_inside_a_regimen():
-    names = [("durvalumab", 7), ("imfinzi", 7)]
-    assert tm.match_name("Durvalumab + Tremelimumab", names, {}) == 7
+def test_the_override_file_pins_a_study_by_the_assets_name(tmp_path):
+    """REDEFINE 1 files cagrilintide and semaglutide as separate interventions, so the
+    first name would put CagriSema's pivotal study on cagrilintide alone. The file pins
+    it by ticker and name, since asset ids are rebuilt with the database."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    combo = _asset(conn, "NVO", generic="CagriSema")
+    alone = _asset(conn, "NVO", generic="Cagrilintide")
+    _trial(conn, "NCT05567796", "NVO", ["Cagrilintide", "Semaglutide"])
+    _trial(conn, "NCT07220642", "NVO", ["Cagrilintide", "Placebo"])
+    conn.commit()
+    pins = tmp_path / "pins.csv"
+    pins.write_text("# a comment line\nticker,nct_id,asset,note\n"
+                    "NVO,NCT05567796,CagriSema,REDEFINE 1\n"
+                    "NVO,NCT09999999,NoSuchDrug,left for a later run\n")
+    assert tm.load_overrides(conn, pins) == 1
+    conn.commit()
+    conn.close()
+    tm.map_trials(db_file)
+    conn = db.get_connection(db_file)
+    got = dict(conn.execute("SELECT nct_id, asset_id FROM trials"))
+    conn.close()
+    assert got == {"NCT05567796": combo, "NCT07220642": alone}
 
 
-def test_the_combination_rule_moves_to_the_product_that_holds_it():
-    """Where the company sells both, the combination goes to the one holding all of it."""
-    names = [("naltrexone hydrochloride", 46), ("naltrexone", 46),
-             ("naltrexone hydrochloride", 50), ("naltrexone", 50), ("contrave", 50)]
-    combos = {46: {"naltrexone", "oxycodone"}, 50: {"naltrexone", "bupropion"}}
-    assert tm.match_name(CONTRAVE, names, combos) == 50
-
-
-def _completed(conn, nct, ticker, asset_id, drugs):
-    cid = conn.execute("SELECT id FROM companies WHERE ticker=?", (ticker,)).fetchone()[0]
-    conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, asset_id,"
-                 " lead_sponsor) VALUES (?,?,?,'Pfizer')", (nct, cid, asset_id))
-    for d in drugs:
-        conn.execute("INSERT INTO trial_interventions (nct_id, name, norm, kind)"
-                     " VALUES (?,?,?,'DRUG')", (nct, d, tm.normalise(d)))
-
-
-def test_map_trials_undoes_a_binding_the_combination_rule_refutes(tmp_path):
+def test_contrave_does_not_bind_to_troxyca(tmp_path):
+    """Orexigen's naltrexone SR/bupropion SR studies were filed on Troxyca ER, which is
+    oxycodone with naltrexone and carries naltrexone alone as its generic name."""
     db_file, conn, *_ = _seeded(tmp_path)
     troxyca = _asset(conn, "PFE", brand="Troxyca Er", generic="Naltrexone Hydrochloride",
                      code="NDA207621")
     conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
                  ('["Naltrexone Hydrochloride", "Oxycodone Hydrochloride"]', troxyca))
-    # Bound before the rule existed, in both tables.
-    _completed(conn, "NCT00567255", "PFE", troxyca, [CONTRAVE, "Placebo"])
-    _trial(conn, "NCT9800001", "PFE", [CONTRAVE])
-    conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = 'NCT9800001'", (troxyca,))
-    # Its own combination stays bound.
-    _completed(conn, "NCT9900001", "PFE", troxyca, ["Oxycodone/naltrexone (ALO-02)"])
     conn.commit()
-    conn.close()
-
-    result = tm.map_trials(db_file)
-
-    conn = db.get_connection(db_file)
-    bound = dict(conn.execute("SELECT nct_id, asset_id FROM completed_trials"))
-    pipeline = conn.execute(
-        "SELECT asset_id FROM trials WHERE nct_id = 'NCT9800001'").fetchone()[0]
-    conn.close()
-    assert bound["NCT00567255"] is None
-    assert bound["NCT9900001"] == troxyca
-    assert pipeline is None
-    assert result["combination_unbound"] == 2
-
-
-def test_the_completed_fetch_does_not_bind_contrave_to_troxyca(tmp_path):
-    import json
-    from pathlib import Path
-
-    from fetchers.trials_completed import TrialsCompletedFetcher
-
-    db_file, conn, *_ = _seeded(tmp_path)
-    troxyca = _asset(conn, "PFE", brand="Troxyca Er", generic="Naltrexone Hydrochloride")
-    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
-                 ('["Naltrexone Hydrochloride", "Oxycodone Hydrochloride"]', troxyca))
     cid = conn.execute("SELECT id FROM companies WHERE ticker='PFE'").fetchone()[0]
-    conn.commit()
+    names = tm._asset_names(conn, cid)
     conn.close()
-    fixture = Path(__file__).parent / "fixtures" / "ctgov_completed_pfe.json"
-    rows = TrialsCompletedFetcher("PFE", str(db_file)).normalise(
-        {"company_id": cid, "studies": json.loads(fixture.read_text())["studies"]})
-    bound = {r["nct_id"]: r["asset_id"] for r in rows}
-    assert bound["NCT00567255"] is None
-    assert bound["NCT9900001"] == troxyca
-
-
-def test_a_match_on_the_products_own_name_is_not_tested():
-    """A brand, a code or a combination's own shorthand names the product, whatever
-    else the arm lists. Genvoya's studies name it "E/C/F/TAF"."""
-    genvoya = {9: {"elvitegravir", "cobicistat", "emtricitabine", "tenofovir alafenamide"}}
-    names = [("tenofovir alafenamide", 9), ("elvitegravir", 9), ("e c f taf", 9),
-             ("genvoya", 9)]
-    names.sort(key=lambda n: len(n[0]), reverse=True)
-    assert tm.match_name("E/C/F/TAF", names, genvoya) == 9
-    assert tm.match_name("Genvoya + darunavir", names, genvoya) == 9
-    # One of its ingredients combined with a compound it does not hold is not Genvoya.
-    assert tm.match_name("Elvitegravir/ritonavir", names, genvoya) is None
-
-
-def test_a_generic_name_is_not_read_as_an_ingredient_list(tmp_path):
-    """A vaccine's generic name joins its antigens with "and"; it is one product."""
-    db_file, conn, *_ = _seeded(tmp_path)
-    _asset(conn, "SNY", brand="Adacel", generic="Tetanus Toxoid, Reduced Diphtheria "
-           "Toxoid and Acellular Pertussis Vaccine, Adsorbed")
-    cid = conn.execute("SELECT id FROM companies WHERE ticker='SNY'").fetchone()[0]
-    assert tm._combination_products(conn, cid) == {}
-    conn.close()
+    contrave = tm.normalise("Naltrexone SR 32 mg/bupropion SR 360 mg/day")
+    assert tm.match_intervention(contrave, names) != troxyca
+    # Its own brand still names it.
+    assert tm.match_intervention(tm.normalise("Troxyca ER 40 mg"), names) == troxyca

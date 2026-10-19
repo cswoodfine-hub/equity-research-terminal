@@ -502,6 +502,87 @@ def trading_range(book: B.Book, weeks: int = 52) -> dict | None:
             "basis": f"lowest and highest daily close since {start}"}
 
 
+# The lenses that are the sum of the parts itself, pushed on an input it cannot pin down.
+# Comps, precedents, targets and the trading range are other ways of pricing the share,
+# not the model's own uncertainty, so they do not widen the band a rating reads.
+MODEL_LENSES = ("sotp_wacc", "sotp_fade", "sotp_guidance", "translation")
+_PUSHED = {"sotp_wacc": "the discount rate a point either way",
+           "sotp_fade": "the growth fade at the analogue quartiles",
+           "sotp_guidance": "revenue matched to guidance",
+           "translation": "the reporting currency 5% either way"}
+RATINGS = ("Strong buy", "Buy", "Hold", "Sell")
+
+
+def _joined(parts: list[str]) -> str:
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def rating(equity: float | None, close: float | None, ke: float | None,
+           dps: float | None, lenses: list[dict]) -> dict:
+    """The twelve-month value and a rating read off the model's own range.
+
+    The twelve-month value is the sum of the parts rolled a year at the cost of equity,
+    less the dividend paid out in it, the same roll-forward the verdict carries. A share
+    bought at a fair price earns its cost of equity and nothing more, so the rating is
+    the return above that: where today's price sits in the range the model's own lenses
+    span (discount rate, measured fade, guided revenue, translation), today's value
+    against today's price. The same test on twelve-month figures would call a fairly
+    priced share a buy on the cost of equity alone.
+
+    - Strong buy: the price is below the low end, so even the model's weakest case
+      earns more than the cost of equity.
+    - Buy: below the central value, above the low end.
+    - Hold: above the central value, inside the high end.
+    - Sell: above the high end, so even the model's strongest case earns less.
+
+    No threshold is chosen: the band is the model's measured sensitivity, so a company
+    whose value rests on inputs it cannot pin down carries a wide band and needs a wider
+    gap to rate either way.
+    """
+    if equity is None or not close or math.isnan(equity):
+        return {"ok": False, "reason": ("no sum of the parts to rate" if equity is None
+                                        else "no share price on file")}
+    band = [l for l in lenses if l.get("key") in MODEL_LENSES]
+    lows = [l["low"] for l in band if l.get("low") is not None and not math.isnan(l["low"])]
+    highs = [l["high"] for l in band if l.get("high") is not None and not math.isnan(l["high"])]
+    low = min(lows + [equity])
+    high = max(highs + [equity])
+    if not band:
+        # A range of one point would call any gap a strong one.
+        call = None
+    elif close < low:
+        call = "Strong buy"
+    elif close < equity:
+        call = "Buy"
+    elif close <= high:
+        call = "Hold"
+    else:
+        call = "Sell"
+
+    def forward(value):
+        return value * (1.0 + ke) - (dps or 0.0) if ke is not None else None
+
+    fwd = forward(equity)
+    return {
+        "ok": True, "rating": call, "close": close,
+        "reason": None if band else "no lens to range the sum of the parts, so no rating",
+        "value_today": equity, "low_today": low, "high_today": high,
+        "forward_12m": fwd, "forward_low": forward(low), "forward_high": forward(high),
+        "upside_12m": (fwd / close - 1.0) if fwd is not None else None,
+        # What a holder earns over the year if the value is right: the move to the
+        # twelve-month value plus the dividend on the way, against the cost of equity.
+        "total_return": ((fwd + (dps or 0.0)) / close - 1.0) if fwd is not None else None,
+        "cost_of_equity": ke, "dps": dps,
+        "lenses": [l["key"] for l in band],
+        "basis": ("today's price against the range the sum of the parts spans with "
+                  + _joined([_PUSHED[l["key"]] for l in band])
+                  + "; the twelve-month value rolls the central value a year at the cost "
+                  "of equity less the dividend") if band else
+                 ("the twelve-month value rolls the sum of the parts a year at the cost "
+                  "of equity less the dividend; no lens ranges it, so it carries no rating"),
+    }
+
+
 def company(db_path, ticker: str, peers: list[dict] | None = None) -> dict | None:
     """Every lens for one company. None for an unknown ticker."""
     book = B.Book(db_path, ticker)
@@ -530,6 +611,9 @@ def company(db_path, ticker: str, peers: list[dict] | None = None) -> dict | Non
     for extra in (takeover(book), price_targets(book), trading_range(book)):
         if extra:
             lenses.append(extra)
+    sotp = book.sotp or {}
     return {"ok": True, "ticker": book.ticker, "name": book.name, "close": book.close,
-            "price_date": book.sotp.get("price_date"), "equity_per_share": book.equity,
-            "revenue_split": split, "lenses": lenses}
+            "price_date": sotp.get("price_date"), "equity_per_share": book.equity,
+            "revenue_split": split, "lenses": lenses,
+            "rating": rating(book.equity, book.close, sotp.get("cost_of_equity"),
+                             sotp.get("dps"), lenses)}

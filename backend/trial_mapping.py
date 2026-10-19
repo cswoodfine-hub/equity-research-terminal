@@ -25,7 +25,9 @@ returned say how many, so the gap stays visible rather than reading as full cove
 
 from __future__ import annotations
 
+import csv
 import json
+import pathlib
 import re
 
 import assets_util
@@ -61,6 +63,16 @@ NOT_A_COMPOUND = re.compile(
     # A numbered dose regimen is the study's own labelling of its arms, not a compound:
     # "Tozorakimab Dose Regimen 1" and "Tozorakimab Dose Regimen 2" are one programme.
     r"|\bdose (regimen|level|cohort|escalation)\b"
+    # A drug class names a choice of drugs, not one. Ultragenyx's Cosmic study gave
+    # setrusumab against "Bisphosphonate", the investigator's pick of the class, and the
+    # UX111 follow-up study lists only "Adjuvant Immunomodulatory (IM) Therapy", the
+    # steroid and immunosuppressant cover given with a gene therapy: each became a
+    # programme of its own. Anchored at both ends, so a molecule named with its class
+    # still reads as the molecule.
+    r"|^(?:(?:adjuvant|prophylactic|optimi[sz]ed|background|concomitant|oral)\s+)*"
+    r"(?:bisphosphonates?|corticosteroids?|glucocorticoids?|immunomodulatory"
+    r"|immunosuppressi(?:ve|on)|immunosuppressants?)"
+    r"(?:\s+im)?(?:\s+(?:therapy|therapies|treatment|regimen|agents?))?$"
     )
 
 # Words that make a name a regimen rather than a molecule. Tested against the canonical
@@ -174,103 +186,59 @@ def aliases(raw: str) -> set[str]:
     return {a for a in out if a}
 
 
-# What joins two compounds in one intervention name: "Naltrexone SR 32 mg/bupropion SR
-# 360 mg/day", "Oxycodone and Naltrexone". A slash between two numbers is a strength, not
-# a join, since "320/14.4/9.6 ug" is one inhaler's dose.
-COMBINATION_JOIN = re.compile(
-    r"\s*(?:\+|&|;|\bplus\b|\band\b|\bwith\b|(?<!\d)/|/(?!\d))\s*", re.IGNORECASE)
+def _one_ingredient_of_a_combination(row) -> bool:
+    """Whether a combination product's generic name names only one of its ingredients.
 
-# Words left beside a compound once its dose is gone, which say how often or how fast it
-# is given: the "day" of "360 mg/day", the "SR" of "Naltrexone SR".
-SCHEDULE_WORDS = {
-    "day", "days", "daily", "d", "week", "weekly", "wk", "month", "monthly", "hour",
-    "hours", "h", "hr", "once", "twice", "per", "bid", "tid", "qid", "qd", "qw", "qod",
-    "sr", "er", "xr", "cr", "la", "xl", "dr", "ir",
-}
-
-
-def components(raw: str) -> list[str]:
-    """The compounds an intervention combines, each reduced to its molecule, or an empty
-    list when it names one compound or none.
-
-    The normalised name cannot answer this, since normalising turns the slash that joins
-    two drugs into the same space that separates a drug from its dose. So the raw name is
-    split first, and a piece that is only a schedule, a strength or a placebo is dropped.
+    140 combinations carry one ingredient as their generic name: Invokamet is
+    "Canagliflozin", Janumet "Metformin Hydrochloride", Orkambi "Ivacaftor". Answering to
+    that name, a combination took the single drug's studies: on 2026-10-09 a canagliflozin
+    and phentermine obesity study (NCT02243202) was re-read onto Invokamet, which is
+    canagliflozin with metformin, and canagliflozin left the obesity landscape. A
+    combination answers to its brand, its code, or a name that names every ingredient.
     """
-    text = re.sub(r"\([^)]*\)", " ", raw or "")
-    parts = []
-    for piece in COMBINATION_JOIN.split(text):
-        if not piece.strip() or NOT_A_COMPOUND.search(normalise(piece)):
-            continue
-        key = " ".join(w for w in canonical(piece).split()
-                       if w not in SCHEDULE_WORDS and re.search(r"[a-z]", w))
-        if key:
-            parts.append(key)
-    parts = list(dict.fromkeys(parts))
-    return parts if len(parts) > 1 else []
+    try:
+        ingredients = json.loads(row["active_ingredients"] or "[]")
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(ingredients, list) or len(ingredients) < 2:
+        return False
+    generic = set(canonical(row["generic_name"] or "").split())
+    return not all((canonical(i).split() or [""])[0] in generic for i in ingredients)
 
 
-def _combination_products(conn, company_id: int) -> dict[int, set[str]]:
-    """asset_id -> the molecules it holds, for each of one company's products that holds
-    more than one.
-
-    The ingredient list is drugsfda's, where the approvals fetch stored one. A generic
-    name is not read for it: "Tetanus Toxoid, Reduced Diphtheria Toxoid and Acellular
-    Pertussis Vaccine" is one vaccine, not three products. A single-agent product is
-    absent, since its generic name binds a study of that molecule given alongside
-    anything.
-    """
-    out: dict[int, set[str]] = {}
-    for row in conn.execute(
-            "SELECT id, active_ingredients FROM assets"
-            " WHERE owner_company_id = ?", (company_id,)):
-        try:
-            listed = json.loads(row["active_ingredients"] or "[]")
-        except (TypeError, ValueError):
-            listed = []
-        held = {canonical(str(i)) for i in listed if i} - {""}
-        if len(held) > 1:
-            out[row["id"]] = held
+def _combination_names(row) -> list[str]:
+    """The names a combination answers to in place of one ingredient's: every ingredient
+    together, in the label's order and, for a pair, the other way round, so a study of
+    "Sacubitril/Valsartan" or "metformin + sitagliptin" still finds the combination, and
+    finds it before the single drug, whose name is shorter."""
+    ingredients = [(canonical(i).split() or [""])[0]
+                   for i in json.loads(row["active_ingredients"] or "[]")]
+    ingredients = [i for i in ingredients if i]
+    out = [" ".join(ingredients)]
+    if len(ingredients) == 2:
+        out.append(" ".join(reversed(ingredients)))
     return out
-
-
-def _holds(asset_id: int, matched: str, parts, names, combinations) -> bool:
-    """Whether a match on one ingredient's name stands when the intervention combines
-    compounds.
-
-    Troxyca ER is oxycodone with naltrexone, filed under naltrexone. "Naltrexone SR 32
-    mg/bupropion SR 360 mg/day" is Contrave, a different combination sharing one molecule
-    with it, and the shared molecule named the product. Where the name that matched is
-    one ingredient of a combination product, every compound in the intervention now has
-    to be one the product holds, by an ingredient or by one of its own names.
-
-    Nothing else is tested. A product holding one molecule is not, so "Durvalumab +
-    Tremelimumab" still binds to Imfinzi. Nor is a match on a name that is the product's
-    own rather than one ingredient's, a brand, a code or "E/C/F/TAF", since that names
-    the product whatever else the arm lists.
-    """
-    held = combinations.get(asset_id) if combinations else None
-    if not parts or not held or canonical(matched) not in held:
-        return True
-    known = held | {n for n, a in names if a == asset_id}
-    return all(any(f" {k} " in f" {p} " for k in known) for p in parts)
 
 
 def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
     """(normalised name, asset_id) for every name one company's assets are known by,
     longest first so the most specific match is tried before a shorter, vaguer one."""
     rows = conn.execute(
-        "SELECT id, brand_name, generic_name, internal_code FROM assets"
+        "SELECT id, brand_name, generic_name, internal_code, active_ingredients FROM assets"
         "  WHERE owner_company_id = ?", (company_id,)).fetchall()
     seen: set[tuple[str, int]] = set()
     names: list[tuple[str, int]] = []
     for row in rows:
         for field in ("brand_name", "generic_name", "internal_code"):
-            for candidate in aliases(row[field]):
-                key = (candidate, row["id"])
-                if key not in seen:
-                    seen.add(key)
-                    names.append(key)
+            values = [row[field]]
+            if field == "generic_name" and _one_ingredient_of_a_combination(row):
+                values = _combination_names(row)
+            for value in values:
+                for candidate in aliases(value):
+                    key = (candidate, row["id"])
+                    if key not in seen:
+                        seen.add(key)
+                        names.append(key)
     # Names the product answers to that appear nowhere on its own row: the development
     # name it was trialled under, whether the filings gave it up or an analyst wrote it
     # down. Casgevy is the case that needs the second kind, since its studies are filed
@@ -301,57 +269,52 @@ def _asset_names(conn, company_id: int) -> list[tuple[str, int]]:
     return names
 
 
-def match_intervention(intervention_norm: str, names: list[tuple[str, int]],
-                       parts=(), combinations=None) -> int | None:
+def match_intervention(intervention_norm: str, names: list[tuple[str, int]]) -> int | None:
     """The asset an intervention names, or None.
 
     An exact match wins outright. Otherwise the longest asset name that appears in the
     intervention as a whole word takes it, so "Tirzepatide 5 mg" and "LY3437943 injection"
-    both bind while "insulin" does not sweep up a whole portfolio. Where the intervention
-    combines compounds (``parts``, from ``components``) a combination product is only
-    named when it holds them all (``_holds``). Pure, so the rule is testable without a
-    database.
+    both bind while "insulin" does not sweep up a whole portfolio. Pure, so the rule is
+    testable without a database.
     """
     if not intervention_norm:
         return None
     for norm, asset_id in names:
-        if norm == intervention_norm and _holds(asset_id, norm, parts, names,
-                                                     combinations):
+        if norm == intervention_norm:
             return asset_id
     for norm, asset_id in names:
         if len(norm) < MIN_SUBSTRING_LEN:
             continue
-        if re.search(rf"(?:^|\s){re.escape(norm)}(?:\s|$)", intervention_norm) \
-                and _holds(asset_id, norm, parts, names, combinations):
+        if re.search(rf"(?:^|\s){re.escape(norm)}(?:\s|$)", intervention_norm):
             return asset_id
     return None
 
 
-def match_name(raw: str, names, combinations=None) -> int | None:
-    """``match_intervention`` on a raw intervention name, which is what carries the join
-    between the compounds of a combination."""
-    return match_intervention(normalise(raw), names, components(raw), combinations)
+# Names no rule can reject, because each is a real substance: another company's medicine
+# as a comparator, conditioning chemotherapy, a challenge agent, a propellant, a follow-up
+# study. Kept by hand with a cited reason, per sponsor, since the same name can be a
+# programme at one company and a comparator at another.
+NOT_A_PROGRAMME_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                       / "data" / "not_a_programme.csv")
 
 
-def first_match(raw_names, names, combinations=None) -> int | None:
-    """The asset the first of a study's interventions to name one names, or None."""
-    return next((a for a in (match_name(r, names, combinations) for r in raw_names)
-                 if a), None)
-
-
-def _refuted(current, raw_names, names, combinations) -> bool:
-    """Whether a study bound to a combination product named it only through a different
-    combination that shares one of its molecules, so the binding does not stand.
-
-    Only such a binding is undone. One made by the analyst, by a brand split or by any
-    name this test does not reach is left as it is.
-    """
-    if current is None or current not in (combinations or {}):
-        return False
-    own = [(n, a) for n, a in names if a == current]
-    hits = [r for r in raw_names if match_intervention(normalise(r), own) == current]
-    return bool(hits) and not any(
-        match_name(r, own, combinations) == current for r in hits)
+def curated_not_programmes(conn, path=None) -> set[tuple[int, str]]:
+    """(company id, canonical key) for every name ``data/not_a_programme.csv`` lists."""
+    source = pathlib.Path(path) if path else NOT_A_PROGRAMME_CSV
+    if not source.exists():
+        return set()
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    companies = {r["ticker"]: r["id"] for r in conn.execute(
+        "SELECT ticker, id FROM companies")}
+    out = set()
+    for row in rows:
+        company_id = companies.get((row.get("ticker") or "").strip().upper())
+        key = canonical(row.get("name") or "")
+        if company_id is not None and key:
+            out.add((company_id, key))
+    return out
 
 
 def derive_pipeline_assets(db_path=None) -> dict:
@@ -388,6 +351,8 @@ def derive_pipeline_assets(db_path=None) -> dict:
         for row in conn.execute("SELECT internal_code FROM asset_aliases"):
             marketed |= aliases(row[0])
 
+        not_programmes = curated_not_programmes(conn)
+
         rows = conn.execute(
             """
             SELECT i.name, t.sponsor_company_id AS company_id, t.nct_id
@@ -404,7 +369,8 @@ def derive_pipeline_assets(db_path=None) -> dict:
         for row in rows:
             key = canonical(row["name"])
             if (not key or NOT_A_COMPOUND.search(normalise(row["name"]))
-                    or REGIMEN_WORDS.search(key)):
+                    or REGIMEN_WORDS.search(key)
+                    or (row["company_id"], key) in not_programmes):
                 continue                       # study design, not a compound
             entry = groups.setdefault(key, {"names": set(), "sponsors": set(),
                                             "trials": set()})
@@ -461,27 +427,41 @@ def prune_orphan_pipeline_assets(db_path=None) -> dict:
         conn.close()
 
 
-def _studies(conn, table: str) -> list:
-    """Every sponsored study in one table with its binding and its drugs' raw names.
+TRIAL_ASSET_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                   / "data" / "trial_asset_map.csv")
 
-    Raw names rather than the stored normalised ones, since only the raw name still says
-    which words are two compounds joined and which are one compound and its dose.
-    """
-    studies: dict = {}
-    for row in conn.execute(
-            f"""
-            SELECT t.nct_id, t.sponsor_company_id AS cid, t.asset_id, i.name
-              FROM {table} t
-              JOIN trial_interventions i ON i.nct_id = t.nct_id
-             WHERE t.sponsor_company_id IS NOT NULL
-             ORDER BY t.nct_id, i.id
-            """):
-        entry = studies.setdefault(row["nct_id"], {
-            "nct_id": row["nct_id"], "cid": row["cid"], "asset_id": row["asset_id"],
-            "names": []})
-        if row["name"]:
-            entry["names"].append(row["name"])
-    return list(studies.values())
+
+def load_overrides(conn, path=None) -> int:
+    """Write ``data/trial_asset_map.csv`` into ``trial_asset_map``: a study the names cannot
+    place, pinned to its asset by ticker and the asset's name, since ids are rebuilt with
+    the database. A row whose asset is not on file yet is left for a later run. Returns
+    the rows written."""
+    source = pathlib.Path(path) if path else TRIAL_ASSET_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    written = 0
+    for row in rows:
+        name = (row.get("asset") or "").strip()
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND ? IN (LOWER(TRIM(COALESCE(a.brand_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.generic_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.internal_code, ''))))
+                ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
+            ((row.get("ticker") or "").strip().upper(), name.lower())).fetchone()
+        nct = (row.get("nct_id") or "").strip()
+        if asset is None or not nct:
+            continue
+        conn.execute(
+            "INSERT INTO trial_asset_map (nct_id, asset_id, note) VALUES (?, ?, ?)"
+            " ON CONFLICT(nct_id) DO UPDATE SET asset_id = excluded.asset_id,"
+            "   note = excluded.note",
+            (nct, asset["id"], f"curated: {(row.get('note') or '').strip()}"))
+        written += 1
+    return written
 
 
 def map_trials(db_path=None) -> dict:
@@ -495,53 +475,61 @@ def map_trials(db_path=None) -> dict:
     conn = db.get_connection(db_path)
     try:
         # The curated overrides first; they outrank anything derived here.
+        load_overrides(conn)
         overrides = dict(conn.execute(
             "SELECT nct_id, asset_id FROM trial_asset_map WHERE asset_id IS NOT NULL"))
         for nct_id, asset_id in overrides.items():
             conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                          (asset_id, nct_id))
 
-        names_by_company: dict[int, tuple] = {}
+        rows = conn.execute(
+            """
+            SELECT t.nct_id, t.sponsor_company_id AS cid,
+                   GROUP_CONCAT(i.norm, '||') AS norms
+              FROM trials t
+              JOIN trial_interventions i ON i.nct_id = t.nct_id
+             WHERE t.sponsor_company_id IS NOT NULL
+             GROUP BY t.nct_id
+            """).fetchall()
 
-        def known(cid):
-            if cid not in names_by_company:
-                names_by_company[cid] = (_asset_names(conn, cid),
-                                         _combination_products(conn, cid))
-            return names_by_company[cid]
-
-        matched = unbound = 0
-        for row in _studies(conn, "trials"):
+        names_by_company: dict[int, list] = {}
+        matched = 0
+        for row in rows:
             if row["nct_id"] in overrides:
                 continue                      # the analyst has already answered this one
-            names, combinations = known(row["cid"])
-            asset_id = first_match(row["names"], names, combinations)
+            cid = row["cid"]
+            if cid not in names_by_company:
+                names_by_company[cid] = _asset_names(conn, cid)
+            names = names_by_company[cid]
+            asset_id = next(
+                (a for a in (match_intervention(n, names)
+                             for n in (row["norms"] or "").split("||")) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
                 matched += 1
-            elif _refuted(row["asset_id"], row["names"], names, combinations):
-                conn.execute("UPDATE trials SET asset_id = NULL WHERE nct_id = ?",
-                             (row["nct_id"],))
-                unbound += 1
         conn.commit()
 
         # Completed studies are bound by the same rule and from the same stored names,
         # so an improvement to the cleaner reaches a product's record as well as its
-        # pipeline without anything being fetched again. A bound study is looked at again
-        # only to undo a binding the combination rule refutes.
+        # pipeline without anything being fetched again.
+        completed = conn.execute(
+            """
+            SELECT ct.nct_id, ct.sponsor_company_id AS cid,
+                   GROUP_CONCAT(i.norm, '||') AS norms
+              FROM completed_trials ct
+              JOIN trial_interventions i ON i.nct_id = ct.nct_id
+             WHERE ct.sponsor_company_id IS NOT NULL AND ct.asset_id IS NULL
+             GROUP BY ct.nct_id
+            """).fetchall()
         completed_matched = 0
-        for row in _studies(conn, "completed_trials"):
-            names, combinations = known(row["cid"])
-            if row["asset_id"] is not None:
-                if not _refuted(row["asset_id"], row["names"], names, combinations):
-                    continue
-                asset_id = first_match(row["names"], names, combinations)
-                conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
-                             (asset_id, row["nct_id"]))
-                unbound += asset_id is None
-                completed_matched += asset_id is not None
-                continue
-            asset_id = first_match(row["names"], names, combinations)
+        for row in completed:
+            cid = row["cid"]
+            if cid not in names_by_company:
+                names_by_company[cid] = _asset_names(conn, cid)
+            asset_id = next(
+                (a for a in (match_intervention(n, names_by_company[cid])
+                             for n in (row["norms"] or "").split("||")) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
@@ -558,7 +546,6 @@ def map_trials(db_path=None) -> dict:
     finally:
         conn.close()
     return {"matched": matched, "completed_matched": completed_matched,
-            "combination_unbound": unbound,
             "mapped": mapped, "total": total,
             "unmapped": total - mapped, "curated": len(overrides),
             "no_interventions": no_interventions}
@@ -593,7 +580,8 @@ def prune_arms(db_path=None, dry_run: bool = False) -> dict:
     try:
         loose = conn.execute(
             """
-            SELECT a.id, a.owner_company_id,
+            SELECT a.id, a.owner_company_id, a.brand_name, a.generic_name,
+                   a.internal_code,
                    COALESCE(a.brand_name, a.generic_name, a.internal_code) AS name
               FROM assets a
              WHERE NOT EXISTS (SELECT 1 FROM approvals x WHERE x.asset_id = a.id)
@@ -612,12 +600,19 @@ def prune_arms(db_path=None, dry_run: bool = False) -> dict:
                 if key:
                     keys.setdefault((row["owner_company_id"], key), row["id"])
 
+        not_programmes = curated_not_programmes(conn)
         for row in loose:
             name = row["name"] or ""
             key = canonical(name)
-            rejected = (not key or NOT_A_COMPOUND.search(normalise(name))
+            # A curated name is removed outright and never folded into a sibling: its
+            # trials are some other drug's studies, and the next mapping finds that drug.
+            listed = any((row["owner_company_id"], canonical(spelling)) in not_programmes
+                         for spelling in (row["brand_name"], row["generic_name"],
+                                          row["internal_code"]) if spelling)
+            rejected = (listed or not key or NOT_A_COMPOUND.search(normalise(name))
                         or REGIMEN_WORDS.search(key))
-            target = keys.get((row["owner_company_id"], key)) if key else None
+            target = (keys.get((row["owner_company_id"], key))
+                      if key and not listed else None)
             if target == row["id"]:
                 target = None
             if not rejected and target is None:

@@ -250,3 +250,34 @@ def since_balance_sheet(conn, company_id: int, as_of: str) -> dict:
         "  FROM financings WHERE company_id = ? AND closed_month > ?"
         "  ORDER BY closed_month", (company_id, (as_of or "")[:7]))]
     return {"total": sum(r["amount_usd"] for r in rows) or None, "rows": rows}
+
+
+# Raises that issue shares. A loan or a note brings in cash and the debt to match, so
+# adding its proceeds without the debt would count money that is owed; a row whose kind
+# the text did not settle ("financing") is left out for the same reason.
+EQUITY_KINDS = ("public offering", "private placement", "at-the-market")
+
+
+def inside_share_count(conn, company_id: int, as_of: str, shares_dated: str | None) -> dict:
+    """{total, rows} of equity raised after the balance sheet date whose shares the share
+    count already holds.
+
+    A valuation divides the balance sheet's cash by a share count, and the two are often
+    dated apart: the count is the 10-Q cover's, a few weeks after the quarter. Dyne's
+    cover counts 186,746,431 shares on 24 July 2026, 21,045,000 of them sold in its July
+    offering, while its cash is the 30 June figure without the $405.0mm they raised. The
+    count already carries the dilution; this is the cash that came with it.
+
+    Only equity, and only a raise that closed after the balance sheet month and no later
+    than the month of the count. A raise after the count is in neither figure, and adding
+    its cash alone would credit money the divisor never paid for (Moderna's August 2026
+    offering, against a 24 July count). Dated by month, the precision the filing gives,
+    so a raise closing in the count's own month is taken as inside it: the 10-Q that
+    reports it as completed is the filing the cover belongs to.
+    """
+    if not (as_of and shares_dated) or len(str(as_of)) < 7:
+        return {"total": None, "rows": []}
+    got = since_balance_sheet(conn, company_id, str(as_of))
+    rows = [r for r in got["rows"] if r["kind"] in EQUITY_KINDS
+            and r["closed_month"] <= str(shares_dated)[:7]]
+    return {"total": sum(r["amount_usd"] for r in rows) or None, "rows": rows}

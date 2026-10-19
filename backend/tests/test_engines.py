@@ -114,6 +114,64 @@ def test_an_unknown_engine_returns_the_whole_universe(tmp_path):
     assert engines.tickers_for(path, None) == ["A", "B"]
 
 
+# --- the catalyst focus list ----------------------------------------------------------
+
+def _focus(tmp_path, monkeypatch, *tickers):
+    monkeypatch.setenv("ER_TOOL_BIOTECH_FOCUS", "1")
+    path = tmp_path / "focus.csv"
+    path.write_text("ticker,name,theme,added\n"
+                    + "".join(f"{t},{t.title()},x,2026-10-12\n" for t in tickers))
+    return path
+
+
+def test_the_focus_list_is_the_biotech_engine(tmp_path, monkeypatch):
+    """Capricor is cell and gene by platform and on the list, so it is read on biotech.
+    Incyte is biotech by the rule and not on the list, so it is on no engine. The majors
+    and the unlisted platform developers keep the rule's answer."""
+    path = _universe(tmp_path, {
+        "BIG": {"revenue": 40e9}, "INCY": {"revenue": 5.1e9},
+        "CAPR": {"revenue": 0, "themes": ["Cell therapy"]},
+        "ALLO": {"revenue": 0, "themes": ["CAR-T"]}, "VKTX": {"revenue": 0}})
+    focus = _focus(tmp_path, monkeypatch, "CAPR", "VKTX", "SMMT")
+    assert engines.home(path, focus) == {"BIG": engines.PHARMA, "INCY": None,
+                                         "CAPR": engines.BIOTECH, "ALLO": engines.CELLGENE,
+                                         "VKTX": engines.BIOTECH}
+    assert engines.tickers_for(path, engines.BIOTECH, focus) == ["CAPR", "VKTX"]
+    assert engines.tickers_for(path, engines.CELLGENE, focus) == ["ALLO"]
+    # Search still reaches a company on no engine.
+    assert "INCY" in engines.tickers_for(path, None, focus)
+
+
+def test_the_list_never_reaches_the_valuation_cohort(tmp_path, monkeypatch):
+    """Valuation asks assign, so a listed cell therapy is still costed as one."""
+    path = _universe(tmp_path, {"CAPR": {"revenue": 0, "themes": ["Cell therapy"]}})
+    _focus(tmp_path, monkeypatch, "CAPR")
+    conn = db.get_connection(path)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'CAPR'").fetchone()[0]
+    assert engines.assign(conn, cid, 0.0) == engines.CELLGENE
+    conn.close()
+
+
+def test_without_a_list_the_rule_alone_places_every_company(tmp_path, monkeypatch):
+    path = _universe(tmp_path, {"INCY": {"revenue": 5.1e9}})
+    monkeypatch.setenv("ER_TOOL_BIOTECH_FOCUS", "1")
+    assert engines.home(path, tmp_path / "absent.csv") == {"INCY": engines.BIOTECH}
+    focus = _focus(tmp_path, monkeypatch, "X")
+    monkeypatch.setenv("ER_TOOL_BIOTECH_FOCUS", "0")
+    assert engines.home(path, focus) == {"INCY": engines.BIOTECH}
+
+
+def test_the_committed_list_names_each_company_once(monkeypatch):
+    monkeypatch.setenv("ER_TOOL_BIOTECH_FOCUS", "1")
+    import csv
+    with open(engines.FOCUS_CSV, newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    tickers = [r["ticker"] for r in rows]
+    assert len(tickers) == len(set(tickers)) == len(engines.focus_list())
+    assert all(r["name"] and r["theme"] and r["added"] for r in rows)
+    assert all("\u2014" not in r["theme"] for r in rows)
+
+
 # --- the big pharma card ---------------------------------------------------------------
 
 def _row(**kw):

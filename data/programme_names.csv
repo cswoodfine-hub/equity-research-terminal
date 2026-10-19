@@ -1,0 +1,17 @@
+# The INN a derived programme is known by, where the registry never files a study under it.
+#
+# A pipeline row is derived from a trial's intervention name and takes the shortest
+# spelling any study used, so a programme the registry files under a dose arm, a code or a
+# misspelling carries that as its name. A seed, a decision date and an exclusivity row all
+# join on the name, and none of them can reach "1.0mg/kg/day PRAX-562". Read by
+# backend/asset_merge.name_programmes on every merge: the one unmarketed row answering to
+# ``name`` (generic, code or alias) takes ``inn`` as its generic name, and the old spelling
+# stays as an alias so trial mapping still binds it. Nothing is renamed where another row
+# already carries the INN; that is a fold, for data/asset_alias_map.csv.
+#
+# Every row cites the filing that gives the INN for the code or the registry's name.
+ticker,name,inn,source
+PRAX,PRAX-562,relutrigine,"Praxis FY2024 10-K (0001689548-25-000040): 'relutrigine (formerly known as PRAX-562)'. The registry files EMBOLD (NCT05818553) under 'PRAX-562' and EMERALD (NCT07010471) under '1.0mg/kg/day PRAX-562', whose other name it lists as relutrigine; the code pass folded the two and kept the dose arm's spelling"
+PRAX,60 mg ulixacaltamide,ulixacaltamide,"Praxis FY2024 10-K (0001689548-25-000040): 'ulixacaltamide (formerly known as PRAX-944)'; the NDA accepted on 2026-04-14 is for 'ulixacaltamide HCl' (8-K 0001689548-26-000033). The registry files Essential3 (NCT06087276) under the dose, '60 mg ulixacaltamide'"
+PRAX,vormatrogine,vormatrigine,"Praxis FY2024 10-K (0001689548-25-000040): 'vormatrigine (formerly known as PRAX-628)', the spelling every Praxis filing uses. The registry misspells it 'vormatrogine' in NCT07287163 and NCT07505004 (POWER2), whose titles spell it vormatrigine"
+PRAX,1mg elsunersen,elsunersen,"Praxis FY2024 10-K (0001689548-25-000040): 'elsunersen (formerly known as PRAX-222)'; 8-K of 2026-06-22 (0001689548-26-000066): 'elsunersen (PRAX-222)'. The registry files EMBRAVE3 (NCT07019922) under the doses '1mg elsunersen' and '0.5mg elsunersen'"

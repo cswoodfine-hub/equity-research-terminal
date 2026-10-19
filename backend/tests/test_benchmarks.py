@@ -147,11 +147,11 @@ def test_a_refused_symbol_is_a_soft_error_and_loses_neither_the_other_nor_the_ru
     finally:
         B.urllib.request.urlopen = real
 
-    assert calls["n"] == 2                       # both symbols attempted
-    assert "^GSPC" in raw and "XLV" not in raw   # one lost, one kept
+    assert calls["n"] == len(B.SYMBOLS)              # every symbol attempted
+    assert "^GSPC" in raw and "PPH" in raw and "XLV" not in raw   # one lost, the rest kept
     assert any("429" in e for e in fetcher._soft)
     result = fetcher.upsert(fetcher.normalise(raw))
-    assert result.rows_fetched == 5
+    assert result.rows_fetched == 5 * (len(B.SYMBOLS) - 1)
     assert any("429" in e for e in result.errors)
 
 

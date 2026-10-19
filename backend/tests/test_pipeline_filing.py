@@ -122,6 +122,42 @@ def test_a_prefix_that_is_an_ordinary_word_is_not_a_family():
     assert "WVE-008" in codes
 
 
+# The first sentence is verbatim from Vaxcyte's 10-Q filed 2026-08-05, item 2; the second
+# stands in for the rest of its description of VAX-31, and the risk factor line gives the
+# two comparators the second sighting a code needs.
+VAXCYTE = (
+    "In December 2025, following an FDA End-of-Phase 2 meeting, we announced that the "
+    "first participants were dosed in a Phase 3 pivotal, non-inferiority trial (\"OPUS-1\") "
+    "evaluating the safety, tolerability and immune responses of VAX-31 in healthy, "
+    "pneumococcal-na\u00efve (defined as having no known prior history of IPD or "
+    "pneumococcal pneumonia, or receipt of any licensed or investigational pneumococcal "
+    "vaccine) adults aged 50 and older through direct, head-to-head comparisons with both "
+    "PVC20 and PCV21, the current standard-of-care PCVs. "
+    "We are developing VAX-31 for the prevention of IPD and pneumonia in adults.")
+VAXCYTE_RISKS = "VAX-31 may not prove non-inferior to PVC20 or PCV21."
+
+
+def test_a_rival_s_product_named_in_the_company_s_own_voice_is_not_a_programme():
+    """PVC20 (Pfizer's Prevnar 20, misspelt) and PCV21 (Merck's Capvaxive) sit in a
+    first-person sentence with no other party named, and both were written as Vaxcyte
+    programmes. The object of a comparison is the comparator."""
+    codes = _by_code(VAXCYTE, "Vaxcyte, Inc.", VAXCYTE_RISKS)
+    assert "PVC20" not in codes and "PCV21" not in codes
+    assert pf.compared_against(VAXCYTE) == {"PVC20", "PCV21"}
+
+
+def test_a_company_s_own_drug_in_a_comparison_is_still_its_own():
+    """Structure's 10-Q of 2026-08-06 compares a combination with each of its parts, one
+    of them its own candidate, and names that candidate on its own elsewhere."""
+    text = ("We have two oral small molecule amylin receptor agonists: ACCG-2671, which is "
+            "currently in Phase 1 clinical development, and ACCG-3535, which we have "
+            "selected as our second amylin development candidate. Combination therapy with "
+            "semaglutide resulted in superior weight loss compared to semaglutide or "
+            "ACCG-3535 monotherapy.")
+    assert "ACCG-3535" not in pf.compared_against(text)
+    assert "ACCG-3535" in _by_code(text, "Structure Therapeutics Inc.")
+
+
 def test_a_date_is_not_a_code():
     text = ("We expect data in mid-2027. We expect a filing in mid-2027. "
             "We are developing ABC-101 for the treatment of anaemia. "
@@ -226,6 +262,87 @@ def test_prune_drops_a_programme_that_has_since_acquired_a_trial(tmp_path):
     codes = {r["code"] for r in conn.execute("SELECT code FROM filing_programmes")}
     conn.close()
     assert "DYNE-302" not in codes
+
+
+def test_a_code_folded_into_a_named_row_is_not_written_again(tmp_path):
+    """Stoke's STK-001 is zorevunersen, folded through the alias map. Once the folded
+    row's asset has trials, prune drops the filing row; the code must still read as
+    owned, or build writes STK-001 again as an asset with no trial on every refresh."""
+    path, conn, cid = _company(tmp_path, DYNE)
+    named = conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                         " VALUES (?, 'zeleciment basivarsen', 0)", (cid,)).lastrowid
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('DYNE-302', ?, 'curated: the same molecule')", (named,))
+    conn.execute("INSERT INTO trials (nct_id, asset_id, title, phase)"
+                 " VALUES ('NCT9', ?, 'A study', 'Phase 1')", (named,))
+    conn.commit()
+    conn.close()
+
+    pf.prune(path)
+    pf.build(path)
+    conn = db.get_connection(path)
+    codes = {r["code"] for r in conn.execute("SELECT code FROM filing_programmes")}
+    rows = conn.execute("SELECT COUNT(*) FROM assets WHERE internal_code = 'DYNE-302'"
+                        ).fetchone()[0]
+    conn.close()
+    assert "DYNE-302" not in codes and rows == 0
+    assert "DYNE-401" in codes
+
+
+def test_prune_drops_a_comparator_written_before_the_rule_and_its_asset(tmp_path):
+    """Rows build wrote under the older rules stay until something removes them. A code
+    the latest filing only ever names as a comparator goes, and so does its asset where
+    nothing else points at it; a real programme of the same company stays."""
+    path, conn, cid = _company(tmp_path, VAXCYTE, ticker="PCVX")
+    ids = {}
+    for code in ("PCV21", "VAX-99"):
+        ids[code] = conn.execute(
+            "INSERT INTO assets (owner_company_id, generic_name, internal_code,"
+            "  is_marketed) VALUES (?, ?, ?, 0)", (cid, code, code)).lastrowid
+        conn.execute(
+            "INSERT INTO filing_programmes (company_id, asset_id, code, accession,"
+            "  form_type, filed_date) VALUES (?, ?, ?, '0001-26-1', '10-Q', '2026-07-29')",
+            (cid, ids[code], code))
+    conn.commit()
+    conn.close()
+
+    assert pf.prune(path)["dropped"] == 1
+    conn = db.get_connection(path)
+    codes = {r["code"] for r in conn.execute("SELECT code FROM filing_programmes")}
+    left = {r["id"] for r in conn.execute("SELECT id FROM assets")}
+    conn.close()
+    assert codes == {"VAX-99"}
+    assert ids["PCV21"] not in left and ids["VAX-99"] in left
+
+
+def test_prune_leaves_a_programme_the_artefact_test_would_refuse(tmp_path):
+    """Prune applies the comparator test only. Beam's 10-Q filed 2026-08-04 ends a
+    paragraph on BEAM-302 with "the pivotal cohort." and opens the next "BEAM-304:", and
+    the artefact test reads the code beside the word cohort as a trial. The row was
+    written before that test existed; run backwards it would delete a real programme."""
+    text = ("We are currently using LNPs to advance BEAM-302, BEAM-304 and BEAM-301. "
+            "In July of 2026, we dosed the first patient in the pivotal cohort. BEAM-304: "
+            "In vivo LNP liver-targeting for PKU BEAM-304 is a liver-targeting LNP "
+            "formulation of base editing reagents designed to correct disease-causing "
+            "mutations responsible for phenylketonuria, or PKU. Initially, we plan to "
+            "develop BEAM-304 for the treatment of the two most prevalent variants found "
+            "in PKU patients in the United States.")
+    assert pf._names_an_artefact(" ".join(text.split()), "BEAM-304")
+    path, conn, cid = _company(tmp_path, text, ticker="BEAM")
+    asset = conn.execute(
+        "INSERT INTO assets (owner_company_id, generic_name, internal_code, is_marketed)"
+        "  VALUES (?, 'BEAM-304', 'BEAM-304', 0)", (cid,)).lastrowid
+    conn.execute(
+        "INSERT INTO filing_programmes (company_id, asset_id, code, accession, form_type,"
+        "  filed_date) VALUES (?, ?, 'BEAM-304', '0001-26-1', '10-Q', '2026-07-29')",
+        (cid, asset))
+    conn.commit()
+    conn.close()
+
+    assert pf.prune(path)["dropped"] == 0
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM assets WHERE id = ?", (asset,)).fetchone()[0]
+    conn.close()
 
 
 def test_no_filing_text_is_no_programmes(tmp_path):

@@ -1,0 +1,13 @@
+# Codes RxNav does not return for an asset, or returns wrongly, read from a named source.
+#
+# fetchers/codes_rxnav.py maps each marketed asset to its RxCUIs and NDC product codes by
+# its FDA application number, and by its brand name only where the asset has no number
+# RxNav knows. This file corrects that the way trial_asset_map corrects trial matching:
+# 'add' writes a curated row the fetch never replaces, 'remove' deletes a code the fetch
+# found. Applied last, on every run.
+#
+# asset_brand and ticker name the asset as the book does. code_type is rxcui or ndc9
+# (product code 'LLLLL-PPPP'). tty is the RxNorm term type where known: SBD and BPCK are
+# what a Part D formulary lists a brand by. source says where the code was read; a row
+# with no source is not applied.
+asset_brand,ticker,code_type,code,tty,action,source

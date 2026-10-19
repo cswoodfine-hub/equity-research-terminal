@@ -34,7 +34,7 @@ def test_every_seeded_basis_is_one_of_the_three_or_blank():
     pinned."""
     header, rows = _seed_rows()
     assert "fx_basis" in header
-    assert len(rows) == 12
+    assert len(rows) == 13          # twelve releases, then Bayer's half-year report
     for row in rows:
         basis = (row["fx_basis"] or "").strip()
         assert basis == "" or basis in consensus.FX_BASES, row["ticker"]
@@ -63,6 +63,8 @@ def test_each_basis_is_the_one_its_own_sentence_states():
     assert "mid-july 2026 exchange rates" in by_ticker["MRK"]["note"].lower()
     assert by_ticker["BIIB"]["fx_basis"] == "reported_with_stated_rate_date"
     assert "as of july 24, 2026" in by_ticker["BIIB"]["note"].lower()
+    assert by_ticker["BAYN"]["fx_basis"] == "reported_with_stated_rate_date"
+    assert "at closing rates on june 30, 2026" in by_ticker["BAYN"]["note"].lower()
 
 
 def test_the_blank_rows_are_blank_because_the_release_says_nothing():

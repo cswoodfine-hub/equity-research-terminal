@@ -119,6 +119,19 @@ def _font_faces() -> str:
 
 _FONT_FACE_CSS = _font_faces()
 _TOKENS_CSS = (_ASSETS / "tokens.css").read_text()
+# The shared primitives of the research tabs (.u- classes and the derived colour roles).
+# Injected after the tokens it reads; the Comps valuation component receives the same
+# text as its shared_css arg, so both surfaces draw from one file.
+_RESEARCH_CSS = (_ASSETS / "research.css").read_text()
+# The redesigned Universe tab's own rules (.uv-), read the same way and injected after the
+# research primitives it builds on; its click component receives the same text.
+_UNIVERSE_CSS = (_ASSETS / "universe.css").read_text()
+# The redesigned Catalysts tab's own rules (.cx-), read and injected the same way; its click
+# component receives the same text.
+_CATALYSTS_CSS = (_ASSETS / "catalysts.css").read_text()
+# The drug card of Comps > Indications (.dc-) and the scorecard's click affordances, read
+# and injected the same way.
+_DRUGCARD_CSS = (_ASSETS / "drugcard.css").read_text()
 
 
 def css() -> str:
@@ -131,6 +144,10 @@ def css() -> str:
 <style>
 {_FONT_FACE_CSS}
 {tokens_root}
+{_RESEARCH_CSS}
+{_UNIVERSE_CSS}
+{_CATALYSTS_CSS}
+{_DRUGCARD_CSS}
 
 /* Legacy variable names, aliased onto the tokens so existing rules keep reading. */
 :root {{
@@ -154,13 +171,29 @@ html, body, [class*="css"], .stApp {{
   font-feature-settings: "tnum" 1, "lnum" 1;
 }}
 
-header[data-testid="stHeader"] {{ background: transparent !important; }}
-[data-testid="stToolbar"] {{ right: 0.6rem; }}
+/* Streamlit's header takes no height: its two controls (the sidebar's >> and the menu)
+   float in the top corners, the Deploy button goes, and the top bar starts at the top of
+   the page with room left at each end for those controls. */
+header[data-testid="stHeader"] {{
+  background: transparent !important; height: 0 !important; min-height: 0 !important;
+  overflow: visible; pointer-events: none;
+}}
+header[data-testid="stHeader"] * {{ pointer-events: auto; }}
+[data-testid="stAppDeployButton"] {{ display: none !important; }}
+/* Both controls sit level with the top bar, in the room its padding leaves them. */
+[data-testid="stToolbar"] {{ position: fixed !important; top: 12px !important; right: 6px !important;
+  bottom: auto !important; left: auto !important; height: auto !important; width: auto !important; }}
+[data-testid="stExpandSidebarButton"] {{ position: fixed !important; top: 20px !important;
+  left: 6px !important; z-index: 130; }}
 
 /* Density: an instrument, not a landing page. 8px base scale. */
 [data-testid="stMainBlockContainer"], .block-container {{
-  padding: 1.75rem 16px 0.6rem !important; max-width: 100% !important;
+  padding: 0 16px 0.6rem !important; max-width: 100% !important;
 }}
+/* The stylesheet's own block at the top of the page draws nothing but still took a gap
+   above the top bar; a <style> applies whatever its container's display. */
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"]:first-child:has(style) {{ display: none; }}
 [data-testid="stVerticalBlock"] {{ gap: 8px; }}
 [data-testid="stHorizontalBlock"] {{ gap: 16px; }}
 
@@ -176,12 +209,16 @@ h3 {{ font-size: 0.9rem; }}
 /* Sticky so the ticker, refresh state and search survive any scroll. Sits under
    Streamlit's transparent 48px header. */
 [data-testid="stHorizontalBlock"]:has(.topbar-anchor) {{
-  position: sticky; top: 2.8rem; z-index: 120;
+  position: sticky; top: 0; z-index: 120;
   background: var(--ground);
   border-bottom: 1px solid var(--rule-strong);
-  padding: 4px 0 8px;
+  padding: 6px 40px 6px 34px;
   align-items: center !important;
 }}
+/* The selector's column holds the bar's anchor and its wrapper, both empty: no gap for
+   them, so the selector sits at the top of the bar. */
+[data-testid="stHorizontalBlock"]:has(.topbar-anchor) > [data-testid="stColumn"]:first-child
+  [data-testid="stVerticalBlock"] {{ gap: 0; }}
 .topbar-name {{ display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }}
 .topbar-name .nm {{ font-size: 0.95rem; font-weight: 600; }}
 .topbar-name .meta {{ font-size: 11px; color: var(--muted); }}
@@ -761,7 +798,9 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* A qualifier the number cannot be read without, and nothing else. */
 .tiles .n {{ display: block; margin-top: 4px; font-size: 10.5px; color: var(--muted); }}
 
-.pos {{ display: flex; gap: 2rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
+/* Eight cells since the twelve-month value and rating joined the position: a column gap
+   of 1.25rem keeps them on one row at full width, where 2rem wrapped the last. */
+.pos {{ display: flex; gap: 0.6rem 1.25rem; flex-wrap: wrap; padding: 0.1rem 0 0.5rem; }}
 .pos .k {{ font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase;
           color: var(--muted); display: block; }}
 .pos .v {{ font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em;
@@ -808,6 +847,266 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .pol-t a {{ color: var(--text); text-decoration: none; }}
 .pol-t a:hover {{ text-decoration: underline; }}
 
+
+/* The indication landscape: one row per candidate or per arm, many columns, read
+   across. Mono for the figures so a column of rates lines up. */
+.land-wrap {{ overflow-x: auto; }}
+.land {{ width: 100%; min-width: 880px; border-collapse: collapse; font-size: 11.5px; margin: 0.2rem 0 0.6rem; }}
+.land th {{ text-align: left; font-weight: 500; font-size: 9.5px; letter-spacing: 0.06em;
+           text-transform: uppercase; color: var(--muted); padding: 3px 8px 5px 0;
+           border-bottom: 1px solid var(--rule-strong); white-space: nowrap; }}
+.land td {{ padding: 4px 8px 4px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }}
+.land td.n {{ font-family: var(--font-mono); text-align: right; white-space: nowrap; }}
+.land td.m {{ color: var(--muted); }}
+.land td.w {{ color: var(--flag); font-size: 10.5px; }}
+.land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
+.land a {{ color: var(--text); text-decoration: none; }}
+/* The Medicare growth split (docs/design/medicare-demand-split.md): the sentence first,
+   each figure with the tracked median under it, flags as numbered notes. */
+.mc-sentence {{ font-family: var(--font-prose); font-size: 14px; color: var(--text);
+               margin: 0.35rem 0 0.4rem; line-height: 1.45; }}
+.mc-sub {{ display: block; font-size: 9.5px; color: var(--muted); white-space: nowrap; }}
+.mc-flag {{ border-left: 2px solid var(--flag); padding: 0.2rem 0 0.2rem 0.6rem;
+           font-size: 11.5px; color: var(--text); margin: 0.2rem 0 0.4rem; }}
+.mc-table tr.nlfl td:first-child {{ color: var(--flag); }}
+.mc-table tr.mc-model td {{ color: var(--muted); font-size: 11px; }}
+.mc-table sup {{ color: var(--flag); font-size: 8.5px; margin-left: 1px; }}
+.mc-minor td {{ color: var(--muted); }}
+.mc-dis {{ font-size: 9.5px; color: var(--flag); margin-left: 4px; }}
+.mc-notes {{ font-size: 11px; color: var(--muted); padding-left: 1.2rem; margin: 0.3rem 0; }}
+.mc-more summary {{ cursor: pointer; font-size: 11px; color: var(--muted); }}
+/* The fact profile's payer row: one figure, one small picture, the rest folded. */
+.pa-scope {{ margin: -0.1rem 0 0.25rem; }}
+.pa-lead {{ font-size: 13px; color: var(--text); margin: 0.2rem 0 0.1rem; }}
+.pa-lead b {{ font-family: var(--font-mono); font-weight: 600; }}
+.pa-sub {{ font-size: 11px; color: var(--muted); margin-bottom: 0.3rem; }}
+.pa-text {{ font-size: 11.5px; color: var(--text); margin-top: 0.3rem; max-width: 60ch; }}
+.pa-co {{ color: var(--flag); }}
+.pa-more {{ margin: 0.3rem 0 0.4rem; max-width: 96ch; }}
+.pa-more > summary {{ cursor: pointer; font-size: 11px; color: var(--muted); }}
+/* The clinical scorecard: a score out of 100 as its figure and a bar, the open company's
+   rows marked. */
+.land.sc-table {{ min-width: 0; }}
+.land.sc-table td {{ vertical-align: middle; }}
+.land .sc {{ display: inline-block; width: 44px; height: 4px; margin-right: 6px;
+  background: var(--rule); vertical-align: middle; }}
+.land .sc i {{ display: block; height: 100%; background: var(--muted); }}
+.land .sc.sc-f i {{ background: var(--up); }}
+.land tr.sc-mine td:first-child {{ box-shadow: inset 2px 0 0 var(--up); }}
+.land tr.sc-mine td {{ background: var(--panel); }}
+.sc-why {{ font-size: 11.5px; line-height: 1.5; color: var(--text); margin: 0.35rem 0;
+  padding-left: 8px; border-left: 2px solid var(--rule-strong); max-width: 110ch; }}
+.sc-why .m {{ color: var(--muted); }}
+/* The notes under a drug's lines, on demand: the same words, a step quieter. */
+.sc-why .sc-notes {{ color: var(--muted); margin-top: 0.2rem; }}
+/* The rank range: narrow, muted, never wrapped. The dagger is a caveat, so it is amber,
+   and it sits in a slot every cell of its column has, so the figures still line up. */
+.land.sc-table .sc-rng {{ width: 1%; white-space: nowrap; color: var(--muted); }}
+.land.sc-table th.sc-rng {{ cursor: help; }}
+/* The scorecard table beside its chart: rank and range in one cell, how each drug was
+   given in muted narrow columns after the scores, nothing wrapping. */
+.land.sc-table td.sc-rk {{ white-space: nowrap; }}
+.land.sc-table td:nth-child(2) {{ white-space: nowrap; }}
+.land.sc-table td.sc-rk .sc-rng {{ font-size: 10px; }}
+.land.sc-table td.sc-txt, .land.sc-table th.sc-reg {{ white-space: nowrap; }}
+.land.sc-table td.sc-txt {{ font-size: 11px; color: var(--muted); }}
+.land.sc-table th[title] {{ cursor: help; }}
+.sc-dg {{ display: inline-block; width: 0.8em; text-align: left; color: var(--flag);
+  padding-left: 1px; }}
+.how-read.sc-foot {{ margin-top: -0.2rem; }}
+/* How it is scored: a labelled line a part, then the terms in plain words. */
+.how-read.sc-how {{ margin: 0.5rem 0 1rem; }}
+.how-read.sc-how > div + div {{ margin-top: 0.3rem; }}
+.how-read.sc-how .k {{ color: var(--text); }}
+.how-read.sc-how .sc-terms {{ margin-top: 0.5rem; padding-top: 0.4rem;
+  border-top: 1px solid var(--rule); }}
+.how-read.sc-how .sc-terms > div + div {{ margin-top: 0.15rem; }}
+/* A narrow screen stacks the chart over the table: side by side the chart's text shrinks
+   past reading and the table is cut off. Scoped to the scorecard's own keyed container,
+   which holds no other columns. */
+@media (max-width: 1099.98px) {{
+  .st-key-sc_map [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  .st-key-sc_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
+    width: 100% !important; min-width: 100% !important; }}
+}}
+/* An indication's overview on one screen. --sc-h is the height the screen leaves the chart
+   and the table once the head line, the figures, the scorecard's head and the card row
+   are drawn; the chart keeps its own shape at that height and the table fills the rest of
+   the width, scrolling inside it, down and across, its head held at the top. */
+:root {{ --sc-h: clamp(250px, calc(100vh - 432px), 620px); }}
+@media (min-width: 1100px) {{
+  .st-key-sc_map [data-testid="stColumn"]:first-child {{
+    flex: 0 0 calc(var(--sc-h) * 1.5) !important; width: auto !important; min-width: 0; }}
+  .st-key-sc_map [data-testid="stColumn"]:last-child {{ flex: 1 1 0 !important;
+    width: auto !important; min-width: 0; }}
+  .st-key-sc_map .chart-mount {{ margin: 0 !important; height: var(--sc-h); line-height: 0;
+    overflow: hidden; }}
+  .st-key-sc_map .chart-mount svg {{ width: 100% !important; height: var(--sc-h) !important; }}
+  .st-key-sc_map .land-wrap {{ height: var(--sc-h); overflow: auto; }}
+}}
+.st-key-sc_map .land.sc-table {{ table-layout: fixed; width: 1030px; min-width: 1030px; margin: 0; }}
+.st-key-sc_map .sc-table thead th {{ position: sticky; top: 0; z-index: 1;
+  background: var(--ground); }}
+.st-key-sc_map .sc-table th, .st-key-sc_map .sc-table td {{ box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.st-key-sc_map .sc-table tr > :nth-child(1) {{ width: 60px; }}
+.st-key-sc_map .sc-table tr > :nth-child(2) {{ width: 190px; }}
+.st-key-sc_map .sc-table tr > :nth-child(3) {{ width: 78px; }}
+.st-key-sc_map .sc-table tr > :nth-child(4) {{ width: 104px; }}
+.st-key-sc_map .sc-table tr > :nth-child(5) {{ width: 64px; }}
+.st-key-sc_map .sc-table tr > :nth-child(6) {{ width: 60px; }}
+.st-key-sc_map .sc-table tr > :nth-child(7) {{ width: 68px; }}
+.st-key-sc_map .sc-table tr > :nth-child(8) {{ width: 56px; }}
+.st-key-sc_map .sc-table tr > :nth-child(9) {{ width: 120px; }}
+.st-key-sc_map .sc-table tr > :nth-child(10) {{ width: 58px; }}
+.st-key-sc_map .sc-table tr > :nth-child(11) {{ width: 92px; }}
+.st-key-sc_map .sc-table tr > :nth-child(12) {{ width: 80px; }}
+/* The bottom line and the readout cards: one row of equal boxes under the chart and the
+   table, each cut to a few lines with the whole of it on hover. */
+.sc-cards {{ display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px;
+  margin-top: 12px; position: relative; z-index: 1; }}
+/* A card holds its title on one line, a headline of at most two lines (the bottom line's
+   five) and a detail of at most three, so its text always ends inside the box. */
+.sc-cards .vc {{ margin: 0; padding: 7px 10px 8px; height: 124px; box-sizing: border-box;
+  overflow: hidden; cursor: help; display: flex; flex-direction: column; }}
+.sc-cards .vc-title {{ margin-bottom: 2px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }}
+.sc-cards .vc-head {{ font-size: 12.5px; line-height: 1.3; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }}
+.sc-cards .vc-lead .vc-head {{ font-size: 13px; -webkit-line-clamp: 5; }}
+.sc-cards .vc-lead .vc-title {{ color: var(--text); }}
+.sc-cards .vc-detail {{ font-size: 11px; line-height: 1.35; margin-top: 3px;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+@media (max-width: 1099.98px) {{
+  .sc-cards {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  .sc-cards .vc {{ height: auto; }}
+}}
+/* The overview's head: the indication beside the view switch, the figures tight under it,
+   the scorecard's head with its two pop-outs. */
+.st-key-land_head [data-testid="stColumn"]:last-child [data-testid="stVerticalBlock"] {{
+  align-items: flex-end; }}
+.pos.land-pos {{ gap: 0.3rem 1.7rem; padding: 0; flex-wrap: wrap; justify-content: space-between; }}
+.st-key-land_head {{ margin-top: -12px; margin-bottom: -10px; }}
+.pos.land-pos .v {{ font-size: 1.02rem; line-height: 1.25; }}
+.pos.land-pos .sub {{ margin-top: 0; white-space: nowrap; }}
+.st-key-sc_head .sec {{ margin: 0; }}
+.st-key-sc_head [data-testid="stPopover"] button,
+.st-key-land_head [data-testid="stPopover"] button {{ min-height: 30px; padding: 1px 8px;
+  font-size: 11.5px; }}
+.sc-cards .vc-head {{ font-size: 13px; line-height: 1.3; }}
+.sc-cards .vc-detail {{ font-size: 11.5px; line-height: 1.4; margin-top: 4px; cursor: help;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+/* A disease area's overview (frontend/areas_view.py): the indication overview's layout and
+   classes under its own keys, so the two read as one view. The table is the area's own:
+   the four pillar scores in view, the raw figures behind them a scroll across. */
+.st-key-area_head [data-testid="stColumn"]:last-child [data-testid="stVerticalBlock"] {{
+  align-items: flex-end; }}
+.st-key-area_head {{ margin-top: -12px; margin-bottom: -10px; }}
+.st-key-area_head [data-testid="stPopover"] button {{ min-height: 30px; padding: 1px 8px;
+  font-size: 11.5px; }}
+.ar-basis {{ font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-align: right; }}
+.st-key-area_sc_head .sec {{ margin: 0; }}
+@media (max-width: 1099.98px) {{
+  .st-key-area_map [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  .st-key-area_map [data-testid="stColumn"] {{ flex: 1 1 100% !important;
+    width: 100% !important; min-width: 100% !important; }}
+}}
+/* --ar-h is --sc-h for this view: the same head, figures, scorecard head and card row,
+   measured to end inside the screen at 1366x768, 1440x780, 1440x840 and 1440x900 with
+   the company header at its taller height (every ticker but the default one). */
+:root {{ --ar-h: clamp(250px, calc(100vh - 402px), 660px); }}
+@media (min-width: 1100px) {{
+  .st-key-area_map [data-testid="stColumn"]:first-child {{
+    flex: 0 0 calc(var(--ar-h) * 1.5) !important; width: auto !important; min-width: 0; }}
+  .st-key-area_map [data-testid="stColumn"]:last-child {{ flex: 1 1 0 !important;
+    width: auto !important; min-width: 0; }}
+  .st-key-area_map .chart-mount {{ margin: 0 !important; height: var(--ar-h); line-height: 0;
+    overflow: hidden; }}
+  .st-key-area_map .chart-mount svg {{ width: 100% !important; height: var(--ar-h) !important; }}
+  .st-key-area_map .land-wrap {{ height: var(--ar-h); overflow: auto; }}
+}}
+.st-key-area_map .land.ar-table {{ table-layout: fixed; width: 992px; min-width: 992px; margin: 0; }}
+.st-key-area_map .ar-table thead th {{ position: sticky; top: 0; z-index: 1;
+  background: var(--ground); }}
+.st-key-area_map .ar-table th, .st-key-area_map .ar-table td {{ box-sizing: border-box;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+.st-key-area_map .ar-table tr > :nth-child(1) {{ width: 30px; }}
+.st-key-area_map .ar-table tr > :nth-child(2) {{ width: 150px; }}
+.st-key-area_map .ar-table tr > :nth-child(3) {{ width: 112px; }}
+.st-key-area_map .ar-table tr > :nth-child(4) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(5) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(6) {{ width: 80px; }}
+.st-key-area_map .ar-table tr > :nth-child(7) {{ width: 74px; }}
+.st-key-area_map .ar-table tr > :nth-child(8) {{ width: 84px; }}
+.st-key-area_map .ar-table tr > :nth-child(9) {{ width: 56px; }}
+.st-key-area_map .ar-table tr > :nth-child(10) {{ width: 76px; }}
+.st-key-area_map .ar-table tr > :nth-child(11) {{ width: 84px; }}
+.st-key-area_map .ar-table tr > :nth-child(12) {{ width: 58px; }}
+.st-key-area_map .ar-table tr > :nth-child(13) {{ width: 60px; }}
+.land.ar-table .sc {{ width: 30px; margin-right: 5px; }}
+.land.ar-table td.ar-nd {{ font-family: var(--font-ui); font-size: 10px; cursor: help; }}
+.land.ar-table .ar-pc {{ color: var(--muted); font-size: 10px; margin-left: 5px; cursor: help; }}
+/* A pillar's weight under its name in the head, and the rule above the companies with
+   too little on file to rank. */
+.land.ar-table th .ar-w {{ display: block; font-size: 9px; letter-spacing: 0.04em;
+  color: var(--muted); opacity: 0.8; margin-top: 1px; text-transform: none; }}
+.land.ar-table tr.ar-thin td {{ font-family: var(--font-ui); font-size: 9.5px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  padding-top: 6px; background: var(--ground); }}
+.land a:hover {{ text-decoration: underline; }}
+.land .tag {{ display: inline-block; font-size: 9.5px; letter-spacing: 0.05em;
+             text-transform: uppercase; color: var(--muted);
+             border: 1px solid var(--rule-strong); padding: 0 4px; margin: 0 4px 2px 0;
+             white-space: nowrap; }}
+.land .tag.warn {{ color: var(--flag); border-color: var(--flag); cursor: help; }}
+/* A stage reads as a chip in its phase colour, so the column scans by colour and the
+   word is still there for anyone who does not read the colour. */
+.land .stage {{ display: inline-block; padding: 1px 6px; font-size: 10.5px;
+               white-space: nowrap; color: var(--ground); font-weight: 600; }}
+.land .stage.s-mkt {{ background: var(--phase-approved); }}
+.land .stage.s-mkt-here {{ background: transparent; color: var(--text);
+                          border: 1px solid var(--phase-approved); font-weight: 500; }}
+.land .stage.s-p3 {{ background: var(--phase-3); }}
+.land .stage.s-p2 {{ background: var(--phase-2); }}
+.land .stage.s-p1 {{ background: var(--phase-1); color: var(--text); }}
+.land td .sub {{ display: block; color: var(--muted); font-size: 10.5px; margin-top: 1px; }}
+.land tbody tr:hover td {{ background: var(--panel); }}
+
+/* The landscape's verdict: a lead card with the bottom line, then one card a finding.
+   Each says the finding, the numbers behind it and what it means, in that order, so a
+   reader can stop at the first line. */
+.vc {{ border: 1px solid var(--rule-strong); background: var(--panel); padding: 12px 14px;
+      margin: 0 0 10px; }}
+.vc-lead {{ border-left: 3px solid var(--up); padding: 14px 16px; margin-bottom: 12px; }}
+.vc-lead .vc-head {{ font-family: var(--font-prose); font-size: 18px; font-weight: 500;
+                    line-height: 1.4; }}
+.vc-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+           gap: 10px; margin-bottom: 8px; }}
+.vc-grid .vc {{ margin: 0; }}
+/* An indication's verdict cards under the scorecard: one row, equal widths and heights,
+   two to a row on a narrow screen. */
+.vc-grid.vc-row {{ grid-template-columns: none; grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr); align-items: stretch; }}
+@media (max-width: 1099.98px) {{
+  .vc-grid.vc-row {{ grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
+@media (max-width: 700px) {{
+  .vc-grid.vc-row {{ grid-template-columns: minmax(0, 1fr); }}
+}}
+.vc-title {{ font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 4px; }}
+.vc-head {{ font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35; }}
+.vc-detail {{ font-size: 12.5px; line-height: 1.5; color: var(--text); margin-top: 6px; }}
+.vc-mean {{ font-family: var(--font-prose); font-size: 13px; line-height: 1.45;
+           color: var(--text); opacity: 0.8; margin-top: 8px; padding-top: 7px;
+           border-top: 1px solid var(--rule); }}
+.vc-mean span {{ display: block; font-family: var(--font-ui); font-size: 9.5px;
+                letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+                margin-bottom: 2px; opacity: 1; }}
+.vc-warnings {{ border-left: 3px solid var(--flag); }}
+.how-read {{ font-size: 12px; line-height: 1.5; color: var(--muted); max-width: 90ch;
+            margin: 0.1rem 0 0.5rem; }}
 
 /* The note is the one piece of prose, so it gets the reading face. Sized to sit in a
    column rather than across the page: at 15.5px over the full width it set a measure of
@@ -982,30 +1281,16 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* The cohort charts below take the height. A scatter of eighteen companies and a matrix
    of eighteen rows are the two that reward size; the pair at the top is a list beside a
    two-line chart, and neither needs as much. */
-[data-baseweb="tab-panel"]:has(.comps-anchor) svg {{
-  max-height: clamp(260px, calc(60vh - 100px), 420px); width: 100%; max-width: 100%;
-}}
-/* The trend chart is two lines over a decade and reads fine short, so it keeps the top
-   row down to the height of the measure list beside it. */
-[data-baseweb="tab-panel"]:has(.comps-anchor) .comps-pair svg {{
-  max-height: clamp(150px, calc(28vh - 40px), 210px);
-}}
+/* No height cap any more. Each chart now has a view of its own, and a cap on height
+   with the width at 100% shrank a wide chart's width to keep its aspect, and its text
+   with it: the trend chart's axis labels came out at four pixels, and a forty-arm
+   efficacy chart would have been squeezed to a quarter of its size. */
+[data-baseweb="tab-panel"]:has(.comps-anchor) svg {{ max-width: 100%; }}
 
-/* Head to head: one company each side, the measure between them, so the eye runs down
-   the middle and compares across it. The winning side is marked in the up colour and
-   carries the mono weight; nothing is coloured red, because the other company losing a
-   measure is not a warning about it. */
-.h2h {{ margin: 0.2rem 0 0.3rem; }}
-.h2h-r {{ display: grid; grid-template-columns: 1fr 10.5rem 1fr; align-items: baseline;
-         gap: 0.5rem; padding: 0.1rem 0; border-bottom: 1px solid var(--rule); }}
-.h2h-r:last-child {{ border-bottom: none; }}
-.h2h-head {{ border-bottom: 1px solid var(--rule-strong); padding-bottom: 0.35rem; }}
-.h2h-head .h2h-v {{ font-size: 1rem; font-weight: 700; color: var(--text); }}
-.h2h-k {{ text-align: center; font-size: 10px; letter-spacing: 0.06em;
-         text-transform: uppercase; color: var(--muted); }}
-.h2h-v {{ font-family: var(--font-mono); font-size: 13px; color: var(--muted); }}
-.h2h-r > .h2h-v:first-child {{ text-align: right; }}
-.h2h-v.win {{ color: var(--up); font-weight: 600; }}
+/* The question a view answers, above it. Prose face, one step up from a note, so it
+   reads as the view's opening line rather than a caption. */
+.view-intro {{ font-family: var(--font-prose); font-size: 14px; line-height: 1.45;
+              color: var(--text); opacity: 0.86; max-width: 88ch; margin: 0.2rem 0 0.7rem; }}
 
 /* Catalyst calendar. */
 .cal {{
@@ -1067,6 +1352,8 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 
 /* Tabs as a plain text strip. */
 .stTabs [data-baseweb="tab-list"] {{ gap: 1.1rem; border-bottom: 1px solid var(--rule-strong); }}
+/* A tab's content starts close under its strip, so the page's content gets the height. */
+.stTabs [data-baseweb="tab-panel"] {{ padding-top: 6px; }}
 .stTabs [data-baseweb="tab"] {{
   height: auto; padding: 0.3rem 0; background: transparent;
   font-size: 12px; font-weight: 500; letter-spacing: 0.01em; color: var(--muted);
@@ -1098,17 +1385,124 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .fc-id span.hot {{ color: var(--text); }}
 .fc-id span.warn {{ color: var(--flag); border-color: var(--flag); }}
 /* Revenue by year, split: a small table in the tab's own mono, not a dataframe. */
-.rs {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 0.3rem; }}
-.rs th {{ font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em;
-         text-transform: uppercase; color: var(--muted); text-align: right;
-         padding: 2px 6px 4px; border-bottom: 1px solid var(--rule-strong);
-         font-weight: 600; }}
-.rs td {{ padding: 3px 6px; border-bottom: 1px solid var(--rule); }}
-.rs .rs-k {{ color: var(--muted); }}
+.rs {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 0.4rem;
+  font-variant-numeric: tabular-nums; }}
+.rs thead th {{ font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em;
+  font-weight: 600; color: var(--muted); text-align: right; padding: 6px 10px;
+  background: var(--panel); border-bottom: 1px solid var(--rule-strong); }}
+.rs thead th:first-child {{ text-align: left; }}
+.rs td {{ padding: 6px 10px; border-bottom: 1px solid var(--rule); }}
+.rs tbody tr:hover td {{ background: var(--panel); }}
+.rs .rs-k {{ color: var(--muted); white-space: nowrap; }}
 .rs .rs-v {{ font-family: var(--font-mono); text-align: right; color: var(--text); }}
 .rs .rs-v.none {{ color: var(--rule-strong); }}
-.rs .rs-total td {{ color: var(--text); font-weight: 600; border-top: 1px solid var(--rule-strong); }}
+.rs .rs-v.up {{ color: var(--up); }}
+.rs .rs-v.down {{ color: var(--down); }}
+.rs .rs-total td {{ color: var(--text); font-weight: 700; border-top: 1px solid var(--rule-strong);
+  background: var(--panel); }}
 .rs .rs-total .rs-k {{ color: var(--text); }}
+.rs .rs-growth td {{ border-bottom: 1px solid var(--rule-strong); }}
+.rs .rs-ref td {{ color: var(--muted); font-size: 11px; }}
+.rs .rs-ref .rs-v {{ color: var(--muted); }}
+.call-lead.fc-summary {{ font-size: 14px; margin-bottom: 0; max-width: none; }}
+/* The Forecast tab opens on its figures. The marker that hides the rail takes no line
+   of its own, the tab's body drops the air the scenario pills would otherwise give it,
+   and the first section sits straight under the tabs. */
+[data-baseweb="tab-panel"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stLayoutWrapper"]:has(.fc-anchor) {{ margin-top: 0; margin-bottom: 0; }}
+[data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(.fc-anchor) {{
+  display: none;
+}}
+[data-baseweb="tab-panel"] [data-testid="stElementContainer"]:has(.fc-anchor)
+  + [data-testid="stElementContainer"] {{ margin-top: 0; }}
+/* The value and the forecast end on one line. The columns already share a height, so
+   the forecast half fills its own and the revenue bars take up the slack. */
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) {{ display: flex; flex-direction: column; }}
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stVerticalBlock"] {{
+  flex: 1 1 auto;
+}}
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary)
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.rbar),
+[data-testid="stColumn"]:has(> [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary)
+  [data-testid="stElementContainer"]:has(.rbar) div:has(.rbar) {{
+  flex: 1 1 auto; display: flex; flex-direction: column;
+}}
+/* The value and the forecast are two halves of one row: a gutter twice the page margin,
+   so their section rules read as two lines and not one with a break in it, and the row
+   clears the build under it by the air its own sections take. The direct child chain
+   keeps this to the row: the page-level split holds its tabs as stTabs, not an element
+   container. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) {{ gap: 32px; margin-bottom: 0.5rem; }}
+/* Whichever half is shorter gives way above its second section, so the two end on one
+   line however long the summary runs: the forecast half grows its bars first, the value
+   half takes the air above the lens chart. Each section in the row gets back the space
+   the tab's no-rail rule had cut to half a rem. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"] {{
+  display: flex; flex-direction: column; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] {{ flex: 1 1 auto; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.sec) {{
+  margin-top: 1rem; }}
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.sec)
+  ~ [data-testid="stElementContainer"]:has(.sec) {{ margin-top: auto; padding-top: 1rem; }}
+/* A chart's fold sits close under it, not on it: the markdown pull had left the
+   waterfall's axis labels 3px off the box. */
+[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"] .fc-summary) > [data-testid="stColumn"]
+  [data-testid="stMarkdownContainer"]:has(> .chart-mount) {{ margin-bottom: -0.5rem; }}
+/* Revenue by year as stacked columns. Heights are flex shares of the tallest stack, so
+   the plot can be any height and the bars stay in proportion. */
+.rbar {{ display: flex; flex-direction: column; flex: 1 1 auto; margin-top: 0.4rem; }}
+/* Streamlit pulls a markdown block up by a rem to eat a paragraph's margin. The chart, the
+   summary and the note under the bars have none, so the pull would sink each into
+   whatever follows. */
+[data-testid="stMarkdownContainer"]:has(> .rbar),
+[data-testid="stMarkdownContainer"]:has(> .fc-summary),
+[data-testid="stMarkdownContainer"]:has(> .rb-foot) {{ margin-bottom: 0; }}
+.rb-legend {{ display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 10.5px;
+  color: var(--muted); margin-bottom: 0.3rem; }}
+.rb-legend span {{ display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }}
+.rb-sw {{ display: inline-block; width: 10px; height: 10px; background: var(--c); }}
+.rb-sw.hatch, .rb-seg.hatch {{
+  background: repeating-linear-gradient(135deg, var(--c) 0 1.5px, transparent 1.5px 5px),
+              var(--c2, transparent);
+}}
+.rb-sw.dash {{ height: 0; background: none; border-top: 1px dashed var(--text); }}
+.rb-plot {{ position: relative; flex: 1 1 auto; min-height: 200px; display: flex;
+  padding-top: 20px; }}
+.rb-col {{ flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; }}
+.rb-stack {{ flex: 1 1 auto; display: flex; flex-direction: column; width: 58%;
+  max-width: 64px; margin: 0 auto; }}
+/* A segment that is not zero is never drawn thinner than 2px, as the football field does
+   for a range: thinner, it paints as nothing and states a zero. The shares in the markup
+   stay exact, the overstatement is at most 2px, and the hover title and The figures carry
+   the value. */
+.rb-seg {{ position: relative; min-height: 2px; background: var(--c); }}
+.rb-v {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+  padding: 0 3px 2px; font-family: var(--font-mono); font-size: 11px; color: var(--text);
+  background: var(--ground); white-space: nowrap; font-variant-numeric: tabular-nums;
+  z-index: 2; }}
+.rb-x {{ height: 40px; display: flex; flex-direction: column; align-items: center;
+  padding-top: 5px; font-family: var(--font-mono); font-size: 10px; line-height: 15px;
+  color: var(--muted);
+  letter-spacing: 0.04em; border-top: 1px solid var(--rule-strong); }}
+.rb-g {{ font-size: 10.5px; line-height: 15px; margin-top: 2px; }}
+.rb-g.up {{ color: var(--up); }}
+.rb-g.down {{ color: var(--down); }}
+.rb-ref {{ position: absolute; left: 0; right: 0; top: 20px; bottom: 40px; display: flex;
+  flex-direction: column; pointer-events: none; z-index: 1; }}
+.rb-line {{ height: 0; border-top: 1px dashed var(--text); opacity: 0.7; }}
 /* The reset sits on the sliders' baseline rather than on their labels'. */
 .fc-reset {{ height: 1.55rem; }}
 
@@ -1150,18 +1544,6 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 
 /* Radios and pills follow the same quiet square language. */
 .stRadio [role="radiogroup"] label, .stPills [data-baseweb] {{ border-radius: var(--radius); }}
-
-/* The comps selectors are a filter, not the subject, so they read smaller and quieter
-   than the pills that carry a pipeline's phases. Keyed to those two controls so the
-   heavier pills elsewhere are untouched. */
-.st-key-comps_metric button, .st-key-comps_pick button {{
-  font-size: 10.5px !important; padding: 1px 8px !important;
-  min-height: 22px !important; border-color: var(--rule) !important;
-}}
-.st-key-comps_metric button p, .st-key-comps_pick button p {{
-  font-size: 10.5px !important; line-height: 1.3 !important;
-}}
-.st-key-comps_metric, .st-key-comps_pick {{ margin-bottom: 2px; }}
 
 /* The area and phase pills sit under the therapeutic area chart, which draws to the
    edge of its container. Without a gap the first row of chips met the last bar. */

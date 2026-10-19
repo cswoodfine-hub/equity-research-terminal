@@ -157,6 +157,12 @@ def test_a_target_is_not_a_development_code():
     assert _codes("KYV-101 anti-CD19 CAR-T cell therapy") == {"KYV-101"}
 
 
+def test_a_growth_factor_is_not_a_development_code():
+    """Ultragenyx's 10-Q says a competitor could 'target FGF23', the hormone Crysvita
+    binds, and the filing reader wrote FGF23 as an Ultragenyx programme."""
+    assert _codes("approaches that target FGF23 in Latin America") == set()
+
+
 def test_an_isotope_is_not_a_development_code():
     assert _codes("[177Lu]Lu-PSMA-617") == {"PSMA-617"}
 
@@ -497,4 +503,55 @@ def test_two_products_sharing_a_brand_and_not_a_code_are_left_alone(tmp_path):
                  " (2, 1, 'Emend', 'Fosaprepitant', 'NDA22023', 1)")
     conn.commit()
     assert asset_merge.find_brand_duplicates(conn, 1) == []
+    conn.close()
+
+
+# --- a programme answers to its INN -------------------------------------------------
+
+def _names_file(tmp_path, rows):
+    path = tmp_path / "programme_names.csv"
+    path.write_text("# test\nticker,name,inn,source\n"
+                    + "".join(f"{t},{n},{i},a filing\n" for t, n, i in rows))
+    return path
+
+
+def test_a_derived_row_takes_the_inn_and_keeps_its_old_spelling_as_an_alias(tmp_path):
+    """Praxis files relutrigine as "1.0mg/kg/day PRAX-562" and the code pass keeps that
+    spelling. A seed and a decision date join on the name, so neither reached it."""
+    path, conn = _seed(tmp_path)
+    row = _asset(conn, "LLY", generic="1.0mg/kg/day PRAX-562", code="PRAX-562")
+    names = _names_file(tmp_path, [("LLY", "PRAX-562", "relutrigine")])
+
+    assert asset_merge.name_programmes(conn, names)["renamed"] == 1
+    assert conn.execute("SELECT generic_name FROM assets WHERE id = ?",
+                        (row,)).fetchone()[0] == "relutrigine"
+    alias = conn.execute("SELECT asset_id, note FROM asset_aliases"
+                         " WHERE internal_code = '1.0mg/kg/day PRAX-562'").fetchone()
+    assert alias["asset_id"] == row and alias["note"].startswith("curated:")
+    # Idempotent: the row already carries its INN.
+    assert asset_merge.name_programmes(conn, names) == {"renamed": 0, "skipped": []}
+    conn.close()
+
+
+def test_a_marketed_row_a_shared_spelling_and_an_existing_inn_are_each_left_alone(tmp_path):
+    path, conn = _seed(tmp_path)
+    sold = _asset(conn, "LLY", brand="Jaypirca", generic="LOXO-305", marketed=1)
+    first = _asset(conn, "LLY", generic="vormatrogine")
+    second = _asset(conn, "LLY", generic="20 mg vormatrogine", code="vormatrogine")
+    holder = _asset(conn, "MRK", generic="elsunersen")
+    arm = _asset(conn, "MRK", generic="1mg elsunersen")
+    names = _names_file(tmp_path, [("LLY", "LOXO-305", "pirtobrutinib"),
+                                   ("LLY", "vormatrogine", "vormatrigine"),
+                                   ("MRK", "1mg elsunersen", "elsunersen"),
+                                   ("ZZZ", "X-1", "nothing")])
+
+    got = asset_merge.name_programmes(conn, names)
+    assert got["renamed"] == 0
+    assert [s[2] for s in got["skipped"]] == [
+        "a marketed product keeps its own name", "2 rows answer to the name",
+        "another row already carries elsunersen", "no such company"]
+    assert {r[0] for r in conn.execute(
+        "SELECT generic_name FROM assets WHERE id IN (?, ?, ?, ?, ?)",
+        (sold, first, second, holder, arm))} == {
+        "LOXO-305", "vormatrogine", "20 mg vormatrogine", "elsunersen", "1mg elsunersen"}
     conn.close()

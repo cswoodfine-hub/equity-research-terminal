@@ -1,0 +1,167 @@
+[
+ {
+  "Brnd_Name": "Abilify Mycite",
+  "Gnrc_Name": "Aripiprazole",
+  "Tot_Prscrbrs": "11",
+  "Tot_Clms": "53",
+  "Tot_30day_Fills": "53",
+  "Tot_Drug_Cst": "90322.38",
+  "Tot_Benes": "16",
+  "GE65_Tot_Benes": "",
+  "GE65_Bene_Sprsn_Flag": "*"
+ },
+ {
+  "Brnd_Name": "Absorica Ld",
+  "Gnrc_Name": "Isotretinoin, Micronized",
+  "Tot_Prscrbrs": "8",
+  "Tot_Clms": "14",
+  "Tot_30day_Fills": "14",
+  "Tot_Drug_Cst": "22718.74",
+  "Tot_Benes": "",
+  "GE65_Tot_Benes": "",
+  "GE65_Bene_Sprsn_Flag": "*"
+ },
+ {
+  "Brnd_Name": "Acetamin-Caff-Dihydrocodeine",
+  "Gnrc_Name": "Acetaminophen/Caff/Dihydrocod",
+  "Tot_Prscrbrs": "24",
+  "Tot_Clms": "41",
+  "Tot_30day_Fills": "41",
+  "Tot_Drug_Cst": "4691.71",
+  "Tot_Benes": "26",
+  "GE65_Tot_Benes": "",
+  "GE65_Bene_Sprsn_Flag": "#"
+ },
+ {
+  "Brnd_Name": "Crestor",
+  "Gnrc_Name": "Rosuvastatin Calcium",
+  "Tot_Prscrbrs": "13900",
+  "Tot_Clms": "54545",
+  "Tot_30day_Fills": "124163.5",
+  "Tot_Drug_Cst": "31911895.06",
+  "Tot_Benes": "13823",
+  "GE65_Tot_Benes": "13239",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Dupixent Pen",
+  "Gnrc_Name": "Dupilumab",
+  "Tot_Prscrbrs": "26250",
+  "Tot_Clms": "450375",
+  "Tot_30day_Fills": "469364.4",
+  "Tot_Drug_Cst": "1804034269.9",
+  "Tot_Benes": "65516",
+  "GE65_Tot_Benes": "49271",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Dupixent Syringe",
+  "Gnrc_Name": "Dupilumab",
+  "Tot_Prscrbrs": "14883",
+  "Tot_Clms": "170805",
+  "Tot_30day_Fills": "180046.3",
+  "Tot_Drug_Cst": "686817707.52",
+  "Tot_Benes": "22823",
+  "GE65_Tot_Benes": "17304",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Eliquis",
+  "Gnrc_Name": "Apixaban",
+  "Tot_Prscrbrs": "556431",
+  "Tot_Clms": "24054695",
+  "Tot_30day_Fills": "38760676.6",
+  "Tot_Drug_Cst": "20769270635",
+  "Tot_Benes": "4423497",
+  "GE65_Tot_Benes": "4139407",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Lyrica",
+  "Gnrc_Name": "Pregabalin",
+  "Tot_Prscrbrs": "14466",
+  "Tot_Clms": "65693",
+  "Tot_30day_Fills": "89440.3",
+  "Tot_Drug_Cst": "61993027.75",
+  "Tot_Benes": "11801",
+  "GE65_Tot_Benes": "7668",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Lyrica Cr",
+  "Gnrc_Name": "Pregabalin",
+  "Tot_Prscrbrs": "91",
+  "Tot_Clms": "306",
+  "Tot_30day_Fills": "470.8",
+  "Tot_Drug_Cst": "319134.55",
+  "Tot_Benes": "77",
+  "GE65_Tot_Benes": "58",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Pregabalin",
+  "Gnrc_Name": "Pregabalin",
+  "Tot_Prscrbrs": "342253",
+  "Tot_Clms": "7504797",
+  "Tot_30day_Fills": "9792011.3",
+  "Tot_Drug_Cst": "199170356.33",
+  "Tot_Benes": "1492459",
+  "GE65_Tot_Benes": "1123628",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Repatha Pushtronex",
+  "Gnrc_Name": "Evolocumab",
+  "Tot_Prscrbrs": "11105",
+  "Tot_Clms": "67989",
+  "Tot_30day_Fills": "95506.7",
+  "Tot_Drug_Cst": "56499636.04",
+  "Tot_Benes": "19311",
+  "GE65_Tot_Benes": "17348",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Repatha Sureclick",
+  "Gnrc_Name": "Evolocumab",
+  "Tot_Prscrbrs": "91189",
+  "Tot_Clms": "1943410",
+  "Tot_30day_Fills": "3064503.1",
+  "Tot_Drug_Cst": "1709130824",
+  "Tot_Benes": "382343",
+  "GE65_Tot_Benes": "347399",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Repatha Syringe",
+  "Gnrc_Name": "Evolocumab",
+  "Tot_Prscrbrs": "36418",
+  "Tot_Clms": "233704",
+  "Tot_30day_Fills": "360292.6",
+  "Tot_Drug_Cst": "195927155.98",
+  "Tot_Benes": "58128",
+  "GE65_Tot_Benes": "51623",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Rosuvastatin Calcium",
+  "Gnrc_Name": "Rosuvastatin Calcium",
+  "Tot_Prscrbrs": "456818",
+  "Tot_Clms": "30803276",
+  "Tot_30day_Fills": "79818528",
+  "Tot_Drug_Cst": "436447453.02",
+  "Tot_Benes": "8208524",
+  "GE65_Tot_Benes": "7558960",
+  "GE65_Bene_Sprsn_Flag": ""
+ },
+ {
+  "Brnd_Name": "Shingrix",
+  "Gnrc_Name": "Varicella-Zoster Ge/As01b/Pf",
+  "Tot_Prscrbrs": "118452",
+  "Tot_Clms": "3944670",
+  "Tot_30day_Fills": "3976455.1",
+  "Tot_Drug_Cst": "775347086.57",
+  "Tot_Benes": "2932055",
+  "GE65_Tot_Benes": "2688870",
+  "GE65_Bene_Sprsn_Flag": ""
+ }
+]

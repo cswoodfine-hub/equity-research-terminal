@@ -117,3 +117,24 @@ def test_comps_no_data_all_null(tmp_path):
     assert abbv["revenue"] is None
     assert abbv["market_cap"] is None
     assert abbv["ev_sales"] is None
+
+
+def test_price_grid_keeps_the_latest_close_when_it_downsamples(tmp_path):
+    db_file = tmp_path / "grid.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'AZN'").fetchone()[0]
+    days = [f"2026-{m:02d}-{d:02d}" for m in range(1, 10) for d in range(1, 29)][:250]
+    closes = [100.0 + i * 0.1 for i in range(len(days))]
+    closes[-1] = 80.0                     # the latest close is the one that matters
+    conn.executemany("INSERT INTO prices (company_id, as_of, close, source, interval)"
+                     " VALUES (?, ?, ?, 'yahoo_chart', '1d')",
+                     [(cid, d, c) for d, c in zip(days, closes)])
+    conn.commit()
+    conn.close()
+    row = next(r for r in comps.price_grid(db_file, days=3650, max_points=60)
+               if r["ticker"] == "AZN")
+    assert len(row["closes"]) == 60
+    assert row["closes"][0] == closes[0] and row["closes"][-1] == 80.0
+    assert row["change"] == pytest.approx(80.0 / closes[0] - 1.0)

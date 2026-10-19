@@ -1,0 +1,153 @@
+{
+ "ok": true,
+ "ticker": "GSK",
+ "asset_id": 2062,
+ "name": "Investigational varicella vaccine",
+ "scenario": "base",
+ "per_share": 0.06676984145263004,
+ "has_range": false,
+ "spread": {
+  "bear": {
+   "rnpv": 109.1382761146937,
+   "defined": false,
+   "per_share": 0.06676984145263004
+  },
+  "base": {
+   "rnpv": 109.1382761146937,
+   "defined": true,
+   "per_share": 0.06676984145263004
+  },
+  "bull": {
+   "rnpv": 109.1382761146937,
+   "defined": false,
+   "per_share": 0.06676984145263004
+  }
+ },
+ "gate": {
+  "gate": "p3_to_nda",
+  "label": "Phase 3 readout",
+  "date": "2026-09-10",
+  "date_basis": "primary completion on the registry, passed with no readout on file",
+  "due": true,
+  "why": null,
+  "trial": {
+   "nct_id": "NCT06855160",
+   "indication": "Chickenpox",
+   "indications": [
+    "Chickenpox"
+   ],
+   "phase": "Phase 3",
+   "primary_completion": "2026-09-10"
+  },
+  "legs_basis": "derived",
+  "pos_now": 0.5946,
+  "pos_success": 0.929,
+  "pos_failure": 0.0,
+  "p_gate": 0.6400430570505921,
+  "p_gate_published": 0.64,
+  "placed": null,
+  "evidence": {
+   "p_gate": "published",
+   "success": "published",
+   "failure": "convention"
+  },
+  "stated_pos": false,
+  "share": 1.0,
+  "rnpv_now": 109.1382761146937,
+  "rnpv_success": 170.51708461242927,
+  "rnpv_failure": 0.0,
+  "per_share_now": 0.06676984145263004,
+  "per_share_success": 0.10432085891270317,
+  "per_share_failure": 0.0,
+  "held": {
+   "open": 5,
+   "ncts": [
+    "NCT07742644",
+    "NCT06740630",
+    "NCT07406360",
+    "NCT06693895",
+    "NCT06806137"
+   ],
+   "indications": [
+    "Chickenpox",
+    "Measles",
+    "Mumps",
+    "Rubella"
+   ],
+   "pos": 0.5946,
+   "note": "A miss leaves 5 other Phase 3s open, and the model holds it at 59% until they read out.",
+   "per_share": 0.06676984145263004
+  },
+  "basis": "Phase 3 to NDA/BLA 64.0% then NDA/BLA to approval 92.9% for Infectious disease, BIO/Informa/QLS 2011-2020; a failure is taken at nil, the model's convention for a failed programme",
+  "band": null
+ },
+ "gate_range": true,
+ "launch": {
+  "asset_id": 2062,
+  "name": "Investigational varicella vaccine",
+  "status": "clear",
+  "flag": null,
+  "seed_year": 2028,
+  "seed_source": "Earliest Phase 3 primary completion, NCT06855160 on 2026-09-10 (ClinicalTrials.gov API v2, last update 2026-05-29), plus two calendar years: the book's rule for the first full year on sale where the company states no launch timing. GSK's Q1 and Q2 2026 results (6-K 0001654954-26-004051 and 0001654954-26-006949) list GSK'116 in phase III with no filing date",
+  "seed_scenario": "base",
+  "seed_basis": {
+   "cites": null,
+   "match": null
+  },
+  "first_possible_year": 2027,
+  "first_full_year": 2028,
+  "decision_date": "2027-05-09",
+  "standard": {
+   "review": "standard",
+   "months": 10,
+   "filing_period_days": 60,
+   "decision_date": "2027-09-09",
+   "first_possible_year": 2027,
+   "first_full_year": 2028
+  },
+  "evidence": {
+   "kind": "registry",
+   "nct_id": "NCT06855160",
+   "date": "2026-09-10",
+   "date_type": "estimated",
+   "phase": "Phase 3",
+   "status": "Recruiting",
+   "enrollment": 911,
+   "title": "A Study on the Immune Response and Safety of an Investigational Chickenpox Vaccine and a Marketed Measles, Mumps and Rubella Vaccine When Administered as Intramuscular Injection to Healthy Children 12 to 15 Months of Age",
+   "source_url": "https://clinicaltrials.gov/study/NCT06855160",
+   "fetched_at": "2026-10-05 07:32:29",
+   "stale": false
+  },
+  "clock": {
+   "pathway": "nme_nda_or_original_bla",
+   "pathway_how": "no marketed row for this molecule, so read as a new molecule or original biologic",
+   "review": "priority",
+   "months": 6,
+   "filing_period_days": 60,
+   "basis": "I.A.1.b and I.B.4.b: 'Review and act on 90 percent of priority NME NDA and original BLA submissions within 6 months of the 60-day filing date.' Under the Program 'the PDUFA review clock will begin at the conclusion of the 60-day filing review period that begins on the date of FDA receipt of the original submission' (I.B.4, page 9), so the goal is 6 months after a filing date 60 days from receipt",
+   "source": "PDUFA VII commitment letter FY2023-2027 (https://www.fda.gov/media/151712/download) pages 4 and 9",
+   "carries_to": "proposed PDUFA VIII letter FY2028-2032 (https://www.fda.gov/media/193977/download) Table 1: NME NDAs and original BLAs '90% in 6 months of the 60-day filing date', and I.B.4 keeps the clock start; proposed, not enacted",
+   "cross_check": "PDUFA FY2025 performance report (https://www.fda.gov/media/191112/download) Appendix A Table A-1: 29 first-cycle priority approvals marked NME took a median 8.0 months from receipt (6.2 to 12.3), parsed 2026-10-05",
+   "extension_months": 3,
+   "applied": true
+  },
+  "voucher": null,
+  "if_filed_today": "2027-06-05",
+  "slip": null,
+  "gate": {
+   "gate": "p3_to_nda",
+   "label": "Phase 3 readout",
+   "nct_id": "NCT06855160",
+   "date": "2026-09-10",
+   "due": true,
+   "decision_date": "2027-05-09",
+   "first_possible_year": 2027,
+   "first_full_year": 2028,
+   "why": null,
+   "same_as_governing": true
+  },
+  "modelled_floor": null,
+  "trials_considered": 6,
+  "message": "2028 in the model is clear of the earliest approval, May 2027. NCT06855160 reached primary completion 10 Sep 2026 (estimated) and a priority review of a new molecule or original biologic runs 6 months from a filing date 60 days after receipt."
+ }
+}

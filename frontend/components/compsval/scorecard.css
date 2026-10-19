@@ -1,0 +1,229 @@
+/* compsval scorecard stylesheet. Owner: E2. Prefixes .sc- (the Scorecard view: chart, ranked
+   table, the lines under the chart), .cm- (the company map's bubbles, drawn by Python's
+   charts.company_map and bound here) and .cmp- (Compare). Every colour is a var() of a token;
+   a cell's shade is the token mixed with transparency by its own --sc-a (company-scorecard.md
+   3.2 and 8.3: 0.85 x |score - 50| / 50). */
+
+.sc-root { min-width: 0; }
+/* #main keeps a smaller pad in the Scorecard view, so the chart and the table fit the frame. */
+#app[data-view="scorecard"] #main { padding-top: var(--sp-8); padding-bottom: var(--sp-8); }
+.sc-failed { display: grid; gap: var(--sp-8); max-width: 720px; padding: var(--sp-8) 0; }
+.sc-to-table { justify-self: start; }
+
+/* Chart 60%, ranked table 40% (1.4). */
+.sc-view {
+  display: grid;
+  grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
+  gap: var(--sp-16);
+  align-items: stretch;
+  padding-top: var(--sp-4);
+}
+[data-layout="narrow"] .sc-view { grid-template-columns: minmax(0, 1fr); }
+.sc-chart-col { min-width: 0; }
+.sc-chart-wrap { position: relative; min-width: 0; }
+.sc-chart { min-width: 0; }
+/* The drawing scales to its column and never past the room #main has left under the band. */
+.sc-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(var(--main-h, 640px) - var(--sc-under, 0px) - 24px);
+}
+.sc-chart .cm-pt { cursor: pointer; outline: none; }
+/* A hollow bubble is clicked on its inside too, not only on its outline. */
+.sc-chart .cm-dot { pointer-events: visible; }
+.sc-chart .cm-label { cursor: pointer; }
+.sc-chart .cm-pt.is-open .cm-ring,
+.sc-chart .cm-pt.is-picked .cm-ring,
+.sc-chart .cm-pt:focus-visible .cm-ring { opacity: 1; }
+.sc-chart .cm-pt.is-hover .cm-ring { opacity: 0.55; }
+.sc-chart .cm-pt.is-picked .cm-ring { stroke-dasharray: 3 2; }
+.sc-chart .cm-pt.is-open .cm-ring { stroke-dasharray: none; }
+
+/* The key row's extras sit over the drawing's own key line, at its right end. */
+.sc-key-extra {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  height: calc(20px * var(--ts));
+}
+.sc-how-btn, .sc-method-btn {
+  height: calc(20px * var(--ts));
+  padding: 0 2px;
+  font-size: calc(12px * var(--ts));
+  color: var(--muted);
+}
+.sc-how-btn:hover, .sc-method-btn:hover { color: var(--text); }
+.sc-under { display: grid; gap: 2px; padding-top: var(--sp-4); }
+.sc-how, .sc-note {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: calc(12px * var(--ts));
+  line-height: calc(16px * var(--ts));
+  color: var(--muted);
+}
+.sc-how { color: var(--text); }
+
+/* The ranked table: rank, range, ticker, score bar, then one shaded cell a pillar. */
+.sc-table-col { position: relative; min-width: 0; min-height: calc(160px * var(--ts)); }
+/* The table ends where the chart column ends: a cohort of 22 or 30 scrolls inside it. It is
+   also the containing block of its rows' screen-reader text, which would otherwise reach past
+   #main and make it scroll. */
+.sc-table-wrap { position: absolute; inset: 0; overflow: auto; }
+[data-layout="narrow"] .sc-table-wrap { position: relative; inset: auto; max-height: calc(var(--main-h, 640px) - 20px); }
+.sc-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  color: var(--text);
+}
+.sc-table th, .sc-table td {
+  height: calc(26px * var(--ts));
+  padding: 0 4px;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.is-short .sc-table th, .is-short .sc-table td { height: calc(24px * var(--ts)); }
+.sc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule-strong);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+}
+.sc-table th.sc-box, .sc-table td.sc-box { width: calc(24px * var(--ts)); padding: 0 2px; text-align: center; }
+.sc-table .sc-rank { width: calc(26px * var(--ts)); text-align: right; }
+.sc-table .sc-range { width: calc(50px * var(--ts)); color: var(--muted); text-align: right; text-overflow: clip; }
+.sc-table .sc-co { width: calc(52px * var(--ts)); }
+.sc-table .sc-score { width: calc(74px * var(--ts)); }
+.sc-table th.sc-pcol { text-align: center; }
+.sc-check { margin: 0; accent-color: var(--up); cursor: pointer; }
+.sc-tk {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: calc(12.5px * var(--ts));
+  cursor: pointer;
+}
+.sc-tk:hover { text-decoration: underline; }
+.sc-row { cursor: pointer; }
+.sc-row:hover td, .sc-row.is-hover td { background-color: var(--panel); }
+.sc-row.is-focal .sc-tk { font-weight: 700; }
+.sc-row.is-focal td:first-child { box-shadow: inset 3px 0 0 var(--up); }
+.sc-row.is-open td { border-bottom-color: var(--text); }
+.sc-row.is-open .sc-tk { text-decoration: underline; }
+.sc-row.is-unranked td { color: var(--muted); }
+.sc-bar {
+  display: inline-block;
+  width: 40px;
+  height: 6px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--rule);
+}
+.sc-bar-fill { display: block; height: 100%; background: var(--muted); }
+.sc-row.is-focal .sc-bar-fill { background: var(--up); }
+.sc-score-n { vertical-align: middle; }
+.sc-cell { text-align: center; color: var(--muted); }
+.sc-row .sc-cell.up, .sc-row:hover .sc-cell.up, .sc-row.is-hover .sc-cell.up {
+  background-color: color-mix(in oklab, var(--up) calc(var(--sc-a, 0) * 100%), transparent);
+}
+.sc-row .sc-cell.down, .sc-row:hover .sc-cell.down, .sc-row.is-hover .sc-cell.down {
+  background-color: color-mix(in oklab, var(--down) calc(var(--sc-a, 0) * 100%), transparent);
+}
+.sc-cell:focus-visible { outline: 1px solid var(--text); outline-offset: -1px; }
+
+/* Compare (4.2): laid over the chart and the table until closed; the sheet scrolls inside
+   itself with its column heads pinned. */
+.cmp-root:not([data-open]) { display: none; }
+.cmp-root[data-open] { display: flex; height: calc(var(--main-h, 640px) - 20px); background: var(--ground); }
+.cmp-sheet { display: flex; flex-direction: column; width: 100%; min-height: 0; height: 100%; }
+.cmp-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  min-height: calc(32px * var(--ts));
+  border-bottom: 1px solid var(--rule-strong);
+}
+.cmp-title { margin: 0; }
+.cmp-mixed { margin: 0; font-size: calc(12px * var(--ts)); color: var(--muted); }
+.cmp-spacer { flex: 1 1 auto; }
+.cmp-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; }
+.cmp-table {
+  width: 100%;
+  /* Separate, not collapsed: a collapsed border belongs to the table and stays behind when
+     the head sticks, so the scrolled rows' shading ran up under the head with no rule
+     between. Only bottom borders are drawn, so nothing doubles. */
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-family: var(--font-ui);
+  font-size: calc(12.5px * var(--ts));
+  color: var(--text);
+}
+.cmp-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule-strong);
+  background-clip: padding-box;
+  text-align: left;
+  vertical-align: bottom;
+  padding: var(--sp-8);
+}
+.cmp-table th.cmp-lab { width: 22%; text-align: left; font-weight: 500; color: var(--muted); }
+.cmp-col { position: relative; }
+.cmp-col.is-focal { box-shadow: inset 0 -3px 0 var(--up); }
+.cmp-tk {
+  display: grid;
+  gap: 2px;
+  padding: 0 24px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.cmp-name { font-size: calc(12px * var(--ts)); color: var(--muted); font-weight: 400; }
+.cmp-unpick { position: absolute; top: var(--sp-8); right: var(--sp-4); }
+.cmp-row th, .cmp-row td { padding: 6px var(--sp-8); border-bottom: 1px solid var(--rule); vertical-align: top; }
+.cmp-glab { font-weight: 600; color: var(--text); }
+.cmp-mlab { padding-left: var(--sp-24); font-weight: 400; color: var(--muted); }
+.cmp-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.cmp-cell { min-width: 0; }
+.cmp-v { display: inline-block; }
+.cmp-k-score .cmp-v { font-size: calc(16px * var(--ts)); }
+.cmp-cell.is-best .cmp-v { font-weight: 600; }
+.cmp-best { color: var(--up); }
+/* On a shaded cell the fill is UP or DOWN up to 0.85 opacity, and an UP mark on it vanished
+   (LLY's growth 100, VRTX's balance sheet 100): there the mark is drawn in TEXT. */
+.cmp-shade .cmp-best { color: var(--text); }
+.cmp-cell.is-outside { color: var(--muted); }
+.cmp-sub { display: block; font-family: var(--font-ui); font-size: calc(11.5px * var(--ts)); line-height: calc(15px * var(--ts)); }
+.cmp-shade.up { background-color: color-mix(in oklab, var(--up) calc(var(--sc-a, 0) * 100%), transparent); }
+.cmp-shade.down { background-color: color-mix(in oklab, var(--down) calc(var(--sc-a, 0) * 100%), transparent); }
+.cmp-lines { margin: 0; padding-left: 14px; }
+.cmp-lines li { margin: 0 0 2px; line-height: calc(16px * var(--ts)); }
+.cmp-chip { margin-right: var(--sp-8); }

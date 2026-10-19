@@ -319,6 +319,127 @@ def test_a_stated_carryover_outranks_the_inflow_rule():
     assert not any("does not carry into the next" in n for n in notes)
 
 
+# --- the untreated pool's exit (forecast.pool_rule) -------------------------
+# A prevalent pool with an inflow and no stated exit ran at a carryover of 1.0, so it grew
+# by its whole inflow every year and never lost a patient. The default is now the steady
+# state the seed's own two figures describe: exits equal entries, carryover P / (P + I).
+
+def _prevalent(**extra):
+    """A pool of 1,000 with 100 arriving a year, started at a share too small to dent it,
+    so each year's starts over the share read back the eligible pool."""
+    return {"name": "Chronic disease",
+            "scalars": {"prevalence": 1000, "incidence": 100, "eligible_pct": 1.0,
+                        "penetration_peak_pct": 1e-9, "ramp_midpoint_year": -50,
+                        "ramp_steepness": 5.0, **extra},
+            "series": {}}
+
+
+def test_a_prevalent_pool_with_no_exit_stated_holds_its_size():
+    notes = []
+    got = F.patients_for_indication(_prevalent(), list(range(2030, 2045)), notes)
+    eligible = [n / 1e-9 for n in got["derived"]]
+    # The opening 1,000 plus the year's 100, every year: the pool keeps the size stated.
+    assert eligible == pytest.approx([1100.0] * 15, rel=1e-6)
+    note = next(n for n in notes if "inferred from the stated prevalence and incidence" in n)
+    assert "100 a year into 1,000" in note and "90.91%" in note
+    assert "—" not in note
+    # Read as 1.0, the same pool gained its whole inflow every year.
+    grown = F.patients_for_indication(_prevalent(untreated_carryover_pct=1.0),
+                                      list(range(2030, 2045)), [])
+    assert grown["derived"][-1] / 1e-9 == pytest.approx(1000 + 15 * 100, rel=1e-6)
+
+
+def test_the_inferred_carryover_is_the_steady_state_not_one_less_the_inflow_share():
+    """1 - I/P settles the pool at P - I under this engine's timing, so year two would step
+    down from year one. P / (P + I) is the carryover at which year one's pool is also the
+    pool every later year. The metastatic breast pair is where the two differ most."""
+    carry, opening, basis = F.pool_rule(160_000, 65_000)
+    assert carry == pytest.approx(160_000 / 225_000) and opening is True
+    assert basis == F.POOL_INFERRED
+    pool = F.derive_new_patients(pool=160_000, incidence=65_000,
+                                 penetration=lambda i: 1e-12, years=10, carryover=carry)
+    assert [p / 1e-12 for p in pool] == pytest.approx([225_000.0] * 10, rel=1e-6)
+    naive = F.derive_new_patients(pool=160_000, incidence=65_000,
+                                  penetration=lambda i: 1e-12, years=10,
+                                  carryover=1 - 65_000 / 160_000)
+    assert naive[1] < naive[0] * 0.9
+
+
+def test_a_pool_with_no_inflow_keeps_every_patient():
+    """No incidence, no exit to infer: a closed pool still keeps every untreated patient,
+    and says so."""
+    assert F.pool_rule(1000, 0) == (1.0, True, F.POOL_CLOSED)
+    assert F.pool_rule(1000, None) == (1.0, True, F.POOL_CLOSED)
+    notes = []
+    got = F.patients_for_indication(_prevalent(incidence=0), list(range(2030, 2040)), notes)
+    assert [n / 1e-9 for n in got["derived"]] == pytest.approx([1000.0] * 10, rel=1e-6)
+    assert any("no inflow is stated" in n for n in notes)
+
+
+def test_the_rule_takes_a_stated_exit_first_then_the_line_of_therapy():
+    # A stated row wins and keeps its opening stock, including a stated 0 on a pool whose
+    # prevalence differs from its incidence (the metastatic breast lines).
+    assert F.pool_rule(160_000, 65_000, 0.0) == (0.0, True, F.POOL_STATED)
+    assert F.pool_rule(10_300_000, 293_900, 0.9806) == (0.9806, True, F.POOL_STATED)
+    assert F.pool_rule(192_650, 192_650, 1.0) == (1.0, True, F.POOL_STATED)
+    # Equal figures are the year's diagnoses: nothing carries and nothing opens.
+    assert F.pool_rule(192_650, 192_650) == (0.0, False, F.POOL_LINE)
+    assert F.pool_rule(192_650, 192_650.3) == (0.0, False, F.POOL_LINE)
+
+
+def test_a_stated_zero_on_an_unequal_pool_keeps_the_opening_stock_in_year_one():
+    """The line-of-therapy convention for a pool stated wider than its inflow. Year one
+    draws on the opening pool and the year's inflow together; every later year on the
+    inflow alone, so the tail is the peak share of the inflow."""
+    breast = {"name": "Breast Neoplasms",
+              "scalars": {"prevalence": 160_000, "incidence": 65_000, "eligible_pct": 0.7,
+                          "penetration_peak_pct": 0.2, "ramp_midpoint_year": -50,
+                          "ramp_steepness": 5.0, "untreated_carryover_pct": 0.0},
+              "series": {}}
+    got = F.patients_for_indication(breast, list(range(2030, 2040)), [])["derived"]
+    assert got[0] == pytest.approx(0.2 * 225_000 * 0.7)
+    assert got[1:] == pytest.approx([0.2 * 65_000 * 0.7] * 9)
+
+
+def test_no_derived_pool_in_the_book_runs_at_one_without_a_stated_exit(book):
+    """Every seeded pool with an inflow, a prevalence apart from it and no stated exit runs
+    at the inferred carryover, below 1.0, and the build says so."""
+    import epidemiology
+    rows = book.execute(
+        """SELECT DISTINCT s.asset_id, s.indication_id, i.name FROM assumptions s
+             JOIN indications i ON i.id = s.indication_id
+            WHERE s.key = 'penetration_peak_pct' AND s.scenario = 'base'
+              AND s.year IS NULL""").fetchall()
+    checked = 0
+    for row in rows:
+        scalars = {r["key"]: r["value"] for r in book.execute(
+            "SELECT key, value FROM assumptions WHERE asset_id = ? AND indication_id = ?"
+            "   AND scenario = 'base' AND year IS NULL",
+            (row["asset_id"], row["indication_id"]))}
+        known = epidemiology.for_indication(row["name"]) or {}
+        for key in ("prevalence", "incidence"):
+            if scalars.get(key) is None and known.get(key) is not None:
+                scalars[key] = known[key]
+        prevalence, incidence = scalars.get("prevalence"), scalars.get("incidence")
+        if (prevalence is None or not incidence or abs(prevalence - incidence) < 0.5
+                or scalars.get("untreated_carryover_pct") is not None):
+            continue
+        carry, opening, basis = F.pool_rule(prevalence, incidence,
+                                            scalars.get("untreated_carryover_pct"))
+        assert carry < 1.0 and opening and basis == F.POOL_INFERRED, (row["asset_id"],
+                                                                     row["name"])
+        if None in (scalars.get("eligible_pct"), scalars.get("ramp_midpoint_year"),
+                    scalars.get("ramp_steepness")):
+            continue
+        notes = []
+        F.patients_for_indication({"name": row["name"], "scalars": scalars, "series": {}},
+                                  list(range(2030, 2035)), notes)
+        assert any(row["name"] + ": no exit from the untreated pool is stated" in n
+                   for n in notes), (row["asset_id"], row["name"])
+        checked += 1
+    assert checked > 0
+
+
 # --- the what-if levers (forecast_view.whatif) -------------------------------
 
 def test_whatif_levers(tmp_path):
@@ -1125,9 +1246,11 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     # The written company call leads with the whole.
     import forecast_note
     note = forecast_note.write_company(v)
-    assert note["headline"].startswith("On the model TST's equity is worth $")
-    assert "1 marketed product" in note["headline"] and "after probability" in note["headline"]
-    assert "net cash $2.00" in note["headline"]
+    assert note["headline"].startswith("On the model, TST's equity is worth $")
+    assert ("The single product already on the market supplies 84% of that value and "
+            "net cash 8%.") in note["headline"]
+    assert ("The single candidate in development adds $0.81 once weighted by its chance "
+            "of approval.") in note["headline"]
     body = " ".join(note["body"])
     assert "risk-adjusted value" in body and "cost of equity" in body
 
@@ -1149,8 +1272,8 @@ def test_the_sum_names_what_it_cannot_do(tmp_path):
     assert any("no debt line filed" in m for m in s["missing"])
     import forecast_note
     line = forecast_note.write_company(V.company_verdict(path, "TST"))["headline"]
-    assert line.startswith("On the model TST's business is worth $")
-    assert "enterprise value" in line and "cash on hand" in line
+    assert line.startswith("On the model, TST's enterprise value is $")
+    assert "a share of cash; no debt figure is on file." in line
 
 
 def test_a_launch_window_runs_through_its_loe_and_the_erosion_after_it():
@@ -1241,7 +1364,7 @@ def test_future_launches_enter_the_sum_from_the_books_own_rd(tmp_path, monkeypat
     assert not any(m.startswith("future pipeline") for m in s["missing"])
     import forecast_note
     note = forecast_note.write_company(V.company_verdict(path, "TST"))
-    assert "future launches $" in note["headline"]
+    assert "aunches beyond the modelled pipeline" in note["headline"]
     body = " ".join(note["body"])
     assert "at 0.40 of annual revenue" in body
     assert "TST earns 0.50 on 6 launches" in body and "50% weight" in body
@@ -1362,3 +1485,66 @@ def test_a_horizon_ending_inside_erosion_no_longer_capitalises_the_tail_flat():
     assert eroding["terminal_pv"] < flat["terminal_pv"] * 0.5
     assert any("terminal value follows the loss of exclusivity" in n
                for n in eroding["notes"])
+
+
+def test_the_placement_rides_along_whatever_governs_and_moves_nothing():
+    """pos_placement carries pos_granular's placement even where stated factors
+    outrank it, so a view can read the gate; no computed value changes."""
+    granular = {"pos": 0.5, "basis": "at the NDA/BLA gate: a test", "stage": "positive"}
+    bare = F.build(casgevy_inputs())
+    placed = F.build(casgevy_inputs(pos_granular=granular))
+    assert bare["pos_placement"] is None
+    assert placed["pos_placement"] == granular and placed["pos_granular"] is None
+    for key in ("rnpv", "npv", "pos", "pos_basis", "owner_rnpv", "revenue_after_loe"):
+        assert placed[key] == bare[key], key
+    factors = {k: None for k in ("pos_regulatory", "pos_launch", "pos_reimbursement",
+                                 "pos_durability")}
+    governs = F.build(casgevy_inputs(scalars=factors, pos_granular=granular))
+    assert governs["pos_granular"] == governs["pos_placement"] == granular
+    assert governs["rnpv"] == governs["npv"] * 0.5
+
+
+@pytest.mark.parametrize("growth, rate, last, loe, in_base, year1, decay, late, late_from", [
+    (0.02, 0.08, 2035, None, True, 0.6, 0.3, None, None),       # no cliff: a perpetuity
+    (0.0, 0.08, 2035, 2040, False, 0.59, 0.34, None, None),     # LOE after the horizon
+    (0.0, 0.08, 2035, 2040, False, 0.59, 0.34, 0.1, 4),         # ... with a late rate
+    (0.01, 0.075, 2035, 2041, False, 0.8, 0.3, 0.12, 5),        # ... growing to it
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, None, None),     # already eroding
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, 0.1, 4),         # ... on the late rate now
+    (0.0, 0.08, 2043, 2040, False, 0.59, 0.34, 0.1, 6),         # ... still on the early
+    (0.0, 0.08, 2043, 2043, False, 0.59, 0.34, 0.1, 6),         # LOE on the last year
+])
+def test_the_terminal_path_is_the_stream_the_terminal_multiple_discounts(
+        growth, rate, last, loe, in_base, year1, decay, late, late_from):
+    multiple = F.terminal_multiple(growth, rate, last, loe, in_base, year1, decay, late,
+                                   late_from)
+    path = F.terminal_path(growth, last, loe, in_base, year1, decay, late, late_from,
+                           list(range(last + 1, last + 2000)))
+    assert sum(v / (1 + rate) ** (y - last) for y, v in path.items()) == \
+        pytest.approx(multiple, rel=1e-9)
+
+
+def test_a_build_exposes_the_revenue_its_terminal_value_carries():
+    got = F.build(_marketed(loe_year=2038, erosion_year1_pct=0.6, erosion_decay_pct=0.3))
+    tail = got["terminal_tail"]
+    assert tail and tail["end"] == got["dcf_years"][-1]
+    assert sum(share for share, _, _ in tail["parts"]) == pytest.approx(1.0)
+    assert F.build(_marketed(terminal_mode="none"))["terminal_tail"] is None
+
+
+@pytest.mark.parametrize("last, loe, late, late_from", [
+    (2035, 2033, 0.10, 4),     # ends on the early rate, the switch two years ahead
+    (2034, 2033, 0.10, 4),     # ... three years ahead
+    (2035, 2032, 0.10, 4),     # ends the year before the switch
+    (2036, 2032, 0.10, 4),     # ends on the switch
+    (2040, 2032, 0.10, 4),     # long past it
+    (2035, 2038, 0.10, 4),     # the cliff still ahead
+    (2035, 2033, None, None),  # one rate for ever
+])
+def test_the_terminal_path_is_erode_run_on_past_the_horizon(last, loe, late, late_from):
+    years = list(range(2026, last + 40))
+    flat = F.erode([1.0] * len(years), years, loe, 0.6, 0.35, late, late_from)
+    at_end = flat[years.index(last)]
+    path = F.terminal_path(0.0, last, loe, False, 0.6, 0.35, late, late_from, years)
+    for y in range(last + 1, last + 30):
+        assert path[y] == pytest.approx(flat[years.index(y)] / at_end, rel=1e-12), y

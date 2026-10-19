@@ -325,7 +325,10 @@ def _over(stock: dict, market: dict, shared: list, days: int) -> dict | None:
 def price_grid(db_path=None, days: int = 90, max_points: int = 60) -> list[dict]:
     """Recent daily closes for every company in one payload, for the universe's
     small-multiples grid. Downsampled evenly to ``max_points`` so eighteen panels
-    arrive in one round trip; the change is over the window actually returned."""
+    arrive in one round trip. The sample always keeps the first and the last close,
+    and the change runs from the window's first close to its latest: a stride that
+    stopped short of the end used to drop the latest closes (AZN read -2.8% over a
+    year against a true -6.2%)."""
     conn = db.get_connection(db_path)
     try:
         companies = conn.execute(
@@ -342,11 +345,12 @@ def price_grid(db_path=None, days: int = 90, max_points: int = 60) -> list[dict]
                 (company["id"], f"-{int(days)} days"),
             ).fetchall()
             closes = [r["close"] for r in rows]
-            if len(closes) > max_points:
-                step = len(closes) / max_points
-                closes = [closes[int(i * step)] for i in range(max_points)]
             change = (closes[-1] / closes[0] - 1.0
                       if len(closes) > 1 and closes[0] else None)
+            if len(closes) > max_points > 1:
+                last = len(closes) - 1
+                closes = [closes[round(i * last / (max_points - 1))]
+                          for i in range(max_points)]
             out.append({"ticker": company["ticker"], "name": company["name"],
                         "closes": closes, "change": change})
         return out

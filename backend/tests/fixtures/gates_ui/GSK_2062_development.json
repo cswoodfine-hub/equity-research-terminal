@@ -1,0 +1,9 @@
+{
+ "ticker": "GSK",
+ "asset_id": 2062,
+ "name": "Investigational varicella vaccine",
+ "price_year": 2018,
+ "ok": false,
+ "reason": "vaccine",
+ "why": "A vaccine: neither published source has a vaccine class, and the anti-infective rate would cost a 57,000-subject efficacy study at well over a billion dollars."
+}

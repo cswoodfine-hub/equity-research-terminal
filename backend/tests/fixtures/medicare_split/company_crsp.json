@@ -1,0 +1,28 @@
+{
+ "ticker": "CRSP",
+ "brands": [],
+ "baseline": {},
+ "label": "Medicare only. Part D is gross cost before manufacturer rebates; Part B is fee-for-service only, paid mostly at average sales price plus 6%.",
+ "latest_year": null,
+ "patients_note": "Patients are distinct beneficiaries on the drug during the year, so their growth is net additions, not new starts.",
+ "factor_labels": {
+  "D": {
+   "spend": "Spend",
+   "patients": "Patients",
+   "intensity": "Fills per patient",
+   "price": "Cost per fill",
+   "claims": "Fills",
+   "units_per_claim": "Units per fill",
+   "price_per_unit": "Cost per unit"
+  },
+  "B": {
+   "spend": "Spend",
+   "patients": "Patients",
+   "intensity": "Claims per patient",
+   "price": "Cost per claim",
+   "claims": "Claims",
+   "units_per_claim": "Units per claim",
+   "price_per_unit": "Cost per unit"
+  }
+ }
+}

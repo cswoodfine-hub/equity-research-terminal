@@ -361,8 +361,9 @@ NOT_OUR_DEAL = re.compile(
 
 
 # The verbs that state a deal in a headline, with the type each implies. Ordered longest
-# first so "agrees to acquire" is read before "acquire". The news fetcher reads deals with
-# them and ``prune_parties`` finds the same verb again in a stored headline.
+# first so "agrees to acquire" is read before "acquire". ``prune_parties`` finds one in a
+# stored headline to read who is doing the deal; the news fetcher keeps its own, longer
+# list for new headlines, since fetchers and this module do not share one.
 DEAL_VERBS = (
     (r"completes? (?:the )?acquisition of", "acquisition"),
     (r"agrees? to acquire", "acquisition"),

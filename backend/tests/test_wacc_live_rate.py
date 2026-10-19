@@ -242,5 +242,24 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 500        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
-                              # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25
+    assert seen == 667        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+                              # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25,
+                              # then eleven Phase 3 seeds and nineteen verified from a parallel branch, 2026-09-26
+                              # then 87 big pharma Phase 2 and 3 seeds, 2026-09-28
+                              # then Bayer's fifteen products and three lines, 2026-10-07
+                              # then MK-8527 and zibotentan/dapagliflozin, Phase 3 gates, 2026-10-12,
+                              # then saruparib, mevrometostat, AAA817, denecimig and ABP 234, the same day,
+                              # then Capricor's deramiocel, the same day,
+                              # then Stoke's zorevunersen, the same day,
+                              # then Dyne's DYNE-251 and DYNE-101, the same day,
+                              # then Intellia's lonvo-z, the same day,
+                              # then Krystal's Vyjuvek, the same day,
+                              # then argenx's Vyvgart, the same day,
+                              # then Revolution Medicines' Rasonque, the same day,
+                              # then Sarepta's ELEVIDYS, Exondys 51, Amondys 45 and Vyondys 53, the same day,
+                              # then uniQure's AMT-130, the same day,
+                              # then Summit's ivonescimab, 2026-10-13,
+                              # then Praxis's relutrigine and ulixacaltamide, 2026-10-13,
+                              # then Vaxcyte's VAX-31, 2026-10-13,
+                              # then NewAmsterdam's obicetrapib, 2026-10-13,
+                              # then Ultragenyx's seven (Crysvita, Dojolvi, Evkeeza, Mepsevii, Genglycos, Fayuvi, DTX301), 2026-10-14
