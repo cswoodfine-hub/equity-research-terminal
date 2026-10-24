@@ -71,6 +71,23 @@ TOO_BROAD = frozenset(x.lower() for x in (
     "Neuromuscular Diseases", "Neurodegenerative Diseases", "Metabolic Diseases",
     "Kidney Diseases", "Liver Diseases", "Heart Diseases", "Skin Diseases",
     "Endocrine System Diseases", "Respiratory Tract Diseases", "Inflammation",
+    # Read off what the book had actually built. A marketed product's unapproved
+    # indications are the list an expansion layer would be valued over, and 37 of them
+    # stood against Lilly's marketed assets, of which these carried no product.
+    #
+    # Ancestors and pathology classes of a disease the asset is already in. Kisunla's
+    # eleven indications were Alzheimer's disease and seven ways of restating it, so a
+    # layer per row would have valued Alzheimer's eight times.
+    "Brain Diseases", "Central Nervous System Diseases", "Neurocognitive Disorders",
+    "Mental Disorders", "Tauopathies", "Synucleinopathies", "Plaque, Amyloid",
+    # Oncology roll-ups that name no tumour. The specific sites stay: Verzenio keeps
+    # non-small-cell lung, prostate, Ewing sarcoma and glioma and loses these two.
+    "Neoplasm Metastasis", "Urogenital Neoplasms",
+    # Not diseases. The registry indexes an obesity master protocol under the behaviour
+    # and the metabolism it studies, so orforglipron arrived with Fasting, Behavior and
+    # Feeding Behavior beside its real indications.
+    "Fasting", "Behavior", "Feeding Behavior", "Weight Gain",
+    "Glucose Metabolism Disorders", "Nutritional and Metabolic Diseases",
 ))
 
 _PHASE_ORDER = ("Early Phase 1", "Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3",
@@ -439,9 +456,112 @@ def build(db_path=None) -> dict:
                  1 if lead.get(asset_id, (None, None))[1] == mesh_id else 0,
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
+        linked = attach_catalyst_indications(conn)
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
                 "assets": len({a for a, _ in pairs}),
-                "excluded_by_override": excluded}
+                "excluded_by_override": excluded,
+                "catalysts_linked": linked["linked"],
+                "catalysts_ambiguous": linked["ambiguous"],
+                "catalysts_paediatric_unmatched": linked["paediatric_unmatched"]}
     finally:
         conn.close()
+
+
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+
+# Words that make an indication row the paediatric one. ``tokens`` folds the British
+# spelling into the American, so "Paediatric" and "Pediatric" both arrive as "pediatric".
+_PAEDIATRIC_WORDS = frozenset(("pediatric", "paediatric", "child", "children",
+                               "adolescent", "adolescents", "juvenile", "infant"))
+
+# The registry gives no eligibility age on the rows this repository stores, so the title
+# is the signal there is. It is explicit where it exists ("A Study of Mirikizumab in
+# Pediatric Participants"), and a study whose title does not say so is read as adult,
+# which is the common case and the safe default: an adult reading keeps today's
+# behaviour, and only an explicit paediatric title diverts a readout.
+_PAEDIATRIC_TITLE = re.compile(
+    r"\b(pa?ediatrics?|child|children|adolescents?|juvenile|infants?)\b", re.I)
+
+
+def _is_paediatric(title) -> bool:
+    return bool(_PAEDIATRIC_TITLE.search(title or ""))
+
+
+def attach_catalyst_indications(conn) -> dict:
+    """Say which indication a registry readout reads out in.
+
+    A readout is an event in one disease, not in the asset as a whole, and until the
+    catalyst says which the model cannot price it as one: a label expansion on an
+    approved drug is worth the indication it opens, and 794 of the 812 catalysts on the
+    book named no indication at all. ``applications.resolve`` sets this where an FDA
+    filing states the disease, which reached 18 of them; this reads the study.
+
+    The rule is ``indications_for``, the same one asset_indications is built with, so a
+    catalyst and the forecast it prices against cannot disagree about what the study is
+    in. Run at the end of ``build`` because the wholesale rebuild above has just cleared
+    the column and written the rows this matches against.
+
+    A study in several of the asset's indications is left null. One readout then stands
+    for two diseases, and choosing between them would be a guess about which the market
+    is pricing; unlinked it stays unpriced and says so, which is the honest answer.
+    """
+    # indications_for answers in MeSH descriptors; asset_indications is keyed on the
+    # indication row. The indications table carries the mesh_id that joins them.
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    pairs, paediatric = {}, {}
+    for row in conn.execute(
+            "SELECT ai.id, ai.asset_id, ai.indication_id, i.name FROM asset_indications ai"
+            "  JOIN indications i ON i.id = ai.indication_id"):
+        pairs[(row["asset_id"], row["indication_id"])] = row["id"]
+        words = set(tokens(row["name"] or ""))
+        if words & _PAEDIATRIC_WORDS:
+            paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
+
+    rows = conn.execute(
+        f"""SELECT cat.id, cat.source_url, COALESCE(t.asset_id, cat.asset_id) AS asset_id,
+                   t.conditions, t.mesh_terms, t.title
+              FROM catalysts cat
+              JOIN trials t ON t.nct_id =
+                   substr(cat.source_url, {len(_CTGOV_URL) + 1})
+             WHERE cat.asset_indication_id IS NULL
+               AND cat.source_url LIKE '{_CTGOV_URL}%'""").fetchall()
+
+    linked = ambiguous = paediatric_unmatched = 0
+    for row in rows:
+        if not row["asset_id"]:
+            continue
+        try:
+            terms = indications_for(row["conditions"], parse_browse(row["mesh_terms"]))
+        except Exception:                                  # noqa: BLE001 - messy payload
+            continue
+        hits = {pairs[(row["asset_id"], by_mesh[t["id"]])] for t in terms
+                if t["id"] in by_mesh and (row["asset_id"], by_mesh[t["id"]]) in pairs}
+
+        # MeSH indexes a study of children with Crohn's disease as "Crohn Disease", the
+        # same descriptor it gives the adult study, so the readout of Omvoh's paediatric
+        # trial landed on the adult row. That row is an approved indication and the
+        # adult approval is already in the revenue, so the one genuine gate the product
+        # has was being read as decided. Where the asset carries a paediatric row for
+        # the same disease the readout belongs to it.
+        if _is_paediatric(row["title"]):
+            wanted = {w for t in terms for w in tokens(t["term"] or "")}
+            fits = [pid for pid, words in paediatric.get(row["asset_id"]) or []
+                    if wanted and (words - _PAEDIATRIC_WORDS) <= wanted]
+            if len(fits) != 1:
+                # No paediatric row for this disease, or more than one. The adult row is
+                # not the answer: a readout in children does not decide the indication
+                # the adults are already approved in.
+                paediatric_unmatched += 1
+                continue
+            hits = {fits[0]}
+
+        if len(hits) != 1:
+            ambiguous += 1 if hits else 0
+            continue
+        conn.execute("UPDATE catalysts SET asset_indication_id = ? WHERE id = ?",
+                     (hits.pop(), row["id"]))
+        linked += 1
+    return {"linked": linked, "ambiguous": ambiguous,
+            "paediatric_unmatched": paediatric_unmatched}

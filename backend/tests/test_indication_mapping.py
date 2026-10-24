@@ -430,3 +430,175 @@ def test_a_study_the_vocabulary_misses_answers_with_its_added_descriptor(tmp_pat
         assert im.curated_terms(conn, "NCT404") == []
     finally:
         conn.close()
+
+
+# --- which indication a readout reads out in -------------------------------
+_CTGOV = "https://clinicaltrials.gov/study/"
+
+
+def _with_catalyst(tmp_path, nct="NCT2", second_mesh=None):
+    """The build's fixture plus a readout catalyst pointing at one of its studies."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    if second_mesh:
+        # A study the registry indexes under two of the asset's own diseases.
+        conn.execute("UPDATE trials SET conditions = ?, mesh_terms = ? WHERE nct_id = ?",
+                     ('["Sickle Cell Disease", "beta-Thalassemia"]',
+                      json.dumps({"meshes": [
+                          {"id": "D000755", "term": "Anemia, Sickle Cell"},
+                          {"id": "D017086", "term": "beta-Thalassemia"}]}), nct))
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + nct,))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_readout_is_linked_to_the_indication_its_study_is_in(tmp_path):
+    """A readout is an event in one disease, not in the asset as a whole. Until the
+    catalyst says which, a label expansion on an approved drug cannot be priced as the
+    indication it opens, and 794 of the 812 catalysts on the book named none."""
+    path = _with_catalyst(tmp_path)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 1
+
+    conn = db.get_connection(path)
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row["name"] == "Anemia, Sickle Cell"
+    conn.close()
+
+
+def test_a_readout_in_two_of_the_assets_diseases_is_left_unlinked(tmp_path):
+    """One readout standing for two indications cannot be priced as either without a
+    guess about which the market is reading. Unlinked it stays unpriced and says so."""
+    path = _with_catalyst(tmp_path, second_mesh=True)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 0
+    assert summary["catalysts_ambiguous"] == 1
+
+    conn = db.get_connection(path)
+    assert conn.execute(
+        "SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_the_link_uses_the_same_rule_the_pairs_are_built_with(tmp_path):
+    """A catalyst and the forecast it prices against must not disagree about what the
+    study is in, so the link reads indications_for, not a second rule of its own."""
+    path = _with_catalyst(tmp_path)
+    im.build(path)
+    conn = db.get_connection(path)
+    linked, pair = conn.execute(
+        "SELECT cat.asset_indication_id, ai.id FROM catalysts cat, asset_indications ai"
+    ).fetchone()
+    assert linked == pair
+    conn.close()
+
+
+def test_a_catalyst_with_no_study_behind_it_is_left_alone(tmp_path):
+    """A curated catalyst or an FDA filing is applications.resolve's to attach."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'pdufa', 'A decision', '2030-01-01', 'pending', NULL)")
+    conn.commit(); conn.close()
+
+    assert im.build(path)["catalysts_linked"] == 0
+
+
+# --- a readout in children is not a readout in the adults ------------------
+def _paediatric_db(tmp_path, with_paediatric_row=True):
+    """The fixture's asset, an adult Crohn pair, optionally a paediatric one, and a
+    catalyst on a study whose title says children."""
+    path = str(tmp_path / "p.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X Pharma')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, 1, 'A')")
+    browse = json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT9', 1, 1, ?, ?, 'Phase 3', 'Recruiting', 100, '2022-01-01', ?)",
+        ('["Crohn Disease"]', browse,
+         "A Study of A (LY1) in Pediatric Participants With Crohn's Disease"))
+    if with_paediatric_row:
+        conn.execute("INSERT INTO indications (id, name, mesh_id)"
+                     " VALUES (99, 'Pediatric Crohn''s disease', 'C536215')")
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + "NCT9",))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_paediatric_readout_goes_to_the_paediatric_row(tmp_path):
+    """MeSH indexes a study of children with Crohn's disease as "Crohn Disease", the
+    same descriptor the adult study gets, so Omvoh's paediatric readout landed on the
+    adult row. That row is an approved indication, so the product's one genuine gate
+    read as already decided."""
+    path = _paediatric_db(tmp_path)
+    conn = db.get_connection(path)
+    # The paediatric pair is curated rather than MeSH-derived, so it is written after
+    # the rebuild the way curated_additions puts it there.
+    im.build(path)
+    conn.execute("INSERT INTO asset_indications (asset_id, indication_id, phase, region)"
+                 " VALUES (1, 99, 'Phase 3', 'US')")
+    conn.commit(); conn.close()
+
+    summary = im.attach_catalyst_indications(db.get_connection(path))
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row and row["name"] == "Pediatric Crohn's disease"
+    conn.close()
+
+
+def test_a_paediatric_readout_with_no_paediatric_row_is_left_unlinked(tmp_path):
+    """The adult row is not the fallback. A readout in children does not decide the
+    indication the adults are already approved in, so unlinked and unpriced is the
+    honest answer."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 0
+    assert summary["catalysts_paediatric_unmatched"] == 1
+
+    conn = db.get_connection(path)
+    assert conn.execute(
+        "SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_an_adult_study_is_unaffected(tmp_path):
+    """Only an explicit paediatric title diverts a readout; everything else keeps the
+    behaviour it had."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET title = 'A Study of A in Adults' WHERE nct_id = 'NCT9'")
+    conn.commit(); conn.close()
+
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 1
+    assert summary["catalysts_paediatric_unmatched"] == 0
+
+
+def test_the_paediatric_title_test():
+    for title in ("A Study in Pediatric Participants", "Paediatric extension",
+                  "A study in children", "Juvenile idiopathic arthritis study",
+                  "Adolescents with Crohn's"):
+        assert im._is_paediatric(title), title
+    for title in ("A Study of A in Adults", "A long-term extension study", "", None):
+        assert not im._is_paediatric(title), title
