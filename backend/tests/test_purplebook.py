@@ -58,3 +58,164 @@ def test_statutory_floor_wins_when_later_than_orphan():
         has_ref = any(e["protection_type"] == "reference product exclusivity"
                       for e in product["exclusivities"])
         assert not (has_ref and _floor(product))
+
+
+# --- the date format the source changed to ------------------------------
+def test_both_date_forms_the_file_has_used_are_read():
+    """The September 2026 release writes "October 18, 2017" where the saved fixture
+    writes "4-Sep-14". Only the second was accepted, so against the live file every
+    date read as None, every product was dropped for having neither an exclusivity nor
+    a licensure, and the fetcher parsed nothing while reporting no error."""
+    from fetchers.exclusivity_purplebook import _pb_date
+
+    assert _pb_date("October 18, 2017") == dt.date(2017, 10, 18)
+    assert _pb_date("4-Sep-14") == dt.date(2014, 9, 4)
+    assert _pb_date("") is None
+    assert _pb_date("not a date") is None
+
+
+# --- licensure dates for the products openFDA cannot reach --------------
+LIVE_FORM = """Purple Book Monthly Report
+
+legend N/R/U
+N/R/U,Applicant,BLA Number,Proprietary Name,Proper Name,License Type,Strength,Dosage Form,Route of Administration,Product Presentation,Marketing Status,Licensure,Approval Date
+U,"Kite Pharma, Inc.",125643,Yescarta,axicabtagene ciloleucel,351(a),,Suspension,Intravenous,Bag,Rx,Licensed,"October 18, 2017"
+U,"Kite Pharma, Inc.",125643,Yescarta,axicabtagene ciloleucel,351(a),,Suspension,Intravenous,Bag,Rx,Licensed,"March 5, 2022"
+U,GlaxoSmithKline Biologicals,103239,Engerix-B,hepatitis b vaccine,351(a),10MCG,Suspension,Intramuscular,Vial,Rx,Licensed,"August 28, 1989"
+U,"Two Owners, Inc.",111111,Sharedname,something,351(a),,Solution,Intravenous,Vial,Rx,Licensed,"May 1, 2001"
+U,"Other Owner, Inc.",222222,Sharedname,something else,351(a),,Solution,Intravenous,Vial,Rx,Licensed,"May 1, 2002"
+U,"Nodate Inc.",333333,Undated,nothing,351(a),,Solution,Intravenous,Vial,Rx,Licensed,
+"""
+
+
+def test_parse_licensures_takes_the_earliest_date_per_bla():
+    """A BLA appears once per presentation and per supplement. The original licensure
+    is the earliest of them, not the latest strength added under it."""
+    from fetchers.exclusivity_purplebook import parse_licensures
+
+    rows = {r["brand"].upper(): r for r in parse_licensures(LIVE_FORM)}
+    assert rows["YESCARTA"]["approval_date"] == "2017-10-18"
+    assert rows["YESCARTA"]["application_number"] == "BLA125643"
+    assert rows["ENGERIX-B"]["approval_date"] == "1989-08-28"
+    # A row with no date cannot date anything and is left out.
+    assert "UNDATED" not in rows
+
+
+def test_parse_licensures_keeps_a_product_no_applicant_map_knows():
+    """parse_purple_book keeps a product only where its applicant maps to a company in
+    the universe, which is right for a loss-of-exclusivity view and fatal here: Abeona,
+    Autolus and Krystal are in no map and each sells a licensed product with a date.
+    Asked with a map holding only GSK, it cannot see Kite's Yescarta; parse_licensures
+    reads every row whoever filed it."""
+    from fetchers.exclusivity_purplebook import parse_licensures, parse_purple_book
+
+    mapped = {p["brand"].upper() for p in parse_purple_book(LIVE_FORM, {"GSK": ["GLAXO"]})}
+    assert "YESCARTA" not in mapped
+    assert {r["brand"].upper() for r in parse_licensures(LIVE_FORM)} >= {
+        "YESCARTA", "ENGERIX-B"}
+
+
+def _asset(conn, company_id, brand, marketed=1, appl=None):
+    conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, is_marketed) VALUES (?, ?, ?)",
+        (company_id, brand, marketed))
+    asset_id = conn.execute("SELECT MAX(id) FROM assets").fetchone()[0]
+    if appl:
+        conn.execute("INSERT INTO approvals (asset_id, application_number, approval_date)"
+                     " VALUES (?, ?, '2000-01-01')", (asset_id, appl))
+    return asset_id
+
+
+def test_attach_licensures_dates_the_products_openfda_cannot(tmp_path):
+    """The CAR-Ts, gene therapies, vaccines and clotting factors are CBER and are not in
+    Drugs@FDA at all. The Purple Book is the register that holds them."""
+    import db
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'GILD', 'Gilead')")
+    yescarta = _asset(conn, 1, "Yescarta")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LIVE_FORM))
+    conn.commit()
+    assert got["written"] == 1
+    row = conn.execute(
+        "SELECT application_number, approval_date, source FROM approvals WHERE asset_id = ?",
+        (yescarta,)).fetchone()
+    assert row["application_number"] == "BLA125643"
+    assert row["approval_date"] == "2017-10-18"
+    assert row["source"] == "purple_book"
+    conn.close()
+
+
+def test_attach_licensures_leaves_a_product_openfda_already_dated(tmp_path):
+    """Only the gap. A product the other source carries is not argued with."""
+    import db
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'GILD', 'Gilead')")
+    _asset(conn, 1, "Yescarta", appl="BLA125643")
+    conn.commit()
+
+    assert attach_licensures(conn, parse_licensures(LIVE_FORM))["written"] == 0
+    assert conn.execute("SELECT COUNT(*) FROM approvals").fetchone()[0] == 1
+    conn.close()
+
+
+def test_attach_licensures_refuses_a_brand_standing_for_two_applications(tmp_path):
+    """Two BLAs under one proprietary name is not resolved by guessing which."""
+    import db
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X plc')")
+    _asset(conn, 1, "Sharedname")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LIVE_FORM))
+    assert got == {"written": 0, "ambiguous": 1, "unmatched": 0}
+    conn.close()
+
+
+def test_attach_licensures_reads_the_first_of_several_brands_on_one_asset(tmp_path):
+    """"Fluarix, Fluarix Quadrivalent" is one asset holding two brands; the first is the
+    one the application is filed under."""
+    import db
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'GSK', 'GSK plc')")
+    asset = _asset(conn, 1, "Engerix-B, Engerix-B Paediatric")
+    conn.commit()
+
+    assert attach_licensures(conn, parse_licensures(LIVE_FORM))["written"] == 1
+    assert conn.execute("SELECT approval_date FROM approvals WHERE asset_id = ?",
+                        (asset,)).fetchone()[0] == "1989-08-28"
+    conn.close()
+
+
+def test_attach_licensures_ignores_an_unmarketed_asset(tmp_path):
+    """A pipeline compound has no approval to find, and the gap this closes is the
+    marketed register."""
+    import db
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'GILD', 'Gilead')")
+    _asset(conn, 1, "Yescarta", marketed=0)
+    conn.commit()
+
+    assert attach_licensures(conn, parse_licensures(LIVE_FORM))["written"] == 0
+    conn.close()
