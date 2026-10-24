@@ -148,3 +148,19 @@ def test_briefs_are_appended_not_overwritten(universe, monkeypatch):
     n = conn.execute("SELECT COUNT(*) FROM briefs WHERE theme='CAR-T'").fetchone()[0]
     conn.close()
     assert n == 2
+
+
+def test_brief_marks_changed_source_facts_outdated(universe, monkeypatch):
+    monkeypatch.setattr(brief.llm, "provider", lambda prefer=None: None)
+    brief.generate(universe, theme="CAR-T")
+    assert brief.latest(universe, theme="CAR-T")["freshness"] == "current"
+    conn = db.get_connection(universe)
+    conn.execute("UPDATE assets SET is_marketed=1 WHERE generic_name='Lisocabtagene maraleucel'")
+    conn.commit()
+    conn.close()
+    assert brief.latest(universe, theme="CAR-T")["freshness"] == "outdated"
+
+
+def test_legacy_brief_is_unverified_not_current(universe):
+    brief._store(universe, "CAR-T", "An old brief", "rules", 90)
+    assert brief.latest(universe, theme="CAR-T")["freshness"] == "unverified"

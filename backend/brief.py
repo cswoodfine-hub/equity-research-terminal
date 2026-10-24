@@ -19,6 +19,7 @@ and is not tagged.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -213,15 +214,15 @@ def _clean(text: str) -> str:
     return insights._scrub(text).strip()
 
 
-def _store(db_path, theme: str, body: str, model: str, days: int) -> dict:
+def _store(db_path, theme: str, body: str, model: str, days: int, facts_hash=None) -> dict:
     conn = db.get_connection(db_path)
     try:
         conn.execute(
-            "INSERT INTO briefs (theme, body, model, horizon_days) VALUES (?, ?, ?, ?)",
-            (theme, body, model, days))
+            "INSERT INTO briefs (theme, body, model, horizon_days, facts_hash) VALUES (?, ?, ?, ?, ?)",
+            (theme, body, model, days, facts_hash))
         conn.commit()
         row = conn.execute(
-            "SELECT id, theme, generated_at, body, model, horizon_days FROM briefs"
+            "SELECT id, theme, generated_at, body, model, horizon_days, facts_hash FROM briefs"
             "  WHERE theme = ? ORDER BY id DESC LIMIT 1", (theme,)).fetchone()
     finally:
         conn.close()
@@ -249,7 +250,9 @@ def generate(db_path=None, theme: str = "", days: int = 90, today=None) -> dict:
                 error = "empty response from the model"
         except Exception as exc:
             error = f"{type(exc).__name__}: {exc}"
-    out = _store(db_path, theme, body, model, days)
+    out = _store(db_path, theme, body, model, days,
+                 hashlib.sha256(facts.encode()).hexdigest())
+    out["freshness"] = "current"
     out["error"] = error
     return out
 
@@ -259,9 +262,16 @@ def latest(db_path=None, theme: str = ""):
     conn = db.get_connection(db_path)
     try:
         row = conn.execute(
-            "SELECT id, theme, generated_at, body, model, horizon_days FROM briefs"
+            "SELECT id, theme, generated_at, body, model, horizon_days, facts_hash FROM briefs"
             "  WHERE theme = ? ORDER BY generated_at DESC, id DESC LIMIT 1",
             (theme,)).fetchone()
     finally:
         conn.close()
-    return dict(row) if row else None
+    if not row:
+        return None
+    out = dict(row)
+    fingerprint = hashlib.sha256(context(
+        db_path, theme, days=out["horizon_days"]).encode()).hexdigest()
+    out["freshness"] = ("unverified" if not out.get("facts_hash") else
+                        "current" if out["facts_hash"] == fingerprint else "outdated")
+    return out
