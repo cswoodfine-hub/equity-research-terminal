@@ -417,7 +417,8 @@ def _probable(where, close, pos=0.5):
     import assumptions
     path = _company(where, close=close)
     conn = db.get_connection(path)
-    assumptions.save(conn, 1, [{"key": "pos", "value": pos, "source": "judgement"}])
+    assumptions.save(conn, 1, [{"key": "pos", "value": pos, "source": "judgement"}],
+                     reason="correction")
     conn.commit()
     conn.close()
     return path
@@ -472,7 +473,7 @@ def test_a_break_point_put_into_the_book_meets_the_price(tmp_path, monkeypatch, 
 
     conn = db.get_connection(path)
     assumptions.save(conn, 1, [{"key": key, "value": lever["break"],
-                                "source": "the break-point"}])
+                                "source": "the break-point"}], reason="correction")
     conn.commit()
     conn.close()
     assert V.company_verdict(path, "AMGN")["sotp"]["equity_per_share"] == pytest.approx(

@@ -16,6 +16,7 @@ import json
 import pathlib
 import re
 
+import assumption_log
 import db
 import epidemiology
 import evidence
@@ -322,6 +323,18 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     asset = conn.execute(
         "SELECT modality, brand_name, generic_name, owner_company_id, is_marketed"
         " FROM assets WHERE id = ?", (asset_id,)).fetchone()
+
+    # Whether the label already covers each indication. The engine is pure and cannot
+    # ask, so the answer travels with the input: marketed mode adds a layer for an
+    # indication the product does not yet sell, and must not add one for the business
+    # already inside the revenue it is grown from.
+    import approved_indications
+    try:
+        already = approved_indications.indication_ids(conn, asset_id)
+    except Exception:                                      # noqa: BLE001
+        already = set()
+    for entry in indications.values():
+        entry["approved"] = entry["indication_id"] in already
     # The valuation rule, not the profile's: orphan exclusivity holds one indication and
     # not the molecule, so it is left out here as it is in the cliff. Kesimpta carried a
     # 2023 orphan date into the engine and was eroded from year one while growing 30%.
@@ -464,13 +477,37 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
 
 # --- writing -----------------------------------------------------------------
 
-def save(conn, asset_id: int, incoming: list[dict]) -> int:
+def _needs_reason(old_grade, new_grade, reason, key, verb) -> None:
+    """Refuse a move on a judgement that does not say why.
+
+    The only thing the terminal asks the analyst for that it cannot work out itself. It
+    asks because a reader of the book is owed the difference between a number that moved
+    because the world did and a number that moved because somebody changed their mind.
+    """
+    if reason or not assumption_log.requires_reason(old_grade, new_grade):
+        return
+    grade = old_grade if old_grade in assumption_log.REQUIRES_REASON else new_grade
+    raise assumption_log.ReasonRequired(
+        f"{verb} {key}, a row graded {grade}, needs a reason: one of "
+        f"{', '.join(assumption_log.REASONS)}")
+
+
+def save(conn, asset_id: int, incoming: list[dict], *, changed_by: str | None = None,
+         reason: str | None = None, rationale: str | None = None,
+         trigger_ref: str | None = None, batch_id: str | None = None,
+         refresh_run_id: int | None = None) -> int:
     """Upsert assumption rows for one asset. Returns rows written.
 
     A row is identified by (indication, region, scenario, key, year); writing one that
     exists replaces its value and provenance. A row whose value and text are both empty
     deletes, which is how the editor removes a line.
+
+    Every write is recorded in ``assumption_edits`` (088) in this same transaction, with
+    the value it replaced, so a number cannot move without the ledger moving with it.
+    Changing or removing a row the book reads as an assumption rather than as evidence is
+    refused unless it says why.
     """
+    reason = assumption_log.check_reason(reason)
     written = 0
     for row in incoming:
         key = (row.get("key") or "").strip()
@@ -481,19 +518,52 @@ def save(conn, asset_id: int, incoming: list[dict]) -> int:
         scenario = (row.get("scenario") or "base").strip()
         year = row.get("year")
         value, text = row.get("value"), (row.get("text_value") or "").strip() or None
+        prior = conn.execute(
+            """SELECT * FROM assumptions WHERE asset_id = ?
+                AND IFNULL(indication_id, 0) = IFNULL(?, 0) AND region = ?
+                AND scenario = ? AND key = ? AND IFNULL(year, 0) = IFNULL(?, 0)""",
+            (asset_id, indication_id, region, scenario, key, year)).fetchone()
+        before = dict(prior) if prior is not None else None
+        logged = dict(asset_id=asset_id, indication_id=indication_id, region=region,
+                      scenario=scenario, key=key, year=year, changed_by=changed_by,
+                      reason=reason, rationale=rationale, trigger_ref=trigger_ref,
+                      batch_id=batch_id, refresh_run_id=refresh_run_id)
         if value is None and text is None:
-            conn.execute(
-                """DELETE FROM assumptions WHERE asset_id = ?
-                    AND IFNULL(indication_id, 0) = IFNULL(?, 0) AND region = ?
-                    AND scenario = ? AND key = ? AND IFNULL(year, 0) = IFNULL(?, 0)""",
-                (asset_id, indication_id, region, scenario, key, year))
+            if prior is not None:
+                _needs_reason(prior["evidence"], None, reason, key, "removing")
+                conn.execute(
+                    """DELETE FROM assumptions WHERE asset_id = ?
+                        AND IFNULL(indication_id, 0) = IFNULL(?, 0) AND region = ?
+                        AND scenario = ? AND key = ? AND IFNULL(year, 0) = IFNULL(?, 0)""",
+                    (asset_id, indication_id, region, scenario, key, year))
+                assumption_log.record(conn, op="delete", before=before, after=None,
+                                      **logged)
             continue
         # A grade the analyst states is reviewed and kept; otherwise the rules read one
         # off the row's own source, unreviewed, so it follows the text when it changes.
         stated = (row.get("evidence") or "").strip().lower() or None
         if stated is not None and stated not in evidence.GRADES:
             raise ValueError(f"'{stated}' is not an evidence grade")
-        grade = stated or evidence.grade(row.get("source"), row.get("note"), key)
+        read = stated or evidence.grade(row.get("source"), row.get("note"), key)
+        if prior is None:
+            grade, reviewed, op = read, 1 if stated else 0, "create"
+        else:
+            op = "update"
+            moved = (prior["value"] != value) or (prior["text_value"] != text)
+            restated = (prior["source"] or "") != (row.get("source") or "")
+            if stated:
+                grade, reviewed = read, 1
+            elif prior["evidence_reviewed"] and moved and restated:
+                # The analyst confirmed a grade for a number and a source that have both
+                # moved since. The confirmation was of the row as it was, so it lapses
+                # rather than carrying forward onto a figure nobody has looked at.
+                grade, reviewed = read, 0
+            elif prior["evidence_reviewed"]:
+                grade, reviewed = prior["evidence"], 1
+            else:
+                grade, reviewed = read, 0
+            if moved:
+                _needs_reason(prior["evidence"], grade, reason, key, "changing")
         conn.execute(
             """INSERT INTO assumptions
                    (asset_id, indication_id, region, scenario, key, year, value,
@@ -505,16 +575,18 @@ def save(conn, asset_id: int, incoming: list[dict]) -> int:
                DO UPDATE SET value = excluded.value, text_value = excluded.text_value,
                              unit = excluded.unit, source = excluded.source,
                              note = excluded.note, as_of = excluded.as_of,
-                             evidence = CASE WHEN excluded.evidence_reviewed = 1
-                                              OR assumptions.evidence_reviewed = 0
-                                             THEN excluded.evidence
-                                             ELSE assumptions.evidence END,
-                             evidence_reviewed = MAX(assumptions.evidence_reviewed,
-                                                     excluded.evidence_reviewed),
+                             evidence = excluded.evidence,
+                             evidence_reviewed = excluded.evidence_reviewed,
                              updated_at = datetime('now')""",
             (asset_id, indication_id, region, scenario, key, year, value, text,
              row.get("unit"), row.get("source"), row.get("note"), row.get("as_of"),
-             grade, 1 if stated else 0))
+             grade, reviewed))
+        assumption_log.record(
+            conn, op=op, before=before,
+            after={"value": value, "text_value": text, "unit": row.get("unit"),
+                   "source": row.get("source"), "note": row.get("note"),
+                   "evidence": grade, "evidence_reviewed": reviewed},
+            **logged)
         written += 1
     return written
 
@@ -552,6 +624,8 @@ def load_seeds(conn, directory=None) -> dict:
     therefore means editing it where it lives, not editing the file and waiting.
     """
     source_dir = pathlib.Path(directory) if directory else SEED_DIR
+    # One batch for the load: a reseed is one event, however many files it reads.
+    batch = assumption_log.new_batch()
     written = skipped = 0
     if not source_dir.exists():
         return {"written": 0, "skipped": 0}
@@ -609,7 +683,7 @@ def load_seeds(conn, directory=None) -> dict:
                 "unit": row.get("unit"), "source": row.get("source"),
                 "note": row.get("note"), "as_of": row.get("as_of"),
                 "evidence": row.get("evidence"),
-            }])
+            }], reason="initial_seed", batch_id=batch)
     conn.commit()
     return {"written": written, "skipped": skipped}
 
