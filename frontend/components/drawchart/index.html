@@ -30,8 +30,8 @@ const Streamlit = {
   value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
 };
 
-let chart = null, series = null, canvas, ctx, chartEl, hintEl;
-const state = { data: [], markers: [], mode: "Candlestick", intraday: false,
+let chart = null, series = null, fairSeries = null, canvas, ctx, chartEl, hintEl;
+const state = { data: [], markers: [], fair: [], mode: "Candlestick", intraday: false,
                 lines: [], draw: false, theme: {}, viewKey: null, height: 560 };
 let lastViewKey = null;
 let pending = null;             // first click of a new line
@@ -46,6 +46,7 @@ window.addEventListener("message", function (e) {
   const a = d.args || {};
   state.data = a.data || [];
   state.markers = a.markers || [];
+  state.fair = a.fair || [];
   state.mode = a.mode || "Candlestick";
   state.intraday = !!a.intraday;
   state.lines = (a.lines || []).map(cloneLine);
@@ -53,8 +54,31 @@ window.addEventListener("message", function (e) {
   state.theme = a.theme || {};
   state.viewKey = a.view_key || "";
   state.height = a.height || 560;
+  state.minHeight = state.height;
   render();
 });
+
+/* The chart is the whole subject of its tab, so it takes the room the tab has rather
+   than a number chosen in Python that cannot know the screen. Python's height becomes
+   the floor: on a short window, or where the parent cannot be measured, nothing moves.
+
+   The frame is same-origin with the page that hosts it, so the parent's viewport and
+   this frame's own offset in it are both readable. They are read inside a try: a
+   browser that refuses the parent throws on the first access, and the floor stands. */
+const BOTTOM_GUTTER = 56;        /* the legend and byline that sit under the chart */
+
+function availableHeight() {
+  const floor = state.minHeight || 560;
+  try {
+    const frame = window.frameElement;
+    if (!frame) return floor;
+    const top = frame.getBoundingClientRect().top;
+    const room = window.parent.innerHeight - top - BOTTOM_GUTTER;
+    return Math.max(floor, Math.round(room));
+  } catch (e) {
+    return floor;                /* cross-origin, or no parent to measure */
+  }
+}
 
 function build() {
   const th = state.theme;
@@ -77,23 +101,53 @@ function build() {
     : chart.addLineSeries({ color: th.up, lineWidth: 2 });
   series.setData(state.data);
   if (state.markers.length) series.setMarkers(state.markers);
+  fairSeries = null;             /* the old chart is gone, and its series with it */
+  syncFair();
   chart.timeScale().fitContent();
   chart.timeScale().subscribeVisibleLogicalRangeChange(drawLines);
 }
 
+/* The fair value this book stated, on the same scale as the price, because the gap
+   between the two lines is the whole point of drawing them together.
+
+   Stepped rather than sloped: the model held its view between the days it stated one,
+   and a slope would draw a daily rebuild that never happened. The step colour rides on
+   each point (Python sends the muted token for a carried day), so the line itself says
+   which days were stated and which were held. */
+function syncFair() {
+  if (!state.fair.length) {
+    if (fairSeries) { chart.removeSeries(fairSeries); fairSeries = null; }
+    return;
+  }
+  if (!fairSeries) {
+    fairSeries = chart.addLineSeries({
+      color: state.theme.flag, lineWidth: 2,
+      lineType: 1,                 /* LineType.WithSteps */
+      priceLineVisible: false, crosshairMarkerVisible: false,
+      lastValueVisible: true, title: "fair value",
+    });
+  } else {
+    fairSeries.applyOptions({ color: state.theme.flag });
+  }
+  fairSeries.setData(state.fair);
+}
+
 function render() {
+  state.height = availableHeight();
   if (!chart || state.viewKey !== lastViewKey) {
     lastViewKey = state.viewKey;
     build();
   } else {
     series.setData(state.data);      // same view: update in place, keep the pan/zoom
     series.setMarkers(state.markers);
+    syncFair();
   }
   // Grid colour is re-applied on every render, not only on build: toggling the grid
   // changes the theme without changing the view key, and a rebuild would throw away
   // the pan and zoom the analyst has set.
   chart.applyOptions({
     width: chartEl.clientWidth,
+    height: state.height,          // the tab may have resized since the chart was built
     grid: { vertLines: { color: state.theme.rule },
             horzLines: { color: state.theme.rule } },
   });
@@ -221,8 +275,14 @@ window.addEventListener("load", function () {
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
   canvas.addEventListener("dblclick", onDbl);
+  // The window changing shape changes how much room the tab has, so the height is
+  // re-measured with the width rather than held at whatever the last render found.
   window.addEventListener("resize", function () {
-    if (chart) { chart.applyOptions({ width: chartEl.clientWidth }); sizeCanvas(); }
+    if (!chart) return;
+    state.height = availableHeight();
+    chart.applyOptions({ width: chartEl.clientWidth, height: state.height });
+    sizeCanvas();
+    Streamlit.height(state.height + 2);
   });
   Streamlit.ready();
 });

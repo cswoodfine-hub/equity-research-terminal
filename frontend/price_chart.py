@@ -34,7 +34,18 @@ _SNAP_DAYS = 40
 _EVENT_STYLE = {
     "approval": {"position": "belowBar", "color": TK.UP, "shape": "arrowUp"},
     "loe": {"position": "aboveBar", "color": TK.DOWN, "shape": "arrowDown"},
+    # A change the analyst made, rather than one the world made. Above the bar in the
+    # flag colour, the one marker on the chart that is about this book rather than about
+    # the company.
+    "model": {"position": "aboveBar", "color": TK.FLAG, "shape": "circle"},
+    "change": {"position": "belowBar", "color": TK.MUTED, "shape": "circle"},
+    "catalyst": {"position": "belowBar", "color": TK.MUTED, "shape": "circle"},
 }
+
+# Which event speaks for a day that carries several. A model move leads because it is the
+# half of the record a reader cannot see from outside; then an approval, then a loss of
+# exclusivity, then the rest.
+_EVENT_RANK = {"model": 0, "approval": 1, "loe": 2, "catalyst": 3, "change": 4}
 
 # The library, bundled once into assets like the fonts, inlined into the component so
 # nothing loads from a network. A missing file degrades to an empty script rather than
@@ -89,10 +100,17 @@ def event_markers(bars, events, intraday: bool = False) -> list[dict]:
     """Events to markers, each snapped to the bar nearest its day so it stays put across
     bar sizes; an event whose nearest bar is off the chart (an old approval, a future LOE)
     is dropped. Each event is {date, label, kind}. Sorted by time, which lightweight-charts
-    requires."""
+    requires.
+
+    A bar gets one marker however many events land on it. The library stacks markers at
+    one time until they overlap, and six arrows on a day reads as six days of news rather
+    than one day of six. The event that ranks highest speaks, and the rest are counted on
+    it: the day is still legible and nothing is hidden, since the list under the chart
+    carries them all.
+    """
     dated = [(_parse_day(b.get("as_of")), b) for b in bars]
     dated = [(d, b) for d, b in dated if d is not None and b.get("close") is not None]
-    marks = []
+    on_bar: dict = {}
     for event in events or []:
         day = _parse_day(event.get("date"))
         if day is None or not dated:
@@ -100,12 +118,62 @@ def event_markers(bars, events, intraday: bool = False) -> list[dict]:
         near_day, near_bar = min(dated, key=lambda p: abs((p[0] - day).days))
         if abs((near_day - day).days) > _SNAP_DAYS:
             continue
-        style = _EVENT_STYLE.get(event.get("kind"), _EVENT_STYLE["approval"])
+        on_bar.setdefault(near_day, []).append((near_bar, event))
+    marks = []
+    for near_day, landed in on_bar.items():
+        landed.sort(key=lambda p: _EVENT_RANK.get(p[1].get("kind"), 9))
+        near_bar, lead = landed[0]
+        style = _EVENT_STYLE.get(lead.get("kind"), _EVENT_STYLE["approval"])
+        text = str(lead.get("label") or "")
+        if len(landed) > 1:
+            text = f"{text} +{len(landed) - 1}"
         marks.append((near_day, {
             "time": _bar_time(near_bar.get("as_of"), intraday),
             "position": style["position"], "color": style["color"],
-            "shape": style["shape"], "text": str(event.get("label") or "")}))
+            "shape": style["shape"], "text": text}))
     return [m for _, m in sorted(marks, key=lambda p: p[0])]
+
+
+def forecast_series(points, intraday: bool = False, bars=None) -> list[dict]:
+    """The fair value this book stated, as a step line against the price.
+
+    A step and not a slope. The model held its view between the days it stated one, and a
+    sloped line would draw a daily rebuild that never happened. A carried day takes the
+    muted colour, so the line says which days were stated and which were held, and a day
+    with no stated view at all is whitespace: the line stops rather than reaching back
+    through dates the book had no view on.
+
+    Clipped to the loaded bars. The fair value record can run far longer than the price
+    window on screen, and the chart fits the whole of what it is given: a six-month line
+    against a five-day view would silently stretch the view to six months.
+
+    Empty on an intraday view. The model states a view once a day, and drawing it against
+    fifteen-minute bars would read as a figure that moves with the price.
+    """
+    if intraday:
+        return []
+    window = [d for d in (_parse_day(b.get("as_of")) for b in (bars or [])) if d]
+    first, last = (min(window), max(window)) if window else (None, None)
+    out = []
+    for point in points or []:
+        day = _parse_day(point.get("as_of"))
+        if first is not None and (day is None or day < first or day > last):
+            continue
+        time = _bar_time(point.get("as_of"), False)
+        if time is None:
+            continue
+        value = point.get("fair_value")
+        if value is None:
+            out.append({"time": time})          # whitespace: the line breaks here
+            continue
+        out.append({"time": time, "value": float(value),
+                    "color": TK.FLAG if point.get("stated") else TK.MUTED})
+    # Whitespace only between drawn points. It is there to break a line that has started
+    # and then stopped; before the first stated day and after the last there is no line to
+    # break, and carrying thousands of empty bars across to draw a fortnight is a payload
+    # the component pays for on every render.
+    drawn = [i for i, point in enumerate(out) if "value" in point]
+    return out[drawn[0]:drawn[-1] + 1] if drawn else []
 
 
 def _visible_range(data, window_days, intraday):
