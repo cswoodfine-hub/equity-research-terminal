@@ -54,6 +54,7 @@ REASON_SHORT = {
     "not_gate_phase": "not the gate's phase",
     "past_gate": "already at the FDA decision",
     "same_gate_later": "an earlier study decides the gate",
+    "already_approved": "the label already covers it",
 }
 REASON_LONG = {
     "no_gate_marketed": "A marketed line: the readout is label work, outside the gate model.",
@@ -62,6 +63,7 @@ REASON_LONG = {
     "not_gate_phase": "A readout that does not decide the line's gate.",
     "past_gate": "The line is already at the FDA decision.",
     "same_gate_later": "An earlier study decides the same gate.",
+    "already_approved": "The label already covers this indication, so the approval is in the reported revenue.",
 }
 PANES = ("Legs and odds", "Cost to reach", "Studies and dates", "Market and evidence")
 MORE_TITLES = {"cal": "Calendar, 24 months", "slip": "Date slips", "loe": "Exclusivity",

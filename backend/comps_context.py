@@ -525,10 +525,23 @@ def _attribution(conn, counted: list) -> dict:
     if not counted:
         return out
     marks = ",".join("?" * len(counted))
+    # A marketed product is valued off its reported revenue whatever indication rows it
+    # carries. The rows it does carry are expansion layers (forecast._indication_layers),
+    # each worth its own small increment and most of them nil, and none of them is where
+    # the asset's value sits. Reading them as "sized here" put the whole of Mounjaro
+    # under Fatty Liver at $149 a share and the whole of orforglipron under four
+    # comorbidities it adds nothing in, which is the $146 fatty liver bug this function
+    # was written to end, back by another door. So a marketed line keeps the lead rule.
+    marketed = {r["asset_id"] for r in conn.execute(
+        f"""SELECT asset_id FROM assumptions
+             WHERE indication_id IS NULL AND key = 'therapy_mode'
+               AND text_value = 'marketed' AND asset_id IN ({marks})""", counted)}
     sized: dict = {}
     for r in conn.execute(
             f"""SELECT DISTINCT asset_id, indication_id FROM assumptions
                  WHERE indication_id IS NOT NULL AND asset_id IN ({marks})""", counted):
+        if r["asset_id"] in marketed:
+            continue
         sized.setdefault(r["asset_id"], set()).add(r["indication_id"])
     for asset_id in counted:
         if asset_id in sized:

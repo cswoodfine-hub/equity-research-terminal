@@ -51,16 +51,19 @@ CARD_FACTS = ("chance", "cost to reach", "net", "at DiMasi's level", "earliest a
 # Why an event carries no price, in a few words (stakes unpriced[].reason).
 WHY_SHORT = {"no_gate": "outside the gate model", "other_indication": "indication not valued",
              "not_gate_phase": "not the gate's phase", "past_gate": "past its gate",
-             "same_gate_later": "an earlier study decides the gate"}
+             "same_gate_later": "an earlier study decides the gate",
+             "already_approved": "the label already covers it"}
 REASONS = (
     ("no_gate", "marketed or outside the gate model"),
     ("other_indication", "a study in an indication the forecast does not value"),
     ("not_gate_phase", "a readout that does not decide the gate"),
     ("past_gate", "an asset already at the FDA decision"),
     ("same_gate_later", "an earlier study decides the same gate"),
+    ("already_approved", "an indication the label already covers"),
 )
 REASON_CLASS = {"no_gate": "u0", "other_indication": "u1", "not_gate_phase": "u2",
-                "past_gate": "u3", "same_gate_later": "u4"}
+                "past_gate": "u3", "same_gate_later": "u4",
+                "already_approved": "u5"}
 EVIDENCE = {"published": "published", "convention": "convention", "implied": "implied",
             "stated": "stated"}
 
