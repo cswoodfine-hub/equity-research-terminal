@@ -12,9 +12,9 @@ as long as the stamp is unchanged, which makes a hit exact rather than merely re
 stamp is the database file and its write-ahead log's modification times, the newest
 modification time under ``data/``, and today's date.
 
-When the stamp moves because something outside the API wrote (the daily refresh runs as its
-own process), the last response is served at once and recomputed in the background, so a
-click never waits on a cold book. A write through the API clears everything instead: an
+When the stamp moves, company and theme reads recompute before serving so related
+figures cannot silently mix old cached values with current ones. Broad universe reads
+retain background revalidation to avoid rebuilding the entire coverage set on a click. A write through the API clears everything instead: an
 analyst who saves an assumption reads the new forecast on the very next call, never the
 one from before the edit. A read that writes (a note generated on request) is never
 cached, and nor are the health and freshness checks, which exist to be live.
@@ -83,6 +83,11 @@ def enabled() -> bool:
 
 def disk_enabled() -> bool:
     return enabled() and os.getenv("ER_TOOL_RESPONSE_CACHE_DISK", "1") != "0"
+
+
+def requires_current(path: str) -> bool:
+    """Never silently serve an old valuation or company fact beside a newer one."""
+    return path.startswith("/companies/") or path.startswith("/themes")
 
 
 def cacheable(path: str, query: str) -> bool:
@@ -313,8 +318,9 @@ async def handle(request, call_next):
         if entry is not None:
             if entry["stamp"] == current:
                 return _serve(entry, "hit")
-            _revalidate(str(request.url), key)
-            return _serve(entry, "stale")
+            if not requires_current(path):
+                _revalidate(str(request.url), key)
+                return _serve(entry, "stale")
     response = await call_next(request)
     # Checked before the body is read: an incomplete body is handed on untouched.
     if response.headers.get(SKIP) == "1":
