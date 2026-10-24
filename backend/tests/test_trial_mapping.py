@@ -501,3 +501,21 @@ def test_the_override_file_pins_a_study_by_the_assets_name(tmp_path):
     got = dict(conn.execute("SELECT nct_id, asset_id FROM trials"))
     conn.close()
     assert got == {"NCT05567796": combo, "NCT07220642": alone}
+
+
+def test_contrave_does_not_bind_to_troxyca(tmp_path):
+    """Orexigen's naltrexone SR/bupropion SR studies were filed on Troxyca ER, which is
+    oxycodone with naltrexone and carries naltrexone alone as its generic name."""
+    db_file, conn, *_ = _seeded(tmp_path)
+    troxyca = _asset(conn, "PFE", brand="Troxyca Er", generic="Naltrexone Hydrochloride",
+                     code="NDA207621")
+    conn.execute("UPDATE assets SET active_ingredients = ? WHERE id = ?",
+                 ('["Naltrexone Hydrochloride", "Oxycodone Hydrochloride"]', troxyca))
+    conn.commit()
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='PFE'").fetchone()[0]
+    names = tm._asset_names(conn, cid)
+    conn.close()
+    contrave = tm.normalise("Naltrexone SR 32 mg/bupropion SR 360 mg/day")
+    assert tm.match_intervention(contrave, names) != troxyca
+    # Its own brand still names it.
+    assert tm.match_intervention(tm.normalise("Troxyca ER 40 mg"), names) == troxyca

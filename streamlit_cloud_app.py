@@ -23,6 +23,7 @@ import json
 import os
 import pathlib
 import runpy
+import shutil
 import sys
 import threading
 import time
@@ -135,19 +136,41 @@ def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
 
 
 def _download_database(url: str, target: pathlib.Path) -> str:
-    """Fetch a gzipped database published by the refresh, or say why it could not."""
-    request = urllib.request.Request(url, headers={"User-Agent": "NovatalisTerminal/0.1"})
+    """Fetch a gzipped database published by the refresh, or say why it could not.
+
+    The release asset's API URL answers with the asset's JSON description unless the
+    request asks for the file, token or no token. Asking only when a token was set meant
+    a public repository wrote that description over the database.
+    """
+    request = urllib.request.Request(url, headers={
+        "User-Agent": "NovatalisTerminal/0.1", "Accept": "application/octet-stream"})
     token = setting("ER_DB_TOKEN")
     if token:                      # a private repo's release asset needs one
         request.add_header("Authorization", f"Bearer {token}")
-        request.add_header("Accept", "application/octet-stream")
-    with urllib.request.urlopen(request, timeout=120) as response:
-        payload = response.read()
+    # Streamed to disk and decompressed from there, so a 545 MB database never sits in
+    # memory twice over on a container with a hard memory limit.
+    staging = target.with_suffix(".download")
+    with urllib.request.urlopen(request, timeout=300) as response, \
+            open(staging, "wb") as out:
+        shutil.copyfileobj(response, out, 1 << 20)
+    with open(staging, "rb") as handle:
+        magic = handle.read(2)
+    unpacked = target.with_suffix(".unpacked")
     # The release asset is gzipped whatever its URL ends in, so the magic number
     # decides rather than the path.
-    body = gzip.decompress(payload) if payload[:2] == b"\x1f\x8b" else payload
-    target.write_bytes(body)
-    return f"downloaded {len(body) / 1e6:.0f} MB from the published refresh"
+    if magic == b"\x1f\x8b":
+        with gzip.open(staging, "rb") as src, open(unpacked, "wb") as out:
+            shutil.copyfileobj(src, out, 1 << 20)
+        staging.unlink()
+    else:
+        staging.replace(unpacked)
+    with open(unpacked, "rb") as handle:
+        if handle.read(16) != b"SQLite format 3\x00":
+            unpacked.unlink()
+            raise RuntimeError("the published file is not a SQLite database")
+    unpacked.replace(target)
+    return (f"the published refresh, {target.stat().st_size / 1e6:.0f} MB"
+            f"{_shipped_stamp(target)}")
 
 
 @st.cache_resource(show_spinner="Preparing the database")
@@ -166,6 +189,20 @@ def prepare_database() -> str:
     # It is preferred over whatever the container happens to be holding, because a
     # redeploy can reuse a filesystem: keeping the older copy meant shipping new data
     # and seeing yesterday's, with nothing on screen to say why.
+    # The published refresh first, when the deployment names one. The database committed
+    # to the repository is always present, so checking it first meant a configured
+    # ER_DB_REPO was never read: the app showed the committed copy, months older than
+    # the release, with the secret listed in the sidebar as if it were in use.
+    if DB_REPO or DB_URL:
+        try:
+            token = setting("ER_DB_TOKEN")
+            url = (_resolve_release_asset(DB_REPO, DB_TAG, token) if DB_REPO
+                   else DB_URL)
+            return _download_database(url, target)
+        except Exception as exc:      # a bad tag or token must not take the app down
+            st.warning(f"Could not fetch the published database, so the committed copy "
+                       f"is shown instead: {exc}")
+
     shipped = ROOT / "data" / "er_tool.db.gz"
     if shipped.exists() and (not target.exists()
                              or shipped.stat().st_mtime > target.stat().st_mtime):
@@ -175,16 +212,6 @@ def prepare_database() -> str:
 
     if target.exists() and target.stat().st_size > 1_000_000:
         return f"the database already in this container{_shipped_stamp(target)}"
-
-    if DB_REPO or DB_URL:
-        try:
-            token = setting("ER_DB_TOKEN")
-            url = (_resolve_release_asset(DB_REPO, DB_TAG, token) if DB_REPO
-                   else DB_URL)
-            db.init(str(target))
-            return _download_database(url, target)
-        except Exception as exc:      # a bad tag or token must not take the app down
-            st.warning(f"Could not fetch the published database: {exc}")
 
     # Whatever is on file. The history holds the change feed and the notes; the
     # current-state tables stay empty until a refresh runs, and the app says so
