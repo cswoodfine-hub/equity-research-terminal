@@ -9,16 +9,21 @@ server error.
 from __future__ import annotations
 
 import copy
+import datetime as dt
 import logging
 import math
 import re
 
 import asset_revenue
+import assumption_log
 import assumptions as assumptions_module
 import company_lines
 import db
 import discontinued
 import forecast
+import approved_indications
+import indication_layer
+import indication_mapping
 import launch_timing
 import other_claims
 import loe_link
@@ -259,12 +264,23 @@ def _template():
 
 
 def save_assumptions(db_path, ticker: str, asset_id: int, rows: list[dict],
-                     scenario: str = "base"):
+                     scenario: str = "base", *, reason: str | None = None,
+                     rationale: str | None = None, trigger_ref: str | None = None,
+                     changed_by: str | None = None):
     """Write the editor's rows, snapshot the resulting forecast, return the new state.
 
     Scoped to the ticker first, the save_product_notes idiom: a row cannot be written
     against another company's asset by id alone.
+
+    The write goes in the ledger as one batch (assumption_log), with the valuation on
+    either side of it. The rNPV before is read first, because once the rows are written
+    the number that stood before them cannot be recovered: that is the whole reason the
+    ledger exists.
     """
+    before = asset_forecast(db_path, ticker, asset_id, scenario)
+    rnpv_before = ((before or {}).get("result") or {}).get("rnpv") if (
+        before and before.get("ok")) else None
+    batch = assumption_log.new_batch()
     conn = db.get_connection(db_path)
     try:
         company = _company(conn, ticker)
@@ -272,19 +288,25 @@ def save_assumptions(db_path, ticker: str, asset_id: int, rows: list[dict],
             return None
         if _accessible(conn, company["id"], asset_id, ticker) is None:
             return None
-        written = assumptions_module.save(conn, asset_id, rows)
+        written = assumptions_module.save(
+            conn, asset_id, rows, reason=reason, rationale=rationale,
+            trigger_ref=trigger_ref, changed_by=changed_by, batch_id=batch)
         conn.commit()
     finally:
         conn.close()
     state = asset_forecast(db_path, ticker, asset_id, scenario)
-    if state and state.get("ok"):
-        conn = db.get_connection(db_path)
-        try:
+    rnpv_after = ((state or {}).get("result") or {}).get("rnpv") if (
+        state and state.get("ok")) else None
+    conn = db.get_connection(db_path)
+    try:
+        assumption_log.price_batch(conn, batch, rnpv_before, rnpv_after)
+        if state and state.get("ok"):
             assumptions_module.snapshot(conn, asset_id, scenario, state["result"])
-            conn.commit()
-        finally:
-            conn.close()
-    return {"written": written, "state": state}
+        conn.commit()
+    finally:
+        conn.close()
+    return {"written": written, "state": state, "batch_id": batch,
+            "rnpv_before": rnpv_before, "rnpv_after": rnpv_after}
 
 
 RATE_STEPS = (-0.06, -0.03, 0.0, 0.03, 0.06)
@@ -683,7 +705,9 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later")
+                 "same_gate_later", "already_approved")
+
+
 # Columns a stake row is read with that are not part of the payload.
 _ROW_ONLY = ("owner_company_id", "own_asset_id")
 
@@ -931,6 +955,85 @@ def _gate_note(legs: dict, gate_trial, gate_has_catalyst: bool) -> str:
             f"as the gate.")
 
 
+_LAYER_GATE_PHASES = {"Phase 3": "p3_to_nda", "Phase 2/3": "p3_to_nda",
+                      "Phase 2": "p2_to_p3"}
+
+
+def _layer_gate(conn, rows: list, approved: set) -> list:
+    """[(row, priced)] for readouts that decide an unapproved indication on a product
+    that already sells something else.
+
+    The expansion is valued as its own bottom-up build (``indication_layer``) and the
+    odds are the published transitions, taken the way any pipeline asset's are: the
+    chain ahead of the indication's phase. A Phase 3 readout leaves the FDA decision, so
+    the success leg is that transition alone and the failure leg is nil, which is the
+    convention the derived legs already use everywhere else.
+
+    One readout per indication. Several studies can read out in the same disease and
+    the layer is worth what it is worth once; the earliest decides it and the rest are
+    left for the caller to refuse as it refuses any other same-gate repeat.
+    """
+    table = pos_granular.transitions()
+    area = None
+    priced, seen = [], set()
+    for row in sorted(rows, key=lambda r: r.get("expected_date") or ""):
+        pair_id = row.get("asset_indication_id")
+        if not pair_id or pair_id in approved or pair_id in seen:
+            continue
+        pair = conn.execute(
+            "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
+            "  FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
+            " WHERE ai.id = ?", (pair_id,)).fetchone()
+        if pair is None:
+            continue
+        gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
+        if gate is None:
+            continue
+        built = indication_layer.build(conn, pair["asset_id"], pair["indication_id"])
+        if not built or not built.get("ok") or not built.get("npv"):
+            continue
+        if area is None:
+            area = pair["therapeutic_area"] or _asset_area(conn, pair["asset_id"])
+        ahead = pos_granular.CHAIN[pos_granular.CHAIN.index(gate):]
+        odds = [(table.get(("area", area, step))
+                 or table.get(("area", "All indications", step)) or {}).get("pos")
+                for step in ahead]
+        if any(p is None for p in odds):
+            continue
+        p_gate, after = odds[0], 1.0
+        for p in odds[1:]:
+            after *= p
+        seen.add(pair_id)
+        priced.append((row, {
+            "npv": built["npv"], "pos_now": p_gate * after,
+            # The gate passing leaves what is still ahead of it; failing leaves nothing,
+            # because an indication that misses its pivotal readout does not launch.
+            "pos_success": after, "pos_failure": 0.0,
+            "card": {
+                "legs_basis": "indication layer",
+                "gate": gate, "gate_label": pos_granular.GATE_LABELS.get(gate),
+                "p_gate": p_gate, "p_gate_published": p_gate, "held": None,
+                "basis": (f"an unapproved indication on a marketed product, valued "
+                          f"bottom-up over its own pool and risked at the published "
+                          f"{area or 'All indications'} transitions"),
+                "layer_peak_revenue": built["peak_revenue"],
+                "layer_ceiling_binds": built["ceiling_binds"],
+                "resolvable": False,
+                "resolve_note": ("The layer is derived, so there is no stated "
+                                 "probability to step."),
+            }}))
+    return priced
+
+
+def _asset_area(conn, asset_id: int):
+    row = conn.execute(
+        "SELECT i.therapeutic_area FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id"
+        " WHERE ai.asset_id = ? AND i.therapeutic_area IS NOT NULL LIMIT 1",
+        (asset_id,)).fetchone()
+    return row["therapeutic_area"] if row else None
+
+
 def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tuple:
     """(priced, unpriced) for one asset's catalysts."""
     built = state["built"]
@@ -949,13 +1052,19 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             return state["missing"]
         return [key for key in LEGS if (state["stated"] or {}).get(key) is None]
 
-    def money(row, pos_success, pos_failure):
-        npv = built["npv"]
+    def money(row, pos_success, pos_failure, npv=None, pos_now=None):
+        # ``npv`` overrides the asset's own for an indication layer, whose stake is the
+        # layer's value and not the marketed line's. The marketed line does not move on
+        # this readout at all, which is the whole point of valuing the layer apart.
+        own = npv is not None
+        npv = built["npv"] if npv is None else npv
         up, down = npv * pos_success, npv * pos_failure
         cut = portion(row)
         share_swing = (up - down) * cut
-        return {"pos_now": built["pos"], "pos_success": pos_success,
-                "pos_failure": pos_failure, "rnpv_now": built["rnpv"],
+        now = pos_now if own else built["pos"]
+        return {"pos_now": now, "pos_success": pos_success,
+                "pos_failure": pos_failure,
+                "rnpv_now": (npv * now if own and now is not None else built["rnpv"]),
                 "rnpv_success": up, "rnpv_failure": down, "swing": up - down,
                 "share": cut, "share_swing": share_swing,
                 "per_share": (share_swing * 1e6 / shares) if shares else None}
@@ -969,6 +1078,23 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
     def refuse(row, reason, why):
         unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
                          "missing": missing(reason)})
+
+    # Before anything else, because an approval that has already happened outranks every
+    # other reading of the event. A readout in an indication the label covers decides
+    # nothing the revenue does not already carry, whatever the legs or the phase say.
+    asset_id = next((r["asset_id"] for r in rows if r.get("asset_id")), None)
+    approved = approved_indications.for_asset(conn, asset_id) if asset_id else set()
+    if approved:
+        standing, rows = rows, [r for r in rows
+                                if r.get("asset_indication_id") not in approved]
+        for row in standing:
+            if row.get("asset_indication_id") in approved:
+                refuse(row, "already_approved",
+                       "The label already covers this indication, so the approval is in "
+                       "the reported revenue the forecast is grown from and the readout "
+                       "decides nothing further.")
+        if not rows:
+            return priced, unpriced
 
     if state["stated"] is not None:
         # The analyst's own legs, once, on the event they are tied to: linear in the
@@ -993,6 +1119,19 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
 
     legs = state["legs"]
     if not legs:
+        # Before giving up: a marketed product reaches here because pos_granular is for
+        # unapproved Phase 2 and 3 assets, and this one is selling. That is true of the
+        # business it has and says nothing about the indication it does not. Where the
+        # readout is in an indication the label does not cover and the layer can be
+        # built, the expansion is priced as the pipeline asset it is.
+        layered = _layer_gate(conn, rows, approved)
+        if layered:
+            for row, got in layered:
+                priced.append({**out(row), "priced": True, **money(
+                    row, got["pos_success"], got["pos_failure"],
+                    npv=got["npv"], pos_now=got["pos_now"]), **got["card"]})
+            done = {id(r) for r, _ in layered}
+            rows = [r for r in rows if id(r) not in done]
         reason, why = _no_gate_reason(state)
         for row in rows:
             refuse(row, reason, why)
@@ -1181,7 +1320,8 @@ def _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id, applied):
         "key": "pos", "value": applied,
         "source": f"catalyst {catalyst_id} resolved {outcome}",
         "note": f"stepped to {OUTCOMES[outcome]} on resolution",
-    }])
+    }], reason="readout", trigger_ref=f"catalyst:{catalyst_id}",
+        rationale=f"stepped to {OUTCOMES[outcome]} on resolution")
     _note_outcome(db_path, catalyst_id, outcome, f"pos -> {applied:g}")
     return {"catalyst_id": catalyst_id, "outcome": outcome, "route": "stated legs",
             "pos_applied": applied, "state": saved["state"] if saved else None}

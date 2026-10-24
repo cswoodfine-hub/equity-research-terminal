@@ -42,14 +42,24 @@ def _db(tmp_path):
 
 
 def test_saving_grades_from_the_source_and_a_stated_grade_is_kept(tmp_path):
+    """A grade the analyst states holds while the row it describes still stands, and
+    lapses once the number and the source have both moved out from under it (088)."""
     conn = _db(tmp_path)
     A.save(conn, 1, [{"key": "revenue_growth_pct", "value": 0.9, "source": "Amgen 10-Q (0000318154-26-000126)"}])
     row = conn.execute("SELECT evidence, evidence_reviewed FROM assumptions").fetchone()
     assert (row["evidence"], row["evidence_reviewed"]) == ("filed", 0)
     A.save(conn, 1, [{"key": "revenue_growth_pct", "value": 0.9, "source": "the analyst's call", "evidence": "judgement"}])
-    A.save(conn, 1, [{"key": "revenue_growth_pct", "value": 0.8, "source": "Amgen 10-Q (0000318154-26-000126)"}])
+    # The number moves and the source does not: the grade still describes the row.
+    A.save(conn, 1, [{"key": "revenue_growth_pct", "value": 0.85, "source": "the analyst's call"}],
+           reason="correction")
     row = conn.execute("SELECT evidence, evidence_reviewed, value FROM assumptions").fetchone()
-    assert (row["evidence"], row["evidence_reviewed"], row["value"]) == ("judgement", 1, 0.8)
+    assert (row["evidence"], row["evidence_reviewed"], row["value"]) == ("judgement", 1, 0.85)
+    # Both move: what was confirmed is gone, so the confirmation goes with it rather than
+    # carrying the analyst's name onto a filed figure nobody has looked at.
+    A.save(conn, 1, [{"key": "revenue_growth_pct", "value": 0.8, "source": "Amgen 10-Q (0000318154-26-000126)"}],
+           reason="source_restatement")
+    row = conn.execute("SELECT evidence, evidence_reviewed, value FROM assumptions").fetchone()
+    assert (row["evidence"], row["evidence_reviewed"], row["value"]) == ("filed", 0, 0.8)
 
 
 def test_backfill_regrades_unreviewed_rows_only(tmp_path):

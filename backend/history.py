@@ -33,6 +33,11 @@ HISTORY_TABLES = [
     # The model's calls as made each day (call_log.py): exported so each day's commit is
     # the dated record they are scored against.
     "model_calls", "gate_calls",
+    # Every change to an analyst assumption (assumption_log.py). The assumptions table
+    # itself reseeds from data/assumptions/*.csv, so the seeds and this ledger together
+    # carry the model through a rebuild; the ledger alone carries what the seeds cannot,
+    # which is every number edited in the terminal after it was first written.
+    "assumption_edits",
 ]
 
 DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data" / "history"

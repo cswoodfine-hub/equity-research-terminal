@@ -204,10 +204,14 @@ CALENDAR_MONTHS = 24
 
 
 # --- Transport ----------------------------------------------------------
-@st.cache_data(ttl=30, show_spinner=False)
+# The API caches by data revision; a second timed cache can mix revisions on one page.
 def api_get(base: str, path: str, timeout: int = 30):
     with urllib.request.urlopen(base.rstrip("/") + path, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+# Existing refresh handlers may still clear the former frontend cache.
+api_get.clear = lambda: None
 
 
 def api_post(base: str, path: str, timeout: int = 300):
@@ -1382,7 +1386,11 @@ def _scaled(value, dp=1):
         return None, ""
     if abs(value) >= BILLIONS_ABOVE:
         return T.num(value / 1e9, dp), "bn"
-    return T.num(value / 1e6, 0), "m"
+    if abs(value) >= 1e6:
+        return T.num(value / 1e6, dp), "m"
+    if abs(value) >= 1e3:
+        return T.num(value / 1e3, dp), "k"
+    return T.num(value, 2), ""
 
 
 def _times(value, dp=2):
@@ -1406,18 +1414,18 @@ def _cash_block(api_base: str, ticker: str) -> None:
     # against those earnings, and what it spent buying other people. Net debt is quoted
     # in turns of EBITDA, so EBITDA has to be on the row before it rather than implied.
     st.markdown(metric_tiles([
-        ("EBITDA", _bn(cash.get("ebitda")), "bn", "", "", "before D&A"),
-        ("Free cash flow", _bn(cash.get("fcf")), "bn", "", "",
+        ("EBITDA", *_scaled(cash.get("ebitda")), "", "", "before D&A"),
+        ("Free cash flow", *_scaled(cash.get("fcf")), "", "",
          (T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
           if cash.get("fcf_margin") is not None else "")),
         ("Cash conversion", _times(cash.get("cash_conversion")), "", "", "",
          "FCF over net income"),
-        ("Net debt", _bn(cash.get("net_debt")), "bn", "", "",
+        ("Net debt", *_scaled(cash.get("net_debt")), "", "",
          (_times(cash.get("net_debt_ebitda")) + " EBITDA"
           if cash.get("net_debt_ebitda") is not None else "")),
         # Cash paid is not the announced value on the deals, and the two figures are one
         # click apart, so this one says which it is.
-        ("Acquisitions", _bn((cash.get("inputs") or {}).get("acquisitions")), "bn",
+        ("Acquisitions", *_scaled((cash.get("inputs") or {}).get("acquisitions")),
          "", "", "cash paid"),
     ], one_row=True), unsafe_allow_html=True)
 
@@ -1445,7 +1453,8 @@ def _street_figure(metric: str, value, currency: str):
         return T.num(value, 1), "%"
     if metric in ("EPS", "PriceTarget"):
         return T.num(value, 2), (f"{currency} " if currency else "") + "per share"
-    return T.num(value / 1e9, 2), (f"{currency} " if currency else "") + "bn"
+    figure, unit = _scaled(value, 2)
+    return figure, (f"{currency} " if currency else "") + unit
 
 
 def _street_block(api_base: str, ticker: str) -> None:
@@ -1679,12 +1688,19 @@ def statement_table(block: dict, currency: str | None,
     common_size = lens == COMMON_SIZE
     growth = lens == GROWTH
     base = block["base"]["values"] if common_size else []
+    money_values = [abs(c["value"]) for line in lines
+                    if line.get("unit") != "shares" and "/" not in (line.get("unit") or "")
+                    for c in line["cells"] if c.get("value") is not None]
+    money_divisor, money_unit = ((1e9, "bn") if max(money_values, default=0) >= 1e9
+                                 else (1e6, "m"))
 
     head = "".join(f'<th class="{"now" if i == 0 else ""}">{html_escape(p["label"])}</th>'
                    for i, p in enumerate(periods))
     body = []
     for line in lines:
         divisor, decimals, _ = line_scale(line.get("unit"), currency)
+        if divisor == 1e9:
+            divisor = money_divisor
         cells = []
         for index, cell in enumerate(line["cells"]):
             value = cell["value"]
@@ -1731,7 +1747,7 @@ def statement_table(block: dict, currency: str | None,
     # of percentages.
     unit = (f'% of {block["base"]["label"].lower()}' if common_size
             else "% on a year earlier" if growth
-            else f'{currency or ""} bn'.strip())
+            else f'{currency or ""} {money_unit}'.strip())
     return (f'<div class="fin-wrap"><table class="fin">'
             f'<thead><tr><th class="l">{html_escape(unit)}</th>'
             f'{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>')
@@ -3602,7 +3618,7 @@ def _book(api_base: str, ticker: str, selected):
     try:
         v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
     except (urllib.error.URLError, OSError):
-        return None, None
+        return None, None, None
     if not v.get("ok") or not (v.get("per_share") or v.get("streams")
                                or v.get("placeholders")):
         # Without this the tab opened straight on an empty assumptions grid for
@@ -5610,6 +5626,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
             verdict = {}
         if not verdict.get("ok"):
             verdict = {}
+        if verdict.get("close_date"):
+            st.caption("Asset valuation · market close " + str(verdict["close_date"]))
+        if _company and verdict and (_company.get("close"), _company.get("close_date")) != (verdict.get("close"), verdict.get("close_date")):
+            st.warning("Market data changed while this page loaded. Reload the page before comparing company and asset valuations.")
         # The Medicare split is its own read, so a failure empties this layer alone.
         try:
             medicare = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/demand")
@@ -5718,14 +5738,13 @@ def _render_forecast_tab(api_base: str, ticker: str):
                      ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
                      ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
             loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
-            # "none" rather than a dash: the tiles read a dash as data that is missing,
-            # and an asset with no exclusivity on file is a fact, not a gap in a source.
+            # A missing protection record is unknown, not proof of no exclusivity.
             tiles.append(("LOE", str(loe_shown) if loe_shown
-                          else "past" if result.get("loe_in_base") else "none", "", None, "",
+                          else "past" if result.get("loe_in_base") else "unknown", "", None, "",
                           "slider" if "loe_year" in moved and varied
                           else clause(result.get("loe_basis")) if loe_shown
                           else "date not on file" if result.get("loe_in_base")
-                          else "no exclusivity on file"))
+                          else "protection data missing"))
             st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
             if unsourced:
                 st.markdown(f'<div class="byline">unsourced assumptions: '
@@ -5886,9 +5905,6 @@ def snapshot_meta(snapshot: dict) -> str:
 def snapshot_strip(snapshot: dict) -> str:
     """The latest reported period, as tiles. The currency is named in the heading."""
 
-    def money(value):
-        return T.num(value / 1e9, 1) if value is not None else None
-
     def growth(value):
         if value is None:
             return "", ""
@@ -5901,8 +5917,8 @@ def snapshot_strip(snapshot: dict) -> str:
     revenue_note, revenue_tone = growth(snapshot["revenue_growth"])
     income_note, income_tone = growth(snapshot["net_income_growth"])
     return metric_tiles([
-        ("Revenue", money(snapshot["revenue"]), "bn", revenue_note, revenue_tone, ""),
-        ("Net income", money(snapshot["net_income"]), "bn", income_note, income_tone, ""),
+        ("Revenue", *_scaled(snapshot["revenue"]), revenue_note, revenue_tone, ""),
+        ("Net income", *_scaled(snapshot["net_income"]), income_note, income_tone, ""),
         ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "", "", ""),
         # Net margin is not a tile. It is the second series in the panel below, where it
         # has the history that makes a level mean something, and a lone 37.4% here would
@@ -9931,7 +9947,9 @@ with main:
         with ctrl_events:
             show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
         with ctrl_grid:
-            show_grid = st.toggle("Grid", value=True, key=f"grid_{ticker}")
+            # Off by default: the price line is the subject and the gridlines sat on top
+            # of it. The toggle stays, so a reader measuring a level can put them back.
+            show_grid = st.toggle("Grid", value=False, key=f"grid_{ticker}")
         with ctrl_refresh:
             if st.button("Refresh", key="refresh_prices", width="stretch"):
                 run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
@@ -10041,6 +10059,29 @@ with main:
                     events.append({"date": appr["loe"], "label": f"{name} LOE",
                                    "kind": "loe"})
 
+            # The fair value this book stated, day by day, against the close it was stated
+            # against. A day the refresh did not run carries the last stated view flat and
+            # is drawn muted, because the model did not change its mind on a day nobody
+            # asked it. Nothing is carried backwards and nothing is recomputed: the line
+            # is the record, and a company the book has never valued simply has no line.
+            # Asked for the window on screen rather than the whole record: the price
+            # history runs ten years and the fair value line is clipped to the bars
+            # anyway, so fetching all of it moves thousands of points to draw dozens.
+            _since = str(chart_rows[0]["as_of"])[:10] if chart_rows else None
+            history = api_get(
+                api_base, f"/companies/{ticker}/forecast-history"
+                          + (f"?since={_since}" if _since else ""))
+            fair = price_chart.forecast_series(
+                history.get("points") or [], intraday,
+                bars=chart_rows) if history.get("ok") else []
+            # The analyst's own changes go on the chart beside the world's. The rest of
+            # the feed stays on the change feed, where it already reads in full: a trial
+            # slipping a month is not what a price chart is for.
+            for moved in (history.get("events") or []):
+                if moved.get("kind") == "model" and moved.get("headline"):
+                    events.append({"date": moved["date"], "kind": "model",
+                                   "label": moved["headline"]})
+
             # A lightweight-charts component with native two-finger zoom that stretches
             # the sticks and auto-fits the y-axis. Drawing trendlines on it is gone: it
             # did not work, and the toggle, its Clear button and the annotation
@@ -10062,7 +10103,7 @@ with main:
             markers = price_chart.event_markers(
                 chart_rows, events if show_events else [], intraday)
             drawchart.draw_chart(
-                data=data, markers=markers, mode=view, intraday=intraday,
+                data=data, markers=markers, fair=fair, mode=view, intraday=intraday,
                 lines=[], draw_mode=False, theme=theme,
                 view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
                 key=f"drawchart_{ticker}")
@@ -10070,8 +10111,24 @@ with main:
             legend = ('<span style="color:var(--up)">▲</span> FDA approval'
                       '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
                       f'exclusivity &nbsp;·&nbsp; {len(markers)} on this view')
+            if fair:
+                _said = history.get("stated_days", 0)
+                _held = history.get("carried_days", 0)
+                legend += ('&nbsp;&nbsp;<span style="color:var(--flag)">—</span> '
+                           f'fair value, stated on {_said} of {_said + _held} days')
             detail = ("Markers are read from the approvals and exclusivity data; a date "
-                      "outside the loaded window is not drawn. ")
+                      "outside the loaded window is not drawn. A day carrying several "
+                      "events shows the one that leads and counts the rest. ")
+            if fair:
+                detail += (
+                    "The fair value line is what this book stated on the day, from the "
+                    f"daily record that begins {history.get('begins')}; it was last "
+                    f"stated {history.get('last_stated')}. A day the refresh did not run "
+                    "holds the last stated figure flat and is drawn muted, rather than "
+                    "recomputing a past date with everything learnt since. ")
+            elif intraday:
+                detail += ("The fair value line is a daily figure and is left off an "
+                           "intraday view. ")
             if intraday:
                 detail += ("Intraday is a rolling window from the free feed: minutes "
                            "reach back about two months, hours about two years. Older "
@@ -10686,11 +10743,15 @@ with main:
                     str(mix_year)) or {}
                 mix_drivers, mix_tail = revenue_mix.split(mix_rows)
                 if not approvals:
-                    state(f"No approvals on file for {ticker}",
-                          "openFDA files an approval under the legal entity that holds the "
-                          "application, which for an acquired product is the company that was "
-                          "bought. Press Refresh all in the top bar to pull it again.")
+                    state(f"Product coverage unavailable for {ticker}",
+                          "No marketed products or approval records are linked in this dataset. "
+                          "This is missing coverage, not evidence that the company has no products.")
                 else:
+                    missing_approvals = sorted({a.get("brand_name") or a.get("generic_name") or "Unnamed product"
+                                               for a in approvals if a.get("approval_status") == "missing_record"})
+                    if missing_approvals:
+                        st.warning("Approval record missing for " + ", ".join(missing_approvals)
+                                   + ". Known marketed products remain visible; no approval date is inferred.")
                     today = dt.date.today()
 
                     def _loe_year(p):
@@ -10704,7 +10765,7 @@ with main:
                     # the earliest approval date.
                     products: dict = {}
                     for a in approvals:
-                        key = a.get("brand_name") or a.get("application_number")
+                        key = a.get("asset_id") or a.get("brand_name") or a.get("application_number")
                         p = products.get(key)
                         if p is None:
                             products[key] = dict(
@@ -10728,7 +10789,7 @@ with main:
                     for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
                                .get("assets") or []):
                         brand = ex.get("brand_name")
-                        if not brand or brand in products:
+                        if not brand or any(p.get("asset_id") == ex.get("asset_id") for p in products.values()):
                             continue
                         products[brand] = dict(
                             asset_id=ex.get("asset_id"),
@@ -11324,6 +11385,10 @@ with main:
                     with st.spinner(f"Reading {chosen} across coverage"):
                         existing = api_post(api_base, f"/themes/{slug}/brief")
                 if existing.get("body"):
+                    if existing.get("freshness") != "current":
+                        st.warning("Outdated brief: its source data has changed. Write the brief again to use current figures."
+                                   if existing.get("freshness") == "outdated" else
+                                   "Historical brief: its source snapshot was not recorded, so it cannot be verified against current figures. Write the brief again.")
                     st.markdown(note_html(existing["body"]), unsafe_allow_html=True)
                     st.caption(f"{existing.get('model') or 'rules'}"
                                + (f" · {existing['generated_at'][:16]} UTC"

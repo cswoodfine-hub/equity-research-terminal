@@ -71,12 +71,55 @@ SPONSOR_MAP = {
     "VRTX": "VERTEX", "REGN": "REGENERON", "BIIB": "BIOGEN", "BAYN": "BAYER",
 }
 
+# ticker -> sponsor strings that are this company under another name, asked for as
+# phrases. ``acquired_sponsors`` reads the deals table and so knows only the recent
+# acquisitions; these are the older ones and the wholly-owned subsidiaries that never
+# appear in a deal at all, and no rule derives them from the parent's name. ViiV is the
+# large one: GlaxoSmithKline's entire HIV portfolio, ten marketed products, is filed
+# under "VIIV HLTHCARE" and a GSK query reached none of it.
+#
+# An entry is only safe where the sponsor's whole portfolio belongs to the parent, so
+# each was checked before it was added by asking openFDA for the sponsor and testing
+# every brand it returned against the owner on file. A sponsor holding a product another
+# company in the universe owns is a partner rather than a subsidiary and is left out: a
+# "JANSSEN PHARMS" phrase returns 58 applications of which 22 are Johnson & Johnson's
+# own, so adding it to Bayer for Xarelto would have credited Bayer with J&J's portfolio,
+# and "CELGENE CORP" would have handed Bristol the Otezla application Amgen bought.
+# Those products are reached by brand instead (``_by_brand_name``). "SCHERING" is left
+# out for the same reason in reverse: it is both Merck's Schering-Plough and Bayer's
+# Schering AG, and the phrase cannot tell them apart.
+AFFILIATE_SPONSORS = {
+    "GSK": ["VIIV HLTHCARE"],
+    "SNY": ["GENZYME"],
+    "JNJ": ["JANSSEN PRODS", "CENTOCOR INC"],
+    "ABBV": ["APIL", "IMMUNOGEN INC"],
+    "LLY": ["IMCLONE"],
+    "LNTH": ["PROGENICS PHARMS INC"],
+    "INCY": ["MORPHOSYS US INC"],
+}
+
 
 # How many molecules to ask about per company. Every one is a request, and a company
 # with two hundred assets would otherwise make two hundred of them for the handful that
 # are approved. Ordered by name so the cap is at least deterministic.
 _MAX_GENERIC_QUERIES = 60
+# The brand route runs after the other four and only over what they left, so its cap is
+# the size of a plausible remaining gap rather than a portfolio.
+_MAX_BRAND_QUERIES = 40
+_MIN_BRAND_CHARS = 4
 _POLITE_SLEEP_S = 0.12
+
+# Below this a name is too short to identify a molecule and the query would be too broad
+# to trust.
+_MIN_MOLECULE_CHARS = 6
+
+# A company's internal code is not a generic name and matches nothing here: ARGX-124,
+# BEAM-101, FB102, LY3437943. The test used to be a digit anywhere in the name, which
+# also threw away every radiodiagnostic, because an isotope belongs to the name and
+# openFDA indexes it there: Pylarify is "Piflufolastat F-18" and asking for exactly that
+# returns NDA214793. So the test is the shape of a code instead, one token of a short
+# alphabetic prefix and a number, which "Piflufolastat F-18" is not.
+_CODE_NAME = re.compile(r"^[A-Za-z]{1,6}[-\s]?\d+[A-Za-z]?$")
 
 # Words too common in a drug company's name to identify one. Without these, every
 # "Pharmaceuticals" matches every other.
@@ -109,6 +152,32 @@ def _molecule(generic: str) -> str:
             break
         text = stripped
     return text.strip()
+
+
+# The FDA's nonproprietary name for a biologic ends in a hyphen and four meaningless
+# letters, and the Purple Book is where the generic name on file comes from, so that is
+# the form stored: "efgartigimod alfa-fcab". openFDA indexes the core name without it,
+# so the exact-phrase query answered 404 while the BLA sat there under "EFGARTIGIMOD
+# ALFA", and argenx showed two marketed products and no approval record for either.
+_BIOLOGIC_SUFFIX = re.compile(r"-[a-z]{4}$", re.I)
+
+
+def _query_forms(molecule: str) -> list[str]:
+    """Every spelling of one molecule worth asking openFDA for, the stored one first.
+
+    The suffix is asked for as well, never instead. A biosimilar keeps it in openFDA,
+    which writes Inflectra as "INFLIXIMAB-DYYB", so stripping it unconditionally would
+    lose the approvals the stored form already found. Both forms cost one request each
+    and the results merge on application number, so asking twice is cheap and safe.
+    """
+    molecule = (molecule or "").strip()
+    if not molecule:
+        return []
+    forms = [molecule]
+    core = _BIOLOGIC_SUFFIX.sub("", molecule).strip()
+    if core != molecule and len(core) >= _MIN_MOLECULE_CHARS:
+        forms.append(core)
+    return forms
 
 
 def _molecules(generic: str) -> list[str]:
@@ -296,8 +365,20 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                 return []
             raise
 
-    def _by_generic_name(self) -> list[dict]:
+    def _by_generic_name(self, marketed_only: bool = False) -> list[dict]:
         """Approvals found by asking openFDA for each molecule this company develops.
+
+        Only molecules with no approval on file are asked about. An asset already linked
+        to an application has nothing to discover, so a second refresh costs a fraction
+        of the first and the cap is spent on the gap rather than on re-confirming what is
+        already known. Marketed assets are asked about first for the same reason: a
+        marketed product with no approval row is the gap this route exists to close, and
+        an unapproved pipeline compound returning 404 is the expected answer.
+
+        ``marketed_only`` narrows it further, and is how a company the maps *do* know
+        runs this route: its portfolio already arrives by manufacturer and sponsor, so
+        discovery is there to reach the handful those two queries miss, not to spend
+        sixty requests re-asking about its pipeline.
 
         Every result is checked against the company's own name before it is kept: a
         generic can be sold by a dozen manufacturers, and treprostinil returns nine
@@ -312,9 +393,12 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
             if company is None:
                 return []
             generics = [r[0] for r in conn.execute(
-                "SELECT DISTINCT generic_name FROM assets"
-                "  WHERE owner_company_id = ? AND generic_name IS NOT NULL"
-                "  ORDER BY generic_name LIMIT ?",
+                "SELECT generic_name FROM assets a"
+                "  WHERE a.owner_company_id = ? AND a.generic_name IS NOT NULL"
+                "    AND NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id)"
+                + ("    AND a.is_marketed = 1" if marketed_only else "") +
+                "  GROUP BY a.generic_name"
+                "  ORDER BY MAX(a.is_marketed) DESC, a.generic_name LIMIT ?",
                 (company["id"], _MAX_GENERIC_QUERIES))]
         finally:
             conn.close()
@@ -323,12 +407,74 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
 
         wanted = _distinctive_words(company["name"])
         found = []
+        asked = set()
         for stored in generics:
             for generic in _molecules(stored):
-                # A code number is not a generic name and matches nothing here.
-                if len(generic) < 6 or re.search(r"\d", generic):
+                if len(generic) < _MIN_MOLECULE_CHARS or _CODE_NAME.match(generic):
                     continue
-                found += self._for_molecule(generic, wanted)
+                for form in _query_forms(generic):
+                    if form.lower() in asked:
+                        continue
+                    asked.add(form.lower())
+                    found += self._for_molecule(form, wanted)
+        return found
+
+    def _by_brand_name(self, found_so_far: list = ()) -> list[dict]:
+        """Approvals found by asking openFDA for the brand of a marketed product that
+        still has no approval on file.
+
+        The last route, and the only one that reaches a product the company co-markets.
+        Xarelto is Bayer's and its United States application is Janssen's, Eylea is
+        Bayer's and Regeneron's, Beyfortus is Sanofi's and AstraZeneca's: no query built
+        on the owner's name can find any of them, and a sponsor query wide enough to
+        catch one drags in the partner's whole portfolio with it.
+
+        A brand does not have that problem. It names one product, the asset on file says
+        this company sells it, and the match is exact rather than a shared word, so the
+        result is the approval record for that product and nothing else. The approval
+        stays the applicant's; what is taken from it is the date, which is the thing the
+        page was missing.
+
+        Only marketed assets with no approval row are asked about, so this costs the
+        size of the remaining gap and shrinks to nothing as it closes.
+        """
+        conn = db.get_connection(self.db_path)
+        try:
+            company = conn.execute(
+                "SELECT id FROM companies WHERE ticker = ?", (self.ticker,)).fetchone()
+            if company is None:
+                return []
+            brands = [r[0] for r in conn.execute(
+                "SELECT DISTINCT a.brand_name FROM assets a"
+                "  WHERE a.owner_company_id = ? AND a.is_marketed = 1"
+                "    AND a.brand_name IS NOT NULL"
+                "    AND NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id)"
+                "  ORDER BY a.brand_name LIMIT ?",
+                (company["id"], _MAX_BRAND_QUERIES))]
+        finally:
+            conn.close()
+
+        # The query reads the gap as it stood when the run began, so a brand one of the
+        # routes above has just answered is skipped rather than asked for twice.
+        asked = {(p.get("brand_name") or "").strip().lower()
+                 for result in found_so_far for p in result.get("products") or []}
+        asked.discard("")
+        found = []
+        for stored in brands:
+            # "Fluarix, Fluarix Quadrivalent" is one asset holding two brands; the first
+            # is the one the application is filed under.
+            brand = re.split(r"[,;]", stored or "")[0].strip()
+            if len(brand) < _MIN_BRAND_CHARS or brand.lower() in asked:
+                continue
+            asked.add(brand.lower())
+            for result in self._run(f'products.brand_name:"{brand}"'):
+                # An exact brand match or nothing. A phrase query also returns the
+                # longer names containing it, and "Humalog" would otherwise collect
+                # every Humalog Mix application as though it were the same product.
+                if any((p.get("brand_name") or "").strip().lower() == brand.lower()
+                       for p in result.get("products") or []):
+                    found.append(result)
+            time.sleep(_POLITE_SLEEP_S)
         return found
 
     def _for_molecule(self, generic: str, wanted: set) -> list[dict]:
@@ -366,6 +512,13 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
         # nothing costs a 404 and no results rather than breaking the query.
         for acquired in acquired_sponsors.for_company(self.db_path, self.ticker):
             results += self._run(f'openfda.manufacturer_name:("{acquired}")')
+        # The same thing for an acquisition old enough that no deal row records it, and
+        # for a subsidiary that was never acquired at all because the parent created it.
+        # Asked for by sponsor rather than manufacturer: ViiV holds the application, and
+        # the manufacturer named on a ViiV product is a contract site.
+        for affiliate in AFFILIATE_SPONSORS.get(self.ticker) or []:
+            results += self._run(f'sponsor_name:"{affiliate}"')
+            time.sleep(_POLITE_SLEEP_S)
 
         # Nothing found by company name, so ask by molecule instead. The maps above are
         # hand-keyed and a company absent from them was being treated as clinical-stage,
@@ -382,20 +535,37 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
         # all was found. Neurocrine has an acquisition, so its acquired-sponsor query
         # returned a single application and that was enough to skip the discovery route
         # entirely, leaving three of its four approvals unfound.
-        if not names and not sponsor:
-            found = self._by_generic_name()
-            results += found
-            # The answers carry the sponsor string openFDA actually uses, which is the
-            # thing no rule could derive: "ALNYLAM PHARMS INC", "UNITED THERAP",
-            # "INCYTE CORP". Asking for it directly then returns the rest of the
-            # portfolio, since a molecule search only ever finds the molecules we
-            # already knew about. Alnylam goes from one approval to four this way and
-            # Incyte from two to six, and the map stays empty: the fetcher discovers
-            # the name instead of being told it.
-            for sponsor_name in sorted({r.get("sponsor_name") for r in found
-                                        if r.get("sponsor_name")}):
-                results += self._run(f'sponsor_name:"{sponsor_name}"')
-                time.sleep(_POLITE_SLEEP_S)
+        #
+        # Run it for a company the maps *do* know as well, over its marketed assets only.
+        # Being in the map was treated as proof the portfolio had been found, and it is
+        # not: a manufacturer query asks for one legal entity and a large company files
+        # under many, so GSK's HIV portfolio sat under ViiV and Bristol's under the
+        # companies it bought, and 217 of the 245 marketed products with no approval row
+        # belonged to the eighteen companies the maps cover. Narrowing to marketed assets
+        # keeps the cost to the size of the gap: a pipeline compound has no approval to
+        # find, and the portfolio itself still arrives by manufacturer and sponsor.
+        found = self._by_generic_name(marketed_only=bool(names or sponsor))
+        results += found
+        # The answers carry the sponsor string openFDA actually uses, which is the
+        # thing no rule could derive: "ALNYLAM PHARMS INC", "UNITED THERAP",
+        # "INCYTE CORP", "VIIV HLTHCARE". Asking for it directly then returns the rest
+        # of the portfolio, since a molecule search only ever finds the molecules we
+        # already knew about. Alnylam goes from one approval to four this way and
+        # Incyte from two to six, and the map stays empty: the fetcher discovers
+        # the name instead of being told it.
+        #
+        # A sponsor already asked for above is not asked for again, so the sweep costs
+        # nothing when discovery only rediscovers the name the map already holds.
+        for sponsor_name in sorted({r.get("sponsor_name") for r in found
+                                    if r.get("sponsor_name")}):
+            if sponsor and _distinctive_words(sponsor_name) & _distinctive_words(sponsor):
+                continue
+            results += self._run(f'sponsor_name:"{sponsor_name}"')
+            time.sleep(_POLITE_SLEEP_S)
+
+        # Last, and over whatever the four routes above still left: the marketed products
+        # with no approval record, asked for by their own brand. See _by_brand_name.
+        results += self._by_brand_name(results)
 
         # An application can come back from both queries. The application number is its
         # identity, so a later parse keying on it dedupes, but merging here keeps the

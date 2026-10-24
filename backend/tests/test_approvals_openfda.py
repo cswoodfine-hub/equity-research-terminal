@@ -248,3 +248,201 @@ def test_a_repeated_part_is_asked_for_once():
 
     assert _molecules("Meloxicam; Meloxicam") == ["Meloxicam"]
     assert _molecules("Meloxicam; meloxicam ") == ["Meloxicam"]
+
+
+# --- the biologic suffix -------------------------------------------------
+def test_a_biologic_suffix_is_asked_for_with_and_without():
+    """The Purple Book gives a biologic its four-letter suffix and openFDA indexes the
+    core name without it, so the stored form 404s: argenx showed Vyvgart and Vyvgart
+    Hytrulo as marketed with no approval record for either, while BLA761195 and
+    BLA761304 sat there under "EFGARTIGIMOD ALFA".
+
+    Stripped as well, never instead. openFDA keeps the suffix on a biosimilar, where
+    Inflectra is "INFLIXIMAB-DYYB", so dropping it unconditionally would lose the
+    approvals the stored form already found."""
+    from fetchers.approvals_openfda import _query_forms
+
+    assert _query_forms("efgartigimod alfa-fcab") == [
+        "efgartigimod alfa-fcab", "efgartigimod alfa"]
+    assert _query_forms("efgartigimod alfa and hyaluronidase-qvfc") == [
+        "efgartigimod alfa and hyaluronidase-qvfc", "efgartigimod alfa and hyaluronidase"]
+    assert _query_forms("Infliximab-dyyb") == ["Infliximab-dyyb", "Infliximab"]
+    # A name with no suffix is asked for once.
+    assert _query_forms("Solriamfetol Hydrochloride") == ["Solriamfetol Hydrochloride"]
+    # Stripping must not leave something too short to identify a molecule.
+    assert _query_forms("Urea-abcd") == ["Urea-abcd"]
+    assert _query_forms("") == []
+
+
+def test_both_forms_of_a_suffixed_name_reach_the_wire(tmp_path):
+    """The whole point of the change, at the level that failed: argenx asks for the
+    stored name and for the core name, and the second is the one that answers."""
+    path = _company(tmp_path, "ARGX", "argenx SE", ["efgartigimod alfa-fcab"])
+    fetcher = A.ApprovalsOpenFdaFetcher("ARGX", path)
+    asked = []
+    fetcher._run = lambda q: asked.append(q) or [
+        {"application_number": "BLA761195", "sponsor_name": "ARGENX BV"}]
+    fetcher._by_generic_name()
+    assert asked == ['openfda.generic_name:"efgartigimod alfa-fcab"',
+                     'openfda.generic_name:"efgartigimod alfa"']
+
+
+# --- a code number against a real name that carries a digit --------------
+def test_a_radiodiagnostic_is_not_mistaken_for_a_code_number():
+    """The filter used to be a digit anywhere in the name, which threw away every
+    radiodiagnostic: Pylarify is "Piflufolastat F-18" and asking openFDA for exactly
+    that returns NDA214793. A company's internal code is still skipped, because it
+    matches nothing and would cost a request per compound."""
+    from fetchers.approvals_openfda import _CODE_NAME
+
+    for code in ("ARGX-124", "BEAM-101", "FB102", "LY3437943", "ARGX 124"):
+        assert _CODE_NAME.match(code), code
+    for real in ("Piflufolastat F-18", "Florbetaben F-18", "Coagulation Factor VIIa",
+                 "Technetium Tc 99m Sestamibi", "Solriamfetol Hydrochloride"):
+        assert not _CODE_NAME.match(real), real
+
+
+def _portfolio(tmp_path, ticker, name, assets):
+    """A company whose assets carry a brand, a marketed flag and, where the tuple gives
+    one, an approval already on file. ``assets`` is (generic, brand, marketed, appl)."""
+    path = str(tmp_path / "p.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES (?, ?)", (ticker, name))
+    cid = conn.execute("SELECT id FROM companies").fetchone()[0]
+    for generic, brand, marketed, appl in assets:
+        conn.execute(
+            "INSERT INTO assets (owner_company_id, generic_name, brand_name, is_marketed)"
+            " VALUES (?, ?, ?, ?)", (cid, generic, brand, 1 if marketed else 0))
+        if appl:
+            asset_id = conn.execute("SELECT MAX(id) FROM assets").fetchone()[0]
+            conn.execute(
+                "INSERT INTO approvals (asset_id, application_number, approval_date)"
+                " VALUES (?, ?, ?)", (asset_id, appl, "2020-01-01"))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_a_molecule_with_an_approval_on_file_is_not_asked_about_again(tmp_path):
+    """Discovery exists to close a gap, so it asks about the gap. Re-confirming an
+    asset already linked to an application spends the cap on what is already known, and
+    with the route now running for every company that is the difference between a
+    refresh that fits inside openFDA's limit and one that does not."""
+    path = _portfolio(tmp_path, "INCY", "Incyte Corporation", [
+        ("Ruxolitinib Phosphate", "Jakafi", 1, "NDA202192"),
+        ("Tafasitamab-cxix", "Monjuvi", 1, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("INCY", path)
+    asked = []
+    fetcher._run = lambda q: asked.append(q) or []
+    fetcher._by_generic_name()
+    assert not any("Ruxolitinib" in q for q in asked), asked
+    assert any("Tafasitamab" in q for q in asked), asked
+
+
+def test_discovery_runs_for_a_mapped_company_over_its_marketed_assets(tmp_path):
+    """Being in the hand-keyed map was treated as proof the portfolio had been found,
+    and it is not: a manufacturer query asks for one legal entity and a large company
+    files under many, so GSK's ten HIV products sat under ViiV with no approval record.
+    The pipeline compound is left out: it has no approval to find, and asking would cost
+    a request per compound across eighteen companies."""
+    path = _portfolio(tmp_path, "GSK", "GlaxoSmithKline plc", [
+        ("Dolutegravir Sodium", "Tivicay", 1, None),
+        ("Depemokimab", None, 0, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("GSK", path)
+    asked = []
+
+    def fake_run(query):
+        asked.append(query)
+        if "generic_name" in query:
+            return [{"application_number": "NDA204790", "sponsor_name": "VIIV HLTHCARE"}]
+        return []
+
+    fetcher._run = fake_run
+    fetcher.fetch()
+    assert any("Dolutegravir" in q for q in asked), "discovery did not run for GSK"
+    assert not any("Depemokimab" in q for q in asked), "asked about the pipeline"
+
+
+def test_an_affiliate_sponsor_is_asked_for(tmp_path):
+    """ViiV is GlaxoSmithKline's, holds its entire HIV portfolio and shares no word with
+    its parent's name, so no query built on "GlaxoSmithKline" reaches it and the
+    distinctive-word check would refuse the answer if one did."""
+    path = _portfolio(tmp_path, "GSK", "GlaxoSmithKline plc", [])
+    fetcher = A.ApprovalsOpenFdaFetcher("GSK", path)
+    asked = []
+    fetcher._run = lambda q: asked.append(q) or []
+    fetcher.fetch()
+    assert 'sponsor_name:"VIIV HLTHCARE"' in asked
+
+
+def test_a_partner_is_not_an_affiliate():
+    """A sponsor holding another universe company's products is a partner, and sweeping
+    it would credit this one with that company's portfolio: a "JANSSEN PHARMS" phrase
+    returns 58 applications of which 22 are Johnson & Johnson's own, and "CELGENE CORP"
+    carries the Otezla application Amgen bought. Xarelto and Reblozyl are reached by
+    brand instead."""
+    assert "JANSSEN PHARMS" not in (A.AFFILIATE_SPONSORS.get("BAYN") or [])
+    assert "CELGENE CORP" not in (A.AFFILIATE_SPONSORS.get("BMY") or [])
+    # Schering is both Merck's Schering-Plough and Bayer's Schering AG.
+    assert not any("SCHERING" in s for s in A.AFFILIATE_SPONSORS.get("MRK") or [])
+
+
+# --- the brand route -----------------------------------------------------
+def test_a_co_marketed_product_is_found_by_its_own_brand(tmp_path):
+    """Xarelto is Bayer's and its United States application is Janssen's. No query built
+    on the owner's name finds it, and a sponsor query wide enough to catch it drags in
+    J&J's portfolio. The brand names one product and the match is exact."""
+    path = _portfolio(tmp_path, "BAYN", "Bayer AG", [
+        ("Rivaroxaban", "Xarelto", 1, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("BAYN", path)
+    asked = []
+
+    def fake_run(query):
+        asked.append(query)
+        return [{"application_number": "NDA022406", "sponsor_name": "JANSSEN PHARMS",
+                 "products": [{"brand_name": "XARELTO"}]}]
+
+    fetcher._run = fake_run
+    found = fetcher._by_brand_name()
+    assert 'products.brand_name:"Xarelto"' in asked
+    assert [r["application_number"] for r in found] == ["NDA022406"]
+
+
+def test_the_brand_match_is_exact(tmp_path):
+    """A phrase query also returns the longer names containing it, so Humalog would
+    collect every Humalog Mix application as though it were the same product."""
+    path = _portfolio(tmp_path, "LLY", "Eli Lilly and Company", [
+        ("Insulin Lispro", "Humalog", 1, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("LLY", path)
+    fetcher._run = lambda q: [
+        {"application_number": "BLA020563", "products": [{"brand_name": "HUMALOG"}]},
+        {"application_number": "BLA020986",
+         "products": [{"brand_name": "HUMALOG MIX75/25"}]}]
+    found = fetcher._by_brand_name()
+    assert [r["application_number"] for r in found] == ["BLA020563"]
+
+
+def test_a_marketed_product_with_an_approval_is_not_asked_for_by_brand(tmp_path):
+    """The brand route runs last and over what the others left."""
+    path = _portfolio(tmp_path, "LLY", "Eli Lilly and Company", [
+        ("Tirzepatide", "Mounjaro", 1, "NDA215866"),
+        ("Insulin Lispro", "Humalog", 1, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("LLY", path)
+    asked = []
+    fetcher._run = lambda q: asked.append(q) or []
+    fetcher._by_brand_name()
+    assert asked == ['products.brand_name:"Humalog"']
+
+
+def test_a_brand_already_answered_this_run_is_not_asked_for_again(tmp_path):
+    """The gap is read from the database as it stood when the run began, so a brand one
+    of the earlier routes has just answered must not cost a second request."""
+    path = _portfolio(tmp_path, "LLY", "Eli Lilly and Company", [
+        ("Insulin Lispro", "Humalog", 1, None)])
+    fetcher = A.ApprovalsOpenFdaFetcher("LLY", path)
+    asked = []
+    fetcher._run = lambda q: asked.append(q) or []
+    fetcher._by_brand_name([{"application_number": "BLA020563",
+                             "products": [{"brand_name": "Humalog"}]}])
+    assert asked == []

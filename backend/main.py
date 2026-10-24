@@ -18,6 +18,7 @@ import env  # noqa: F401  loads the .env from the repo root, before any module r
 import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
+import assumption_log
 import breakpoints
 import fair_value
 import backtest as backtest_module
@@ -38,6 +39,7 @@ import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
+import forecast_history as forecast_history_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
 import universe_command as universe_command_module
@@ -551,8 +553,9 @@ def company_approvals(ticker: str) -> dict:
                        (SELECT r.fiscal_year FROM asset_revenue r
                          WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year
-                  FROM approvals ap JOIN assets a ON ap.asset_id = a.id
+                  FROM assets a LEFT JOIN approvals ap ON ap.asset_id = a.id
                  WHERE a.owner_company_id = ?
+                   AND (ap.id IS NOT NULL OR a.is_marketed = 1)
                  ORDER BY ap.approval_date DESC
                 """,
                 (company["id"],),
@@ -572,6 +575,8 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
+        r["approval_status"] = ("recorded" if r.get("application_number")
+                                else "missing_record")
         # The filer's own biosimilar date sets the LOE where the 10-K states one; the
         # statutory floor is a floor. Same rule as the forecast, so the two views agree.
         r.pop("bio_disclosed_date", None)
@@ -674,6 +679,12 @@ class AssumptionRowIn(BaseModel):
 class AssumptionsIn(BaseModel):
     rows: list[AssumptionRowIn]
     scenario: str = "base"
+    # Why the numbers moved. Required where the row is a judgement rather than evidence;
+    # the vocabulary is assumption_log.REASONS and anything outside it is refused.
+    reason: Optional[str] = None
+    rationale: Optional[str] = None
+    trigger_ref: Optional[str] = None
+    changed_by: Optional[str] = None
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/demand")
@@ -692,11 +703,14 @@ def forecast_demand_split(ticker: str, asset_id: int) -> dict:
 def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -> dict:
     """Write the editor's rows. The ticker scopes the asset, so an assumption cannot be
     written against another company's product by id alone. The resulting forecast is
-    snapshotted, so history is never overwritten."""
+    snapshotted, so history is never overwritten, and the change set goes in the ledger
+    with the valuation on either side of it. 400 where a judgement moves without a
+    reason."""
     try:
         out = forecast_view_module.save_assumptions(
             None, ticker, asset_id, [row.model_dump() for row in body.rows],
-            body.scenario)
+            body.scenario, reason=body.reason, rationale=body.rationale,
+            trigger_ref=body.trigger_ref, changed_by=body.changed_by)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if out is None:
@@ -1471,6 +1485,41 @@ def changes(days: int = Query(default=30),
             ticker: Optional[str] = Query(default=None)) -> list[dict]:
     """The ranked feed. Pass ``ticker`` to narrow it to one company."""
     return whatchanged_module.build_feed(days=days, ticker=ticker)
+
+
+@app.get("/model-changes")
+def model_changes(ticker: Optional[str] = Query(default=None),
+                  asset_id: Optional[int] = Query(default=None),
+                  since: Optional[str] = Query(default=None),
+                  reason: Optional[str] = Query(default=None),
+                  limit: int = Query(default=200, le=2000)) -> dict:
+    """What the analyst changed in the model, newest first: the value before and after,
+    who moved it, why, and what the valuation did.
+
+    /changes is the world changing. This is the book changing, which is the half a reader
+    of someone else's model cannot see from the outside and has to be told.
+    """
+    conn = db.get_connection()
+    try:
+        rows = assumption_log.log(conn, asset_id=asset_id, ticker=ticker, since=since,
+                                  reason=reason, limit=limit)
+    finally:
+        conn.close()
+    return {"reasons": list(assumption_log.REASONS), "count": len(rows), "changes": rows}
+
+
+@app.get("/companies/{ticker}/forecast-history")
+def forecast_history(ticker: str, since: Optional[str] = Query(default=None),
+                     days: int = Query(default=180)) -> dict:
+    """The fair value this book stated, day by day, against the close, with the events on
+    the line.
+
+    A day the refresh did not run carries the last stated value flat and is marked
+    carried: the model did not change its mind on a day nobody asked it. Nothing is
+    carried backwards and no carried point is ever written down, so the record stays what
+    was said on the day.
+    """
+    return forecast_history_module.series(None, ticker, since=since, days=days)
 
 
 class BriefIn(BaseModel):
