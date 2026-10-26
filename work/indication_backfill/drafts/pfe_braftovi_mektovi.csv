@@ -1,0 +1,21 @@
+# Braftovi / Mektovi (PFE). 716mm USD in FY2025. Asset-level rows only.
+# 
+# Both indication layers the worklist carried for this product were dropped, not researched:
+# encorafenib with binimetinib is already approved in BRAF V600E/V600K unresectable or
+# metastatic melanoma (BRAFTOVI label section 1.1), and encorafenib with cetuximab is already
+# approved in BRAF V600E metastatic colorectal cancer, in the first line with fluorouracil-based
+# chemotherapy and after prior therapy without it (label sections 1.2; Pfizer Q1 2026 Pipeline
+# Update, 5 May 2026, records the BREAKWATER full approval). The 716mm already contains both.
+# A layer on either would rebuild revenue the anchor already carries.
+# 
+# What is left is the pair of asset-level numbers every future layer on this product needs.
+# The price is the melanoma doublet, which is the regimen the asset's name describes. The
+# colorectal regimen is encorafenib 300 mg once daily alone with cetuximab, four 75 mg capsules
+# a day rather than six, which at the same WAC runs 10,923.33 USD a 30-day month, about a third
+# of the doublet. A reader pricing a colorectal layer should use that, not this row.
+# 
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+PFE,Braftovi / Mektovi,,US,base,list_price_per_patient,,0.389245,,mm USD per year,"BRAFTOVI WAC 16,385.00 USD per 180 x 75 mg capsules and MEKTOVI WAC 15,607.74 USD per 180 x 15 mg tablets, both from Pfizer's own statutory price disclosure short forms (Colorado HB 19-1131, data as of 18-Jun-2025, cdn.pfizer.com/pfizercom/products/coprescribers/shortforms/BRAFTOVICOPriceDisclosureShortForm06262025.pdf; Connecticut HB 6669, data as of 09-Jul-2024, cdn.pfizer.com/pfizercom/products/ctprescribers/MEKTOVICTPriceDisclosureShortForm07092024.pdf). The melanoma dose on the FDA label is encorafenib 450 mg once daily, six 75 mg capsules, and binimetinib 45 mg twice daily, six 15 mg tablets: each 180-count pack is exactly 30 days. 16,385.00 + 15,607.74 = 31,992.74 per 30 days; x 365/30 = 389,245.00 USD a year","the two disclosures are a year apart, so the combined figure is a little stale on the Mektovi half"
+PFE,Braftovi / Mektovi,,US,base,gross_to_net_pct,,0.18,,share off list,"reused from the book's own oral oncology figure, the Verzenio seed (data/assumptions/lly_verzenio.csv): branded oral oncolytics net 15% to 20% below WAC after the Medicaid and 340B statutory rebates and commercial discounts, taken at 18%. No per-product net price is disclosed by Pfizer, so the book's class figure is reused rather than a new number invented","a judgement, and the book's own rather than a new one"
+PFE,Braftovi / Mektovi,,US,base,discontinuation_pct,,0.427784,,share of the stock a year,"derived from COLUMBUS, the Phase 3 that registered the combination: median progression-free survival 14.9 months with encorafenib plus binimetinib against 7.3 months with vemurafenib (Dummer R et al., Lancet Oncology 2018, the COLUMBUS part 1 analysis). At a constant hazard the annual stopping rate is 1 - exp(-ln2 / (14.9/12)) = 1 - exp(-0.5582) = 0.4278","the colorectal regimen runs shorter: BEACON's doublet median progression-free survival was about a third of this, so a colorectal layer should carry its own figure"

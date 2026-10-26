@@ -1,0 +1,28 @@
+# Calquence (AZN). 3,518mm USD. Draft indication-layer seeds, 2026-10-26.
+#
+# Asset-level only. The dossier's two Calquence units both came off the file:
+#
+#   Leukemia, Lymphocytic, Chronic, B-Cell - ALREADY APPROVED. The current US label
+#   (DailyMed setid dd4835ef-e1bc-4997-a399-1ffa2556fbfe, effective 2026-03-05) reads
+#   'CALQUENCE is indicated for the treatment of adult patients with chronic lymphocytic
+#   leukemia (CLL) or small lymphocytic lymphoma (SLL)' with no line-of-therapy limit,
+#   approved 2019-11-21; the acalabrutinib plus venetoclax fixed-duration combination was
+#   added 2026-02-20 on AMPLIFY. NCT05057494 and NCT07024706 both enrol CLL/SLL patients
+#   the label already covers, so a layer would rebuild revenue the 3,518mm already contains.
+#   The book read it as unapproved because the MeSH descriptor spells out 'B-Cell' and the
+#   label does not.
+#
+#   Lymphoma, Large B-Cell, Diffuse - LEFT OUT, not priced. NCT05952024 enrols untreated
+#   elderly and/or frail DLBCL (Phase 2, n=80, primary completion 2029-04-22). The book
+#   holds the DLBCL pool, but no US figure for the elderly-or-frail share of incident DLBCL
+#   could be sourced in this session, and eligible_pct is not a number to invent. The layer
+#   is one sourced share away from complete.
+#
+# The three asset-level numbers below stand on their own: they unlock any Calquence layer
+# a later session adds, and the price is the one the dossier said every layer was blocked on.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Calquence,,US,base,list_price_per_patient,,0.198365,,mm USD per year,"AstraZeneca's own Vermont prescriber price disclosure, Calquence short form of 2026-09-30 (astrazeneca-us.com/pharmaceutical-marketer-price-disclosure-vermont.html): Calquence 100 mg tablet at $326.08. The filing states on its face that, as directed by the Vermont Attorney General's Office, the prices shown are Wholesale Acquisition Cost plus 20%, so WAC is 326.08 / 1.20 = $271.73 a tablet. The Calquence prescribing information (DailyMed setid dd4835ef-e1bc-4997-a399-1ffa2556fbfe, effective 2026-03-05) gives 100 mg every 12 hours until progression: 2 tablets a day, 730 a year. 730 x 271.73 = $198,365 a year. Cross-check: CMS Medicare Part D Spending by Drug 2024 shows $1,701,974,920.80 over 6,844,352 dosage units, $248.67 a tablet gross, two years earlier and 8% under the 2026 WAC","the label dose, not a trial dose. A patient on the reduced 100 mg once-daily dosage for a moderate CYP3A inhibitor costs half this"
+AZN,Calquence,,US,base,gross_to_net_pct,,0.472522,,share off list,"CMS negotiated a Maximum Fair Price for acalabrutinib of $8,600 per 30-day equivalent supply under the Medicare Drug Price Negotiation Program, effective 2027-01-01 (IPAY 2027; the book holds it in negotiated_prices, source cms_mfp). On a year that is 8,600 x 365/30 = $104,633 against the $198,365 list above: 1 - 104,633/198,365 = 0.4725","a Medicare negotiated price, which is deeper than a blended commercial net. It lands within 5 points of the 0.5 the book's Part D basis carries, which is the check that matters"
+AZN,Calquence,,US,base,discontinuation_pct,,0.0778,,share of the stock a year,"the 6-year follow-up of the ELEVATE-TN study (Blood 2025;146(11):1276, ashpublications.org/blood/article/146/11/1276) reports median progression-free survival not reached on either acalabrutinib arm and an estimated 72-month PFS of 61.5% on acalabrutinib monotherapy and 78.0% on acalabrutinib plus obinutuzumab. At a constant hazard, 61.5% survival at six years is 1 - 0.615^(1/6) = 7.8% of the stock progressing a year","a floor, not a full turnover: this counts progression only, and discontinuation for toxicity or intolerance sits on top of it. A BTK inhibitor in CLL is dosed continuously, so the progression hazard is most of it"
