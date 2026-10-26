@@ -86,7 +86,8 @@ def _cohort(conn, ticker: str, db_path) -> str | None:
         return None
 
 
-def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
+def _call_row(as_of, ticker, fair, cohort, version, run_id,
+              source: str = "scheduled") -> dict | None:
     """The day's company call from ``fair_value.company``, or None when it did not value."""
     if not fair or not fair.get("ok") or fair.get("equity_per_share") is None:
         return None
@@ -107,6 +108,7 @@ def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
         "target_low": target.get("low"), "target_mid": target.get("mid"),
         "target_high": target.get("high"),
         "code_version": version, "refresh_run_id": run_id,
+        "source": source,
     }
     for key, column in LENS_MIDS.items():
         if column != "target":
@@ -114,7 +116,8 @@ def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
     return row
 
 
-def _gate_rows(as_of, ticker, stakes, price, version, run_id) -> list[dict]:
+def _gate_rows(as_of, ticker, stakes, price, version, run_id,
+               source: str = "scheduled") -> list[dict]:
     """The day's priced gates from ``forecast_view.catalyst_stakes``, each leg a share."""
     shares = (stakes or {}).get("diluted_shares")
     out = []
@@ -142,6 +145,7 @@ def _gate_rows(as_of, ticker, stakes, price, version, run_id) -> list[dict]:
             "per_share_success": per(g.get("rnpv_success")),
             "per_share_failure": per(g.get("rnpv_failure")),
             "price": price, "code_version": version, "refresh_run_id": run_id,
+            "source": source,
         })
     return out
 
@@ -155,7 +159,8 @@ def _insert(conn, table: str, row: dict) -> bool:
 
 
 def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
-           tickers: list[str] | None = None, fair_fn=None, stakes_fn=None) -> dict:
+           tickers: list[str] | None = None, fair_fn=None, stakes_fn=None,
+           source: str = "scheduled") -> dict:
     """Write the day's calls: one per modelled company and one per priced gate. A company
     already recorded for the day is left as it was, so a second run never rewrites a call.
     ``fair_fn`` and ``stakes_fn`` are injectable for tests."""
@@ -174,7 +179,8 @@ def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
         for ticker in tickers if tickers is not None else modelled_tickers(conn):
             try:
                 row = _call_row(as_of, ticker, fair_fn(ticker),
-                                _cohort(conn, ticker, db_path), version, run_id)
+                                _cohort(conn, ticker, db_path), version, run_id,
+                                source)
                 if row is None:
                     continue
                 if _insert(conn, "model_calls", row):
@@ -182,7 +188,7 @@ def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
                 else:
                     written["kept"] += 1
                 for g in _gate_rows(as_of, ticker, stakes_fn(ticker), row["price"],
-                                    version, run_id):
+                                    version, run_id, source):
                     written["gates"] += int(_insert(conn, "gate_calls", g))
                 conn.commit()
             except Exception as exc:          # one company never stops the record

@@ -149,3 +149,41 @@ def test_without_the_stakes_own_figure_the_legs_are_millions_over_the_shares(boo
     conn.close()
     assert gate["per_share_now"] == 5.0 and gate["per_share_success"] == 8.0
 
+
+
+# --- where a call came from ----------------------------------------------------------
+
+def test_a_recorded_call_says_this_database_computed_it(book):
+    call_log.record(book, as_of="2026-01-02", tickers=["AAA"],
+                    fair_fn=lambda t: _fair(100.0, 0.2, 120.0),
+                    stakes_fn=lambda t: _stakes(0.6))
+    conn = db.get_connection(book)
+    call = conn.execute("SELECT source FROM model_calls").fetchone()["source"]
+    gate = conn.execute("SELECT source FROM gate_calls").fetchone()["source"]
+    conn.close()
+    assert call == "scheduled" and gate == "scheduled"
+
+
+def test_a_call_brought_in_from_another_book_says_so(book):
+    """A row loaded from an exported history is not a call this database made on the day,
+    and the table has to be able to say which is which."""
+    call_log.record(book, as_of="2026-01-02", tickers=["AAA"],
+                    fair_fn=lambda t: _fair(100.0, 0.2, 120.0),
+                    stakes_fn=lambda t: _stakes(0.6), source="backfill")
+    conn = db.get_connection(book)
+    assert conn.execute("SELECT source FROM model_calls").fetchone()["source"] == "backfill"
+    conn.close()
+
+
+def test_the_source_survives_an_export_and_a_rebuild(book, tmp_path):
+    """Provenance that is lost at the first hop is not provenance."""
+    call_log.record(book, as_of="2026-01-02", tickers=["AAA"],
+                    fair_fn=lambda t: _fair(100.0, 0.2, 120.0),
+                    stakes_fn=lambda t: _stakes(0.6), source="backfill")
+    out = tmp_path / "hist"
+    history.export(book, out)
+    rebuilt = str(tmp_path / "again.db")
+    history.rebuild(rebuilt, out)
+    conn = db.get_connection(rebuilt)
+    assert conn.execute("SELECT source FROM model_calls").fetchone()["source"] == "backfill"
+    conn.close()
