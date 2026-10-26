@@ -49,13 +49,15 @@ layer on that product, so the agents do asset-level numbers first.
 - [x] 5b. **TWO CONTAMINATION GUARDS** — found while Wave 1 ran, both of which would
       have produced layers that double-count revenue. See "Where the worklist was
       wrong" below. DONE.
-- [ ] 6. **WAVE 1** — three agents running on AZN (28 units), PFE (26), BMY (18).
-      Drafts land in `work/indication_backfill/drafts/`. **Not yet verified or loaded.**
-- [ ] 7. **VERIFY WAVE 1** — run verify_seeds.py over the drafts; then read a sample by
+- [x] 6. **WAVE 1** — three agents running on AZN (28 units), PFE (26), BMY (18).
+      21 files, 0 verifier failures. DONE.
+- [x] 7. **VERIFY WAVE 1** — measured on a copy of the book, see below. DONE.
+- [ ] 7b. **CHARLES READS A SAMPLE** — the step that cannot be automated. — run verify_seeds.py over the drafts; then read a sample by
       hand. The verifier catches unsourced and inconsistent; it cannot catch a real
       citation misread, so a human spot-check stays irreducible.
-- [ ] 8. **LOAD** — move passing files to `data/assumptions/`, run `load_seeds`, rebuild,
-      `make verify`, and re-run `nogate.py` to measure what actually got priced.
+- [ ] 8. **LOAD** — `python3 work/indication_backfill/integrate.py --load`. Deliberately
+      NOT done: the drafts carry numbers the agents themselves flagged as weak, and the
+      whole point of this book is that nothing unreviewed enters it. One command away.
 - [ ] 9. **WAVE 2** — only if Wave 1's accept rate justifies it. ABBV dossier is ready.
 
 ## Where the worklist was wrong, and how it was caught
@@ -146,6 +148,35 @@ Changing the basis then exposed a second error nobody had flagged: a CMS per-ben
 figure is a Medicare *allowed* amount, already net of manufacturer discounts, so the
 WAC-to-ASP gap of 12.45% was the wrong deduction on that anchor. Worth remembering as a
 pattern -- fixing one number forced the check that found the other.
+
+## What Wave 1 actually bought, measured on a copy
+
+Loaded into a copy of the book (`load_seeds` on the drafts directory), never the book
+itself. 303 rows written, **0 skipped** — every ticker and disease name resolved, which
+is itself a result: a skipped row is a seed file that reads as loaded and is not.
+
+| | before | after |
+|---|---|---|
+| layers `indication_layer` will price | 10 | **31** |
+| catalysts priced | 133 | **138** |
+| catalysts at `no_gate` | 332 | 320 |
+| catalysts correctly moved to `already_approved` | 99 | 106 |
+
+Per company, priced catalysts: AZN 11 to 13, BMY 4 to 7, **PFE 13 to 13**. NVS, BAYN
+and BIIB are unchanged, which is the control — nothing moved that should not have.
+
+133 consistency tests pass against the loaded copy, `test_no_two_assets_disagree`
+among them.
+
+**The gap between 21 new layers and 5 new priced gates is the finding.** A layer only
+becomes a gate if its indication carries a dated pending catalyst, and only **8 of the
+61 units the three agents worked** do: AZN 3 of 22, PFE 1 of 22, BMY 4 of 17. PFE gained
+twenty researched layers and not one priced gate.
+
+So layer research is necessary and not sufficient. The multiplier is linking — the 186
+catalysts that still name no disease. Research adds the value a readout would move;
+linking is what attaches a readout to it. Doing more of the first without the second
+buys model completeness, not alpha surface.
 
 ## If you are picking this up cold
 
