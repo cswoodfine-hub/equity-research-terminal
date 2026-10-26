@@ -523,6 +523,48 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
         raise
 
 
+def went_quiet(db_path, by_source: dict, run_id: int | None = None) -> list[dict]:
+    """Sources that fetched nothing this run after reaching rows on an earlier one.
+
+    A run is marked partial by errors alone, so a source that answers cleanly and parses
+    nothing finishes complete and says nothing. That is how the Purple Book fetcher ran
+    blind: a date format changed, every row was dropped, no exception was raised, and the
+    register it carries went unread for weeks while the runs reported success.
+
+    Zero rows is not itself a failure. Most sources have quiet days and a status that
+    says partial every day teaches the analyst to ignore the word. What is a failure is a
+    source that used to return rows and now returns none, so the test is against this
+    source's own last productive run rather than against zero.
+    """
+    live = {name: agg for name, agg in by_source.items()
+            if agg["rows_fetched"] == 0 and agg["ran"] > agg["skipped_ttl"]
+            and not agg["errors"]}
+    if not live:
+        return []
+    conn = db.get_connection(db_path)
+    try:
+        runs = conn.execute(
+            "SELECT id, started_at, detail FROM refresh_runs"
+            " WHERE detail IS NOT NULL AND id != IFNULL(?, -1)"
+            " ORDER BY id DESC LIMIT 30", (run_id,)).fetchall()
+    finally:
+        conn.close()
+    quiet = []
+    for name in sorted(live):
+        for run in runs:
+            try:
+                sources = (json.loads(run["detail"]) or {}).get("sources") or []
+            except (TypeError, ValueError):
+                continue
+            was = next((s for s in sources if s.get("source") == name), None)
+            if not was or not was.get("rows_fetched"):
+                continue
+            quiet.append({"source": name, "last_rows": was["rows_fetched"],
+                          "last_run": run["id"], "last_seen": run["started_at"]})
+            break
+    return quiet
+
+
 def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -736,8 +778,15 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     news_deals.refresh_run_id = run_id
     record(news_deals.run(), news_deals.entity_key)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
+    # A source that parsed nothing it used to parse is reported as an error, because that
+    # is what it is: the only difference from one that raised is that nothing raised.
+    quiet = went_quiet(db_path, by_source, run_id)
+    for gone in quiet:
+        by_source[gone["source"]]["errors"].append(
+            f"returned no rows; the last run that reached it returned "
+            f"{gone['last_rows']} ({str(gone['last_seen'])[:10]})")
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
-    detail = {"scope": "all", "companies": len(companies),
+    detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
               "pdufa": goals, "guidance": guided, "biologic_loe": bio_loe,
