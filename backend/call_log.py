@@ -313,13 +313,39 @@ def _gate_phase(gate: str | None) -> int | None:
     return 3 if g.startswith("p3") else 2 if g.startswith("p2") else None
 
 
+def p_in_force(row) -> float | None:
+    """The odds the model actually had on a gate, named or not.
+
+    ``p_gate`` is the published transition for a gate the model derived (p3_to_nda and
+    the like). A gate priced on the analyst's own stated legs has no named transition, so
+    the column is null, and calibration skipped those rows entirely: twelve per cent of
+    the book, including the widest events in it, could never be scored however long the
+    record ran.
+
+    The odds are in the legs regardless. The probability in force satisfies
+    ``pos_now = p * pos_success + (1 - p) * pos_failure``, so it inverts whenever the two
+    legs differ. A row whose legs are equal decides nothing and still scores nothing.
+    """
+    stated = row["p_gate"] if "p_gate" in row.keys() else None
+    if stated is not None:
+        return float(stated)
+    now, win, lose = row["pos_now"], row["pos_success"], row["pos_failure"]
+    if now is None or win is None or lose is None or win == lose:
+        return None
+    p = (now - lose) / (win - lose)
+    return p if 0.0 <= p <= 1.0 else None
+
+
 def _calibration(conn) -> dict:
     """Each resolved gate on the last call made before it resolved: Brier score and the
     share that passed in each band of odds."""
     outcomes = _gate_outcomes(conn)
     cid_of = {r["ticker"]: r["id"] for r in conn.execute("SELECT id, ticker FROM companies")}
     last: dict = {}
-    for g in conn.execute("SELECT * FROM gate_calls WHERE p_gate IS NOT NULL ORDER BY as_of"):
+    for g in conn.execute("SELECT * FROM gate_calls ORDER BY as_of"):
+        p = p_in_force(g)
+        if p is None:
+            continue
         resolved = outcomes["catalyst"].get(g["catalyst_id"])
         if resolved is None:
             key = (cid_of.get(g["ticker"]), (g["asset_name"] or "").strip().lower(),
@@ -328,7 +354,7 @@ def _calibration(conn) -> dict:
             resolved = min(later) if later else None
         if resolved is None or resolved[0] <= g["as_of"]:
             continue
-        last[(g["ticker"], g["catalyst_id"])] = (g["p_gate"], resolved[1])
+        last[(g["ticker"], g["catalyst_id"])] = (p, resolved[1])
     scored = list(last.values())
     bands = []
     for lo, hi in ODDS_BANDS:

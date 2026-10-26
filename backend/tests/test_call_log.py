@@ -187,3 +187,55 @@ def test_the_source_survives_an_export_and_a_rebuild(book, tmp_path):
     conn = db.get_connection(rebuilt)
     assert conn.execute("SELECT source FROM model_calls").fetchone()["source"] == "backfill"
     conn.close()
+
+
+# --- the odds the model had, named or not --------------------------------------------
+
+def _gate_row(book, **fields):
+    conn = db.get_connection(book)
+    cols = ["as_of", "ticker"] + list(fields)
+    vals = ["2026-01-02", "AAA"] + list(fields.values())
+    conn.execute(f"INSERT INTO gate_calls ({', '.join(cols)}) "
+                 f"VALUES ({', '.join('?' * len(cols))})", vals)
+    conn.commit()
+    row = conn.execute("SELECT * FROM gate_calls ORDER BY id DESC LIMIT 1").fetchone()
+    conn.close()
+    return row
+
+
+def test_a_named_transition_keeps_its_published_odds(book):
+    row = _gate_row(book, catalyst_id=1, p_gate=0.58, pos_now=0.5,
+                    pos_success=0.9, pos_failure=0.0)
+    assert call_log.p_in_force(row) == 0.58
+
+
+def test_a_stated_legs_gate_has_its_odds_read_off_its_legs(book):
+    """No named transition, so p_gate is null, but the odds are in the legs:
+    pos_now = p * met + (1 - p) * missed."""
+    row = _gate_row(book, catalyst_id=2, p_gate=None, pos_now=0.867,
+                    pos_success=1.0, pos_failure=0.0)
+    assert call_log.p_in_force(row) == pytest.approx(0.867)
+
+
+def test_odds_are_read_off_legs_that_do_not_start_at_zero(book):
+    row = _gate_row(book, catalyst_id=3, p_gate=None, pos_now=0.6888,
+                    pos_success=1.0, pos_failure=0.2221)
+    assert call_log.p_in_force(row) == pytest.approx(0.5999, abs=1e-4)
+
+
+def test_a_gate_whose_legs_are_equal_decides_nothing_and_scores_nothing(book):
+    row = _gate_row(book, catalyst_id=4, p_gate=None, pos_now=0.5,
+                    pos_success=0.5, pos_failure=0.5)
+    assert call_log.p_in_force(row) is None
+
+
+def test_legs_that_imply_an_impossible_probability_are_refused(book):
+    row = _gate_row(book, catalyst_id=5, p_gate=None, pos_now=0.95,
+                    pos_success=0.5, pos_failure=0.0)
+    assert call_log.p_in_force(row) is None, "1.9 is not a probability"
+
+
+def test_a_gate_missing_a_leg_scores_nothing(book):
+    row = _gate_row(book, catalyst_id=6, p_gate=None, pos_now=0.5,
+                    pos_success=None, pos_failure=0.0)
+    assert call_log.p_in_force(row) is None
