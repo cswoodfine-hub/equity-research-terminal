@@ -194,7 +194,8 @@ _INTERVAL_BASE = {
 # Sessions in the Key insights sparkline. Trading sessions rather than calendar days,
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
-CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+CATALYST_TYPES = ["PDUFA", "data readout", "regulatory submission", "EMA decision",
+                  "AdCom", "conference", "other"]
 # Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
 # The registry page for a trial, keyed by its NCT id.
 # Months of catalyst calendar. Two years covers the readout horizon without a control
