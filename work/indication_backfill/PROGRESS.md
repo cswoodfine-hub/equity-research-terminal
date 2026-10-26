@@ -46,6 +46,9 @@ layer on that product, so the agents do asset-level numbers first.
 - [x] 4. **VERIFIER** — `verify_seeds.py`. Calibrated both ways: the six Lilly files
       pass clean, a deliberately fabricated file fails on eleven counts. DONE, 6109d86.
 - [x] 5. **DOSSIERS** — `dossier.py`, one per company, asset-level gaps first. DONE.
+- [x] 5b. **TWO CONTAMINATION GUARDS** — found while Wave 1 ran, both of which would
+      have produced layers that double-count revenue. See "Where the worklist was
+      wrong" below. DONE.
 - [ ] 6. **WAVE 1** — three agents running on AZN (28 units), PFE (26), BMY (18).
       Drafts land in `work/indication_backfill/drafts/`. **Not yet verified or loaded.**
 - [ ] 7. **VERIFY WAVE 1** — run verify_seeds.py over the drafts; then read a sample by
@@ -54,6 +57,42 @@ layer on that product, so the agents do asset-level numbers first.
 - [ ] 8. **LOAD** — move passing files to `data/assumptions/`, run `load_seeds`, rebuild,
       `make verify`, and re-run `nogate.py` to measure what actually got priced.
 - [ ] 9. **WAVE 2** — only if Wave 1's accept rate justifies it. ABBV dossier is ready.
+
+## Where the worklist was wrong, and how it was caught
+
+Both defects make an already-approved indication read as pending. The failure mode is
+silent and expensive: a layer on an approved indication rebuilds the business the
+product already has, underneath the revenue that already contains it.
+
+**1. No label, so nothing to compare against (17 units, status `blocked_no_label`).**
+`approved_indications.for_asset` asks the label what the product already covers. With
+no label text the only test left is "is the phase 4", so every indication reads as
+unapproved. Tezspire is the proof: the book holds no label for it, and its four
+"unapproved" units include Asthma, approved 2021-12-17, and Rhinosinusitis, approved
+2025-10-17. Also Jakafi (5), Braftovi/Mektovi (2), Dupixent (2), Trikafta, Nurtec,
+Prevnar, Gardasil. Held, not researched — the fix is a label, not a pool.
+
+Narrowed to assets that actually have revenue. A pipeline asset with no label is
+approved in nothing, so every indication on it is genuinely unapproved; ceralasertib
+and monalizumab are that case and are correctly left in scope.
+
+**2. MeSH spells out what a label leaves implicit (11 units, `check_already_approved`).**
+The test is the descriptor's tokens as a subset of the label's. MeSH writes "Carcinoma,
+Non-Small-Cell Lung"; the label writes "non-small cell lung cancer". MeSH writes
+"Leukemia, Lymphocytic, Chronic, B-Cell"; the label writes "chronic lymphocytic
+leukemia", because in CLL the B-cell lineage goes without saying. So Calquence read as
+pending in CLL, which it has been approved in since 2019 — along with Alecensa,
+Enhertu, Krazati, Rybrevant, Imbruvica, Venclexta, Elahere, Imdelltra, Otezla, Leqvio.
+
+Not auto-decided. Dropping the words and matching anyway is a guess, so each is flagged
+for someone to read the actual label — a question an agent with the label in front of
+it answers in one step. The three running agents have been told.
+
+**Both were found by the research agents, not by the code.** The AZN agent's own
+sub-research established the Calquence 2019 approval and the Tezspire CRSwNP approval
+while answering a different question. That is the adversarial pass working earlier than
+designed, and it is an argument for keeping a research step in front of the seeding
+step rather than automating straight through.
 
 ## If you are picking this up cold
 
@@ -70,3 +109,6 @@ python3 work/indication_backfill/verify_seeds.py work/indication_backfill/drafts
 - 2026-10-26 — built the worklist (225 units) and the verifier; calibrated on the Lilly files.
 - 2026-10-26 — found the real blocker: 73 assets have no price per patient on file.
 - 2026-10-26 — launched Wave 1: AZN, PFE, BMY research agents.
+- 2026-10-26 — caught two contamination sources in the worklist; 28 units pulled from
+  research (17 blocked_no_label, 11 check_already_approved). Open units 182 -> 154.
+- 2026-10-26 — corrected all three running agents mid-flight with their own exclusions.
