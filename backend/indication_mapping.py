@@ -395,6 +395,53 @@ def _upsert_indications(conn, pairs) -> dict:
     return ids
 
 
+# A site or family term sitting beside one of its own children on the same asset is the
+# same patient pool counted twice. MeSH indexes a non-small-cell lung study under both
+# "Carcinoma, Non-Small-Cell Lung" and "Lung Neoplasms", and the layer model then prices
+# a lung expansion for a drug whose lung expansion is already the row above. Twenty-eight
+# marketed assets carried such a pair on 2026-10-26, twelve of them this one.
+#
+# Only parents that are never themselves an indication are listed. "Breast Neoplasms" is
+# deliberately absent: an asset studied in triple-negative and in hormone-receptor
+# positive disease carries both terms honestly, and suppressing the parent would delete
+# the second indication rather than a duplicate. Which of those an asset really has is a
+# question for the seed rows, not the vocabulary.
+#
+# Relational, not a TOO_BROAD entry: the parent is dropped only where that asset also
+# carries the child. An asset with the parent alone keeps it.
+PARENT_TERMS = {
+    "lung neoplasms": ("carcinoma, non-small-cell lung", "small cell lung carcinoma",
+                       "adenocarcinoma of lung"),
+    "head and neck neoplasms": ("squamous cell carcinoma of head and neck",),
+    "lymphoma, non-hodgkin": ("lymphoma, large b-cell, diffuse", "lymphoma, follicular",
+                              "lymphoma, mantle-cell",
+                              "leukemia, lymphocytic, chronic, b-cell"),
+    "leukemia": ("precursor cell lymphoblastic leukemia-lymphoma",
+                 "leukemia, myeloid, acute", "leukemia, lymphocytic, chronic, b-cell",
+                 "leukemia, myelogenous, chronic, bcr-abl positive"),
+}
+
+
+def drop_parent_of_child(pairs: dict) -> int:
+    """Remove a site or family term from an asset that also carries one of its children.
+
+    Mutates ``pairs`` in place and returns how many it dropped, so a refresh can report
+    the number rather than change the book silently.
+    """
+    terms: dict = {}
+    for (asset_id, mesh_id), entry in pairs.items():
+        terms.setdefault(asset_id, {})[(entry.get("term") or "").strip().lower()] = mesh_id
+    dropped = 0
+    for asset_id, by_term in terms.items():
+        for parent, children in PARENT_TERMS.items():
+            if parent not in by_term:
+                continue
+            if any(child in by_term for child in children):
+                pairs.pop((asset_id, by_term[parent]), None)
+                dropped += 1
+    return dropped
+
+
 def build(db_path=None) -> dict:
     """Derive asset_indications from the trials on file. Returns a count summary.
 
@@ -414,6 +461,9 @@ def build(db_path=None) -> dict:
         pairs = pairs_from_trials(rows)
         for key, entry in curated_additions(conn).items():
             pairs.setdefault(key, entry)
+        # Before the indications are written, so a parent the asset's own child makes
+        # redundant never becomes a row the layer model can price.
+        parents_dropped = drop_parent_of_child(pairs)
         indication_ids = _upsert_indications(conn, pairs)
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
@@ -460,6 +510,7 @@ def build(db_path=None) -> dict:
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
                 "assets": len({a for a, _ in pairs}),
+                "parents_dropped": parents_dropped,
                 "excluded_by_override": excluded,
                 "catalysts_linked": linked["linked"],
                 "catalysts_ambiguous": linked["ambiguous"],

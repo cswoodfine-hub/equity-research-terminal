@@ -602,3 +602,53 @@ def test_the_paediatric_title_test():
         assert im._is_paediatric(title), title
     for title in ("A Study of A in Adults", "A long-term extension study", "", None):
         assert not im._is_paediatric(title), title
+
+
+# --- a parent term beside its own child ----------------------------------------------
+
+def _pair(asset_id, mesh_id, term, phase="Phase 3"):
+    return ((asset_id, mesh_id), {"term": term, "phase": phase, "statuses": [],
+                                  "enrollment": 100, "ncts": []})
+
+
+def test_a_site_term_goes_when_the_asset_carries_its_own_child():
+    """MeSH indexes a non-small-cell study under the disease and under the site, and the
+    layer model then prices a lung expansion for a drug whose lung expansion is the row
+    above. Twelve marketed assets carried this pair."""
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms"),
+                  _pair(1, "D002289", "Carcinoma, Non-Small-Cell Lung")])
+    assert im.drop_parent_of_child(pairs) == 1
+    assert [e["term"] for e in pairs.values()] == ["Carcinoma, Non-Small-Cell Lung"]
+
+
+def test_a_site_term_alone_is_kept():
+    """An asset studied in lung cancer and nothing more specific still has an indication."""
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms")])
+    assert im.drop_parent_of_child(pairs) == 0
+    assert len(pairs) == 1
+
+
+def test_breast_neoplasms_is_not_treated_as_a_parent():
+    """An asset studied in triple-negative and in hormone-receptor positive disease
+    carries both terms honestly, so suppressing the parent would delete the second
+    indication rather than a duplicate."""
+    pairs = dict([_pair(1, "D001943", "Breast Neoplasms"),
+                  _pair(1, "D064726", "Triple Negative Breast Neoplasms")])
+    assert im.drop_parent_of_child(pairs) == 0
+    assert len(pairs) == 2
+
+
+def test_one_asset_s_parent_does_not_drop_another_s():
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms"),
+                  _pair(2, "D008175", "Lung Neoplasms"),
+                  _pair(1, "D002289", "Carcinoma, Non-Small-Cell Lung")])
+    assert im.drop_parent_of_child(pairs) == 1
+    assert (2, "D008175") in pairs, "the other asset has no child, so it keeps the site"
+
+
+def test_a_family_term_goes_for_any_of_its_children():
+    for child in ("Lymphoma, Large B-Cell, Diffuse",
+                  "Leukemia, Lymphocytic, Chronic, B-Cell"):
+        pairs = dict([_pair(1, "D008228", "Lymphoma, Non-Hodgkin"),
+                      _pair(1, "X", child)])
+        assert im.drop_parent_of_child(pairs) == 1, child
