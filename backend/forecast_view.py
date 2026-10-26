@@ -1315,7 +1315,7 @@ def _note_outcome(db_path, catalyst_id: int, outcome: str, note: str) -> None:
 
 def _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id, applied):
     # The pre-event record first, then the write (which snapshots post-event itself).
-    _snapshot(db_path, ticker, asset_id)
+    before = _snapshot(db_path, ticker, asset_id)
     saved = save_assumptions(db_path, ticker, asset_id, [{
         "key": "pos", "value": applied,
         "source": f"catalyst {catalyst_id} resolved {outcome}",
@@ -1323,8 +1323,14 @@ def _resolve_stated(db_path, ticker, catalyst_id, outcome, asset_id, applied):
     }], reason="readout", trigger_ref=f"catalyst:{catalyst_id}",
         rationale=f"stepped to {OUTCOMES[outcome]} on resolution")
     _note_outcome(db_path, catalyst_id, outcome, f"pos -> {applied:g}")
+    # What the resolve did to the valuation, not only to the odds. The page that records
+    # an outcome is the page that should say what recording it was worth.
     return {"catalyst_id": catalyst_id, "outcome": outcome, "route": "stated legs",
-            "pos_applied": applied, "state": saved["state"] if saved else None}
+            "pos_before": (before or {}).get("pos"), "pos_applied": applied,
+            "rnpv_before": (saved or {}).get("rnpv_before"),
+            "rnpv_after": (saved or {}).get("rnpv_after"),
+            "batch_id": (saved or {}).get("batch_id"),
+            "state": saved["state"] if saved else None}
 
 
 def _resolve_derived(db_path, ticker, catalyst_id, outcome, asset_id, priced):

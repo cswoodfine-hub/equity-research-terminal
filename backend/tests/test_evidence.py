@@ -116,3 +116,28 @@ def test_a_pubmed_identifier_is_a_citation_whatever_the_authors_are():
 def test_holding_a_line_at_its_run_rate_is_a_convention():
     assert E.grade("held at the 2026 run rate: AbbVie publishes no peak for "
                           "Vyalev") == "convention"
+
+
+def test_the_frontend_grade_map_is_the_backend_one():
+    """The Forecast tab counts the evidence mix itself rather than calling back for it,
+    so it carries its own copy of the map. The same bargain tokens.py and tokens.css
+    make: two copies are allowed, drifting apart is not."""
+    import ast
+    from pathlib import Path
+
+    app = Path(__file__).resolve().parent.parent.parent / "frontend" / "streamlit_app.py"
+    found = None
+    for node in ast.walk(ast.parse(app.read_text())):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "EVIDENCE_CLASS" for t in node.targets):
+            found = ast.literal_eval(node.value)
+            break
+    assert found is not None, "EVIDENCE_CLASS is gone from the Forecast tab"
+    assert found == E.CLASS, "the frontend and backend grade maps have drifted apart"
+    assert set(found) == set(E.GRADES), "every grade must have a class"
+
+
+def test_an_ungraded_row_is_an_assumption_on_both_sides():
+    """It is weak because nobody has graded it, which is not a reason to call it
+    evidence. The frontend's dict lookup defaults the same way evidence_class does."""
+    assert E.evidence_class(None) == "assumption"

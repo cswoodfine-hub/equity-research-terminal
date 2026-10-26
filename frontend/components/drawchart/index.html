@@ -54,6 +54,7 @@ window.addEventListener("message", function (e) {
   state.theme = a.theme || {};
   state.viewKey = a.view_key || "";
   state.height = a.height || 560;
+  state.gutter = a.gutter || BOTTOM_GUTTER;
   state.minHeight = state.height;
   render();
 });
@@ -68,12 +69,17 @@ window.addEventListener("message", function (e) {
 const BOTTOM_GUTTER = 56;        /* the legend and byline that sit under the chart */
 
 function availableHeight() {
+  /* Python says how much room the content under the chart needs, because the chart
+     cannot see it: the frame ends at the legend. A constant here meant anything added
+     below the chart went below the fold, which is how the first "why it moved" block
+     rendered correctly and was never seen. */
+  const gutter = state.gutter || BOTTOM_GUTTER;
   const floor = state.minHeight || 560;
   try {
     const frame = window.frameElement;
     if (!frame) return floor;
     const top = frame.getBoundingClientRect().top;
-    const room = window.parent.innerHeight - top - BOTTOM_GUTTER;
+    const room = window.parent.innerHeight - top - gutter;
     return Math.max(floor, Math.round(room));
   } catch (e) {
     return floor;                /* cross-origin, or no parent to measure */

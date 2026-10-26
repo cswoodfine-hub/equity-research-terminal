@@ -4270,14 +4270,33 @@ def _stake_split(rows: list, shown: int = _STAKE_SHOWN) -> tuple:
 
 
 def _stake_resolved_note(result) -> str:
-    """What a resolve said, where the page has to say it: a stated PoS still governs."""
+    """What a resolve did, in full.
+
+    Recording an outcome steps the live probability, writes the ledger and rebuilds the
+    valuation, and the page used to say nothing at all unless one narrow case applied.
+    The analyst had just moved the number the whole book rests on and was shown a toast.
+    """
     r = result if isinstance(result, dict) else {}
-    if r.get("route") != "gate evidence" or not r.get("stated_pos_governs"):
+    if not r:
         return ""
-    pos = r.get("pos_applied")
-    held = f" of {pos:.0%}" if isinstance(pos, (int, float)) else ""
-    return (f"Recorded as gate evidence. The stated PoS{held} still governs; clear it "
-            "under Assumptions to let the gate move it.")
+    pct = lambda v: f"{v:.0%}" if isinstance(v, (int, float)) else None
+    mm = lambda v: f"{v:,.0f}mm" if isinstance(v, (int, float)) else None
+    said = ["Recorded " + str(r.get("outcome") or "").strip() + "."
+            if r.get("outcome") else "Recorded."]
+    was, now = pct(r.get("pos_before")), pct(r.get("pos_applied"))
+    if was and now and was != now:
+        said.append(f"PoS {was} to {now}.")
+    elif now:
+        said.append(f"PoS {now}.")
+    a, b = r.get("rnpv_before"), r.get("rnpv_after")
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        said.append(f"rNPV {mm(a)} to {mm(b)} ({b - a:+,.0f}mm).")
+    if r.get("route") == "gate evidence" and r.get("stated_pos_governs"):
+        said.append("A stated PoS still governs; clear it under Assumptions to let the "
+                    "gate move it.")
+    elif r.get("route") == "gate evidence":
+        said.append("Recorded as gate evidence.")
+    return " ".join(said)
 
 
 def _stake_row(box, api_base: str, ticker: str, row: dict) -> None:
@@ -4957,6 +4976,55 @@ def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
         st.rerun()
     return True
 
+
+
+# Six grades in three classes, mirroring backend/evidence.py. A test keeps the two in
+# step, the same bargain tokens.py and tokens.css already make: an ungraded row is an
+# assumption, because it is weak for a reason nobody has written down.
+EVIDENCE_CLASS = {"filed": "evidence", "measured": "evidence", "published": "evidence",
+                  "analogue": "partial evidence", "convention": "assumption",
+                  "judgement": "assumption"}
+
+
+def _evidence_mix(rows) -> dict:
+    """How much of one product's model is evidence, partial evidence and assumption.
+
+    The board question evidence.py was written for, counted and put where a reader can
+    see it. A model that is a fifth judgement is not worse than one that is not; a model
+    that is a fifth judgement and does not say so is.
+    """
+    out = {"evidence": 0, "partial evidence": 0, "assumption": 0}
+    for row in rows or []:
+        out[EVIDENCE_CLASS.get((row.get("evidence") or "").strip().lower(),
+                               "assumption")] += 1
+    return out
+
+
+def _evidence_byline(rows) -> str:
+    mix = _evidence_mix(rows)
+    total = sum(mix.values())
+    if not total:
+        return ""
+    share = mix["assumption"] / total
+    parts = " &nbsp;·&nbsp; ".join(f"{n} {name}" for name, n in mix.items() if n)
+    return (f'<div class="byline">{share:.0%} of this model is assumption'
+            f' &nbsp;·&nbsp; {parts}</div>')
+
+
+def _workings_layer(notes) -> None:
+    """What the engine decided and why, in its own words.
+
+    The forecast engine writes a line for every judgement it makes: a layer it added and
+    the odds on it, the rate it grew a reported figure at, which exclusivity date governs
+    which share of revenue, what the terminal multiple came to and what a flat
+    perpetuity would have given instead. All of it reached the API and none of it
+    reached a reader, which left the model a black box holding a number.
+    """
+    if not notes:
+        state("No workings", "the engine recorded no decisions for this build")
+        return
+    items = "".join(f'<li>{html_escape(str(n))}</li>' for n in notes)
+    st.markdown(f'<ul class="workings">{items}</ul>', unsafe_allow_html=True)
 
 
 def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
@@ -5750,6 +5818,9 @@ def _render_forecast_tab(api_base: str, ticker: str):
                 st.markdown(f'<div class="byline">unsourced assumptions: '
                             f'{html_escape(", ".join(unsourced))}</div>',
                             unsafe_allow_html=True)
+            _mix = _evidence_byline(data.get("assumptions") or [])
+            if _mix:
+                st.markdown(_mix, unsafe_allow_html=True)
             if placeholder:
                 state("Drawn on a placeholder curve, and not counted",
                       "the uptake ceiling and midpoint are the shaper's probe values. This "
@@ -5775,9 +5846,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
         # one and a marketed brand the other.
         has_medicare = bool(medicare_html) or bool(medicare_error)
         has_gate = bool(verdict.get("gate"))
+        workings = result.get("notes") or []
         layer_names = (["Drivers"] + (["Next gate"] if has_gate else [])
                        + (["Medicare"] if has_medicare else [])
                        + (["Uptake"] if has_uptake else [])
+                       + ([f"Workings · {len(workings)}"] if workings else [])
                        + ["P&L", "Sensitivity", f"Assumptions · {n_rows}"])
         panels = dict(zip(layer_names, st.tabs(layer_names)))
 
@@ -5791,6 +5864,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
             # "No verdict" under every approved product's drivers.
             if result.get("pos_granular"):
                 _pos_layer(result["pos_granular"])
+
+        if workings:
+            with panels[f"Workings · {len(workings)}"]:
+                _workings_layer(workings)
 
         if has_gate:
             with panels["Next gate"]:
@@ -5848,6 +5925,55 @@ def _render_forecast_tab(api_base: str, ticker: str):
                                    key=f"fc_dl_{ticker}_{sel}")
             _forecast_import(api_base, ticker, sel, scenario,
                              data.get("assumptions") or [])
+            _change_log(api_base, ticker, sel)
+
+
+def _log_num(v):
+    if v is None:
+        return "nothing"
+    return f"{v:g}" if isinstance(v, (int, float)) else str(v)
+
+
+def _change_log(api_base: str, ticker: str, asset_id) -> None:
+    """Every change to this product's assumptions, newest first.
+
+    The value a row replaced, who moved it, the reason given and what the valuation did
+    about it. The assumptions table only ever holds the current number, so without this
+    the only record of a prior one was the git diff of a seed file, which misses every
+    value edited in the terminal.
+    """
+    try:
+        got = api_get(api_base, f"/model-changes?asset_id={asset_id}&limit=40")
+    except Exception:                                               # noqa: BLE001
+        return
+    entries = [e for e in (got.get("changes") or [])
+               if e.get("reason") and e["reason"] != "initial_seed"]
+    if not entries:
+        note("No assumption on this product has been changed since it was first written. "
+             "Every row still carries the value and the source it was seeded with.")
+        return
+    rows = []
+    for e in entries:
+        where = f" · {e['indication']}" if e.get("indication") else ""
+        moved = (f"{_log_num(e.get('old_value'))} to {_log_num(e.get('new_value'))}"
+                 if (e.get("old_value") is not None or e.get("new_value") is not None)
+                 else str(e.get("op") or ""))
+        swing = ""
+        if isinstance(e.get("rnpv_before"), (int, float)) and \
+                isinstance(e.get("rnpv_after"), (int, float)):
+            swing = f' &nbsp;·&nbsp; rNPV {e["rnpv_after"] - e["rnpv_before"]:+,.0f}mm'
+        who = (f' &nbsp;·&nbsp; {html_escape(str(e["changed_by"]))}'
+               if e.get("changed_by") else "")
+        rationale = (f'<br><span class="byline">{html_escape(str(e["rationale"]))}</span>'
+                     if e.get("rationale") else "")
+        rows.append(
+            f'<li><b>{html_escape(str(e.get("key")))}</b>{html_escape(where)} '
+            f'{html_escape(moved)} &nbsp;·&nbsp; '
+            f'<span class="u-tag">{html_escape(str(e["reason"]))}</span>'
+            f'{swing}{who} &nbsp;·&nbsp; '
+            f'{html_escape(str(e.get("changed_at"))[:16])}{rationale}</li>')
+    section("What changed", count=len(entries))
+    st.markdown(f'<ul class="whym">{"".join(rows)}</ul>', unsafe_allow_html=True)
 
 
 def _sensitivity_grid(grid, base_rnpv=None) -> None:
@@ -10074,6 +10200,23 @@ with main:
             fair = price_chart.forecast_series(
                 history.get("points") or [], intraday,
                 bars=chart_rows) if history.get("ok") else []
+
+            # Why the line last moved, from the two most recent days the book stated a
+            # view: what the market did, what the analyst changed and why, what the data
+            # underneath did, and whether the engine itself changed. Fetched before the
+            # chart draws, because the chart takes the height the tab has and would
+            # otherwise push this under the fold, where the first version of it lived.
+            _said = [pt["as_of"] for pt in (history.get("points") or [])
+                     if pt.get("stated")]
+            _why = {}
+            if len(_said) >= 2 and not intraday:
+                try:
+                    _why = api_get(
+                        api_base, f"/companies/{ticker}/why-moved"
+                                  f"?start={_said[-2]}&end={_said[-1]}")
+                except Exception:                                   # noqa: BLE001
+                    _why = {}
+            _why_lines = _why.get("reading") or [] if _why.get("ok") else []
             # The analyst's own changes go on the chart beside the world's. The rest of
             # the feed stays on the change feed, where it already reads in full: a trial
             # slipping a month is not what a price chart is for.
@@ -10105,6 +10248,7 @@ with main:
             drawchart.draw_chart(
                 data=data, markers=markers, fair=fair, mode=view, intraday=intraday,
                 lines=[], draw_mode=False, theme=theme,
+                gutter=56 + (46 if _why_lines else 0),
                 view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
                 key=f"drawchart_{ticker}")
 
@@ -10138,6 +10282,21 @@ with main:
             st.markdown(f'<div class="byline chart-legend">{legend}</div>',
                         unsafe_allow_html=True)
             note(detail)
+
+            # The move itself on one line, the reasoning folded under it. The tab has to
+            # fit a screen and the chart takes most of it, so this reads at a glance and
+            # opens where a reader wants it, the same bargain the Universe bylines make.
+            if _why_lines:
+                _rest = "".join(
+                    f'<li class="warn">{html_escape(line)}</li>'
+                    if ("cannot be attributed" in line or "different books" in line)
+                    else f'<li>{html_escape(line)}</li>'
+                    for line in _why_lines[1:])
+                st.markdown(
+                    f'<div class="whym-lead">{html_escape(_why_lines[0])}</div>'
+                    f'<details class="note-d"><summary>what moved it</summary>'
+                    f'<ul class="whym">{_rest}</ul></details>',
+                    unsafe_allow_html=True)
 
     # --- Financials ------------------------------------------------------
     with financials_tab:

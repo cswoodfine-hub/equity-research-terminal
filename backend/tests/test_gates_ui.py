@@ -476,12 +476,30 @@ def test_six_rows_are_open_and_the_rest_fold(view):
 def test_a_resolve_under_a_stated_pos_says_the_stated_figure_still_governs(view):
     said = view["_stake_resolved_note"]({"route": "gate evidence", "stated_pos_governs": True,
                                           "pos_applied": 0.875})
-    assert said == ("Recorded as gate evidence. The stated PoS of 88% still governs; clear it "
-                    "under Assumptions to let the gate move it.")
-    assert view["_stake_resolved_note"]({"route": "gate evidence"}) == ""
-    assert view["_stake_resolved_note"]({"route": "stated legs",
-                                         "stated_pos_governs": True}) == ""
+    assert "stated PoS still governs" in said
+    assert "clear it under Assumptions to let the gate move it" in said
+    assert "88%" in said
     assert view["_stake_resolved_note"](None) == ""
+    assert view["_stake_resolved_note"]({}) == ""
+
+
+def test_a_resolve_says_what_it_did_to_the_odds_and_to_the_value(view):
+    """Recording an outcome steps the live probability and rebuilds the valuation. The
+    page used to say nothing at all unless one narrow case applied, so the analyst moved
+    the number the whole book rests on and was shown a toast."""
+    said = view["_stake_resolved_note"]({
+        "route": "stated legs", "outcome": "met", "pos_before": 0.25, "pos_applied": 0.92,
+        "rnpv_before": 12841.0, "rnpv_after": 13134.0})
+    assert "Recorded met." in said
+    assert "PoS 25% to 92%." in said
+    assert "rNPV 12,841mm to 13,134mm (+293mm)." in said
+
+
+def test_a_resolve_that_moved_nothing_does_not_invent_a_move(view):
+    said = view["_stake_resolved_note"]({"route": "gate evidence", "outcome": "missed",
+                                         "pos_before": 0.4, "pos_applied": 0.4})
+    assert "to" not in said.split("PoS")[1].split(".")[0], "no move, so no arrow"
+    assert "rNPV" not in said
 
 
 def test_the_company_table_says_its_success_legs_are_derived(view):
