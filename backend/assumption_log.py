@@ -39,6 +39,7 @@ REASONS = (
     "correction",            # the number was wrong
     "convention_change",     # a house default moved and the rows that lean on it follow
     "initial_seed",          # the row's first write, from the seed file
+    "review",                # an analyst confirmed the grade a rule read off the row
 )
 
 # Grades the book reads as an assumption rather than as evidence, in evidence.CLASS terms.
@@ -177,6 +178,69 @@ def price_batch(conn, batch_id: str, rnpv_before, rnpv_after) -> None:
 
 
 # --- reading back ------------------------------------------------------------
+
+def review_queue(conn, limit: int = 200) -> list[dict]:
+    """The unreviewed judgements and conventions, grouped by the words that graded them.
+
+    2,192 rows carried an unconfirmed judgement or convention on 2026-10-26, and reading
+    that as 2,192 decisions is what made the queue look unworkable. It is not. Twelve
+    source sentences carry 1,119 of those rows: "the engine's terminal value is a
+    zero-growth perpetuity" is one house convention applied to 354 assets, not 354
+    opinions about 354 drugs.
+
+    So the unit of review is the sentence, not the row. An analyst reads the convention
+    once and confirms every row that rests on it, and the queue becomes roughly twenty
+    decisions and a tail.
+    """
+    rows = conn.execute(
+        """SELECT a.evidence, COALESCE(a.source, '') AS source, COUNT(*) AS rows_on_it,
+                  COUNT(DISTINCT a.asset_id) AS assets,
+                  COUNT(DISTINCT a.key) AS keys,
+                  MIN(a.key) AS a_key, MAX(a.key) AS z_key
+             FROM assumptions a
+            WHERE a.evidence_reviewed = 0 AND a.evidence IN (?, ?)
+            GROUP BY a.evidence, source
+            ORDER BY rows_on_it DESC LIMIT ?""",
+        (*REQUIRES_REASON, int(limit))).fetchall()
+    return [{"evidence": r["evidence"], "source": r["source"],
+             "rows": r["rows_on_it"], "assets": r["assets"],
+             "keys": r["keys"],
+             "key": r["a_key"] if r["a_key"] == r["z_key"] else None}
+            for r in rows]
+
+
+def confirm_grade(conn, source: str, evidence: str, changed_by: str | None = None,
+                  rationale: str | None = None) -> dict:
+    """Confirm one graded sentence across every row that rests on it.
+
+    The grade is the analyst's to give, so this only ever marks reviewed what a rule had
+    already read; it never changes a grade and never touches a value. Each row gets its
+    own ledger entry under one batch, because 354 rows becoming confirmed is 354 changes
+    to what the book claims about itself, however few keystrokes made it.
+    """
+    if evidence not in REQUIRES_REASON:
+        raise ValueError(f"only {' and '.join(REQUIRES_REASON)} rows are in the queue")
+    rows = conn.execute(
+        """SELECT * FROM assumptions
+            WHERE evidence_reviewed = 0 AND evidence = ?
+              AND COALESCE(source, '') = ?""", (evidence, source)).fetchall()
+    if not rows:
+        return {"confirmed": 0, "batch_id": None}
+    batch = new_batch()
+    for row in rows:
+        before = dict(row)
+        after = {**before, "evidence_reviewed": 1}
+        conn.execute("UPDATE assumptions SET evidence_reviewed = 1 WHERE id = ?",
+                     (row["id"],))
+        record(conn, asset_id=row["asset_id"], indication_id=row["indication_id"],
+               region=row["region"], scenario=row["scenario"], key=row["key"],
+               year=row["year"], op="update", before=before, after=after,
+               changed_by=changed_by, reason="review", batch_id=batch,
+               rationale=rationale or f"grade {evidence} confirmed on the source it was "
+                                      f"read from")
+    conn.commit()
+    return {"confirmed": len(rows), "batch_id": batch}
+
 
 def log(conn, asset_id: int | None = None, since: str | None = None,
         reason: str | None = None, limit: int = 200,

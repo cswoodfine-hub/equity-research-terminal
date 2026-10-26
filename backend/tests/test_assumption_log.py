@@ -372,3 +372,89 @@ def test_an_analyst_may_create_delete_and_create_again(tmp_path):
     conn.commit()
     assert [r["op"] for r in _edits(conn)] == ["create", "delete", "create"]
     conn.close()
+
+
+# --- the review queue ----------------------------------------------------------------
+
+def test_the_queue_groups_by_the_words_that_graded_the_row(tmp_path):
+    """Read as rows the queue is unworkable. One house convention stood behind 354
+    assets, which is one decision and not 354."""
+    path, conn = _seed(tmp_path)
+    for n in range(3):
+        A.save(conn, 1, [{"key": f"terminal_growth_pct_{n}", "value": 0.0,
+                          "source": "the engine's terminal value is a zero-growth perpetuity"}])
+    A.save(conn, 1, [{"key": "pos", "value": 0.25, "source": "a judgement"}])
+    conn.commit()
+    queue = L.review_queue(conn)
+    top = queue[0]
+    assert top["rows"] == 3 and top["evidence"] == "convention"
+    assert "zero-growth perpetuity" in top["source"]
+    assert {g["evidence"] for g in queue} == {"convention", "judgement"}
+    conn.close()
+
+
+def test_confirming_a_sentence_confirms_every_row_resting_on_it(tmp_path):
+    path, conn = _seed(tmp_path)
+    for n in range(4):
+        A.save(conn, 1, [{"key": f"forecast_years_{n}", "value": 10.0,
+                          "source": "the engine's terminal value is a perpetuity"}])
+    conn.commit()
+    out = L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention", changed_by="charles")
+    assert out["confirmed"] == 4
+    assert all(r["evidence_reviewed"] == 1 for r in A.rows(conn, 1))
+    assert L.review_queue(conn) == [], "nothing left in the queue"
+    conn.close()
+
+
+def test_confirming_changes_no_grade_and_no_value(tmp_path):
+    """The grade is the analyst's to give. This only marks reviewed what a rule read."""
+    path, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "forecast_years", "value": 10.0,
+                      "source": "the engine's terminal value is a perpetuity"}])
+    conn.commit()
+    L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention")
+    row = A.rows(conn, 1)[0]
+    assert row["evidence"] == "convention" and row["value"] == 10.0
+    conn.close()
+
+
+def test_every_confirmed_row_is_in_the_ledger_under_one_batch(tmp_path):
+    """354 rows becoming confirmed is 354 changes to what the book claims about itself,
+    however few keystrokes made it."""
+    path, conn = _seed(tmp_path)
+    for n in range(3):
+        A.save(conn, 1, [{"key": f"forecast_years_{n}", "value": 10.0,
+                          "source": "the engine's terminal value is a perpetuity"}])
+    conn.commit()
+    out = L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention", changed_by="charles")
+    entries = _edits(conn, reason="review")
+    assert len(entries) == 3
+    assert {e["batch_id"] for e in entries} == {out["batch_id"]}
+    assert all(e["changed_by"] == "charles" for e in entries)
+    assert all(e["old_evidence_reviewed"] == 0 and e["new_evidence_reviewed"] == 1
+               for e in entries)
+    conn.close()
+
+
+def test_a_sentence_nobody_rests_on_confirms_nothing(tmp_path):
+    path, conn = _seed(tmp_path)
+    assert L.confirm_grade(conn, "no such sentence", "convention") == {
+        "confirmed": 0, "batch_id": None}
+    conn.close()
+
+
+def test_only_the_two_grades_in_the_queue_can_be_confirmed(tmp_path):
+    path, conn = _seed(tmp_path)
+    with pytest.raises(ValueError):
+        L.confirm_grade(conn, "the 10-K", "filed")
+    conn.close()
+
+
+def test_a_confirmed_sentence_does_not_come_back(tmp_path):
+    path, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "forecast_years", "value": 10.0,
+                      "source": "the engine's terminal value is a perpetuity"}])
+    conn.commit()
+    L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention")
+    assert L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention")["confirmed"] == 0
+    conn.close()

@@ -1507,6 +1507,51 @@ def changes(days: int = Query(default=30),
     return whatchanged_module.build_feed(days=days, ticker=ticker)
 
 
+class ConfirmGradeIn(BaseModel):
+    source: str
+    evidence: str                 # convention | judgement
+    changed_by: Optional[str] = None
+    rationale: Optional[str] = None
+
+
+@app.get("/review-queue")
+def review_queue(limit: int = Query(default=200, le=1000)) -> dict:
+    """The unreviewed judgements and conventions, grouped by the words that graded them.
+
+    Read as rows the queue is 2,192 decisions and unworkable. Read as sentences it is
+    about twenty and a tail: one house convention stands behind 354 assets, and an
+    analyst confirms the convention rather than the assets.
+    """
+    conn = db.get_connection()
+    try:
+        groups = assumption_log.review_queue(conn, limit=limit)
+        total = conn.execute(
+            """SELECT COUNT(*) n FROM assumptions WHERE evidence_reviewed = 0
+                AND evidence IN ('convention', 'judgement')""").fetchone()["n"]
+    finally:
+        conn.close()
+    return {"unreviewed": total, "groups": groups,
+            "shown": sum(g["rows"] for g in groups)}
+
+
+@app.post("/review-queue/confirm")
+def confirm_review_grade(body: ConfirmGradeIn) -> dict:
+    """Confirm one graded sentence across every row that rests on it.
+
+    Marks reviewed what a rule already read. It never changes a grade and never touches
+    a value, and every row it marks gets its own ledger entry under one batch.
+    """
+    conn = db.get_connection()
+    try:
+        return assumption_log.confirm_grade(
+            conn, body.source, body.evidence, changed_by=body.changed_by,
+            rationale=body.rationale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
 @app.get("/model-changes")
 def model_changes(ticker: Optional[str] = Query(default=None),
                   asset_id: Optional[int] = Query(default=None),
