@@ -1,0 +1,31 @@
+# Truqap (AZN). 728mm USD. Draft indication-layer seeds, 2026-10-26.
+#
+# Three asset-level numbers and one dead programme.
+#
+# The dossier's single Truqap unit is CAPItello-290, and it failed. AstraZeneca published a
+# trial update in 2024 saying the study missed both dual primary endpoints, in the overall
+# population and in the biomarker-selected subgroup, with overall survival of 17.7 months
+# against 18.0 months on placebo. The registry record still carries a primary completion date
+# of 2026-03-16 and still reads 'Active, not recruiting', which is why the book carried it as
+# a pending Phase 3 readout. pos = 0, no pool.
+#
+# A pool for triple-negative breast cancer was researched before the failure was found and is
+# deliberately NOT seeded here: SEER's 321,910 estimated new US female breast cancers in 2026
+# cut by the 10.78% HR-negative/HER2-negative share in SEER 21 subtype data for 2019-2023 is
+# 34,694 a year. It is recorded in this comment rather than as a row because a failed
+# programme should seed nothing, and because the eligible share - how much of that pool is
+# first-line advanced disease - could not be sourced: SEER puts 6% of breast cancers at distant
+# stage at diagnosis, but most first-line advanced triple-negative disease is recurrence after
+# early-stage treatment, and no US recurrence rate was sourced here.
+#
+# The price is from AstraZeneca's own Vermont filing. The one soft joint is that the filing
+# publishes the 160 mg tablet while the 400 mg dose is given as 200 mg tablets; the row shows
+# the CMS cross-check that says the strengths are priced near-flat per tablet.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Truqap,,US,base,list_price_per_patient,,0.317001,,mm USD per year,"AstraZeneca's own Vermont prescriber price disclosure, Truqap short form of 2026-09-30 (astrazeneca-us.com/pharmaceutical-marketer-price-disclosure-vermont.html): Truqap 160 mg tablet at $455.96. The filing states on its face that, as directed by the Vermont Attorney General's Office, the prices shown are Wholesale Acquisition Cost plus 20%, so WAC is 455.96 / 1.20 = $379.97 a tablet. The Truqap prescribing information (DailyMed setid d698c106-2322-401e-b738-cbd83c843ecf, effective 2026-09-28) gives 400 mg orally twice daily for 4 days followed by 3 days off, which the label supplies as two 200 mg tablets twice daily: 4 tablets a day on 4 days in 7, 365 x 4/7 x 4 = 834.3 tablets a year. 834.3 x 379.97 = $317,001. The Vermont form carries only the smallest package size, the 160 mg tablet; CMS Medicare Part D Spending by Drug 2024 gives a blended $349.42 a tablet across the strengths actually dispensed, 5% under the $368.90 WAC the March 2025 Vermont form carried for the 160 mg, which says the strengths are priced close to flat per tablet","the intermittent 4-on-3-off schedule is already in the arithmetic; taken continuously the same dose would run $555,000"
+AZN,Truqap,,US,base,gross_to_net_pct,,0.5,,share off list,"measured in backend/gross_to_net.py against CMS's own negotiated prices: across the nine cycle-one Medicare-negotiated drugs that carry both, a gross CMS figure halved lands at a median 96% of the negotiated net annual price, spread 65% to 167%","applied to a filed WAC rather than to a CMS gross figure, which is the basis the module was calibrated on, so this is the looser end of its use"
+AZN,Truqap,,US,base,discontinuation_pct,,0.68,,share of the stock a year,"CAPItello-291, the registrational study (N Engl J Med 2023, doi:10.1056/NEJMoa2214131), reports median progression-free survival of 7.3 months on capivasertib plus fulvestrant against 3.1 months on placebo plus fulvestrant in the AKT-pathway-altered population, and 7.2 against 3.6 months overall. Capivasertib is dosed to progression, so at a constant hazard a 7.3-month median is 1 - exp(-ln2 / 0.6083) = 68% of the stock stopping a year",
+AZN,Truqap,Triple Negative Breast Neoplasms,US,base,pos,,0.0,,,"the programme is finished and failed. CAPItello-290 (NCT03997123, 923 participants, capivasertib plus paclitaxel as first-line treatment of locally advanced or metastatic triple-negative breast cancer) missed both dual primary endpoints: AstraZeneca's own trial update of 2024 (astrazeneca.com/media-centre/press-releases/2024/update-on-capitello-290-phase-iii-trial.html) states no improvement in overall survival either in the overall population or in the PIK3CA/AKT1/PTEN-altered subgroup, with median overall survival of 17.7 months against 18.0 months on placebo. No filing followed in triple-negative breast cancer","nil, not pending. No pool is seeded for a programme that has already failed, and the registry's primary completion date of 2026-03-16 is what kept it reading as live"
+AZN,Truqap,Triple Negative Breast Neoplasms,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"a different population from the label: the current Truqap label (DailyMed setid d698c106-2322-401e-b738-cbd83c843ecf, effective 2026-09-28) covers hormone-receptor-positive HER2-negative advanced breast cancer and PTEN-deficient metastatic prostate cancer. Triple-negative disease is hormone-receptor-negative and outside both",

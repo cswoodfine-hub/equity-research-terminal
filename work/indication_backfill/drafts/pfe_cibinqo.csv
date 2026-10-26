@@ -8,10 +8,17 @@
 # the label is adults and paediatric patients 12 years of age and older, and says in terms that
 # safety and effectiveness have not been established below 12. The three trials behind this unit
 # enrol 2 to under 6 and 6 to under 12. The pool the book already holds was cut to the same band,
-# children under twelve, so the layer and the pool agree and the overlap with the 284mm is nil.
-# If the project would rather treat an age extension inside an approved indication the way the
-# four dropped units were treated, this layer should go too; it is the one row in this batch that
-# turns on that call.
+# children under twelve, so the layer and the pool agree. The test is not whether the label names
+# the disease but whether the reported revenue already contains these patients, and it does not,
+# so the layer is genuinely incremental and the overlap is nil.
+#
+# One risk a later reader will hit. The book carries a single 'Eczema' row for this asset, so that
+# one row now serves both the approved adult and adolescent business inside the 284mm and the
+# paediatric expansion layered on top of it, while the layer priced against it is the under-twelve
+# pool alone. If an adult eczema readout is ever attached to that row it would resolve against a
+# paediatric layer, which would be wrong. The clean fix is a separate paediatric indication row,
+# the way the book already carries 'Pediatric Crohn's disease'. That is a change to the book, not
+# to this file.
 # 
 # Pool reused verbatim from the book. No gross_to_net_pct row: Pfizer discloses no net price for
 # Cibinqo, and the oral oncology figure the rest of this batch reuses is the wrong class for a

@@ -1,0 +1,19 @@
+# Koselugo (AZN). 662mm USD. Draft indication-layer seeds, 2026-10-26.
+#
+# One unit in the dossier and it is a dead programme, so this file is two rows and no pool.
+# SELECT-1 missed both progression-free and overall survival in 2016 and was published in
+# JAMA in 2017; the registry record has simply never been closed out, which is how a failed
+# Phase 3 came to sit in the book as a live one.
+#
+# NO PRICE ROW, deliberately. Koselugo's label dose is 25 mg/m2 twice daily, so an annual
+# cost needs a body surface area, and no sourced BSA for the treated population was to hand.
+# AstraZeneca's Vermont filing of 2026-09-30 carries the 10 mg capsule at $119.47 and the 5 mg
+# sprinkle capsule at $84.00 on a WAC-plus-20% basis, but the 25 mg capsule the adult dose
+# would use is not on the form. Since the only unapproved indication on this product is a
+# failed programme priced at zero, no layer needs the number, and a derived price resting on
+# an invented BSA would be worse than none.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Koselugo,"Carcinoma, Non-Small-Cell Lung",US,base,pos,,0.0,,,"the programme is finished and failed. SELECT-1 (NCT01933932, 510 participants, selumetinib plus docetaxel in second-line KRAS-mutant NSCLC) reached primary completion on 2016-06-07 and its posted registry results give median progression-free survival of 3.9 months against 2.8 months on placebo plus docetaxel, hazard ratio 0.93 (95% CI 0.77 to 1.12), P=0.4355, and median overall survival 8.7 against 7.9 months, hazard ratio 1.05 (95% CI 0.85 to 1.30), P=0.6431. Published as Janne et al., JAMA 2017 (jamanetwork.com/journals/jama/fullarticle/2625317). The registry still reads 'Active, not recruiting', which is why the book carried it as a Phase 3 in progress","nil, not pending. No pool is seeded for a programme that failed ten years ago"
+AZN,Koselugo,"Carcinoma, Non-Small-Cell Lung",US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"a different disease from the label: Koselugo is approved in neurofibromatosis type 1 with symptomatic, inoperable plexiform neurofibromas, not in lung cancer",

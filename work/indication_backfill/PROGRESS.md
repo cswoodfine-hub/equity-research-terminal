@@ -120,6 +120,33 @@ and says so. That is now a verifier rule -- two layers off one pool must carry a
 sentence saying how they are kept apart, which the file passes and a stripped copy of
 it fails.
 
+## The price basis, settled
+
+A physician-administered product carries the **CMS per-beneficiary figure** as
+`list_price_per_patient`, unit "mm USD per patient-year", with `gross_to_net_pct` at
+the statutory 1 - 1/1.06 = 0.056604. Not the full labelled-year WAC.
+
+Three precedents already did this and the first BMY draft did not, which would have put
+a second Opdivo price into a book that already holds one (amgn_abp_206, $73,984 per
+beneficiary, where it is the reference-product analogue).
+
+The reason is not tidiness, it is that price and stock have to be measured on the same
+patients. The discontinuation rate here is derived as dosage units per beneficiary
+against a labelled year, which *is* the share of a labelled year an average patient
+consumes. It closes exactly:
+
+    $71,752 per beneficiary / $191,649 a labelled year at ASP = 0.3744
+    1 - 0.3744 = 0.6256 = the discontinuation rate, and amgn_abp_206's, independently
+
+Pair that rate with a full labelled-year price and the shortfall is counted twice: once
+in a price that assumes twelve months of dosing, again in a rate that says most patients
+did not get twelve months. On Opdivo that is 2.9x.
+
+Changing the basis then exposed a second error nobody had flagged: a CMS per-beneficiary
+figure is a Medicare *allowed* amount, already net of manufacturer discounts, so the
+WAC-to-ASP gap of 12.45% was the wrong deduction on that anchor. Worth remembering as a
+pattern -- fixing one number forced the check that found the other.
+
 ## If you are picking this up cold
 
 ```bash
