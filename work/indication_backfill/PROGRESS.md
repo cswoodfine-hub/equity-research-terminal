@@ -94,6 +94,32 @@ while answering a different question. That is the adversarial pass working earli
 designed, and it is an argument for keeping a research step in front of the seeding
 step rather than automating straight through.
 
+## First draft read by hand (bmy_cobenfy.csv)
+
+The verifier passing is a floor, not a verdict, so the first file through was read line
+by line. It holds up.
+
+- `list_price_per_patient` comes from Bristol's own price disclosure ("$1,887 for 30
+  days"), with the dose and schedule shown and the arithmetic checkable: 1,887 x 365/30
+  = $22,958, which is the 0.022958mm on the row. Cross-checked against CMS Part D.
+- `gross_to_net_pct` is the 10-K's own gross-to-net reconciliation, with a note saying
+  it is the BMS aggregate rather than Cobenfy's and which way that biases it.
+- `discontinuation_pct` is EMERGENT-4's 52-week rate, with a note that it leans low
+  because the extension enrolled completers.
+- **The internal citation was checked and is real.** The pos rows cite "0.563 Phase 3
+  to NDA/BLA (n=71) and 0.912 NDA/BLA to approval (n=57)" on the Psychiatry cut of
+  data/pos_transitions.csv. That file says exactly 0.563/71 and 0.912/57, and they
+  multiply to the 0.513456 on the row. Nothing invented.
+- Bipolar Disorder was deliberately not seeded: its trials are the same studies and the
+  same patients as the Mania layer. The refusal is the right answer and is written down.
+
+One genuine risk, which the file disclosed itself: psychosis of Alzheimer's and
+agitation in Alzheimer's are priced as two layers off the same 7.4 million patients,
+and they are largely the same people. The file halves the second layer's penetration
+and says so. That is now a verifier rule -- two layers off one pool must carry a
+sentence saying how they are kept apart, which the file passes and a stripped copy of
+it fails.
+
 ## If you are picking this up cold
 
 ```bash

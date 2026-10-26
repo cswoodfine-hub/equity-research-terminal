@@ -169,6 +169,33 @@ def check(path: pathlib.Path, conn) -> list[str]:
             bad.append(f"{path.name}: the pool for {ind!r} cites no evidence at all "
                        f"({worst}). A pool must name something a reader can open")
 
+    # Rule five-and-a-half: two layers built on the same pool are a double count
+    # waiting to happen. Cobenfy's file prices psychosis of Alzheimer's and agitation
+    # in Alzheimer's as separate layers off the same 7.4 million patients, and they are
+    # largely the same people; the file handles it by halving the second layer's
+    # penetration and saying so, which is the right answer. But the engine sums layers
+    # without knowing that, so the case has to be visible rather than left to whoever
+    # happens to read the source sentences.
+    shared: dict = {}
+    for ind, got in pools.items():
+        if "prevalence" in got:
+            shared.setdefault(got["prevalence"][0], []).append(ind)
+    # So the rule is not "do not do this", which would refuse a real case. It is "say
+    # how you kept them apart", which is a sentence the author has to write and a
+    # reader can then argue with.
+    for value, inds in sorted(shared.items()):
+        if len(inds) < 2:
+            continue
+        said = " ".join((r.get("note") or "") + " " + (r.get("source") or "")
+                        for r in rows
+                        if (r.get("indication") or "").strip() in inds).lower()
+        if not any(w in said for w in ("double count", "double-count", "twice",
+                                       "same patient", "read the two", "overlap")):
+            bad.append(f"{path.name}: {' and '.join(repr(i) for i in sorted(inds))} are "
+                       f"priced off the same pool of {value:,.0f} and no row says how "
+                       f"they are kept apart. The engine sums layers, so unless these "
+                       f"are disjoint populations this sells the same patient twice")
+
     # Rule six: the book must not disagree with itself about a disease.
     for ind, got in sorted(pools.items()):
         row = conn.execute(
