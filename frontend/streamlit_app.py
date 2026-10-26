@@ -8850,8 +8850,20 @@ def _review_queue_panel(api_base: str) -> None:
     groups, total = got.get("groups") or [], got.get("unreviewed") or 0
     if not groups:
         return
-    section("Evidence to confirm", count=total,
-            basis="judgement and convention, unreviewed")
+    head, allc = st.columns([6, 1], vertical_alignment="center")
+    with head:
+        section("Evidence to confirm", count=total,
+                basis="judgement and convention, unreviewed")
+    with allc:
+        if st.button("Confirm all", key="rev_all", width="stretch"):
+            try:
+                out = api_post_body(api_base, "/review-queue/confirm-all", {})
+            except Exception as exc:                                # noqa: BLE001
+                st.warning(f"That did not go through: {exc}")
+            else:
+                api_get.clear()
+                st.toast(f"{out['confirmed']} rows confirmed in bulk.")
+                st.rerun()
     note("The book grades every assumption off its own source and marks the grade "
          "unreviewed until an analyst confirms it. One convention stands behind "
          "hundreds of assets, so what is offered here is the sentence rather than the "

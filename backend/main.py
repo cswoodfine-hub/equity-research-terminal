@@ -1552,6 +1552,40 @@ def confirm_review_grade(body: ConfirmGradeIn) -> dict:
         conn.close()
 
 
+class ReopenGradeIn(BaseModel):
+    batch_id: Optional[str] = None
+    source: Optional[str] = None
+    changed_by: Optional[str] = None
+
+
+@app.post("/review-queue/confirm-all")
+def confirm_all_grades(changed_by: Optional[str] = Query(default=None)) -> dict:
+    """Confirm every unreviewed judgement and convention at once.
+
+    Every row it marks says in the ledger that it was confirmed in bulk rather than read,
+    because evidence_reviewed is the only field in the book that claims a person looked.
+    """
+    conn = db.get_connection()
+    try:
+        return assumption_log.confirm_all(conn, changed_by=changed_by)
+    finally:
+        conn.close()
+
+
+@app.post("/review-queue/reopen")
+def reopen_grades(body: ReopenGradeIn) -> dict:
+    """Put confirmed grades back in the queue, by batch or by the sentence they rest on."""
+    conn = db.get_connection()
+    try:
+        return assumption_log.reopen_grade(conn, batch_id=body.batch_id,
+                                           source=body.source,
+                                           changed_by=body.changed_by)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
 @app.get("/model-changes")
 def model_changes(ticker: Optional[str] = Query(default=None),
                   asset_id: Optional[int] = Query(default=None),

@@ -458,3 +458,79 @@ def test_a_confirmed_sentence_does_not_come_back(tmp_path):
     L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention")
     assert L.confirm_grade(conn, "the engine's terminal value is a perpetuity", "convention")["confirmed"] == 0
     conn.close()
+
+
+# --- confirming the lot --------------------------------------------------------------
+
+def _queue(conn, n=3):
+    for i in range(n):
+        A.save(conn, 1, [{"key": f"forecast_years_{i}", "value": 10.0,
+                          "source": "the engine's terminal value is a perpetuity"}])
+    A.save(conn, 1, [{"key": "pos", "value": 0.25, "source": "a judgement"}])
+    conn.commit()
+
+
+def test_confirming_the_lot_clears_the_queue(tmp_path):
+    path, conn = _seed(tmp_path)
+    _queue(conn)
+    out = L.confirm_all(conn, changed_by="charles")
+    assert out["confirmed"] == 4
+    assert L.review_queue(conn) == []
+    conn.close()
+
+
+def test_a_bulk_confirmation_says_in_the_ledger_that_it_was_bulk(tmp_path):
+    """evidence_reviewed is the only field in the book claiming a person looked at a
+    row. After a bulk confirm it claims that of rows nobody read, so the ledger says
+    which kind of looking happened."""
+    path, conn = _seed(tmp_path)
+    _queue(conn)
+    L.confirm_all(conn, changed_by="charles")
+    entries = _edits(conn, reason="review")
+    assert entries and all(e["rationale"] == L.BULK_RATIONALE for e in entries)
+    assert all(e["changed_by"] == "charles" for e in entries)
+    conn.close()
+
+
+def test_confirming_the_lot_changes_no_grade_and_no_value(tmp_path):
+    path, conn = _seed(tmp_path)
+    _queue(conn, n=1)
+    before = {r["key"]: (r["evidence"], r["value"]) for r in A.rows(conn, 1)}
+    L.confirm_all(conn)
+    after = {r["key"]: (r["evidence"], r["value"]) for r in A.rows(conn, 1)}
+    assert before == after
+    conn.close()
+
+
+def test_a_bulk_confirmation_can_be_walked_back(tmp_path):
+    """A confirmation that cannot be undone is a one-way door."""
+    path, conn = _seed(tmp_path)
+    _queue(conn)
+    out = L.confirm_all(conn)
+    back = L.reopen_grade(conn, batch_id=out["batch_id"])
+    assert back["reopened"] == 4
+    assert len(L.review_queue(conn)) == 2, "both sentences are back in the queue"
+    conn.close()
+
+
+def test_one_sentence_can_be_reopened_on_its_own(tmp_path):
+    path, conn = _seed(tmp_path)
+    _queue(conn)
+    L.confirm_all(conn)
+    back = L.reopen_grade(conn, source="a judgement")
+    assert back["reopened"] == 1
+    assert [g["evidence"] for g in L.review_queue(conn)] == ["judgement"]
+    conn.close()
+
+
+def test_reopening_nothing_in_particular_is_refused(tmp_path):
+    path, conn = _seed(tmp_path)
+    with pytest.raises(ValueError):
+        L.reopen_grade(conn)
+    conn.close()
+
+
+def test_confirming_an_empty_queue_does_nothing(tmp_path):
+    path, conn = _seed(tmp_path)
+    assert L.confirm_all(conn) == {"confirmed": 0, "batch_id": None}
+    conn.close()

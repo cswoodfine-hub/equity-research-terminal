@@ -242,6 +242,82 @@ def confirm_grade(conn, source: str, evidence: str, changed_by: str | None = Non
     return {"confirmed": len(rows), "batch_id": batch}
 
 
+BULK_RATIONALE = ("confirmed in bulk, not read row by row")
+
+
+def confirm_all(conn, changed_by: str | None = None) -> dict:
+    """Confirm every unreviewed judgement and convention in one act.
+
+    What it is for: a book whose conventions are already trusted, where an unreviewed
+    flag that will never be cleared tells a reader less than a confirmed one.
+
+    What it costs, recorded rather than hidden: ``evidence_reviewed`` is the only field
+    in the book that claims a person looked at a row, and after this it claims that of
+    rows nobody read. So every ledger entry says so in its own words, and reopen_grade
+    is the way back. A reader who later asks who reviewed these gets "confirmed in bulk
+    on this date", which is the truth, instead of an implication of care that was not
+    taken.
+    """
+    rows = conn.execute(
+        """SELECT * FROM assumptions
+            WHERE evidence_reviewed = 0 AND evidence IN (?, ?)""",
+        REQUIRES_REASON).fetchall()
+    if not rows:
+        return {"confirmed": 0, "batch_id": None}
+    batch = new_batch()
+    for row in rows:
+        before = dict(row)
+        conn.execute("UPDATE assumptions SET evidence_reviewed = 1 WHERE id = ?",
+                     (row["id"],))
+        record(conn, asset_id=row["asset_id"], indication_id=row["indication_id"],
+               region=row["region"], scenario=row["scenario"], key=row["key"],
+               year=row["year"], op="update", before=before,
+               after={**before, "evidence_reviewed": 1}, changed_by=changed_by,
+               reason="review", batch_id=batch, rationale=BULK_RATIONALE)
+    conn.commit()
+    return {"confirmed": len(rows), "batch_id": batch}
+
+
+def reopen_grade(conn, batch_id: str | None = None, source: str | None = None,
+                 changed_by: str | None = None) -> dict:
+    """Put confirmed grades back in the queue, by the batch that confirmed them or by
+    the sentence they rest on.
+
+    The way back. A confirmation that cannot be undone is a one-way door, and a bulk one
+    is exactly the kind worth being able to walk back through.
+    """
+    if not batch_id and not source:
+        raise ValueError("name the batch to reopen, or the sentence")
+    if batch_id:
+        ids = [r["id"] for r in conn.execute(
+            """SELECT a.id FROM assumptions a
+                 JOIN assumption_edits e ON e.asset_id = a.asset_id AND e.key = a.key
+                  AND IFNULL(e.indication_id, 0) = IFNULL(a.indication_id, 0)
+                  AND IFNULL(e.year, 0) = IFNULL(a.year, 0)
+                  AND e.region = a.region AND e.scenario = a.scenario
+                WHERE e.batch_id = ? AND a.evidence_reviewed = 1""", (batch_id,))]
+    else:
+        ids = [r["id"] for r in conn.execute(
+            """SELECT id FROM assumptions WHERE evidence_reviewed = 1
+                AND COALESCE(source, '') = ?""", (source,))]
+    if not ids:
+        return {"reopened": 0, "batch_id": None}
+    batch = new_batch()
+    for row_id in ids:
+        row = conn.execute("SELECT * FROM assumptions WHERE id = ?", (row_id,)).fetchone()
+        before = dict(row)
+        conn.execute("UPDATE assumptions SET evidence_reviewed = 0 WHERE id = ?",
+                     (row_id,))
+        record(conn, asset_id=row["asset_id"], indication_id=row["indication_id"],
+               region=row["region"], scenario=row["scenario"], key=row["key"],
+               year=row["year"], op="update", before=before,
+               after={**before, "evidence_reviewed": 0}, changed_by=changed_by,
+               reason="review", batch_id=batch,
+               rationale="reopened for review")
+    conn.commit()
+    return {"reopened": len(ids), "batch_id": batch}
+
+
 def log(conn, asset_id: int | None = None, since: str | None = None,
         reason: str | None = None, limit: int = 200,
         ticker: str | None = None) -> list[dict]:
