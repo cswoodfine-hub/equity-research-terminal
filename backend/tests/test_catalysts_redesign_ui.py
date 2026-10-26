@@ -862,24 +862,27 @@ def _tab_block():
 def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
     calls = []
     page = types.SimpleNamespace(
-        render=lambda api_base, t, kit: calls.append("redesign") or drawn)
+        render=lambda api_base, t, kit: calls.append("redesign") or drawn,
+        proposals_block=lambda api_base, t: calls.append("proposals"))
     space = {"ticker": ticker, "api_base": "http://api.invalid", "feed": [],
              "_catalysts_redesigned": switch["_catalysts_redesigned"],
              "catalysts_page": page, "_CATALYSTS_KIT": object(),
              "_catalysts_today": lambda a, t, f: calls.append("today")}
-    pick = _tab_block()[:2]
+    pick = _tab_block()[:3]
     exec(compile(ast.Module(body=pick, type_ignores=[]), str(APP), "exec"), space)
-    assert calls == want
+    # The proposals block draws first and for every company: which catalyst view wins is
+    # not its business, and a readout that may have landed is worth the same on either.
+    assert calls == ["proposals"] + want
 
 
 def test_the_calendar_fold_is_drawn_only_where_the_area_page_is_not():
     """The readout list's calendar is a click on its index, so the fold under the tab is
     drawn for every company the page does not draw, and only for those."""
     body = _tab_block()
-    fold = body[2]
+    fold = body[3]
     assert isinstance(fold, ast.If) and ast.unparse(fold.test) == "not drawn"
     assert "st.expander(calendar_view.expander_label" in ast.unparse(fold)
-    assert len(body) == 3
+    assert len(body) == 4, "the proposals block, the switch, the fallback, the fold"
 
 
 def test_todays_tab_is_drawn_as_before():

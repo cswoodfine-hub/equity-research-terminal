@@ -19,6 +19,7 @@ import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
 import assumption_log
+import auto_resolve as auto_resolve_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
@@ -977,6 +978,24 @@ def company_catalysts_view(ticker: str):
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
     return JSONResponse(payload, headers=headers)
+
+
+@app.get("/companies/{ticker}/resolve-proposals")
+def company_resolve_proposals(ticker: str, days: int = Query(default=45)) -> dict:
+    """Readouts in this company's news matched to the gates they decide.
+
+    A proposal, never a decision. The same feed carries results, enrolment notices and
+    diary entries, so a headline is classified only where it names the outcome in the
+    words the industry uses, and every proposal says whether it matched the trial or
+    only the asset's name.
+    """
+    return auto_resolve_module.proposals(None, ticker, days=days)
+
+
+@app.get("/resolve-proposals")
+def universe_resolve_proposals(days: int = Query(default=45)) -> dict:
+    """The same, across every company the book models."""
+    return auto_resolve_module.proposals(None, None, days=days)
 
 
 class ResolveIn(BaseModel):

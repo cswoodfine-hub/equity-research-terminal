@@ -1141,6 +1141,11 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* The move itself, above the fold and at the weight of a figure. The reasoning folds
    under it, because the price tab has to fit one screen and the chart takes most of it. */
 .whym-lead {{ font-size: 12px; color: var(--text); margin-top: 0.3rem; }}
+/* A readout that may have landed on a gate the book carries. Its own class rather than
+   the why-moved lead's: the two say different things and Streamlit keeps every tab's
+   markup mounted, so one class across both is a collision waiting to be styled wrong. */
+.prop-lead {{ font-size: 12px; color: var(--text); margin-top: 0.3rem; }}
+.prop-lead b {{ color: var(--flag); }}
 /* A passage added to a filing section, quoted full width for review. */
 .rf-add {{ font-size: 12px; line-height: 1.42; border-left: 2px solid var(--flag);
           padding: 2px 0 2px 10px; margin: 5px 0; }}
