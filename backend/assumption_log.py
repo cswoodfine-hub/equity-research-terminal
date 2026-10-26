@@ -103,6 +103,31 @@ def requires_reason(old_grade: str | None, new_grade: str | None) -> bool:
     return old_grade in REQUIRES_REASON or new_grade in REQUIRES_REASON
 
 
+def names_for(conn, asset_id, indication_id) -> tuple:
+    """(ticker, asset name, indication name) as they stand now.
+
+    Written onto every ledger row so a row can say what it is about without a surrogate
+    id. A rebuild reissues those ids before the assets exist, so a row carrying only an
+    id can stop meaning anything; one carrying the names is always re-resolvable (091,
+    backend/relink.py).
+    """
+    ticker = asset = indication = None
+    if asset_id is not None:
+        row = conn.execute(
+            """SELECT c.ticker AS t,
+                      COALESCE(NULLIF(TRIM(a.brand_name), ''), a.generic_name) AS n
+                 FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE a.id = ?""", (asset_id,)).fetchone()
+        if row is not None:
+            ticker, asset = row["t"], row["n"]
+    if indication_id is not None:
+        row = conn.execute("SELECT name FROM indications WHERE id = ?",
+                           (indication_id,)).fetchone()
+        if row is not None:
+            indication = row["name"]
+    return ticker, asset, indication
+
+
 def record(conn, *, asset_id: int, indication_id, region: str, scenario: str, key: str,
            year, op: str, before: dict | None, after: dict | None,
            changed_by: str | None = None, reason: str | None = None,
@@ -112,6 +137,7 @@ def record(conn, *, asset_id: int, indication_id, region: str, scenario: str, ke
     number cannot move without the ledger moving with it."""
     before = before or {}
     after = after or {}
+    ticker, asset_name, indication_name = names_for(conn, asset_id, indication_id)
     # OR IGNORE so a reseed cannot log a row's first write twice. The unique index it
     # defers to covers seed rows only (090), so an analyst creating, deleting and
     # recreating a row still records three events.
@@ -123,9 +149,11 @@ def record(conn, *, asset_id: int, indication_id, region: str, scenario: str, ke
                 new_value, new_text, new_unit, new_source, new_note,
                 new_evidence, new_evidence_reviewed,
                 changed_by, reason, rationale, trigger_ref, batch_id,
-                code_version, refresh_run_id)
+                code_version, refresh_run_id,
+                ticker, asset_name, indication_name)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                   ?, ?, ?)""",
         (asset_id, indication_id, region, scenario, key, year, op,
          before.get("value"), before.get("text_value"), before.get("unit"),
          before.get("source"), before.get("note"),
@@ -134,7 +162,8 @@ def record(conn, *, asset_id: int, indication_id, region: str, scenario: str, ke
          after.get("source"), after.get("note"),
          after.get("evidence"), after.get("evidence_reviewed"),
          analyst(changed_by), reason, rationale, trigger_ref, batch_id,
-         code_version(), refresh_run_id))
+         code_version(), refresh_run_id,
+         ticker, asset_name, indication_name))
 
 
 def price_batch(conn, batch_id: str, rnpv_before, rnpv_after) -> None:
@@ -158,7 +187,9 @@ def log(conn, asset_id: int | None = None, since: str | None = None,
         where.append("e.asset_id = ?")
         args.append(asset_id)
     if ticker:
-        where.append("c.ticker = ?")
+        # The ledger's own ticker, not the joined one: a row whose asset the next
+        # rebuild has not yet recreated still belongs to the company that wrote it.
+        where.append("e.ticker = ?")
         args.append(ticker.upper())
     if since:
         where.append("e.changed_at >= ?")
@@ -168,12 +199,12 @@ def log(conn, asset_id: int | None = None, since: str | None = None,
         args.append(reason)
     args.append(int(limit))
     return [dict(r) for r in conn.execute(
-        f"""SELECT e.*, i.name AS indication, a.brand_name, a.generic_name,
-                   c.ticker
+        f"""SELECT e.*, COALESCE(i.name, e.indication_name) AS indication,
+                   COALESCE(a.brand_name, a.generic_name, e.asset_name) AS brand_name,
+                   a.generic_name
               FROM assumption_edits e
               LEFT JOIN indications i ON i.id = e.indication_id
               LEFT JOIN assets a ON a.id = e.asset_id
-              LEFT JOIN companies c ON c.id = a.owner_company_id
              WHERE {' AND '.join(where)}
              ORDER BY e.changed_at DESC, e.id DESC LIMIT ?""", args)]
 

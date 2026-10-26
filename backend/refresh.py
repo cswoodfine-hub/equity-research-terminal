@@ -51,6 +51,7 @@ import guidance as guidance_module
 import leadership
 import applications
 import pdufa
+import relink
 import submissions
 import revenue_earnings
 import revenue_mdna
@@ -502,10 +503,15 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # nothing and keeps one refresh from leaving the calendar in a state another would
     # not have.
     filed = submissions.derive(db_path)
+    # Re-point the history tables at the asset rows this build gave out. A rebuild
+    # restores them before seed.py recreates the assets, so every id they carry was
+    # issued by an earlier build: 545 of 1,815 gate_calls rows pointed at no asset at
+    # all on 2026-10-26. Runs once the asset rows are settled, and never guesses.
+    relinked = relink.run(db_path)
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
               "readouts": readouts, "pdufa": goals, "submissions": filed,
-              "guidance": guided,
+              "relinked": relinked, "guidance": guided,
               "biologic_loe": bio_loe,
               "trial_mapping": mapped,
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
@@ -790,6 +796,11 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # the event the whole p3_to_nda gate is about was the one the calendar could not
     # show. Runs after the diff has filed the press rows it reads.
     filed = submissions.derive(db_path)
+    # Re-point the history tables at the asset rows this build gave out. A rebuild
+    # restores them before seed.py recreates the assets, so every id they carry was
+    # issued by an earlier build: 545 of 1,815 gate_calls rows pointed at no asset at
+    # all on 2026-10-26. Runs once the asset rows are settled, and never guesses.
+    relinked = relink.run(db_path)
     # A source that parsed nothing it used to parse is reported as an error, because that
     # is what it is: the only difference from one that raised is that nothing raised.
     quiet = went_quiet(db_path, by_source, run_id)
@@ -801,8 +812,8 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
-              "pdufa": goals, "submissions": filed, "guidance": guided,
-              "biologic_loe": bio_loe,
+              "pdufa": goals, "submissions": filed, "relinked": relinked,
+              "guidance": guided, "biologic_loe": bio_loe,
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "quarter_revenue": quarter_revenue,
               "deals": deal_reads, "leadership": leaders, "changes": changes}
