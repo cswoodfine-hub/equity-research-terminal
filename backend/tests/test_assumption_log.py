@@ -341,3 +341,34 @@ def test_the_log_narrows_to_one_company(tmp_path):
     assert [r["brand_name"] for r in L.log(conn, ticker="LLY")] == ["Verzenio"]
     assert [r["ticker"] for r in L.log(conn, ticker="AMGN")] == ["AMGN"]
     conn.close()
+
+
+def test_a_reseed_does_not_log_a_row_s_first_write_twice(tmp_path):
+    """history.py rebuild restores the ledger but not the assumptions table, so the seed
+    loader finds it empty and writes every row again. The cloud book went from 11,575
+    ledger rows to 23,150 in one run before this was caught (090)."""
+    path, conn = _seed(tmp_path)
+    seeds = tmp_path / "seeds"
+    seeds.mkdir()
+    (seeds / "lly_verzenio.csv").write_text(
+        "ticker,brand,indication,region,scenario,key,year,value,text_value,unit,"
+        "source,note\n"
+        "LLY,Verzenio,,US,base,base_revenue,,5723.0,,mm USD,the 10-K,the anchor\n")
+    A.load_seeds(conn, directory=str(seeds))
+    conn.execute("DELETE FROM assumptions")          # what a rebuild leaves behind
+    conn.commit()
+    A.load_seeds(conn, directory=str(seeds))
+    rows = _edits(conn, reason="initial_seed")
+    assert len(rows) == 1, "one row, one first write, however many rebuilds"
+    conn.close()
+
+
+def test_an_analyst_may_create_delete_and_create_again(tmp_path):
+    """Three events, not one. The seed index must not collapse real history."""
+    path, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "sga_pct", "value": 0.2, "source": "the 10-K"}])
+    A.save(conn, 1, [{"key": "sga_pct", "value": None}])
+    A.save(conn, 1, [{"key": "sga_pct", "value": 0.25, "source": "the 10-K"}])
+    conn.commit()
+    assert [r["op"] for r in _edits(conn)] == ["create", "delete", "create"]
+    conn.close()

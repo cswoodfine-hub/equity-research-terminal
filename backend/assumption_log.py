@@ -112,8 +112,11 @@ def record(conn, *, asset_id: int, indication_id, region: str, scenario: str, ke
     number cannot move without the ledger moving with it."""
     before = before or {}
     after = after or {}
+    # OR IGNORE so a reseed cannot log a row's first write twice. The unique index it
+    # defers to covers seed rows only (090), so an analyst creating, deleting and
+    # recreating a row still records three events.
     conn.execute(
-        """INSERT INTO assumption_edits
+        """INSERT OR IGNORE INTO assumption_edits
                (asset_id, indication_id, region, scenario, key, year, op,
                 old_value, old_text, old_unit, old_source, old_note,
                 old_evidence, old_evidence_reviewed,
