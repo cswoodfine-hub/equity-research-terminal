@@ -652,3 +652,99 @@ def test_a_family_term_goes_for_any_of_its_children():
         pairs = dict([_pair(1, "D008228", "Lymphoma, Non-Hodgkin"),
                       _pair(1, "X", child)])
         assert im.drop_parent_of_child(pairs) == 1, child
+
+
+def _mixed_age_db(tmp_path, title):
+    """One asset, an adult Crohn pair, and a catalyst on a study with the given title."""
+    path = str(tmp_path / "m.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X Pharma')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, 1, 'A')")
+    browse = json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT9', 1, 1, ?, ?, 'Phase 3', 'Recruiting', 100, '2022-01-01', ?)",
+        ('["Crohn Disease"]', browse, title))
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + "NCT9",))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_study_of_adults_and_adolescents_is_the_adult_readout(tmp_path):
+    """Remibrutinib's, upadacitinib's and icotrokinra's pivotal studies name both ages
+    in the title. They are adult label expansions that happen to enrol down to twelve,
+    and diverting them to a paediatric row the book does not carry left 21 readouts
+    unpriced. The paediatric rule exists to stop a readout in children deciding the
+    adults' approved indication, not to discard a readout that decides both."""
+    path = _mixed_age_db(
+        tmp_path, "A Study of A in Adult and Adolescent Participants With Crohn's Disease")
+    im.build(path)
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row and row["name"] == "Crohn Disease"
+    conn.close()
+
+
+def test_a_study_of_children_alone_is_still_diverted(tmp_path):
+    """The narrowing above must not reach a study that names no adults."""
+    path = _mixed_age_db(
+        tmp_path, "A Study of A in Pediatric Participants With Crohn's Disease")
+    im.build(path)
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    assert conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_a_parent_descriptor_does_not_make_a_readout_ambiguous():
+    """MeSH indexes an obesity study under "Obesity" and its own parent "Overweight",
+    and both are real rows on the asset, so 38 readouts on the largest franchise in the
+    book matched two indications and were left unlinked."""
+    assert im._narrow({1: "overweight", 2: "obesity"}) == {2: "obesity"}
+    assert im._narrow({1: "hidradenitis", 2: "hidradenitis suppurativa"}) == \
+        {2: "hidradenitis suppurativa"}
+
+
+def test_two_unrelated_diseases_stay_ambiguous():
+    """Narrowing only drops a term that is the parent of another on the same study.
+    Type 2 diabetes and obesity are two diseases and the readout is in one of them;
+    choosing would be a guess about which, so it stays unlinked and says so."""
+    names = {1: "diabetes mellitus, type 2", 2: "obesity"}
+    assert im._narrow(names) == names
+
+
+def test_a_study_the_registry_never_indexed_is_read_from_its_condition_text():
+    """143 readouts carry conditions MeSH never classified. They are not obscure —
+    "Metastatic Castration-Resistant Prostate Cancer" is one — so where MeSH yields
+    nothing the condition text is read against the asset's own indication names."""
+    cands = [(7, set(im.tokens("Prostatic Neoplasms"))),
+             (8, set(im.tokens("Breast Neoplasms")))]
+    got = im._by_condition_text('["Metastatic Castration-Resistant Prostate Cancer"]',
+                                cands)
+    assert got == {7}
+
+
+def test_a_one_word_indication_does_not_swallow_a_readout():
+    """"Pain" sits inside any phrase that mentions it, so an unguarded containment
+    match sent three diabetic neuropathy readouts to a row called Pain."""
+    cands = [(7, set(im.tokens("Pain")))]
+    assert im._by_condition_text('["Diabetic Peripheral Neuropathic Pain"]', cands) == set()
+
+
+def test_a_shared_qualifier_is_not_a_match():
+    """The book's name must sit inside the condition whole, not merely overlap it, so
+    two diseases sharing "metastatic" do not match each other."""
+    cands = [(7, set(im.tokens("Colorectal Neoplasms")))]
+    assert im._by_condition_text('["Metastatic Breast Cancer"]', cands) == set()

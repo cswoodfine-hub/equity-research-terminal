@@ -534,9 +534,110 @@ _PAEDIATRIC_WORDS = frozenset(("pediatric", "paediatric", "child", "children",
 _PAEDIATRIC_TITLE = re.compile(
     r"\b(pa?ediatrics?|child|children|adolescents?|juvenile|infants?)\b", re.I)
 
+# A study that enrols both ages is not the paediatric one. "Remibrutinib in Adult and
+# Adolescent Patients With Moderate to Severe Chronic Spontaneous Urticaria" is the
+# adult label expansion, read out once across an age range that happens to reach down
+# to twelve; so is upadacitinib's, icotrokinra's and eighteen others. Diverting them to
+# a paediatric row the book mostly does not carry left 21 readouts unpriced, which is
+# the opposite of what the paediatric rule is for: it exists to stop a readout in
+# children being read as deciding the adults' approved indication, not to discard a
+# readout that decides both.
+_ADULT_TITLE = re.compile(r"\badults?\b", re.I)
+
+
+# MeSH indexes a study under every descriptor that fits, so a trial in obesity arrives
+# carrying "Obesity" and its own parent "Overweight", and one in hidradenitis
+# suppurativa arrives carrying "Hidradenitis" as well. Both descriptors are real rows on
+# the asset, so the readout matched two indications and was left unlinked as ambiguous:
+# 153 catalysts, 38 of them the obesity pair alone, every one of them a readout whose
+# disease is not actually in doubt.
+#
+# Where one of the matches is the MeSH parent of another, the narrower descriptor is the
+# study's disease and the broader one is co-indexing. This is the same rule
+# ``drop_parent_of_child`` applies to an asset's own indications, kept as a separate
+# relation because it is wider: dropping these at asset level would retire rows that
+# carry assumptions, and this only decides which row a readout points at.
+#
+# A judgement sits in the first entry and is worth stating. A trial enrolling "obesity
+# or overweight" does cover both, and the book carries both rows; reading it as the
+# obesity readout follows the label these products are written to ("chronic weight
+# management in obesity, or overweight with a comorbidity") and takes the pool the
+# programme is valued on. The alternative is 38 unpriced readouts on the largest
+# franchise in the book.
+_NARROWS_TO = {
+    "overweight": ("obesity",),
+    "hidradenitis": ("hidradenitis suppurativa",),
+    "dermatitis": ("dermatitis, atopic", "eczema"),
+    "eczema": ("dermatitis, atopic",),
+    "alopecia": ("alopecia areata", "alopecia universalis"),
+    "alopecia areata": ("alopecia universalis",),
+    "scleroderma, systemic": ("scleroderma, diffuse",),
+    "nephritis": ("lupus nephritis",),
+    "macular degeneration": ("wet macular degeneration",),
+    "retinal degeneration": ("macular degeneration", "wet macular degeneration"),
+    **{parent: children for parent, children in PARENT_TERMS.items()},
+}
+
+
+def _narrow(names: dict) -> dict:
+    """Drop every match that is the MeSH parent of another match on the same study.
+
+    ``names`` maps the asset_indication id to its lowercased indication name. Returns
+    the same mapping without the broader terms. A set that narrows to nothing, or to
+    more than one unrelated disease, is returned unchanged for the caller to refuse.
+    """
+    present = {n: pid for pid, n in names.items()}
+    drop = set()
+    for parent, children in _NARROWS_TO.items():
+        if parent in present and any(child in present for child in children):
+            drop.add(present[parent])
+    return {pid: n for pid, n in names.items() if pid not in drop} or names
+
+
+def _by_condition_text(conditions, candidates: list) -> set:
+    """The asset's own indications named whole inside the study's condition text.
+
+    The registry indexes most studies into MeSH, and where it does that is the better
+    signal because it is somebody's deliberate classification. But 143 readouts on the
+    book carry conditions the registry never indexed — "Metastatic Castration-Resistant
+    Prostate Cancer", "Relapsing Multiple Sclerosis", "Non-Clear Cell Renal Cell
+    Carcinoma" — and they are not obscure. They are the free text a sponsor typed.
+
+    So where MeSH yields nothing, the condition text is read against the asset's own
+    indication names, which is the vocabulary the book already matched this study to
+    when it built the asset_indications row. That keeps the module's rule intact: the
+    catalyst and the forecast it prices against cannot disagree about what the study is
+    in, because both now come from the same row.
+
+    Two guards, because containment alone is too generous here. The book's name must be
+    at least two meaningful words, since a one-word row like "Pain" sits inside any
+    phrase mentioning it and would swallow every analgesic readout. And it must sit
+    inside the condition whole rather than merely overlapping it, so "Prostatic
+    Neoplasms" matches "Metastatic Castration-Resistant Prostate Cancer" and nothing
+    matches on a shared qualifier like "metastatic".
+    """
+    try:
+        conds = json.loads(conditions or "[]")
+    except (TypeError, ValueError):
+        return set()
+    if not isinstance(conds, list):
+        return set()
+    out = set()
+    for phrase in conds:
+        said = set(tokens(phrase if isinstance(phrase, str) else ""))
+        if len(said) < 2:
+            continue
+        for pair_id, words in candidates:
+            if len(words) >= 2 and words <= said:
+                out.add(pair_id)
+    return out
+
 
 def _is_paediatric(title) -> bool:
-    return bool(_PAEDIATRIC_TITLE.search(title or ""))
+    text = title or ""
+    if _ADULT_TITLE.search(text):
+        return False
+    return bool(_PAEDIATRIC_TITLE.search(text))
 
 
 def attach_catalyst_indications(conn) -> dict:
@@ -561,11 +662,14 @@ def attach_catalyst_indications(conn) -> dict:
     # indication row. The indications table carries the mesh_id that joins them.
     by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
         "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
-    pairs, paediatric = {}, {}
+    pairs, paediatric, pair_name, by_asset = {}, {}, {}, {}
     for row in conn.execute(
             "SELECT ai.id, ai.asset_id, ai.indication_id, i.name FROM asset_indications ai"
             "  JOIN indications i ON i.id = ai.indication_id"):
         pairs[(row["asset_id"], row["indication_id"])] = row["id"]
+        pair_name[row["id"]] = (row["name"] or "").strip().lower()
+        by_asset.setdefault(row["asset_id"], []).append(
+            (row["id"], set(tokens(row["name"] or ""))))
         words = set(tokens(row["name"] or ""))
         if words & _PAEDIATRIC_WORDS:
             paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
@@ -579,7 +683,7 @@ def attach_catalyst_indications(conn) -> dict:
              WHERE cat.asset_indication_id IS NULL
                AND cat.source_url LIKE '{_CTGOV_URL}%'""").fetchall()
 
-    linked = ambiguous = paediatric_unmatched = 0
+    linked = ambiguous = paediatric_unmatched = text_matched = 0
     for row in rows:
         if not row["asset_id"]:
             continue
@@ -608,6 +712,11 @@ def attach_catalyst_indications(conn) -> dict:
                 continue
             hits = {fits[0]}
 
+        if not hits and not _is_paediatric(row["title"]):
+            hits = _by_condition_text(row["conditions"], by_asset.get(row["asset_id"]) or [])
+            text_matched += 1 if len(hits) == 1 else 0
+        if len(hits) > 1:
+            hits = set(_narrow({pid: pair_name.get(pid, "") for pid in hits}))
         if len(hits) != 1:
             ambiguous += 1 if hits else 0
             continue
@@ -615,4 +724,5 @@ def attach_catalyst_indications(conn) -> dict:
                      (hits.pop(), row["id"]))
         linked += 1
     return {"linked": linked, "ambiguous": ambiguous,
-            "paediatric_unmatched": paediatric_unmatched}
+            "paediatric_unmatched": paediatric_unmatched,
+            "text_matched": text_matched}
