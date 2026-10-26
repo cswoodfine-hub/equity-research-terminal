@@ -40,7 +40,11 @@ _RULES = (
         r"\bjudg(e)?ment\b|set against what .{0,24}has to displace|analyst curve|"
         r"\banalyst'?s? (call|view|estimate|input)\b", re.I)),
     ("convention", re.compile(
-        r"(?<!not a )\bconvention\b|engine's terminal value|the year after the last reported|"
+        # "rather than a convention" names the word to deny it, and a lookbehind for
+        # "not a " alone did not see that. Seven rows carried a grade their own sentence
+        # refused: "zero is a reading of the balance sheet rather than a convention".
+        r"(?<!not a )(?<!rather than a )(?<!rather than )(?<!instead of a )"
+        r"(?<!other than a )\bconvention\b|engine's terminal value|the year after the last reported|"
         r"\bplaceholder\b|phase default|curated default|\bdefault:|\bby construction\b|"
         r"no exclusivity on file|^\s*assumed\s*$|feeding the same pool|incidence is the pool|"
         r"the year after the \d{4} run rate|held at the \d{4} run rate", re.I)),
