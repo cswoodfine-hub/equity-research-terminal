@@ -80,6 +80,7 @@ import screen as screen_module
 import slippage as slippage_module
 import tearsheet as tearsheet_module
 import whatchanged as whatchanged_module
+import why_moved as why_moved_module
 
 
 @asynccontextmanager
@@ -1506,6 +1507,19 @@ def model_changes(ticker: Optional[str] = Query(default=None),
     finally:
         conn.close()
     return {"reasons": list(assumption_log.REASONS), "count": len(rows), "changes": rows}
+
+
+@app.get("/companies/{ticker}/why-moved")
+def why_moved(ticker: str, start: str = Query(...), end: str = Query(...)) -> dict:
+    """Why this company's value moved between two days.
+
+    The three histories the terminal keeps, read together: what the market did, what the
+    analyst changed and why, what the data underneath did, and whether the engine itself
+    changed. It states what provably held still, which is what lets the market be ruled
+    out, and it leaves a residual as a residual rather than dividing a move into shares
+    it cannot defend.
+    """
+    return why_moved_module.between(None, ticker, start, end)
 
 
 @app.get("/companies/{ticker}/forecast-history")
