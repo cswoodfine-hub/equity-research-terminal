@@ -19,6 +19,11 @@ venv/
 *.db-shm
 *.db-wal
 *.db.backup-*
+# A database opened at a path with no extension matched none of the above, so three
+# empty ones named after tickers sat in the repo from August to October. db.get_connection
+# now refuses to create, and these catch the sidecars of anything that slips past.
+*-shm
+*-wal
 
 # Source archive / scratch
 files.zip
