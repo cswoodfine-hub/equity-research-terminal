@@ -49,6 +49,10 @@ _RULES = (
         r"no exclusivity on file|^\s*assumed\s*$|feeding the same pool|incidence is the pool|"
         r"the year after the \d{4} run rate|held at the \d{4} run rate", re.I)),
     ("analogue", re.compile(
+        # A median taken from other products is an analogue however well those products
+        # were measured, which is the weakest-wins rule this file already states.
+        r"\b(?:measured|fitted|taken|drawn) from \d+ (?:drugs?|products?|assets?|"
+        r"launches|comparators?|seeds?)\b|"
         r"reused from|\banalogue\b|\banalog\b|\bas [\w./ -]+ carries it\b|"
         r"\bfitted\b|own launch|comparator|borrowed from|taken from [\w./-]+\.csv|"
         r"\b\w+_\w+\.csv\b|workbook", re.I)),
@@ -69,7 +73,10 @@ _RULES = (
     ("measured", re.compile(
         r"\bCMS\b|Part [BD]\b|\bFRED\b|weekly returns|drug_demand|\bSEER\b|NHANES|"
         r"Census|\bCDC\b|ClinicalTrials|\bNCT\d{8}\b|\bregistry\b|openFDA|Orange Book|"
-        r"Purple Book|\bEMA\b|\bICE BofA\b|Treasury|primary completion", re.I)),
+        r"Purple Book|\bEMA\b|\bICE BofA\b|Treasury|primary completion|"
+        # An application number is a register fact, the same kind the Purple Book
+        # carries. "first licensed 2022-11-14, BLA 761310" names where the date is from.
+        r"\b(?:BLA|NDA|ANDA)\s?\d{6}\b|statutory biologic floor", re.I)),
     ("filed", re.compile(
         r"\b\d{10}-\d{2}-\d{6}\b|\b10-[KQ]\b|\b8-K\b|\b20-F\b|\b6-K\b|annual report|"
         r"results exhibit|product axis|sec_fsds|filed lines|patent table|"
@@ -80,6 +87,10 @@ _RULES = (
 
 # Keys that set the shape of a model rather than a fact about the product. Where the row's
 # text names no evidence, they are conventions, not unsourced numbers.
+# Somebody set this figure, and the sentence names nothing they set it from.
+_DECIDED = re.compile(r"\bset to (?:run|carry|reach)\b|\bchosen to (?:run|carry|reach)\b"
+                      r"|\bset by hand\b", re.I)
+
 _STRUCTURE = {"therapy_mode", "forecast_years", "growth_fade_years", "terminal_growth_pct",
               "forecast_start_year", "terminal_mode"}
 
@@ -93,6 +104,18 @@ def grade(source: str | None, note: str | None = None, key: str | None = None) -
         for name, pattern in _RULES:
             if pattern.search(text):
                 return name
+    # Reached only when no rule matched, so the sentence named no kind of evidence at
+    # all. Among those, one that says somebody set the figure is a judgement rather than
+    # a house default: "set to run past the 2031 loss of exclusivity" is a decision about
+    # this asset, and 131 rows read as convention because the structural fallback was the
+    # only thing that caught them.
+    #
+    # It belongs here and not in the rules. As a rule it wins on weakest-wins and buries
+    # the evidence the same sentence cites: "set to run past the 2027 loss of exclusivity
+    # the book holds (Orange Book patent 7851504)" is measured, and graded judgement for
+    # as long as the decision verb was tested before the citation.
+    if _DECIDED.search(text):
+        return "judgement"
     return "convention" if key in _STRUCTURE else None
 
 

@@ -534,3 +534,31 @@ def test_confirming_an_empty_queue_does_nothing(tmp_path):
     path, conn = _seed(tmp_path)
     assert L.confirm_all(conn) == {"confirmed": 0, "batch_id": None}
     conn.close()
+
+
+def test_a_confirmation_the_rules_outgrew_is_reopened(tmp_path):
+    """A confirmation is of a particular grade. When the rules change under it, the
+    reviewed flag claims agreement about something nobody agreed to."""
+    path, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "pos", "value": 0.25, "source": "a judgement",
+                      "evidence": "judgement"}])
+    conn.commit()
+    assert A.rows(conn, 1)[0]["evidence_reviewed"] == 1
+    # The row's own words now read filed, so the stored judgement is stale.
+    conn.execute("UPDATE assumptions SET source = 'stated in the FY2025 10-K'")
+    conn.commit()
+    out = L.reopen_stale(conn)
+    assert out["reopened"] == 1
+    assert A.rows(conn, 1)[0]["evidence_reviewed"] == 0
+    entry = _edits(conn, reason="review")[-1]
+    assert "lapsed" in entry["rationale"]
+    conn.close()
+
+
+def test_a_confirmation_the_rules_still_agree_with_is_left_alone(tmp_path):
+    path, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "pos", "value": 0.25, "source": "a judgement"}])
+    conn.commit()
+    L.confirm_all(conn)
+    assert L.reopen_stale(conn) == {"reopened": 0, "batch_id": None}
+    conn.close()

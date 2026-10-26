@@ -158,7 +158,12 @@ def review(db_path=None, limit: int = 200, changed_by: str = "a second read",
                       AND COALESCE(source, '') = ? AND COALESCE(note, '') = ?""",
                 (row["evidence"], row["key"], row["source"], row["note"]))
             confirmed += n
-        conn.commit()
+            # Per sentence, not per run. A pass over the whole queue takes forty
+            # minutes, and committing at the end meant nothing was visible while it ran
+            # and a provider that rate-limited at minute thirty-eight took every
+            # confirmation down with it. A confirmed sentence also drops out of
+            # candidates(), so a stopped run resumes where it left off.
+            conn.commit()
     finally:
         conn.close()
     return {"agreed": agreed, "disagreed": disagreed, "unreadable": unreadable,

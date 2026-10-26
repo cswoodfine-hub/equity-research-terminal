@@ -318,6 +318,39 @@ def reopen_grade(conn, batch_id: str | None = None, source: str | None = None,
     return {"reopened": len(ids), "batch_id": batch}
 
 
+def reopen_stale(conn, changed_by: str | None = None) -> dict:
+    """Reopen confirmed rows whose grade the rules no longer give.
+
+    A confirmation is of a particular grade. When the rules that read the row change,
+    that grade can change under it, and a reviewed flag then claims agreement about
+    something nobody agreed to. The same reasoning the evidence lapse already follows:
+    what was confirmed is gone, so the confirmation goes with it.
+    """
+    import evidence
+    stale = []
+    for row in conn.execute(
+            "SELECT * FROM assumptions WHERE evidence_reviewed = 1").fetchall():
+        now = evidence.grade(row["source"], row["note"], row["key"])
+        if now != row["evidence"]:
+            stale.append((row, now))
+    if not stale:
+        return {"reopened": 0, "batch_id": None}
+    batch = new_batch()
+    for row, now in stale:
+        before = dict(row)
+        conn.execute("UPDATE assumptions SET evidence_reviewed = 0 WHERE id = ?",
+                     (row["id"],))
+        record(conn, asset_id=row["asset_id"], indication_id=row["indication_id"],
+               region=row["region"], scenario=row["scenario"], key=row["key"],
+               year=row["year"], op="update", before=before,
+               after={**before, "evidence_reviewed": 0}, changed_by=changed_by,
+               reason="review", batch_id=batch,
+               rationale=f"confirmation lapsed: the rules now read this {now}, "
+                         f"not {row['evidence']}")
+    conn.commit()
+    return {"reopened": len(stale), "batch_id": batch}
+
+
 def log(conn, asset_id: int | None = None, since: str | None = None,
         reason: str | None = None, limit: int = 200,
         ticker: str | None = None) -> list[dict]:

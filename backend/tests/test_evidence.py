@@ -141,3 +141,41 @@ def test_an_ungraded_row_is_an_assumption_on_both_sides():
     """It is weak because nobody has graded it, which is not a reason to call it
     evidence. The frontend's dict lookup defaults the same way evidence_class does."""
     assert E.evidence_class(None) == "assumption"
+
+
+def test_a_horizon_somebody_set_is_a_judgement_when_it_cites_nothing():
+    """131 rows read "set to run past the 2031 loss of exclusivity" and graded
+    convention, because no rule recognised the sentence and the structural fallback was
+    the only thing that caught it. Somebody set that horizon."""
+    assert E.grade("set to run past the 2031 loss of exclusivity", None,
+                   "forecast_years") == "judgement"
+
+
+def test_a_horizon_that_cites_its_date_grades_on_the_citation():
+    """The decision verb belongs in the fallback and not in the rules. As a rule it wins
+    on weakest-wins and buries the evidence the same sentence names."""
+    assert E.grade("set to run past the 2027 loss of exclusivity the book holds "
+                   "(Orange Book patent 7851504, 2027-06-13)", None,
+                   "forecast_years") == "measured"
+    assert E.grade("set to run past the 2034-11-14 statutory biologic floor "
+                   "(first licensed 2022-11-14, BLA 761310)", None,
+                   "forecast_years") == "measured"
+
+
+def test_a_house_default_is_still_a_convention():
+    assert E.grade("the house horizon", None, "forecast_years") == "convention"
+    assert E.grade("no exclusivity on file, so the horizon is the convention", None,
+                   "forecast_years") == "convention"
+
+
+def test_a_median_taken_from_other_products_is_an_analogue():
+    """However well those products were measured, which is the weakest-wins rule this
+    file already states."""
+    assert E.grade("measured from 53 drugs that grew 10% to 25% a year: the median "
+                   "faded to flat over five years", None,
+                   "growth_fade_years") == "analogue"
+
+
+def test_a_grade_named_only_to_be_denied_is_not_the_grade():
+    assert E.grade("zero is a reading of the balance sheet rather than a convention",
+                   None, "debt_weight") != "convention"
