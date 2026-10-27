@@ -34,12 +34,25 @@ def stakes():
 
 
 def test_each_gate_is_priced_on_one_catalyst_at_most(stakes):
-    """A derived gate once per asset and gate, stated legs once per asset."""
+    """A derived gate once per asset and gate, stated legs once per asset, and an
+    indication layer once per indication.
+
+    The third case is the layer gate, which did not exist when this was written and
+    which everything other than "derived" fell into as if it were a stated leg. A
+    product can carry two layers that resolve independently: Imfinzi's bladder layer
+    reads out in June 2027 and its oesophageal layer in August 2028, on different
+    diseases, worth 141 and 1,876 a share. Both should be priced, and
+    forecast_view._layer_gate says so in as many words -- "One readout per indication".
+    The invariant is unchanged; only the unit it is keyed on is right for the basis."""
     for ticker, got in stakes.items():
         seen = {}
         for row in got["priced"]:
-            key = (row["asset_id"], row["gate"] if row["legs_basis"] == "derived"
-                   else "stated")
+            if row["legs_basis"] == "derived":
+                key = (row["asset_id"], row["gate"])
+            elif row["legs_basis"] == "indication layer":
+                key = (row["asset_id"], "layer", row["asset_indication_id"])
+            else:
+                key = (row["asset_id"], "stated")
             assert key not in seen, (ticker, key, seen.get(key), row["id"])
             seen[key] = row["id"]
 

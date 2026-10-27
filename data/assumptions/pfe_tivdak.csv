@@ -1,25 +1,33 @@
-# Tivdak (PFE). 147mm USD in FY2025.
-# 
-# Four layers, all four from one study: NCT03485209, innovaTV 207, a Phase 2 basket of tisotumab
-# vedotin in previously treated solid tumours, Active not recruiting with primary completion
-# 2026-03-20. Pfizer's Q1 2026 Pipeline Update (5 May 2026) still carries it as TV-207, Advanced
-# Solid Tumors, Phase 2, so the programme is live. No cohort result is posted to the registry or
-# published, so every pos here is the published Oncology Phase 2 chain rather than a stated result.
-# 
-# Label check: TIVDAK is indicated only for recurrent or metastatic cervical cancer with disease
-# progression on or after chemotherapy. None of the four is cervical cancer, so none of them is
-# revenue the 147mm already contains, and every overlap is nil.
-# 
-# Three of the four pools are copied verbatim from the book. Head and neck had none and is
-# sourced here from SEER.
-# 
-# Every eligible_pct in this file is built the same way, on the SEER distant-stage share at
-# diagnosis. That is a lower bound in all four diseases, because patients diagnosed earlier also
-# recur into the setting the trial enrols and no free source splits that out. The head and neck
-# row is the worst affected and says so.
-# 
+# Tivdak (PFE). 147mm USD in FY2025, +12.2% on FY2024.
+#
+# Marketed, anchored on the reported year and grown against the year before it:
+# 147 in FY2025 from the SEC financial statement data sets, against 131 in FY2024 from the same source.
+#
+# The company ratios and the discount rate below are PFE's own, taken from
+# pfe_abrysvo.csv so every product of this company runs on one basis.
+#
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+PFE,Tivdak,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+PFE,Tivdak,,US,base,base_revenue,,147.0,,mm USD,"PFE FY2025 reported product revenue, from the SEC financial statement data sets",the anchor
+PFE,Tivdak,,US,base,revenue_growth_pct,,0.122137,,"annual, near term","147 in FY2025 from the SEC financial statement data sets, against 131 in FY2024 from the same source",the last reported year over the one before it
+PFE,Tivdak,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+PFE,Tivdak,,US,base,growth_fade_years,,5,,years,"measured from 53 drugs that grew 10% to 25% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 20 of them censored because they are still near their best or lost exclusivity at their peak",
+PFE,Tivdak,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+PFE,Tivdak,,US,base,forecast_years,,10,,years,"convention, and the horizon every marketed asset carries","no exclusivity on file, so nothing erodes the tail"
+PFE,Tivdak,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+PFE,Tivdak,,US,base,cogs_pct,,0.2567,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,sga_pct,,0.2204,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,rd_pct,,0.1668,,share of revenue,"PFE FY2025, computed from the filed lines","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,other_costs_pct,,0.126603,,share of revenue,"derived: Pfizer generated $23,703mm of free cash flow on $185,759mm of revenue over 2023, 2024 and 2025, a 12.76% margin, against the 33.8% its cost of sales, SG&A and R&D leave. The 2021 and 2022 COVID years are excluded because a 36% margin on a vaccine windfall is not what this company earns. Restated before interest: PFE paid $8,181mm of interest inside operating cash flow over 2023 to 2025, 4.40% of revenue. The free cash flow above is struck after it and the valuation already charges the debt by subtracting net debt, so the charge falls by that much, from 22.18% to 17.77%. Checked at replacement capex: no plant depreciation on file for every year, and no amortisation line to take it out of the combined figure, so the charge stands. Restated without one-off cash: PFE's free cash flow over 2023 to 2025 carried $1,350mm of deal payments in operating cash flow, capital allocation whose assets the book values separately; $63mm of legal settlements; $4,400mm of US transition tax (2023 instalment 1,000mm; 2024 instalment 1,300mm; 2025 instalment 2,100mm). None recurs, so the charge falls from 17.77% to 14.52%. Restated without working capital build: over 2023 to 2025 PFE's cash flow statement shows receivables up $25mm, inventories up $1,462mm, payables down $1,792mm, a working capital build of $3,279mm, 1.77% of revenue. Growth ties that cash up once, not on every product for ever, so the charge falls from 14.52% to 12.66%.","amortisation of acquired intangibles above all, then restructuring and the rest. Pfizer bought Seagen and its filed expense lines do not carry what that cost. Without this row the model values the company at nearly three times the cash it makes"
+PFE,Tivdak,,US,base,tax_rate,,0.0501,,effective rate,"aggregate effective rate over the 6 years to 2025 with positive pre-tax income. Pfizer's FY2025 rate alone is negative, which in a forward model would add to cash flow rather than take from it","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,risk_free,,0.0501,,,"10-year Treasury constant maturity (FRED DGS10), 2026-09-16: 5.01%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month with adjusted payout basis, against his own 4.75% US Treasury. The 0.22% US default spread is not added back, since this book discounts at the raw ten-year (pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm)","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.46 raw)","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on","Pfizer's own, as every Pfizer asset carries"
+PFE,Tivdak,,US,base,debt_weight,,0.279719,,,"filed TotalDebt of $63,194mm over debt plus market capitalisation: 5,699.7mm shares at 2026-07-29 at the $28.55 close of 2026-09-01","Pfizer's own, as every Pfizer asset carries"
+
+# Indication layers, appended 2026-10-27 by the layer research waves.
 PFE,Tivdak,,US,base,list_price_per_patient,,0.5145318,,mm USD per year,"TIVDAK WAC 7,400.80 USD per 40 mg single-dose vial, from Pfizer's own statutory price disclosure short form (Connecticut HB 6669, data as of 28-Jul-2025, cdn.pfizer.com/pfizercom/products/ctprescribers/TIVDAKCTPriceDisclosureShortForm07282025.pdf). The label's recommended dose is 2 mg/kg, up to a maximum of 200 mg, by intravenous infusion every 3 weeks until progression. Mean body weight for US women aged 20 and over is 77.9 kg on CDC NHANES August 2021 to August 2023, so 2 mg/kg is 155.8 mg, which takes four 40 mg vials (160 mg) with no vial sharing: 4 x 7,400.80 = 29,603.20 USD a cycle. 365/21 = 17.381 cycles a year: 29,603.20 x 365/21 = 514,531.81 USD a year","the annual rate for a patient who stays on it a full year. With a median progression-free survival of 4.2 months almost nobody does, which is what the discontinuation row carries. Weight is taken on women because the approved population is cervical cancer; the solid-tumour cohorts here are mixed-sex and would run slightly higher"
 PFE,Tivdak,,US,base,gross_to_net_pct,,0.0566,,share off list,"reused from the Medicare Part B average sales price convention the book applies to physician-administered drugs elsewhere, 5.66% below list. TIVDAK is a buy-and-bill intravenous product billed under Part B, not a pharmacy-benefit drug, so the deep pharmacy rebates the oral oncology rows carry do not apply to it","shallow by design. Part B drugs are reimbursed at ASP plus 6% and carry no Part D style formulary rebate, so the gap between list and net is small"
 PFE,Tivdak,,US,base,discontinuation_pct,,0.861989,,share of the stock a year,"derived from innovaTV 301 (ENGOT-cx12/GOG-3057), the Phase 3 that registered tisotumab vedotin: median progression-free survival 4.2 months (95% CI 4.0 to 4.4) against 2.9 months with chemotherapy, and median overall survival 11.5 months against 9.5 (Vergote I et al., Tisotumab vedotin as second- or third-line therapy for recurrent cervical cancer, New England Journal of Medicine 2024, doi 10.1056/NEJMoa2313811). At a constant hazard the annual stopping rate is 1 - exp(-ln2 / (4.2/12)) = 1 - exp(-1.98042) = 0.8620","very high, and correctly so: this is a late-line antibody-drug conjugate in an aggressive tumour, and the stock empties within a year"

@@ -26,6 +26,14 @@ sys.path.insert(0, "backend")
 import db, evidence                                                   # noqa: E402
 
 POOL_KEYS = {"prevalence", "incidence"}
+# Keys the engine does arithmetic on, so a word in place of a number is not a gap, it
+# is a crash. Only these four are legitimately text.
+TEXT_KEYS = {"therapy_mode", "partner_ticker", "terminal_mode", "price_basis"}
+# Money keys whose number the engine reads as the company's reporting currency whatever
+# the unit says, so a dollar figure on a sterling filer overstates by the exchange rate.
+MONEY_KEYS = {"list_price_per_patient", "net_price_per_patient", "base_revenue",
+              "revenue_ceiling_musd", "franchise_revenue"}
+_CURRENCY = __import__("re").compile(r"\b(USD|GBP|EUR|CHF|DKK|JPY|SEK)\b")
 SHARE_KEYS = {"base_pool_overlap_pct", "eligible_pct", "penetration_peak_pct",
               "gross_to_net_pct", "discontinuation_pct", "pos"}
 # What a layer needs before indication_layer.build will price it. The overlap is the
@@ -88,6 +96,13 @@ def check(path: pathlib.Path, conn) -> list[str]:
         if raw == "":
             if not (r.get("text_value") or "").strip():
                 fail(i, f"{key} has neither a value nor a text_value")
+            elif key not in TEXT_KEYS:
+                # "not sourced" written into gross_to_net_pct reached forecast.net_price
+                # as `lp * (1.0 - "not sourced")`. A key the engine computes with is
+                # either a number or absent; a word there is not an honest gap, it is a
+                # crash waiting for whoever opens that company.
+                fail(i, f"{key} carries the text {r['text_value']!r} where the engine "
+                        f"expects a number. Leave the row out and say so in the header")
             continue
         try:
             value = float(raw)
@@ -110,6 +125,22 @@ def check(path: pathlib.Path, conn) -> list[str]:
         # has to carry a source of some kind.
         if key in POOL_KEYS:
             pools.setdefault(ind, {})[key] = (value, src, g)
+
+        # Rule two-and-a-half: a price is in the currency the company reports in.
+        #
+        # The engine models a company in its reporting currency and converts to dollars
+        # once at the end, so the number is read as that currency whatever the unit
+        # label says. Ten CMS dollar figures written into GSK and Roche read as pounds
+        # and francs and overstated those products by the exchange rate. The book's own
+        # test_every_price_is_in_the_currency_the_company_reports_in catches it, but
+        # only after a load.
+        if key in MONEY_KEYS:
+            said = _CURRENCY.search(r.get("unit") or "")
+            want = _reporting_currency(conn, ticker)
+            if said and want and said.group(1) != want:
+                fail(i, f"{key} is labelled {said.group(1)} and {ticker} reports in "
+                        f"{want}. The engine reads the number as {want} whatever the "
+                        f"unit says, so this overstates the product by the exchange rate")
 
         # Rule three: shares are shares.
         if key in SHARE_KEYS and not (0.0 <= value <= 1.0):
@@ -210,6 +241,12 @@ def check(path: pathlib.Path, conn) -> list[str]:
     return bad
 
 
+def _reporting_currency(conn, ticker: str):
+    row = conn.execute("SELECT reporting_currency FROM companies WHERE ticker = ?",
+                       (ticker,)).fetchone()
+    return (row["reporting_currency"] or "").strip().upper() if row else None
+
+
 def _sells(conn, rows, ind) -> bool:
     """Whether the file's asset already has revenue, which is what makes its unapproved
     indications layers rather than the forecast itself."""
@@ -241,16 +278,53 @@ def _overlap_is_one(rows, ind) -> bool:
     return False
 
 
+def across_files(conn, paths) -> list:
+    """Diseases two files in the same batch give different pools for.
+
+    Rule six asks whether a pool contradicts one already in the book, which is the
+    right question for one file at a time and the wrong one for a batch: two agents
+    researching autism in the same wave wrote 2,329,600 and 1,755,976, neither
+    contradicted the book because neither was in it yet, and both loaded. The book's
+    own test_no_two_assets_disagree then failed on the pair.
+    """
+    seen: dict = {}
+    for path in paths:
+        try:
+            rows = rows_of(path)
+        except Exception:                                      # noqa: BLE001
+            continue
+        for r in rows:
+            ind = (r.get("indication") or "").strip()
+            if (r.get("key") or "").strip() != "prevalence" or not ind:
+                continue
+            try:
+                value = float(r.get("value") or "")
+            except ValueError:
+                continue
+            seen.setdefault(ind, {}).setdefault(round(value, 2), []).append(path.name)
+    out = []
+    for ind, values in sorted(seen.items()):
+        if len(values) > 1:
+            parts = "; ".join(f"{v:,.0f} in {', '.join(sorted(set(f)))}"
+                              for v, f in sorted(values.items()))
+            out.append(f"{ind!r} is given two different pools in this batch: {parts}. "
+                       f"The book holds one figure for one disease and "
+                       f"test_no_two_assets_disagree will fail on the pair")
+    return out
+
+
 def main(argv) -> int:
     if not argv:
         print(__doc__); return 2
     conn = db.get_connection(); conn.row_factory = sqlite3.Row
-    bad, n = [], 0
+    bad, n, seen = [], 0, []
     for arg in argv:
         p = pathlib.Path(arg)
         for path in ([p] if p.is_file() else sorted(p.glob("*.csv"))):
             n += 1
+            seen.append(path)
             bad += check(path, conn)
+    bad += across_files(conn, seen)
     for line in bad:
         print("FAIL", line)
     print(f"\n{n} file(s), {len(bad)} failure(s)")

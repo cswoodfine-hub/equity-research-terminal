@@ -1,34 +1,29 @@
-# Gazyva (ROG, obinutuzumab). 986mm USD. Draft indication-layer seeds, 2026-10-27.
-#
-# Three asset-level numbers, one priced layer and one unit that resolves to "the revenue
-# already contains it", out of the dossier's two units.
-#
-# The label moved twice while the book was carrying these as pending, and both moves
-# matter. Gazyva is now indicated in previously untreated CLL with chlorambucil, in
-# relapsed or refractory follicular lymphoma with bendamustine, in previously untreated
-# stage II bulky, III or IV follicular lymphoma, in active lupus nephritis in adults
-# (approved 2025-10-20) and in frequently relapsing or steroid-dependent childhood-onset
-# idiopathic nephrotic syndrome (DailyMed setid df12ceb2-5b4b-4ab5-a317-2a36bf2a3cda,
-# revised September 2026).
-#
-# NOT PRICED, and this is a complete answer rather than a gap: Lymphoma, Large B-Cell,
-# Diffuse. Both studies the dossier lists are glofitamab studies, and the only obinutuzumab
-# in them is the single 1,000 mg pretreatment dose that Columvi's own label has mandated
-# since its accelerated approval in June 2023. Gazyva's reported revenue already contains
-# those doses. See the row for the evidence, including the STARGLO complete response
-# letter of July 2025.
-#
-# PRICED: Lupus Erythematosus, Systemic, and it is no longer a Phase 3 gate. ALLEGORY read
-# out positive and was published in the New England Journal of Medicine on 2026-07-16; the
-# FDA accepted the sBLA on 2026-04-21 with a decision due December 2026.
-#
-# Least confident row: discontinuation_pct. Gazyva's labelled regimens are fixed-duration
-# courses rather than treat-to-progression, which the engine's stock model fits badly; the
-# denominator chosen is the CLL six-cycle course and the note says what that misses.
-#
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# Gazyva (ROG): a marketed Roche product, anchored on the global sales Roche
+# publishes itself. Roche does not file with the SEC, so every figure here comes from
+# its investor Finance Information Tool workbook rather than from EDGAR, and the cost
+# ratios are the group's FY2025 lines (backend/roche.py, backend/fetchers/financials_ir.py).
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
-ROG,Gazyva,,US,base,list_price_per_patient,,0.034943,,mm USD per patient-year,"CMS Medicare Part B Spending by Drug 2024 (data.cms.gov dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, HCPCS J9301, 'Injection, obinutuzumab, 10 mg'): $183,518,021.50 over 5,252 beneficiaries = $34,943 per beneficiary a year. This is the house basis, as amgn_abp_206 carries it","Part B is where Gazyva's patients are: 5,252 Part B beneficiaries in 2024 against 210 in Part D, whose per-beneficiary figure is $40,972 ($8,604,069.32 over 210). Scale for a reader: at this allowed amount the complete six-cycle CLL course of 8,000 mg costs about $56,750, so a beneficiary-year is roughly five-eighths of a labelled course, which is what discontinuation_pct below measures. Not a full labelled-course price, deliberately"
+ROG,Gazyva,,US,base,therapy_mode,,,marketed,,approved and selling,
+ROG,Gazyva,,US,base,base_revenue,,986.0,,mm CHF,"ROG FY2025 reported global sales of Gazyva, CHF 986mm, from Roche Finance Information Tool, group financial data workbook, FY2025, sheet ""P Sales Regions CHF"". The 26 named products on that sheet sum to CHF 47,669mm, the Pharmaceuticals Division's 2025 sales, exactly",in francs because the engine models a company in its reporting currency and converts at the end
+ROG,Gazyva,,US,base,revenue_growth_pct,,0.08,,"annual, near term","Roche's own published 2025 growth rate for Gazyva in reported francs, +8%, from the growth block of the same sheet","a published rate rather than a subtraction, because the workbook carries only the current year and so holds no prior-year figure to derive one from"
+ROG,Gazyva,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,
+ROG,Gazyva,,US,base,growth_fade_years,,5,,years,measured from 53 drugs that grew 10% to 25% a year: the median faded to flat over five years,
+ROG,Gazyva,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+ROG,Gazyva,,US,base,forecast_years,,20,,years,the house horizon,
+ROG,Gazyva,,US,base,pos,,1.0,,,approved and selling,
+ROG,Gazyva,,US,base,cogs_pct,,0.27058,,share of revenue,"ROG FY2025 from Roche Finance Information Tool, group financial data workbook, FY2025: cost of sales CHF 16,645mm on sales of 61,516mm. The sheet's own six components sum to it exactly","Roche does not file with the SEC, so this comes from the workbook it publishes for investors rather than from EDGAR"
+ROG,Gazyva,,US,base,rd_pct,,0.217049,,share of revenue,"ROG FY2025: research and development CHF 13,352mm on sales of 61,516mm","the IFRS charge, not the CHF 12,832mm core figure below it in the sheet, which adds back amortisation and impairment"
+ROG,Gazyva,,US,base,sga_pct,,0.246456,,share of revenue,"ROG FY2025: selling, general and administration CHF 15,161mm on sales of 61,516mm, its four components summing to it exactly",
+ROG,Gazyva,,US,base,other_costs_pct,,-0.03443,,share of revenue,"solved so the charges reconcile to the filed operating profit of CHF 18,476mm. It is negative because Roche books other revenue of 1,840mm and other operating income of 278mm above the line, and those two sum to exactly the 2,118mm this credits back","the same convention AstraZeneca and GSK carry, both also negative"
+ROG,Gazyva,,US,base,tax_rate,,0.187003,,effective rate,"ROG FY2025: income taxes of CHF 3,174mm on profit before taxes of 16,973mm","a single year rather than a five-year aggregate, because the workbook carries only the current year"
+ROG,Gazyva,,US,base,risk_free,,0.0501,,,"10-year Treasury constant maturity (FRED DGS10), 2026-09-16: 5.01%. Read live (fetchers/rates_fred.py)",
+ROG,Gazyva,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month cash yield variant",
+ROG,Gazyva,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W38 to 2026-W39, Blume-adjusted (0.46 raw)","measured on the RHHBY ADR against the S&P 500, which is the only Roche price series on file. A beta measured on the SIX-listed ordinary share against a Swiss index would not be the same number"
+ROG,Gazyva,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data",
+ROG,Gazyva,,US,base,debt_weight,,0.098037,,,"filed long-term debt of CHF 31,636mm at 2025-12-31 from the workbook's balance sheet, over debt plus a market capitalisation of CHF 291.1bn: 802,992,519 diluted shares at 0.125 ordinary per ADR, so 6,423,940,150 ADRs at the RHHBY close of $55.06 on 2026-09-23, converted at CHF/USD 1.215229","ROCHE HAS TWO SHARE CLASSES AND THIS PRICES BOTH OFF ONE. The count is derived from Roche's own published per-share figure, which is struck on bearer shares and non-voting equity securities together, while RHHBY is an ADR over the non-voting security alone. The two trade close but not equal, so this market capitalisation is approximate. It moves the weight and not the cost ratios"
+
+# Indication layers, appended 2026-10-27 by the layer research waves.
+ROG,Gazyva,,US,base,list_price_per_patient,,0.02880542,,mm CHF per patient-year,"CMS Medicare Part B Spending by Drug 2024 (data.cms.gov dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, HCPCS J9301, 'Injection, obinutuzumab, 10 mg'): $183,518,021.50 over 5,252 beneficiaries = $34,943 per beneficiary a year. This is the house basis, as amgn_abp_206 carries it Converted to CHF, the currency ROG reports in and the engine models it in: 0.034943mm USD at 1.213070 USD per CHF (ECB via backend/fx.py, 2026-10-23) is 0.028805mm CHF. The engine reads the number as the reporting currency whatever the unit says, so a dollar figure left here reads as CHF and overstates the product by the exchange rate.","Part B is where Gazyva's patients are: 5,252 Part B beneficiaries in 2024 against 210 in Part D, whose per-beneficiary figure is $40,972 ($8,604,069.32 over 210). Scale for a reader: at this allowed amount the complete six-cycle CLL course of 8,000 mg costs about $56,750, so a beneficiary-year is roughly five-eighths of a labelled course, which is what discontinuation_pct below measures. Not a full labelled-course price, deliberately"
 ROG,Gazyva,,US,base,gross_to_net_pct,,0.056604,,share off list,"house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price and ASP is already net of the manufacturer's discounts and rebates, so the only deduction from the allowed amount is the statutory add-on, 6/106 = 0.056604","Medicaid rebates and 340B discounts sit outside ASP and are not deducted, which is the case for a larger deduction"
 ROG,Gazyva,,US,base,discontinuation_pct,,0.384488,,share of the stock a year,"measured on Gazyva's own CMS patients the way amgn_abp_206 measures Opdivo's: CMS Medicare Part B Spending by Drug 2024, 2,586,136.5 dosage units of J9301 ('Injection, obinutuzumab, 10 mg') over 5,252 beneficiaries = 4,924 mg per beneficiary. A complete labelled CLL course falls inside twelve months and is 8,000 mg (100 mg day 1 and 900 mg day 2 of cycle 1, 1,000 mg on days 8 and 15 of cycle 1, then 1,000 mg on day 1 of cycles 2 to 6; DailyMed setid df12ceb2-5b4b-4ab5-a317-2a36bf2a3cda). 4,924/8,000 = 0.6155 of a labelled year, and 1 - 0.6155 = 0.3845. The ratio is stable across the series: 0.633 (2020), 0.630 (2021), 0.622 (2022), 0.634 (2023), 0.615 (2024)","Judgement on the denominator, and the weakest row in this file. Gazyva is dosed as a fixed course rather than to progression, so the engine's stock model is a poor fit however the rate is struck. The CLL course was chosen because it is the one labelled regimen that fits inside a year; first-line follicular lymphoma adds up to two years of 1,000 mg every two months on top of the same induction, and lupus nephritis is 4,000 mg in year one then 2,000 mg a year, both of which would raise the denominator and so raise the measured discontinuation. Read as a lower bound"
 ROG,Gazyva,"Lymphoma, Large B-Cell, Diffuse",US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"all of it, and the layer adds nothing. Both studies behind this unit are glofitamab studies in which obinutuzumab appears only as pretreatment: NCT04408638 (STARGLO) is glofitamab with gemcitabine and oxaliplatin against rituximab with gemcitabine and oxaliplatin, and NCT06806033 tests the glofitamab CRS profile. The Columvi label has required that dose since its accelerated approval: 'Pretreat with a single 1,000 mg dose of obinutuzumab intravenously 7 days before initiation of COLUMVI (Cycle 1 Day 1)' (DailyMed setid 3516e753-f064-4d30-9bd5-e3f2e143f75d, published 2026-07-02). Those pretreatment doses are already billed as Gazyva and are already inside the 986mm the asset reports: Gazyva's Medicare Part B beneficiaries rose from 4,364 in 2022 to 5,252 in 2024 alongside Columvi's launch (CMS Medicare Part B Spending by Drug), while Columvi itself recorded 280 Part B beneficiaries in 2024","no pool is seeded, because a readout here would expand Columvi's label and not Gazyva's. The volume effect on Gazyva is real but it is a growth rate, not an indication, and the marketed line already carries it. The FDA has in any case refused the expansion these studies support: the Oncologic Drugs Advisory Committee voted 8-1 against second-line glofitamab plus GemOx in May 2025 and the agency issued a complete response letter for that sBLA on 2025-07-18 (Roche investor update, 2025-07-18), citing the lack of US patients in STARGLO"

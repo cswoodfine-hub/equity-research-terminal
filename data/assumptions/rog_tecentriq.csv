@@ -1,41 +1,29 @@
-# Tecentriq (ROG, atezolizumab). 3,566mm USD. Draft indication-layer seeds, 2026-10-27.
-#
-# Three asset-level numbers and two priced layers out of the dossier's three units.
-#
-# The label was read first and it carries twelve indications (DailyMed setid
-# 6fa682c9-a312-4932-9831-f286908660ee, revised 10/2026): five in non-small cell lung
-# cancer, two in small cell lung cancer, hepatocellular carcinoma, melanoma, alveolar soft
-# part sarcoma, adjuvant muscle-invasive bladder cancer, and - this one matters here -
-# 'Stage III, mismatch repair deficient (dMMR) colon cancer' with a fluoropyrimidine and
-# oxaliplatin. Colon, not rectum. There is no breast, gastric or rectal indication.
-#
-# PRICED: Rectal Neoplasms and Stomach Neoplasms. Both are small Phase 2 studies whose
-# primary completion dates have passed, so the probability rows are the weakest part of
-# this file and both are argued judgements rather than the published chain.
-#
-# NOT PRICED: Breast Neoplasms. The book's Breast Neoplasms pool counts metastatic
-# HR-positive HER2-negative patients. ASTEFANIA (NCT04873362), the Phase 3 behind the
-# dossier's 2027-03-31 catalyst, enrols the opposite: HER2-positive EARLY breast cancer
-# with residual invasive disease after neoadjuvant therapy, treated with adjuvant
-# trastuzumab emtansine. The populations are disjoint, so eligible_pct cannot be written
-# against that pool as an eligibility share; it would have to be an openly stated scaling
-# on the ABP 206 shape, and that needs the neoadjuvant-treated share of US HER2-positive
-# early breast cancer and the residual-disease share after neoadjuvant therapy, neither of
-# which was sourced in this session. Searched SEER Cancer Stat Facts, the ACS breast
-# statistics report and Europe PMC for a US count of the KATHERINE-eligible population.
-# What is on the record and belongs in the file whatever a later analyst does with the
-# pool: atezolizumab's only breast approval, accelerated in triple-negative disease in
-# March 2019, was withdrawn in August 2021, and ALEXANDRA/IMpassion030, the adjuvant study
-# in early triple-negative disease, was stopped at a futility analysis with an invasive
-# disease-free survival hazard ratio of 1.11 in 2,199 patients (JAMA 2025, PMID 39883436).
-# A layer here would carry a low probability for that reason.
-#
-# Least confident rows: the two pos judgements, and the gastric eligible_pct, which uses
-# SEER's regional stage share as the resectable locally advanced proxy.
-#
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# Tecentriq (ROG): a marketed Roche product, anchored on the global sales Roche
+# publishes itself. Roche does not file with the SEC, so every figure here comes from
+# its investor Finance Information Tool workbook rather than from EDGAR, and the cost
+# ratios are the group's FY2025 lines (backend/roche.py, backend/fetchers/financials_ir.py).
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
-ROG,Tecentriq,,US,base,list_price_per_patient,,0.066497,,mm USD per patient-year,"CMS Medicare Part B Spending by Drug 2024 (data.cms.gov dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, HCPCS J9022, 'Injection, atezolizumab, 10 mg'): $677,665,952 over 10,191 beneficiaries = $66,497 per beneficiary a year. This is the house basis, as amgn_abp_206 carries it","Part B is where Tecentriq's patients are: 10,191 Part B beneficiaries in 2024 against 410 in Part D, whose per-beneficiary figure is $56,037. Scale for a reader: at this allowed amount a full labelled year of 1,200 mg every three weeks costs about $173,500, so a beneficiary-year is about 38% of one, which is what discontinuation_pct below measures. Pairing the full labelled-year figure with that rate would count the same shortfall twice"
+ROG,Tecentriq,,US,base,therapy_mode,,,marketed,,approved and selling,
+ROG,Tecentriq,,US,base,base_revenue,,3566.0,,mm CHF,"ROG FY2025 reported global sales of Tecentriq, CHF 3,566mm, from Roche Finance Information Tool, group financial data workbook, FY2025, sheet ""P Sales Regions CHF"". The 26 named products on that sheet sum to CHF 47,669mm, the Pharmaceuticals Division's 2025 sales, exactly",in francs because the engine models a company in its reporting currency and converts at the end
+ROG,Tecentriq,,US,base,revenue_growth_pct,,-0.02,,"annual, near term","Roche's own published 2025 growth rate for Tecentriq in reported francs, -2%, from the growth block of the same sheet","a published rate rather than a subtraction, because the workbook carries only the current year and so holds no prior-year figure to derive one from"
+ROG,Tecentriq,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,
+ROG,Tecentriq,,US,base,growth_fade_years,,5,,years,measured from 53 drugs that grew 10% to 25% a year: the median faded to flat over five years,
+ROG,Tecentriq,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+ROG,Tecentriq,,US,base,forecast_years,,20,,years,the house horizon,
+ROG,Tecentriq,,US,base,pos,,1.0,,,approved and selling,
+ROG,Tecentriq,,US,base,cogs_pct,,0.27058,,share of revenue,"ROG FY2025 from Roche Finance Information Tool, group financial data workbook, FY2025: cost of sales CHF 16,645mm on sales of 61,516mm. The sheet's own six components sum to it exactly","Roche does not file with the SEC, so this comes from the workbook it publishes for investors rather than from EDGAR"
+ROG,Tecentriq,,US,base,rd_pct,,0.217049,,share of revenue,"ROG FY2025: research and development CHF 13,352mm on sales of 61,516mm","the IFRS charge, not the CHF 12,832mm core figure below it in the sheet, which adds back amortisation and impairment"
+ROG,Tecentriq,,US,base,sga_pct,,0.246456,,share of revenue,"ROG FY2025: selling, general and administration CHF 15,161mm on sales of 61,516mm, its four components summing to it exactly",
+ROG,Tecentriq,,US,base,other_costs_pct,,-0.03443,,share of revenue,"solved so the charges reconcile to the filed operating profit of CHF 18,476mm. It is negative because Roche books other revenue of 1,840mm and other operating income of 278mm above the line, and those two sum to exactly the 2,118mm this credits back","the same convention AstraZeneca and GSK carry, both also negative"
+ROG,Tecentriq,,US,base,tax_rate,,0.187003,,effective rate,"ROG FY2025: income taxes of CHF 3,174mm on profit before taxes of 16,973mm","a single year rather than a five-year aggregate, because the workbook carries only the current year"
+ROG,Tecentriq,,US,base,risk_free,,0.0501,,,"10-year Treasury constant maturity (FRED DGS10), 2026-09-16: 5.01%. Read live (fetchers/rates_fred.py)",
+ROG,Tecentriq,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month cash yield variant",
+ROG,Tecentriq,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W38 to 2026-W39, Blume-adjusted (0.46 raw)","measured on the RHHBY ADR against the S&P 500, which is the only Roche price series on file. A beta measured on the SIX-listed ordinary share against a Swiss index would not be the same number"
+ROG,Tecentriq,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data",
+ROG,Tecentriq,,US,base,debt_weight,,0.098037,,,"filed long-term debt of CHF 31,636mm at 2025-12-31 from the workbook's balance sheet, over debt plus a market capitalisation of CHF 291.1bn: 802,992,519 diluted shares at 0.125 ordinary per ADR, so 6,423,940,150 ADRs at the RHHBY close of $55.06 on 2026-09-23, converted at CHF/USD 1.215229","ROCHE HAS TWO SHARE CLASSES AND THIS PRICES BOTH OFF ONE. The count is derived from Roche's own published per-share figure, which is struck on bearer shares and non-voting equity securities together, while RHHBY is an ADR over the non-voting security alone. The two trade close but not equal, so this market capitalisation is approximate. It moves the weight and not the cost ratios"
+
+# Indication layers, appended 2026-10-27 by the layer research waves.
+ROG,Tecentriq,,US,base,list_price_per_patient,,0.0548171,,mm CHF per patient-year,"CMS Medicare Part B Spending by Drug 2024 (data.cms.gov dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, HCPCS J9022, 'Injection, atezolizumab, 10 mg'): $677,665,952 over 10,191 beneficiaries = $66,497 per beneficiary a year. This is the house basis, as amgn_abp_206 carries it Converted to CHF, the currency ROG reports in and the engine models it in: 0.066497mm USD at 1.213070 USD per CHF (ECB via backend/fx.py, 2026-10-23) is 0.054817mm CHF. The engine reads the number as the reporting currency whatever the unit says, so a dollar figure left here reads as CHF and overstates the product by the exchange rate.","Part B is where Tecentriq's patients are: 10,191 Part B beneficiaries in 2024 against 410 in Part D, whose per-beneficiary figure is $56,037. Scale for a reader: at this allowed amount a full labelled year of 1,200 mg every three weeks costs about $173,500, so a beneficiary-year is about 38% of one, which is what discontinuation_pct below measures. Pairing the full labelled-year figure with that rate would count the same shortfall twice"
 ROG,Tecentriq,,US,base,gross_to_net_pct,,0.056604,,share off list,"house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price and ASP is already net of the manufacturer's discounts and rebates, so the only deduction from the allowed amount is the statutory add-on, 6/106 = 0.056604","Medicaid rebates and 340B discounts sit outside ASP and are not deducted, which is the case for a larger deduction"
 ROG,Tecentriq,,US,base,discontinuation_pct,,0.616816,,share of the stock a year,"measured on Tecentriq's own CMS patients the way amgn_abp_206 measures Opdivo's: CMS Medicare Part B Spending by Drug 2024, 8,122,448 dosage units of J9022 ('Injection, atezolizumab, 10 mg') over 10,191 beneficiaries = 7,970 mg per beneficiary. A full labelled year at 1,200 mg every three weeks is 20,800 mg (DailyMed setid 6fa682c9-a312-4932-9831-f286908660ee gives 840 mg every 2 weeks, 1,200 mg every 3 weeks or 1,680 mg every 4 weeks, which are the same annual total). 7,970/20,800 = 0.3832 of a labelled year, and 1 - 0.3832 = 0.6168. The ratio is stable and drifting up across the series: 0.337 (2020), 0.349 (2021), 0.369 (2022), 0.385 (2023), 0.383 (2024)","Judgement on method. The pool here is Tecentriq's own patients across every labelled indication rather than one trial's median, which is why it is measured rather than taken from a duration of response. The case against: the fixed one-year adjuvant courses in non-small cell lung and bladder cancer put a ceiling on consumption that is not discontinuation, so the true stopping rate in the treat-to-progression indications is lower than this"
 ROG,Tecentriq,Rectal Neoplasms,US,base,incidence,,158850,,patients a year,"158,850 new US colorectal cancers estimated for 2026 (American Cancer Society, via SEER Cancer Stat Facts: 'In 2026, it is estimated that there will be 158,850 new cases of colorectal cancer')",copied verbatim from the pool the book already holds for this disease
