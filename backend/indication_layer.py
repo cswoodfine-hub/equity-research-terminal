@@ -40,7 +40,16 @@ import forecast
 
 # What the layer needs beyond the company economics the marketed line already carries.
 # The price is the asset's; everything else belongs to the indication.
-INDICATION_KEYS = ("prevalence", "eligible_pct", "penetration_peak_pct")
+#
+# The ramp belongs here and was missing from it. A layer is built on the pool identity,
+# which turns a pool into patients a year and then needs a curve to say how quickly they
+# arrive; without one the engine has no patient series and refuses with "supply
+# new_patients rows or the pool identity inputs", which names neither key and reads like
+# a fault in the engine rather than a gap in the seed. Six layers carried every other
+# key and failed that way. This module's whole promise is that it names what it lacks,
+# so it has to name these two.
+INDICATION_KEYS = ("prevalence", "eligible_pct", "penetration_peak_pct",
+                   "ramp_midpoint_year", "ramp_steepness")
 ASSET_KEYS = ("discontinuation_pct",)
 
 # Carried by the marketed line and meaningless in a bottom-up build: the layer is the

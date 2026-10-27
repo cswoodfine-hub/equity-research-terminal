@@ -1,0 +1,210 @@
+[
+ {
+  "catalyst": 28,
+  "asset_id": 191,
+  "ticker": "ABBV",
+  "brand": "Rinvoq",
+  "is_marketed": 1,
+  "indication": "Lupus Erythematosus, Systemic",
+  "date": "2027-03",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 474,
+  "asset_id": 329,
+  "ticker": "ABBV",
+  "brand": "Venclexta",
+  "is_marketed": 1,
+  "indication": "Leukemia, Lymphocytic, Chronic, B-Cell",
+  "date": "2028-03",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 479,
+  "asset_id": 191,
+  "ticker": "ABBV",
+  "brand": "Rinvoq",
+  "is_marketed": 1,
+  "indication": "Vitiligo",
+  "date": "2028-03",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 485,
+  "asset_id": 191,
+  "ticker": "ABBV",
+  "brand": "Rinvoq",
+  "is_marketed": 1,
+  "indication": "Hidradenitis Suppurativa",
+  "date": "2028-03",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 773,
+  "asset_id": 191,
+  "ticker": "ABBV",
+  "brand": "Rinvoq",
+  "is_marketed": 1,
+  "indication": "Takayasu Arteritis",
+  "date": "2028-08",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 54,
+  "asset_id": 523,
+  "ticker": "AZN",
+  "brand": "Saphnelo",
+  "is_marketed": 1,
+  "indication": "Scleroderma, Diffuse",
+  "date": "2027-01-06",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 57,
+  "asset_id": 50,
+  "ticker": "AZN",
+  "brand": "Calquence",
+  "is_marketed": 1,
+  "indication": "Leukemia, Lymphocytic, Chronic, B-Cell",
+  "date": "2027-07-15",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 551,
+  "asset_id": 557,
+  "ticker": "GSK",
+  "brand": "Jemperli",
+  "is_marketed": 1,
+  "indication": "Squamous Cell Carcinoma of Head and Neck",
+  "date": "2028-06-30",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 276,
+  "asset_id": 7308,
+  "ticker": "JNJ",
+  "brand": "Rybrevant / Lazcluze",
+  "is_marketed": 1,
+  "indication": "Carcinoma, Non-Small-Cell Lung",
+  "date": "2027-05-31",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 564,
+  "asset_id": 844,
+  "ticker": "JNJ",
+  "brand": "IMBRUVICA",
+  "is_marketed": 1,
+  "indication": "Leukemia, Lymphocytic, Chronic, B-Cell",
+  "date": "2027-12-15",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 3,
+  "asset_id": 6,
+  "ticker": "LLY",
+  "brand": "Foundayo",
+  "is_marketed": 1,
+  "indication": "Diabetes Mellitus, Type 2",
+  "date": "2027-05",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 621,
+  "asset_id": 160,
+  "ticker": "NVS",
+  "brand": "Leqvio",
+  "is_marketed": 1,
+  "indication": "Cardiovascular Diseases",
+  "date": "2027-05-10",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 1142,
+  "asset_id": 815,
+  "ticker": "PFE",
+  "brand": "Braftovi / Mektovi",
+  "is_marketed": 1,
+  "indication": "Melanoma",
+  "date": "2026-10-30",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 1130,
+  "asset_id": 816,
+  "ticker": "PFE",
+  "brand": "Prevnar / Prevenar family",
+  "is_marketed": 1,
+  "indication": "Pneumococcal Infections",
+  "date": "2027-06-07",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 1127,
+  "asset_id": 419,
+  "ticker": "ROG",
+  "brand": "Tecentriq",
+  "is_marketed": 1,
+  "indication": "Breast Neoplasms",
+  "date": "2027-03-31",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ },
+ {
+  "catalyst": 189,
+  "asset_id": 429,
+  "ticker": "ROG",
+  "brand": "Hemlibra",
+  "is_marketed": 1,
+  "indication": "von Willebrand Disease, Type 3",
+  "date": "2027-04-30",
+  "steps": [
+   "layer seeds"
+  ],
+  "why": null
+ }
+]

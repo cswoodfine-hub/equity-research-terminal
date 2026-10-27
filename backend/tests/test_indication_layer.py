@@ -239,3 +239,13 @@ def test_a_wholly_overlapping_indication_says_so_without_a_pool():
                                           "penetration_peak_pct": None})
     built = forecast.build(inputs)
     assert any("adds nothing" in n for n in built["notes"])
+
+
+def test_the_layer_names_the_ramp_among_the_keys_it_needs():
+    """A layer is built on the pool identity, which turns a pool into patients a year
+    and then needs a curve to say how quickly they arrive. Without one the engine has no
+    patient series and refuses with "supply new_patients rows or the pool identity
+    inputs", naming neither key and reading like a fault in the engine rather than a gap
+    in the seed. Six layers carried every other key and failed exactly that way."""
+    assert "ramp_midpoint_year" in IL.INDICATION_KEYS
+    assert "ramp_steepness" in IL.INDICATION_KEYS

@@ -274,7 +274,9 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -288,8 +290,8 @@
      "title": "Phase 3, Leqvio"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -336,14 +338,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -358,14 +363,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -380,14 +388,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -402,7 +413,9 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -416,8 +429,8 @@
      "title": "Phase 3, Otezla"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -456,11 +469,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 773,
@@ -470,8 +489,8 @@
      "title": "Phase 3, Rinvoq"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -486,7 +505,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -500,8 +526,8 @@
      "title": "Phase 3, Rinvoq"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -516,7 +542,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -530,8 +563,8 @@
      "title": "Phase 3, Rinvoq"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -546,7 +579,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -560,8 +600,8 @@
      "title": "Phase 3, Rinvoq"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -576,14 +616,20 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -602,10 +648,10 @@
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -624,10 +670,10 @@
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -664,14 +710,21 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -708,7 +761,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
@@ -722,8 +782,8 @@
      "title": "Phase 2, A Study To Assess the Safety, Tolerability, and Efficacy of Imzokitug in Combination With Pumitamig and Platinum-Doublet Chemotherapy (PDCT) Versus Pumitamig and PDCT as First-line Treatment for Participants With Locally Advanced or Metastatic Non-Small Cell Lung Cancer (NSCLC)"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -738,14 +798,21 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -786,10 +853,10 @@
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -804,14 +871,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -889,10 +963,10 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -907,14 +981,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -929,7 +1005,10 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [
@@ -953,14 +1032,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -975,7 +1057,10 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -989,8 +1074,8 @@
      "title": "Phase 3, Lorbrena"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1027,7 +1112,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
@@ -1041,8 +1133,8 @@
      "title": "Phase 3, A Study to Evaluate Efficacy and Safety of Giredestrant Compared With Fulvestrant (Plus a CDK4/6 Inhibitor), in Participants With ER-Positive, HER2-Negative Advanced Breast Cancer Resistant to Adjuvant Endocrine Therapy (pionERA Breast Cancer)"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1057,14 +1149,21 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Not yet recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1079,14 +1178,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1101,14 +1207,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": false,
    "revenue": false,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1189,14 +1302,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1233,14 +1353,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1255,14 +1382,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1277,14 +1411,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1299,7 +1440,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -1313,8 +1461,8 @@
      "title": "Phase 3, Sotyktu"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1358,14 +1506,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1380,7 +1531,9 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -1394,8 +1547,8 @@
      "title": "Phase 3, Ubrelvy"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1410,14 +1563,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1487,11 +1643,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 38,
@@ -1501,8 +1660,8 @@
      "title": "Phase 3, Venclexta"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1517,14 +1676,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1539,14 +1701,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1561,14 +1726,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1583,14 +1755,21 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1605,14 +1784,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1627,14 +1813,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -1906,7 +2099,10 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -1920,8 +2116,8 @@
      "title": "Phase 2, Arexvy"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -1994,14 +2190,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2016,7 +2219,9 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -2030,8 +2235,8 @@
      "title": "Phase 3, Gazyva"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -2046,14 +2251,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2068,14 +2276,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2090,14 +2301,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2112,14 +2326,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2134,14 +2351,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2156,14 +2376,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2178,7 +2401,10 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -2192,8 +2418,8 @@
      "title": "Phase 3, Keytruda"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -2208,14 +2434,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2230,14 +2459,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2252,14 +2484,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2318,14 +2553,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2340,14 +2578,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2362,14 +2603,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2438,14 +2681,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2460,14 +2710,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2526,11 +2783,18 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 52,
@@ -2540,8 +2804,8 @@
      "title": "Phase 3, Imfinzi"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -2600,14 +2864,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2622,7 +2893,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -2636,8 +2914,8 @@
      "title": "Phase 2, Imfinzi"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -2652,14 +2930,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2674,11 +2954,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 189,
@@ -2688,8 +2974,8 @@
      "title": "Phase 3, Hemlibra"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -2704,14 +2990,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2726,14 +3019,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2794,14 +3094,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -2906,7 +3213,7 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 54,
@@ -2916,8 +3223,8 @@
      "title": "Phase 3, Saphnelo"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 1
   },
@@ -2936,10 +3243,10 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -2958,10 +3265,10 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -2976,14 +3283,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3020,14 +3334,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3042,11 +3363,18 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 79,
@@ -3070,8 +3398,8 @@
      "title": "Phase 3, Cobenfy"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 3
   },
@@ -3086,14 +3414,20 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Not yet recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3108,14 +3442,20 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3130,11 +3470,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 76,
@@ -3179,8 +3525,8 @@
      "title": "Phase 3, Cobenfy"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 6
   },
@@ -3217,14 +3563,20 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3239,14 +3591,21 @@
    "area": null,
    "phase": "Phase 2/3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3261,14 +3620,20 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3283,14 +3648,20 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3305,14 +3676,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3327,7 +3705,10 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -3341,8 +3722,8 @@
      "title": "Phase 2, Jemperli"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -3357,11 +3738,18 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 551,
@@ -3371,8 +3759,8 @@
      "title": "Phase 3, Jemperli"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -3387,14 +3775,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3431,14 +3821,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3453,14 +3846,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3475,14 +3870,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3497,11 +3899,18 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 609,
@@ -3511,8 +3920,8 @@
      "title": "Phase 3, Fabhalta"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -3527,14 +3936,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3549,14 +3961,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3593,7 +4012,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -3607,8 +4033,8 @@
      "title": "Phase 3, Fabhalta"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -3667,11 +4093,18 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [
     {
      "id": 606,
@@ -3681,8 +4114,8 @@
      "title": "Phase 3, Cosentyx"
     }
    ],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -3719,14 +4152,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3741,14 +4177,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3763,14 +4202,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3785,14 +4227,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3807,14 +4252,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3829,14 +4277,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3851,14 +4302,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3873,14 +4327,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3895,14 +4352,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -3991,14 +4451,16 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4013,14 +4475,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4035,14 +4504,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4061,7 +4533,7 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
    "status": "parked",
    "note": "Phase 1/2 is outside the layer gate the engine prices (forecast_view._LAYER_GATE_PHASES), so a pool here buys nothing until it advances",
@@ -4483,7 +4955,14 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
@@ -4497,8 +4976,8 @@
      "title": "Phase 3, Rybrevant / Lazcluze"
     }
    ],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 1
   },
@@ -4513,14 +4992,21 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4649,10 +5135,10 @@
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "reuse_pool",
+   "note": "the disease's pool is already sourced in the book",
    "wave": null,
    "priority": 0
   },
@@ -4845,14 +5331,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4889,14 +5382,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4911,14 +5407,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4955,14 +5458,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4977,14 +5483,17 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -4999,14 +5508,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5021,14 +5537,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5043,14 +5566,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5065,14 +5595,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5087,14 +5624,21 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "eligible_pct",
+    "incidence",
+    "penetration_peak_pct",
+    "pos",
+    "prevalence"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
-   "pool_in_book": false,
+   "pool_in_book": true,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5109,14 +5653,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5131,14 +5678,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5186,14 +5736,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5208,14 +5761,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": false,
    "catalysts": [],
-   "status": "todo",
-   "note": "",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5230,14 +5786,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5429,7 +5988,9 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [
@@ -5475,14 +6036,16 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5497,14 +6060,16 @@
    "area": null,
    "phase": "Phase 2",
    "dev_status": "Active not recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
@@ -5571,14 +6136,17 @@
    "area": null,
    "phase": "Phase 3",
    "dev_status": "Recruiting",
-   "already_seeded": [],
+   "already_seeded": [
+    "base_pool_overlap_pct",
+    "pos"
+   ],
    "label_known": true,
    "revenue": true,
    "maybe_approved": [],
    "pool_in_book": true,
    "catalysts": [],
-   "status": "reuse_pool",
-   "note": "the disease's pool is already sourced in the book",
+   "status": "seeded",
+   "note": "carries layer rows already",
    "wave": null,
    "priority": 0
   },
