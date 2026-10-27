@@ -262,6 +262,44 @@ def status_for(statuses) -> str:
     return next((s for s in statuses if s), None) or "Unknown"
 
 
+# A rollover keeps patients on a drug; it does not study a disease.
+#
+# "A Long-term Extension Study of PCI-32765 (Ibrutinib)" enrols whoever finished one of
+# the parent studies, so the registry lists every disease those studies covered. The
+# book read NCT01804686 as the live Phase 3 behind Imbruvica in follicular lymphoma,
+# diffuse large B-cell lymphoma and mantle-cell -- two of them published misses and the
+# third an indication the FDA withdrew in 2023 -- because a rollover never finishes and
+# never changes status. 109 of these are mapped to an asset and between them they assert
+# 152 indication pairs.
+#
+# What a rollover must not contribute is a *pre-approval* phase. The registry files
+# these under whatever the parent studies were, so Imbruvica's extension reads Phase 3
+# and Active-not-recruiting for ever, and the book priced three decided indications --
+# two published misses and one the FDA withdrew in 2023 -- as live Phase 3 gates.
+#
+# Phase 4 still counts, and the distinction is not a convenience. Phase 4 means a
+# post-marketing study, which is exactly what a rollover on an approved drug is, and the
+# book reads it as evidence the indication is already approved. Tafinlar's melanoma and
+# non-small cell lung rows are asserted by Phase 4 rollovers alone and are its two
+# approved indications; blanking them would turn two approved diseases into open
+# expansions, which is the very mistake this is meant to stop.
+#
+# So the pair survives either way -- the drug genuinely has been given in that disease --
+# and only a pre-approval claim about a programme is refused.
+_ROLLOVER = re.compile(
+    r"\b(?:roll[-\s]?over"
+    r"|long[-\s]term\s+(?:extension|follow[-\s]?up)"
+    r"|extension\s+study"
+    r"|continued\s+(?:study\s+)?(?:treatment|access)"
+    r"|continuation\s+(?:study|protocol)"
+    r"|expanded\s+access)\b", re.I)
+
+
+def is_rollover(title: str) -> bool:
+    """Whether a study exists to continue treatment rather than to test an indication."""
+    return bool(_ROLLOVER.search(title or ""))
+
+
 def pairs_from_trials(rows) -> dict:
     """(asset_id, mesh_id) -> the pair's phase, statuses, enrolment and first sighting.
 
@@ -274,10 +312,24 @@ def pairs_from_trials(rows) -> dict:
         if not asset_id:
             continue
         browse = parse_browse(row.get("mesh_terms"))
+        rollover = is_rollover(row.get("title"))
         for term in indications_for(row.get("conditions"), browse):
             entry = out.setdefault((asset_id, term["id"]), {
                 "term": term["term"], "phase": None, "statuses": [],
-                "enrollment": 0, "first_posted": None, "trials": 0})
+                "enrollment": 0, "first_posted": None, "trials": 0,
+                "real_trials": 0})
+            entry["real_trials"] += 0 if rollover else 1
+            if rollover and (row.get("phase") or "") != "Phase 4":
+                # Enrolment and first sighting still count: those are facts about
+                # patients. A pre-approval phase and a status are claims about a
+                # programme, and a continuation protocol makes neither.
+                entry["enrollment"] += row.get("enrollment") or 0
+                posted = row.get("first_posted")
+                if posted and (entry["first_posted"] is None
+                               or posted < entry["first_posted"]):
+                    entry["first_posted"] = posted
+                entry["trials"] += 1
+                continue
             entry["phase"] = higher_phase(entry["phase"], row.get("phase"))
             entry["statuses"].append(row.get("overall_status"))
             entry["enrollment"] += row.get("enrollment") or 0

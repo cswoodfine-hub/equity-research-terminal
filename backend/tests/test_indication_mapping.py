@@ -780,3 +780,55 @@ def test_every_exclusion_marker_truncates():
             ("Solid Tumors other than Melanoma", "Solid Tumors "),
             ("Solid Tumors but not Lymphoma", "Solid Tumors ")):
         assert im.before_exclusion(phrase) == want
+
+
+def _roll(title, phase, mesh="D008224", term="Lymphoma, Follicular"):
+    return {"asset_id": 1, "conditions": json.dumps([term]),
+            "mesh_terms": json.dumps({"meshes": [{"id": mesh, "term": term}]}),
+            "phase": phase, "overall_status": "Active not recruiting",
+            "enrollment": 50, "first_posted": "2020-01-01", "title": title}
+
+
+def test_a_rollover_is_recognised_however_it_is_phrased():
+    for title in ("A Long-term Extension Study of PCI-32765 (Ibrutinib)",
+                  "CINC424A2X01B Rollover Protocol",
+                  "An Extension Study of Venetoclax for Subjects Who Have Completed",
+                  "A Study to Enable Continued Treatment Access",
+                  "Pediatric Long-Term Follow-up and Rollover Study"):
+        assert im.is_rollover(title), title
+    assert not im.is_rollover("A Phase 3 Study of Ibrutinib in Follicular Lymphoma")
+
+
+def test_a_rollover_does_not_make_a_decided_indication_a_live_gate():
+    """NCT01804686 is Imbruvica's long-term extension, registered Phase 3 and Active
+    not recruiting for ever because a rollover never finishes. The book read it as the
+    pending Phase 3 behind follicular lymphoma, DLBCL and mantle-cell -- two published
+    misses and one indication the FDA withdrew in 2023."""
+    pairs = im.pairs_from_trials([_roll("A Long-term Extension Study of PCI-32765",
+                                        "Phase 3")])
+    assert pairs[(1, "D008224")]["phase"] is None
+
+
+def test_a_phase_4_rollover_still_says_the_indication_is_approved():
+    """Phase 4 means a post-marketing study, which is what a rollover on an approved
+    drug is. Tafinlar's melanoma and NSCLC rows are asserted by Phase 4 rollovers alone
+    and are its two approved indications; blanking them would turn two approved diseases
+    into open expansions."""
+    pairs = im.pairs_from_trials([_roll("Pediatric Long-Term Follow-up and Rollover "
+                                        "Study", "Phase 4")])
+    assert pairs[(1, "D008224")]["phase"] == "Phase 4"
+
+
+def test_a_real_study_beside_a_rollover_still_sets_the_phase():
+    """The rollover adds its patients and withholds only its claim about a programme."""
+    real = _roll("A Phase 2 Study of the Drug in Lymphoma", "Phase 2")
+    pairs = im.pairs_from_trials([_roll("An Extension Study", "Phase 3"), real])
+    entry = pairs[(1, "D008224")]
+    assert entry["phase"] == "Phase 2"
+    assert entry["enrollment"] == 100      # both studies' patients counted
+
+
+def test_a_rollover_never_deletes_the_pair():
+    """The drug genuinely has been given in that disease."""
+    pairs = im.pairs_from_trials([_roll("An Extension Study", "Phase 3")])
+    assert (1, "D008224") in pairs
