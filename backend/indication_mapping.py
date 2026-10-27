@@ -350,6 +350,17 @@ def pairs_from_trials(rows) -> dict:
 ADDITIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
                  / "data" / "asset_indication_additions.csv")
 
+# The mirror of the additions file, for pairs the derivation asserts that are not true.
+# One shape of error needs it: a master protocol giving different drugs to different
+# diseases. The registry records interventions and conditions as two flat lists with
+# nothing joining them, so a protocol testing drug A in disease X and drug B in disease
+# Y reads as both drugs in both diseases, and no rule over the registry record can
+# separate them. Amgen's NCT06570798 gives inebilizumab to lupus and blinatumomab to
+# rheumatoid arthritis, and Uplizna acquired a rheumatoid arthritis programme it has
+# never had.
+EXCLUSIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                  / "data" / "asset_indication_exclusions.csv")
+
 
 def curated_additions(conn, path=None) -> dict:
     """(asset_id, mesh_id) -> pair entry, in pairs_from_trials' shape, for each row of
@@ -394,6 +405,40 @@ def curated_additions(conn, path=None) -> dict:
                 if posted and (entry["first_posted"] is None
                                or posted < entry["first_posted"]):
                     entry["first_posted"] = posted
+    return out
+
+
+def curated_exclusions(conn, path=None) -> set:
+    """{(asset_id, mesh_id)} for each row of ``data/asset_indication_exclusions.csv``
+    whose asset and trials are on file.
+
+    A row asserts nothing on its own: it removes a pair the trials would otherwise make,
+    and only where those trials are the asset's. A row naming a study the asset is not
+    mapped to is ignored, the same way an addition naming one is.
+    """
+    path = pathlib.Path(path or EXCLUSIONS_CSV)
+    if not path.exists():
+        return set()
+    out = set()
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.startswith("#")):
+            name = (row.get("asset") or "").strip()
+            mesh_id = (row.get("mesh_id") or "").strip()
+            ncts = (row.get("nct_ids") or "").split()
+            if not (name and mesh_id and ncts and (row.get("basis") or "").strip()):
+                continue
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                    WHERE c.ticker = ? AND (LOWER(TRIM(a.generic_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.brand_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.internal_code)) = LOWER(?))""",
+                ((row.get("ticker") or "").strip().upper(), name, name, name)).fetchone()
+            if not asset:
+                continue
+            marks = ",".join("?" * len(ncts))
+            if conn.execute(f"SELECT 1 FROM trials WHERE nct_id IN ({marks})"
+                            f"   AND asset_id = ?", (*ncts, asset[0])).fetchone():
+                out.add((asset[0], mesh_id))
     return out
 
 
@@ -530,6 +575,8 @@ def build(db_path=None) -> dict:
                SELECT asset_id, conditions, mesh_terms, phase, NULL, enrollment, NULL
                  FROM completed_trials WHERE asset_id IS NOT NULL""")]
         pairs = pairs_from_trials(rows)
+        for key in curated_exclusions(conn):
+            pairs.pop(key, None)
         for key, entry in curated_additions(conn).items():
             pairs.setdefault(key, entry)
         # Before the indications are written, so a parent the asset's own child makes

@@ -832,3 +832,73 @@ def test_a_rollover_never_deletes_the_pair():
     """The drug genuinely has been given in that disease."""
     pairs = im.pairs_from_trials([_roll("An Extension Study", "Phase 3")])
     assert (1, "D008224") in pairs
+
+
+def _exclusion_db(tmp_path, nct="NCT1"):
+    path = str(tmp_path / "x.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " is_marketed) VALUES (1, 1, 'Uplizna', 'Inebilizumab', 1)")
+    browse = json.dumps({"meshes": [
+        {"id": "D001172", "term": "Arthritis, Rheumatoid"},
+        {"id": "D008180", "term": "Lupus Erythematosus, Systemic"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions,"
+        " mesh_terms, phase, overall_status, enrollment, first_posted, title)"
+        " VALUES (?, 1, 1, ?, ?, 'Phase 2', 'Recruiting', 100, '2024-01-01', ?)",
+        (nct, '["Systemic Lupus Erythematosus", "Active Refractory Rheumatoid Arthritis"]',
+         browse, "A Phase 2 Master Protocol Assessing Inebilizumab and Blinatumomab"))
+    conn.commit()
+    return path, conn
+
+
+def _exclusion_csv(tmp_path, nct="NCT1", asset="Uplizna", basis="the protocol says so"):
+    p = tmp_path / "ex.csv"
+    p.write_text("ticker,asset,mesh_id,term,nct_ids,basis\n"
+                 f'AMGN,{asset},D001172,"Arthritis, Rheumatoid",{nct},"{basis}"\n')
+    return str(p)
+
+
+def test_a_master_protocol_s_other_drug_s_disease_can_be_excluded(tmp_path):
+    """NCT06570798 gives inebilizumab to lupus and blinatumomab to rheumatoid arthritis.
+    The registry lists both drugs and both conditions at study level with nothing
+    joining them, so Uplizna acquired a rheumatoid arthritis programme it never had."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path)) == {(1, "D001172")}
+    conn.close()
+
+
+def test_an_exclusion_naming_a_study_the_asset_does_not_have_is_ignored(tmp_path):
+    """A row asserts nothing on its own; it removes a pair those trials would make."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, nct="NCT9")) == set()
+    conn.close()
+
+
+def test_an_exclusion_with_no_basis_is_ignored(tmp_path):
+    """The reason is the point. A pair removed without one is a guess with a file
+    behind it."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, basis="")) == set()
+    conn.close()
+
+
+def test_an_exclusion_for_an_asset_not_on_file_is_ignored(tmp_path):
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, asset="Nosuchdrug")) == set()
+    conn.close()
+
+
+def test_the_build_drops_an_excluded_pair_and_keeps_the_other(tmp_path):
+    """The whole point: the lupus pair is real and survives."""
+    path, conn = _exclusion_db(tmp_path)
+    conn.close()
+    im.build(path)
+    conn = db.get_connection(path)
+    got = {r[0] for r in conn.execute(
+        "SELECT i.name FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id WHERE ai.asset_id = 1")}
+    assert "Lupus Erythematosus, Systemic" in got
+    conn.close()

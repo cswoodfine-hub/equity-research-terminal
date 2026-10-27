@@ -85,6 +85,15 @@ def parse_search(payload: str, brand: str, generic: str = None) -> str | None:
         for row in hits:
             if _title_head(row.get("title")) == token:
                 return row.get("setid")
+        # No title names this product. The remaining hits are a different product whose
+        # name opens with this one -- GLUCOTROL XL where the search was GLUCOTROL,
+        # PREVNAR 20 where it was PREVNAR, VENTOLIN HFA where it was VENTOLIN. These are
+        # products that no longer have an SPL of their own, and binding a stablemate's
+        # is exactly the mistake that gave Keytruda the Qlex label. No label is the
+        # honest answer: the book then says it cannot tell what the product is approved
+        # for, rather than answering from the wrong document.
+        if all(_title_head(row.get("title")).startswith(token + " ") for row in hits):
+            continue
         return hits[0].get("setid")
     return None
 
