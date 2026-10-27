@@ -1,0 +1,22 @@
+# Nurtec ODT / Vydura (PFE). 1,424mm USD in FY2025. Asset-level rows only.
+# 
+# The one indication layer the worklist carried, Migraine Disorders, was dropped rather than
+# researched: rimegepant is already approved both for the acute treatment of migraine and for
+# the preventive treatment of episodic migraine in adults (NURTEC ODT label sections 2.1 and
+# 2.2), so the 1,424mm anchor already contains it. The paediatric acute study NCT04649242 is a
+# real unapproved population, 6 to 17 year olds, but it is a slice of an approved indication
+# rather than a new one, and the book has no way to carry it as a layer until it holds the
+# label text that says where the approval stops.
+# 
+# The price is the hard row on this product. Rimegepant is taken as needed for an attack, so
+# there is no dose and schedule to multiply: the annual cost per patient is set by how many
+# attacks a patient treats, which no manufacturer disclosure states. So it is not derived from
+# WAC here. It is measured, from CMS Part D spending and beneficiary counts for rimegepant, on
+# the same basis the book uses for other public data series. The unit WAC is quoted inside the
+# source as a cross-check, not as the derivation.
+# 
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+PFE,Nurtec ODT / Vydura,,US,base,list_price_per_patient,,0.0059363,,mm USD per year,"measured from CMS Part D, which the book already carries for rimegepant (partd_prescribing, asset 202, cms_brands 'Nurtec Odt' / 'Rimegepant Sulfate', data year 2024): national total drug cost 625,015,501.30 USD across 105,287 national beneficiaries. 625,015,501.30 / 105,287 = 5,936.30 USD a beneficiary a year. The series is stable and rising with price: 4,892.88 USD in 2022 and 5,706.75 in 2023 on the same two fields. CMS states total drug cost is gross of manufacturer rebates, so this is a list-equivalent figure and the gross_to_net_pct row below still applies on top of it. Cross-check against the unit price rather than derivation from it: Pfizer's own disclosure is 1,028.99 USD per blister pack of eight 75 mg orally disintegrating tablets (Connecticut HB 6669, data as of 13-Jan-2025), that is 128.62 USD a dose, so 5,936.30 USD is about 46 doses a year, against the label ceiling of 18 doses in any 30 days","the Part D population is Medicare, so it skews to 65 and over and to the disabled under 65, while migraine is mostly a working-age disease. A commercial population may treat more attacks a year than this. The figure is carried because it is measured on a public series the book already holds, rather than modelled from an assumed attack frequency"
+PFE,Nurtec ODT / Vydura,,US,base,gross_to_net_pct,,0.270833,,share off list,"ICER, Acute Treatments for Migraine, Final Evidence Report (Institute for Clinical and Economic Review, 2020), section 7: a WAC of 4,896 USD a year against an assumed net price of 3,570 USD a year, which the report itself describes as a 27% discount from WAC. (4,896 - 3,570) / 4,896 = 0.2708","ICER's assumption rather than a disclosed net price, but it is published and openable, and it is a share rather than a level so it carries across to the Part D-derived price above"
+PFE,Nurtec ODT / Vydura,,US,base,discontinuation_pct,,0.242,,share of the stock a year,"Tepper SJ, Jenkins A, Henriksen C, Dai F, Atkinson J, Abraham L, Gendolla A. A comparison of the persistence of acute treatment with rimegepant versus oral triptans in patients with migraine: a retrospective analysis of US claims data. Cephalalgia 2025;45(7):3331024251352849, doi 10.1177/03331024251352849, PMID 40717449. US MarketScan claims, 9,909 propensity-matched rimegepant initiators: persistence, defined as at least one refill within 12 months of the first prescription, was 75.8%. 1 - 0.758 = 0.242 stopping in the year","measured over exactly one year, so no hazard conversion is needed. The study is Pfizer-authored"
