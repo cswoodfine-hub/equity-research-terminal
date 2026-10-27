@@ -192,3 +192,26 @@ def test_a_new_version_is_read_whole(tmp_path, monkeypatch):
     _label(db_file, "bbb", 8)
     rows, xml_reads = _fetch_with(monkeypatch, db_file)
     assert xml_reads == 1 and rows[0]["spl_version"] == 12
+
+
+def test_an_exact_product_name_beats_one_that_merely_contains_it():
+    """DailyMed's search for KEYTRUDA returns the subcutaneous co-formulation too, and
+    "KEYTRUDA" sits inside "KEYTRUDA QLEX". Containment alone bound Merck's $31.7bn
+    intravenous product to the Qlex label, whose indications omit classical Hodgkin
+    lymphoma -- so a disease approved since 2017 read as pending."""
+    payload = json.dumps({"data": [
+        {"setid": "qlex", "title": "KEYTRUDA QLEX (pembrolizumab and berahyaluronidase "
+                                   "alfa) injection, solution"},
+        {"setid": "iv", "title": "KEYTRUDA (pembrolizumab) injection, solution"},
+    ]})
+    assert dailymed.parse_search(payload, "Keytruda") == "iv"
+    assert dailymed.parse_search(payload, "Keytruda Qlex") == "qlex"
+
+
+def test_containment_still_decides_when_nothing_matches_exactly():
+    """A title does not always open with the brand alone, so the looser match stays."""
+    payload = json.dumps({"data": [
+        {"setid": "x", "title": "SOMETHING ELSE (drug) tablet"},
+        {"setid": "y", "title": "BRAND NAME XR (drug) tablet, extended release"},
+    ]})
+    assert dailymed.parse_search(payload, "Brand Name") == "y"

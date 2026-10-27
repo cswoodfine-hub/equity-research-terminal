@@ -50,16 +50,42 @@ def spl_xml(setid: str) -> str:
 
 
 # --- pure parsers ---------------------------------------------------------
+def _title_head(title: str) -> str:
+    """The product name a DailyMed title opens with, before the ingredients.
+
+    Titles read "KEYTRUDA (pembrolizumab) injection" and "KEYTRUDA QLEX
+    (pembrolizumab and berahyaluronidase alfa) injection", so the name is whatever sits
+    before the first parenthesis.
+    """
+    return (title or "").split("(")[0].strip().upper()
+
+
 def parse_search(payload: str, brand: str, generic: str = None) -> str | None:
     """The set id whose title names the product. Matched on the brand, then the
     generic, both uppercased, so a search that returns a combination product or a
-    near-name does not bind the wrong label."""
+    near-name does not bind the wrong label.
+
+    A containment match alone binds the wrong label whenever one product's name opens
+    another's. DailyMed's search for KEYTRUDA returns the subcutaneous co-formulation
+    KEYTRUDA QLEX as well, "KEYTRUDA" sits inside it, and whichever came back first won:
+    Merck's $31.7bn intravenous product carried the Qlex label, whose indications omit
+    classical Hodgkin lymphoma, so the book read a disease Keytruda has been approved in
+    since 2017 as still pending. Twelve products were bound this way, Opdivo, Darzalex,
+    Rituxan, Gardasil and Prevnar among them.
+
+    So an exact product name wins over one that merely contains it. Containment still
+    decides the rest, because a title does not always open with the brand alone.
+    """
     data = json.loads(payload).get("data") or []
     wanted = [w.upper() for w in (brand, generic) if w]
     for token in wanted:
-        for row in data:
-            if token in (row.get("title") or "").upper():
+        hits = [row for row in data if token in (row.get("title") or "").upper()]
+        if not hits:
+            continue
+        for row in hits:
+            if _title_head(row.get("title")) == token:
                 return row.get("setid")
+        return hits[0].get("setid")
     return None
 
 

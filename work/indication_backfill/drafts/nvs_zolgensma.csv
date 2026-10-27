@@ -1,0 +1,29 @@
+# Zolgensma (NVS). 1,232mm USD. Draft indication-layer seeds, 2026-10-27.
+#
+# Two asset-level numbers, one asset-level gap stated as a gap, and one unit that is NOT
+# priced because there is no programme behind it.
+#
+# NO PROGRAMME: Bulbo-Spinal Atrophy, X-Linked (Kennedy disease). The single trial on this
+# unit, NCT05335876, is titled 'Long-term Follow-up of Patients With Spinal Muscular Atrophy
+# Treated With OAV101 in Clinical Trials' and its registered condition is 'Spinal Muscular
+# Atrophy (SMA)'. Kennedy disease is X-linked spinal and bulbar muscular atrophy, a CAG
+# repeat expansion in the androgen receptor gene, and it is a different disease from
+# 5q spinal muscular atrophy with bi-allelic SMN1 mutations, which is what the Zolgensma
+# label covers (BLA 125694). The unit exists because the two sit near each other in the MeSH
+# tree under Muscular Atrophy, Spinal, not because Novartis is developing Zolgensma in
+# Kennedy disease. No Novartis trial record names it.
+#
+# No rows are written for the indication. What would settle it is a trial record or pipeline
+# entry naming X-linked bulbo-spinal atrophy; none exists on ClinicalTrials.gov today.
+#
+# gross_to_net_pct is deliberately absent. Neither house convention fits a one-time gene
+# therapy with no Part B payment limit and no pharmacy-benefit dispensing, and no net-to-list
+# ratio for Zolgensma could be sourced. The asset is therefore still blocked on
+# net_price_per_patient, and that is said rather than papered over.
+#
+# Least confident row: list_price_per_patient. $2.125m is a 2021 published list price, not a
+# 2026 one and not a net one.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+NVS,Zolgensma,,US,base,list_price_per_patient,,2.125,,mm USD per patient-year,"the US list price of a single Zolgensma dose, $2,125,000: 'At the list price of 2,125,000 USD in the US, onasemnogene abeparvovec is cost-effective compared to nusinersen for symptomatic SMA type 1 patients treated before two years of age' (Malone DC et al., J Mark Access Health Policy 2021;9(1):1889841, doi:10.1080/20016689.2021.1889841, PMC7919869, an open-access cost-utility analysis that states the figure four times and contrasts it with ICER's 2,000,000 USD placeholder). ZOLGENSMA is a single intravenous infusion of 1.1 x 10^14 vector genomes per kg (BLA 125694, label effective 2026-06-16, section 2.1), so the dose price and the patient price are the same number","the dossier prints no CMS figure for Zolgensma and there is none to find: drug_demand holds no Part B or Part D row for it in any year, the Medicaid State Drug Utilization rows the book carries for 2024 and 2025 are suppressed, and CMS's October 2026 Medicare Part B payment limit file carries no row for J3399, the HCPCS code Zolgensma is billed under. So this is a published list price and not a measured net one. It is also a 2021 reading; no later US list price was found in a source that can be opened, and the row should be replaced when one is"
+NVS,Zolgensma,,US,base,discontinuation_pct,,1.0,,share of the treated stock a year,"given once. ZOLGENSMA is 'For single-dose intravenous infusion only' (BLA 125694, label effective 2026-06-16, section 2) and its Limitations of Use state that 'The safety and effectiveness of repeat administration of ZOLGENSMA have not been evaluated'","at 1.0 the engine's treated stock is each year's new patients and revenue is starts times the course price, the shape the book uses for every one-time therapy. Novartis describes the product the same way, that it 'continues to treat mainly incident patients'"
+NVS,Zolgensma,,US,base,gross_to_net_pct,,,not sourced,,no source found: see the note,"left out rather than guessed. The two house conventions do not apply: 0.056604 is the Part B ASP add-on and Zolgensma has no Part B payment limit, and 0.5 is the Part D retail convention and Zolgensma is not a pharmacy-benefit drug. Its US payer mix is mostly Medicaid and commercial, and no net-to-list ratio for it was found in any openable source. What would settle it: a state price-transparency filing, or a CMS Medicaid rebate disclosure. The asset therefore still has no net price, and that is a sourcing gap rather than a number"
