@@ -968,6 +968,8 @@ def build(inputs: dict) -> dict:
     if mode not in MODES:
         raise ForecastError([f"therapy_mode must be one of {MODES}, got '{mode}'"])
 
+    # Only the marketed branch builds layers, so every other mode reports none.
+    out_layer_peak = 0.0
     start = int(scalars.get("forecast_start_year") or 0)
     horizon = int(scalars.get("forecast_years") or 10)
     # An unlaunched product's window runs through its loss of exclusivity and the
@@ -1027,6 +1029,10 @@ def build(inputs: dict) -> dict:
         layers, layer_notes = _indication_layers(inputs, years, scalars, price)
         layer_peak = max((sum(c) for c in zip(*layers.values())), default=0.0) \
             if layers else 0.0
+        # Reported, because a reader cannot otherwise tell how much of the published
+        # peak the expansions took, and because anything asking whether the ceiling
+        # binds has to ask against what is left of it rather than the stated figure.
+        out_layer_peak = layer_peak
 
         # The ceiling is the franchise at peak, so it already contains the expansions.
         # The base is grown to what is left of it once they are taken out, which is what
@@ -1417,6 +1423,10 @@ def build(inputs: dict) -> dict:
 
     return {
         "mode": mode, "years": years, "dcf_years": dcf_years,
+        # The peak the unapproved indications reach together, taken out of the franchise
+        # ceiling before the approved business is grown into it. 0.0 where there are no
+        # layers or the mode has no ceiling.
+        "layer_peak": out_layer_peak,
         # total is who started each year; treated is who is still on it, which is what
         # meets the price. They are the same series only for a one-time therapy.
         "patients": {"total": total_patients, "treated": treated,
