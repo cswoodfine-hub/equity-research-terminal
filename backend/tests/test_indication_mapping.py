@@ -748,3 +748,35 @@ def test_a_shared_qualifier_is_not_a_match():
     two diseases sharing "metastatic" do not match each other."""
     cands = [(7, set(im.tokens("Colorectal Neoplasms")))]
     assert im._by_condition_text('["Metastatic Breast Cancer"]', cands) == set()
+
+
+def test_a_study_is_not_in_the_disease_it_excludes():
+    """DESTINY-PanTumor02 registers its basket as "... Rare Tumors, Any Tumor Type
+    Excluding Breast, Gastric, Colorectal Cancer", and matching the whole string gave
+    Enhertu a colorectal indication derived from the sentence excluding colorectal.
+    A phantom indication becomes a phantom gate."""
+    conditions = json.dumps([
+        "Part 1: Bladder, Biliary Tract, Cervical, Endometrial, Ovarian, Pancreatic "
+        "Cancer, Rare Tumors, Any Tumor Type Excluding Breast, Gastric, Colorectal Cancer"])
+    browse = {"meshes": [{"id": "D010190", "term": "Pancreatic Neoplasms"},
+                         {"id": "D015179", "term": "Colorectal Neoplasms"}],
+              "ancestors": []}
+    got = [t["term"] for t in im.indications_for(conditions, browse)]
+    assert "Pancreatic Neoplasms" in got
+    assert "Colorectal Neoplasms" not in got
+
+
+def test_non_small_cell_is_a_disease_and_not_an_exclusion():
+    """"non-" opens the largest oncology indication in the book. Treating it as an
+    exclusion marker would silently empty it."""
+    assert im.before_exclusion("Advanced Non-Small Cell Lung Cancer") == \
+        "Advanced Non-Small Cell Lung Cancer"
+
+
+def test_every_exclusion_marker_truncates():
+    for phrase, want in (
+            ("Solid Tumors Excluding Gastric Cancer", "Solid Tumors "),
+            ("Solid Tumors except Breast Cancer", "Solid Tumors "),
+            ("Solid Tumors other than Melanoma", "Solid Tumors "),
+            ("Solid Tumors but not Lymphoma", "Solid Tumors ")):
+        assert im.before_exclusion(phrase) == want

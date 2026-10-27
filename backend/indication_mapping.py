@@ -196,6 +196,24 @@ def parse_browse(raw) -> dict:
     return {"meshes": clean("meshes"), "ancestors": clean("ancestors")}
 
 
+# A sponsor names what a basket study leaves out in the same field it names what it
+# takes in. DESTINY-PanTumor02 registers as "... Rare Tumors, Any Tumor Type Excluding
+# Breast, Gastric, Colorectal Cancer", and matching on the whole string gave Enhertu a
+# colorectal indication derived from the sentence that excludes colorectal. A phantom
+# indication becomes a phantom gate, so the words after the marker are dropped before
+# anything is matched against them.
+#
+# "non-" is deliberately not a marker here. It opens "non-small cell lung cancer", which
+# is a disease rather than an exclusion, and treating it as one would silently empty the
+# largest oncology indication in the book.
+_EXCLUDES = re.compile(r"\b(?:excluding|except(?:\s+for)?|other\s+than|but\s+not)\b", re.I)
+
+
+def before_exclusion(phrase: str) -> str:
+    """The part of a condition string that says what a study is in, not what it is not."""
+    return _EXCLUDES.split(phrase or "", maxsplit=1)[0]
+
+
 def indications_for(conditions, browse) -> list[dict]:
     """The MeSH descriptors that are this study's actual indications.
 
@@ -205,7 +223,8 @@ def indications_for(conditions, browse) -> list[dict]:
         sponsor = json.loads(conditions) if isinstance(conditions, str) else (conditions or [])
     except (TypeError, ValueError):
         sponsor = []
-    said = [tokens(s) for s in sponsor if is_indication(s)]
+    trimmed = [before_exclusion(s) for s in sponsor if isinstance(s, str)]
+    said = [tokens(s) for s in trimmed if is_indication(s)]
     out = []
     for term in browse["meshes"]:
         if not is_indication(term["term"]):

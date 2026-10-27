@@ -14,6 +14,7 @@ import json, sys, sqlite3, pathlib, collections
 
 sys.path.insert(0, "backend")
 import db, assumptions as A, forecast, indication_layer                # noqa: E402
+import brand_components                                                # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
 CT = "https://clinicaltrials.gov/study/"
@@ -52,6 +53,23 @@ def dossier(conn, ticker: str) -> str:
         if price:
             out.append(f"- price on file: `{price['key']}` = {price['value']} "
                        f"{price['unit'] or ''} — {(price['source'] or '')[:120]}")
+        # The CMS series, reached through the brand's components where the reported
+        # line names several products. A Wave 1 agent concluded Nurtec had no demand
+        # data and wrote a placeholder price, because rimegepant's Part D series is
+        # filed against the single-brand row while the model sits on the combined one.
+        demand = brand_components.demand_rows(conn, asset_id)
+        if demand:
+            latest = {}
+            for d in demand:
+                latest[d["part"]] = max(latest.get(d["part"], (0,))[0], d["year"]), d
+            for part, (_, d) in sorted(latest.items()):
+                if d["total_beneficiaries"]:
+                    per = d["total_spending"] / d["total_beneficiaries"]
+                    out.append(
+                        f"- **CMS Part {part} {d['year']}** ({d['brand_name']}): "
+                        f"${d['total_spending']:,.0f} over {d['total_beneficiaries']:,} "
+                        f"beneficiaries = **${per:,.0f} per beneficiary a year**. This "
+                        f"is the basis the book prices on — see amgn_abp_206.csv.")
         if gaps:
             out.append(f"- **blocked at asset level on {', '.join(gaps)}.** Every layer "
                        f"below needs these, so find them once for the product:")

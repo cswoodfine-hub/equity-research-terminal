@@ -1,0 +1,18 @@
+# Ceralasertib (AZN). An oral ATR kinase inhibitor, and a programme that has lost both
+# of the indications the book carries for it.
+#
+# No pool, no price and no curve is seeded. A programme whose pivotal readouts have
+# happened and failed is not pending, and seeding a patient funnel for it would price a
+# launch that is not coming. The rows here say pos = 0 and cite the result.
+#
+# What this file deliberately does not do is retire the asset. AstraZeneca has not said
+# ceralasertib is stopped, and the house rule is that a company's own word retires a
+# programme, not an analyst's reading of two failures. The honest representation is that
+# both indications on file are decided, which is what these rows say.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Ceralasertib,"Carcinoma, Non-Small-Cell Lung",US,base,pos,,0.0,,,"the programme is finished and failed. LATIFY (NCT05450692, 594 participants randomised 1:1, ceralasertib plus durvalumab against docetaxel in previously treated advanced non-small cell lung cancer) reached primary completion on 2025-10-06 and missed its primary endpoint of overall survival: AstraZeneca's statement of 2025-12-22 reads that the trial 'did not meet the primary endpoint of overall survival (OS) versus standard-of-care docetaxel'. Median OS 11.1 months against 10.0, hazard ratio 0.90 (95% CI 0.75 to 1.09, p=0.287); median PFS 4.1 months in both arms, hazard ratio 0.87 (95% CI 0.73 to 1.04, p=0.133); objective response 7.7% against 17.3%, presented at ELCC 2026 as abstract LBA1","nil, not pending. The hazard ratio and p-value are read from a secondary report of the ELCC abstract rather than the abstract itself, which did not resolve; the miss itself is AstraZeneca's own words"
+AZN,Ceralasertib,"Carcinoma, Non-Small-Cell Lung",US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,the asset sells nothing: there is no base for a layer to overlap with,
+AZN,Ceralasertib,Melanoma,US,base,pos,,0.0,,,"the programme was stopped for futility. MONETTE (NCT05061134, 194 participants, ceralasertib with and without durvalumab in anti-PD-(L)1-resistant advanced melanoma) reached primary completion on 2024-04-12, and its published result in Clinical Cancer Research of 2026-04-21 (2026;32(14):2921-2933, DOI 10.1158/1078-0432.CCR-25-3951) reads that the independent data monitoring committee 'recommended to stop recruitment due to futility because the prespecified ORR for stopping recruitment was met'. Objective response 9.3% (95% CI 4.3 to 16.9) on the combination, below the prespecified minimum threshold, and 5.8% (95% CI 1.2 to 15.9) on ceralasertib alone; the authors conclude both regimens 'demonstrated low response rates'. The registry's own posted results carry the same figures",nil. No pool is seeded for a programme stopped at a futility boundary
+AZN,Ceralasertib,Melanoma,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,the asset sells nothing: there is no base for a layer to overlap with,
