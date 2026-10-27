@@ -1,33 +1,10 @@
-# MRK: 14 indication layers to research
-
-## Gardasil / Gardasil 9  (asset_id 854)
-- mode **marketed**, revenue anchor 5,233mm USD
-- **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
-    - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
-    - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Papillomavirus Infections   [Phase 3, Recruiting]
-- unit key `854:468`, therapeutic area None
-- the book holds no pool for this disease; it has to be researched and sourced
-- trial NCT04199689  Phase 3, Active not recruiting, n=6033, primary completion 2027-01-15
-    Efficacy Against Oral Persistent Infection, Immunogenicity and Safety of the 9-valent Human Papillomavirus Vaccine (9vHPV) in Men Aged 20-45 Years (V5
-- trial NCT07785843  Phase 3, Recruiting, n=930, primary completion 2027-12-18
-    A Clinical Study of V503 in Chinese Females Who Have Previously Received a Bivalent Human Papillomavirus (HPV) Vaccine (V503-108)
-- trial NCT03998254  Phase 3, Active not recruiting, n=6000, primary completion 2028-03-31
-    Efficacy, Immunogenicity and Safety of V503 in Chinese Women Aged 20-45 Years (V503-023)
-- trial NCT05314023  Phase 3, Active not recruiting, n=1590, primary completion 2029-02-19
-    Immunogenicity and Safety of V503 in Chinese Males 9 Through 19 Years Old (V503-053)
-- trial NCT05285826  Phase 3, Active not recruiting, n=8100, primary completion 2029-05-25
-    Efficacy, Immunogenicity, and Safety of V503 in Chinese Males (V503-052)
-- trial NCT05450705  Phase 3, Active not recruiting, n=1500, primary completion 2029-08-03
-    V503 in Chinese Girls 9-14 Years Old Versus Chinese Women 20-26 Years Old (V503-071)
-- **pending catalyst** 2028-03-31 (data readout): Phase 3, Gardasil / Gardasil 9
-- **pending catalyst** 2027-01-15 (data readout): Phase 3, Gardasil / Gardasil 9
-- **pending catalyst** 2027-12-18 (data readout): Phase 3, Gardasil / Gardasil 9
+# MRK: 13 indication layers to research
 
 ## Keytruda  (asset_id 412)
 - mode **franchise**, revenue anchor 31,681mm USD
 - price on file: `net_price_per_patient` = 0.079464 mm USD per year — comparator estimate: Keytruda itself, CMS Part B 2024: 5.99bn over 75,361 beneficiaries. Part B pays ASP plus 6%, so thi
+- **CMS Part B 2024** (Keytruda): $5,988,521,233 over 75,361 beneficiaries = **$79,464 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Keytruda): $140,055,040 over 1,906 beneficiaries = **$73,481 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct.** Every layer below needs these, so find them once for the product:
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
 
@@ -121,6 +98,7 @@
 
 ## Verquvo  (asset_id 330)
 - mode **marketed**, revenue anchor 48mm USD
+- **CMS Part D 2024** (Verquvo): $49,680,167 over 11,127 beneficiaries = **$4,465 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -133,6 +111,7 @@
 
 ## Welireg  (asset_id 339)
 - mode **marketed**, revenue anchor 716mm USD
+- **CMS Part D 2024** (Welireg): $205,460,496 over 1,896 beneficiaries = **$108,365 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.

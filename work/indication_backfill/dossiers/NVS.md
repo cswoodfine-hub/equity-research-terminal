@@ -1,7 +1,9 @@
-# NVS: 16 indication layers to research
+# NVS: 15 indication layers to research
 
 ## Cosentyx  (asset_id 605)
 - mode **marketed**, revenue anchor 6,668mm USD
+- **CMS Part B 2024** (Cosentyx): $54,225,555 over 3,236 beneficiaries = **$16,757 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Cosentyx (6 presentations)): $1,562,575,148 over 27,644 beneficiaries = **$56,525 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -15,6 +17,7 @@
 
 ## Fabhalta  (asset_id 57)
 - mode **marketed**, revenue anchor 505mm USD
+- **CMS Part D 2024** (Fabhalta): $32,520,195 over 129 beneficiaries = **$252,095 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -101,6 +104,7 @@
 
 ## Kisqali  (asset_id 263)
 - mode **marketed**, revenue anchor 4,783mm USD
+- **CMS Part D 2024** (Kisqali): $775,493,707 over 8,782 beneficiaries = **$88,305 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -113,6 +117,7 @@
 
 ## Kymriah  (asset_id 358)
 - mode **marketed**, revenue anchor 381mm USD
+- **CMS Part B 2024** (Kymriah): $10,678,319 over 21 beneficiaries = **$508,491 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -127,30 +132,11 @@
 
 ## Leqvio  (asset_id 160)
 - mode **marketed**, revenue anchor 1,198mm USD
+- **CMS Part B 2024** (Leqvio): $296,288,761 over 48,298 beneficiaries = **$6,135 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Leqvio): $14,379,723 over 2,681 beneficiaries = **$5,364 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Cardiovascular Diseases   [Phase 3, Active not recruiting]
-- unit key `160:379`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 849,539 patients per year
-      source: congenital, so the inflow is demographic rather than clinical: 4,247,694 US births registered in 2008 (CDC NCHS, Births: Final Data for 2008), the cohort turning 18 in 2026, times the 20% carrying elevated Lp(a)
-    - `prevalence` = 53,395,654 patients
-      source: NHLBI 2024: roughly 1 in 5 adults carry Lp(a) above 50 mg/dL, applied to the US resident population 18+, 266,978,268, Census SCPRC-EST2024-18+POP, 1 Jul 2024
-- trial NCT05360446  Phase 3, Active not recruiting, n=610, primary completion 2026-10-26
-    Coronary Computed Tomography Study to Assess the Effect of Inclisiran in Addition to Maximally Tolerated Statin Therapy on Atherosclerotic Plaque Prog
-- trial NCT07102628  Phase 3, Recruiting, n=300, primary completion 2027-02-11
-    Evaluation of Efficacy and Safety of Early in Hospital Initiation of Inclisiran Treatment in Patients With Acute Coronary Syndromes
-- trial NCT07684469  Phase 4, Not yet recruiting, n=300, primary completion 2027-02-28
-    Comparative Assessment of Inclisiran on Top of Standard of Care Versus Standard of Care Alone for LDL-C Evaluation in Acute Coronary Syndrome Patients
-- trial NCT06941792  Phase 4, Active not recruiting, n=1590, primary completion 2027-04-30
-    Inclisiran Effectiveness in China: a Pragmatic Randomized Trial
-- trial NCT05030428  Phase 3, Active not recruiting, n=17004, primary completion 2027-05-10
-    Study of Inclisiran to Prevent Cardiovascular (CV) Events in Participants With Established Cardiovascular Disease
-- trial NCT06597019  Phase 3, Recruiting, n=60, primary completion 2028-03-21
-    Study to Evaluate Efficacy and Safety of Inclisiran in Children With Heterozygous Familial Hypercholesterolemia
-- **pending catalyst** 2027-05-10 (data readout): Phase 3, Leqvio
 
 ### Coronary Artery Disease   [Phase 3, Active not recruiting]
 - unit key `160:211`, therapeutic area None
@@ -167,6 +153,7 @@
 
 ## Sandostatin  (asset_id 639)
 - mode **marketed**, revenue anchor 1,213mm USD
+- **CMS Part D 2024** (Sandostatin): $196,939 over 35 beneficiaries = **$5,627 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.

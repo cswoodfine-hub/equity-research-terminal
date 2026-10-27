@@ -1,7 +1,8 @@
-# AMGN: 9 indication layers to research
+# AMGN: 7 indication layers to research
 
 ## Blincyto  (asset_id 417)
 - mode **marketed**, revenue anchor 1,559mm USD
+- **CMS Part B 2024** (Blincyto): $86,227,273 over 357 beneficiaries = **$241,533 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -16,6 +17,8 @@
 
 ## Evenity  (asset_id 459)
 - mode **marketed**, revenue anchor 2,100mm USD
+- **CMS Part B 2024** (Evenity (2 Syringes)): $639,373,585 over 52,146 beneficiaries = **$12,261 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Evenity (2 presentations)): $94,003,185 over 8,293 beneficiaries = **$11,335 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -26,37 +29,9 @@
 - trial NCT05972551  Phase 3, Active not recruiting, n=111, primary completion 2027-05-04
     Study to Evaluate Efficacy and Safety of Romosozumab Compared With Bisphosphonates in Children and Adolescents With Osteogenesis Imperfecta
 
-## Imdelltra  (asset_id 452)
-- mode **marketed**, revenue anchor 627mm USD
-- **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
-    - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
-    - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Small Cell Lung Carcinoma   [Phase 3, Recruiting]
-- unit key `452:70`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 226,650 patients a year
-      source: lung cancer incidence is the pool: diagnosed and treated each year rather than accumulated
-    - `prevalence` = 226,650 patients
-      source: 226,650 new US lung cancers in 2025 (SEER), the base the volrustomig and sacituzumab tirumotecan seeds build their lung pools on
-- trial NCT05740566  Phase 3, Active not recruiting, n=509, primary completion 2025-01-29
-    Study Comparing Tarlatamab With Standard of Care Chemotherapy in Relapsed Small Cell Lung Cancer
-- trial NCT03319940  Phase 1, Active not recruiting, n=269, primary completion 2026-12-31
-    Study Evaluating Safety, Tolerability and Pharmacokinetics (PK) of Tarlatamab in Adults With Small Cell Lung Cancer (SCLC)
-- trial NCT06598306  Phase 1, Recruiting, n=220, primary completion 2027-04-24
-    Subcutaneous Tarlatamab in Participants With Extensive Stage Small Cell Lung Cancer (DeLLphi-308)
-- trial NCT06211036  Phase 3, Active not recruiting, n=563, primary completion 2027-07-05
-    Study Comparing Tarlatamab and Durvalumab Versus Durvalumab Alone in First-Line Extensive-Stage Small-Cell Lung Cancer (ES-SCLC) Following Platinum, E
-- trial NCT07778316  Phase 3, Recruiting, n=400, primary completion 2027-09-24
-    Phase 3 Trial of Tarlatamab (SC vs IV) in Extensive-Stage Small Cell Lung Cancer After Platinum Based First-line Chemotherapy (ES-SCLC)
-- trial NCT05060016  Phase 2, Active not recruiting, n=222, primary completion 2027-12-30
-    A Phase 2 Study of Tarlatamab in Patients With Small Cell Lung Cancer (SCLC)
-- **pending catalyst** 2027-07-05 (data readout): Phase 3, Imdelltra
-- **pending catalyst** 2027-12-30 (data readout): Phase 2, Imdelltra
-- **pending catalyst** 2027-09-24 (data readout): Phase 3, Imdelltra
-
 ## Otezla  (asset_id 189)
 - mode **marketed**, revenue anchor 2,265mm USD
+- **CMS Part D 2024** (Otezla): $1,045,029,751 over 31,045 beneficiaries = **$33,662 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -74,16 +49,10 @@
     A Study of Apremilast in Children With Oral Ulcers Associated With Behçet's Disease or Juvenile Psoriatic Arthritis
 - **pending catalyst** 2028-03-21 (data readout): Phase 3, Otezla
 
-### Behcet Syndrome   [Phase 3, Recruiting]
-- unit key `189:582`, therapeutic area None
-- the book holds no pool for this disease; it has to be researched and sourced
-- trial NCT04528082  Phase 3, Recruiting, n=60, primary completion 2030-02-07
-    Apremilast Pediatric Study in Children With Active Oral Ulcers Associated With Behçet's Disease
-- trial NCT05767047  Phase 3, Recruiting, n=48, primary completion 2036-03-17
-    A Study of Apremilast in Children With Oral Ulcers Associated With Behçet's Disease or Juvenile Psoriatic Arthritis
-
 ## Uplizna  (asset_id 2969)
 - mode **marketed**, revenue anchor 655mm USD
+- **CMS Part B 2024** (Uplizna): $52,835,926 over 201 beneficiaries = **$262,865 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Uplizna): $15,033,602 over 64 beneficiaries = **$234,900 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.

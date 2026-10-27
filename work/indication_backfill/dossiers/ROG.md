@@ -1,30 +1,8 @@
-# ROG: 11 indication layers to research
-
-## Alecensa  (asset_id 48)
-- mode **marketed**, revenue anchor 1,562mm USD
-- **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
-    - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
-    - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Carcinoma, Non-Small-Cell Lung   [Phase 3, Active not recruiting]
-- unit key `48:20`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 192,650 patients a year
-      source: lung cancer incidence is the pool: it is diagnosed, treated and turned over annually rather than accumulated
-    - `prevalence` = 192,650 patients
-      source: 226,650 new US lung cancers in 2025 (SEER), of which about 85% are non-small cell
-- trial NCT03456076  Phase 3, Active not recruiting, n=257, primary completion 2023-06-26
-    A Study Comparing Adjuvant Alectinib Versus Adjuvant Platinum-Based Chemotherapy in Patients With ALK Positive Non-Small Cell Lung Cancer
-- trial NCT06624059  Phase 1/2, Active not recruiting, n=11, primary completion 2026-08-28
-    A Study to See How Well and How Safely Different Treatments Work in a Group of Participants With Non-Small Cell Lung Cancer (NSCLC)
-- trial NCT03178552  Phase 2/3, Active not recruiting, n=1000, primary completion 2027-06-30
-    A Study to Evaluate the Efficacy and Safety of Multiple Targeted Therapies as Treatments for Participants With Non-Small Cell Lung Cancer (NSCLC)
-- trial NCT05170204  Phase 3, Active not recruiting, n=68, primary completion 2030-06-16
-    A Study Evaluating the Efficacy and Safety of Multiple Therapies in Cohorts of Participants With Locally Advanced, Unresectable, Stage III Non-Small C
-- **pending catalyst** 2027-06-30 (data readout): Phase 2/3, Alecensa
+# ROG: 10 indication layers to research
 
 ## Enspryng  (asset_id 436)
 - mode **marketed**, revenue anchor 364mm USD
+- **CMS Part D 2024** (Enspryng): $45,272,835 over 267 beneficiaries = **$169,561 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -47,6 +25,8 @@
 
 ## Gazyva  (asset_id 411)
 - mode **marketed**, revenue anchor 986mm USD
+- **CMS Part B 2024** (Gazyva): $183,518,022 over 5,252 beneficiaries = **$34,943 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Gazyva): $8,604,069 over 210 beneficiaries = **$40,972 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -113,6 +93,7 @@
 
 ## Hemlibra  (asset_id 429)
 - mode **marketed**, revenue anchor 4,754mm USD
+- **CMS Part B 2024** (Hemlibra): $230,046,953 over 438 beneficiaries = **$525,221 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -126,6 +107,8 @@
 
 ## Tecentriq  (asset_id 419)
 - mode **marketed**, revenue anchor 3,566mm USD
+- **CMS Part B 2024** (Tecentriq): $677,665,952 over 10,191 beneficiaries = **$66,497 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Tecentriq): $22,975,155 over 410 beneficiaries = **$56,037 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.

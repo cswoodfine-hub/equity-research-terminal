@@ -1,23 +1,9 @@
-# ABBV: 15 indication layers to research
-
-## Elahere  (asset_id 6811)
-- mode **marketed**, revenue anchor 690mm USD
-- **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
-    - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
-    - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Carcinoma, Ovarian Epithelial   [Phase 2, Recruiting]
-- unit key `6811:104`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 20,890 patients a year
-      source: annual diagnoses feeding the same pool
-    - `prevalence` = 20,890 patients
-      source: about 20,890 US ovarian cancer diagnoses in 2025 (American Cancer Society)
-- trial NCT06890338  Phase 2, Recruiting, n=140, primary completion 2030-02
-    A Study to Assess Anti-Tumor Activity of Intravenously (IV) Infused Carboplatin With Mirvetuximab Soravtansine in Participants With Newly Diagnosed Fo
+# ABBV: 13 indication layers to research
 
 ## Ozurdex  (asset_id 942)
 - mode **marketed**, revenue anchor 493mm USD
+- **CMS Part B 2024** (Ozurdex): $47,962,972 over 15,038 beneficiaries = **$3,189 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Ozurdex): $1,873,498 over 622 beneficiaries = **$3,012 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -38,6 +24,7 @@
 
 ## Qulipta  (asset_id 296)
 - mode **marketed**, revenue anchor 1,036mm USD
+- **CMS Part D 2024** (Qulipta): $260,307,144 over 45,046 beneficiaries = **$5,779 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -56,6 +43,7 @@
 
 ## Rinvoq  (asset_id 191)
 - mode **marketed**, revenue anchor 8,304mm USD
+- **CMS Part D 2024** (Rinvoq): $1,385,459,851 over 29,062 beneficiaries = **$47,673 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -112,6 +100,7 @@
 
 ## Ubrelvy  (asset_id 324)
 - mode **marketed**, revenue anchor 1,271mm USD
+- **CMS Part D 2024** (Ubrelvy): $429,537,898 over 83,437 beneficiaries = **$5,148 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -133,26 +122,10 @@
 
 ## Venclexta  (asset_id 329)
 - mode **marketed**, revenue anchor 2,792mm USD
+- **CMS Part D 2024** (Venclexta): $941,720,713 over 21,868 beneficiaries = **$43,064 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Leukemia, Lymphocytic, Chronic, B-Cell   [Phase 3, Recruiting]
-- unit key `329:2`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 22,760 patients a year
-      source: 22,760 new US CLL cases estimated for 2026 (American Cancer Society, via SEER Cancer Stat Facts)
-    - `prevalence` = 22,760 patients
-      source: 22,760 new US CLL cases estimated for 2026 (American Cancer Society, via SEER Cancer Stat Facts)
-- trial NCT04895436  Phase 2, Recruiting, n=75, primary completion 2026-11
-    Study to Assess Change in Disease Activity and Adverse Events of Oral Venetoclax With Intravenous (IV) Obinutuzumab in Adult Participants With Recurri
-- trial NCT03844048  Phase 3, Active not recruiting, n=165, primary completion 2027-08
-    An Extension Study of Venetoclax for Subjects Who Have Completed a Prior Venetoclax Clinical Trial
-- trial NCT06428019  Phase 3, Recruiting, n=170, primary completion 2028-03
-    A Study to Evaluate the Risk of Tumor Lysis Syndrome (TLS) in Adult Participants Receiving Oral Venetoclax in Combination With Intravenously Infused O
-- trial NCT02966756  Phase 2, Active not recruiting, n=66, primary completion 2030-12
-    A Study of Venetoclax in Participants With Relapsed or Refractory Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma
-- **pending catalyst** 2028-03 (data readout): Phase 3, Venclexta
 
 ### Myelodysplastic Syndromes   [Phase 3, Active not recruiting]
 - unit key `329:409`, therapeutic area None

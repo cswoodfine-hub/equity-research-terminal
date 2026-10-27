@@ -2,6 +2,7 @@
 
 ## Arexvy  (asset_id 369)
 - mode **marketed**, revenue anchor 593mm USD
+- **CMS Part D 2024** (Arexvy): $774,198,318 over 2,820,344 beneficiaries = **$275 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -21,6 +22,8 @@
 
 ## Benlysta  (asset_id 542)
 - mode **marketed**, revenue anchor 1,773mm USD
+- **CMS Part B 2024** (Benlysta): $125,525,139 over 3,685 beneficiaries = **$34,064 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Benlysta*): $216,806,704 over 5,831 beneficiaries = **$37,182 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -71,6 +74,8 @@
 
 ## Jemperli  (asset_id 557)
 - mode **marketed**, revenue anchor 861mm USD
+- **CMS Part B 2024** (Jemperli): $142,196,684 over 1,770 beneficiaries = **$80,337 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Jemperli): $3,124,278 over 48 beneficiaries = **$65,089 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -109,6 +114,7 @@
 
 ## Ojjaara  (asset_id 282)
 - mode **marketed**, revenue anchor 554mm USD
+- **CMS Part D 2024** (Ojjaara): $341,692,382 over 2,316 beneficiaries = **$147,536 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -131,6 +137,7 @@
 
 ## Zejula  (asset_id 82)
 - mode **marketed**, revenue anchor 557mm USD
+- **CMS Part D 2024** (Zejula): $224,142,913 over 2,016 beneficiaries = **$111,182 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.

@@ -1,7 +1,8 @@
-# JNJ: 9 indication layers to research
+# JNJ: 7 indication layers to research
 
 ## Caplyta  (asset_id 3387)
 - mode **marketed**, revenue anchor 1,353mm USD
+- **CMS Part D 2024** (Caplyta): $268,479,293 over 27,010 beneficiaries = **$9,940 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
@@ -18,24 +19,10 @@
 
 ## IMBRUVICA  (asset_id 844)
 - mode **marketed**, revenue anchor 2,823mm USD
+- **CMS Part D 2024** (Imbruvica): $2,266,252,032 over 15,351 beneficiaries = **$147,629 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Leukemia, Lymphocytic, Chronic, B-Cell   [Phase 3, Active not recruiting]
-- unit key `844:2`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 22,760 patients a year
-      source: 22,760 new US CLL cases estimated for 2026 (American Cancer Society, via SEER Cancer Stat Facts)
-    - `prevalence` = 22,760 patients
-      source: 22,760 new US CLL cases estimated for 2026 (American Cancer Society, via SEER Cancer Stat Facts)
-- trial NCT03462719  Phase 3, Active not recruiting, n=211, primary completion 2021-02-26
-    A Study of the Combination of Ibrutinib Plus Venetoclax Versus Chlorambucil Plus Obinutuzumab for the First-line Treatment of Participants With Chroni
-- trial NCT01804686  Phase 3, Active not recruiting, n=539, primary completion 2026-12-31
-    A Long-term Extension Study of PCI-32765 (Ibrutinib)
-- trial NCT05963074  Phase 2, Active not recruiting, n=333, primary completion 2027-12-15
-    A Study to Customize Ibrutinib Treatment Regimens for Participants With Previously Untreated Chronic Lymphocytic Leukemia
-- **pending catalyst** 2027-12-15 (data readout): Phase 2, IMBRUVICA
 
 ### Lymphoma, Follicular   [Phase 3, Active not recruiting]
 - unit key `844:6`, therapeutic area None
@@ -65,31 +52,11 @@
 
 ## Rybrevant / Lazcluze  (asset_id 7308)
 - mode **marketed**, revenue anchor 734mm USD
+- **CMS Part B 2024** (Rybrevant): $70,056,728 over 839 beneficiaries = **$83,500 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
+- **CMS Part D 2024** (Rybrevant): $3,046,904 over 28 beneficiaries = **$108,818 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
-
-### Carcinoma, Non-Small-Cell Lung   [Phase 3, Recruiting]
-- unit key `7308:20`, therapeutic area None
-- **the book already holds this pool — reuse it verbatim, do not research a second figure:**
-    - `incidence` = 192,650 patients a year
-      source: lung cancer incidence is the pool: it is diagnosed, treated and turned over annually rather than accumulated
-    - `prevalence` = 192,650 patients
-      source: 226,650 new US lung cancers in 2025 (SEER), of which about 85% are non-small cell
-- trial NCT04538664  Phase 3, Active not recruiting, n=308, primary completion 2023-05-03
-    A Study of Combination Amivantamab and Carboplatin-Pemetrexed Therapy, Compared With Carboplatin-Pemetrexed, in Participants With Advanced or Metastat
-- trial NCT04988295  Phase 3, Active not recruiting, n=776, primary completion 2023-07-10
-    A Study of Amivantamab and Lazertinib in Combination With Platinum-Based Chemotherapy Compared With Platinum-Based Chemotherapy in Patients With Epide
-- trial NCT04487080  Phase 3, Active not recruiting, n=1074, primary completion 2023-08-11
-    A Study of Amivantamab and Lazertinib Combination Therapy Versus Osimertinib in Locally Advanced or Metastatic Non-Small Cell Lung Cancer
-- trial NCT05388669  Phase 3, Active not recruiting, n=418, primary completion 2024-01-03
-    A Study of Lazertinib With Subcutaneous Amivantamab Compared With Intravenous Amivantamab in Participants With Epidermal Growth Factor Receptor (EGFR)
-- trial NCT05663866  Phase 2, Active not recruiting, n=68, primary completion 2024-03-29
-    Premedication to Reduce Amivantamab Associated Infusion Related Reactions
-- trial NCT02609776  Phase 1, Active not recruiting, n=751, primary completion 2026-12-31
-    Study of Amivantamab, a Human Bispecific EGFR and cMet Antibody, in Participants With Advanced Non-Small Cell Lung Cancer
-- **pending catalyst** 2027-05-31 (data readout): Phase 2, Rybrevant / Lazcluze
-- **pending catalyst** 2027-08-17 (data readout): Phase 2, Rybrevant / Lazcluze
 
 ### Colorectal Neoplasms   [Phase 3, Recruiting]
 - unit key `7308:381`, therapeutic area None
@@ -116,6 +83,7 @@
 
 ## Tremfya  (asset_id 572)
 - mode **marketed**, revenue anchor 5,155mm USD
+- **CMS Part D 2024** (Tremfya (2 presentations)): $619,021,086 over 10,860 beneficiaries = **$57,000 per beneficiary a year**. This is the basis the book prices on — see amgn_abp_206.csv.
 - **blocked at asset level on discontinuation_pct, net_price_per_patient.** Every layer below needs these, so find them once for the product:
     - `list_price_per_patient` in mm USD a year, from the manufacturer's own WAC disclosure or a state price transparency filing, with the dose and schedule you multiplied shown in the source; plus `gross_to_net_pct`.
     - `discontinuation_pct`, the share of the patient stock stopping each year. Derive it from a published median duration of response, progression-free survival or persistence, and say which and from where.
