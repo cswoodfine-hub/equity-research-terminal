@@ -140,6 +140,35 @@ def test_moves_the_rows_that_hang_off_the_derived_asset(tmp_path):
     assert mapped["asset_id"] == marketed
 
 
+def test_a_readout_on_a_pair_both_rows_hold_follows_the_survivor(tmp_path):
+    """Osavampator and NBI-1065845 each carried major depression with a readout linked
+    to it. Folding one into the other deleted the loser's copy of the pair while the
+    readout still pointed at it, and the foreign key stopped the merge."""
+    path, conn = _seed(tmp_path)
+    marketed = _asset(conn, "LLY", brand="Jaypirca", generic="Pirtobrutinib",
+                      marketed=1)
+    derived = _asset(conn, "LLY", generic="Pirtobrutinib")
+    _trial(conn, derived, "NCT0006")
+    conn.execute("INSERT INTO indications (id, name) VALUES (3, 'Lymphoma')")
+    keep = conn.execute("INSERT INTO asset_indications (asset_id, indication_id, region)"
+                        " VALUES (?, 3, 'US')", (marketed,)).lastrowid
+    gone = conn.execute("INSERT INTO asset_indications (asset_id, indication_id, region)"
+                        " VALUES (?, 3, 'US')", (derived,)).lastrowid
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = 'LLY'").fetchone()[0]
+    conn.execute("INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+                 " status, asset_indication_id) VALUES (?, ?, 'readout', 'r',"
+                 " 'pending', ?)", (cid, derived, gone))
+    conn.commit()
+    conn.close()
+
+    assert asset_merge.merge(path)["merged"] == 1
+
+    conn = db.get_connection(path)
+    row = conn.execute("SELECT asset_id, asset_indication_id FROM catalysts").fetchone()
+    conn.close()
+    assert row["asset_id"] == marketed and row["asset_indication_id"] == keep
+
+
 # --- the second pass: two derived rows for one programme -------------------------------
 
 def _codes(name):
