@@ -217,3 +217,6 @@ BNTX,BNT162b2,Comirnaty,"BNT162b2 is Comirnaty, the BioNTech and Pfizer COVID-19
 BNTX,BNT162b2 Vaccine,Comirnaty,"the same vaccine under the registry's intervention name; see the BNT162b2 row"
 ARGX,empasiprubart SC AI,Empasiprubart,"the subcutaneous autoinjector arm of empasiprubart, filed by the registry as its own intervention"
 ARWR,Plozasiran,Redemplo,"Redemplo is plozasiran, approved for familial chylomicronemia syndrome; Arrowhead's filings introduce it as REDEMPLO (plozasiran)"
+SMMT,Ivonescimab Injection,Ivonescimab,"the registry's intervention name for ivonescimab, which smmt_ivonescimab.csv values"
+AMGN,Inebilizumab,Uplizna,"Uplizna is inebilizumab-cdon, approved for neuromyelitis optica spectrum disorder, IgG4-related disease and generalised myasthenia gravis"
+INCY,INCA034176,Niktimvo,"Niktimvo is axatilimab-csfr; INCA034176 is Incyte's development code for axatilimab in its chronic graft-versus-host disease studies"
