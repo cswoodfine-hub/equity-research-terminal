@@ -886,6 +886,25 @@ def attach_catalyst_indications(conn) -> dict:
         if found:
             for nct_id in item["nct_ids"]:
                 named[(asset_id, nct_id)] = found[0]
+    # A curated addition names the studies that make its pair, and those studies read out
+    # in it. Without this the pair stood and its readouts did not link: 77 readouts the
+    # registry never indexed sat beside the row an analyst had written for them, and a
+    # study in two of the asset's diseases stayed ambiguous after the protocol had been
+    # read and the answer written down. A study named on two rows of one asset decides
+    # neither, and is left to the rules below.
+    by_study: dict = {}
+    for asset_id, row, _ in _curated_rows(conn, pathlib.Path(ADDITIONS_CSV)):
+        mesh_id = (row.get("mesh_id") or "").strip()
+        found = conn.execute(
+            "SELECT ai.id FROM asset_indications ai JOIN indications i"
+            "    ON i.id = ai.indication_id WHERE ai.asset_id = ? AND i.mesh_id = ?",
+            (asset_id, mesh_id)).fetchone() if mesh_id else None
+        if found:
+            for nct_id in (row.get("nct_ids") or "").split():
+                by_study.setdefault((asset_id, nct_id), set()).add(found[0])
+    for key, pair_ids in by_study.items():
+        if len(pair_ids) == 1:
+            named.setdefault(key, next(iter(pair_ids)))
 
     rows = conn.execute(
         f"""SELECT cat.id, cat.source_url, COALESCE(t.asset_id, cat.asset_id) AS asset_id,

@@ -970,3 +970,58 @@ def test_the_build_drops_an_excluded_pair_and_keeps_the_other(tmp_path):
         "  JOIN indications i ON i.id = ai.indication_id WHERE ai.asset_id = 1")}
     assert "Lupus Erythematosus, Systemic" in got
     conn.close()
+
+
+def _additions_file(tmp_path, monkeypatch, *rows):
+    path = tmp_path / "additions_named.csv"
+    path.write_text("ticker,asset,mesh_id,term,nct_ids,basis\n"
+                    + "".join(r + "\n" for r in rows))
+    monkeypatch.setattr(im, "ADDITIONS_CSV", path)
+
+
+def test_a_study_a_curated_addition_names_reads_out_in_its_pair(tmp_path, monkeypatch):
+    """The registry indexed nothing, so the addition made the pair and the readout still
+    linked to nothing. It now links to the row written for it."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET mesh_terms = NULL, conditions = '[]',"
+                 " title = 'A Study of A in Adults'")
+    conn.commit(); conn.close()
+    _paediatric_file(tmp_path, monkeypatch)
+    _additions_file(tmp_path, monkeypatch,
+                    "X,A,D003424,Crohn Disease,NCT9,the protocol names Crohn's disease")
+    im.build(path)
+    assert _linked_name(path)["name"] == "Crohn Disease"
+
+
+def test_a_named_study_settles_an_ambiguous_readout(tmp_path, monkeypatch):
+    """A study indexed under two of the asset's diseases links once the protocol has been
+    read and the disease it is in written down."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    two = json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"},
+                                 {"id": "D003093", "term": "Colitis, Ulcerative"}]})
+    conn.execute("UPDATE trials SET mesh_terms = ?, conditions = ?, title = 'Adults'",
+                 (two, '["Crohn Disease", "Colitis, Ulcerative"]'))
+    conn.commit(); conn.close()
+    _paediatric_file(tmp_path, monkeypatch)
+    _additions_file(tmp_path, monkeypatch)
+    summary = im.build(path)
+    assert summary["catalysts_ambiguous"] == 1
+    _additions_file(tmp_path, monkeypatch,
+                    "X,A,D003093,\"Colitis, Ulcerative\",NCT9,the primary endpoint is UC")
+    im.build(path)
+    assert _linked_name(path)["name"] == "Colitis, Ulcerative"
+
+
+def test_a_study_named_on_two_rows_decides_neither(tmp_path, monkeypatch):
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET mesh_terms = NULL, conditions = '[]', title = 'Adults'")
+    conn.commit(); conn.close()
+    _paediatric_file(tmp_path, monkeypatch)
+    _additions_file(tmp_path, monkeypatch,
+                    "X,A,D003424,Crohn Disease,NCT9,one",
+                    "X,A,D003093,\"Colitis, Ulcerative\",NCT9,two")
+    im.build(path)
+    assert _linked_name(path) is None
