@@ -89,7 +89,21 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
         return {"ok": False, "missing": gaps,
                 "why": "The layer needs its own pool and price before it can be built."}
 
+    # The share of the pool already inside the approved business, which the marketed
+    # line scales the layer by (forecast._indication_layers). The gate built it at full
+    # size, so Imfinzi's bladder layer, 94% inside the business it already sells to, was
+    # staked at 2,080mm where the forecast adds 125mm. The pool is narrowed rather than
+    # the answer scaled, so the peak, the patients and the value all say the same thing.
+    overlap = (entry.get("scalars") or {}).get("base_pool_overlap_pct")
+    if overlap is not None and overlap >= 1.0:
+        return {"ok": False, "missing": [],
+                "why": "The pool is wholly inside the business already being sold to, so "
+                       "the readout moves evidence rather than patients."}
+
     layer = copy.deepcopy(loaded)
+    entry = copy.deepcopy(entry)
+    if overlap:
+        entry["scalars"]["eligible_pct"] *= 1.0 - overlap
     layer["indications"] = [entry]
     layer["is_marketed"] = False          # the layer is the business not yet won
     scalars = layer["scalars"]
@@ -119,6 +133,7 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
         "revenue": out.get("revenue"),
         "treated": out.get("treated"),
         "notes": out.get("notes") or [],
+        "base_pool_overlap_pct": overlap,
         # The franchise check. Reported, not applied: see the docstring.
         "ceiling": ceiling,
         "base_peak_revenue": base_peak,

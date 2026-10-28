@@ -78,6 +78,31 @@ def test_the_layer_is_unrisked(tmp_path):
     conn.close()
 
 
+def test_the_layer_leaves_out_the_share_already_in_the_business(tmp_path):
+    """The marketed line adds (1 - overlap) of a layer, so the gate's stake must too: a
+    layer half inside the approved business is worth half of one wholly outside it."""
+    _, conn = _seed(tmp_path)
+    full = IL.build(conn, 1, 7)
+    A.save(conn, 1, [{"key": "base_pool_overlap_pct", "indication_id": 7, "value": 0.5,
+                      "source": "t"}])
+    conn.commit()
+    half = IL.build(conn, 1, 7)
+    assert half["ok"] and half["base_pool_overlap_pct"] == 0.5
+    assert half["peak_revenue"] == pytest.approx(full["peak_revenue"] / 2, rel=0.02)
+    assert half["npv"] < full["npv"]
+    conn.close()
+
+
+def test_a_layer_wholly_inside_the_business_is_not_priced(tmp_path):
+    _, conn = _seed(tmp_path)
+    A.save(conn, 1, [{"key": "base_pool_overlap_pct", "indication_id": 7, "value": 1.0,
+                      "source": "t"}])
+    conn.commit()
+    got = IL.build(conn, 1, 7)
+    assert not got["ok"] and "wholly inside" in got["why"]
+    conn.close()
+
+
 def test_the_franchise_ceiling_is_reported_not_applied(tmp_path):
     """The ceiling is somebody's forecast of the whole product at peak, so it already
     contains the expansions. Silently capping would hide that; the flag shows it."""
