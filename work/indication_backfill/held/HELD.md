@@ -52,3 +52,30 @@ zero goes too.
 
 **What would release it:** a sourced AMD price per patient-year. As the agent says, that
 probably makes it a separate asset rather than a layer.
+
+## azn_datroway.csv — the whole file (Phase 1b, 2026-10-28)
+
+The anchor is sound: AstraZeneca's own FY2025 Product Revenue line, $78mm, on the same
+basis as the Enhertu seed (Product Sales plus Alliance Revenue). The growth row is what
+is held. `revenue_growth_pct` = 1.666667, the 2026 the filed halves imply ($208mm)
+against FY2025, with no `revenue_ceiling_musd` to stop it. Faded over five years it
+carries AstraZeneca's line from $78mm to $2,157mm in 2030, about $4.95bn of combined
+sales with Daiichi Sankyo. The agent put this first on its own list: *"This is the
+weakest row."* No published peak could be opened: the GlobalData and press figures it
+found, $1.4bn to $5bn, sit on sites this session's network blocks.
+
+**What would release it:** a published peak-sales forecast a reader can open, set as
+`revenue_ceiling_musd`, or a rate solved to one, as Jaypirca's is.
+
+## axsm_sunosi.csv — the whole file (Phase 1b, 2026-10-28)
+
+The product half is sound: Axsome's FY2025 10-K names Sunosi product sales of $120.1mm
+(Note 14), and the price and discontinuation rate are measured from CMS Part D 2024.
+But the book holds no Axsome seed, so there is no company half to copy, and the brief
+forbids deriving one inside a product file. Loaded as it stands, the engine refuses to
+value Sunosi (no discount rate), so it prices nothing.
+
+**What would release it:** an Axsome company half (cost ratios, tax, discount rate,
+other-costs charge), written once as its own seed the way every other company's is.
+Axsome has made a pre-tax loss every year to FY2025, so the house effective-rate
+method for `tax_rate` has nothing to read and needs a stated alternative.
