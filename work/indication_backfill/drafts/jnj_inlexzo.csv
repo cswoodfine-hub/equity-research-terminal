@@ -1,0 +1,10 @@
+# Inlexzo (JNJ): the muscle-invasive bladder cancer readout, answered as failed.
+#
+# data/assumptions/jnj_inlexzo.csv models the product in chronic mode, built from
+# patients, because Johnson & Johnson does not report its sales on a line of its own.
+# Those rows are untouched. This adds only the failed SunRISe-2 unit, which needs no pool.
+#
+# 2026-10-28
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+JNJ,Inlexzo,Urinary Bladder Neoplasms,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"NCT04658862 (SunRISe-2) randomised 518 patients with muscle-invasive bladder cancer who refused or were unfit for cystectomy to TAR-200 plus cetrelimab or chemoradiotherapy (ClinicalTrials.gov, read from the book's trials table). The label is BCG-unresponsive non-muscle invasive disease with carcinoma in situ (Drugs@FDA, NDA 219683, as jnj_inlexzo.csv records it), so none of this population is in the base","no pool is seeded, because the programme has failed"
+JNJ,Inlexzo,Urinary Bladder Neoplasms,US,base,pos,,0.0,,,"stopped for futility: Johnson & Johnson discontinued SunRISe-2 in October 2024 after the independent data monitoring committee's pre-specified interim analysis found TAR-200 plus cetrelimab did not show superiority to chemoradiotherapy (OncLive, 'Phase 3 Study of TAR-200/Cetrelimab Is Discontinued in MIBC', 2024-10-08; CancerNetwork, 2024-10-09). The final analysis, presented in 2026, did not improve bladder-intact event-free survival against chemoradiotherapy (Urology Times, 2026-03-01; J&J Medical Connect, 'INLEXZO SunRISe-2 study')","the registry still reads Active, not recruiting with a 2026-12-30 primary completion, which is follow-up of a stopped trial, not a pending readout. The articles were found by search and could not be opened from this session"

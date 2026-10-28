@@ -1,0 +1,39 @@
+# Xofluza (ROG). baloxavir marboxil, single-dose oral influenza antiviral.
+#
+# Marketed, anchored on Roche's FY2025 global sales of CHF 407mm from its own workbook as
+# the book read it. Growth is held flat because the one number that would set it, Roche's
+# 2025 growth rate on the same sheet, sits on a host this session cannot reach. That row
+# leans high: FDA approved a US generic in June 2026, and the book's LOE is 2037.
+#
+# No layer for Pediatric influenza: NCT06094010 is a surveillance study of resistance
+# substitutions in children aged 3 weeks to 11 (primary endpoint, not efficacy), the label
+# starts at 5, and US sales are CHF 57mm into a market with an approved generic. A layer
+# would need a US under-5 treated-influenza pool and a probability that this study moves
+# the label, and neither is sourced here.
+#
+# Ratios, discount rate and the other-costs charge are Roche's own, from rog_alecensa.csv.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+ROG,Xofluza,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product whose sales Roche publishes
+ROG,Xofluza,,US,base,base_revenue,,407.0,,mm CHF,"ROG FY2025 reported global sales of Xofluza, CHF 407mm, from Roche Finance Information Tool, group financial data workbook, FY2025, sheet ""P Sales Regions CHF"", as the book's financials_ir fetcher read it on 2026-10-27 (asset_revenue, asset 57): CHF 57mm United States, CHF 2mm Europe, nil Japan and CHF 348mm International","in francs because Roche reports in francs. 86% of it is International, mainly China, and Shionogi sells baloxavir in Japan and Taiwan itself, so this is the Roche-booked part only"
+ROG,Xofluza,,US,base,revenue_growth_pct,,0.0,,"annual, near term","held at the reported year: the book carries FY2025 alone for Xofluza, and Roche's own 2025 growth rate, which the growth block of the same sheet prints, could not be read because assets.roche.com is not reachable from this session","not a floor. 2025 was a heavy flu season and FDA approved Norwich's generic baloxavir in June 2026, so a flat line leans high. Replace with Roche's published 2025 rate, as rog_alecensa.csv carries its own, or with 2026's when the full year is out"
+ROG,Xofluza,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+ROG,Xofluza,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
+ROG,Xofluza,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+ROG,Xofluza,,US,base,forecast_years,,13,,years,"2026 to 2038, long enough to run past the 2037-08-09 loss of exclusivity the book holds (drug substance patent 10759814, Orange Book, NDA 214410)","the US cliff may come far earlier: FDA approved a generic in June 2026 (FDA press release 2026-06-18, as returned by search, not opened from this session), and whether it has launched is not on file"
+ROG,Xofluza,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+ROG,Xofluza,,US,base,list_price_per_patient,,0.00014350,,mm CHF per course,"CMS Medicare Part D quarterly companion, dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15, row '2025 (Q1-Q4)', Overall, as nvs_eyu688.csv reads it: $3,018,152.63 over 17,376 beneficiaries = $173.70 a beneficiary. Converted to CHF, the currency ROG reports in: $173.70 at 1.2104295 USD per CHF (ECB reference rate 2026-10-26, fx_rates via backend/fx.py) is CHF 143.50","a course is one oral dose, so the per-beneficiary figure is the price of one treatment"
+ROG,Xofluza,,US,base,gross_to_net_pct,,0.5,,share off list,"Part D gross-to-net convention, measured at a median 96% of CMS's own negotiated net annual prices across the nine cycle-one IRA drugs (backend/gross_to_net.py); CMS Part D spending is gross of manufacturer rebates",Roche publishes no US gross-to-net figure for Xofluza
+ROG,Xofluza,,US,base,discontinuation_pct,,1.0,,share of the treated stock a year,"measured: CMS Part D 2024 (drug_demand asset 57) has 7,723 claims over 7,548 beneficiaries, 1.02 each, and Xofluza is a single oral dose for treatment or post-exposure prophylaxis (label section 2), so nobody carries into a second year on the same course","the treated stock collapses to each year's courses, as an acute antiviral's should"
+ROG,Xofluza,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,
+ROG,Xofluza,,US,base,cogs_pct,,0.27058,,share of revenue,"ROG FY2025 from Roche Finance Information Tool, group financial data workbook, FY2025: cost of sales CHF 16,645mm on sales of 61,516mm. The sheet's own six components sum to it exactly","Roche does not file with the SEC, so this comes from the workbook it publishes for investors rather than from EDGAR"
+ROG,Xofluza,,US,base,rd_pct,,0.217049,,share of revenue,"ROG FY2025: research and development CHF 13,352mm on sales of 61,516mm","the IFRS charge, not the CHF 12,832mm core figure below it in the sheet, which adds back amortisation and impairment"
+ROG,Xofluza,,US,base,sga_pct,,0.246456,,share of revenue,"ROG FY2025: selling, general and administration CHF 15,161mm on sales of 61,516mm, its four components summing to it exactly",
+ROG,Xofluza,,US,base,other_costs_pct,,-0.03443,,share of revenue,"solved so the charges reconcile to the filed operating profit of CHF 18,476mm. It is negative because Roche books other revenue of 1,840mm and other operating income of 278mm above the line, and those two sum to exactly the 2,118mm this credits back","the same convention AstraZeneca and GSK carry, both also negative"
+ROG,Xofluza,,US,base,tax_rate,,0.187003,,effective rate,"ROG FY2025: income taxes of CHF 3,174mm on profit before taxes of 16,973mm","a single year rather than a five-year aggregate, because the workbook carries only the current year"
+ROG,Xofluza,,US,base,risk_free,,0.0501,,,"10-year Treasury constant maturity (FRED DGS10), 2026-09-16: 5.01%. Read live (fetchers/rates_fred.py)",
+ROG,Xofluza,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month cash yield variant",
+ROG,Xofluza,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W38 to 2026-W39, Blume-adjusted (0.46 raw)","measured on the RHHBY ADR against the S&P 500, which is the only Roche price series on file. A beta measured on the SIX-listed ordinary share against a Swiss index would not be the same number"
+ROG,Xofluza,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data",
+ROG,Xofluza,,US,base,debt_weight,,0.098037,,,"filed long-term debt of CHF 31,636mm at 2025-12-31 from the workbook's balance sheet, over debt plus a market capitalisation of CHF 291.1bn: 802,992,519 diluted shares at 0.125 ordinary per ADR, so 6,423,940,150 ADRs at the RHHBY close of $55.06 on 2026-09-23, converted at CHF/USD 1.215229","ROCHE HAS TWO SHARE CLASSES AND THIS PRICES BOTH OFF ONE. The count is derived from Roche's own published per-share figure, which is struck on bearer shares and non-voting equity securities together, while RHHBY is an ADR over the non-voting security alone. The two trade close but not equal, so this market capitalisation is approximate. It moves the weight and not the cost ratios"
