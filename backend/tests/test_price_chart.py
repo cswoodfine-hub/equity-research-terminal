@@ -81,3 +81,91 @@ def test_the_html_bundles_the_library_and_paints_the_chosen_series():
     line = price_chart.chart_html(DAILY, mode=price_chart.LINE)
     assert "/* chart-mode: Line */" in line
     assert "addLineSeries({ color:" in line                        # our line call, not candles
+
+
+# --- a day that carries several events ---------------------------------------
+
+def test_a_day_with_several_events_gets_one_marker_that_counts_the_rest():
+    events = [{"date": "2026-07-14", "label": "Verzenio", "kind": "approval"},
+              {"date": "2026-07-14", "label": "Taltz LOE", "kind": "loe"},
+              {"date": "2026-07-14", "label": "pos 0.25 to 0.92", "kind": "model"}]
+    marks = price_chart.event_markers(DAILY, events)
+    assert len(marks) == 1, "one bar, one marker"
+    assert marks[0]["text"] == "pos 0.25 to 0.92 +2", "the model move leads and counts the rest"
+    assert marks[0]["color"] == TK.FLAG
+
+
+def test_an_approval_leads_a_day_the_analyst_did_not_touch():
+    events = [{"date": "2026-07-14", "label": "a trial slipped", "kind": "change"},
+              {"date": "2026-07-14", "label": "Verzenio", "kind": "approval"}]
+    marks = price_chart.event_markers(DAILY, events)
+    assert marks[0]["text"] == "Verzenio +1"
+    assert marks[0]["shape"] == "arrowUp"
+
+
+def test_events_on_different_days_keep_their_own_markers():
+    events = [{"date": "2026-07-13", "label": "Verzenio", "kind": "approval"},
+              {"date": "2026-07-15", "label": "Taltz LOE", "kind": "loe"}]
+    marks = price_chart.event_markers(DAILY, events)
+    assert [m["text"] for m in marks] == ["Verzenio", "Taltz LOE"]
+
+
+# --- the fair value line -----------------------------------------------------
+
+POINTS = [
+    {"as_of": "2026-07-13", "fair_value": None, "stated": False, "carried": False},
+    {"as_of": "2026-07-14", "fair_value": 80.0, "stated": True, "carried": False},
+    {"as_of": "2026-07-15", "fair_value": 80.0, "stated": False, "carried": True},
+]
+
+
+def test_the_fair_value_line_marks_the_days_it_was_stated():
+    line = price_chart.forecast_series(POINTS)
+    assert [p["value"] for p in line] == [80.0, 80.0]
+    assert line[0]["color"] == TK.FLAG, "stated"
+    assert line[1]["color"] == TK.MUTED, "carried"
+
+
+def test_the_line_does_not_reach_back_before_the_first_stated_day():
+    line = price_chart.forecast_series(POINTS)
+    assert line[0]["time"] == "2026-07-14", "2026-07-13 had no view, so it has no line"
+
+
+def test_the_fair_value_line_is_left_off_an_intraday_view():
+    assert price_chart.forecast_series(POINTS, intraday=True) == [], (
+        "the model states a view once a day, not once a bar")
+
+
+def test_the_fair_value_line_is_clipped_to_the_loaded_bars():
+    """The record runs longer than the window on screen, and the chart fits the whole of
+    what it is given: an unclipped line would stretch a five-day view to six months."""
+    longer = [{"as_of": "2026-01-02", "fair_value": 70.0, "stated": True}] + POINTS
+    line = price_chart.forecast_series(longer, bars=DAILY)
+    assert [p["time"] for p in line] == ["2026-07-14", "2026-07-15"], (
+        "January is outside the loaded bars and never reaches the chart")
+
+
+def test_no_bars_means_no_clipping():
+    longer = [{"as_of": "2026-01-02", "fair_value": 70.0, "stated": True}] + POINTS
+    line = price_chart.forecast_series(longer)
+    assert line[0]["time"] == "2026-01-02", "nothing to clip against, so nothing is cut"
+    assert line[-1]["time"] == "2026-07-15"
+
+
+def test_the_line_carries_no_whitespace_before_it_starts_or_after_it_ends():
+    """Whitespace breaks a line that has started and stopped. Thousands of empty bars to
+    draw a fortnight is a payload the component pays for on every render."""
+    span = ([{"as_of": f"2026-07-{d:02d}", "fair_value": None, "stated": False}
+             for d in (1, 2)]
+            + [{"as_of": "2026-07-03", "fair_value": 80.0, "stated": True},
+               {"as_of": "2026-07-04", "fair_value": None, "stated": False},
+               {"as_of": "2026-07-05", "fair_value": 90.0, "stated": True}]
+            + [{"as_of": "2026-07-06", "fair_value": None, "stated": False}])
+    line = price_chart.forecast_series(span)
+    assert [p["time"] for p in line] == ["2026-07-03", "2026-07-04", "2026-07-05"]
+    assert "value" not in line[1], "the gap in the middle still breaks the line"
+
+
+def test_a_record_with_nothing_stated_draws_nothing():
+    blank = [{"as_of": "2026-07-13", "fair_value": None, "stated": False}]
+    assert price_chart.forecast_series(blank) == []

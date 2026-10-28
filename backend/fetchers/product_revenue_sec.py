@@ -108,6 +108,26 @@ AGGREGATE_WORDS = {
     # and Moderna's COVID19 line is the whole respiratory franchise.
     "influenza", "meningitis", "shingles", "covid", "covid19", "rsv", "hepatitis",
     "polio", "malaria", "biosimilars", "biosimilar", "dermatology", "ophthalmology",
+    # More of the same, found by reading what the fetcher had actually created. GSK
+    # reports Pandemic, its pandemic influenza line, which is the same kind of thing as
+    # the Influenza above it. Ionis reports ATTRvPN, hereditary transthyretin
+    # amyloidosis with polyneuropathy, which is the indication behind Tegsedi and Wainua
+    # rather than either of them.
+    #
+    # Novo's HaemophiliaA, HaemophiliaB and HumanInsulin read the same way and are
+    # deliberately not here. They are the finest split Novo discloses for those
+    # products, test_a_therapy_area_named_disorders_is_a_grouping fixes them as
+    # attributable lines, and the grouping above them, RareBloodDisorders, is the row
+    # that was double counting. Adding them would move that revenue into the
+    # unattributed remainder, which is a coverage decision rather than a correctness
+    # one and belongs to whoever owns the product chart.
+    "pandemic", "attrv", "attrvpn",
+    # Johnson & Johnson's MedTech categories again. "surgery" was listed and "surgical"
+    # was not, so SURGICAL carried 1.6bn against a name no product answers to.
+    "surgical",
+    # A category of contract rather than a thing sold. Wave Life Sciences reports
+    # CategoryOnePrograms, which is a tier of its collaboration agreements.
+    "category", "programs", "programmes",
     # Johnson & Johnson reports MedTech by surgical category. These are not drugs and
     # never were, and each was carrying revenue against a name no product answers to.
     # Biogen groups by mode of action: Fumarate is Tecfidera and Vumerity, Interferon is
@@ -129,6 +149,10 @@ LINE_ITEM_WORDS = {
     "reimbursement", "partnership", "partnerships", "technology", "options",
     "commercial", "manufacturing", "manufactured", "launches", "antibodies",
     "alliance", "subscription", "distribution", "supply",
+    # Presentation, not product. Exelixis tags ProductGross, the gross figure above its
+    # own net revenue line, and Gilead tags SymtuzaRevenueShare, which is its share of a
+    # product Johnson & Johnson sells rather than a product of its own.
+    "gross", "share", "shares",
     # A member naming a company is a business, not a drug. Johnson & Johnson reports
     # Abiomed and Shockwave Medical as MedTech lines, and both are acquisitions rather
     # than products.
@@ -166,6 +190,27 @@ def _curated_names() -> dict:
             for row in csv.DictReader(lines) if (row.get("display") or "").strip()}
 
 
+@functools.lru_cache(maxsize=1)
+def _not_products() -> dict:
+    """Members that are businesses or collaborations rather than products.
+
+    The word sets catch a grouping, a therapeutic area and an income-statement line,
+    because each says what it is in a word. A division and an acquired company do not:
+    on the product axis a proper noun is what a brand looks like. The rule that would
+    catch them, a member starting with the filer's own name, is wrong on this universe,
+    since NovoSeven, NovoMix and NovoRapid are products that start with Novo. So these
+    are written down, in data/not_a_product.csv, with the reason against each.
+    """
+    path = (pathlib.Path(__file__).resolve().parent.parent.parent
+            / "data" / "not_a_product.csv")
+    if not path.exists():
+        return {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        lines = [line for line in handle if not line.lstrip().startswith("#")]
+    return {_norm(row["member"]): (row.get("note") or "").strip()
+            for row in csv.DictReader(lines) if (row.get("member") or "").strip()}
+
+
 def display_name(member: str) -> str:
     """The product name to show, with any revenue-type prefix taken off the front."""
     lowered = _norm(member)
@@ -192,6 +237,8 @@ def is_aggregate(member: str) -> bool:
     # franchise, while HIV on its own is the franchise.
     member = display_name(member).replace(" ", "") or member
     normalised = _norm(member)
+    if normalised in _not_products():
+        return True
     if normalised in NOT_A_PRODUCT or normalised in AGGREGATE_WORDS:
         return True
     words = [w for w in re.split(r"(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+", member) if w]
@@ -846,7 +893,12 @@ def _referencing_tables(conn) -> list:
                     for fk in conn.execute(f'PRAGMA foreign_key_list("{table}")'))
         if not keyed:
             continue
-        nullable = not any(column[1] == "asset_id" and column[3]
+        # NOT NULL is not the only thing that refuses a null. orange_book_listings and
+        # drug_code_lookups declare asset_id as INTEGER PRIMARY KEY, which makes it the
+        # rowid, and SQLite answers "datatype mismatch" rather than a constraint error
+        # when one is set to null. Both rows are properties of the asset, so the right
+        # move for them is the delete branch anyway; the pragma just has to say so.
+        nullable = not any(column[1] == "asset_id" and (column[3] or column[5])
                            for column in conn.execute(f'PRAGMA table_info("{table}")'))
         out.append((table, nullable))
     return out
@@ -897,8 +949,23 @@ def prune(db_path=None) -> dict:
                 # is an application number the FDA issued, not a name match. A row that
                 # has one is left alone and reported, because something real reached it
                 # and a person should look.
-                if conn.execute("SELECT 1 FROM approvals WHERE asset_id = ? LIMIT 1",
-                                (row["id"],)).fetchone():
+                #
+                # Unless another asset already holds the same application, in which case
+                # it is a name match after all and the identity belongs to that other
+                # row. "Symtuza Revenue Share" reached NDA210455, which is Johnson &
+                # Johnson's Symtuza and is on Johnson & Johnson's asset; Novo's
+                # "Human Insulin" reached BLA019938, which is Novolin R and is on
+                # Novolin R. Retiring either loses no approval, because the approval is
+                # still on the product that holds it.
+                holds_an_approval_of_its_own = conn.execute(
+                    "SELECT 1 FROM approvals mine"
+                    "  WHERE mine.asset_id = ?"
+                    "    AND NOT EXISTS (SELECT 1 FROM approvals theirs"
+                    "                     WHERE theirs.application_number ="
+                    "                           mine.application_number"
+                    "                       AND theirs.asset_id <> mine.asset_id)"
+                    "  LIMIT 1", (row["id"],)).fetchone()
+                if holds_an_approval_of_its_own:
                     kept += 1
                     continue
                 # Everything else attached to this row attached on the strength of the

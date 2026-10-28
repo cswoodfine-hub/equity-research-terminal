@@ -797,7 +797,7 @@ def test_reason_codes_are_the_contracts(path):
              "no_forecast", "stated_elsewhere", "nil", "no_gate", "regulatory_not_gate",
              "not_a_gate",
              "no_trial_link", "past_gate", "not_gate_phase", "phase_ahead_of_book",
-             "other_indication", "same_gate_later"}
+             "other_indication", "same_gate_later", "already_approved"}
     assert set(forecast_view.STAKE_REASONS) <= codes
     seen = set()
     for ticker in ("AZN", "NVO", "CRSP", "BAYN"):
@@ -999,3 +999,26 @@ def test_book_the_count_is_the_screens_and_every_null_has_a_reason(book, real_en
         for item in got["catalysts"]["items"]:
             for field in ("asset", "indication", "stake", "asset_value"):
                 assert (item[field] is None) == (field in item["na"]), (ticker, item["id"])
+
+
+def test_a_marketed_line_with_layer_rows_still_counts_in_its_lead_indication_only(path):
+    """The $146 fatty liver bug, by another door. A marketed product is valued off its
+    reported revenue whatever indication rows it carries; the rows it does carry are
+    expansion layers, most of them nil. Reading them as "sized here" put the whole of
+    Mounjaro under Fatty Liver at $149 a share and the whole of orforglipron under four
+    comorbidities it adds nothing in."""
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (901, 1, 'Marketed', 1)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (9001, 'Lead')")
+    conn.execute("INSERT INTO indications (id, name) VALUES (9002, 'Layer')")
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase, is_lead,"
+                 " region) VALUES (9901, 901, 9001, 'Phase 4', 1, 'US')")
+    conn.execute("INSERT INTO assumptions (asset_id, key, text_value, region, scenario)"
+                 " VALUES (901, 'therapy_mode', 'marketed', 'US', 'base')")
+    conn.execute("INSERT INTO assumptions (asset_id, indication_id, key, value, region,"
+                 " scenario) VALUES (901, 9002, 'prevalence', 1000, 'US', 'base')")
+    conn.commit()
+    got = cc._attribution(conn, [901])
+    conn.close()
+    assert got == {9001: {901}}, got          # the lead, never the layer

@@ -823,9 +823,12 @@ def test_every_other_company_keeps_todays_overview_called_as_before():
     block = block[:block.index("    with insights_tab:")]
     assert ('_universe_redesigned(ticker, _view, (company or {}).get("engine"))' in block
             and "universe_page.render(api_base, ticker)" in block)
-    assert block.rstrip().endswith(
-        "_universe_overview(api_base, engine, _engine_name, _covered,\n"
-        "                               _all_changes, universe_feed)")
+    assert ("_universe_overview(api_base, engine, _engine_name, _covered,\n"
+            "                               _all_changes, universe_feed)") in block
+    # The evidence queue is book-wide, so it sits at the foot of the book-wide tab,
+    # after the overview and never in front of it.
+    assert block.rstrip().endswith("_review_queue_panel(api_base)")
+    assert block.index("_universe_overview(") < block.index("_review_queue_panel(")
     overview = source[source.index("def _universe_overview("):
                       source.index("def _markets_view(")]
     assert "universe_page" not in overview and "universe_cc" not in overview

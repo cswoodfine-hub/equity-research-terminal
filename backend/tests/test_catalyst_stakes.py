@@ -14,6 +14,7 @@ import pytest
 import assumptions as A
 import catalysts as C
 import db
+import approved_indications as AI
 import forecast_view as V
 import pos_granular as PG
 
@@ -664,3 +665,92 @@ def test_derived_outcomes_are_not_recorded_while_the_switch_is_off(tmp_path, big
     assert row["resolvable"] is False and row["resolve_note"] == V.DERIVED_RESOLVE_NOTE
     with pytest.raises(ValueError, match="switched off"):
         V.resolve_catalyst(path, "ABBV", row["id"], "met")
+
+
+# --- a readout in an indication the label already covers --------------------
+def _approved_db(tmp_path, label_text, indication="Crohn Disease", phase="Phase 3"):
+    """A marketed product with one indication, a label, and a readout on it."""
+    path = str(tmp_path / "approved.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Omvoh', 1)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (1, ?)", (indication,))
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                 " region) VALUES (5, 1, 1, ?, 'US')", (phase,))
+    if label_text is not None:
+        conn.execute("INSERT INTO labels (asset_id, setid, effective_time,"
+                     " indications_text) VALUES (1, 'x', 'Aug 11, 2026', ?)", (label_text,))
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, asset_indication_id,"
+                 " catalyst_type, expected_date, title, status) VALUES"
+                 " (10, 1, 1, 5, 'data readout', date('now', '+90 days'),"
+                 " 'Phase 3, Omvoh', 'pending')")
+    conn.commit(); conn.close()
+    return path
+
+
+_OMVOH_LABEL = ("OMVOH is indicated for the treatment of: moderately to severely active "
+                "ulcerative colitis in adults. moderately to severely active Crohn's "
+                "disease in adults.")
+
+
+def test_a_readout_in_an_approved_indication_is_not_a_gate(tmp_path):
+    """Omvoh's Crohn's readout stood as a pending expansion while the label had carried
+    "moderately to severely active Crohn's disease in adults" since January 2025.
+    Pricing it would have bought an approval that is already in the revenue."""
+    out = V.catalyst_stakes(_approved_db(tmp_path, _OMVOH_LABEL), "LLY")
+    assert out["priced"] == []
+    assert [r["reason"] for r in out["unpriced"]] == ["already_approved"]
+
+
+def test_the_phase_cannot_answer_this(tmp_path):
+    """The pair is Phase 3 and approved at the same time, which is why the phase missed
+    it: trials carry on after an approval, so the phase never comes down."""
+    path = _approved_db(tmp_path, _OMVOH_LABEL)
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT phase FROM asset_indications").fetchone()[0] == "Phase 3"
+    assert AI.for_asset(conn, 1) == {5}
+    conn.close()
+
+
+def test_a_paediatric_indication_is_not_covered_by_an_adults_only_label(tmp_path):
+    """The distinction the paediatric readouts turn on, and it needs no extra rule:
+    "Pediatric Crohn's disease" carries a token the adults-only label does not."""
+    path = _approved_db(tmp_path, _OMVOH_LABEL, indication="Pediatric Crohn's disease")
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == set()
+    conn.close()
+    assert [r["reason"] for r in V.catalyst_stakes(path, "LLY")["unpriced"]] \
+        != ["already_approved"]
+
+
+def test_phase_4_alone_says_approved(tmp_path):
+    """A Phase 4 study is a post-marketing study, which is what the phase means."""
+    path = _approved_db(tmp_path, None, indication="Eczema", phase="Phase 4")
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == {5}
+    conn.close()
+
+
+def test_no_label_leaves_the_gate_where_it_was(tmp_path):
+    """500 of the 1,525 marketed assets carry no indications text. Absent a label the
+    check says nothing rather than guessing, so the reading is the one it was before."""
+    path = _approved_db(tmp_path, None)
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == set()
+    conn.close()
+
+
+def test_the_newest_label_is_chosen_by_date_not_by_string(tmp_path):
+    """effective_time is text in the file's own format, so ORDER BY sorts August above
+    October. The label that matters is the newest one, because an indication approved
+    since would otherwise read as unapproved."""
+    path = _approved_db(tmp_path, "OMVOH is indicated for ulcerative colitis in adults.")
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO labels (asset_id, setid, effective_time, indications_text)"
+                 " VALUES (1, 'y', 'Oct 22, 2026', ?)", (_OMVOH_LABEL,))
+    conn.commit()
+    # Alphabetically "Aug" wins; by date "Oct 22, 2026" does, and only it covers Crohn's.
+    assert AI.for_asset(conn, 1) == {5}
+    conn.close()

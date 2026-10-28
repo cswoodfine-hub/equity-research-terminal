@@ -51,6 +51,8 @@ import guidance as guidance_module
 import leadership
 import applications
 import pdufa
+import relink
+import submissions
 import revenue_earnings
 import revenue_mdna
 import themes
@@ -496,9 +498,20 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     news_deals.refresh_run_id = run_id
     results.append(news_deals.run())
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
+    # The submission the press release announces, read after the diff has filed it. The
+    # derivation reads the whole feed rather than this company's slice, which costs
+    # nothing and keeps one refresh from leaving the calendar in a state another would
+    # not have.
+    filed = submissions.derive(db_path)
+    # Re-point the history tables at the asset rows this build gave out. A rebuild
+    # restores them before seed.py recreates the assets, so every id they carry was
+    # issued by an earlier build: 545 of 1,815 gate_calls rows pointed at no asset at
+    # all on 2026-10-26. Runs once the asset rows are settled, and never guesses.
+    relinked = relink.run(db_path)
     status = "partial" if any(r.errors for r in results) else "complete"
     detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
-              "readouts": readouts, "pdufa": goals, "guidance": guided,
+              "readouts": readouts, "pdufa": goals, "submissions": filed,
+              "relinked": relinked, "guidance": guided,
               "biologic_loe": bio_loe,
               "trial_mapping": mapped,
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
@@ -521,6 +534,48 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
     except Exception as exc:
         _fail_run(db_path, run_id, exc)
         raise
+
+
+def went_quiet(db_path, by_source: dict, run_id: int | None = None) -> list[dict]:
+    """Sources that fetched nothing this run after reaching rows on an earlier one.
+
+    A run is marked partial by errors alone, so a source that answers cleanly and parses
+    nothing finishes complete and says nothing. That is how the Purple Book fetcher ran
+    blind: a date format changed, every row was dropped, no exception was raised, and the
+    register it carries went unread for weeks while the runs reported success.
+
+    Zero rows is not itself a failure. Most sources have quiet days and a status that
+    says partial every day teaches the analyst to ignore the word. What is a failure is a
+    source that used to return rows and now returns none, so the test is against this
+    source's own last productive run rather than against zero.
+    """
+    live = {name: agg for name, agg in by_source.items()
+            if agg["rows_fetched"] == 0 and agg["ran"] > agg["skipped_ttl"]
+            and not agg["errors"]}
+    if not live:
+        return []
+    conn = db.get_connection(db_path)
+    try:
+        runs = conn.execute(
+            "SELECT id, started_at, detail FROM refresh_runs"
+            " WHERE detail IS NOT NULL AND id != IFNULL(?, -1)"
+            " ORDER BY id DESC LIMIT 30", (run_id,)).fetchall()
+    finally:
+        conn.close()
+    quiet = []
+    for name in sorted(live):
+        for run in runs:
+            try:
+                sources = (json.loads(run["detail"]) or {}).get("sources") or []
+            except (TypeError, ValueError):
+                continue
+            was = next((s for s in sources if s.get("source") == name), None)
+            if not was or not was.get("rows_fetched"):
+                continue
+            quiet.append({"source": name, "last_rows": was["rows_fetched"],
+                          "last_run": run["id"], "last_seen": run["started_at"]})
+            break
+    return quiet
 
 
 def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
@@ -736,11 +791,29 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     news_deals.refresh_run_id = run_id
     record(news_deals.run(), news_deals.entity_key)
     changes = diff.detect_changes(db_path, run_id)  # snapshot diff -> changes feed
+    # The submission itself, from the press release that announces it. A readout and a
+    # PDUFA date bracketed the moment an asset left Phase 3 and nothing recorded it, so
+    # the event the whole p3_to_nda gate is about was the one the calendar could not
+    # show. Runs after the diff has filed the press rows it reads.
+    filed = submissions.derive(db_path)
+    # Re-point the history tables at the asset rows this build gave out. A rebuild
+    # restores them before seed.py recreates the assets, so every id they carry was
+    # issued by an earlier build: 545 of 1,815 gate_calls rows pointed at no asset at
+    # all on 2026-10-26. Runs once the asset rows are settled, and never guesses.
+    relinked = relink.run(db_path)
+    # A source that parsed nothing it used to parse is reported as an error, because that
+    # is what it is: the only difference from one that raised is that nothing raised.
+    quiet = went_quiet(db_path, by_source, run_id)
+    for gone in quiet:
+        by_source[gone["source"]]["errors"].append(
+            f"returned no rows; the last run that reached it returned "
+            f"{gone['last_rows']} ({str(gone['last_seen'])[:10]})")
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
-    detail = {"scope": "all", "companies": len(companies),
+    detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
-              "pdufa": goals, "guidance": guided, "biologic_loe": bio_loe,
+              "pdufa": goals, "submissions": filed, "relinked": relinked,
+              "guidance": guided, "biologic_loe": bio_loe,
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "quarter_revenue": quarter_revenue,
               "deals": deal_reads, "leadership": leaders, "changes": changes}

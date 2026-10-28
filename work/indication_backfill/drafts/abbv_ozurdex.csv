@@ -1,0 +1,28 @@
+# Ozurdex (ABBV). 493mm USD in FY2025. Draft indication-layer seeds, 2026-10-27.
+#
+# Two asset-level numbers and one unit, and the unit is a mapping artefact.
+#
+# PRICED: nothing. The dossier's single Ozurdex unit, Multiple Myeloma (942:101), is a trial-mapping
+# artefact. All three studies attached to it are venetoclax or surzetoclax myeloma studies whose
+# backbone is systemic dexamethasone, and Ozurdex was matched to them on the generic name
+# 'Dexamethasone'. It is written as pos = 0 with the registry titles quoted, so the book stops
+# carrying it as a pending Phase 3.
+#
+# ASSET-LEVEL: list_price_per_patient and gross_to_net_pct are written. discontinuation_pct is NOT
+# written and that is deliberate. The brief's arithmetic divides a per-beneficiary figure by a
+# labelled year, and Ozurdex has no labelled year: section 2.1 of the label gives no retreatment
+# interval at all. Searched for a substitute and found none worth carrying: Europe PMC for
+# dexamethasone-implant persistence, treatment patterns, discontinuation and injections-per-year, and
+# for any US Medicare-based persistence reading. The one published injections-per-patient figure found
+# was Nicolo M et al., J Ophthalmol 2020;2020:4860743 (PMID 32351722), 2.4 injections per patient over
+# 36 months in 75 Italian patients with diabetic macular oedema - a third of the 2.26 a year the US
+# Medicare file shows, so it describes a different practice and cannot stand in. What would settle it:
+# a US claims persistence study reporting the share of Ozurdex starters with no further implant in the
+# following twelve months.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+ABBV,Ozurdex,,US,base,list_price_per_patient,,0.0031895,,mm USD per patient-year,"CMS Medicare Part B Spending by Drug, 2024 data year (drug_demand, asset 942, part B): $47,962,971.81 of allowed charges over 15,038 beneficiaries = $3,189.45 a beneficiary a year. Scale check against list: AbbVie's own Pharmaceutical Product Wholesaler Acquisition Cost Price List, effective 10/26/2026 (e-abbvie.com), prices OZURDEX 0.7 MG IMPLANT, NDC 00023-3348-07, at $1,400.00 an implant. The same CMS row carries 238,251.6 dosage units, and HCPCS J7312 bills dexamethasone intravitreal implant in 0.1 mg units, so one implant is 7 units: 238,251.6 / 7 = 34,035.9 implants, $1,409.19 each, and 2.26 implants a beneficiary a year","the per-beneficiary basis the book prices on, not a labelled year. Ozurdex has no labelled year: the label's section 2.1 General Dosing Information says only 'For ophthalmic intravitreal injection' and gives no retreatment interval (openFDA, set id 4b204f44-6e8a-4d17-803c-268f0b04679f, effective 2026-03-11)"
+ABBV,Ozurdex,,US,base,gross_to_net_pct,,0.056604,,share off list,"Part B pays 106% of average sales price and ASP is already net of the manufacturer's discounts and rebates, so the only deduction from the per-beneficiary allowed amount above is the statutory 6% add-on: 6/106 = 0.056604. This is the basis the book uses for every Part B product (backend/gross_to_net.py)","the anchor above is a Part B allowed amount, so no WAC-to-ASP gap is deducted on top of it"
+ABBV,Ozurdex,Multiple Myeloma,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"none of it: the Ozurdex label covers macular oedema after branch or central retinal vein occlusion, non-infectious posterior segment uveitis and diabetic macular oedema and nothing else (openFDA label, set id 4b204f44-6e8a-4d17-803c-268f0b04679f, effective 2026-03-11). Myeloma is a different disease",recorded for completeness; the probability row below is why nothing is priced here
+ABBV,Ozurdex,Multiple Myeloma,US,base,pos,,0.0,,,"nil, because there is no Ozurdex programme in multiple myeloma. The three studies this unit rests on are venetoclax and surzetoclax studies whose backbone or control arm is systemic dexamethasone: NCT03539744 is 'Venetoclax Plus Dexamethasone (VenDex) Compared With Pomalidomide Plus Dexamethasone (PomDex)', NCT03314181 is venetoclax with daratumumab and dexamethasone, and NCT06953960 is oral surzetoclax with antimyeloma therapy (ClinicalTrials.gov, read 2026-10-27). Ozurdex is a 0.7 mg dexamethasone implant injected into the vitreous; the asset was matched to these studies on the intervention name 'Dexamethasone'","a trial-mapping artefact, not a pending readout. The myeloma studies belong to Venclexta (asset 329) and to surzetoclax. Replace this only if AbbVie states an intraocular dexamethasone implant programme in myeloma, which would be a new fact"

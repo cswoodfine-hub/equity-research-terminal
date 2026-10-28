@@ -1,0 +1,29 @@
+# Kymriah (NVS). 381mm USD. Draft indication-layer seeds, 2026-10-27.
+#
+# Three asset-level numbers. The one unit is NOT priced, and the reason is a mapping
+# problem rather than a sourcing one.
+#
+# NO PROGRAMME: Burkitt Lymphoma. Neither trial on this unit enrols Burkitt lymphoma.
+# NCT04094311 ('Study of Out of Specification for Tisagenlecleucel') lists its conditions as
+# B-cell acute lymphoblastic leukemia and diffuse large B-cell lymphoma, with arms 'Group A:
+# pALL', 'Group B: r/r LBCL' and 'Group C: r/r NHL'; NCT03876769 lists B-cell acute
+# lymphoblastic leukemia alone. Neither registry record names Burkitt lymphoma anywhere.
+# The unit exists because Burkitt Lymphoma sits under Lymphoma, B-Cell in the MeSH tree,
+# not because a tisagenlecleucel programme in Burkitt lymphoma exists.
+#
+# The label does not reach it either: KYMRIAH covers B-cell precursor ALL up to 25 years of
+# age, relapsed or refractory large B-cell lymphoma after two or more lines, and relapsed or
+# refractory follicular lymphoma (BLA 125646, label effective 2025-12-16). Burkitt lymphoma
+# is a mature B-cell neoplasm and is in none of the three.
+#
+# So this is neither 'already approved' nor 'the programme failed'. There is no programme.
+# No rows are written for the indication; what would settle it is a Novartis trial record or
+# pipeline entry naming Burkitt lymphoma, and none exists on ClinicalTrials.gov today.
+#
+# Least confident row: list_price_per_patient. $508,491 is a real CMS measurement but the
+# denominator is 21 Medicare beneficiaries in one year. CMS's own October 2026 payment limit
+# for the same HCPCS code is $626,316, 23% higher. The row names both.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+NVS,Kymriah,,US,base,list_price_per_patient,,0.508491,,mm USD per patient-year,"Kymriah, CMS Medicare Part B 2024 (drug_demand): $10,678,318.77 over 21 beneficiaries = $508,491.37 per beneficiary a year. HCPCS Q2042 is 'tisagenlecleucel, up to 600 million CAR-positive viable T cells, including leukapheresis and dose preparation procedures, per therapeutic dose', and the same file records 21 dosage units over those 21 beneficiaries, so the per-beneficiary figure is one course per patient and the per-course and per-patient-year prices are the same number. For scale, CMS's October 2026 Part B payment limit file puts Q2042 at $626,315.834 a dose","the 2024 CMS figure is kept rather than the October 2026 payment limit because the book anchors on the per-beneficiary spending series, and because the 2024 figure is what the stopping rate below is measured on. The gap between them, 23%, is three years of ASP drift on a product Medicare bought 21 times in a year; a 21-patient denominator is the real caveat here and it is why this row should move the moment a larger year is available"
+NVS,Kymriah,,US,base,gross_to_net_pct,,0.056604,,share taken off list,"house convention on a CMS Part B anchor, from the statute rather than assumed: Social Security Act section 1847A, Medicare Part B pays 106% of the average sales price, and ASP is already net of manufacturer discounts and rebates, so 1 - 1/1.06 = 0.056604 comes off the CMS figure. It is the deduction amgn_abp_206.csv and bmy_opdivo.csv carry on this anchor. Kymriah's Medicare beneficiaries are all in Part B: drug_demand holds no Part D row for it in any year","0.0566 off list leaves $479,708 a course. Medicaid rebates, 340B discounts and any outcomes-based contract sit outside ASP and are not deducted, which is the case for a larger deduction on a cell therapy"
+NVS,Kymriah,,US,base,discontinuation_pct,,1.0,,share of the treated stock a year,"given once. KYMRIAH is 'a single dose' in every one of its three indications (BLA 125646, label effective 2025-12-16, sections 2.1 and 3), and CMS Medicare Part B 2024 (drug_demand) records exactly 21 Q2042 dosage units over 21 beneficiaries, one therapeutic dose each. The same holds in every year on file: 34 units over 34 beneficiaries in 2020, 30 over 27 in 2021, 17 over 17 in 2022, 19 over 19 in 2023","at 1.0 the engine's treated stock is each year's new patients and revenue is starts times the course price, which is the shape the book uses for every one-time therapy. The patient is counted in the same unit as the price"

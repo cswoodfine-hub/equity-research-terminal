@@ -1,0 +1,19 @@
+# Asset-indication pairs the MeSH derivation asserts and that are not true, with the
+# reason (read by backend/indication_mapping.curated_exclusions).
+#
+# This is the mirror of data/asset_indication_additions.csv and exists for one shape of
+# error the registry makes at study level: a master protocol that gives different drugs
+# to different diseases. ClinicalTrials.gov records a study's interventions and its
+# conditions as two flat lists, with nothing joining one to the other, so a protocol
+# testing drug A in disease X and drug B in disease Y reads as both drugs in both
+# diseases. Nothing in the registry record can separate them.
+#
+# A row is only correct here when the evidence is the protocol's own text. Name the
+# subprotocol or arm, and say where it was read. A pair that is merely doubtful belongs
+# nowhere: the book's rule everywhere else is to refuse what it cannot attribute, not to
+# guess the other way.
+#
+# Not for a pair that is simply wrong about the disease. That is a vocabulary problem
+# and belongs in the mapping, not in a list of exceptions.
+ticker,asset,mesh_id,term,nct_ids,basis
+AMGN,Uplizna,D001172,"Arthritis, Rheumatoid",NCT06570798,"NCT06570798 is 'A Phase 2 Master Protocol Assessing Inebilizumab and Blinatumomab in Autoimmune Diseases'. Its two conditions, Systemic Lupus Erythematosus and Active Refractory Rheumatoid Arthritis, belong to different subprotocols and different drugs: Subprotocol A gives inebilizumab in SLE with lupus nephritis, and Subprotocol C, the only rheumatoid arthritis arm, gives blinatumomab. Inebilizumab never reaches a rheumatoid arthritis patient in this study. The registry lists both drugs and both conditions at study level with nothing joining them, which is how the pair was derived. Checked against the registry record on 2026-10-27; an API query on intervention=inebilizumab returns 32 studies and this is the only one naming rheumatoid arthritis, so the pair rests on this protocol alone. The SLE pair is left standing, because inebilizumab genuinely is the SLE subprotocol's drug."

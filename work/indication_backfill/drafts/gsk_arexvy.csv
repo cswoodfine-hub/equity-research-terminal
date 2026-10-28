@@ -1,0 +1,34 @@
+# Arexvy (GSK). 593mm USD. Draft indication-layer seeds, 2026-10-27.
+#
+# Three asset-level numbers and no priced layer. The one unit the worklist carried,
+# Respiratory Syncytial Virus Infections, is the product's own approved indication and is
+# written as an overlap of 1.0 rather than researched.
+#
+# ALREADY APPROVED. The current label (DailyMed setid 1e50f275-002e-413f-a840-66ee3cb3740c,
+# revised July 2026) reads: active immunization for the prevention of lower respiratory
+# tract disease caused by RSV in individuals 60 years of age and older, and individuals 18
+# through 59 years of age who are at increased risk. That is the whole US adult population
+# the four dossier trials study. NCT04732871 and NCT06534892 are immunogenicity, persistence
+# and revaccination studies in adults 60 and over; NCT07092865 is a persistence study;
+# NCT07220109 enrols Chinese adults 18 to 59 at increased risk, a population the US label
+# already covers. None of them opens a patient group the 593mm does not already contain, so
+# no pool is seeded and base_pool_overlap_pct is 1.0.
+#
+# The age-extension exception in the brief was checked and does not apply. The label's own
+# age floor moved twice - 50 to 59 at increased risk in June 2024, then 18 to 49 at increased
+# risk in March 2026 - and both extensions are now inside the label. The only US adults the
+# label excludes are 18 to 59 year olds at ordinary risk, and no trial in the dossier enrols
+# them.
+#
+# The asset-level rows stand because anything built on this product later needs its price
+# and its turnover.
+#
+# Least confident row: gross_to_net_pct. See its note.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GSK,Arexvy,,US,base,list_price_per_patient,,0.00020534,,mm GBP per patient-year,"CMS Medicare Part D 2024, which the book already carries for this asset (drug_demand, asset 369, part D, year 2024): total spending $774,198,317.54 over 2,820,344 beneficiaries = $274.50 a beneficiary a year. The same row gives 2,835,314.4 dosage units, 1.0053 a beneficiary, so the per-beneficiary figure is one dose and nothing more, which is what the label prescribes. Scale against the openly published list: the CDC Adult Vaccine Price List effective 1 October 2026 (cdc.gov/vaccines-for-children/media/pdfs/2026/09/Adult-Vaccine-Price-List-10-01-26.pdf) puts Arexvy, NDC 58160-0848-11, 10 pack 1 dose vial, at $321.053 a dose private sector and $146.117 a dose on the federal contract 75D30126D20935, which runs to 30 June 2027 Converted to GBP, the currency GSK reports in and the engine models it in: 0.000275mm USD at 1.336829 USD per GBP (ECB via backend/fx.py, 2026-10-23) is 0.000205mm GBP. The engine reads the number as the reporting currency whatever the unit says, so a dollar figure left here reads as GBP and overstates the product by the exchange rate.","the CMS per-beneficiary basis the brief sets and amgn_abp_206.csv carries, not a labelled-year WAC. For a single-dose vaccine the two are nearly the same thing"
+GSK,Arexvy,,US,base,gross_to_net_pct,,0.467707,,share off list,measured between two published prices rather than assumed: the CDC Adult Vaccine Price List federal contract price of $146.117 a dose against the $274.50 CMS Part D per-beneficiary anchor in the row above. 1 - 146.117/274.505 = 0.4677,"a Part D anchor, so CMS spending is gross of manufacturer rebates and a real deduction applies, unlike the statutory 5.66% a Part B anchor carries. The weakest row in this file. The federal contract price is the deepest openly published US price for the product and covers only the publicly purchased share, so a blended net across Part D, commercial and federal sits somewhere between zero and this; it is also measured against a figure that already includes pharmacy dispensing margin GSK never sees. Direction: this is the deep end, so the row is conservative for revenue. pfe_prevnar.csv takes the same discount the other way round, private sector against CDC cost, because its price row is the private sector list"
+GSK,Arexvy,,US,base,discontinuation_pct,,1.0,,share of the stock a year,"the label itself (DailyMed setid 1e50f275-002e-413f-a840-66ee3cb3740c, revised July 2026): a single 0.5 mL dose intramuscularly, with no revaccination schedule stated for any population. The CMS Part D 2024 row agrees - 2,835,314.4 dosage units over 2,820,344 beneficiaries is 1.005 doses a beneficiary, so in practice as well as on the label a vaccinated adult takes one dose and leaves","not a persistence measure. A one-off immunisation has no continuing stock to retain, so the whole of it turns over in the engine's stock equation. This is the reading pfe_prevnar.csv takes for the same reason. It is the row to revisit if ACIP recommends revaccination: NCT06534892, 10,212 adults, is the revaccination and crossover study and its primary completion is 2026-09-30"
+GSK,Arexvy,Respiratory Syncytial Virus Infections,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"all of it. The current label (DailyMed setid 1e50f275-002e-413f-a840-66ee3cb3740c, revised July 2026) indicates Arexvy for the prevention of RSV lower respiratory tract disease in individuals 60 years of age and older and in individuals 18 through 59 years of age at increased risk. The FDA extended the indication to adults 50 to 59 at increased risk in June 2024 and to adults 18 to 49 at increased risk in March 2026 (GSK media release, 'GSK's RSV vaccine, AREXVY, approved in US for expanded age indication in adults aged 18-49 years at increased risk'). The 593mm of reported revenue is earned on exactly this population","no pool is seeded. The dossier's four studies are immunogenicity, persistence and revaccination work in adults the label already covers (NCT04732871 and NCT06534892 in 60 and over, NCT07092865 persistence) plus NCT07220109 in Chinese adults 18 to 59 at increased risk, which the US label also covers"
+GSK,Arexvy,Respiratory Syncytial Virus Infections,US,base,pos,,1.0,,,approved and selling: the indication is on the label named in the overlap row above,"stated, because no development gate stands in front of an approved indication"

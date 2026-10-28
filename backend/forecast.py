@@ -368,6 +368,80 @@ def share_path(now: float, plateau: float, ramp: float, years: int) -> list:
     return [plateau + (now - plateau) * math.exp(-ramp * (i + 1)) for i in range(years)]
 
 
+# What an indication layer needs before it is built. Anything short of this and the
+# indication is left out of the line entirely, which is the same refusal the rest of
+# the engine makes: a layer half-specified is not a smaller layer, it is a guess.
+_LAYER_KEYS = ("prevalence", "eligible_pct", "penetration_peak_pct")
+
+
+def _indication_layers(inputs: dict, years, scalars: dict, price) -> tuple:
+    """{name: revenue series} for the indications a marketed product does not yet sell.
+
+    Only in marketed mode, and only where ``approved`` is false on the entry, which
+    ``assumptions.load`` sets from the label. The other modes already build every
+    indication bottom-up, so a layer there would count the same patients twice.
+
+    Two things are applied that the bottom-up modes do not need.
+
+    The layer is risked at its own ``pos``. The marketed line is a product that sells,
+    carried at a probability of one; an indication that has not read out is not, and one
+    probability cannot stand for both.
+
+    And it is scaled by ``base_pool_overlap_pct``, the share of its pool already inside
+    the approved business. Paediatric Crohn's disease is a population the adult label
+    does not reach, so none of it overlaps and the layer stands in full. Orforglipron's
+    hypertension, osteoarthritis and peripheral arterial disease studies are the obese
+    adults it already sells to, so almost all of that pool is counted in the base
+    already and a layer at full size would invent patients. The share has to be stated:
+    absent it, nothing is added, because assuming independence is how a comorbidity
+    expansion turns into a second franchise.
+    """
+    out, notes = {}, []
+    discontinuation = scalars.get("discontinuation_pct")
+    for ind in inputs.get("indications") or []:
+        if ind.get("approved") is not False:
+            continue                      # approved, or the caller did not say
+        own = ind.get("scalars") or {}
+        overlap = own.get("base_pool_overlap_pct")
+        pos = own.get("pos")
+        name = ind.get("name") or "an unapproved indication"
+        # Asked before the pool, because an indication wholly inside the approved
+        # business needs no pool: it is nil whatever its prevalence is, and saying so is
+        # a finding. Orforglipron's hypertension, osteoarthritis and stress incontinence
+        # studies all enrol "obesity or overweight" patients its label already covers,
+        # and reporting that is worth more than silently building nothing.
+        if overlap is not None and overlap >= 1.0:
+            notes.append(
+                f"{name} adds nothing: its pool is wholly inside the business already "
+                f"being sold to, so the readout moves evidence rather than patients")
+            continue
+        # A price is needed from here on, and only from here on: the nil answer above
+        # holds whatever the product costs.
+        if (price is None or discontinuation is None
+                or any(own.get(k) is None for k in _LAYER_KEYS)):
+            continue
+        if overlap is None or pos is None:
+            notes.append(
+                f"{name} is not in the line: an unapproved indication is added only "
+                f"once base_pool_overlap_pct and pos are stated for it")
+            continue
+        got = patients_for_indication(ind, years, [], inputs.get("curve_defaults"),
+                                      "chronic")
+        if got.get("used") is None:
+            continue
+        stock = treated_stock(got["used"], discontinuation,
+                              scalars.get("opening_treated_patients") or 0.0)
+        kept = (1.0 - overlap) * pos
+        series = [p * price * _price_factor(scalars, i) * kept
+                  for i, p in enumerate(stock)]
+        out[name] = series
+        notes.append(
+            f"{name} is added as a layer: its own pool, at {pos:.0%} odds and "
+            f"{(1 - overlap):.0%} of it outside the approved business, peaking at "
+            f"{max(series):,.0f}mm")
+    return out, notes
+
+
 def net_price(scalars: dict):
     """Net price per patient, given directly or as list price less gross-to-net."""
     if scalars.get("net_price_per_patient") is not None:
@@ -894,6 +968,8 @@ def build(inputs: dict) -> dict:
     if mode not in MODES:
         raise ForecastError([f"therapy_mode must be one of {MODES}, got '{mode}'"])
 
+    # Only the marketed branch builds layers, so every other mode reports none.
+    out_layer_peak = 0.0
     start = int(scalars.get("forecast_start_year") or 0)
     horizon = int(scalars.get("forecast_years") or 10)
     # An unlaunched product's window runs through its loss of exclusivity and the
@@ -946,11 +1022,37 @@ def build(inputs: dict) -> dict:
                          f"run rate, {run_label} to {run_rate:,.0f}mm, so the run rate is "
                          f"the ceiling")
             ceiling = run_rate
+        # Indications the label does not cover yet, each valued bottom-up over its own
+        # pool and added to the line. The grown revenue is the business the product has;
+        # an expansion is business it does not have, and before this it was worth
+        # nothing anywhere in the book because marketed mode carries no patient funnel.
+        layers, layer_notes = _indication_layers(inputs, years, scalars, price)
+        layer_peak = max((sum(c) for c in zip(*layers.values())), default=0.0) \
+            if layers else 0.0
+        # Reported, because a reader cannot otherwise tell how much of the published
+        # peak the expansions took, and because anything asking whether the ceiling
+        # binds has to ask against what is left of it rather than the stated figure.
+        out_layer_peak = layer_peak
+
+        # The ceiling is the franchise at peak, so it already contains the expansions.
+        # The base is grown to what is left of it once they are taken out, which is what
+        # makes the layer an addition rather than a second count of the same sales.
+        if ceiling is not None and layer_peak:
+            ceiling = max(0.0, ceiling - layer_peak)
+            notes.append(
+                f"the {layer_peak:,.0f}mm of unapproved indications valued below is "
+                f"taken out of the franchise ceiling before the approved business is "
+                f"grown into it, so the two together reach the published peak rather "
+                f"than passing it")
+
         revenue = grown_revenue(
             base_rev, growth, len(years),
             fade_to=scalars.get("terminal_growth_pct"),
             fade_years=int(scalars.get("growth_fade_years") or 5),
             ceiling=ceiling)
+        for series in layers.values():
+            revenue = [r + l for r, l in zip(revenue, series)]
+        notes += layer_notes
         per_indication = {}
         treated = total_patients = [None] * len(years)
         fade = scalars.get("terminal_growth_pct")
@@ -1321,6 +1423,10 @@ def build(inputs: dict) -> dict:
 
     return {
         "mode": mode, "years": years, "dcf_years": dcf_years,
+        # The peak the unapproved indications reach together, taken out of the franchise
+        # ceiling before the approved business is grown into it. 0.0 where there are no
+        # layers or the mode has no ceiling.
+        "layer_peak": out_layer_peak,
         # total is who started each year; treated is who is still on it, which is what
         # meets the price. They are the same series only for a one-time therapy.
         "patients": {"total": total_patients, "treated": treated,

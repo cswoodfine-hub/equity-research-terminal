@@ -48,7 +48,8 @@ COMPETITION_MIN_PCT = 0.02  # core.js COMPETITION_MIN_PCT: the indication's valu
 DRIVERS_SHOWN = 5
 CONTEXT_SCHEMA = 1
 
-REGULATORY_KINDS = ("PDUFA", "regulatory decision", "AdCom", "EMA decision")
+REGULATORY_KINDS = ("PDUFA", "regulatory decision", "AdCom", "EMA decision",
+                    "regulatory submission")
 LATE_PHASES = ("Phase 3", "Phase 2/3")
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -316,6 +317,10 @@ def event_text(it: dict) -> str:
         return "regulatory decision"
     if k == "ema decision":
         return "EMA decision"
+    if k == "regulatory submission":
+        # The title already says which application and whether it was filed or accepted,
+        # so the event word stays short and the row does not say NDA twice.
+        return "regulatory submission"
     return k or "event"
 
 

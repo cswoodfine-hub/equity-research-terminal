@@ -1124,6 +1124,28 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
 .note li {{ margin: 0.05rem 0; }}
 .byline {{ font-size: 11px; color: var(--muted); margin-top: 0.35rem; }}
+/* The engine's own account of what it decided, one line per judgement. Read rather than
+   scanned, so it takes the body size and a measure that does not run the width of a
+   wide screen. */
+.workings {{ margin: 0.2rem 0 0.4rem; padding-left: 1.05rem; max-width: 92ch; }}
+.workings li {{ font-size: 12px; line-height: 1.5; margin: 0.22rem 0;
+               color: var(--text); }}
+.workings li::marker {{ color: var(--muted); }}
+/* Why a value moved: the three histories read together. The first line carries the move
+   itself, so it sits at the weight of a figure rather than of a footnote. */
+.whym {{ margin: 0.25rem 0 0.2rem; padding-left: 1.05rem; max-width: 92ch; }}
+.whym li {{ font-size: 12px; line-height: 1.5; margin: 0.22rem 0; color: var(--text); }}
+.whym li:first-child {{ font-size: 13px; color: var(--text); }}
+.whym li::marker {{ color: var(--muted); }}
+.whym li.warn {{ color: var(--flag); }}
+/* The move itself, above the fold and at the weight of a figure. The reasoning folds
+   under it, because the price tab has to fit one screen and the chart takes most of it. */
+.whym-lead {{ font-size: 12px; color: var(--text); margin-top: 0.3rem; }}
+/* A readout that may have landed on a gate the book carries. Its own class rather than
+   the why-moved lead's: the two say different things and Streamlit keeps every tab's
+   markup mounted, so one class across both is a collision waiting to be styled wrong. */
+.prop-lead {{ font-size: 12px; color: var(--text); margin-top: 0.3rem; }}
+.prop-lead b {{ color: var(--flag); }}
 /* A passage added to a filing section, quoted full width for review. */
 .rf-add {{ font-size: 12px; line-height: 1.42; border-left: 2px solid var(--flag);
           padding: 2px 0 2px 10px; margin: 5px 0; }}

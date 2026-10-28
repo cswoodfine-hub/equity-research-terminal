@@ -27,3 +27,5 @@ LLY,Jaypirca,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2
 LLY,Jaypirca,,US,base,beta,,0.69,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.54 raw)",
 LLY,Jaypirca,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on",
 LLY,Jaypirca,,US,base,debt_weight,,0.050003,,,"filed TotalDebt of 54,908mm USD at 2026-06-30 over debt plus market capitalisation",
+LLY,Jaypirca,"Lymphoma, B-Cell",US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"the only study behind this row is NCT07162181, a 13-participant long-term safety extension in 'previously treated types of blood cancers', which is the relapsed CLL/SLL and MCL population the label already covers","not an expansion: a follow-on safety study of approved use, indexed under the broad descriptor"
+LLY,Jaypirca,"Lymphoma, B-Cell",US,base,pos,,0.92,,,NDA/BLA to approval on the Oncology cut; immaterial while the overlap is 1.0,

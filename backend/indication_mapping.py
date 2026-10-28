@@ -71,6 +71,23 @@ TOO_BROAD = frozenset(x.lower() for x in (
     "Neuromuscular Diseases", "Neurodegenerative Diseases", "Metabolic Diseases",
     "Kidney Diseases", "Liver Diseases", "Heart Diseases", "Skin Diseases",
     "Endocrine System Diseases", "Respiratory Tract Diseases", "Inflammation",
+    # Read off what the book had actually built. A marketed product's unapproved
+    # indications are the list an expansion layer would be valued over, and 37 of them
+    # stood against Lilly's marketed assets, of which these carried no product.
+    #
+    # Ancestors and pathology classes of a disease the asset is already in. Kisunla's
+    # eleven indications were Alzheimer's disease and seven ways of restating it, so a
+    # layer per row would have valued Alzheimer's eight times.
+    "Brain Diseases", "Central Nervous System Diseases", "Neurocognitive Disorders",
+    "Mental Disorders", "Tauopathies", "Synucleinopathies", "Plaque, Amyloid",
+    # Oncology roll-ups that name no tumour. The specific sites stay: Verzenio keeps
+    # non-small-cell lung, prostate, Ewing sarcoma and glioma and loses these two.
+    "Neoplasm Metastasis", "Urogenital Neoplasms",
+    # Not diseases. The registry indexes an obesity master protocol under the behaviour
+    # and the metabolism it studies, so orforglipron arrived with Fasting, Behavior and
+    # Feeding Behavior beside its real indications.
+    "Fasting", "Behavior", "Feeding Behavior", "Weight Gain",
+    "Glucose Metabolism Disorders", "Nutritional and Metabolic Diseases",
 ))
 
 _PHASE_ORDER = ("Early Phase 1", "Phase 1", "Phase 1/2", "Phase 2", "Phase 2/3",
@@ -179,6 +196,24 @@ def parse_browse(raw) -> dict:
     return {"meshes": clean("meshes"), "ancestors": clean("ancestors")}
 
 
+# A sponsor names what a basket study leaves out in the same field it names what it
+# takes in. DESTINY-PanTumor02 registers as "... Rare Tumors, Any Tumor Type Excluding
+# Breast, Gastric, Colorectal Cancer", and matching on the whole string gave Enhertu a
+# colorectal indication derived from the sentence that excludes colorectal. A phantom
+# indication becomes a phantom gate, so the words after the marker are dropped before
+# anything is matched against them.
+#
+# "non-" is deliberately not a marker here. It opens "non-small cell lung cancer", which
+# is a disease rather than an exclusion, and treating it as one would silently empty the
+# largest oncology indication in the book.
+_EXCLUDES = re.compile(r"\b(?:excluding|except(?:\s+for)?|other\s+than|but\s+not)\b", re.I)
+
+
+def before_exclusion(phrase: str) -> str:
+    """The part of a condition string that says what a study is in, not what it is not."""
+    return _EXCLUDES.split(phrase or "", maxsplit=1)[0]
+
+
 def indications_for(conditions, browse) -> list[dict]:
     """The MeSH descriptors that are this study's actual indications.
 
@@ -188,7 +223,8 @@ def indications_for(conditions, browse) -> list[dict]:
         sponsor = json.loads(conditions) if isinstance(conditions, str) else (conditions or [])
     except (TypeError, ValueError):
         sponsor = []
-    said = [tokens(s) for s in sponsor if is_indication(s)]
+    trimmed = [before_exclusion(s) for s in sponsor if isinstance(s, str)]
+    said = [tokens(s) for s in trimmed if is_indication(s)]
     out = []
     for term in browse["meshes"]:
         if not is_indication(term["term"]):
@@ -226,6 +262,44 @@ def status_for(statuses) -> str:
     return next((s for s in statuses if s), None) or "Unknown"
 
 
+# A rollover keeps patients on a drug; it does not study a disease.
+#
+# "A Long-term Extension Study of PCI-32765 (Ibrutinib)" enrols whoever finished one of
+# the parent studies, so the registry lists every disease those studies covered. The
+# book read NCT01804686 as the live Phase 3 behind Imbruvica in follicular lymphoma,
+# diffuse large B-cell lymphoma and mantle-cell -- two of them published misses and the
+# third an indication the FDA withdrew in 2023 -- because a rollover never finishes and
+# never changes status. 109 of these are mapped to an asset and between them they assert
+# 152 indication pairs.
+#
+# What a rollover must not contribute is a *pre-approval* phase. The registry files
+# these under whatever the parent studies were, so Imbruvica's extension reads Phase 3
+# and Active-not-recruiting for ever, and the book priced three decided indications --
+# two published misses and one the FDA withdrew in 2023 -- as live Phase 3 gates.
+#
+# Phase 4 still counts, and the distinction is not a convenience. Phase 4 means a
+# post-marketing study, which is exactly what a rollover on an approved drug is, and the
+# book reads it as evidence the indication is already approved. Tafinlar's melanoma and
+# non-small cell lung rows are asserted by Phase 4 rollovers alone and are its two
+# approved indications; blanking them would turn two approved diseases into open
+# expansions, which is the very mistake this is meant to stop.
+#
+# So the pair survives either way -- the drug genuinely has been given in that disease --
+# and only a pre-approval claim about a programme is refused.
+_ROLLOVER = re.compile(
+    r"\b(?:roll[-\s]?over"
+    r"|long[-\s]term\s+(?:extension|follow[-\s]?up)"
+    r"|extension\s+study"
+    r"|continued\s+(?:study\s+)?(?:treatment|access)"
+    r"|continuation\s+(?:study|protocol)"
+    r"|expanded\s+access)\b", re.I)
+
+
+def is_rollover(title: str) -> bool:
+    """Whether a study exists to continue treatment rather than to test an indication."""
+    return bool(_ROLLOVER.search(title or ""))
+
+
 def pairs_from_trials(rows) -> dict:
     """(asset_id, mesh_id) -> the pair's phase, statuses, enrolment and first sighting.
 
@@ -238,10 +312,24 @@ def pairs_from_trials(rows) -> dict:
         if not asset_id:
             continue
         browse = parse_browse(row.get("mesh_terms"))
+        rollover = is_rollover(row.get("title"))
         for term in indications_for(row.get("conditions"), browse):
             entry = out.setdefault((asset_id, term["id"]), {
                 "term": term["term"], "phase": None, "statuses": [],
-                "enrollment": 0, "first_posted": None, "trials": 0})
+                "enrollment": 0, "first_posted": None, "trials": 0,
+                "real_trials": 0})
+            entry["real_trials"] += 0 if rollover else 1
+            if rollover and (row.get("phase") or "") != "Phase 4":
+                # Enrolment and first sighting still count: those are facts about
+                # patients. A pre-approval phase and a status are claims about a
+                # programme, and a continuation protocol makes neither.
+                entry["enrollment"] += row.get("enrollment") or 0
+                posted = row.get("first_posted")
+                if posted and (entry["first_posted"] is None
+                               or posted < entry["first_posted"]):
+                    entry["first_posted"] = posted
+                entry["trials"] += 1
+                continue
             entry["phase"] = higher_phase(entry["phase"], row.get("phase"))
             entry["statuses"].append(row.get("overall_status"))
             entry["enrollment"] += row.get("enrollment") or 0
@@ -261,6 +349,17 @@ def pairs_from_trials(rows) -> dict:
 # whose trials are not mapped to that asset asserts nothing.
 ADDITIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
                  / "data" / "asset_indication_additions.csv")
+
+# The mirror of the additions file, for pairs the derivation asserts that are not true.
+# One shape of error needs it: a master protocol giving different drugs to different
+# diseases. The registry records interventions and conditions as two flat lists with
+# nothing joining them, so a protocol testing drug A in disease X and drug B in disease
+# Y reads as both drugs in both diseases, and no rule over the registry record can
+# separate them. Amgen's NCT06570798 gives inebilizumab to lupus and blinatumomab to
+# rheumatoid arthritis, and Uplizna acquired a rheumatoid arthritis programme it has
+# never had.
+EXCLUSIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                  / "data" / "asset_indication_exclusions.csv")
 
 
 def curated_additions(conn, path=None) -> dict:
@@ -306,6 +405,40 @@ def curated_additions(conn, path=None) -> dict:
                 if posted and (entry["first_posted"] is None
                                or posted < entry["first_posted"]):
                     entry["first_posted"] = posted
+    return out
+
+
+def curated_exclusions(conn, path=None) -> set:
+    """{(asset_id, mesh_id)} for each row of ``data/asset_indication_exclusions.csv``
+    whose asset and trials are on file.
+
+    A row asserts nothing on its own: it removes a pair the trials would otherwise make,
+    and only where those trials are the asset's. A row naming a study the asset is not
+    mapped to is ignored, the same way an addition naming one is.
+    """
+    path = pathlib.Path(path or EXCLUSIONS_CSV)
+    if not path.exists():
+        return set()
+    out = set()
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle if not line.startswith("#")):
+            name = (row.get("asset") or "").strip()
+            mesh_id = (row.get("mesh_id") or "").strip()
+            ncts = (row.get("nct_ids") or "").split()
+            if not (name and mesh_id and ncts and (row.get("basis") or "").strip()):
+                continue
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                    WHERE c.ticker = ? AND (LOWER(TRIM(a.generic_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.brand_name)) = LOWER(?)
+                       OR LOWER(TRIM(a.internal_code)) = LOWER(?))""",
+                ((row.get("ticker") or "").strip().upper(), name, name, name)).fetchone()
+            if not asset:
+                continue
+            marks = ",".join("?" * len(ncts))
+            if conn.execute(f"SELECT 1 FROM trials WHERE nct_id IN ({marks})"
+                            f"   AND asset_id = ?", (*ncts, asset[0])).fetchone():
+                out.add((asset[0], mesh_id))
     return out
 
 
@@ -378,6 +511,53 @@ def _upsert_indications(conn, pairs) -> dict:
     return ids
 
 
+# A site or family term sitting beside one of its own children on the same asset is the
+# same patient pool counted twice. MeSH indexes a non-small-cell lung study under both
+# "Carcinoma, Non-Small-Cell Lung" and "Lung Neoplasms", and the layer model then prices
+# a lung expansion for a drug whose lung expansion is already the row above. Twenty-eight
+# marketed assets carried such a pair on 2026-10-26, twelve of them this one.
+#
+# Only parents that are never themselves an indication are listed. "Breast Neoplasms" is
+# deliberately absent: an asset studied in triple-negative and in hormone-receptor
+# positive disease carries both terms honestly, and suppressing the parent would delete
+# the second indication rather than a duplicate. Which of those an asset really has is a
+# question for the seed rows, not the vocabulary.
+#
+# Relational, not a TOO_BROAD entry: the parent is dropped only where that asset also
+# carries the child. An asset with the parent alone keeps it.
+PARENT_TERMS = {
+    "lung neoplasms": ("carcinoma, non-small-cell lung", "small cell lung carcinoma",
+                       "adenocarcinoma of lung"),
+    "head and neck neoplasms": ("squamous cell carcinoma of head and neck",),
+    "lymphoma, non-hodgkin": ("lymphoma, large b-cell, diffuse", "lymphoma, follicular",
+                              "lymphoma, mantle-cell",
+                              "leukemia, lymphocytic, chronic, b-cell"),
+    "leukemia": ("precursor cell lymphoblastic leukemia-lymphoma",
+                 "leukemia, myeloid, acute", "leukemia, lymphocytic, chronic, b-cell",
+                 "leukemia, myelogenous, chronic, bcr-abl positive"),
+}
+
+
+def drop_parent_of_child(pairs: dict) -> int:
+    """Remove a site or family term from an asset that also carries one of its children.
+
+    Mutates ``pairs`` in place and returns how many it dropped, so a refresh can report
+    the number rather than change the book silently.
+    """
+    terms: dict = {}
+    for (asset_id, mesh_id), entry in pairs.items():
+        terms.setdefault(asset_id, {})[(entry.get("term") or "").strip().lower()] = mesh_id
+    dropped = 0
+    for asset_id, by_term in terms.items():
+        for parent, children in PARENT_TERMS.items():
+            if parent not in by_term:
+                continue
+            if any(child in by_term for child in children):
+                pairs.pop((asset_id, by_term[parent]), None)
+                dropped += 1
+    return dropped
+
+
 def build(db_path=None) -> dict:
     """Derive asset_indications from the trials on file. Returns a count summary.
 
@@ -395,8 +575,13 @@ def build(db_path=None) -> dict:
                SELECT asset_id, conditions, mesh_terms, phase, NULL, enrollment, NULL
                  FROM completed_trials WHERE asset_id IS NOT NULL""")]
         pairs = pairs_from_trials(rows)
+        for key in curated_exclusions(conn):
+            pairs.pop(key, None)
         for key, entry in curated_additions(conn).items():
             pairs.setdefault(key, entry)
+        # Before the indications are written, so a parent the asset's own child makes
+        # redundant never becomes a row the layer model can price.
+        parents_dropped = drop_parent_of_child(pairs)
         indication_ids = _upsert_indications(conn, pairs)
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
@@ -439,9 +624,223 @@ def build(db_path=None) -> dict:
                  1 if lead.get(asset_id, (None, None))[1] == mesh_id else 0,
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
+        linked = attach_catalyst_indications(conn)
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
                 "assets": len({a for a, _ in pairs}),
-                "excluded_by_override": excluded}
+                "parents_dropped": parents_dropped,
+                "excluded_by_override": excluded,
+                "catalysts_linked": linked["linked"],
+                "catalysts_ambiguous": linked["ambiguous"],
+                "catalysts_paediatric_unmatched": linked["paediatric_unmatched"]}
     finally:
         conn.close()
+
+
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+
+# Words that make an indication row the paediatric one. ``tokens`` folds the British
+# spelling into the American, so "Paediatric" and "Pediatric" both arrive as "pediatric".
+_PAEDIATRIC_WORDS = frozenset(("pediatric", "paediatric", "child", "children",
+                               "adolescent", "adolescents", "juvenile", "infant"))
+
+# The registry gives no eligibility age on the rows this repository stores, so the title
+# is the signal there is. It is explicit where it exists ("A Study of Mirikizumab in
+# Pediatric Participants"), and a study whose title does not say so is read as adult,
+# which is the common case and the safe default: an adult reading keeps today's
+# behaviour, and only an explicit paediatric title diverts a readout.
+_PAEDIATRIC_TITLE = re.compile(
+    r"\b(pa?ediatrics?|child|children|adolescents?|juvenile|infants?)\b", re.I)
+
+# A study that enrols both ages is not the paediatric one. "Remibrutinib in Adult and
+# Adolescent Patients With Moderate to Severe Chronic Spontaneous Urticaria" is the
+# adult label expansion, read out once across an age range that happens to reach down
+# to twelve; so is upadacitinib's, icotrokinra's and eighteen others. Diverting them to
+# a paediatric row the book mostly does not carry left 21 readouts unpriced, which is
+# the opposite of what the paediatric rule is for: it exists to stop a readout in
+# children being read as deciding the adults' approved indication, not to discard a
+# readout that decides both.
+_ADULT_TITLE = re.compile(r"\badults?\b", re.I)
+
+
+# MeSH indexes a study under every descriptor that fits, so a trial in obesity arrives
+# carrying "Obesity" and its own parent "Overweight", and one in hidradenitis
+# suppurativa arrives carrying "Hidradenitis" as well. Both descriptors are real rows on
+# the asset, so the readout matched two indications and was left unlinked as ambiguous:
+# 153 catalysts, 38 of them the obesity pair alone, every one of them a readout whose
+# disease is not actually in doubt.
+#
+# Where one of the matches is the MeSH parent of another, the narrower descriptor is the
+# study's disease and the broader one is co-indexing. This is the same rule
+# ``drop_parent_of_child`` applies to an asset's own indications, kept as a separate
+# relation because it is wider: dropping these at asset level would retire rows that
+# carry assumptions, and this only decides which row a readout points at.
+#
+# A judgement sits in the first entry and is worth stating. A trial enrolling "obesity
+# or overweight" does cover both, and the book carries both rows; reading it as the
+# obesity readout follows the label these products are written to ("chronic weight
+# management in obesity, or overweight with a comorbidity") and takes the pool the
+# programme is valued on. The alternative is 38 unpriced readouts on the largest
+# franchise in the book.
+_NARROWS_TO = {
+    "overweight": ("obesity",),
+    "hidradenitis": ("hidradenitis suppurativa",),
+    "dermatitis": ("dermatitis, atopic", "eczema"),
+    "eczema": ("dermatitis, atopic",),
+    "alopecia": ("alopecia areata", "alopecia universalis"),
+    "alopecia areata": ("alopecia universalis",),
+    "scleroderma, systemic": ("scleroderma, diffuse",),
+    "nephritis": ("lupus nephritis",),
+    "macular degeneration": ("wet macular degeneration",),
+    "retinal degeneration": ("macular degeneration", "wet macular degeneration"),
+    **{parent: children for parent, children in PARENT_TERMS.items()},
+}
+
+
+def _narrow(names: dict) -> dict:
+    """Drop every match that is the MeSH parent of another match on the same study.
+
+    ``names`` maps the asset_indication id to its lowercased indication name. Returns
+    the same mapping without the broader terms. A set that narrows to nothing, or to
+    more than one unrelated disease, is returned unchanged for the caller to refuse.
+    """
+    present = {n: pid for pid, n in names.items()}
+    drop = set()
+    for parent, children in _NARROWS_TO.items():
+        if parent in present and any(child in present for child in children):
+            drop.add(present[parent])
+    return {pid: n for pid, n in names.items() if pid not in drop} or names
+
+
+def _by_condition_text(conditions, candidates: list) -> set:
+    """The asset's own indications named whole inside the study's condition text.
+
+    The registry indexes most studies into MeSH, and where it does that is the better
+    signal because it is somebody's deliberate classification. But 143 readouts on the
+    book carry conditions the registry never indexed — "Metastatic Castration-Resistant
+    Prostate Cancer", "Relapsing Multiple Sclerosis", "Non-Clear Cell Renal Cell
+    Carcinoma" — and they are not obscure. They are the free text a sponsor typed.
+
+    So where MeSH yields nothing, the condition text is read against the asset's own
+    indication names, which is the vocabulary the book already matched this study to
+    when it built the asset_indications row. That keeps the module's rule intact: the
+    catalyst and the forecast it prices against cannot disagree about what the study is
+    in, because both now come from the same row.
+
+    Two guards, because containment alone is too generous here. The book's name must be
+    at least two meaningful words, since a one-word row like "Pain" sits inside any
+    phrase mentioning it and would swallow every analgesic readout. And it must sit
+    inside the condition whole rather than merely overlapping it, so "Prostatic
+    Neoplasms" matches "Metastatic Castration-Resistant Prostate Cancer" and nothing
+    matches on a shared qualifier like "metastatic".
+    """
+    try:
+        conds = json.loads(conditions or "[]")
+    except (TypeError, ValueError):
+        return set()
+    if not isinstance(conds, list):
+        return set()
+    out = set()
+    for phrase in conds:
+        said = set(tokens(phrase if isinstance(phrase, str) else ""))
+        if len(said) < 2:
+            continue
+        for pair_id, words in candidates:
+            if len(words) >= 2 and words <= said:
+                out.add(pair_id)
+    return out
+
+
+def _is_paediatric(title) -> bool:
+    text = title or ""
+    if _ADULT_TITLE.search(text):
+        return False
+    return bool(_PAEDIATRIC_TITLE.search(text))
+
+
+def attach_catalyst_indications(conn) -> dict:
+    """Say which indication a registry readout reads out in.
+
+    A readout is an event in one disease, not in the asset as a whole, and until the
+    catalyst says which the model cannot price it as one: a label expansion on an
+    approved drug is worth the indication it opens, and 794 of the 812 catalysts on the
+    book named no indication at all. ``applications.resolve`` sets this where an FDA
+    filing states the disease, which reached 18 of them; this reads the study.
+
+    The rule is ``indications_for``, the same one asset_indications is built with, so a
+    catalyst and the forecast it prices against cannot disagree about what the study is
+    in. Run at the end of ``build`` because the wholesale rebuild above has just cleared
+    the column and written the rows this matches against.
+
+    A study in several of the asset's indications is left null. One readout then stands
+    for two diseases, and choosing between them would be a guess about which the market
+    is pricing; unlinked it stays unpriced and says so, which is the honest answer.
+    """
+    # indications_for answers in MeSH descriptors; asset_indications is keyed on the
+    # indication row. The indications table carries the mesh_id that joins them.
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    pairs, paediatric, pair_name, by_asset = {}, {}, {}, {}
+    for row in conn.execute(
+            "SELECT ai.id, ai.asset_id, ai.indication_id, i.name FROM asset_indications ai"
+            "  JOIN indications i ON i.id = ai.indication_id"):
+        pairs[(row["asset_id"], row["indication_id"])] = row["id"]
+        pair_name[row["id"]] = (row["name"] or "").strip().lower()
+        by_asset.setdefault(row["asset_id"], []).append(
+            (row["id"], set(tokens(row["name"] or ""))))
+        words = set(tokens(row["name"] or ""))
+        if words & _PAEDIATRIC_WORDS:
+            paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
+
+    rows = conn.execute(
+        f"""SELECT cat.id, cat.source_url, COALESCE(t.asset_id, cat.asset_id) AS asset_id,
+                   t.conditions, t.mesh_terms, t.title
+              FROM catalysts cat
+              JOIN trials t ON t.nct_id =
+                   substr(cat.source_url, {len(_CTGOV_URL) + 1})
+             WHERE cat.asset_indication_id IS NULL
+               AND cat.source_url LIKE '{_CTGOV_URL}%'""").fetchall()
+
+    linked = ambiguous = paediatric_unmatched = text_matched = 0
+    for row in rows:
+        if not row["asset_id"]:
+            continue
+        try:
+            terms = indications_for(row["conditions"], parse_browse(row["mesh_terms"]))
+        except Exception:                                  # noqa: BLE001 - messy payload
+            continue
+        hits = {pairs[(row["asset_id"], by_mesh[t["id"]])] for t in terms
+                if t["id"] in by_mesh and (row["asset_id"], by_mesh[t["id"]]) in pairs}
+
+        # MeSH indexes a study of children with Crohn's disease as "Crohn Disease", the
+        # same descriptor it gives the adult study, so the readout of Omvoh's paediatric
+        # trial landed on the adult row. That row is an approved indication and the
+        # adult approval is already in the revenue, so the one genuine gate the product
+        # has was being read as decided. Where the asset carries a paediatric row for
+        # the same disease the readout belongs to it.
+        if _is_paediatric(row["title"]):
+            wanted = {w for t in terms for w in tokens(t["term"] or "")}
+            fits = [pid for pid, words in paediatric.get(row["asset_id"]) or []
+                    if wanted and (words - _PAEDIATRIC_WORDS) <= wanted]
+            if len(fits) != 1:
+                # No paediatric row for this disease, or more than one. The adult row is
+                # not the answer: a readout in children does not decide the indication
+                # the adults are already approved in.
+                paediatric_unmatched += 1
+                continue
+            hits = {fits[0]}
+
+        if not hits and not _is_paediatric(row["title"]):
+            hits = _by_condition_text(row["conditions"], by_asset.get(row["asset_id"]) or [])
+            text_matched += 1 if len(hits) == 1 else 0
+        if len(hits) > 1:
+            hits = set(_narrow({pid: pair_name.get(pid, "") for pid in hits}))
+        if len(hits) != 1:
+            ambiguous += 1 if hits else 0
+            continue
+        conn.execute("UPDATE catalysts SET asset_indication_id = ? WHERE id = ?",
+                     (hits.pop(), row["id"]))
+        linked += 1
+    return {"linked": linked, "ambiguous": ambiguous,
+            "paediatric_unmatched": paediatric_unmatched,
+            "text_matched": text_matched}

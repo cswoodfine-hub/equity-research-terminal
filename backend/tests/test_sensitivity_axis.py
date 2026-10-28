@@ -211,8 +211,15 @@ def _loses_money_at_its_stated_costs(built: dict) -> bool:
 
 
 def _at_its_ceiling_from_year_one(built: dict, inputs: dict, axis: dict) -> bool:
-    """A marketed product whose stated ceiling binds in the first forecast year at every
-    step of the growth axis: growth cannot move it, its ceiling does (Jemperli)."""
+    """A marketed product whose ceiling binds in the first forecast year at every step
+    of the growth axis: growth cannot move it, its ceiling does (Jemperli).
+
+    Against what is left of the ceiling, not the stated figure. The engine takes the
+    layers' peak out of the franchise ceiling before growing the approved business into
+    it, so a product carrying expansions is grown into a lower ceiling than its seed
+    names. Ojjaara's stated 850 is 765 once its 85mm of layers are carved out, and
+    comparing against 850 said its growth axis should move when the engine had already
+    pinned it."""
     scalars = inputs["scalars"]
     ceiling = scalars.get("revenue_ceiling_musd")
     if built["mode"] != "marketed" or ceiling is None:
@@ -220,6 +227,7 @@ def _at_its_ceiling_from_year_one(built: dict, inputs: dict, axis: dict) -> bool
     run_rate, _ = forecast.latest_run_rate(inputs.get("actuals"))
     if run_rate is not None and run_rate > ceiling:
         ceiling = run_rate
+    ceiling = max(0.0, ceiling - (built.get("layer_peak") or 0.0))
     return scalars["base_revenue"] * (1.0 + min(axis["values"])) >= ceiling
 
 

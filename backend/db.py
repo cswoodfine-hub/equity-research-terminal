@@ -40,14 +40,31 @@ def _make_idempotent(sql: str) -> str:
     return sql
 
 
-def get_connection(db_path: str | Path | None = None) -> sqlite3.Connection:
+class NoDatabase(FileNotFoundError):
+    """Asked to open a database that is not there."""
+
+
+def get_connection(db_path: str | Path | None = None, *,
+                   create: bool = False) -> sqlite3.Connection:
     """Open a connection with foreign keys on and row access by column name.
 
     WAL and a busy timeout let the parallel refresh (one thread per company, each with
     its own connection) write concurrently instead of failing on "database is locked".
     Both are no-ops for the single-threaded paths.
+
+    A path with no database at it is refused unless ``create`` is set, which only
+    ``init()`` does. ``sqlite3.connect`` makes a file out of whatever path it is handed,
+    so a call that put a ticker where a path belongs left an empty database named AZN
+    beside the real one and failed three lines later on a missing table, with nothing
+    tying the two together. Three of those were committed to the repository in August
+    and nobody noticed what they were until October. Opening a database that does not
+    exist is a mistake in every caller but the one whose job is to create it.
     """
-    path = Path(db_path) if db_path is not None else DB_PATH
+    # Both branches through Path: DB_PATH is a module global a test may have replaced
+    # with a string, and the existence check needs a Path either way.
+    path = Path(db_path if db_path is not None else DB_PATH)
+    if not create and not path.exists():
+        raise NoDatabase(f"no database at {path}: db.init() is what creates one")
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -70,9 +87,9 @@ def init(db_path: str | Path | None = None) -> Path:
 
     Returns the path to the database file.
     """
-    path = Path(db_path) if db_path is not None else DB_PATH
+    path = Path(db_path if db_path is not None else DB_PATH)
     schema_sql = _make_idempotent(SCHEMA_PATH.read_text())
-    conn = get_connection(path)
+    conn = get_connection(path, create=True)
     try:
         conn.executescript(schema_sql)
         conn.execute(

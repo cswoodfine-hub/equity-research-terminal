@@ -194,7 +194,8 @@ _INTERVAL_BASE = {
 # Sessions in the Key insights sparkline. Trading sessions rather than calendar days,
 # so a bank holiday or a weekend does not silently shorten the line.
 SPARK_SESSIONS = 5
-CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
+CATALYST_TYPES = ["PDUFA", "data readout", "regulatory submission", "EMA decision",
+                  "AdCom", "conference", "other"]
 # Quarters in the growth-against-margin panel: the most recent year, one bar per quarter.
 # The registry page for a trial, keyed by its NCT id.
 # Months of catalyst calendar. Two years covers the readout horizon without a control
@@ -204,10 +205,14 @@ CALENDAR_MONTHS = 24
 
 
 # --- Transport ----------------------------------------------------------
-@st.cache_data(ttl=30, show_spinner=False)
+# The API caches by data revision; a second timed cache can mix revisions on one page.
 def api_get(base: str, path: str, timeout: int = 30):
     with urllib.request.urlopen(base.rstrip("/") + path, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+# Existing refresh handlers may still clear the former frontend cache.
+api_get.clear = lambda: None
 
 
 def api_post(base: str, path: str, timeout: int = 300):
@@ -1382,7 +1387,11 @@ def _scaled(value, dp=1):
         return None, ""
     if abs(value) >= BILLIONS_ABOVE:
         return T.num(value / 1e9, dp), "bn"
-    return T.num(value / 1e6, 0), "m"
+    if abs(value) >= 1e6:
+        return T.num(value / 1e6, dp), "m"
+    if abs(value) >= 1e3:
+        return T.num(value / 1e3, dp), "k"
+    return T.num(value, 2), ""
 
 
 def _times(value, dp=2):
@@ -1406,18 +1415,18 @@ def _cash_block(api_base: str, ticker: str) -> None:
     # against those earnings, and what it spent buying other people. Net debt is quoted
     # in turns of EBITDA, so EBITDA has to be on the row before it rather than implied.
     st.markdown(metric_tiles([
-        ("EBITDA", _bn(cash.get("ebitda")), "bn", "", "", "before D&A"),
-        ("Free cash flow", _bn(cash.get("fcf")), "bn", "", "",
+        ("EBITDA", *_scaled(cash.get("ebitda")), "", "", "before D&A"),
+        ("Free cash flow", *_scaled(cash.get("fcf")), "", "",
          (T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
           if cash.get("fcf_margin") is not None else "")),
         ("Cash conversion", _times(cash.get("cash_conversion")), "", "", "",
          "FCF over net income"),
-        ("Net debt", _bn(cash.get("net_debt")), "bn", "", "",
+        ("Net debt", *_scaled(cash.get("net_debt")), "", "",
          (_times(cash.get("net_debt_ebitda")) + " EBITDA"
           if cash.get("net_debt_ebitda") is not None else "")),
         # Cash paid is not the announced value on the deals, and the two figures are one
         # click apart, so this one says which it is.
-        ("Acquisitions", _bn((cash.get("inputs") or {}).get("acquisitions")), "bn",
+        ("Acquisitions", *_scaled((cash.get("inputs") or {}).get("acquisitions")),
          "", "", "cash paid"),
     ], one_row=True), unsafe_allow_html=True)
 
@@ -1445,7 +1454,8 @@ def _street_figure(metric: str, value, currency: str):
         return T.num(value, 1), "%"
     if metric in ("EPS", "PriceTarget"):
         return T.num(value, 2), (f"{currency} " if currency else "") + "per share"
-    return T.num(value / 1e9, 2), (f"{currency} " if currency else "") + "bn"
+    figure, unit = _scaled(value, 2)
+    return figure, (f"{currency} " if currency else "") + unit
 
 
 def _street_block(api_base: str, ticker: str) -> None:
@@ -1679,12 +1689,19 @@ def statement_table(block: dict, currency: str | None,
     common_size = lens == COMMON_SIZE
     growth = lens == GROWTH
     base = block["base"]["values"] if common_size else []
+    money_values = [abs(c["value"]) for line in lines
+                    if line.get("unit") != "shares" and "/" not in (line.get("unit") or "")
+                    for c in line["cells"] if c.get("value") is not None]
+    money_divisor, money_unit = ((1e9, "bn") if max(money_values, default=0) >= 1e9
+                                 else (1e6, "m"))
 
     head = "".join(f'<th class="{"now" if i == 0 else ""}">{html_escape(p["label"])}</th>'
                    for i, p in enumerate(periods))
     body = []
     for line in lines:
         divisor, decimals, _ = line_scale(line.get("unit"), currency)
+        if divisor == 1e9:
+            divisor = money_divisor
         cells = []
         for index, cell in enumerate(line["cells"]):
             value = cell["value"]
@@ -1731,7 +1748,7 @@ def statement_table(block: dict, currency: str | None,
     # of percentages.
     unit = (f'% of {block["base"]["label"].lower()}' if common_size
             else "% on a year earlier" if growth
-            else f'{currency or ""} bn'.strip())
+            else f'{currency or ""} {money_unit}'.strip())
     return (f'<div class="fin-wrap"><table class="fin">'
             f'<thead><tr><th class="l">{html_escape(unit)}</th>'
             f'{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>')
@@ -3602,7 +3619,7 @@ def _book(api_base: str, ticker: str, selected):
     try:
         v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
     except (urllib.error.URLError, OSError):
-        return None, None
+        return None, None, None
     if not v.get("ok") or not (v.get("per_share") or v.get("streams")
                                or v.get("placeholders")):
         # Without this the tab opened straight on an empty assumptions grid for
@@ -4254,14 +4271,33 @@ def _stake_split(rows: list, shown: int = _STAKE_SHOWN) -> tuple:
 
 
 def _stake_resolved_note(result) -> str:
-    """What a resolve said, where the page has to say it: a stated PoS still governs."""
+    """What a resolve did, in full.
+
+    Recording an outcome steps the live probability, writes the ledger and rebuilds the
+    valuation, and the page used to say nothing at all unless one narrow case applied.
+    The analyst had just moved the number the whole book rests on and was shown a toast.
+    """
     r = result if isinstance(result, dict) else {}
-    if r.get("route") != "gate evidence" or not r.get("stated_pos_governs"):
+    if not r:
         return ""
-    pos = r.get("pos_applied")
-    held = f" of {pos:.0%}" if isinstance(pos, (int, float)) else ""
-    return (f"Recorded as gate evidence. The stated PoS{held} still governs; clear it "
-            "under Assumptions to let the gate move it.")
+    pct = lambda v: f"{v:.0%}" if isinstance(v, (int, float)) else None
+    mm = lambda v: f"{v:,.0f}mm" if isinstance(v, (int, float)) else None
+    said = ["Recorded " + str(r.get("outcome") or "").strip() + "."
+            if r.get("outcome") else "Recorded."]
+    was, now = pct(r.get("pos_before")), pct(r.get("pos_applied"))
+    if was and now and was != now:
+        said.append(f"PoS {was} to {now}.")
+    elif now:
+        said.append(f"PoS {now}.")
+    a, b = r.get("rnpv_before"), r.get("rnpv_after")
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        said.append(f"rNPV {mm(a)} to {mm(b)} ({b - a:+,.0f}mm).")
+    if r.get("route") == "gate evidence" and r.get("stated_pos_governs"):
+        said.append("A stated PoS still governs; clear it under Assumptions to let the "
+                    "gate move it.")
+    elif r.get("route") == "gate evidence":
+        said.append("Recorded as gate evidence.")
+    return " ".join(said)
 
 
 def _stake_row(box, api_base: str, ticker: str, row: dict) -> None:
@@ -4943,6 +4979,55 @@ def _curve_shaper(api_base: str, ticker: str, asset_id: int, scenario: str,
 
 
 
+# Six grades in three classes, mirroring backend/evidence.py. A test keeps the two in
+# step, the same bargain tokens.py and tokens.css already make: an ungraded row is an
+# assumption, because it is weak for a reason nobody has written down.
+EVIDENCE_CLASS = {"filed": "evidence", "measured": "evidence", "published": "evidence",
+                  "analogue": "partial evidence", "convention": "assumption",
+                  "judgement": "assumption"}
+
+
+def _evidence_mix(rows) -> dict:
+    """How much of one product's model is evidence, partial evidence and assumption.
+
+    The board question evidence.py was written for, counted and put where a reader can
+    see it. A model that is a fifth judgement is not worse than one that is not; a model
+    that is a fifth judgement and does not say so is.
+    """
+    out = {"evidence": 0, "partial evidence": 0, "assumption": 0}
+    for row in rows or []:
+        out[EVIDENCE_CLASS.get((row.get("evidence") or "").strip().lower(),
+                               "assumption")] += 1
+    return out
+
+
+def _evidence_byline(rows) -> str:
+    mix = _evidence_mix(rows)
+    total = sum(mix.values())
+    if not total:
+        return ""
+    share = mix["assumption"] / total
+    parts = " &nbsp;·&nbsp; ".join(f"{n} {name}" for name, n in mix.items() if n)
+    return (f'<div class="byline">{share:.0%} of this model is assumption'
+            f' &nbsp;·&nbsp; {parts}</div>')
+
+
+def _workings_layer(notes) -> None:
+    """What the engine decided and why, in its own words.
+
+    The forecast engine writes a line for every judgement it makes: a layer it added and
+    the odds on it, the rate it grew a reported figure at, which exclusivity date governs
+    which share of revenue, what the terminal multiple came to and what a flat
+    perpetuity would have given instead. All of it reached the API and none of it
+    reached a reader, which left the model a black box holding a number.
+    """
+    if not notes:
+        state("No workings", "the engine recorded no decisions for this build")
+        return
+    items = "".join(f'<li>{html_escape(str(n))}</li>' for n in notes)
+    st.markdown(f'<ul class="workings">{items}</ul>', unsafe_allow_html=True)
+
+
 def _forecast_editor(api_base: str, ticker: str, asset_id: int, scenario: str,
                      rows: list[dict]):
     """The assumptions grid: every number the forecast rests on, editable in place.
@@ -5610,6 +5695,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
             verdict = {}
         if not verdict.get("ok"):
             verdict = {}
+        if verdict.get("close_date"):
+            st.caption("Asset valuation · market close " + str(verdict["close_date"]))
+        if _company and verdict and (_company.get("close"), _company.get("close_date")) != (verdict.get("close"), verdict.get("close_date")):
+            st.warning("Market data changed while this page loaded. Reload the page before comparing company and asset valuations.")
         # The Medicare split is its own read, so a failure empties this layer alone.
         try:
             medicare = api_get(api_base, f"/companies/{ticker}/forecast/{sel}/demand")
@@ -5718,19 +5807,21 @@ def _render_forecast_tab(api_base: str, ticker: str):
                      ("WACC", f"{shown['wacc'] * 100:.2f}", "%", None, "", wacc_note),
                      ("PoS", f"{shown['pos'] * 100:.0f}", "%", None, "", pos_note)]
             loe_shown = shown.get("loe_year") if varied else result.get("loe_year")
-            # "none" rather than a dash: the tiles read a dash as data that is missing,
-            # and an asset with no exclusivity on file is a fact, not a gap in a source.
+            # A missing protection record is unknown, not proof of no exclusivity.
             tiles.append(("LOE", str(loe_shown) if loe_shown
-                          else "past" if result.get("loe_in_base") else "none", "", None, "",
+                          else "past" if result.get("loe_in_base") else "unknown", "", None, "",
                           "slider" if "loe_year" in moved and varied
                           else clause(result.get("loe_basis")) if loe_shown
                           else "date not on file" if result.get("loe_in_base")
-                          else "no exclusivity on file"))
+                          else "protection data missing"))
             st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
             if unsourced:
                 st.markdown(f'<div class="byline">unsourced assumptions: '
                             f'{html_escape(", ".join(unsourced))}</div>',
                             unsafe_allow_html=True)
+            _mix = _evidence_byline(data.get("assumptions") or [])
+            if _mix:
+                st.markdown(_mix, unsafe_allow_html=True)
             if placeholder:
                 state("Drawn on a placeholder curve, and not counted",
                       "the uptake ceiling and midpoint are the shaper's probe values. This "
@@ -5756,9 +5847,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
         # one and a marketed brand the other.
         has_medicare = bool(medicare_html) or bool(medicare_error)
         has_gate = bool(verdict.get("gate"))
+        workings = result.get("notes") or []
         layer_names = (["Drivers"] + (["Next gate"] if has_gate else [])
                        + (["Medicare"] if has_medicare else [])
                        + (["Uptake"] if has_uptake else [])
+                       + ([f"Workings · {len(workings)}"] if workings else [])
                        + ["P&L", "Sensitivity", f"Assumptions · {n_rows}"])
         panels = dict(zip(layer_names, st.tabs(layer_names)))
 
@@ -5772,6 +5865,10 @@ def _render_forecast_tab(api_base: str, ticker: str):
             # "No verdict" under every approved product's drivers.
             if result.get("pos_granular"):
                 _pos_layer(result["pos_granular"])
+
+        if workings:
+            with panels[f"Workings · {len(workings)}"]:
+                _workings_layer(workings)
 
         if has_gate:
             with panels["Next gate"]:
@@ -5829,6 +5926,55 @@ def _render_forecast_tab(api_base: str, ticker: str):
                                    key=f"fc_dl_{ticker}_{sel}")
             _forecast_import(api_base, ticker, sel, scenario,
                              data.get("assumptions") or [])
+            _change_log(api_base, ticker, sel)
+
+
+def _log_num(v):
+    if v is None:
+        return "nothing"
+    return f"{v:g}" if isinstance(v, (int, float)) else str(v)
+
+
+def _change_log(api_base: str, ticker: str, asset_id) -> None:
+    """Every change to this product's assumptions, newest first.
+
+    The value a row replaced, who moved it, the reason given and what the valuation did
+    about it. The assumptions table only ever holds the current number, so without this
+    the only record of a prior one was the git diff of a seed file, which misses every
+    value edited in the terminal.
+    """
+    try:
+        got = api_get(api_base, f"/model-changes?asset_id={asset_id}&limit=40")
+    except Exception:                                               # noqa: BLE001
+        return
+    entries = [e for e in (got.get("changes") or [])
+               if e.get("reason") and e["reason"] != "initial_seed"]
+    if not entries:
+        note("No assumption on this product has been changed since it was first written. "
+             "Every row still carries the value and the source it was seeded with.")
+        return
+    rows = []
+    for e in entries:
+        where = f" · {e['indication']}" if e.get("indication") else ""
+        moved = (f"{_log_num(e.get('old_value'))} to {_log_num(e.get('new_value'))}"
+                 if (e.get("old_value") is not None or e.get("new_value") is not None)
+                 else str(e.get("op") or ""))
+        swing = ""
+        if isinstance(e.get("rnpv_before"), (int, float)) and \
+                isinstance(e.get("rnpv_after"), (int, float)):
+            swing = f' &nbsp;·&nbsp; rNPV {e["rnpv_after"] - e["rnpv_before"]:+,.0f}mm'
+        who = (f' &nbsp;·&nbsp; {html_escape(str(e["changed_by"]))}'
+               if e.get("changed_by") else "")
+        rationale = (f'<br><span class="byline">{html_escape(str(e["rationale"]))}</span>'
+                     if e.get("rationale") else "")
+        rows.append(
+            f'<li><b>{html_escape(str(e.get("key")))}</b>{html_escape(where)} '
+            f'{html_escape(moved)} &nbsp;·&nbsp; '
+            f'<span class="u-tag">{html_escape(str(e["reason"]))}</span>'
+            f'{swing}{who} &nbsp;·&nbsp; '
+            f'{html_escape(str(e.get("changed_at"))[:16])}{rationale}</li>')
+    section("What changed", count=len(entries))
+    st.markdown(f'<ul class="whym">{"".join(rows)}</ul>', unsafe_allow_html=True)
 
 
 def _sensitivity_grid(grid, base_rnpv=None) -> None:
@@ -5886,9 +6032,6 @@ def snapshot_meta(snapshot: dict) -> str:
 def snapshot_strip(snapshot: dict) -> str:
     """The latest reported period, as tiles. The currency is named in the heading."""
 
-    def money(value):
-        return T.num(value / 1e9, 1) if value is not None else None
-
     def growth(value):
         if value is None:
             return "", ""
@@ -5901,8 +6044,8 @@ def snapshot_strip(snapshot: dict) -> str:
     revenue_note, revenue_tone = growth(snapshot["revenue_growth"])
     income_note, income_tone = growth(snapshot["net_income_growth"])
     return metric_tiles([
-        ("Revenue", money(snapshot["revenue"]), "bn", revenue_note, revenue_tone, ""),
-        ("Net income", money(snapshot["net_income"]), "bn", income_note, income_tone, ""),
+        ("Revenue", *_scaled(snapshot["revenue"]), revenue_note, revenue_tone, ""),
+        ("Net income", *_scaled(snapshot["net_income"]), income_note, income_tone, ""),
         ("EPS, diluted", T.num(snapshot["eps_diluted"], 2), "", "", "", ""),
         # Net margin is not a tile. It is the second series in the panel below, where it
         # has the history that makes a level mean something, and a lone 37.4% here would
@@ -8689,6 +8832,78 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
     _china_bd(api_base, ticker)
 
 
+def _review_queue_panel(api_base: str) -> None:
+    """The evidence queue, a sentence at a time.
+
+    Folded, and drawn at the foot of the Universe tab, because it is book-wide rather
+    than about the company in focus and it is read when an analyst sits down to it
+    rather than at a glance.
+
+    One house convention stands behind hundreds of assets, so the row offered is the
+    sentence and not the assumption. Confirming marks reviewed what a rule already read:
+    it changes no grade and no value, and every row it touches reaches the ledger.
+    """
+    try:
+        got = api_get(api_base, "/review-queue?limit=40")
+    except Exception:                                               # noqa: BLE001
+        return
+    groups, total = got.get("groups") or [], got.get("unreviewed") or 0
+    if not groups:
+        return
+    head, allc = st.columns([6, 1], vertical_alignment="center")
+    with head:
+        section("Evidence to confirm", count=total,
+                basis="judgement and convention, unreviewed")
+    with allc:
+        if st.button("Confirm all", key="rev_all", width="stretch"):
+            try:
+                out = api_post_body(api_base, "/review-queue/confirm-all", {})
+            except Exception as exc:                                # noqa: BLE001
+                st.warning(f"That did not go through: {exc}")
+            else:
+                api_get.clear()
+                st.toast(f"{out['confirmed']} rows confirmed in bulk.")
+                st.rerun()
+    note("The book grades every assumption off its own source and marks the grade "
+         "unreviewed until an analyst confirms it. One convention stands behind "
+         "hundreds of assets, so what is offered here is the sentence rather than the "
+         "row. Confirming marks the grade reviewed; it never changes a grade and never "
+         "touches a value, and every row it marks reaches the change ledger.")
+    for n, g in enumerate(groups[:12]):
+        row, act = st.columns([7, 1], vertical_alignment="center")
+        with row:
+            where = g.get("key") or f"{g.get('keys')} keys"
+            st.markdown(
+                f'<div class="whym-lead"><b>{html_escape(str(where))}</b> '
+                f'&nbsp;·&nbsp; {g["rows"]} rows on {g["assets"]} assets '
+                f'&nbsp;·&nbsp; <span class="u-tag">{html_escape(g["evidence"])}</span>'
+                f'</div><div class="byline">{html_escape(str(g["source"])[:190])}</div>',
+                unsafe_allow_html=True)
+        with act:
+            if st.button("Confirm", key=f"rev_{n}_{abs(hash(g['source'])) % 10**8}",
+                         width="stretch"):
+                try:
+                    out = api_post_body(
+                        api_base, "/review-queue/confirm",
+                        {"source": g["source"], "evidence": g["evidence"]})
+                except Exception as exc:                            # noqa: BLE001
+                    st.warning(f"That did not go through: {exc}")
+                else:
+                    api_get.clear()
+                    st.toast(f"{out['confirmed']} rows confirmed.")
+                    st.rerun()
+
+
+def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
+    """POST a JSON body. api_post sends none, and this needs one."""
+    request = urllib.request.Request(
+        base.rstrip("/") + path, method="POST",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,
                        universe_feed) -> None:
     """What moved across coverage: headlines, approvals, the map, what is ahead.
@@ -9911,6 +10126,9 @@ with main:
         else:
             _universe_overview(api_base, engine, _engine_name, _covered,
                                _all_changes, universe_feed)
+        # Book-wide, so it sits at the foot of the book-wide tab rather than on a
+        # company page, and it draws nothing when the queue is empty.
+        _review_queue_panel(api_base)
 
     with insights_tab:
         # The company on one page (company-scorecard.md 1.3): where it stands against its
@@ -9931,7 +10149,9 @@ with main:
         with ctrl_events:
             show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
         with ctrl_grid:
-            show_grid = st.toggle("Grid", value=True, key=f"grid_{ticker}")
+            # Off by default: the price line is the subject and the gridlines sat on top
+            # of it. The toggle stays, so a reader measuring a level can put them back.
+            show_grid = st.toggle("Grid", value=False, key=f"grid_{ticker}")
         with ctrl_refresh:
             if st.button("Refresh", key="refresh_prices", width="stretch"):
                 run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
@@ -10041,6 +10261,46 @@ with main:
                     events.append({"date": appr["loe"], "label": f"{name} LOE",
                                    "kind": "loe"})
 
+            # The fair value this book stated, day by day, against the close it was stated
+            # against. A day the refresh did not run carries the last stated view flat and
+            # is drawn muted, because the model did not change its mind on a day nobody
+            # asked it. Nothing is carried backwards and nothing is recomputed: the line
+            # is the record, and a company the book has never valued simply has no line.
+            # Asked for the window on screen rather than the whole record: the price
+            # history runs ten years and the fair value line is clipped to the bars
+            # anyway, so fetching all of it moves thousands of points to draw dozens.
+            _since = str(chart_rows[0]["as_of"])[:10] if chart_rows else None
+            history = api_get(
+                api_base, f"/companies/{ticker}/forecast-history"
+                          + (f"?since={_since}" if _since else ""))
+            fair = price_chart.forecast_series(
+                history.get("points") or [], intraday,
+                bars=chart_rows) if history.get("ok") else []
+
+            # Why the line last moved, from the two most recent days the book stated a
+            # view: what the market did, what the analyst changed and why, what the data
+            # underneath did, and whether the engine itself changed. Fetched before the
+            # chart draws, because the chart takes the height the tab has and would
+            # otherwise push this under the fold, where the first version of it lived.
+            _said = [pt["as_of"] for pt in (history.get("points") or [])
+                     if pt.get("stated")]
+            _why = {}
+            if len(_said) >= 2 and not intraday:
+                try:
+                    _why = api_get(
+                        api_base, f"/companies/{ticker}/why-moved"
+                                  f"?start={_said[-2]}&end={_said[-1]}")
+                except Exception:                                   # noqa: BLE001
+                    _why = {}
+            _why_lines = _why.get("reading") or [] if _why.get("ok") else []
+            # The analyst's own changes go on the chart beside the world's. The rest of
+            # the feed stays on the change feed, where it already reads in full: a trial
+            # slipping a month is not what a price chart is for.
+            for moved in (history.get("events") or []):
+                if moved.get("kind") == "model" and moved.get("headline"):
+                    events.append({"date": moved["date"], "kind": "model",
+                                   "label": moved["headline"]})
+
             # A lightweight-charts component with native two-finger zoom that stretches
             # the sticks and auto-fits the y-axis. Drawing trendlines on it is gone: it
             # did not work, and the toggle, its Clear button and the annotation
@@ -10062,16 +10322,33 @@ with main:
             markers = price_chart.event_markers(
                 chart_rows, events if show_events else [], intraday)
             drawchart.draw_chart(
-                data=data, markers=markers, mode=view, intraday=intraday,
+                data=data, markers=markers, fair=fair, mode=view, intraday=intraday,
                 lines=[], draw_mode=False, theme=theme,
+                gutter=56 + (46 if _why_lines else 0),
                 view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
                 key=f"drawchart_{ticker}")
 
             legend = ('<span style="color:var(--up)">▲</span> FDA approval'
                       '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
                       f'exclusivity &nbsp;·&nbsp; {len(markers)} on this view')
+            if fair:
+                _said = history.get("stated_days", 0)
+                _held = history.get("carried_days", 0)
+                legend += ('&nbsp;&nbsp;<span style="color:var(--flag)">—</span> '
+                           f'fair value, stated on {_said} of {_said + _held} days')
             detail = ("Markers are read from the approvals and exclusivity data; a date "
-                      "outside the loaded window is not drawn. ")
+                      "outside the loaded window is not drawn. A day carrying several "
+                      "events shows the one that leads and counts the rest. ")
+            if fair:
+                detail += (
+                    "The fair value line is what this book stated on the day, from the "
+                    f"daily record that begins {history.get('begins')}; it was last "
+                    f"stated {history.get('last_stated')}. A day the refresh did not run "
+                    "holds the last stated figure flat and is drawn muted, rather than "
+                    "recomputing a past date with everything learnt since. ")
+            elif intraday:
+                detail += ("The fair value line is a daily figure and is left off an "
+                           "intraday view. ")
             if intraday:
                 detail += ("Intraday is a rolling window from the free feed: minutes "
                            "reach back about two months, hours about two years. Older "
@@ -10081,6 +10358,21 @@ with main:
             st.markdown(f'<div class="byline chart-legend">{legend}</div>',
                         unsafe_allow_html=True)
             note(detail)
+
+            # The move itself on one line, the reasoning folded under it. The tab has to
+            # fit a screen and the chart takes most of it, so this reads at a glance and
+            # opens where a reader wants it, the same bargain the Universe bylines make.
+            if _why_lines:
+                _rest = "".join(
+                    f'<li class="warn">{html_escape(line)}</li>'
+                    if ("cannot be attributed" in line or "different books" in line)
+                    else f'<li>{html_escape(line)}</li>'
+                    for line in _why_lines[1:])
+                st.markdown(
+                    f'<div class="whym-lead">{html_escape(_why_lines[0])}</div>'
+                    f'<details class="note-d"><summary>what moved it</summary>'
+                    f'<ul class="whym">{_rest}</ul></details>',
+                    unsafe_allow_html=True)
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
@@ -10686,11 +10978,15 @@ with main:
                     str(mix_year)) or {}
                 mix_drivers, mix_tail = revenue_mix.split(mix_rows)
                 if not approvals:
-                    state(f"No approvals on file for {ticker}",
-                          "openFDA files an approval under the legal entity that holds the "
-                          "application, which for an acquired product is the company that was "
-                          "bought. Press Refresh all in the top bar to pull it again.")
+                    state(f"Product coverage unavailable for {ticker}",
+                          "No marketed products or approval records are linked in this dataset. "
+                          "This is missing coverage, not evidence that the company has no products.")
                 else:
+                    missing_approvals = sorted({a.get("brand_name") or a.get("generic_name") or "Unnamed product"
+                                               for a in approvals if a.get("approval_status") == "missing_record"})
+                    if missing_approvals:
+                        st.warning("Approval record missing for " + ", ".join(missing_approvals)
+                                   + ". Known marketed products remain visible; no approval date is inferred.")
                     today = dt.date.today()
 
                     def _loe_year(p):
@@ -10704,7 +11000,7 @@ with main:
                     # the earliest approval date.
                     products: dict = {}
                     for a in approvals:
-                        key = a.get("brand_name") or a.get("application_number")
+                        key = a.get("asset_id") or a.get("brand_name") or a.get("application_number")
                         p = products.get(key)
                         if p is None:
                             products[key] = dict(
@@ -10728,7 +11024,7 @@ with main:
                     for ex in (api_get(api_base, f"/companies/{ticker}/exclusivities")
                                .get("assets") or []):
                         brand = ex.get("brand_name")
-                        if not brand or brand in products:
+                        if not brand or any(p.get("asset_id") == ex.get("asset_id") for p in products.values()):
                             continue
                         products[brand] = dict(
                             asset_id=ex.get("asset_id"),
@@ -11175,6 +11471,11 @@ with main:
         # value at risk and to gain on its row, each row's full card a click away, the
         # gate's drawn with the Next gate block's own builders. Every other company keeps the tab below exactly, and so does this one
         # when the view's read fails.
+        # A readout in the news that may have landed on a gate this book carries, with
+        # both legs and what it would be worth. Above whichever catalyst view draws,
+        # because it is the one thing on the tab that may be hours old, and it renders
+        # nothing at all on the weeks there is nothing, which is most of them.
+        catalysts_page.proposals_block(api_base, ticker)
         drawn = (_catalysts_redesigned(ticker)
                  and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT))
         if not drawn:
@@ -11324,6 +11625,10 @@ with main:
                     with st.spinner(f"Reading {chosen} across coverage"):
                         existing = api_post(api_base, f"/themes/{slug}/brief")
                 if existing.get("body"):
+                    if existing.get("freshness") != "current":
+                        st.warning("Outdated brief: its source data has changed. Write the brief again to use current figures."
+                                   if existing.get("freshness") == "outdated" else
+                                   "Historical brief: its source snapshot was not recorded, so it cannot be verified against current figures. Write the brief again.")
                     st.markdown(note_html(existing["body"]), unsafe_allow_html=True)
                     st.caption(f"{existing.get('model') or 'rules'}"
                                + (f" · {existing['generated_at'][:16]} UTC"

@@ -86,7 +86,8 @@ def _cohort(conn, ticker: str, db_path) -> str | None:
         return None
 
 
-def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
+def _call_row(as_of, ticker, fair, cohort, version, run_id,
+              source: str = "scheduled") -> dict | None:
     """The day's company call from ``fair_value.company``, or None when it did not value."""
     if not fair or not fair.get("ok") or fair.get("equity_per_share") is None:
         return None
@@ -107,6 +108,7 @@ def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
         "target_low": target.get("low"), "target_mid": target.get("mid"),
         "target_high": target.get("high"),
         "code_version": version, "refresh_run_id": run_id,
+        "source": source,
     }
     for key, column in LENS_MIDS.items():
         if column != "target":
@@ -114,7 +116,8 @@ def _call_row(as_of, ticker, fair, cohort, version, run_id) -> dict | None:
     return row
 
 
-def _gate_rows(as_of, ticker, stakes, price, version, run_id) -> list[dict]:
+def _gate_rows(as_of, ticker, stakes, price, version, run_id,
+               source: str = "scheduled") -> list[dict]:
     """The day's priced gates from ``forecast_view.catalyst_stakes``, each leg a share."""
     shares = (stakes or {}).get("diluted_shares")
     out = []
@@ -142,6 +145,7 @@ def _gate_rows(as_of, ticker, stakes, price, version, run_id) -> list[dict]:
             "per_share_success": per(g.get("rnpv_success")),
             "per_share_failure": per(g.get("rnpv_failure")),
             "price": price, "code_version": version, "refresh_run_id": run_id,
+            "source": source,
         })
     return out
 
@@ -155,7 +159,8 @@ def _insert(conn, table: str, row: dict) -> bool:
 
 
 def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
-           tickers: list[str] | None = None, fair_fn=None, stakes_fn=None) -> dict:
+           tickers: list[str] | None = None, fair_fn=None, stakes_fn=None,
+           source: str = "scheduled") -> dict:
     """Write the day's calls: one per modelled company and one per priced gate. A company
     already recorded for the day is left as it was, so a second run never rewrites a call.
     ``fair_fn`` and ``stakes_fn`` are injectable for tests."""
@@ -174,7 +179,8 @@ def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
         for ticker in tickers if tickers is not None else modelled_tickers(conn):
             try:
                 row = _call_row(as_of, ticker, fair_fn(ticker),
-                                _cohort(conn, ticker, db_path), version, run_id)
+                                _cohort(conn, ticker, db_path), version, run_id,
+                                source)
                 if row is None:
                     continue
                 if _insert(conn, "model_calls", row):
@@ -182,7 +188,7 @@ def record(db_path=None, as_of: str | None = None, run_id: int | None = None,
                 else:
                     written["kept"] += 1
                 for g in _gate_rows(as_of, ticker, stakes_fn(ticker), row["price"],
-                                    version, run_id):
+                                    version, run_id, source):
                     written["gates"] += int(_insert(conn, "gate_calls", g))
                 conn.commit()
             except Exception as exc:          # one company never stops the record
@@ -307,13 +313,39 @@ def _gate_phase(gate: str | None) -> int | None:
     return 3 if g.startswith("p3") else 2 if g.startswith("p2") else None
 
 
+def p_in_force(row) -> float | None:
+    """The odds the model actually had on a gate, named or not.
+
+    ``p_gate`` is the published transition for a gate the model derived (p3_to_nda and
+    the like). A gate priced on the analyst's own stated legs has no named transition, so
+    the column is null, and calibration skipped those rows entirely: twelve per cent of
+    the book, including the widest events in it, could never be scored however long the
+    record ran.
+
+    The odds are in the legs regardless. The probability in force satisfies
+    ``pos_now = p * pos_success + (1 - p) * pos_failure``, so it inverts whenever the two
+    legs differ. A row whose legs are equal decides nothing and still scores nothing.
+    """
+    stated = row["p_gate"] if "p_gate" in row.keys() else None
+    if stated is not None:
+        return float(stated)
+    now, win, lose = row["pos_now"], row["pos_success"], row["pos_failure"]
+    if now is None or win is None or lose is None or win == lose:
+        return None
+    p = (now - lose) / (win - lose)
+    return p if 0.0 <= p <= 1.0 else None
+
+
 def _calibration(conn) -> dict:
     """Each resolved gate on the last call made before it resolved: Brier score and the
     share that passed in each band of odds."""
     outcomes = _gate_outcomes(conn)
     cid_of = {r["ticker"]: r["id"] for r in conn.execute("SELECT id, ticker FROM companies")}
     last: dict = {}
-    for g in conn.execute("SELECT * FROM gate_calls WHERE p_gate IS NOT NULL ORDER BY as_of"):
+    for g in conn.execute("SELECT * FROM gate_calls ORDER BY as_of"):
+        p = p_in_force(g)
+        if p is None:
+            continue
         resolved = outcomes["catalyst"].get(g["catalyst_id"])
         if resolved is None:
             key = (cid_of.get(g["ticker"]), (g["asset_name"] or "").strip().lower(),
@@ -322,7 +354,7 @@ def _calibration(conn) -> dict:
             resolved = min(later) if later else None
         if resolved is None or resolved[0] <= g["as_of"]:
             continue
-        last[(g["ticker"], g["catalyst_id"])] = (g["p_gate"], resolved[1])
+        last[(g["ticker"], g["catalyst_id"])] = (p, resolved[1])
     scored = list(last.values())
     bands = []
     for lo, hi in ODDS_BANDS:

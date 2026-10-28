@@ -116,11 +116,25 @@ def _match_ticker(applicant, applicant_map):
     return None
 
 
+# The file has written its dates two ways. "4-Sep-14" is the older form and the one the
+# saved fixture carries; the September 2026 release writes "October 18, 2017". Only the
+# first was accepted, so against the live file every date read as None, every product
+# was dropped for having neither an exclusivity nor a licensure, and the fetcher parsed
+# nothing at all while reporting no error. Both forms are read now, and a format this
+# source invents next will show up as a drop in the parsed count rather than silence.
+_PB_DATE_FORMATS = ("%d-%b-%y", "%B %d, %Y", "%b %d, %Y", "%Y-%m-%d", "%m/%d/%Y")
+
+
 def _pb_date(text):
-    try:
-        return dt.datetime.strptime((text or "").strip(), "%d-%b-%y").date()
-    except ValueError:
+    text = (text or "").strip()
+    if not text:
         return None
+    for fmt in _PB_DATE_FORMATS:
+        try:
+            return dt.datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 def _licensure_date(text, today):
@@ -225,6 +239,134 @@ def parse_purple_book(csv_text, applicant_map, today=None, linked=None) -> list[
     return out
 
 
+# --------------------------------------------------------------- licensure dates
+# openFDA drugsfda is CDER, so every CBER biologic is absent from it: the CAR-Ts, the
+# gene therapies, the vaccines and the clotting factors. 155 marketed products had no
+# approval record and almost all of them were this. The Purple Book is the register for
+# those same products and carries the licensure date on every row, which makes it the
+# route to the date rather than a second opinion on it.
+#
+# The file's "Licensure" column is a status ("Licensed", "Revoked", "Voluntarily
+# Revoked"), not a date. "Approval Date" is the date, filled on 2,257 of the 2,273 rows
+# in the September 2026 release.
+PB_APPROVAL_SOURCE = "purple_book"
+
+
+def parse_licensures(csv_text: str) -> list[dict]:
+    """Every licensed product in the file, as brand, BLA and first licensure date.
+
+    Independent of ``parse_purple_book`` above, which answers a different question. That
+    one keeps a product only where the applicant maps to a company in the universe and
+    only where an exclusivity window is open, both right for a loss-of-exclusivity view
+    and both fatal here: a 1989 hepatitis B vaccine has no open window and Abeona is in
+    no applicant map, and each still has a licensure date that is the thing wanted.
+
+    A BLA appears once per presentation, so the rows are reduced to the earliest date
+    per BLA: the original licensure rather than the latest strength added under it.
+    """
+    rows = list(csv.reader(io.StringIO(csv_text)))
+    header_idx = next((i for i, r in enumerate(rows) if "BLA Number" in r), None)
+    if header_idx is None:
+        return []
+    col = {name: i for i, name in enumerate(rows[header_idx])}
+
+    def field(row, name):
+        i = col.get(name)
+        return row[i].strip() if i is not None and i < len(row) else ""
+
+    found: dict[tuple, dict] = {}
+    for row in rows[header_idx + 1:]:
+        brand = _clean(field(row, "Proprietary Name"))
+        digits = re.sub(r"\D", "", field(row, "BLA Number"))
+        approved = _pb_date(field(row, "Approval Date"))
+        if not brand or not digits or not approved:
+            continue
+        key = (brand.upper(), digits)
+        entry = found.get(key)
+        if entry is None or approved.isoformat() < entry["approval_date"]:
+            found[key] = {
+                "brand": brand,
+                "generic": _clean(field(row, "Proper Name")),
+                "application_number": "BLA" + digits,
+                "approval_date": approved.isoformat(),
+                "applicant": field(row, "Applicant"),
+                # Carried so a withdrawn product is not silently read as on the market.
+                # The licensure date stays true either way, which is why the row is
+                # still written: Bexxar was approved in 2003 and withdrawn in 2014, and
+                # both are facts.
+                "status": field(row, "Licensure"),
+            }
+    return sorted(found.values(), key=lambda r: (r["brand"].upper(), r["application_number"]))
+
+
+def _brand_key(name: str) -> str:
+    """A brand reduced to the form both sides can be compared on.
+
+    An asset can hold several brands for one reported line ("Fluarix, Fluarix
+    Quadrivalent"); the first is the one the application is filed under.
+    """
+    return re.split(r"[,;/]", name or "")[0].strip().upper()
+
+
+def attach_licensures(conn, licensures: list[dict], today=None) -> dict:
+    """Write an approval for every marketed product that has none and that the Purple
+    Book names, matched on the brand.
+
+    Only the gap. A product openFDA already dated is left alone, so this never argues
+    with the other source over a product both carry; it reaches the ones only this
+    register holds.
+
+    The match is an exact brand and must be unique in the file. A brand standing for
+    two BLAs is not resolved by guessing, and in the September 2026 release against this
+    universe there were none: 118 of the 157 marketed products without an approval
+    matched exactly one BLA, and none matched more.
+
+    The applicant is not required to be the company. Eylea is Bayer's outside the United
+    States and the BLA is Regeneron's, and the date of that licensure is what the page
+    was missing. The approval stays the applicant's; the date is what is taken.
+    """
+    by_brand: dict[str, list] = {}
+    for row in licensures:
+        by_brand.setdefault(_brand_key(row["brand"]), []).append(row)
+
+    gap = conn.execute(
+        "SELECT a.id, a.brand_name FROM assets a"
+        "  WHERE a.is_marketed = 1 AND a.brand_name IS NOT NULL AND a.brand_name <> ''"
+        "    AND NOT EXISTS (SELECT 1 FROM approvals ap WHERE ap.asset_id = a.id)"
+    ).fetchall()
+
+    written, ambiguous, unmatched = 0, 0, 0
+    for asset in gap:
+        candidates = by_brand.get(_brand_key(asset["brand_name"])) or []
+        if not candidates:
+            unmatched += 1
+            continue
+        if len({c["application_number"] for c in candidates}) > 1:
+            ambiguous += 1
+            continue
+        row = candidates[0]
+        conn.execute(
+            "INSERT INTO approvals"
+            "  (asset_id, region, agency, approval_date, application_number, source)"
+            "  VALUES (?, 'US', 'FDA', ?, ?, ?)",
+            (asset["id"], row["approval_date"], row["application_number"],
+             PB_APPROVAL_SOURCE),
+        )
+        written += 1
+    return {"written": written, "ambiguous": ambiguous, "unmatched": unmatched}
+
+
+# ``normalise`` used to return a bare list of products and now returns both row types,
+# the shape approvals_openfda already uses. A caller or a test holding the old list is
+# still answered, so the change is not a break for anything that only wants products.
+def _products_of(rows) -> list:
+    return rows.get("products", []) if isinstance(rows, dict) else (rows or [])
+
+
+def _licensures_of(rows) -> list:
+    return rows.get("licensures", []) if isinstance(rows, dict) else []
+
+
 class PurpleBookFetcher(BaseFetcher):
     source = SOURCE
     ttl_seconds = TTL_SECONDS
@@ -272,7 +414,11 @@ class PurpleBookFetcher(BaseFetcher):
         for csv_text in raw["csvs"]:
             for product in parse_purple_book(csv_text, APPLICANT_MAP, linked=linked):
                 merged.setdefault(product["internal_code"], product)
-        return list(merged.values())
+        # The newest file alone for the licensures. Each monthly release carries the
+        # whole register, not only that month's changes, so merging months adds nothing
+        # here and the newest is the most current.
+        licensures = parse_licensures(raw["csvs"][0]) if raw.get("csvs") else []
+        return {"products": list(merged.values()), "licensures": licensures}
 
     def _write_snapshot(self, conn, payload):
         conn.execute(
@@ -283,13 +429,15 @@ class PurpleBookFetcher(BaseFetcher):
             (self.source, ENTITY_KEY, json.dumps(payload), self.refresh_run_id),
         )
 
-    def snapshot(self, rows: list[dict]) -> None:
+    def snapshot(self, rows) -> None:
+        products = _products_of(rows)
         conn = db.get_connection(self.db_path)
         try:
             self._write_snapshot(
                 conn,
-                {"source": PB_SOURCE, "products": len(rows),
-                 "exclusivities": sum(len(r["exclusivities"]) for r in rows),
+                {"source": PB_SOURCE, "products": len(products),
+                 "exclusivities": sum(len(r["exclusivities"]) for r in products),
+                 "licensures": len(_licensures_of(rows)),
                  "fetch_kind": "live"},
             )
             conn.commit()
@@ -310,15 +458,16 @@ class PurpleBookFetcher(BaseFetcher):
         finally:
             conn.close()
 
-    def upsert(self, rows: list[dict]) -> RefreshResult:
+    def upsert(self, rows) -> RefreshResult:
+        products = _products_of(rows)
         conn = db.get_connection(self.db_path)
         try:
             companies = {r["ticker"]: r["id"] for r in conn.execute(
                 "SELECT ticker, id FROM companies")}
             written = 0
             from fetchers.exclusivity_orangebook import attach_direct, clear_direct
-            clear_direct(conn, rows, PB_SOURCE)
-            for product in rows:
+            clear_direct(conn, products, PB_SOURCE)
+            for product in products:
                 if product.get("asset_ids"):
                     written += attach_direct(conn, product, PB_SOURCE, with_kind=False)
                     continue
@@ -344,6 +493,10 @@ class PurpleBookFetcher(BaseFetcher):
                          excl["expiry_date"], PB_SOURCE),
                     )
                     written += 1
+            # The CBER products openFDA cannot reach. Last, so an asset this run has
+            # just created is already there to match against.
+            got = attach_licensures(conn, _licensures_of(rows))
+            written += got["written"]
             conn.commit()
         finally:
             conn.close()

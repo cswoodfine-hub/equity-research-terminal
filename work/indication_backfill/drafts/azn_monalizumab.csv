@@ -1,0 +1,15 @@
+# Monalizumab (AZN, partnered with Innate Pharma). An anti-NKG2A antibody.
+#
+# The book carries one indication for it, head and neck, and that study was stopped at
+# a futility interim. The row says pos = 0 and cites the result.
+#
+# The asset is deliberately not retired. Monalizumab continues in AstraZeneca's own
+# lung programmes - PACIFIC-9, COAST, NeoCOAST-2, MOZART and MIMOSA are named in the
+# ESMO 2023 presentation of this very trial - so the molecule is live even though the
+# one indication the book holds is decided. Retiring it here would take a programme out
+# of the pipeline on the strength of a failure in a different disease.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Monalizumab,Squamous Cell Carcinoma of Head and Neck,US,base,pos,,0.0,,,"the study was discontinued at a futility interim. INTERLINK-1 (NCT04590963, 370 participants, monalizumab plus cetuximab against placebo plus cetuximab in recurrent or metastatic head and neck squamous cell carcinoma) reached primary completion on 2022-05-11. Innate Pharma's statement of 2022-08-01 reads that 'a planned futility interim analysis ... did not meet a pre-defined threshold for efficacy' and that 'AstraZeneca has informed Innate that the study will be discontinued'. Presented at ESMO 2023 as abstract 854O and published in Clinical Cancer Research 2025;31(13):2617 (DOI 10.1158/1078-0432.CCR-25-0073): in the HPV-unrelated primary analysis set, median overall survival 8.8 months (95% CI 6.9 to 10.4) against 8.6 (95% CI 6.0 to 14.5), hazard ratio 1.00 (95% CI 0.66 to 1.54); median PFS 3.6 against 3.8 months, hazard ratio 1.11; objective response 15.2% against 23.9%","nil, not pending. The hazard ratio of exactly 1.00 is the point: the combination did nothing"
+AZN,Monalizumab,Squamous Cell Carcinoma of Head and Neck,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,the asset sells nothing: there is no base for a layer to overlap with,

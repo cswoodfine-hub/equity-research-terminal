@@ -430,3 +430,475 @@ def test_a_study_the_vocabulary_misses_answers_with_its_added_descriptor(tmp_pat
         assert im.curated_terms(conn, "NCT404") == []
     finally:
         conn.close()
+
+
+# --- which indication a readout reads out in -------------------------------
+_CTGOV = "https://clinicaltrials.gov/study/"
+
+
+def _with_catalyst(tmp_path, nct="NCT2", second_mesh=None):
+    """The build's fixture plus a readout catalyst pointing at one of its studies."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    if second_mesh:
+        # A study the registry indexes under two of the asset's own diseases.
+        conn.execute("UPDATE trials SET conditions = ?, mesh_terms = ? WHERE nct_id = ?",
+                     ('["Sickle Cell Disease", "beta-Thalassemia"]',
+                      json.dumps({"meshes": [
+                          {"id": "D000755", "term": "Anemia, Sickle Cell"},
+                          {"id": "D017086", "term": "beta-Thalassemia"}]}), nct))
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + nct,))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_readout_is_linked_to_the_indication_its_study_is_in(tmp_path):
+    """A readout is an event in one disease, not in the asset as a whole. Until the
+    catalyst says which, a label expansion on an approved drug cannot be priced as the
+    indication it opens, and 794 of the 812 catalysts on the book named none."""
+    path = _with_catalyst(tmp_path)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 1
+
+    conn = db.get_connection(path)
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row["name"] == "Anemia, Sickle Cell"
+    conn.close()
+
+
+def test_a_readout_in_two_of_the_assets_diseases_is_left_unlinked(tmp_path):
+    """One readout standing for two indications cannot be priced as either without a
+    guess about which the market is reading. Unlinked it stays unpriced and says so."""
+    path = _with_catalyst(tmp_path, second_mesh=True)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 0
+    assert summary["catalysts_ambiguous"] == 1
+
+    conn = db.get_connection(path)
+    assert conn.execute(
+        "SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_the_link_uses_the_same_rule_the_pairs_are_built_with(tmp_path):
+    """A catalyst and the forecast it prices against must not disagree about what the
+    study is in, so the link reads indications_for, not a second rule of its own."""
+    path = _with_catalyst(tmp_path)
+    im.build(path)
+    conn = db.get_connection(path)
+    linked, pair = conn.execute(
+        "SELECT cat.asset_indication_id, ai.id FROM catalysts cat, asset_indications ai"
+    ).fetchone()
+    assert linked == pair
+    conn.close()
+
+
+def test_a_catalyst_with_no_study_behind_it_is_left_alone(tmp_path):
+    """A curated catalyst or an FDA filing is applications.resolve's to attach."""
+    path = _seed(tmp_path)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'pdufa', 'A decision', '2030-01-01', 'pending', NULL)")
+    conn.commit(); conn.close()
+
+    assert im.build(path)["catalysts_linked"] == 0
+
+
+# --- a readout in children is not a readout in the adults ------------------
+def _paediatric_db(tmp_path, with_paediatric_row=True):
+    """The fixture's asset, an adult Crohn pair, optionally a paediatric one, and a
+    catalyst on a study whose title says children."""
+    path = str(tmp_path / "p.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X Pharma')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, 1, 'A')")
+    browse = json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT9', 1, 1, ?, ?, 'Phase 3', 'Recruiting', 100, '2022-01-01', ?)",
+        ('["Crohn Disease"]', browse,
+         "A Study of A (LY1) in Pediatric Participants With Crohn's Disease"))
+    if with_paediatric_row:
+        conn.execute("INSERT INTO indications (id, name, mesh_id)"
+                     " VALUES (99, 'Pediatric Crohn''s disease', 'C536215')")
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + "NCT9",))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_paediatric_readout_goes_to_the_paediatric_row(tmp_path):
+    """MeSH indexes a study of children with Crohn's disease as "Crohn Disease", the
+    same descriptor the adult study gets, so Omvoh's paediatric readout landed on the
+    adult row. That row is an approved indication, so the product's one genuine gate
+    read as already decided."""
+    path = _paediatric_db(tmp_path)
+    conn = db.get_connection(path)
+    # The paediatric pair is curated rather than MeSH-derived, so it is written after
+    # the rebuild the way curated_additions puts it there.
+    im.build(path)
+    conn.execute("INSERT INTO asset_indications (asset_id, indication_id, phase, region)"
+                 " VALUES (1, 99, 'Phase 3', 'US')")
+    conn.commit(); conn.close()
+
+    summary = im.attach_catalyst_indications(db.get_connection(path))
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row and row["name"] == "Pediatric Crohn's disease"
+    conn.close()
+
+
+def test_a_paediatric_readout_with_no_paediatric_row_is_left_unlinked(tmp_path):
+    """The adult row is not the fallback. A readout in children does not decide the
+    indication the adults are already approved in, so unlinked and unpriced is the
+    honest answer."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 0
+    assert summary["catalysts_paediatric_unmatched"] == 1
+
+    conn = db.get_connection(path)
+    assert conn.execute(
+        "SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_an_adult_study_is_unaffected(tmp_path):
+    """Only an explicit paediatric title diverts a readout; everything else keeps the
+    behaviour it had."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET title = 'A Study of A in Adults' WHERE nct_id = 'NCT9'")
+    conn.commit(); conn.close()
+
+    summary = im.build(path)
+    assert summary["catalysts_linked"] == 1
+    assert summary["catalysts_paediatric_unmatched"] == 0
+
+
+def test_the_paediatric_title_test():
+    for title in ("A Study in Pediatric Participants", "Paediatric extension",
+                  "A study in children", "Juvenile idiopathic arthritis study",
+                  "Adolescents with Crohn's"):
+        assert im._is_paediatric(title), title
+    for title in ("A Study of A in Adults", "A long-term extension study", "", None):
+        assert not im._is_paediatric(title), title
+
+
+# --- a parent term beside its own child ----------------------------------------------
+
+def _pair(asset_id, mesh_id, term, phase="Phase 3"):
+    return ((asset_id, mesh_id), {"term": term, "phase": phase, "statuses": [],
+                                  "enrollment": 100, "ncts": []})
+
+
+def test_a_site_term_goes_when_the_asset_carries_its_own_child():
+    """MeSH indexes a non-small-cell study under the disease and under the site, and the
+    layer model then prices a lung expansion for a drug whose lung expansion is the row
+    above. Twelve marketed assets carried this pair."""
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms"),
+                  _pair(1, "D002289", "Carcinoma, Non-Small-Cell Lung")])
+    assert im.drop_parent_of_child(pairs) == 1
+    assert [e["term"] for e in pairs.values()] == ["Carcinoma, Non-Small-Cell Lung"]
+
+
+def test_a_site_term_alone_is_kept():
+    """An asset studied in lung cancer and nothing more specific still has an indication."""
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms")])
+    assert im.drop_parent_of_child(pairs) == 0
+    assert len(pairs) == 1
+
+
+def test_breast_neoplasms_is_not_treated_as_a_parent():
+    """An asset studied in triple-negative and in hormone-receptor positive disease
+    carries both terms honestly, so suppressing the parent would delete the second
+    indication rather than a duplicate."""
+    pairs = dict([_pair(1, "D001943", "Breast Neoplasms"),
+                  _pair(1, "D064726", "Triple Negative Breast Neoplasms")])
+    assert im.drop_parent_of_child(pairs) == 0
+    assert len(pairs) == 2
+
+
+def test_one_asset_s_parent_does_not_drop_another_s():
+    pairs = dict([_pair(1, "D008175", "Lung Neoplasms"),
+                  _pair(2, "D008175", "Lung Neoplasms"),
+                  _pair(1, "D002289", "Carcinoma, Non-Small-Cell Lung")])
+    assert im.drop_parent_of_child(pairs) == 1
+    assert (2, "D008175") in pairs, "the other asset has no child, so it keeps the site"
+
+
+def test_a_family_term_goes_for_any_of_its_children():
+    for child in ("Lymphoma, Large B-Cell, Diffuse",
+                  "Leukemia, Lymphocytic, Chronic, B-Cell"):
+        pairs = dict([_pair(1, "D008228", "Lymphoma, Non-Hodgkin"),
+                      _pair(1, "X", child)])
+        assert im.drop_parent_of_child(pairs) == 1, child
+
+
+def _mixed_age_db(tmp_path, title):
+    """One asset, an adult Crohn pair, and a catalyst on a study with the given title."""
+    path = str(tmp_path / "m.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X Pharma')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, 1, 'A')")
+    browse = json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT9', 1, 1, ?, ?, 'Phase 3', 'Recruiting', 100, '2022-01-01', ?)",
+        ('["Crohn Disease"]', browse, title))
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + "NCT9",))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_a_study_of_adults_and_adolescents_is_the_adult_readout(tmp_path):
+    """Remibrutinib's, upadacitinib's and icotrokinra's pivotal studies name both ages
+    in the title. They are adult label expansions that happen to enrol down to twelve,
+    and diverting them to a paediatric row the book does not carry left 21 readouts
+    unpriced. The paediatric rule exists to stop a readout in children deciding the
+    adults' approved indication, not to discard a readout that decides both."""
+    path = _mixed_age_db(
+        tmp_path, "A Study of A in Adult and Adolescent Participants With Crohn's Disease")
+    im.build(path)
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    row = conn.execute(
+        "SELECT i.name FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    assert row and row["name"] == "Crohn Disease"
+    conn.close()
+
+
+def test_a_study_of_children_alone_is_still_diverted(tmp_path):
+    """The narrowing above must not reach a study that names no adults."""
+    path = _mixed_age_db(
+        tmp_path, "A Study of A in Pediatric Participants With Crohn's Disease")
+    im.build(path)
+    conn = db.get_connection(path)
+    im.attach_catalyst_indications(conn)
+    conn.commit()
+    assert conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0] is None
+    conn.close()
+
+
+def test_a_parent_descriptor_does_not_make_a_readout_ambiguous():
+    """MeSH indexes an obesity study under "Obesity" and its own parent "Overweight",
+    and both are real rows on the asset, so 38 readouts on the largest franchise in the
+    book matched two indications and were left unlinked."""
+    assert im._narrow({1: "overweight", 2: "obesity"}) == {2: "obesity"}
+    assert im._narrow({1: "hidradenitis", 2: "hidradenitis suppurativa"}) == \
+        {2: "hidradenitis suppurativa"}
+
+
+def test_two_unrelated_diseases_stay_ambiguous():
+    """Narrowing only drops a term that is the parent of another on the same study.
+    Type 2 diabetes and obesity are two diseases and the readout is in one of them;
+    choosing would be a guess about which, so it stays unlinked and says so."""
+    names = {1: "diabetes mellitus, type 2", 2: "obesity"}
+    assert im._narrow(names) == names
+
+
+def test_a_study_the_registry_never_indexed_is_read_from_its_condition_text():
+    """143 readouts carry conditions MeSH never classified. They are not obscure —
+    "Metastatic Castration-Resistant Prostate Cancer" is one — so where MeSH yields
+    nothing the condition text is read against the asset's own indication names."""
+    cands = [(7, set(im.tokens("Prostatic Neoplasms"))),
+             (8, set(im.tokens("Breast Neoplasms")))]
+    got = im._by_condition_text('["Metastatic Castration-Resistant Prostate Cancer"]',
+                                cands)
+    assert got == {7}
+
+
+def test_a_one_word_indication_does_not_swallow_a_readout():
+    """"Pain" sits inside any phrase that mentions it, so an unguarded containment
+    match sent three diabetic neuropathy readouts to a row called Pain."""
+    cands = [(7, set(im.tokens("Pain")))]
+    assert im._by_condition_text('["Diabetic Peripheral Neuropathic Pain"]', cands) == set()
+
+
+def test_a_shared_qualifier_is_not_a_match():
+    """The book's name must sit inside the condition whole, not merely overlap it, so
+    two diseases sharing "metastatic" do not match each other."""
+    cands = [(7, set(im.tokens("Colorectal Neoplasms")))]
+    assert im._by_condition_text('["Metastatic Breast Cancer"]', cands) == set()
+
+
+def test_a_study_is_not_in_the_disease_it_excludes():
+    """DESTINY-PanTumor02 registers its basket as "... Rare Tumors, Any Tumor Type
+    Excluding Breast, Gastric, Colorectal Cancer", and matching the whole string gave
+    Enhertu a colorectal indication derived from the sentence excluding colorectal.
+    A phantom indication becomes a phantom gate."""
+    conditions = json.dumps([
+        "Part 1: Bladder, Biliary Tract, Cervical, Endometrial, Ovarian, Pancreatic "
+        "Cancer, Rare Tumors, Any Tumor Type Excluding Breast, Gastric, Colorectal Cancer"])
+    browse = {"meshes": [{"id": "D010190", "term": "Pancreatic Neoplasms"},
+                         {"id": "D015179", "term": "Colorectal Neoplasms"}],
+              "ancestors": []}
+    got = [t["term"] for t in im.indications_for(conditions, browse)]
+    assert "Pancreatic Neoplasms" in got
+    assert "Colorectal Neoplasms" not in got
+
+
+def test_non_small_cell_is_a_disease_and_not_an_exclusion():
+    """"non-" opens the largest oncology indication in the book. Treating it as an
+    exclusion marker would silently empty it."""
+    assert im.before_exclusion("Advanced Non-Small Cell Lung Cancer") == \
+        "Advanced Non-Small Cell Lung Cancer"
+
+
+def test_every_exclusion_marker_truncates():
+    for phrase, want in (
+            ("Solid Tumors Excluding Gastric Cancer", "Solid Tumors "),
+            ("Solid Tumors except Breast Cancer", "Solid Tumors "),
+            ("Solid Tumors other than Melanoma", "Solid Tumors "),
+            ("Solid Tumors but not Lymphoma", "Solid Tumors ")):
+        assert im.before_exclusion(phrase) == want
+
+
+def _roll(title, phase, mesh="D008224", term="Lymphoma, Follicular"):
+    return {"asset_id": 1, "conditions": json.dumps([term]),
+            "mesh_terms": json.dumps({"meshes": [{"id": mesh, "term": term}]}),
+            "phase": phase, "overall_status": "Active not recruiting",
+            "enrollment": 50, "first_posted": "2020-01-01", "title": title}
+
+
+def test_a_rollover_is_recognised_however_it_is_phrased():
+    for title in ("A Long-term Extension Study of PCI-32765 (Ibrutinib)",
+                  "CINC424A2X01B Rollover Protocol",
+                  "An Extension Study of Venetoclax for Subjects Who Have Completed",
+                  "A Study to Enable Continued Treatment Access",
+                  "Pediatric Long-Term Follow-up and Rollover Study"):
+        assert im.is_rollover(title), title
+    assert not im.is_rollover("A Phase 3 Study of Ibrutinib in Follicular Lymphoma")
+
+
+def test_a_rollover_does_not_make_a_decided_indication_a_live_gate():
+    """NCT01804686 is Imbruvica's long-term extension, registered Phase 3 and Active
+    not recruiting for ever because a rollover never finishes. The book read it as the
+    pending Phase 3 behind follicular lymphoma, DLBCL and mantle-cell -- two published
+    misses and one indication the FDA withdrew in 2023."""
+    pairs = im.pairs_from_trials([_roll("A Long-term Extension Study of PCI-32765",
+                                        "Phase 3")])
+    assert pairs[(1, "D008224")]["phase"] is None
+
+
+def test_a_phase_4_rollover_still_says_the_indication_is_approved():
+    """Phase 4 means a post-marketing study, which is what a rollover on an approved
+    drug is. Tafinlar's melanoma and NSCLC rows are asserted by Phase 4 rollovers alone
+    and are its two approved indications; blanking them would turn two approved diseases
+    into open expansions."""
+    pairs = im.pairs_from_trials([_roll("Pediatric Long-Term Follow-up and Rollover "
+                                        "Study", "Phase 4")])
+    assert pairs[(1, "D008224")]["phase"] == "Phase 4"
+
+
+def test_a_real_study_beside_a_rollover_still_sets_the_phase():
+    """The rollover adds its patients and withholds only its claim about a programme."""
+    real = _roll("A Phase 2 Study of the Drug in Lymphoma", "Phase 2")
+    pairs = im.pairs_from_trials([_roll("An Extension Study", "Phase 3"), real])
+    entry = pairs[(1, "D008224")]
+    assert entry["phase"] == "Phase 2"
+    assert entry["enrollment"] == 100      # both studies' patients counted
+
+
+def test_a_rollover_never_deletes_the_pair():
+    """The drug genuinely has been given in that disease."""
+    pairs = im.pairs_from_trials([_roll("An Extension Study", "Phase 3")])
+    assert (1, "D008224") in pairs
+
+
+def _exclusion_db(tmp_path, nct="NCT1"):
+    path = str(tmp_path / "x.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " is_marketed) VALUES (1, 1, 'Uplizna', 'Inebilizumab', 1)")
+    browse = json.dumps({"meshes": [
+        {"id": "D001172", "term": "Arthritis, Rheumatoid"},
+        {"id": "D008180", "term": "Lupus Erythematosus, Systemic"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions,"
+        " mesh_terms, phase, overall_status, enrollment, first_posted, title)"
+        " VALUES (?, 1, 1, ?, ?, 'Phase 2', 'Recruiting', 100, '2024-01-01', ?)",
+        (nct, '["Systemic Lupus Erythematosus", "Active Refractory Rheumatoid Arthritis"]',
+         browse, "A Phase 2 Master Protocol Assessing Inebilizumab and Blinatumomab"))
+    conn.commit()
+    return path, conn
+
+
+def _exclusion_csv(tmp_path, nct="NCT1", asset="Uplizna", basis="the protocol says so"):
+    p = tmp_path / "ex.csv"
+    p.write_text("ticker,asset,mesh_id,term,nct_ids,basis\n"
+                 f'AMGN,{asset},D001172,"Arthritis, Rheumatoid",{nct},"{basis}"\n')
+    return str(p)
+
+
+def test_a_master_protocol_s_other_drug_s_disease_can_be_excluded(tmp_path):
+    """NCT06570798 gives inebilizumab to lupus and blinatumomab to rheumatoid arthritis.
+    The registry lists both drugs and both conditions at study level with nothing
+    joining them, so Uplizna acquired a rheumatoid arthritis programme it never had."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path)) == {(1, "D001172")}
+    conn.close()
+
+
+def test_an_exclusion_naming_a_study_the_asset_does_not_have_is_ignored(tmp_path):
+    """A row asserts nothing on its own; it removes a pair those trials would make."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, nct="NCT9")) == set()
+    conn.close()
+
+
+def test_an_exclusion_with_no_basis_is_ignored(tmp_path):
+    """The reason is the point. A pair removed without one is a guess with a file
+    behind it."""
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, basis="")) == set()
+    conn.close()
+
+
+def test_an_exclusion_for_an_asset_not_on_file_is_ignored(tmp_path):
+    path, conn = _exclusion_db(tmp_path)
+    assert im.curated_exclusions(conn, _exclusion_csv(tmp_path, asset="Nosuchdrug")) == set()
+    conn.close()
+
+
+def test_the_build_drops_an_excluded_pair_and_keeps_the_other(tmp_path):
+    """The whole point: the lupus pair is real and survives."""
+    path, conn = _exclusion_db(tmp_path)
+    conn.close()
+    im.build(path)
+    conn = db.get_connection(path)
+    got = {r[0] for r in conn.execute(
+        "SELECT i.name FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id WHERE ai.asset_id = 1")}
+    assert "Lupus Erythematosus, Systemic" in got
+    conn.close()

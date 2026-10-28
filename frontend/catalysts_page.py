@@ -254,6 +254,89 @@ def _body(api_base: str, ticker: str, p: dict, kit) -> None:
         _more_dialog(ticker, p, want["more"], want.get("area"))
 
 
+def _get_json(api_base: str, path: str, timeout: int = 60) -> dict:
+    with urllib.request.urlopen(api_base.rstrip("/") + path, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _post_json(api_base: str, path: str, body: dict, timeout: int = 300) -> dict:
+    request = urllib.request.Request(
+        api_base.rstrip("/") + path, method="POST",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def proposals_block(api_base: str, ticker: str) -> None:
+    """Readouts in the news that may have landed on a gate this book carries.
+
+    Drawn only where there is one. Most companies have none most weeks, and an empty
+    panel at the top of a tab that already has to fit a screen costs more than it says.
+    Where there is one, a binary event worth hundreds of millions may have resolved
+    overnight, which earns the room.
+
+    The confirm is offered only where the book will keep the resolution. A derived gate
+    is recomputed by the next refresh, so recording an outcome on one would be undone by
+    morning, and the row says that instead of offering a button that lies.
+    """
+    try:
+        got = _get_json(
+            api_base,
+            f"/companies/{urllib.parse.quote(ticker)}/resolve-proposals")
+    except (urllib.error.URLError, OSError, ValueError):
+        return
+    found = got.get("proposals") or []
+    if not found:
+        return
+    st.markdown('<div class="sec"><span class="sec-label">Readouts that may have '
+                f'landed</span><span class="sec-count">{len(found)}</span></div>',
+                unsafe_allow_html=True)
+    for n, p in enumerate(found):
+        row, act = st.columns([7, 1], vertical_alignment="center")
+        with row:
+            st.markdown(_proposal_html(p), unsafe_allow_html=True)
+        with act:
+            if not p.get("resolvable"):
+                continue
+            key = f"cx_prop_{ticker}_{p.get('catalyst_id')}_{n}"
+            if st.button(f"Record {p['outcome']}", key=key, width="stretch"):
+                try:
+                    st.session_state[f"cat_resolved_{ticker}"] = _post_json(
+                        api_base,
+                        f"/companies/{urllib.parse.quote(ticker)}/catalysts/"
+                        f"{p['catalyst_id']}/resolve", {"outcome": p["outcome"]})
+                except (urllib.error.URLError, OSError, ValueError) as exc:
+                    st.warning(f"The resolve did not go through: {exc}")
+                else:
+                    st.rerun()
+
+
+def _proposal_html(p: dict) -> str:
+    esc = html.escape
+    pct = lambda v: f"{v:.0%}" if isinstance(v, (int, float)) else "?"
+    mm = lambda v: f"{v:,.0f}mm" if isinstance(v, (int, float)) else "?"
+    # A headline naming the registry number decides that trial. One naming only the
+    # asset says a company reported something about a product carrying an open gate,
+    # which is a weaker claim and is labelled as one.
+    strength = ("names the trial" if p.get("match") == "trial"
+                else "names the asset, not the trial")
+    far = p.get("days_to_gate")
+    when = f", gate {far} days out" if isinstance(far, int) else ""
+    tail = ("" if p.get("resolvable")
+            else f' <span class="u-tag">{esc(str(p.get("resolve_note") or "not recorded here"))}</span>')
+    link = (f' <a href="{esc(str(p["url"]))}" target="_blank">source</a>'
+            if p.get("url") else "")
+    return (
+        f'<div class="prop-lead"><b>{esc(str(p.get("asset_name")))}</b> '
+        f'{esc(str(p.get("outcome")))} &nbsp;·&nbsp; PoS {pct(p.get("pos_now"))} to '
+        f'{pct(p.get("pos_after"))} &nbsp;·&nbsp; rNPV {mm(p.get("rnpv_now"))} to '
+        f'{mm(p.get("rnpv_after"))}</div>'
+        f'<div class="byline">&ldquo;{esc(str(p.get("matched_words") or ""))}&rdquo; in: '
+        f'{esc(str(p.get("headline") or "")[:150])}{link}</div>'
+        f'<div class="byline">{esc(strength)}{esc(when)}{tail}</div>')
+
+
 def render(api_base: str, ticker: str, kit=None) -> bool:
     """Draw the tab body for ``ticker``. False when the payload cannot be read or the
     model was not, so the caller can draw today's tab instead of an empty one."""

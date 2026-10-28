@@ -192,3 +192,58 @@ def test_a_new_version_is_read_whole(tmp_path, monkeypatch):
     _label(db_file, "bbb", 8)
     rows, xml_reads = _fetch_with(monkeypatch, db_file)
     assert xml_reads == 1 and rows[0]["spl_version"] == 12
+
+
+def test_an_exact_product_name_beats_one_that_merely_contains_it():
+    """DailyMed's search for KEYTRUDA returns the subcutaneous co-formulation too, and
+    "KEYTRUDA" sits inside "KEYTRUDA QLEX". Containment alone bound Merck's $31.7bn
+    intravenous product to the Qlex label, whose indications omit classical Hodgkin
+    lymphoma -- so a disease approved since 2017 read as pending."""
+    payload = json.dumps({"data": [
+        {"setid": "qlex", "title": "KEYTRUDA QLEX (pembrolizumab and berahyaluronidase "
+                                   "alfa) injection, solution"},
+        {"setid": "iv", "title": "KEYTRUDA (pembrolizumab) injection, solution"},
+    ]})
+    assert dailymed.parse_search(payload, "Keytruda") == "iv"
+    assert dailymed.parse_search(payload, "Keytruda Qlex") == "qlex"
+
+
+def test_a_longer_named_product_is_not_the_looser_match():
+    """Written when the fallback was "take the first containment hit", which is how
+    GLUCOTROL got GLUCOTROL XL's label. A name that opens with the brand and continues
+    is a different product, not a looser spelling of this one."""
+    payload = json.dumps({"data": [
+        {"setid": "x", "title": "SOMETHING ELSE (drug) tablet"},
+        {"setid": "y", "title": "BRAND NAME XR (drug) tablet, extended release"},
+    ]})
+    assert dailymed.parse_search(payload, "Brand Name") is None
+
+
+def test_a_longer_named_stablemate_is_refused_rather_than_bound():
+    """GLUCOTROL, PREVNAR and VENTOLIN no longer have an SPL of their own; DailyMed
+    returns only GLUCOTROL XL, PREVNAR 20 and VENTOLIN HFA. Binding a stablemate's
+    label is the mistake that gave Keytruda the Qlex label, so no label is the honest
+    answer and the book says it cannot tell what the product is approved for."""
+    payload = json.dumps({"data": [
+        {"setid": "xl", "title": "GLUCOTROL XL (GLIPIZIDE) TABLET, EXTENDED RELEASE"},
+    ]})
+    assert dailymed.parse_search(payload, "Glucotrol") is None
+    assert dailymed.parse_search(payload, "Glucotrol XL") == "xl"
+
+
+def test_a_shared_spl_still_binds_to_both_products():
+    """One SPL often covers both forms. Rinvoq's title opens with RINVOQ and names
+    RINVOQ LQ further in, so it is this product's label, not a stablemate's."""
+    payload = json.dumps({"data": [
+        {"setid": "shared", "title": "RINVOQ (UPADACITINIB) TABLET, EXTENDED RELEASE "
+                                     "RINVOQ LQ (UPADACITINIB) SOLUTION"},
+    ]})
+    assert dailymed.parse_search(payload, "Rinvoq") == "shared"
+
+
+def test_an_unrelated_title_is_still_matched_by_containment():
+    """The looser match stays for a title that does not open with the brand at all."""
+    payload = json.dumps({"data": [
+        {"setid": "y", "title": "SOMETHING (brand name) tablet"},
+    ]})
+    assert dailymed.parse_search(payload, "Brand Name") == "y"

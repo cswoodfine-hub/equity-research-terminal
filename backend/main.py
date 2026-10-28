@@ -18,6 +18,8 @@ import env  # noqa: F401  loads the .env from the repo root, before any module r
 import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
+import assumption_log
+import auto_resolve as auto_resolve_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
@@ -38,6 +40,7 @@ import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
+import forecast_history as forecast_history_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
 import universe_command as universe_command_module
@@ -78,6 +81,7 @@ import screen as screen_module
 import slippage as slippage_module
 import tearsheet as tearsheet_module
 import whatchanged as whatchanged_module
+import why_moved as why_moved_module
 
 
 @asynccontextmanager
@@ -551,8 +555,9 @@ def company_approvals(ticker: str) -> dict:
                        (SELECT r.fiscal_year FROM asset_revenue r
                          WHERE r.asset_id = a.id AND r.period = 'FY'
                          ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue_year
-                  FROM approvals ap JOIN assets a ON ap.asset_id = a.id
+                  FROM assets a LEFT JOIN approvals ap ON ap.asset_id = a.id
                  WHERE a.owner_company_id = ?
+                   AND (ap.id IS NOT NULL OR a.is_marketed = 1)
                  ORDER BY ap.approval_date DESC
                 """,
                 (company["id"],),
@@ -572,6 +577,8 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
+        r["approval_status"] = ("recorded" if r.get("application_number")
+                                else "missing_record")
         # The filer's own biosimilar date sets the LOE where the 10-K states one; the
         # statutory floor is a floor. Same rule as the forecast, so the two views agree.
         r.pop("bio_disclosed_date", None)
@@ -674,6 +681,12 @@ class AssumptionRowIn(BaseModel):
 class AssumptionsIn(BaseModel):
     rows: list[AssumptionRowIn]
     scenario: str = "base"
+    # Why the numbers moved. Required where the row is a judgement rather than evidence;
+    # the vocabulary is assumption_log.REASONS and anything outside it is refused.
+    reason: Optional[str] = None
+    rationale: Optional[str] = None
+    trigger_ref: Optional[str] = None
+    changed_by: Optional[str] = None
 
 
 @app.get("/companies/{ticker}/forecast/{asset_id}/demand")
@@ -692,11 +705,14 @@ def forecast_demand_split(ticker: str, asset_id: int) -> dict:
 def save_forecast_assumptions(ticker: str, asset_id: int, body: AssumptionsIn) -> dict:
     """Write the editor's rows. The ticker scopes the asset, so an assumption cannot be
     written against another company's product by id alone. The resulting forecast is
-    snapshotted, so history is never overwritten."""
+    snapshotted, so history is never overwritten, and the change set goes in the ledger
+    with the valuation on either side of it. 400 where a judgement moves without a
+    reason."""
     try:
         out = forecast_view_module.save_assumptions(
             None, ticker, asset_id, [row.model_dump() for row in body.rows],
-            body.scenario)
+            body.scenario, reason=body.reason, rationale=body.rationale,
+            trigger_ref=body.trigger_ref, changed_by=body.changed_by)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     if out is None:
@@ -962,6 +978,24 @@ def company_catalysts_view(ticker: str):
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     headers = {} if payload["complete"] else {response_cache.SKIP: "1"}
     return JSONResponse(payload, headers=headers)
+
+
+@app.get("/companies/{ticker}/resolve-proposals")
+def company_resolve_proposals(ticker: str, days: int = Query(default=45)) -> dict:
+    """Readouts in this company's news matched to the gates they decide.
+
+    A proposal, never a decision. The same feed carries results, enrolment notices and
+    diary entries, so a headline is classified only where it names the outcome in the
+    words the industry uses, and every proposal says whether it matched the trial or
+    only the asset's name.
+    """
+    return auto_resolve_module.proposals(None, ticker, days=days)
+
+
+@app.get("/resolve-proposals")
+def universe_resolve_proposals(days: int = Query(default=45)) -> dict:
+    """The same, across every company the book models."""
+    return auto_resolve_module.proposals(None, None, days=days)
 
 
 class ResolveIn(BaseModel):
@@ -1471,6 +1505,133 @@ def changes(days: int = Query(default=30),
             ticker: Optional[str] = Query(default=None)) -> list[dict]:
     """The ranked feed. Pass ``ticker`` to narrow it to one company."""
     return whatchanged_module.build_feed(days=days, ticker=ticker)
+
+
+class ConfirmGradeIn(BaseModel):
+    source: str
+    evidence: str                 # convention | judgement
+    changed_by: Optional[str] = None
+    rationale: Optional[str] = None
+
+
+@app.get("/review-queue")
+def review_queue(limit: int = Query(default=200, le=1000)) -> dict:
+    """The unreviewed judgements and conventions, grouped by the words that graded them.
+
+    Read as rows the queue is 2,192 decisions and unworkable. Read as sentences it is
+    about twenty and a tail: one house convention stands behind 354 assets, and an
+    analyst confirms the convention rather than the assets.
+    """
+    conn = db.get_connection()
+    try:
+        groups = assumption_log.review_queue(conn, limit=limit)
+        total = conn.execute(
+            """SELECT COUNT(*) n FROM assumptions WHERE evidence_reviewed = 0
+                AND evidence IN ('convention', 'judgement')""").fetchone()["n"]
+    finally:
+        conn.close()
+    return {"unreviewed": total, "groups": groups,
+            "shown": sum(g["rows"] for g in groups)}
+
+
+@app.post("/review-queue/confirm")
+def confirm_review_grade(body: ConfirmGradeIn) -> dict:
+    """Confirm one graded sentence across every row that rests on it.
+
+    Marks reviewed what a rule already read. It never changes a grade and never touches
+    a value, and every row it marks gets its own ledger entry under one batch.
+    """
+    conn = db.get_connection()
+    try:
+        return assumption_log.confirm_grade(
+            conn, body.source, body.evidence, changed_by=body.changed_by,
+            rationale=body.rationale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
+class ReopenGradeIn(BaseModel):
+    batch_id: Optional[str] = None
+    source: Optional[str] = None
+    changed_by: Optional[str] = None
+
+
+@app.post("/review-queue/confirm-all")
+def confirm_all_grades(changed_by: Optional[str] = Query(default=None)) -> dict:
+    """Confirm every unreviewed judgement and convention at once.
+
+    Every row it marks says in the ledger that it was confirmed in bulk rather than read,
+    because evidence_reviewed is the only field in the book that claims a person looked.
+    """
+    conn = db.get_connection()
+    try:
+        return assumption_log.confirm_all(conn, changed_by=changed_by)
+    finally:
+        conn.close()
+
+
+@app.post("/review-queue/reopen")
+def reopen_grades(body: ReopenGradeIn) -> dict:
+    """Put confirmed grades back in the queue, by batch or by the sentence they rest on."""
+    conn = db.get_connection()
+    try:
+        return assumption_log.reopen_grade(conn, batch_id=body.batch_id,
+                                           source=body.source,
+                                           changed_by=body.changed_by)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.get("/model-changes")
+def model_changes(ticker: Optional[str] = Query(default=None),
+                  asset_id: Optional[int] = Query(default=None),
+                  since: Optional[str] = Query(default=None),
+                  reason: Optional[str] = Query(default=None),
+                  limit: int = Query(default=200, le=2000)) -> dict:
+    """What the analyst changed in the model, newest first: the value before and after,
+    who moved it, why, and what the valuation did.
+
+    /changes is the world changing. This is the book changing, which is the half a reader
+    of someone else's model cannot see from the outside and has to be told.
+    """
+    conn = db.get_connection()
+    try:
+        rows = assumption_log.log(conn, asset_id=asset_id, ticker=ticker, since=since,
+                                  reason=reason, limit=limit)
+    finally:
+        conn.close()
+    return {"reasons": list(assumption_log.REASONS), "count": len(rows), "changes": rows}
+
+
+@app.get("/companies/{ticker}/why-moved")
+def why_moved(ticker: str, start: str = Query(...), end: str = Query(...)) -> dict:
+    """Why this company's value moved between two days.
+
+    The three histories the terminal keeps, read together: what the market did, what the
+    analyst changed and why, what the data underneath did, and whether the engine itself
+    changed. It states what provably held still, which is what lets the market be ruled
+    out, and it leaves a residual as a residual rather than dividing a move into shares
+    it cannot defend.
+    """
+    return why_moved_module.between(None, ticker, start, end)
+
+
+@app.get("/companies/{ticker}/forecast-history")
+def forecast_history(ticker: str, since: Optional[str] = Query(default=None),
+                     days: int = Query(default=180)) -> dict:
+    """The fair value this book stated, day by day, against the close, with the events on
+    the line.
+
+    A day the refresh did not run carries the last stated value flat and is marked
+    carried: the model did not change its mind on a day nobody asked it. Nothing is
+    carried backwards and no carried point is ever written down, so the record stays what
+    was said on the day.
+    """
+    return forecast_history_module.series(None, ticker, since=since, days=days)
 
 
 class BriefIn(BaseModel):

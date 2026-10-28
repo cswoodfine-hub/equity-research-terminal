@@ -1,0 +1,28 @@
+# Members a filer puts on the product axis that are not products, and that no rule here
+# can tell from one. The word sets in product_revenue_sec.py catch a grouping, a
+# therapeutic area and an income-statement line, because each announces itself in a word.
+# These do not: they are proper nouns, and a proper noun on the product axis is what a
+# brand looks like.
+#
+# Two kinds, and the reason each needs curating rather than a rule:
+#
+# 1. A business the company runs or bought. "Pfizer Centre One" is contract
+#    manufacturing and "Abiomed" is a device business J&J acquired in 2022. The obvious
+#    rule, that a member starting with the filer's own name is a division, is wrong on
+#    this universe: NovoSeven, NovoMix and NovoRapid are Novo Nordisk products that all
+#    start with Novo. The other obvious rule, matching the member against the deals
+#    table, reaches nothing: Abiomed is older than the window deals_news covers.
+#
+# 2. A collaboration booked under the partner's name. Amgen reports BeOne, which is
+#    BeiGene renamed, and the figure is its share of that company rather than a drug.
+#
+# Retiring one of these drops the revenue from the product chart and leaves it in the
+# unattributed remainder, which is where revenue that cannot be attributed to a product
+# belongs. The company total is untouched either way.
+#
+# member: matched case-insensitively against the label as filed, ignoring spaces.
+member,note
+PFIZERCENTREONE,"Pfizer: contract manufacturing and development services, a division"
+PFIZERIGNITE,"Pfizer: a services business offering its labs to other companies"
+ABIOMED,"J&J: the heart-pump business acquired in 2022, reported as a MedTech line"
+BEONE,"Amgen: BeOne Medicines, formerly BeiGene; its share of a company, not a drug"
