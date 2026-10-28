@@ -220,3 +220,7 @@ ARWR,Plozasiran,Redemplo,"Redemplo is plozasiran, approved for familial chylomic
 SMMT,Ivonescimab Injection,Ivonescimab,"the registry's intervention name for ivonescimab, which smmt_ivonescimab.csv values"
 AMGN,Inebilizumab,Uplizna,"Uplizna is inebilizumab-cdon, approved for neuromyelitis optica spectrum disorder, IgG4-related disease and generalised myasthenia gravis"
 INCY,INCA034176,Niktimvo,"Niktimvo is axatilimab-csfr; INCA034176 is Incyte's development code for axatilimab in its chronic graft-versus-host disease studies"
+ABBV,ABBV-400,Telisotuzumab Adizutecan,"ABBV-400 is telisotuzumab adizutecan (Temab-A), which abbv_telisotuzumab_adizutecan.csv values; the colorectal study sat on the code's row with no model"
+EXEL,XL092,Zanzalintinib,"XL092 is zanzalintinib, Exelixis's development code for it; the kidney cancer study sat on the code's row"
+RVMD,daraxonrasib,Rasonque,"Rasonque is daraxonrasib, approved 2026-08-26 for previously treated metastatic pancreatic adenocarcinoma; rvmd_rasonque.csv values it"
+RVMD,RMC-6236,Rasonque,"RMC-6236 is daraxonrasib's development code; see the daraxonrasib row"
