@@ -44,3 +44,28 @@ AMGN,Parsabiv,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 
 AMGN,Parsabiv,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
 AMGN,Parsabiv,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on",
 AMGN,Parsabiv,,US,base,debt_weight,,0.194802,,,"filed TotalDebt of $57,304mm over debt plus market capitalisation: 540.6mm shares at 2026-07-30 at the $438.12 close of 2026-09-01",
+# Round 2, 2026-10-28
+#
+# Pediatric secondary hyperparathyroidism, NCT03969329: still cannot be priced, and still not seeded.
+# The layer is real (the label is 'adult patients with chronic kidney disease (CKD) on hemodialysis'
+# and section 8.4 says safety and efficacy in paediatric patients have not been established, openFDA
+# label set cd270093-c6a8-4596-a4ab-e6aa0a2c8a0c, effective 2026-03-08), but list_price_per_patient
+# has no source this session can open. Searched, in this order:
+#   - CMS Medicare Part B Spending by Drug 2024 (data.cms.gov 76a714ad-3a2c-43ac-b76d-9dadf8f7d890)
+#     and the 2025 quarterly companion (bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a), by brand and by HCPCS
+#     J0606: no row in either. Since 2021 etelcalcetide is paid inside the ESRD PPS bundle, so no
+#     separate Part B line exists; the Part B discarded-units files carry no J0606 row either.
+#   - the CMS ASP pricing files on cms.gov, which carry a J0606 payment limit: the host is outside
+#     this session's network allowance. So are federalregister.gov (the ESRD PPS rules) and the
+#     North Carolina Medicaid J0606 fee notice a search surfaced.
+#   - Medicaid State Drug Utilization Data 2024, the book's national rows (medicaid_utilization) for
+#     the three Parsabiv NDCs 55513-0740, -0741 and -0742: reimbursed dollars over reimbursed units
+#     give $439, $317 and $167 a unit for the 2.5, 5 and 10 mg vials (FFSU, 2024 Q1), which cannot
+#     all be one unit basis, so no per-mg price can be read from them without inventing one.
+#   - PubMed for a US cost per patient-year of etelcalcetide (cost-effectiveness, TDAPA and bundle
+#     papers, among them PMC6389431, PMC11835161 and PMC10850993): none prints a US unit price.
+# What would settle it: the J0606 payment limit from any quarterly CMS ASP file, times the labelled
+# dose (2.5 to 15 mg three times a week) or, better, the trial's weight-based paediatric dose once
+# NCT03969329 posts it; and for the pool, the USRDS Annual Data Report count of US children on
+# haemodialysis (usrds-adr.niddk.nih.gov, also outside this session's allowance). A pool alone
+# would read as finished work, so none is written until the price exists.

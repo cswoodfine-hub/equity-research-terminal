@@ -37,3 +37,19 @@ ROG,Xofluza,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 20
 ROG,Xofluza,,US,base,beta,,0.64,,,"computed from 261 weekly returns vs S&P 500, 2021-W38 to 2026-W39, Blume-adjusted (0.46 raw)","measured on the RHHBY ADR against the S&P 500, which is the only Roche price series on file. A beta measured on the SIX-listed ordinary share against a Swiss index would not be the same number"
 ROG,Xofluza,,US,base,cost_of_debt,,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data",
 ROG,Xofluza,,US,base,debt_weight,,0.098037,,,"filed long-term debt of CHF 31,636mm at 2025-12-31 from the workbook's balance sheet, over debt plus a market capitalisation of CHF 291.1bn: 802,992,519 diluted shares at 0.125 ordinary per ADR, so 6,423,940,150 ADRs at the RHHBY close of $55.06 on 2026-09-23, converted at CHF/USD 1.215229","ROCHE HAS TWO SHARE CLASSES AND THIS PRICES BOTH OFF ONE. The count is derived from Roche's own published per-share figure, which is struck on bearer shares and non-voting equity securities together, while RHHBY is an ADR over the non-voting security alone. The two trade close but not equal, so this market capitalisation is approximate. It moves the weight and not the cost ratios"
+# Round 2, 2026-10-28
+#
+# Influenza, Human: ALREADY APPROVED. NCT07827599 (Pearlstone) tests a single dose for post-exposure
+# prophylaxis in Chinese participants aged 5 and over, and the US label already carries both
+# treatment and post-exposure prophylaxis from 5 years of age (openFDA set
+# b58b2899-4d22-41e1-8f0c-bdead8917694, effective 2026-04-24). The China sales it could support sit
+# in the International part of the CHF 407mm line already. Overlap 1.0, no pool; the book's
+# influenza pool of 110 million stays with the asset that is not yet approved in it.
+#
+# Pediatric influenza: NOT AN EFFICACY READOUT. NCT06094010 (Pebblestone, 1,100 children aged 3 weeks
+# to 11) has as its primary endpoints the percentage of participants with resistance-associated
+# pre-treatment and treatment-emergent substitutions: a surveillance study of susceptibility and
+# household transmission, not a test of whether baloxavir works in children under 5. The header's
+# earlier reading stands and no layer is written. What would make one: a randomised efficacy or PK
+# bridging study under 5 years old, and a US under-5 treated-influenza count to pool it on.
+ROG,Xofluza,"Influenza, Human",US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved: XOFLUZA is indicated for 'Post-exposure prophylaxis of influenza in patients 5 years of age and older following contact with an individual who has influenza' as well as for treatment of acute uncomplicated influenza from 5 years (openFDA label set b58b2899-4d22-41e1-8f0c-bdead8917694, effective 2026-04-24)","NCT07827599 (Pearlstone, 325 participants aged 5 and over, primary completion 2027-04-30) confirms post-exposure prophylaxis in Chinese participants, a use the US label already carries, so the readout moves evidence rather than patients"

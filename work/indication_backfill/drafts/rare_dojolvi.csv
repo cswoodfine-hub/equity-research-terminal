@@ -1,0 +1,15 @@
+# Dojolvi (RARE). triheptanoin. $96mm in FY2025 for long-chain fatty acid oxidation disorders.
+#
+# Round 2, 2026-10-28.
+#
+# Pediatric long-chain fatty acid oxidation disorders: ALREADY APPROVED. The label covers 'adult and
+# pediatric patients with molecularly confirmed long-chain fatty acid oxidation disorders (LC-FAOD)'
+# with no lower age limit (openFDA set 4cfeb8bd-143e-4dd7-bc34-b0bcda02460d, effective 2025-06-10),
+# so the children NCT05933200 enrols (birth to 17, triheptanoin against even-chain MCT oil, annualised
+# major clinical events) are already in the reported revenue. The readout moves evidence, perhaps
+# payer access, not patients. No pool is seeded, and no price or stopping rate is written: an overlap
+# of 1.0 prices nothing whatever the product costs, so the asset-level rows would unlock no layer.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+RARE,Dojolvi,Pediatric long-chain fatty acid oxidation disorders,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved: DOJOLVI 'is indicated as a source of calories and fatty acids for the treatment of adult and pediatric patients with molecularly confirmed long-chain fatty acid oxidation disorders (LC-FAOD)' (openFDA label set 4cfeb8bd-143e-4dd7-bc34-b0bcda02460d, effective 2025-06-10), with no minimum age","NCT05933200 (69 children, primary completion 2027-08) compares triheptanoin with even-chain MCT oil in patients the label already covers, so it moves evidence rather than patients"
