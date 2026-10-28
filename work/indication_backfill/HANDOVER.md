@@ -24,7 +24,43 @@ python3 work/indication_backfill/steps_to_priced.py /tmp/now.json  # what each o
 python3 work/indication_backfill/worklist.py                       # resumable unit state
 ```
 
-## The job that was running when this stopped
+## Phase 1b result, 2026-10-28
+
+Rerun with five agents, the same grouping. 9 of the 25 marketed assets have a product
+revenue figure in a filing; for the other 16 the filing names none, and they stay
+unmodelled rather than estimated.
+
+- Loaded: Lumakras, Exdensur, Rhapsido, Vanrafia, Qfitlia, Wayrilz.
+- Committed, not loaded on the published copy (no Ayvakit asset there): Ayvakit. Should
+  load against the book.
+- Held: Datroway (growth runs uncapped at 167% a year to $2.2bn by 2030) and Sunosi (no
+  Axsome company half). See `held/HELD.md`.
+- Anchored but blocked the same way as Sunosi: Ionis Dawnzera ($95.55mm) and Tryngolza
+  ($107.526mm). An Ionis and an Axsome company half, built from the 10-K, releases
+  all three.
+- Exclusivity to check against the substance patent: Lumakras 2040 vs 2038, Vanrafia 2043
+  (method of use) vs 2034, Wayrilz 2041 vs 2033.
+
+Measured on the published release copy, not the book (its IDs differ, so it reads
+130/55 where the book reads 142/60): priced 130 to 130, layers 55 to 55.
+
+**The plan was wrong about Phase 1b.** It called 75 catalysts "an asset model, nothing
+else". For a marketed product that is not true: a readout on a selling product prices
+through an indication layer, and a layer needs a price per patient and a
+discontinuation rate. Steps to priced on the copy, before and after:
+
+| | before | after |
+|---|---|---|
+| asset model | 74 | 65 |
+| link + asset model | 86 | 83 |
+| asset price/disc + layer seeds | 18 | 27 |
+| link + asset price/disc + layer seeds | 32 | 35 |
+
+12 catalysts went from two missing pieces of one kind to the Phase 3 shape. Real work,
+not yet a priced gate. The clinical-stage half of the 65 is the expensive build the plan
+already said to do last.
+
+## The job that was running when this stopped (2026-10-27)
 
 **Phase 1b: 25 marketed assets the book does not model.** Five agents were launched and
 all five died on a session rate limit before writing a single file. Nothing of theirs is
