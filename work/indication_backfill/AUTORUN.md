@@ -52,18 +52,18 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
 
 ## Steps
 
-- [ ] 1. **Linking round.** Four agents on `linking/WORKLIST_G1..G4.md` (124 readouts, 94
+- [x] 1. **Linking round.** DONE 2026-10-28: 87 of 124 readouts linked. Four agents on `linking/WORKLIST_G1..G4.md` (124 readouts, 94
       assets), brief `linking/BRIEF_LINKING.md`. Outputs `linking/G*_additions.csv`,
       `G*_paediatric.csv`, `G*_NOTES.md`. Linking now reads the additions file: a study a
       row names reads out in that pair (commit "a study a curated addition names").
-- [ ] 2. **Integrate linking.** Check every MeSH id, no study on two rows of one asset,
+- [x] 2. **Integrate linking.** DONE: 75 addition rows, 2 paediatric rows, 15 trial remaps, 3 aliases; linked 530 to 621, no_gate 243 to 202, priced 173 to 176. Check every MeSH id, no study on two rows of one asset,
       append to `data/asset_indication_additions.csv` and `data/paediatric_indications.csv`,
       remap a copy, measure.
 - [ ] 3. **Layer and model round** over what step 2 leaves at one or two steps: re-run
       `tools/open_units.py` and `steps_to_priced.py --phase 1b`. Briefs: `BRIEF.md`
       (layers), `BRIEF_ASSET_MODEL.md` (marketed), `BRIEF_PIPELINE_MODEL.md` (clinical).
       Exclude everything already answered (overlap 1.0, pos 0, held, no filed figure).
-- [ ] 4. **The 14 "nothing" catalysts.** Find why each is not priced (`nogate.py` reason,
+- [x] 4. **The 14 "nothing" catalysts.** DONE: second readouts on a priced layer, now labelled same_gate_later (commit "a second readout on a priced layer"). Find why each is not priced (`nogate.py` reason,
       `why_nogate.py`) and fix the rule or the data.
 - [ ] 5. **Load, suite, commit.** Full suite on the loaded copy (`-n 4 --timeout 300`),
       compare against the eleven failures that predate 2026-10-28, fix anything new.
@@ -71,7 +71,16 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
 - [ ] 7. **Summary for Charles**: what was done, the number at each step, what is left
       and exactly why each remaining gate is unpriced.
 
-## In flight when this was written
+## In flight
+
+- Round 2 (step 3), launched 2026-10-28 ~19:30 UTC: layers L5 and L6
+  (`round2/LAYERS.md`), marketed models M3, clinical models C4, C5, C6
+  (`round2/MODELS.md`). Reference copy: `<scratchpad>/book/r6.db.backup` (linking and
+  aliases applied). Not yet loaded and waiting with them: `drafts/jnj_icotyde.csv`,
+  `azn_baxfendy.csv`, `axsm_sunosi.csv`, `axsm_axs_14_esreboxetine.csv`, the Evenity
+  paediatric rows appended to `amgn_evenity.csv`.
+
+## Earlier in flight
 
 - Layer agent L4: Icotyde (psoriatic arthritis, UC, Crohn's), Baxfendy (primary
   aldosteronism), Vyvgart in Graves disease. Drafts land in `drafts/`.
@@ -80,14 +89,15 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
 
 1. The patent plan, step 1: correct the exclusivity dates (Wayrilz 2041 against a 2033
    compound patent; Lumakras, Vanrafia; Xofluza has an approved generic since June 2026).
-2. Axsome's company half: own 10-K lines value Sunosi below zero; a comparator's (AbbVie,
-   as AXS-14 used) is the house precedent. Sunosi and AXS-14 are held on it.
-3. Rinvoq in Takayasu arteritis: the existing penetration row puts about 30% of US
-   patients on the drug. A terminal edit.
-4. Evenity: set the existing osteogenesis imperfecta layer's penetration to 0 in the
-   terminal to release the paediatric layer held in `held/`.
+2. DECIDED by Claude at Charles's request: Axsome takes a profitable comparator's company
+   half (AbbVie's); Rinvoq Takayasu and Evenity's osteogenesis imperfecta layer corrected
+   by migration 093, with Baxfendy's discontinuation.
 
 ## Log
+
+- 2026-10-28 evening: linking round (87 readouts), engine fixes (patient-mode layers
+  risked, additions link their studies, overlap asked before keys, repeat gates labelled),
+  BioNTech to EUR, migration 093, Axsome decided. Round 2 launched.
 
 - 2026-10-28: Phase 1b, Phase 3, paediatric rows, the layer and asset-model round. 129
   to 173 on the copy. Engine fixes: the gate nets a layer's overlap; a layer on a patient
