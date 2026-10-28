@@ -73,6 +73,13 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
 
 ## In flight
 
+- Round 3, launched 2026-10-29 ~00:10 UTC: four agents on `round3/NO_FORECAST.md` (groups
+  G-A to G-D: the 55 catalysts refused "no forecast", plus Columvi and Journavx layers).
+  Mappings land in `round3/G*_MAPPINGS.csv` for Claude to apply. Reference copy:
+  `<scratchpad>/book/r7_post.db.backup` (round 2 loaded). Full suite on it: `suite5.log`.
+
+## Round 2 (done)
+
 - Round 2 (step 3), launched 2026-10-28 ~19:30 UTC: layers L5 and L6
   (`round2/LAYERS.md`), marketed models M3, clinical models C4, C5, C6
   (`round2/MODELS.md`). Reference copy: `<scratchpad>/book/r6.db.backup` (linking and
@@ -94,6 +101,10 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
    by migration 093, with Baxfendy's discontinuation.
 
 ## Log
+
+- 2026-10-28 late: round 2 loaded, 174 to 212 priced on the copy, no_gate 202 to 137.
+  Fixes: an unmarked row on a patient-built product is its business (Lipfendra), a layer
+  may state its own price (Journavx), one pool each for myositis and chronic GVHD.
 
 - 2026-10-28 evening: linking round (87 readouts), engine fixes (patient-mode layers
   risked, additions link their studies, overlap asked before keys, repeat gates labelled),
