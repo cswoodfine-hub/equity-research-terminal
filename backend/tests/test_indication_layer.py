@@ -103,6 +103,18 @@ def test_a_layer_wholly_inside_the_business_is_not_priced(tmp_path):
     conn.close()
 
 
+def test_a_layer_wholly_inside_the_business_needs_no_pool(tmp_path):
+    """An already-approved answer carries overlap 1.0 and no pool. It says so, rather
+    than reading as a layer still missing its prevalence."""
+    _, conn = _seed(tmp_path, pool=False)
+    A.save(conn, 1, [{"key": "base_pool_overlap_pct", "indication_id": 7, "value": 1.0,
+                      "source": "t"}])
+    conn.commit()
+    got = IL.build(conn, 1, 7)
+    assert not got["ok"] and not got["missing"] and "wholly inside" in got["why"]
+    conn.close()
+
+
 def test_the_franchise_ceiling_is_reported_not_applied(tmp_path):
     """The ceiling is somebody's forecast of the whole product at peak, so it already
     contains the expansions. Silently capping would hide that; the flag shows it."""
