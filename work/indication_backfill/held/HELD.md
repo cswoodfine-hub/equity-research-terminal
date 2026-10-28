@@ -111,3 +111,17 @@ children, so both together count them twice.
 
 **What would release it:** setting the existing osteogenesis imperfecta layer's
 penetration to 0 in the terminal, after which this layer is the only one on them.
+
+## jnj_inlexzo.csv: the failed SunRISe-2 rows (2026-10-28)
+
+The finding is sound: SunRISe-2 (NCT04658862, muscle-invasive bladder cancer) was stopped
+for futility in October 2024. But the rows sit on "Urinary Bladder Neoplasms", which is
+also the row Inlexzo's approved non-muscle-invasive business is built on, since MeSH
+gives both diseases one descriptor and the label test cannot see the approval. Inlexzo is
+modelled from patients, so a stated pos of 0 and overlap of 0 on that row would read as
+the whole product failing once patient-mode layers are risked. Taken out of the seed it
+was appended to the same day, before the book loaded it.
+
+**What would release it:** a muscle-invasive row of its own on the asset (a curated
+addition, as `asset_indication_additions.csv` carries), so the failure lands on the
+disease it was in.
