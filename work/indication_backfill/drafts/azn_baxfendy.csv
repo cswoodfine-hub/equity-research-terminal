@@ -1,0 +1,23 @@
+# Baxfendy (AZN), baxdrostat, aldosterone synthase inhibitor. Layer seeds, 2026-10-28.
+#
+# The book models Baxfendy from patients (therapy_mode chronic) on its approved use,
+# hypertension (the seed's Hypertension rows, which are the product's business and carry no
+# base_pool_overlap_pct). The current label (DailyMed setid
+# b1fc1ee7-facc-4099-b3db-a4c1daeaa4be, effective 18 September 2026) reads: 'BAXFENDY, in
+# combination with other antihypertensive drugs, is indicated for the treatment of
+# hypertension, to lower blood pressure in adults who are not adequately controlled on
+# other agents.'
+#
+# One readout on file: BaxPA (NCT07007793), Phase 3 in primary aldosteronism, 212 enrolled,
+# primary completion 2027-07-27. Its primary endpoint is seated systolic pressure at week 8.
+# Every participant it enrols is already on that label: it requires a stable antihypertensive
+# regimen for at least 4 weeks and a seated systolic pressure of 135 to 170 mmHg on it, and
+# a patient taking a mineralocorticoid receptor antagonist at screening still has to sit at
+# 135 to 160. Those are adults not adequately controlled on other agents. So the answer is
+# 'already approved': base_pool_overlap_pct 1.0, no pool seeded, and the readout moves
+# evidence rather than patients.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Baxfendy,Hyperaldosteronism,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"BaxPA (NCT07007793) enrols adults with primary aldosteronism by the 2016 or 2025 Endocrine Society criteria who have 'a stable regimen of antihypertensive medications for at least 4 weeks prior to randomisation' and a 'mean seated SBP on AOBPM of >= 135 mmHg and <= 170 mmHg', which is the population the current label already covers: 'in combination with other antihypertensive drugs ... in adults who are not adequately controlled on other agents' (DailyMed setid b1fc1ee7-facc-4099-b3db-a4c1daeaa4be, effective 18 September 2026). A systolic pressure of 135 or more on treatment is above the below-130/80 mmHg goal of the 2017 ACC/AHA guideline (Whelton PK et al., Hypertension 2018;71:e13-e115), the guideline the label itself points to","nil added, not a smaller layer. What a primary aldosteronism label could add beyond this is patients controlled on spironolactone who would switch for tolerability, and BaxPA does not enrol them: the study requires systolic pressure of 135 or more whatever the regimen. The seed's hypertension pool is drawn to patients uncontrolled on multiple agents, narrower than the label; patients with primary aldosteronism uncontrolled on one agent are on the label though not in that pool, which is a question for the hypertension rows, not a reason to price a second pool"
+AZN,Baxfendy,Hyperaldosteronism,US,base,pos,,0.571306,,,"the published transitions ahead of a Phase 3 readout on the Endocrine cut of BIO/Informa/QLS 2011-2020 (data/pos_transitions.csv, Figure 2 p7): 0.662 Phase 3 to NDA/BLA (n 151) x 0.863 NDA/BLA to approval (n 124). BaxPA (NCT07007793) is a Phase 3, active not recruiting, with 212 enrolled","stated so the layer carries both keys; at an overlap of 1.0 it prices nothing. Replace with 0.863 on a positive BaxPA readout, 0 on failure"
