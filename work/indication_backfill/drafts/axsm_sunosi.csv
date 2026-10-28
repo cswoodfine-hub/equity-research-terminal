@@ -1,0 +1,37 @@
+# Sunosi (AXSM). solriamfetol, a dopamine and norepinephrine reuptake inhibitor for
+# excessive daytime sleepiness in narcolepsy and obstructive sleep apnoea. $120.1mm in FY2025.
+#
+# Marketed, anchored on the reported year: Axsome's FY2025 10-K (0001193125-26-064267)
+# names Sunosi product sales, net, of $120,093 thousand against $90,299 thousand in
+# FY2024, in Note 14 (Revenues) and in MD&A. The anchor is
+# product sales only. The $4.7mm of royalty and milestone revenue Axsome books on
+# Pharmanovia's ex-US sales is a separate line and is left out, because it is a royalty
+# on someone else's sales and not this product's revenue.
+#
+# THE COMPANY HALF IS NOT IN THIS FILE. The book holds no AXSM seed at all
+# (data/assumptions has none, and the dossier names no sibling), so there is nothing to
+# copy cogs_pct, sga_pct, rd_pct, other_costs_pct, tax_rate, risk_free, erp, beta,
+# cost_of_debt and debt_weight from, and the brief forbids deriving them here. Axsome
+# also made a net loss in every year to FY2025 ($183.2mm in FY2025), so the book's
+# effective-rate method for tax_rate has no year with positive pre-tax income to read.
+# Until an AXSM company half is written, the engine refuses to value this product and
+# names "wacc (or its CAPM components)" as missing, which is the honest outcome. Only
+# terminal_growth_pct is carried, because it is the engine's convention in every seed
+# and without it the growth rate below would never fade.
+#
+# Left out: revenue_ceiling_musd. No published peak-sales forecast for Sunosi was found
+# in a document that could be opened.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AXSM,Sunosi,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
+AXSM,Sunosi,,US,base,base_revenue,,120.1,,mm USD,"AXSM FY2025 reported product sales, net, for Sunosi: $120,093 thousand. Axsome FY2025 10-K (0001193125-26-064267, filed 2026-02-23), Note 14 (Revenues) disaggregation table, row 'Sunosi'; the same figure in MD&A, 'SUNOSI net sales were $120.1 million and $90.3 million for the years ended December 31, 2025 and 2024'. Axsome sells Sunosi in the US and Canada and supplies Pharmanovia; the line is all product sales, not US only","the anchor. Excludes the $4.7mm 'Sunosi royalty and milestone revenue' row in the same table"
+AXSM,Sunosi,,US,base,revenue_growth_pct,,0.329948,,"annual, near term","the last reported year over the one before: $120,093 thousand in FY2025 against $90,299 thousand in FY2024, Axsome FY2025 10-K (0001193125-26-064267), Note 14 (Revenues) disaggregation table, row 'Sunosi'","the years. The halves are slower: $66.5mm in the first half of 2026 against $53.0mm in the first half of 2025, +25.5% (10-Q for the quarter to 2026-06-30, 0001193125-26-342360, MD&A product sales), so the rate leans high for 2026"
+AXSM,Sunosi,,US,base,growth_fade_years,,5,,years,"measured from 52 drugs that grew 25% to 50% a year: the median took 4.5 years of fading growth to reach its peak revenue (quartiles 2.5 to 8), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 22 of them censored because they are still near their best or lost exclusivity at their peak",
+AXSM,Sunosi,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
+AXSM,Sunosi,,US,base,forecast_years,,16,,years,"set to run past the 2038-11-01 loss of exclusivity the book holds (Orange Book drug substance patent 12384743, loe.for_assets) and the generic entry dates Axsome has settled: Hetero and Hikma from 2040-09-01, Alkem from 2040-09-01 with paediatric exclusivity or 2040-03-01 without, Unichem from 2042-06-30 (10-K 0001193125-26-064267, Item 1 intellectual property and Note 21, Subsequent Events)","2026 to 2041, through the 2040 settlement dates"
+AXSM,Sunosi,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
+AXSM,Sunosi,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
+AXSM,Sunosi,,US,base,list_price_per_patient,,0.005247,,mm USD per patient-year,"CMS Medicare Part D Spending by Drug, 2024, Sunosi (drug_demand): $21,025,660.84 over 4,007 beneficiaries = $5,247.23 per beneficiary","a price per beneficiary treated in the year, not per full year on drug (see discontinuation_pct). Axsome reports in USD, so there is no conversion"
+AXSM,Sunosi,,US,base,gross_to_net_pct,,0.5,,share off list,"Part D gross-to-net convention, measured at a median 96% of CMS's own negotiated net annual prices across the nine cycle-one IRA drugs (backend/gross_to_net.py)",CMS Part D spending is gross of rebates
+AXSM,Sunosi,,US,base,discontinuation_pct,,0.4966,,share of the treated stock stopping per year,"CMS Medicare Part D 2024, Sunosi (drug_demand): 736,275.5 dosage units over 4,007 beneficiaries = 183.75 tablets per beneficiary. The label doses Sunosi once daily (37.5 mg, 75 mg or 150 mg), so a full labelled year is 365 doses and a beneficiary averages 0.5034 of a year on drug; 1 - 0.5034 = 0.4966","measured on CMS dosage units against a labelled year. The half units in the file are half 75 mg tablets taken as the 37.5 mg dose, which counts a 37.5 mg patient at half a dose a day and overstates stopping for that group"
