@@ -125,3 +125,12 @@ was appended to the same day, before the book loaded it.
 **What would release it:** a muscle-invasive row of its own on the asset (a curated
 addition, as `asset_indication_additions.csv` carries), so the failure lands on the
 disease it was in.
+
+## Released 2026-10-28
+
+- `axsm_sunosi.csv` and `axsm_axs_14_esreboxetine.csv`: Axsome's company half is a
+  profitable comparator's (AbbVie's, as AXS-14 carried), the house precedent for a
+  loss-making filer, written identically into both. Back in `drafts/`.
+- `amgn_evenity_paediatric.csv`: the existing osteogenesis imperfecta layer was retired by
+  migration 093 (penetration 0), so the paediatric layer is the only one on these
+  children. Appended back to `drafts/amgn_evenity.csv`.
