@@ -353,3 +353,18 @@ def test_a_pipeline_asset_keeps_every_indication():
     marked = _revenue(_patient_inputs({"base_pool_overlap_pct": 0.25, "pos": 0.5},
                                       marketed=False))
     assert marked[-1] == pytest.approx(unrisked[-1])
+
+
+def test_an_unmarked_indication_on_a_patient_built_product_is_its_business(tmp_path):
+    """Lipfendra carries no label in the book, so its own approved indication read as
+    unapproved and the gate staked the whole product on a safety extension."""
+    _, conn = _seed(tmp_path, marketed=False)
+    conn.execute("UPDATE assets SET is_marketed = 1 WHERE id = 1")
+    conn.commit()
+    got = IL.build(conn, 1, 7)
+    assert not got["ok"] and "product's own business" in got["why"]
+    A.save(conn, 1, [{"key": "base_pool_overlap_pct", "indication_id": 7, "value": 0.0,
+                      "source": "t"}])
+    conn.commit()
+    assert IL.build(conn, 1, 7)["ok"]
+    conn.close()

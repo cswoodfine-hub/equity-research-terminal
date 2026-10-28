@@ -92,6 +92,18 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
     # Asked before the keys a pool needs: a layer wholly inside the business needs no pool,
     # and reporting "missing prevalence" for it read as unfinished research.
     overlap = (entry.get("scalars") or {}).get("base_pool_overlap_pct")
+    # On a selling product built from patients, an indication is a layer only where the
+    # research marked it one, the rule forecast._risk_patient_layers holds the forecast to.
+    # Lipfendra carries no label in the book, so its approved hypercholesterolaemia read
+    # as unapproved and the gate staked the whole product, 3,953mm at peak, on an
+    # open-label safety extension.
+    mode = ((loaded.get("scalars") or {}).get("therapy_mode") or "").strip()
+    if (loaded.get("is_marketed") and mode in ("chronic", "one_time")
+            and overlap is None):
+        return {"ok": False, "missing": [],
+                "why": "On a product modelled from patients this indication is the "
+                       "product's own business unless the research marks it a layer by "
+                       "stating base_pool_overlap_pct."}
     if overlap is not None and overlap >= 1.0:
         return {"ok": False, "missing": [],
                 "why": "The pool is wholly inside the business already being sold to, so "
