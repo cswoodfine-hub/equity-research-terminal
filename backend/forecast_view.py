@@ -1132,6 +1132,16 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                     npv=got["npv"], pos_now=got["pos_now"]), **got["card"]})
             done = {id(r) for r, _ in layered}
             rows = [r for r in rows if id(r) not in done]
+            # A second readout in an indication the layer gate has just priced is the
+            # same gate again, not one with no gate: Cobenfy's five Alzheimer's readouts
+            # carry one layer, priced on the earliest, and the other four read as having
+            # nothing to price, which counted them as work still to do.
+            gated = {r.get("asset_indication_id") for r, _ in layered}
+            for row in [r for r in rows if r.get("asset_indication_id") in gated]:
+                refuse(row, "same_gate_later",
+                       "An earlier readout in the same indication carries this layer, so "
+                       "it is priced there once rather than again here.")
+            rows = [r for r in rows if r.get("asset_indication_id") not in gated]
         reason, why = _no_gate_reason(state)
         for row in rows:
             refuse(row, reason, why)

@@ -74,3 +74,14 @@ def test_every_unpriced_catalyst_names_a_published_reason(stakes):
         for row in got["unpriced"]:
             assert row["reason"] in V.STAKE_REASONS, (ticker, row["id"], row["reason"])
             assert row["why"] and row["why"].endswith("."), (ticker, row["id"])
+
+
+def test_a_second_readout_on_a_priced_layer_is_the_same_gate(stakes):
+    """Cobenfy's five Alzheimer's readouts carry one layer, priced on the earliest. The
+    other four read as having no gate at all, which counted them as work still to do."""
+    for ticker, got in stakes.items():
+        layered = {row["asset_indication_id"] for row in got["priced"]
+                   if row["legs_basis"] == "indication layer"}
+        stray = [row["id"] for row in got["unpriced"]
+                 if row["reason"] == "no_gate" and row.get("asset_indication_id") in layered]
+        assert stray == [], (ticker, stray)
