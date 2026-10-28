@@ -1,0 +1,34 @@
+# Tezspire (AZN), tezepelumab. Phase 3: price, discontinuation and the Asthma and Rhinosinusitis units.
+#
+# The label is on the book under Amgen's TEZSPIRE asset (DailyMed setid 60f0aa03-ad25-
+# 4d48-80ce-7fcfa76f325f, version 16, effective 2026-07-24; openFDA carries the same
+# indications from 2025-10-17): add-on maintenance treatment of adults and children 12 and
+# over with severe asthma (section 1.1), and add-on maintenance treatment of adults and
+# children 12 and over with inadequately controlled chronic rhinosinusitis with nasal
+# polyps (section 1.2, approved 2025-10-17). 210 mg subcutaneously every 4 weeks.
+#
+# Both units are already approved, and the readouts add no patients:
+#   Rhinosinusitis, ESSENCE (NCT06706817, Phase 3b, single arm, 181 enrolled, primary
+#     completion 2027-01-13): adults with CRSwNP initiating tezepelumab, measuring symptom
+#     change. The approved population and the approved dose.
+#   Asthma, ARRIVAL (NCT06473779, Phase 3b, 310, 2027-06-25) and TAPER (NCT07363642,
+#     Phase 3b, 400, 2028-02-07): patients 12 to 80 with severe asthma already on
+#     tezepelumab, stepping down background inhaled therapy. The approved population.
+# The age extension that would be a real layer is HORIZON (NCT06023589, Phase 3, children
+# 5 to under 12 with severe asthma, primary completion 2028-05-31), which the label
+# excludes. It carries no dated catalyst in this unit and belongs on a paediatric row of
+# its own, not here.
+#
+# One honest caveat on the CRSwNP answer: the FY2025 anchor of 1,131mm contains only ten
+# weeks of the CRSwNP launch. Those patients are carried by the marketed line's growth,
+# not by a layer, because the indication is on the label and the book's rule is that an
+# approved indication is never rebuilt bottom-up.
+#
+# Price and stopping rate are measured on the same Medicare Part B patients.
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AZN,Tezspire,,US,base,list_price_per_patient,,0.029998,,mm USD per patient-year,"Tezspire (tezepelumab-ekko, HCPCS J2356 'INJ TEZEPELUMAB-EKKO, 1MG'), CMS Medicare Part B, quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $290,085,047 over 9,670 beneficiaries = $29,998.45 a beneficiary (Avg_Spnd_Per_Bene 29,998.453671). For scale: a labelled year is 13.04 doses of 210 mg (every 4 weeks; Tezspire USPI section 2.1), and at the 2024 Part B rate of $17.78 a mg (Medicare Part B Spending by Drug, dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890) that is about $48,700","the per-beneficiary basis, not a labelled year. Part D carries a similar number of beneficiaries at a similar figure (2024: 6,219 at $29,549, drug_demand), so the Part B figure is not an outlier. In USD, which is AstraZeneca's reporting currency"
+AZN,Tezspire,,US,base,gross_to_net_pct,,0.056604,,share taken off list,"house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, which is already net of manufacturer discounts, so 1 - 1/1.06 comes off (Social Security Act section 1847A)","Direction checked: net is 94.3% of the figure above, $28,300 a patient-year. Commercial and Part D rebates on a respiratory biologic run deeper than this, so the net leans high"
+AZN,Tezspire,,US,base,discontinuation_pct,,0.410746,,share of the treated stock stopping per year,"measured on Part B beneficiaries: Medicare Part B Spending by Drug 2024 (dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, J2356, 1 mg units): 12,288,462.1 units over 7,618 beneficiaries = 1,613.08 mg a beneficiary. A labelled year is 365 / 28 x 210 = 2,737.5 mg (210 mg every 4 weeks, Tezspire USPI section 2.1), so a beneficiary averages 0.5893 of a year on drug and 1 - 0.5893 = 0.4107. Each claim is one dose: 12,288,462.1 mg over 59,000 claims is 208.3 mg","Judgement on method, the Opdivo arithmetic of BRIEF.md. The 2025 companion file carries no dosage units, so the rate is from 2024 while the price is from 2025. The product was still growing fast in 2024 (2,432, 5,522 and 7,618 beneficiaries over 2022 to 2024), and starters count as a beneficiary for part of a year, so this rate leans high against a steady state"
+AZN,Tezspire,Rhinosinusitis,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved. The label (DailyMed setid 60f0aa03-ad25-4d48-80ce-7fcfa76f325f, effective 2026-07-24, section 1.2) covers add-on maintenance treatment of patients 12 and over with inadequately controlled chronic rhinosinusitis with nasal polyps. ESSENCE (NCT06706817, Phase 3b, single arm, 181 adults with CRSwNP initiating tezepelumab, primary completion 2027-01-13) and the Chinese study NCT07520162 enrol that population at that dose","nil, not pending. The readout moves evidence, not patients, so no pool is seeded"
+AZN,Tezspire,Asthma,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved. The label (DailyMed setid 60f0aa03-ad25-4d48-80ce-7fcfa76f325f, effective 2026-07-24, section 1.1) covers add-on maintenance treatment of patients 12 and over with severe asthma. ARRIVAL (NCT06473779, Phase 3b, 310 patients aged 12 to 80, primary completion 2027-06-25) and TAPER (NCT07363642, Phase 3b, 400 patients aged 12 to 80, 2028-02-07) both treat severe asthma with tezepelumab and test stepping down background inhaled therapy, so every patient in them is on-label today","nil, not pending. The paediatric study HORIZON (NCT06023589, 5 to under 12, primary completion 2028-05-31) is a real age extension the label excludes and would be its own layer on a paediatric row, priced off the book's asthma pool"

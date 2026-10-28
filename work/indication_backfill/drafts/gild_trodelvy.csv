@@ -1,0 +1,26 @@
+# Trodelvy (GILD), sacituzumab govitecan. Phase 3: price, discontinuation and the NSCLC unit.
+#
+# The label (DailyMed setid 57a597d2-03f0-472e-b148-016d7169169d, version 20, effective
+# 2026-06-29) is breast cancer only: first-line and later triple-negative disease, and
+# HR-positive, HER2-negative disease after endocrine therapy and two further lines.
+# 10 mg/kg on Days 1 and 8 of 21-day cycles.
+#
+# Carcinoma, Non-Small-Cell Lung: the programme has failed. EVOKE-01 (NCT05089734, Phase
+# 3, 603 patients, second line against docetaxel) missed overall survival. EVOKE-03
+# (NCT05609968, Phase 3, run by Merck as KEYNOTE-D46, first line with pembrolizumab in
+# PD-L1 50% or more) was stopped in June 2026 on the Data Monitoring Committee's advice
+# after the final PFS analysis, and Gilead wrote off the whole remaining $1.75bn NSCLC
+# in-process R&D asset because "no future cash flows were expected to be generated" from
+# it. The pending catalyst, EVOKE-02 (NCT05186974, Phase 2, 193 enrolled, first-line
+# combinations, primary completion 2027-03), is the open-label study the failed Phase 3
+# was built on. pos 0, no pool.
+#
+# Price and stopping rate are measured on the same Medicare Part B patients, so the
+# asset can price its other layer (Endometrial Neoplasms) when that one is written.
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GILD,Trodelvy,,US,base,list_price_per_patient,,0.086033,,mm USD per patient-year,"Trodelvy (sacituzumab govitecan-hziy, HCPCS J9317), CMS Medicare Part B, quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $268,509,516.09 over 3,121 beneficiaries = $86,033.17 a beneficiary (Avg_Spnd_Per_Bene 86,033.167603), the figure gsk_ris_rez.csv lists for it. 2024 in the annual file was $82,520.78 over 3,300 (Medicare Part B Spending by Drug, dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890). For scale: a labelled year is 34.76 doses (two every 21 days) and at the 2025 rate of $10,111.83 a claim that is about $351,500","the per-beneficiary basis, not a labelled year, as abbv_abbv_706.csv uses Trodelvy's 2024 figure"
+GILD,Trodelvy,,US,base,gross_to_net_pct,,0.056604,,share taken off list,"house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, which is already net of manufacturer discounts, so 1 - 1/1.06 comes off (Social Security Act section 1847A)","Direction checked: net is 94.3% of the figure above, $81,163 a patient-year. Medicaid rebates and 340B discounts sit outside ASP and are not deducted, so the net leans high"
+GILD,Trodelvy,,US,base,discontinuation_pct,,0.753675,,share of the treated stock stopping per year,"measured on Part B beneficiaries: Medicare Part B Spending by Drug 2024 (dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, J9317 'Injection, sacituzumab govitecan-hziy, 2.5 mg'): 28,257 claims over 3,300 beneficiaries = 8.563 administrations a beneficiary. Each claim is one dose: 8,065,320 units x 2.5 mg over 28,257 claims is 713.6 mg, 10 mg/kg at 71 kg. A labelled year is 365 / 21 x 2 = 34.76 doses (Trodelvy USPI section 2.3), so a beneficiary averages 0.2463 of a year on drug and 1 - 0.2463 = 0.7537","Judgement on method, the Opdivo arithmetic of BRIEF.md, counted in doses so that body weight does not enter. Checked against a trial: ASCENT median PFS 5.6 months in previously treated triple-negative disease (Bardia et al., N Engl J Med 2021;384:1529-1541, doi:10.1056/NEJMoa2028485, patients without brain metastases) is 1 - 0.5^(12/5.6) = 0.774. First-line TNBC, now on the label, should stop more slowly, so the rate leans high for the product's current mix"
+GILD,Trodelvy,"Carcinoma, Non-Small-Cell Lung",US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"a different tumour from the breast cancer label (DailyMed setid 57a597d2-03f0-472e-b148-016d7169169d, effective 2026-06-29). No lung revenue is inside the 1,397mm anchor",
+GILD,Trodelvy,"Carcinoma, Non-Small-Cell Lung",US,base,pos,,0.0,,,"the programme has failed. EVOKE-01 (NCT05089734, 603 patients, previously treated NSCLC against docetaxel) did not meet its overall survival endpoint: median 11.1 against 9.8 months, HR 0.84 (95% CI 0.68 to 1.04), one-sided P = .0534 (Paz-Ares et al., J Clin Oncol 2024;42:2860-2872, doi:10.1200/JCO.24.00733). EVOKE-03, first line with pembrolizumab in PD-L1 TPS 50% or more, was discontinued in June 2026 on the Data Monitoring Committee's recommendation after the final PFS analysis and an interim OS analysis, and Gilead recognised an impairment of the remaining $1.75bn NSCLC in-process R&D asset, having 'determined that no future cash flows were expected to be generated in relation to the NSCLC IPR&D intangible asset' (Gilead 10-Q for the quarter to 2026-06-30, 0000882095-26-000031, Note 7)","nil, not pending. EVOKE-02 (NCT05186974, Phase 2) still reads Active not recruiting with a 2027-03 primary completion, which is why the book carries a catalyst; Gilead's own accounting gives the indication no value. No pool is seeded for a programme that has already failed"
