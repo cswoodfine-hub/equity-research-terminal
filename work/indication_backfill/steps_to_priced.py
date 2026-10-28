@@ -42,7 +42,11 @@ def classify(conn, rows) -> list:
                 steps.append("phase")
         if aid is None:
             continue
-        if mode.get(aid) not in SELLING:
+        # A selling product modelled from patients is selling too: its readouts price
+        # through layers, as a revenue-anchored product's do (forecast._risk_patient_layers).
+        marketed = conn.execute("SELECT is_marketed FROM assets WHERE id=?", (aid,)).fetchone()
+        if mode.get(aid) not in SELLING and not (
+                marketed and marketed[0] and mode.get(aid) in ("chronic", "one_time")):
             steps.append("asset model")
         else:
             sc = (A.load(conn, aid, "base") or {}).get("scalars") or {}
