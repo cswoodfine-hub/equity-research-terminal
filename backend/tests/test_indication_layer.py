@@ -368,3 +368,30 @@ def test_an_unmarked_indication_on_a_patient_built_product_is_its_business(tmp_p
     conn.commit()
     assert IL.build(conn, 1, 7)["ok"]
     conn.close()
+
+
+def test_a_layer_can_state_its_own_price():
+    """Journavx is sold as a 7-day course; a neuropathy patient takes it all year. A layer
+    that states its own price is priced at it, and one that states none at the product's."""
+    free = _marketed_inputs()
+    free["scalars"].pop("revenue_ceiling_musd")
+    plain = forecast.build(free)
+    dearer = _marketed_inputs(indication={"list_price_per_patient": 0.066166,
+                                          "gross_to_net_pct": 0.50})
+    dearer["scalars"].pop("revenue_ceiling_musd")
+    without = _marketed_inputs(indication={"base_pool_overlap_pct": 1.0})
+    without["scalars"].pop("revenue_ceiling_musd")
+    base = forecast.build(without)["revenue"]
+    layer_plain = [a - b for a, b in zip(plain["revenue"], base)]
+    layer_dear = [a - b for a, b in zip(forecast.build(dearer)["revenue"], base)]
+    assert layer_dear[-1] == pytest.approx(2 * layer_plain[-1], rel=0.01)
+
+
+def test_the_gate_builds_a_layer_at_its_own_price(tmp_path):
+    _, conn = _seed(tmp_path)
+    plain = IL.build(conn, 1, 7)["peak_revenue"]
+    A.save(conn, 1, [{"key": "list_price_per_patient", "indication_id": 7,
+                      "value": 0.066166, "source": "t"}])
+    conn.commit()
+    assert IL.build(conn, 1, 7)["peak_revenue"] == pytest.approx(2 * plain, rel=0.01)
+    conn.close()

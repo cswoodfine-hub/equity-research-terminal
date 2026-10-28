@@ -373,6 +373,24 @@ def share_path(now: float, plateau: float, ramp: float, years: int) -> list:
 # the engine makes: a layer half-specified is not a smaller layer, it is a guess.
 _LAYER_KEYS = ("prevalence", "eligible_pct", "penetration_peak_pct")
 
+# What a layer may price differently from its product. Journavx is sold as a 7-day acute
+# course, and a patient with painful diabetic neuropathy takes it all year: one price
+# for both put the layer at about a fiftieth of its value. A layer that states its own
+# price or discontinuation uses it; one that states none uses the product's.
+LAYER_PRICE_KEYS = ("net_price_per_patient", "list_price_per_patient",
+                    "gross_to_net_pct", "discontinuation_pct")
+
+
+def layer_terms(scalars: dict, own: dict) -> tuple:
+    """(net price, discontinuation) for one layer: its own where it states them."""
+    stated = {k: own[k] for k in LAYER_PRICE_KEYS if own.get(k) is not None}
+    if not stated:
+        return net_price(scalars), scalars.get("discontinuation_pct")
+    merged = {**scalars, **stated}
+    if "net_price_per_patient" not in stated and "list_price_per_patient" in stated:
+        merged.pop("net_price_per_patient", None)
+    return net_price(merged), merged.get("discontinuation_pct")
+
 
 def _indication_layers(inputs: dict, years, scalars: dict, price) -> tuple:
     """{name: revenue series} for the indications a marketed product does not yet sell.
@@ -416,8 +434,9 @@ def _indication_layers(inputs: dict, years, scalars: dict, price) -> tuple:
                 f"being sold to, so the readout moves evidence rather than patients")
             continue
         # A price is needed from here on, and only from here on: the nil answer above
-        # holds whatever the product costs.
-        if (price is None or discontinuation is None
+        # holds whatever the product costs. The layer's own, where it states one.
+        lprice, ldisc = layer_terms(scalars, own)
+        if (lprice is None or ldisc is None
                 or any(own.get(k) is None for k in _LAYER_KEYS)):
             continue
         if overlap is None or pos is None:
@@ -429,10 +448,10 @@ def _indication_layers(inputs: dict, years, scalars: dict, price) -> tuple:
                                       "chronic")
         if got.get("used") is None:
             continue
-        stock = treated_stock(got["used"], discontinuation,
+        stock = treated_stock(got["used"], ldisc,
                               scalars.get("opening_treated_patients") or 0.0)
         kept = (1.0 - overlap) * pos
-        series = [p * price * _price_factor(scalars, i) * kept
+        series = [p * lprice * _price_factor(scalars, i) * kept
                   for i, p in enumerate(stock)]
         out[name] = series
         notes.append(

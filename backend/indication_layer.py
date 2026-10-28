@@ -59,9 +59,11 @@ _MARKETED_ONLY = ("base_revenue", "revenue_growth_pct", "revenue_ceiling_musd",
 
 
 def _missing(built: dict, entry: dict) -> list:
-    out = [k for k in ASSET_KEYS if built["scalars"].get(k) is None]
-    out += [k for k in INDICATION_KEYS if (entry.get("scalars") or {}).get(k) is None]
-    if forecast.net_price(built["scalars"]) is None:
+    own = entry.get("scalars") or {}
+    price, discontinuation = forecast.layer_terms(built["scalars"], own)
+    out = ["discontinuation_pct"] if discontinuation is None else []
+    out += [k for k in INDICATION_KEYS if own.get(k) is None]
+    if price is None:
         out.append("net_price_per_patient")
     return out
 
@@ -121,6 +123,13 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
     layer["indications"] = [entry]
     layer["is_marketed"] = False          # the layer is the business not yet won
     scalars = layer["scalars"]
+    # A layer that prices differently from its product carries its own terms into the
+    # build, as forecast.layer_terms reads them for the marketed line.
+    for key in forecast.LAYER_PRICE_KEYS:
+        if (entry.get("scalars") or {}).get(key) is not None:
+            if key == "list_price_per_patient":
+                scalars.pop("net_price_per_patient", None)
+            scalars[key] = entry["scalars"][key]
     for key in _MARKETED_ONLY:
         scalars.pop(key, None)
     # A chronic biologic billed per year of therapy. The marketed mode it came from is
