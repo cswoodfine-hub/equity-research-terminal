@@ -1,0 +1,22 @@
+# Round 3 asset models
+
+- ABBV | Emrelis | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2028-02 NCT06568939
+- AMGN | Avacopan | clinical-stage | readouts: Pediatric ANCA-associated vasculitis 2027-07-18 NCT06321601
+- AMGN | Inebilizumab | clinical-stage | readouts: Lupus Erythematosus, Systemic 2028-08-06 NCT06570798
+- ARCT | ARCT-032 | clinical-stage | readouts: Cystic Fibrosis 2027-06 NCT06747858
+- ARWR | Plozasiran | clinical-stage | readouts: Hypertriglyceridemia 2028-07 NCT06822790
+- AZN | Datroway | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-11-01 NCT05687266
+- BAYN | Hyrnuo | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-10-28 NCT06452277
+- BMY | Augtyro | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-02-16 NCT06140836
+- JNJ | Balversa | marketed | readouts: Non-Muscle Invasive Bladder Neoplasms 2028-04-06 NCT06919965; Non-Muscle Invasive Bladder Neoplasms 2028-06-28 NCT06319820
+- LNTH | [18F]PI-2620 | clinical-stage | readouts: Alzheimer Disease 2028-03 NCT05641688
+- NVS | Piqray | marketed | readouts: Lymphatic Abnormalities 2028-05-31 NCT05948943
+- PCVX | 0.5 mL of the low dose VAX-31 | clinical-stage | readouts: Pediatric pneumococcal infections 2027-12 NCT06720038
+- PCVX | 31-valent pneumococcal conjugate vaccine | clinical-stage | readouts: Pneumococcal Infections 2027-03 NCT07365826; Pneumococcal Infections 2027-03 NCT07425392
+- PFE | Litfulo | marketed | readouts: Alopecia universalis 2028-03-19 NCT06873945; Chronic Urticaria 2026-12-25 NCT07219615; Pediatric alopecia areata 2026-12-02 NCT07029711; Vitiligo 2027-03-31 NCT06163326; Vitiligo 2027-07-30 NCT06072183
+- REGN | Veopoz | marketed | readouts: Geographic Atrophy 2028-07-31 NCT06541704; Hemoglobinuria, Paroxysmal 2028-10-10 NCT05744921
+- RGNX | RGX-121-3102 | clinical-stage | readouts: Mucopolysaccharidosis II 2028-04-30 NCT07236606
+- RVMD | daraxonrasib | clinical-stage | readouts: Carcinoma, Non-Small-Cell Lung 2027-12-01 NCT06881784; Pancreatic Neoplasms 2028-06 NCT07491445
+- SGMOQ | ST-503 | clinical-stage | readouts: Small Fiber Neuropathy 2027-07 NCT06980948
+- SMMT | Ivonescimab Injection | clinical-stage | readouts: Carcinoma, Non-Small-Cell Lung 2028-04 NCT06767514; Colorectal Neoplasms 2028-05-31 NCT07228832
+- SNY | Menquadfi | marketed | readouts: Pediatric meningococcal infections 2028-03-13 NCT07710872
