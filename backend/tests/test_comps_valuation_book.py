@@ -74,6 +74,9 @@ def test_named_cases(book, payload):
     assert iova["na"]["market.market_cap_alt_usd_m"] == "share_count_scale"
     for ticker in ("BNTX", "ARGX", "LEGN"):
         assert by[ticker]["filer"]["kind"] == "20-F filer", ticker
+    # BioNTech's record now says Germany, as its 20-F does; the other two still say US.
+    assert by["BNTX"]["region"] == "Europe"
+    for ticker in ("ARGX", "LEGN"):
         assert by[ticker]["region"] is None, ticker
     assert _flag(by["GILD"], "eps_sign_change")
     for ticker in ("SRPT", "ALNY"):
