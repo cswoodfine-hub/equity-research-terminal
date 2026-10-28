@@ -53,7 +53,7 @@ zero goes too.
 **What would release it:** a sourced AMD price per patient-year. As the agent says, that
 probably makes it a separate asset rather than a layer.
 
-## azn_datroway.csv — the whole file (Phase 1b, 2026-10-28)
+## azn_datroway.csv: the whole file (Phase 1b, 2026-10-28)
 
 The anchor is sound: AstraZeneca's own FY2025 Product Revenue line, $78mm, on the same
 basis as the Enhertu seed (Product Sales plus Alliance Revenue). The growth row is what
@@ -67,7 +67,7 @@ found, $1.4bn to $5bn, sit on sites this session's network blocks.
 **What would release it:** a published peak-sales forecast a reader can open, set as
 `revenue_ceiling_musd`, or a rate solved to one, as Jaypirca's is.
 
-## axsm_sunosi.csv — the whole file (Phase 1b, 2026-10-28)
+## axsm_sunosi.csv: the whole file (Phase 1b, 2026-10-28)
 
 The product half is sound: Axsome's FY2025 10-K names Sunosi product sales of $120.1mm
 (Note 14), and the price and discontinuation rate are measured from CMS Part D 2024.
