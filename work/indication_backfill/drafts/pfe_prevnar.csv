@@ -17,3 +17,33 @@ ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,no
 PFE,Prevnar / Prevenar family,,US,base,list_price_per_patient,,0.0010984,,mm USD per year,"CDC Pediatric/VFC Vaccine Price List, prices as of 1 January 2026 (www.cdc.gov/vaccines-for-children/media/pdfs/2026/01/Pediatric-VFC-Vaccine-Price-List-01-26-26.pdf): Prevnar 20, NDC 00005-2000-10, private sector cost 274.60 USD a dose, CDC cost 192.46 USD a dose, contract to 31 March 2026, manufacturer Pfizer. The label's paediatric schedule is four doses, at 2, 4, 6 and 12 through 15 months. 274.60 x 4 = 1,098.40 USD for a completed infant series","a course, not an annual rate: the four doses straddle two birth-years, so a single cohort's spend is spread across them"
 PFE,Prevnar / Prevenar family,,US,base,gross_to_net_pct,,0.299126,,share off list,the same CDC Pediatric/VFC Vaccine Price List as the price row: the federal contract price of 192.46 USD a dose against the private sector price of 274.60. (274.60 - 192.46) / 274.60 = 0.2991,"this is the discount on the VFC-contracted share of the cohort, not a blended net across all US infants, so the true net discount sits between zero and this figure. It is stated at the measured contract discount because that is the only disclosed number"
 PFE,Prevnar / Prevenar family,,US,base,discontinuation_pct,,1.0,,share of the stock a year,"the label's paediatric schedule, Prevnar 20 section 2.3: a four-dose series at 2, 4, 6 and 12 through 15 months, after which the child is done. The stock is a birth cohort that is fully dosed inside its first fifteen months and leaves, which is the same reading the book's own pool row takes when it states incidence equal to prevalence because a new cohort arrives every year and the last ages out of the schedule","not a persistence measure. A one-off immunisation series has no continuing stock to retain, so the whole of it turns over"
+#
+# Layer seeds, 2026-10-28
+#
+# Two units, both answered 'already approved': base_pool_overlap_pct 1.0, no pool, no pos.
+#
+# All three studies test a new product generation. PG4 is PF-07872412, a 25-valent conjugate
+# carrying Prevnar 20's twenty serotypes plus five (15A, 23A, 23B, 24F and 35B), which the
+# book folds into this family (data/asset_alias_map.csv). Every PG4 study runs against
+# Prevnar 20. What PG4 adds is serotype coverage and a stronger serotype 3 response, 8.8-fold
+# higher antibody concentrations than Prevnar 20 one month after dose 3 in the infant Phase 2
+# (Pfizer releases of 2026-05-20 and 2026-10-24, read through a search index because
+# pfizer.com was not reachable from this session). It does not add people: the infants,
+# children and adults it enrols are already inside Prevnar 20's label and already in the
+# 6,494mm. A successor that wins replaces this revenue, and any price step it carries is a
+# change to the base growth, not a layer. The May release also says Pfizer is moving its
+# long-term adult programme to a 35-valent candidate, which puts PG4's adult filing itself in
+# question.
+#
+# The label age data/paediatric_indications.csv leaves blank: Prevnar 20 is indicated for
+# active immunisation against invasive disease caused by its twenty serotypes in individuals
+# 6 weeks of age and older, against otitis media in children 6 weeks through 5 years, and
+# against pneumonia in adults 18 and older. Read from the FDA-hosted insert
+# (fda.gov/media/149987/download) as a search index quotes it on 2026-10-28, and the same
+# sections 1 and 2.3 this file's 2026-10-27 header cites; fda.gov, DailyMed and Pfizer's
+# labelling site refused this session's connections, so the insert was not opened directly.
+# label_from_age for the row is therefore 6 weeks, with no upper limit.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+PFE,Prevnar / Prevenar family,Pediatric pneumococcal infections,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved at every age the two studies enrol, so the layer adds nothing. NCT06524414 (Phase 2, 605 healthy infants aged 42 to 98 days, PG4 against Prevnar 20 and a 15-valent comparator, primary completion 2027-05-01) and NCT07660198 (Phase 3, 1,200 children aged 15 months to 17 years, a catch-up regimen of PG4 against Prevnar 20, primary completion 2027-12-02), both checked on the clinicaltrials.gov API v2 eligibilityModule on 2026-10-28. Prevnar 20's label covers individuals 6 weeks of age and older, which is 42 days, so the youngest infant either study takes is already in the label and in the revenue: the US birth cohort the book holds for this vaccine is the population the 6,494mm is earned on, and the CDC Pediatric/VFC price list this file's price row reads carries Prevnar 20 at 274.60 USD a dose","no pool and no pos: an overlap of 1.0 prices nothing, so a probability would price nothing either. If PG4 is ever modelled as its own asset, its pool is this same birth cohort and it takes revenue from this line rather than adding to it"
+PFE,Prevnar / Prevenar family,Pneumococcal Infections,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved, so the layer adds nothing. NCT07794748 (Phase 3, 4,670 adults aged 18 to 49 with no pneumococcal vaccine after age 5, three manufacturing lots of PG4 against Prevnar 20, US sites, primary completion 2027-06-07; clinicaltrials.gov API v2, checked 2026-10-28) is a lot-consistency study: its stated purpose is to 'demonstrate lot consistency with the PG4 vaccine', a manufacturing requirement of a licence application rather than a test in new people. Prevnar 20's label already covers adults 18 and older against invasive disease and pneumonia","no pool and no pos, for the same reason as the paediatric row. The book's pool for this disease is the US birth cohort, which an adult study could not use in any case"
