@@ -79,3 +79,35 @@ value Sunosi (no discount rate), so it prices nothing.
 other-costs charge), written once as its own seed the way every other company's is.
 Axsome has made a pre-tax loss every year to FY2025, so the house effective-rate
 method for `tax_rate` has nothing to read and needs a stated alternative.
+
+## axsm_sunosi.csv and axsm_axs_14_esreboxetine.csv: both files (2026-10-28, second round)
+
+The Sunosi file is now complete: the Phase 1b anchor, growth restated to the +11.7% the
+filed 2026 quarters imply, an Axsome company half derived from the FY2025 10-K, and three
+layers (shift work disorder, binge-eating disorder, paediatric ADHD). The company half is
+what is held. On its own lines Axsome spends 89.4% of revenue on SG&A and 28.7% on R&D,
+so Sunosi values at -$421mm and its three readouts price as negative stakes: a positive
+result would read as destroying value. The AXS-14 file, written by another agent at the
+same time, took AbbVie's cost lines instead, the comparator route `rare_crysvita.csv`
+takes for a loss-making company. One company cannot carry two answers.
+
+**What would release them:** a decision on Axsome's company half, own 10-K lines or a
+profitable comparator's, written into both files identically.
+
+## nbix_nbi_1065845.csv: the whole file (2026-10-28)
+
+NBI-1065845 is osavampator, and two agents modelled it at once, one under each name.
+`drafts/nbix_osavampator.csv` is kept; it carries the same Neurocrine company half, the
+maintenance readout as well as the acute ones, and the Takeda royalty read at 14%
+against this file's 15%. `data/asset_alias_map.csv` now folds the code into the name.
+
+**What would release it:** nothing; it is a duplicate, kept for its sources.
+
+## amgn_evenity_paediatric.csv: the paediatric OI layer (2026-10-28)
+
+The pool is sound (5,412 children, a Swedish paediatric rate on US under-18s), but the
+existing Evenity osteogenesis imperfecta layer already prices the same study in the same
+children, so both together count them twice.
+
+**What would release it:** setting the existing osteogenesis imperfecta layer's
+penetration to 0 in the terminal, after which this layer is the only one on them.
