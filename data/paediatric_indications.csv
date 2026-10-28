@@ -1,0 +1,8 @@
+# A paediatric row per asset and disease, for readouts in children (read by
+# backend/indication_mapping.curated_paediatric). mesh_id is MeSH's own paediatric concept
+# where one exists and empty where none does; adult_mesh_id is the descriptor the
+# registry gives the adult studies. The phase, status and enrolment come from the named
+# trials, which must already be mapped to the asset. label_from_age is the age the FDA
+# label's approval in that disease starts at, or "not approved", which says whether a
+# layer on the row adds patients the reported revenue does not already contain.
+ticker,asset,mesh_id,term,adult_mesh_id,nct_ids,label_from_age,basis

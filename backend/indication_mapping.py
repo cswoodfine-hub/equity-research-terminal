@@ -362,19 +362,17 @@ EXCLUSIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
                   / "data" / "asset_indication_exclusions.csv")
 
 
-def curated_additions(conn, path=None) -> dict:
-    """(asset_id, mesh_id) -> pair entry, in pairs_from_trials' shape, for each row of
-    ``data/asset_indication_additions.csv`` whose asset and trials are on file."""
-    path = pathlib.Path(path or ADDITIONS_CSV)
+def _curated_rows(conn, path):
+    """(asset_id, row, studies) for each row of a curated pair file whose asset and
+    trials are on file. ``studies`` are the named trials' (phase, status, enrolment,
+    first posted), read from the registry rows, never from the file."""
     if not path.exists():
-        return {}
-    out: dict = {}
+        return
     with path.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(line for line in handle if not line.startswith("#")):
             name = (row.get("asset") or "").strip()
-            mesh_id, term = (row.get("mesh_id") or "").strip(), (row.get("term") or "").strip()
             ncts = (row.get("nct_ids") or "").split()
-            if not (name and mesh_id and term and ncts):
+            if not (name and (row.get("term") or "").strip() and ncts):
                 continue
             asset = conn.execute(
                 """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
@@ -392,19 +390,65 @@ def curated_additions(conn, path=None) -> dict:
                     SELECT phase, NULL, enrollment, NULL FROM completed_trials
                      WHERE nct_id IN ({marks}) AND asset_id = ?""",
                 (*ncts, asset[0], *ncts, asset[0])).fetchall()
-            if not studies:
-                continue
-            entry = out.setdefault((asset[0], mesh_id), {
-                "term": term, "phase": None, "statuses": [], "enrollment": 0,
-                "first_posted": None, "trials": 0})
-            for phase, status, enrollment, posted in studies:
-                entry["phase"] = higher_phase(entry["phase"], phase)
-                entry["statuses"].append(status)
-                entry["enrollment"] += enrollment or 0
-                entry["trials"] += 1
-                if posted and (entry["first_posted"] is None
-                               or posted < entry["first_posted"]):
-                    entry["first_posted"] = posted
+            if studies:
+                yield asset[0], row, studies
+
+
+def _fold(entry: dict, studies) -> dict:
+    for phase, status, enrollment, posted in studies:
+        entry["phase"] = higher_phase(entry["phase"], phase)
+        entry["statuses"].append(status)
+        entry["enrollment"] += enrollment or 0
+        entry["trials"] += 1
+        if posted and (entry["first_posted"] is None or posted < entry["first_posted"]):
+            entry["first_posted"] = posted
+    return entry
+
+
+def _blank(term: str) -> dict:
+    return {"term": term, "phase": None, "statuses": [], "enrollment": 0,
+            "first_posted": None, "trials": 0}
+
+
+def curated_additions(conn, path=None) -> dict:
+    """(asset_id, mesh_id) -> pair entry, in pairs_from_trials' shape, for each row of
+    ``data/asset_indication_additions.csv`` whose asset and trials are on file."""
+    out: dict = {}
+    for asset_id, row, studies in _curated_rows(conn, pathlib.Path(path or ADDITIONS_CSV)):
+        mesh_id = (row.get("mesh_id") or "").strip()
+        if not mesh_id:
+            continue
+        _fold(out.setdefault((asset_id, mesh_id), _blank(row["term"].strip())), studies)
+    return out
+
+
+# A paediatric row per asset and disease, for readouts in children. MeSH indexes a study
+# of children with atopic dermatitis under "Dermatitis, Atopic", the descriptor the adult
+# study gets, so without a row of its own the readout either decides the adults' approved
+# indication or, as attach_catalyst_indications rules, links to nothing. MeSH defines a
+# paediatric concept for a few diseases (Pediatric Crohn's disease, C536215), and a row
+# naming one is an ordinary pair. For the rest the row is the asset's own, keyed by its
+# name with no descriptor, because inventing an identifier MeSH does not have would put a
+# false one in the column every other module reads as MeSH. A row also names the studies
+# that read out in it, and a readout of one of them links to it whatever the registry
+# indexed, which is the only way a study the registry never indexed can link at all.
+PAEDIATRIC_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                  / "data" / "paediatric_indications.csv")
+
+
+def curated_paediatric(conn, path=None) -> dict:
+    """(asset_id, term) -> {"mesh_id", "nct_ids", "entry"} for each row of
+    ``data/paediatric_indications.csv`` whose asset and trials are on file. ``entry`` is
+    the pair in pairs_from_trials' shape; ``mesh_id`` is None where MeSH has no
+    paediatric concept for the disease."""
+    out: dict = {}
+    for asset_id, row, studies in _curated_rows(conn, pathlib.Path(path or PAEDIATRIC_CSV)):
+        term = row["term"].strip()
+        item = out.setdefault((asset_id, term), {
+            "mesh_id": (row.get("mesh_id") or "").strip() or None,
+            "nct_ids": set(), "entry": _blank(term)})
+        item["nct_ids"].update((row.get("nct_ids") or "").split())
+        _fold(item["entry"], studies)
     return out
 
 
@@ -509,6 +553,21 @@ def _upsert_indications(conn, pairs) -> dict:
             "INSERT INTO indications (name, mesh_id) VALUES (?, ?)",
             (entry["term"], mesh_id)).lastrowid
     return ids
+
+
+def _paediatric_indication(conn, term: str, mesh_id) -> int:
+    """The indications row a paediatric pair points at: the MeSH concept's row where MeSH
+    has one, otherwise the row of that name, created once."""
+    if mesh_id:
+        row = conn.execute("SELECT id FROM indications WHERE mesh_id = ?",
+                           (mesh_id,)).fetchone()
+        if row:
+            return row[0]
+    row = conn.execute("SELECT id FROM indications WHERE name = ?", (term,)).fetchone()
+    if row:
+        return row[0]
+    return conn.execute("INSERT INTO indications (name, mesh_id) VALUES (?, ?)",
+                        (term, mesh_id)).lastrowid
 
 
 # A site or family term sitting beside one of its own children on the same asset is the
@@ -624,9 +683,32 @@ def build(db_path=None) -> dict:
                  1 if lead.get(asset_id, (None, None))[1] == mesh_id else 0,
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
+        paediatric = 0
+        for (asset_id, term), item in sorted(curated_paediatric(conn).items()):
+            indication_id = _paediatric_indication(conn, term, item["mesh_id"])
+            if conn.execute("SELECT 1 FROM asset_indications WHERE asset_id = ?"
+                            " AND indication_id = ? AND region = 'US'",
+                            (asset_id, indication_id)).fetchone():
+                continue                    # the registry already made this pair
+            override = overrides.get((asset_id, indication_id)) or {}
+            if override.get("exclude"):
+                excluded += 1
+                continue
+            entry = item["entry"]
+            phase = override.get("phase") or entry["phase"]
+            conn.execute(
+                """INSERT INTO asset_indications
+                       (asset_id, indication_id, phase, development_status, is_lead,
+                        region, first_seen_phase, updated_at)
+                   VALUES (?, ?, ?, ?, 0, 'US', ?, datetime('now'))""",
+                (asset_id, indication_id, phase, status_for(entry["statuses"]),
+                 seen.get((asset_id, indication_id)) or phase))
+            written += 1
+            paediatric += 1
         linked = attach_catalyst_indications(conn)
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
+                "paediatric_pairs": paediatric,
                 "assets": len({a for a, _ in pairs}),
                 "parents_dropped": parents_dropped,
                 "excluded_by_override": excluded,
@@ -792,9 +874,22 @@ def attach_catalyst_indications(conn) -> dict:
         if words & _PAEDIATRIC_WORDS:
             paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
 
+    # A paediatric row names the studies that read out in it, and those link to it by
+    # name, whatever MeSH indexed them under or whether it indexed them at all.
+    named = {}
+    for (asset_id, term), item in curated_paediatric(conn).items():
+        found = conn.execute(
+            "SELECT ai.id FROM asset_indications ai JOIN indications i"
+            "    ON i.id = ai.indication_id"
+            " WHERE ai.asset_id = ? AND (i.name = ? OR (i.mesh_id IS NOT NULL"
+            "       AND i.mesh_id = ?))", (asset_id, term, item["mesh_id"])).fetchone()
+        if found:
+            for nct_id in item["nct_ids"]:
+                named[(asset_id, nct_id)] = found[0]
+
     rows = conn.execute(
         f"""SELECT cat.id, cat.source_url, COALESCE(t.asset_id, cat.asset_id) AS asset_id,
-                   t.conditions, t.mesh_terms, t.title
+                   t.nct_id, t.conditions, t.mesh_terms, t.title
               FROM catalysts cat
               JOIN trials t ON t.nct_id =
                    substr(cat.source_url, {len(_CTGOV_URL) + 1})
@@ -804,6 +899,11 @@ def attach_catalyst_indications(conn) -> dict:
     linked = ambiguous = paediatric_unmatched = text_matched = 0
     for row in rows:
         if not row["asset_id"]:
+            continue
+        if (row["asset_id"], row["nct_id"]) in named:
+            conn.execute("UPDATE catalysts SET asset_indication_id = ? WHERE id = ?",
+                         (named[(row["asset_id"], row["nct_id"])], row["id"]))
+            linked += 1
             continue
         try:
             terms = indications_for(row["conditions"], parse_browse(row["mesh_terms"]))

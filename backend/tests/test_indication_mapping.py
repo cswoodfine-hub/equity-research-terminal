@@ -555,7 +555,6 @@ def test_a_paediatric_readout_goes_to_the_paediatric_row(tmp_path):
                  " VALUES (1, 99, 'Phase 3', 'US')")
     conn.commit(); conn.close()
 
-    summary = im.attach_catalyst_indications(db.get_connection(path))
     conn = db.get_connection(path)
     im.attach_catalyst_indications(conn)
     conn.commit()
@@ -602,6 +601,75 @@ def test_the_paediatric_title_test():
         assert im._is_paediatric(title), title
     for title in ("A Study of A in Adults", "A long-term extension study", "", None):
         assert not im._is_paediatric(title), title
+
+
+_PAEDIATRIC_HEADER = "ticker,asset,mesh_id,term,adult_mesh_id,nct_ids,label_from_age,basis\n"
+
+
+def _paediatric_file(tmp_path, monkeypatch, *rows):
+    path = tmp_path / "paediatric_indications.csv"
+    path.write_text(_PAEDIATRIC_HEADER + "".join(r + "\n" for r in rows))
+    monkeypatch.setattr(im, "PAEDIATRIC_CSV", path)
+
+
+def _linked_name(path):
+    conn = db.get_connection(path)
+    row = conn.execute(
+        "SELECT i.name, i.mesh_id FROM catalysts cat"
+        "  JOIN asset_indications ai ON ai.id = cat.asset_indication_id"
+        "  JOIN indications i ON i.id = ai.indication_id").fetchone()
+    conn.close()
+    return row
+
+
+def test_a_curated_paediatric_row_takes_its_readout(tmp_path, monkeypatch):
+    """MeSH has no paediatric concept for most diseases, so the row is the asset's own,
+    keyed by name with no descriptor, and the readout in children links to it rather
+    than to nothing."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,,Pediatric Crohn disease,D003424,NCT9,6,registry ages 2 to 17")
+    summary = im.build(path)
+    assert summary["paediatric_pairs"] == 1
+    assert summary["catalysts_paediatric_unmatched"] == 0
+    row = _linked_name(path)
+    assert row["name"] == "Pediatric Crohn disease" and row["mesh_id"] is None
+    # A rebuild finds the same row rather than writing a second one.
+    im.build(path)
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT COUNT(*) FROM indications WHERE name ="
+                        " 'Pediatric Crohn disease'").fetchone()[0] == 1
+    conn.close()
+
+
+def test_a_named_study_links_even_where_the_registry_indexed_nothing(tmp_path, monkeypatch):
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute("UPDATE trials SET mesh_terms = NULL, conditions = '[]'")
+    conn.commit(); conn.close()
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,,Pediatric Crohn disease,D003424,NCT9,6,registry ages 2 to 17")
+    im.build(path)
+    assert _linked_name(path)["name"] == "Pediatric Crohn disease"
+
+
+def test_a_row_naming_a_meshs_own_paediatric_concept_reuses_its_row(tmp_path, monkeypatch):
+    path = _paediatric_db(tmp_path)
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,C536215,Pediatric Crohn's disease,D003424,NCT9,6,ages 2 to 17")
+    im.build(path)
+    row = _linked_name(path)
+    assert row["name"] == "Pediatric Crohn's disease" and row["mesh_id"] == "C536215"
+
+
+def test_a_paediatric_row_whose_study_is_not_the_assets_asserts_nothing(tmp_path,
+                                                                       monkeypatch):
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,,Pediatric Crohn disease,D003424,NCT0000,6,someone else's study")
+    summary = im.build(path)
+    assert summary["paediatric_pairs"] == 0
+    assert summary["catalysts_paediatric_unmatched"] == 1
 
 
 # --- a parent term beside its own child ----------------------------------------------
