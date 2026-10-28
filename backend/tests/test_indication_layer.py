@@ -274,3 +274,70 @@ def test_the_layer_names_the_ramp_among_the_keys_it_needs():
     in the seed. Six layers carried every other key and failed exactly that way."""
     assert "ramp_midpoint_year" in IL.INDICATION_KEYS
     assert "ramp_steepness" in IL.INDICATION_KEYS
+
+
+# --- a layer on a selling product modelled from patients ------------------------------
+
+def _patient_inputs(layer: dict, marketed=True):
+    """A selling product built from patients: its own business, and one more indication."""
+    core = {"name": "Psoriasis", "indication_id": 1, "approved": False, "series": {},
+            "scalars": {"prevalence": 500000.0, "incidence": 50000.0, "eligible_pct": 0.3,
+                        "penetration_peak_pct": 0.02, "ramp_midpoint_year": 3.0,
+                        "ramp_steepness": 1.0}}
+    extra = {"name": "Arthritis, Psoriatic", "indication_id": 2, "approved": False,
+             "series": {}, "scalars": {
+                 "prevalence": 300000.0, "incidence": 30000.0, "eligible_pct": 0.3,
+                 "penetration_peak_pct": 0.02, "ramp_midpoint_year": 3.0,
+                 "ramp_steepness": 1.0, **layer}}
+    scalars = {"therapy_mode": "chronic", "forecast_start_year": 2027,
+               "forecast_years": 10, "list_price_per_patient": 0.04,
+               "gross_to_net_pct": 0.5, "discontinuation_pct": 0.3, "cogs_pct": 0.17,
+               "sga_pct": 0.17, "rd_pct": 0.2, "tax_rate": 0.16, "wacc": 0.09,
+               "pos": 1.0}
+    return {"scalars": scalars, "indications": [core, extra], "is_marketed": marketed}
+
+
+def _revenue(inputs):
+    return forecast.build(inputs)["revenue"]
+
+
+def test_a_layer_on_a_patient_built_product_is_risked_at_its_own_odds():
+    """Icotyde's psoriatic arthritis layer went into the product at full certainty and
+    the gate staked it again. It is now added at (1 - overlap) x pos, as marketed mode
+    adds one."""
+    core_only = _patient_inputs({})
+    core_only["indications"] = core_only["indications"][:1]
+    base = _revenue(core_only)
+    full = _revenue(_patient_inputs({}))           # unmarked: the product's business
+    risked = _revenue(_patient_inputs({"base_pool_overlap_pct": 0.25, "pos": 0.5}))
+    layer_full = full[-1] - base[-1]
+    assert risked[-1] == pytest.approx(base[-1] + 0.375 * layer_full, rel=0.01)
+
+
+def test_a_layer_with_no_pos_is_left_out_and_one_wholly_inside_adds_nothing():
+    core_only = _patient_inputs({})
+    core_only["indications"] = core_only["indications"][:1]
+    base = _revenue(core_only)
+    assert _revenue(_patient_inputs({"base_pool_overlap_pct": 0.0}))[-1] == \
+        pytest.approx(base[-1])
+    assert _revenue(_patient_inputs({"base_pool_overlap_pct": 1.0, "pos": 0.6}))[-1] == \
+        pytest.approx(base[-1])
+
+
+def test_a_product_whose_every_indication_reads_as_a_layer_is_left_alone():
+    """A selling product sells something, so a marking that would leave it nothing is
+    the label test missing an approval, not a finding."""
+    one = _patient_inputs({})
+    one["indications"] = [dict(one["indications"][0])]
+    one["indications"][0]["scalars"] = {**one["indications"][0]["scalars"],
+                                        "base_pool_overlap_pct": 0.0, "pos": 0.0}
+    plain = _patient_inputs({})
+    plain["indications"] = plain["indications"][:1]
+    assert _revenue(one)[-1] == pytest.approx(_revenue(plain)[-1])
+
+
+def test_a_pipeline_asset_keeps_every_indication():
+    unrisked = _revenue(_patient_inputs({}, marketed=False))
+    marked = _revenue(_patient_inputs({"base_pool_overlap_pct": 0.25, "pos": 0.5},
+                                      marketed=False))
+    assert marked[-1] == pytest.approx(unrisked[-1])

@@ -442,6 +442,51 @@ def _indication_layers(inputs: dict, years, scalars: dict, price) -> tuple:
     return out, notes
 
 
+def _risk_patient_layers(inputs: dict, per_indication: dict, notes: list) -> None:
+    """Risk the layers on a selling product that is modelled from patients.
+
+    Marketed mode adds an unapproved indication at (1 - overlap) x its own pos
+    (``_indication_layers``). A product built from patients, Icotyde or Baxfendy, summed
+    every indication's patients at the product's own probability of one, so a layer
+    written for a readout went into the product's value at full certainty, and the gate
+    then staked the same layer again: Icotyde's psoriatic arthritis layer took it from
+    12,243mm to 13,599mm before the readout. The same rule now holds in both modes.
+
+    A layer is what the research marked as one: an indication the label does not cover
+    that states ``base_pool_overlap_pct``. An indication with no overlap stated is left
+    as it was, because on these products the label test misses approvals often (Icotyde's
+    own psoriasis reads as unapproved where the book holds no label), and an unmarked row
+    is the product's business. Where every indication would count as a layer the marking
+    cannot be right, since a selling product sells something, and nothing is changed.
+    Mutates ``per_indication`` in place.
+    """
+    if not inputs.get("is_marketed"):
+        return
+    by_name = {(e.get("name") or ""): e for e in inputs.get("indications") or []}
+    layers = {}
+    for name in per_indication:
+        entry = by_name.get(name) or {}
+        own = entry.get("scalars") or {}
+        if entry.get("approved") is False and own.get("base_pool_overlap_pct") is not None:
+            layers[name] = own
+    if not layers or len(layers) == len(per_indication):
+        return
+    for name, own in layers.items():
+        overlap, pos = own["base_pool_overlap_pct"], own.get("pos")
+        kept = 0.0 if overlap >= 1.0 or pos is None else (1.0 - overlap) * pos
+        result = per_indication[name]
+        result["used"] = [p * kept for p in result["used"]]
+        if overlap >= 1.0:
+            notes.append(f"{name} adds nothing: its pool is wholly inside the business "
+                         "already being sold to")
+        elif pos is None:
+            notes.append(f"{name} is not in the line: an unapproved indication is added "
+                         "only once its pos is stated")
+        else:
+            notes.append(f"{name} is added as a layer at {pos:.0%} odds, "
+                         f"{1 - overlap:.0%} of its pool outside the approved business")
+
+
 def net_price(scalars: dict):
     """Net price per patient, given directly or as list price less gross-to-net."""
     if scalars.get("net_price_per_patient") is not None:
@@ -1122,6 +1167,7 @@ def build(inputs: dict) -> dict:
         if not per_indication:
             raise ForecastError(["no indication has a usable patient series: supply "
                                  "new_patients rows or the pool identity inputs"])
+        _risk_patient_layers(inputs, per_indication, notes)
         total_patients = [sum(per_indication[n]["used"][i] for n in per_indication)
                           for i in range(len(years))]
 
