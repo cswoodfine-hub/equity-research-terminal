@@ -59,16 +59,16 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
 - [x] 2. **Integrate linking.** DONE: 75 addition rows, 2 paediatric rows, 15 trial remaps, 3 aliases; linked 530 to 621, no_gate 243 to 202, priced 173 to 176. Check every MeSH id, no study on two rows of one asset,
       append to `data/asset_indication_additions.csv` and `data/paediatric_indications.csv`,
       remap a copy, measure.
-- [ ] 3. **Layer and model round** over what step 2 leaves at one or two steps: re-run
+- [x] 3. **Layer and model round** over what step 2 leaves at one or two steps: re-run
       `tools/open_units.py` and `steps_to_priced.py --phase 1b`. Briefs: `BRIEF.md`
       (layers), `BRIEF_ASSET_MODEL.md` (marketed), `BRIEF_PIPELINE_MODEL.md` (clinical).
       Exclude everything already answered (overlap 1.0, pos 0, held, no filed figure).
 - [x] 4. **The 14 "nothing" catalysts.** DONE: second readouts on a priced layer, now labelled same_gate_later (commit "a second readout on a priced layer"). Find why each is not priced (`nogate.py` reason,
       `why_nogate.py`) and fix the rule or the data.
-- [ ] 5. **Load, suite, commit.** Full suite on the loaded copy (`-n 4 --timeout 300`),
+- [x] 5. **Load, suite, commit.** Full suite on the loaded copy (`-n 4 --timeout 300`),
       compare against the eleven failures that predate 2026-10-28, fix anything new.
-- [ ] 6. Repeat 3 to 5 until a round prices nothing new.
-- [ ] 7. **Summary for Charles**: what was done, the number at each step, what is left
+- [x] 6. Repeat 3 to 5 (rounds 2, 3 and 4; round 4 priced one more) until a round prices nothing new.
+- [x] 7. **Summary for Charles** DONE 2026-10-29: `SUMMARY_2026-10-29.md`.: what was done, the number at each step, what is left
       and exactly why each remaining gate is unpriced.
 
 ## In flight
@@ -101,6 +101,9 @@ On the copy: **173 catalysts priced** (129 at the start of the day). 243 at `no_
    by migration 093, with Baxfendy's discontinuation.
 
 ## Log
+
+- 2026-10-29: rounds 3 and 4 loaded, 212 to 226 on the copy. Run complete; see
+  SUMMARY_2026-10-29.md.
 
 - 2026-10-28 late: round 2 loaded, 174 to 212 priced on the copy, no_gate 202 to 137.
   Fixes: an unmarked row on a patient-built product is its business (Lipfendra), a layer
