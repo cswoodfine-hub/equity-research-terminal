@@ -323,6 +323,14 @@ The US date drives US revenue. Europe and Japan have their own:
 regional date it is used. Otherwise the statutory date is used, labelled as such, and a
 region with neither keeps the US date with a note.
 
+**Result (2026-10-29, work/patents/REGIONAL.md).** Europe with no stated date now holds
+the US date between the 10-year floor and the 15-year SPC cap. On 120 products whose
+filers state an EU date, 63% land within a year (57% before) and the mean error falls
+from 1.82 to 1.62 years. Nine products move, -2,511mm in all; Actemra and Enbrel rise
+because a past cap stops a second cut to revenue that already carries the loss. Not
+done: the +1 year for a new indication and the paediatric six months (no EU record of
+either in the book), and Japan (no free JP approval dates).
+
 ## Step 6: validate before it goes live
 
 The test is whether the method would have called past LOEs correctly, run blind:

@@ -1399,6 +1399,18 @@ def build(inputs: dict) -> dict:
             # whole when a lever moved the US date before it, so the earlier date was worth
             # more than the later one.
             r_in_base = in_base and r_year + 1 < years[0]
+        elif (r_year is None and not r_known_past and region.get("cap_year") is not None
+              and loe_year is not None and loe_year > int(region["cap_year"])):
+            # No date for the region and the US date runs past the EU's own limit on
+            # molecule protection: fifteen years from first authorisation, the most a
+            # supplementary protection certificate allows. Europe opens at the cap.
+            # Unlike the floor, a cap is the latest the loss can be, so a past cap is a
+            # loss the reported revenue already carries, whatever the US record says:
+            # cutting it again from the US date counted it twice (Actemra, cap 2024,
+            # biosimilars in Europe that year).
+            r_year = int(region["cap_year"])
+            r_basis = region.get("cap_basis") or "EU SPC limit"
+            r_in_base = r_year + 1 < years[0]
         elif r_year is None and not r_known_past:
             # No date for the region: it keeps the US date, as the whole line did before.
             r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base

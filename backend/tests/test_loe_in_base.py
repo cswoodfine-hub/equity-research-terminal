@@ -365,3 +365,35 @@ def test_a_ceiling_the_line_cannot_reach_before_its_cliff_is_flagged():
     assert any("published peak and the cliff disagree" in n for n in got["notes"])
     inputs["scalars"]["revenue_ceiling_musd"] = 1000.0        # already there: no note
     assert not any("published peak" in n for n in F.build(inputs)["notes"])
+
+
+def test_a_dateless_european_region_opens_at_the_spc_limit_when_the_us_date_is_later():
+    """Januvia's case: US protection to 2026, first EU authorisation 2007, so Europe's
+    molecule protection ends by 2022 and its generics came that year."""
+    europe = [{"region": "EU", "label": "Europe", "share": 0.3, "share_basis": "filed",
+               "year": None, "in_base": False, "basis": None, "floor_year": 2017,
+               "floor_basis": "EU data and market protection", "cap_year": 2028,
+               "cap_basis": "EU SPC limit"}]
+    later = F.build(_product(record=2032, regions=europe))
+    region = later["regions"][0]
+    assert region["loe_year"] == 2028 and region["loe_basis"] == "EU SPC limit"
+    # A US date before the cap leaves Europe on the US date, as before.
+    earlier = F.build(_product(record=2027, regions=europe))
+    assert earlier["regions"][0]["loe_year"] == 2027
+    # A stated European date is never replaced by the cap.
+    stated = [dict(europe[0], year=2031, basis="stated")]
+    assert F.build(_product(record=2032, regions=stated))["regions"][0]["loe_year"] == 2031
+
+
+def test_a_past_spc_limit_is_in_the_base_and_never_makes_an_earlier_us_date_worth_more():
+    """Actemra's case: the cap passed in 2024, so Europe's loss is in the reported
+    revenue and is not cut again from the US date."""
+    europe = [{"region": "EU", "label": "Europe", "share": 0.3, "share_basis": "filed",
+               "year": None, "in_base": False, "basis": None, "floor_year": 2019,
+               "floor_basis": "EU data and market protection", "cap_year": 2024,
+               "cap_basis": "EU SPC limit"}]
+    built = F.build(_product(record=2029, regions=europe))
+    assert built["regions"][0]["in_base"] and built["regions"][0]["loe_year"] == 2024
+    values = [F.build(_product(stated=year, regions=europe))["npv"]
+              for year in range(2023, 2033)]
+    assert values == sorted(values)

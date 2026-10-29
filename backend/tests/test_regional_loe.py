@@ -67,6 +67,8 @@ def test_stated_dates_govern_and_the_eu_floor_sits_under_europe(tmp_path):
     assert regions["CN"]["share"] == pytest.approx(5399 / 127089)
     # Europe's stated 2027 sits under ten years from Ozempic's 2018 authorisation.
     assert regions["EU"]["year"] == 2028 and "Directive 2001/83/EC" in regions["EU"]["basis"]
+    # And the SPC limit, fifteen years from the same authorisation, rides beside it.
+    assert regions["EU"]["cap_year"] == 2033 and "469/2009" in regions["EU"]["cap_basis"]
     assert regions["EM"]["in_base"] is True and regions["EM"]["year"] is None
     # Asia Pacific takes Japan's date, and none is stated, so it carries none.
     assert regions["APAC"]["year"] is None and "floor_year" not in regions["APAC"]
