@@ -19,6 +19,14 @@ molecule patent plus paediatric extension (tested, near unbiased, 1.6 years typi
 error). The bar in step 6 is revised from "80% within 6 months" to the measured errors
 above, and the first accuracy work is disclosures for the largest patent-dated products.
 
+Charles chose to keep today's base rule (latest substance patent), with the molecule
+patent shown as the floor.
+
+Step 3 done the same day (`EROSION.md`): small-molecule erosion measured on 104 generic
+launches in Medicare Part D, in two rows by the Orange Book route (oral keeps 0.245 of
+the brand in year one, non-oral 0.41), replacing the literature row. A recorded generic
+launch with no fall since stays in the base (Symbicort). Biologics unchanged.
+
 
 ## The problem in one paragraph
 
