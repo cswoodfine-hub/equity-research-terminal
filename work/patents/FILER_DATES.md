@@ -103,11 +103,13 @@ explicit style overriding it. GSK's spans set `font-style:normal` inside italic 
   - Arexvy's 2030 is inside its 12 years.
   - Nucala lists no US molecule patent and Benlysta's has expired, so both rest on the
     floor, which the bug below had set late.
-  - Breo Ellipta's molecule patent has expired. The model's 2031 comes from other
-    patents, and a Paragraph IV trial on them is set for November 2026; it is kept
-    until a generic is on the market.
+  - Breo Ellipta's molecule patent has expired. The model's 2031-04-11 is the last
+    listed Orange Book patent, 8746242 on the medicament dispenser, with its paediatric
+    exclusivity. For an inhaler the device patents are what hold a generic off; the
+    regulatory exclusivities end 2026-11-13. One Paragraph IV filer since 2025-06-16,
+    with a trial set for November 2026. Kept until a generic is on the market.
 
-No rows were added from either table.
+No rows were added from either table, apart from Benlysta's below.
 
 ### The 12-year floor counted from a later BLA
 
@@ -133,9 +135,12 @@ The two rises come from a date that falls before the forecast's first year: the 
 then sits in the base, with no erosion.
 
 - **Actemra:** right, since its US biosimilars launched in 2024.
-- **Benlysta:** no biosimilar is filed, so it now runs with no cliff. The legal date is
-  right; whether to model a biosimilar before one exists is a curated call, not a
-  reading of the filing.
+- **Benlysta:** no biosimilar is filed, so on the floor alone it ran with no cliff.
+  - Decided 2026-10-29: a curated row dates it at 2029, the first of the US patents
+    GSK's table still lists (other patents, 2029 to 2035), marked in its note as an
+    analyst's choice rather than the molecule's date.
+  - NPV 3,124mm at 2029, 5,202mm at 2035, 9,461mm with no cliff.
+  - With the row, the floor fix nets +1,432mm.
 
 ## Not covered
 
