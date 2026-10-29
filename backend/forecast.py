@@ -957,13 +957,25 @@ def cliff_window(inputs: dict, late_from_year=None) -> int | None:
     return min(found) if found else None
 
 
+# The small-molecule row is measured on oral brands; this one on everything else.
+NON_ORAL_SMALL_MOLECULE = "small molecule (non-oral)"
+
+
 def erosion_default(inputs: dict):
     """(default row, what it was chosen for) from the curated erosion file: the
     modality's row, or the "unknown" row where no modality is on file. A product with
     an LOE inside the window and no modality eroded at nothing, so Gardasil ran flat
-    through its own cliff."""
+    through its own cliff.
+
+    A small molecule whose RxNorm names say it is not taken by mouth (dose_route) takes
+    the non-oral row: Part D brands kept 0.41 of their cost in the first full year after
+    a generic launch against 0.245 for an oral brand, since a pharmacist substitutes a
+    tablet automatically and an inhaler, a pen or a cream rarely."""
     defaults = inputs.get("erosion_defaults") or {}
     modality = inputs.get("modality")
+    if (modality == "small molecule" and inputs.get("route") == "non-oral"
+            and defaults.get(NON_ORAL_SMALL_MOLECULE)):
+        return defaults[NON_ORAL_SMALL_MOLECULE], "small molecule, non-oral route"
     if modality and defaults.get(modality):
         return defaults[modality], modality
     if defaults.get("unknown"):

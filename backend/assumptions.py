@@ -18,6 +18,7 @@ import re
 
 import assumption_log
 import db
+import dose_route
 import epidemiology
 import evidence
 import forecast
@@ -439,8 +440,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "scalars": scalars,
         "indications": list(indications.values()),
         # A loss known to be past with no date is carried as that, not as a year.
+        # "observed" only where a launch was recorded, so every other record keeps its
+        # shape (forecast.build reads it as a cliff that happened).
         "loe": ({"year": loe_year, "basis": loe.get("basis"),
-                 "observed": loe.get("observed", False)} if loe_year
+                 **({"observed": True} if loe.get("observed") else {})} if loe_year
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
@@ -456,6 +459,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         # Pool figures taken from the disease rather than from a row on this asset.
         "epidemiology": filled,
         "modality": asset["modality"] if asset else None,
+        # Oral or not, from the product's RxNorm names: an oral brand erodes faster.
+        "route": dose_route.for_asset(conn, asset_id) if asset else None,
         "pos_defaults": pos_defaults(),
         # The area the asset's own label or trials put it in, and the published success
         # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.

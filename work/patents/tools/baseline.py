@@ -3,7 +3,10 @@
 Run before and after a change to the LOE rule and diff the two files with
 ``delta.py``. Reads the database ``ER_TOOL_DB`` names; run it on a copy, never the book.
 
-    ER_TOOL_DB=<copy> python3 work/patents/tools/baseline.py out.json
+    ER_TOOL_DB=<copy> python3 work/patents/tools/baseline.py out.json [--erosion <csv>]
+
+``--erosion`` values the book on another erosion defaults file, so two curves can be
+compared on one database.
 """
 
 import json
@@ -49,4 +52,6 @@ def main(out_path):
 
 
 if __name__ == "__main__":
+    if "--erosion" in sys.argv:
+        assumptions.EROSION_DEFAULTS = pathlib.Path(sys.argv[sys.argv.index("--erosion") + 1])
     main(sys.argv[1])
