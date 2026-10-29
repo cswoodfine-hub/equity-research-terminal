@@ -9,7 +9,8 @@
    "loe": "2026-02-12",
    "loe_year": 2026,
    "basis": "generic marketed (2026-02-12, FDA Paragraph IV list)",
-   "valued_loe": null,
+   "past": true,
+   "listed_loe": null,
    "governing": null,
    "later_patents": 0,
    "later_to": null,
@@ -26,50 +27,6 @@
    "erosion": null
   },
   {
-   "asset_id": 508,
-   "brand": "Humira",
-   "generic": "Adalimumab",
-   "modality": "biologic",
-   "loe": "2028-02-24",
-   "loe_year": 2028,
-   "basis": "orphan exclusivity",
-   "valued_loe": {
-    "date": "2014-12-31",
-    "basis": "reference product exclusivity (12y)",
-    "past": true
-   },
-   "governing": null,
-   "later_patents": 0,
-   "later_to": null,
-   "later_use": 0,
-   "paragraph_iv": null,
-   "loe_range": {
-    "why_bear": "the date is a fact or a contract, not a reading of patents",
-    "why_bull": "the date is a fact or a contract, not a reading of patents",
-    "bear": {
-     "date": "2014-12-31",
-     "npv": 6276.182297007394
-    },
-    "base": {
-     "date": "2014-12-31",
-     "npv": 6276.182297007394
-    },
-    "bull": {
-     "date": "2014-12-31",
-     "npv": 6276.182297007394
-    }
-   },
-   "erosion": {
-    "row": "biologic",
-    "year1_pct": 0.25,
-    "decay_pct": 0.25,
-    "late_decay_pct": null,
-    "late_from_year": null,
-    "sample_n": 9,
-    "source": "filers' own US lines (net, every channel): first-year fall median 26.5% over nine biosimilar cliffs (Stelara 42.7%, Humira 34.7%, Neupogen 32.7%, Neulasta 27.2%, Eylea 26.5%, Epogen 21% from the SEC data sets, Xgeva 10.1%, Remicade 6.5%, Prolia rose 3.2%); later years median 25.2% a year (n 10: Humira 41.3%, 57.1%; Neulasta 28.9%, 24.3%, 36.7%, 26.0%; Remicade 19.0%, 16.0%, 18.5%, 19.5%). Cross-check: Medicare Part B, eight biosimilar launches 2015-2023 on the reference product's own codes, year one kept 0.525, later years falling a median 31% a year (n 30, Lucentis left out since Vabysmo and Eylea took its patients too)"
-   }
-  },
-  {
    "asset_id": 124,
    "brand": "Kybella",
    "generic": "Deoxycholic Acid",
@@ -77,7 +34,8 @@
    "loe": "2028-05-16",
    "loe_year": 2028,
    "basis": "drug substance patent",
-   "valued_loe": null,
+   "past": false,
+   "listed_loe": null,
    "governing": {
     "identifier": "8242294",
     "expiry": "2028-05-16",
@@ -112,7 +70,8 @@
    "loe": "2032-01-29",
    "loe_year": 2032,
    "basis": "drug substance patent",
-   "valued_loe": null,
+   "past": false,
+   "listed_loe": null,
    "governing": {
     "identifier": "8722657",
     "expiry": "2032-01-29",
@@ -170,7 +129,8 @@
    "loe": "2036-10-17",
    "loe_year": 2036,
    "basis": "drug substance patent",
-   "valued_loe": null,
+   "past": false,
+   "listed_loe": null,
    "governing": {
     "identifier": "12110298",
     "expiry": "2036-10-17",

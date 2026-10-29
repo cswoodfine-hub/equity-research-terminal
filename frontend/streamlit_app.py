@@ -525,17 +525,14 @@ def _stack_erosion(row) -> str:
             f'{html_escape(row.get("row") or "")}, {sample}</span></span>')
 
 
-def _stack_valued(valued) -> str:
-    """The valuation's own date where it differs from the cliff's: it leaves orphan
-    exclusivity out, since that covers one indication and holds off no generic."""
-    if not valued:
+def _stack_listed(listed) -> str:
+    """The listed protection where it runs past the valued date: orphan exclusivity,
+    which covers one indication and holds off no generic, so neither the cliff nor the
+    value counts it."""
+    if not listed or not listed.get("date"):
         return ""
-    if not valued.get("date"):
-        return '<br><span class="m">valued with no date</span>'
-    when = (f'lapsed {valued["date"][:4]}' if valued.get("past")
-            else valued["date"][:10])
-    return (f'<br><span class="m">valued on {html_escape(when)}, orphan exclusivity left '
-            f'out</span>')
+    return (f'<br><span class="m">{html_escape(listed.get("basis") or "listed")} to '
+            f'{html_escape(listed["date"][:10])}, not counted</span>')
 
 
 def _loe_stack_table_html(rows, ticker) -> str:
@@ -553,9 +550,10 @@ def _loe_stack_table_html(rows, ticker) -> str:
         body.append(
             "<tr>"
             f'<td>{link}<br><span class="m">{html_escape(r.get("modality") or "")}</span></td>'
-            f'<td><span class="d">{html_escape((r.get("loe") or "")[:10])}</span><br>'
+            f'<td><span class="d">{html_escape((r.get("loe") or "")[:10])}</span>'
+            f'{" lapsed" if r.get("past") else ""}<br>'
             f'<span class="m">{html_escape(r.get("basis") or "")}</span>'
-            f'{_stack_valued(r.get("valued_loe"))}</td>'
+            f'{_stack_listed(r.get("listed_loe"))}</td>'
             f'<td>{_stack_sets_it(r.get("governing"), r.get("basis"))}</td>'
             f'<td>{_stack_after(r)}</td>'
             f'<td>{_stack_range(r.get("loe_range"))}</td>'
@@ -10135,14 +10133,20 @@ def _spine_items(feed_items: list, catalysts: list | None = None) -> list:
 
 
 def _spine_cliff(assets: list) -> dict:
-    """Per-year counts beyond 24 months, orphan excluded: the same convention as
-    the LOE tab, so the two views cannot disagree."""
+    """Per-year counts beyond 24 months on the date the valuation runs on, orphan
+    exclusivity left out: the same convention as the LOE tab, so the two views cannot
+    disagree. A product dated by orphan exclusivity counts at the date beneath it rather
+    than dropping off."""
     cliff: dict[int, int] = {}
     two_years_out = dt.date.today().year + 2
     for asset in assets:
-        if (asset.get("loe_basis") or "") == "orphan exclusivity":
-            continue
-        year = int((asset.get("loe") or "0000")[:4] or 0)
+        if "valued_loe" in asset:
+            date = asset.get("valued_loe")
+        elif (asset.get("loe_basis") or "") == "orphan exclusivity":
+            continue                        # an older API: no date beneath it to count
+        else:
+            date = asset.get("loe")
+        year = int((date or "0000")[:4] or 0)
         if year > two_years_out:
             cliff[year] = cliff.get(year, 0) + 1
     return cliff
@@ -11203,6 +11207,15 @@ with main:
                         except (ValueError, TypeError):
                             return None
 
+                    def _valued_loe_year(p):
+                        # An older API without the field counts on the listed date.
+                        if "valued_loe" not in p:
+                            return _loe_year(p)
+                        try:
+                            return int(str(p["valued_loe"])[:4]) if p["valued_loe"] else None
+                        except (ValueError, TypeError):
+                            return None
+
                     # One card per product: approvals repeat per indication, but revenue and
                     # exclusivity are per asset and shared, so collapse to the product and keep
                     # the earliest approval date.
@@ -11218,6 +11231,7 @@ with main:
                                 generic=a.get("generic_name"), modality=a.get("modality"),
                                 approved=a.get("approval_date"), loe=a.get("loe"),
                                 loe_basis=a.get("loe_basis"),
+                                valued_loe=a.get("valued_loe"),
                                 loe_earliest_year=(int(a["loe_earliest"][:4])
                                                    if a.get("loe_earliest") else None),
                                 revenue=a.get("revenue"),
@@ -11239,6 +11253,7 @@ with main:
                             brand=brand, generic=ex.get("generic_name"),
                             modality=ex.get("modality"), approved=None,
                             loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                            valued_loe=ex.get("valued_loe"),
                             loe_earliest_year=ex.get("loe_earliest_year"),
                             revenue=None, revenue_unit=None,
                             # A Purple Book biologic has no drugsfda row, so no label to read an
@@ -11456,8 +11471,13 @@ with main:
                             # whole cliff.
                             count_by_year: dict = {}
                             rev_by_year: dict = {}
+                            # Counted on the date the valuation runs on, which leaves
+                            # orphan exclusivity out: it covers one orphan indication and
+                            # holds off no generic. Humira lists orphan exclusivity to 2028
+                            # and its 12-year floor lapsed in 2014, so it is not a 2028
+                            # cliff. The cards keep the listed date.
                             for p in prods:
-                                y, r = _loe_year(p), p.get("revenue")
+                                y, r = _valued_loe_year(p), p.get("revenue")
                                 if y and today.year <= y <= today.year + 10:
                                     count_by_year[y] = count_by_year.get(y, 0) + 1
                                     if r:
@@ -11479,14 +11499,17 @@ with main:
                                                     value_fmt=lambda v: str(int(v))),
                                        css_class="chart-mount stretch")
                                 note("Every marketed product losing US exclusivity that year, "
-                                     "expiries from the Orange and Purple Books, counted whether or "
-                                     "not its revenue is tagged. A small molecule is placed at its "
+                                     "on the date its valuation runs on, counted whether or not "
+                                     "its revenue is tagged. A small molecule is placed at its "
                                      "molecule patent with its extensions unless the filer states "
                                      "a date or a generic has launched, a biologic at the later of "
-                                     "its listed expiry and the 12-year floor. A product with no "
-                                     "published expiry cannot be placed and is left out, never "
-                                     "estimated: open its card to see whether that is protection "
-                                     "already lapsed or nothing published yet.")
+                                     "its listed expiry and the 12-year floor. Orphan exclusivity "
+                                     "is left out: it covers one indication and holds off no "
+                                     "generic, so a card can list a later date than the chart "
+                                     "counts. A product with no published expiry cannot be placed "
+                                     "and is left out, never estimated: open its card to see "
+                                     "whether that is protection already lapsed or nothing "
+                                     "published yet.")
                             # The stack behind each date in the window, so the cliff can be
                             # argued with: what sets the date, what is listed after it, who
                             # has challenged it, how far the date could move and what that
