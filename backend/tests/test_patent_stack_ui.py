@@ -1,10 +1,12 @@
-"""The fact profile's stack behind the LOE date (plan step 7): the range valued at each
-end, the erosion row with its sample, and the FDA Paragraph IV list.
+"""The stack behind the LOE date (plan step 7), on the fact profile and on the LOE view:
+the range valued at each end, the erosion row with its sample, and the FDA Paragraph IV
+list.
 
 The builders live in the Streamlit script, which runs the whole app on import, so they
 are read out of its source by name and run on what the profile returned for two real
 products on a copy of the book (``fixtures/patent_stack/``): Rinvoq, whose molecule
-patent and latest patent differ, and Farxiga, whose first generic launched in 2026.
+patent and latest patent differ, and Farxiga, whose first generic launched in 2026; and
+five AbbVie rows of the LOE view's table (``abbv_company_stack.json``).
 """
 
 from __future__ import annotations
@@ -24,7 +26,8 @@ FIXTURES = pathlib.Path(__file__).resolve().parent / "fixtures" / "patent_stack"
 BANNED = ("additionally", "highlight", "underscore", "pivotal", "showcase", "testament")
 EM_DASH = "—"
 NAMES = ("_loe_range_html", "_money_mm", "_erosion_html", "_paragraph_iv_html",
-         "_prof_rows", "html_escape")
+         "_prof_rows", "html_escape", "_stack_sets_it", "_stack_after", "_stack_range",
+         "_stack_challenges", "_stack_erosion", "_stack_valued", "_loe_stack_table_html")
 
 
 @pytest.fixture(scope="module")
@@ -103,3 +106,35 @@ def test_the_fixture_stack_carries_extension_and_use_codes():
     governing = next(p for p in patents if p["governs"])
     assert governing["term_extension"]["extension"] == "5 years"
     assert any(p["use_codes"] for p in patents if p["kind"] == "method of use")
+
+
+def _stack_rows(view):
+    stack = load("abbv_company_stack")
+    markup = view["_loe_stack_table_html"](stack["products"], stack["ticker"])
+    rows = re.findall(r"<tr>(.*?)</tr>", markup.split("<tbody>")[1])
+    return {text_of(r).split(" ")[0]: text_of(r) for r in rows}, markup
+
+
+def test_the_loe_view_reads_each_product_left_to_right(view):
+    rows, markup = _stack_rows(view)
+    assert set(rows) == {"Rinvoq", "Humira", "Teflaro", "Kybella", "Venclexta"}
+    rinvoq = rows["Rinvoq"]
+    assert "12110298 molecule" in rinvoq
+    assert "2033 to 2036" in rinvoq and "bear 45.2 bn, base 54.6 bn" in rinvoq
+    assert "-71% year one small molecule, n 134" in rinvoq
+    # Each product opens its own fact profile.
+    assert 'href="?ticker=ABBV&amp;product=163"' in markup
+    _house_style(" ".join(rows.values()))
+
+
+def test_the_loe_view_says_where_the_value_runs_on_another_date(view):
+    rows, _ = _stack_rows(view)
+    assert "valued on lapsed 2014, orphan exclusivity left out" in rows["Humira"]
+    assert "valued on" not in rows["Rinvoq"]
+
+
+def test_the_loe_view_says_which_kind_of_nothing_a_cell_is(view):
+    rows, _ = _stack_rows(view)
+    assert "no patent: the basis is the date" in rows["Teflaro"]
+    assert "no forecast" in rows["Kybella"]
+    assert view["_loe_stack_table_html"]([], "ABBV") == ""

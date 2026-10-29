@@ -451,6 +451,122 @@ def _paragraph_iv_html(rows) -> list:
     return out
 
 
+def _stack_sets_it(g, basis: str = "") -> str:
+    """The protection that sets the date, with what extended it, for one table cell."""
+    if not g:
+        # A patent basis with nothing flagged is the latest listed patent; any other
+        # basis (a filer's date, a launch, an exclusivity) is a date with no patent.
+        if (basis or "").lower() in ("patent", "drug product patent"):
+            return '<span class="m">no molecule patent flagged, latest listed patent</span>'
+        return '<span class="m">no patent: the basis is the date</span>'
+    bits = [f'{html_escape(g.get("identifier") or "")} '
+            f'<span class="m">{html_escape(g.get("kind") or g.get("type") or "")}</span>']
+    ext = []
+    if (g.get("term_extension") or {}).get("extension"):
+        ext.append(f'term extension {html_escape(g["term_extension"]["extension"])}')
+    if g.get("extended_to") and g["extended_to"] != g.get("expiry"):
+        ext.append("+6mo paediatric")
+    if ext:
+        bits.append(f'<br><span class="m">{", ".join(ext)}</span>')
+    return "".join(bits)
+
+
+def _stack_after(row) -> str:
+    n = row.get("later_patents") or 0
+    if not n:
+        return '<span class="m">none listed</span>'
+    use = row.get("later_use") or 0
+    return (f'{n} to {html_escape((row.get("later_to") or "")[:4])}'
+            + (f'<br><span class="m">{use} method of use</span>' if use else ""))
+
+
+def _stack_range(rng) -> str:
+    if not rng or not rng.get("base"):
+        return '<span class="m">no forecast</span>'
+    bear, base, bull = (rng.get(e) or {} for e in ("bear", "base", "bull"))
+    if bear.get("date") == base.get("date") == bull.get("date"):
+        return '<span class="m">one date</span>'
+    years = (f'{bear["date"][:4]} to {bull["date"][:4]}'
+             if bear["date"][:4] != bull["date"][:4]
+             else f'{bear["date"][:10]} to {bull["date"][:10]}')
+    # The value at each end that moves, beside the base it moves from.
+    values = [f'{end} {_money_mm(e["npv"])}' for end, e in (("bear", bear), ("base", base),
+                                                             ("bull", bull))
+              if e.get("npv") is not None
+              and (end == "base" or e.get("date") != base.get("date"))]
+    return years + (f'<br><span class="m">{", ".join(values)}</span>'
+                    if len(values) > 1 else "")
+
+
+def _stack_challenges(piv) -> str:
+    if not piv:
+        return '<span class="m">none on the FDA list</span>'
+    since = ("before 2003" if piv.get("pre_mma") and not piv.get("first_submission")
+             else (piv.get("first_submission") or "")[:4])
+    filers = piv.get("filers")
+    head = (f'{filers} filer{"s" if filers != 1 else ""}' if filers else "filed")
+    head += f' since {html_escape(since)}' if since else ""
+    if piv.get("first_marketing"):
+        tail = f'generic sold {piv["first_marketing"][:10]}'
+    elif piv.get("first_approval"):
+        tail = f'generic approved {piv["first_approval"][:10]}, not sold'
+    else:
+        tail = "no generic approved"
+    return f'{head}<br><span class="m">{html_escape(tail)}</span>'
+
+
+def _stack_erosion(row) -> str:
+    if not row:
+        return '<span class="m">no forecast</span>'
+    sample = (f'n {row["sample_n"]}' if row.get("sample_n")
+              else "stated" if row.get("row") == "stated" else "not fitted")
+    return (f'<span title="{html_escape(row.get("source") or "")}">'
+            f'-{row["year1_pct"]:.0%} year one<br><span class="m">'
+            f'{html_escape(row.get("row") or "")}, {sample}</span></span>')
+
+
+def _stack_valued(valued) -> str:
+    """The valuation's own date where it differs from the cliff's: it leaves orphan
+    exclusivity out, since that covers one indication and holds off no generic."""
+    if not valued:
+        return ""
+    if not valued.get("date"):
+        return '<br><span class="m">valued with no date</span>'
+    when = (f'lapsed {valued["date"][:4]}' if valued.get("past")
+            else valued["date"][:10])
+    return (f'<br><span class="m">valued on {html_escape(when)}, orphan exclusivity left '
+            f'out</span>')
+
+
+def _loe_stack_table_html(rows, ticker) -> str:
+    """The LOE view's stack: one line a product losing exclusivity in the window, read
+    left to right as why the cliff is where it is. Each product opens its fact profile,
+    which carries the full list."""
+    if not rows:
+        return ""
+    head = ("product", "date", "sets it", "listed after", "range", "Paragraph IV",
+            "erosion")
+    body = []
+    for r in rows:
+        link = (f'<a href="?ticker={html_escape(ticker)}&amp;product={r["asset_id"]}" '
+                f'target="_self">{html_escape(r.get("brand") or "")}</a>')
+        body.append(
+            "<tr>"
+            f'<td>{link}<br><span class="m">{html_escape(r.get("modality") or "")}</span></td>'
+            f'<td><span class="d">{html_escape((r.get("loe") or "")[:10])}</span><br>'
+            f'<span class="m">{html_escape(r.get("basis") or "")}</span>'
+            f'{_stack_valued(r.get("valued_loe"))}</td>'
+            f'<td>{_stack_sets_it(r.get("governing"), r.get("basis"))}</td>'
+            f'<td>{_stack_after(r)}</td>'
+            f'<td>{_stack_range(r.get("loe_range"))}</td>'
+            f'<td>{_stack_challenges(r.get("paragraph_iv"))}</td>'
+            f'<td>{_stack_erosion(r.get("erosion"))}</td>'
+            "</tr>")
+    return ('<div class="land-wrap"><table class="land loe-stack"><thead><tr>'
+            + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead><tbody>"
+            + "".join(body) + "</tbody></table></div>")
+
+
 def _render_product_profile(api_base, ticker, product, today) -> None:
     """The fact profile for one product: sourced facts on the left, the analyst's curated
     market-size / peak-sales / competitor view on the right, editable and saved back. Read
@@ -11365,11 +11481,36 @@ with main:
                                 note("Every marketed product losing US exclusivity that year, "
                                      "expiries from the Orange and Purple Books, counted whether or "
                                      "not its revenue is tagged. A small molecule is placed at its "
-                                     "latest patent, a biologic at the later of its listed expiry "
-                                     "and the 12-year floor. A product with no published expiry "
-                                     "cannot be placed and is left out, never estimated: open its "
-                                     "card to see whether that is protection already lapsed or "
-                                     "nothing published yet.")
+                                     "molecule patent with its extensions unless the filer states "
+                                     "a date or a generic has launched, a biologic at the later of "
+                                     "its listed expiry and the 12-year floor. A product with no "
+                                     "published expiry cannot be placed and is left out, never "
+                                     "estimated: open its card to see whether that is protection "
+                                     "already lapsed or nothing published yet.")
+                            # The stack behind each date in the window, so the cliff can be
+                            # argued with: what sets the date, what is listed after it, who
+                            # has challenged it, how far the date could move and what that
+                            # is worth, and the erosion the valuation runs from it.
+                            try:
+                                _stack = (api_get(api_base, f"/companies/{ticker}/patent-stack")
+                                          .get("products") or [])
+                            except Exception as exc:            # a view beside the cliff
+                                _stack = None
+                                note(f"The patent stack did not load: {str(exc).rstrip('.')}.")
+                            if _stack:
+                                section("The stack behind each date", len(_stack),
+                                        "next 10 years")
+                                st.markdown(_loe_stack_table_html(_stack, ticker),
+                                            unsafe_allow_html=True)
+                                note("Range: from the molecule patent with its extensions to "
+                                     "the latest molecule or formulation patent; 89% of 122 past "
+                                     "generic launches fell inside theirs, and the value is the "
+                                     "product's NPV at each end. Paragraph IV: the FDA list for "
+                                     "the product's own application, most filers on any strength. "
+                                     "Erosion: the first-year loss the valuation runs after the "
+                                     "date and the number of launches the row was fitted to. "
+                                     "Use patents can be carved out of a generic label, so they "
+                                     "are counted but do not move the date.")
 
                             # The fact sheet, under the cliff rather than inside the card grid.
                             # Opening above the cards pushed them down the page on every click;
