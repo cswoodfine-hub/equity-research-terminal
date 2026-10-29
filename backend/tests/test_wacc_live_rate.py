@@ -242,7 +242,7 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 723        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+    assert seen == 735        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
                               # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25,
                               # then eleven Phase 3 seeds and nineteen verified from a parallel branch, 2026-09-26
                               # then 87 big pharma Phase 2 and 3 seeds, 2026-09-28
@@ -266,3 +266,4 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then Lumakras, Exdensur, Rhapsido, Vanrafia, Qfitlia and Wayrilz, Phase 1b marketed models, 2026-10-28
                               # then twenty-two from the asset-model round (seventeen clinical-stage, then Olumiant, Xofluza, Parsabiv, Tryngolza and Dawnzera), 2026-10-28
                               # then twenty-eight from round 2 (Sunosi, AXS-14, Auvelity, Aucatzyl, Yeztugo, Niktimvo, Penmenvy and twenty-one clinical-stage), 2026-10-28
+                              # then twelve from round 3 (the no-forecast assets; pelacarsen's pos 0 file carries no company half), 2026-10-29
