@@ -57,6 +57,47 @@ def test_profile_assembles_sourced_fields_and_merges_loe(tmp_path):
                           "thesis": None, "updated_at": None}
 
 
+def test_profile_carries_the_stack_behind_the_date(tmp_path):
+    """Plan step 7: the term extension and use codes on each patent, the Paragraph IV
+    list for the product's own application, and nothing invented where none is on file."""
+    db_file, aid = _seed_product(tmp_path)
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE assets SET internal_code = 'NDA111' WHERE id = ?", (aid,))
+    conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                 " expiry_date, patent_kind, use_codes, source)"
+                 " VALUES (?, 'patent', '6515117', '2032-10-04', 'substance',"
+                 " 'U-2139,U-493', 'orange_book')", (aid,))
+    conn.execute("INSERT INTO patent_term_extensions (patent, kind, original_expiry,"
+                 " extension) VALUES ('6515117', 'certificate', '2027-10-04', '5 years')")
+    conn.execute("INSERT INTO paragraph_iv_list (application_number, strength,"
+                 " submission_date, anda_count, status_180, first_marketing)"
+                 " VALUES ('NDA111', '10 mg', '2024-01-08', 4, 'Eligible', NULL)")
+    conn.commit()
+    conn.close()
+    p = pp.product_profile(db_file, "LLY", aid)
+    molecule = next(r for r in p["patents"] if r["identifier"] == "6515117")
+    assert molecule["term_extension"] == {"extension": "5 years",
+                                          "original_expiry": "2027-10-04"}
+    assert molecule["use_codes"] == ["U-2139", "U-493"]
+    plain = next(r for r in p["patents"] if r["identifier"] == "X")
+    assert plain["term_extension"] is None and plain["use_codes"] == []
+    assert [(r["strength"], r["anda_count"], r["first_marketing"])
+            for r in p["paragraph_iv"]] == [("10 mg", 4, None)]
+    # No assumptions on file, so no forecast: no range and no erosion row, not a default.
+    assert p["loe_range"] is None
+
+
+def test_profile_names_the_erosion_row_and_its_sample():
+    inputs = {"scalars": {"therapy_mode": "marketed"}, "modality": "small molecule",
+              "route": "non-oral",
+              "erosion_defaults": pp.assumptions_module.erosion_defaults()}
+    row = pp._erosion(inputs)
+    assert row["row"] == "small molecule, non-oral route" and row["sample_n"] == 28
+    stated = pp._erosion({"scalars": {"erosion_year1_pct": 0.5}})
+    assert stated["row"] == "stated" and stated["sample_n"] is None
+    assert pp._erosion({"scalars": {}}) is None
+
+
 def test_profile_is_scoped_to_the_owning_company(tmp_path):
     db_file, aid = _seed_product(tmp_path)
     # The asset belongs to LLY, so asking under another ticker must not leak it.

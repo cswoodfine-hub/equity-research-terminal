@@ -16,10 +16,14 @@ from __future__ import annotations
 
 import re
 
+import assumptions as assumptions_module
 import db
+import forecast
 import fx
 import loe as loe_module
+import loe_range
 import payer_access
+import pte
 
 NOTE_FIELDS = ("market_size", "peak_sales", "competitors", "thesis")
 
@@ -103,10 +107,16 @@ def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
 
     A paediatric extension is not a patent. It is the same number with "*PED" after it and
     six more months, so it is folded into the row it extends rather than listed beside it.
+
+    A term extension is, and the Orange Book's date already includes it, so the row says
+    how long the USPTO certificate added rather than moving the date. A method-of-use
+    patent carries the Orange Book's use codes; the data files give no wording for them.
     """
     rows = [dict(r) for r in conn.execute(
-        """SELECT identifier, expiry_date, patent_kind, protection_type, source
+        """SELECT identifier, expiry_date, patent_kind, protection_type, source,
+                  use_codes
              FROM exclusivities WHERE asset_id = ? ORDER BY expiry_date""", (asset_id,))]
+    certificates = _term_extensions(conn)
     extensions = {}
     for row in rows:
         name = row["identifier"] or ""
@@ -126,6 +136,8 @@ def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
             "effective": max(row["expiry_date"], extended) if extended
                          else row["expiry_date"],
             "extended_to": extended,
+            "term_extension": certificates.get(pte.patent_key(name)),
+            "use_codes": [c for c in (row["use_codes"] or "").split(",") if c],
             "kind": PATENT_KINDS.get(row["patent_kind"] or ""),
             "type": row["protection_type"],
             "governs": bool(governing and name == governing),
@@ -133,6 +145,71 @@ def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
         })
     out.sort(key=lambda r: (r["effective"] or "", r["identifier"] or ""))
     return out
+
+
+def _term_extensions(conn) -> dict:
+    """{patent: {"extension", "original_expiry"}} from the USPTO certificate list. Empty
+    on a database from before the source."""
+    try:
+        found = conn.execute(
+            "SELECT patent, extension, original_expiry FROM patent_term_extensions"
+            " WHERE kind = 'certificate'").fetchall()
+    except Exception:                       # noqa: BLE001 - no table yet
+        return {}
+    return {r["patent"]: {"extension": r["extension"],
+                          "original_expiry": r["original_expiry"]} for r in found}
+
+
+def _paragraph_iv(conn, asset_id: int) -> list[dict]:
+    """The FDA Paragraph IV list's rows for the product's own application, one per
+    strength: when the first challenge was filed, how many filers, the 180-day
+    exclusivity status, and when the first filer was approved and began selling.
+
+    The 30-month stay runs from the day the brand receives notice, which the list does
+    not give, so no stay date is shown rather than one counted from the submission."""
+    try:
+        return [dict(r) for r in conn.execute(
+            """SELECT p.strength, p.dosage_form, p.submission_date, p.pre_mma,
+                      p.anda_count, p.status_180, p.first_approval, p.first_marketing,
+                      p.last_patent_expiry, p.list_date
+                 FROM paragraph_iv_list p JOIN assets a
+                   ON a.internal_code = p.application_number
+                WHERE a.id = ?
+                ORDER BY (p.submission_date IS NULL), p.submission_date""",
+            (asset_id,))]
+    except Exception:                       # noqa: BLE001 - no table yet
+        return []
+
+
+def _erosion(inputs: dict | None) -> dict | None:
+    """The erosion shape the valuation runs on and how many launches it was fitted to.
+    None where the asset has no forecast inputs."""
+    if not inputs or not inputs.get("scalars"):
+        return None
+    scalars = inputs["scalars"]
+    if scalars.get("erosion_year1_pct") is not None:
+        return {"row": "stated", "year1_pct": scalars["erosion_year1_pct"],
+                "decay_pct": scalars.get("erosion_decay_pct"),
+                "late_decay_pct": scalars.get("erosion_late_decay_pct"),
+                "late_from_year": scalars.get("erosion_late_from_year"),
+                "sample_n": None, "source": "stated on the asset"}
+    default, which = forecast.erosion_default(inputs)
+    if not default:
+        return None
+    return {"row": which, "year1_pct": default["year1_pct"],
+            "decay_pct": default["decay_pct"],
+            "late_decay_pct": default.get("late_decay_pct"),
+            "late_from_year": default.get("late_from_year"),
+            "sample_n": default.get("sample_n"), "source": default.get("source")}
+
+
+def _range(conn, asset_id: int) -> dict | None:
+    """Bear, base and bull LOE dates with the value at each, or None where there is no
+    range or no forecast. A failure here costs the panel, never the profile."""
+    try:
+        return loe_range.for_asset(conn, asset_id)
+    except Exception:                       # noqa: BLE001 - a view beside the profile
+        return None
 
 
 def _loe(conn, asset_id: int) -> dict:
@@ -323,6 +400,12 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             "supplements": supplements,
             "supplement_count": len(supplements),
             "challenges": challenges,
+            # The stack behind the date (plan step 7): the FDA's Paragraph IV list for the
+            # product's own application, the bear-to-bull range valued, and the erosion
+            # row the valuation uses with the number of launches behind it.
+            "paragraph_iv": _paragraph_iv(conn, asset_id),
+            "loe_range": _range(conn, asset_id),
+            "erosion": _erosion(assumptions_module.load(conn, asset_id, "base")),
             "catalysts": catalysts,
             "trials": trials,
             "trial_count": trial_count,

@@ -139,6 +139,10 @@ def _defaults(path, key_field):
             # with no late decay rate has to reach the engine as None.
             entry[field] = (float(entry[field])
                             if entry.get(field) not in (None, "") else None)
+        # How many launches an erosion row was fitted to, where it was fitted at all.
+        if "sample_n" in entry:
+            entry["sample_n"] = (int(entry["sample_n"])
+                                 if entry["sample_n"] not in (None, "") else None)
         out[row[key_field]] = entry
     return out
 
