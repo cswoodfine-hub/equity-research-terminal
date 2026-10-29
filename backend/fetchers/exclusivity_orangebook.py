@@ -16,6 +16,7 @@ import urllib.request
 import zipfile
 
 import db
+import dose_route
 from assets_util import normalize_appl, resolve_alias, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -122,6 +123,7 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
     ticker, and the upsert attaches its rows to those assets rather than creating one.
     """
     linked = linked or {}
+    routes: dict = {}
     pidx, prows = _rows(products_text)
     products: dict[str, dict] = {}
     for parts in prows:
@@ -143,6 +145,9 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
         # listing. An application can mix live and discontinued strengths, so it counts
         # as marketed when any one of its rows is, and a live row wins the naming.
         marketed = _field(parts, pidx, "Type").strip().upper() != "DISCN"
+        if marketed:
+            routes.setdefault(appl_no, set()).add(
+                dose_route.from_orange_book(_field(parts, pidx, "DF;Route")))
         existing = products.get(appl_no)
         if existing is not None and (existing["marketed"] or not marketed):
             continue
@@ -227,25 +232,46 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
                 "listed_only": not rows,
                 "approval_date": product.get("approval_date"),
                 "applicant": product.get("applicant"),
+                # Oral or non-oral where every live strength agrees, else None.
+                "route": (next(iter(routes[appl_no]))
+                          if len(routes.get(appl_no) or ()) == 1 else None),
             }
         )
     return out
 
 
 def record_listing(conn, product: dict, asset_id: int) -> None:
-    """Note that the book lists this product for this asset, and how many live rows."""
+    """Note that the book lists this product for this asset, and how many live rows.
+
+    The route is the asset's own application's where the book lists it: Ozempic's asset
+    also holds Rybelsus's oral NDA, and the revenue line is the injection. Where the
+    asset's own application is not listed, the applications' routes must agree."""
+    own = conn.execute("SELECT internal_code FROM assets WHERE id = ?",
+                       (asset_id,)).fetchone()
+    prior = conn.execute("SELECT route, route_own FROM orange_book_listings"
+                         " WHERE asset_id = ?", (asset_id,)).fetchone()
+    is_own = bool(own and own[0] and own[0] == product.get("internal_code"))
+    route = product.get("route")
+    if prior is not None:
+        if prior["route_own"] and not is_own:
+            route, is_own = prior["route"], True          # the own application stands
+        elif not is_own and prior["route"] != route:
+            route = None
     conn.execute(
         """INSERT INTO orange_book_listings
-               (asset_id, appl_code, approval_date, applicant, live_rows, fetched_at)
-           VALUES (?, ?, ?, ?, ?, datetime('now'))
+               (asset_id, appl_code, approval_date, applicant, live_rows, route,
+                route_own, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
            ON CONFLICT(asset_id) DO UPDATE SET appl_code = excluded.appl_code,
                approval_date = MIN(COALESCE(orange_book_listings.approval_date, '9999'),
                                    COALESCE(excluded.approval_date, '9999')),
                applicant = excluded.applicant,
                live_rows = orange_book_listings.live_rows + excluded.live_rows,
+               route = excluded.route, route_own = excluded.route_own,
                fetched_at = datetime('now')""",
         (asset_id, product.get("internal_code"), product.get("approval_date"),
-         product.get("applicant"), len(product.get("exclusivities") or [])))
+         product.get("applicant"), len(product.get("exclusivities") or []),
+         route, int(is_own)))
 
 
 def clear_direct(conn, rows: list, source: str) -> None:
