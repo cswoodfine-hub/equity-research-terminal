@@ -48,3 +48,18 @@ BMY,Cobenfy,Autism Spectrum Disorder,US,base,base_pool_overlap_pct,,0.0,,share o
 BMY,Cobenfy,Autism Spectrum Disorder,US,base,pos,,0.513456,,,the published transitions ahead of a Phase 3 readout on the Psychiatry cut of BIO/Informa/QLS 2011-2020 (data/pos_transitions.csv): 0.563 Phase 3 to NDA/BLA (n=71) and 0.912 NDA/BLA to approval (n=57),"the two Phase 3 studies read 'Not yet recruiting' with primary completion 2029-08-06, so nothing has been enrolled; the published chain is measured on programmes that had started and does not carry the risk that these never do. Replace it with 0.92 on a stated win or 0 on a stated miss"
 BMY,Cobenfy,Autism Spectrum Disorder,US,base,ramp_midpoint_year,,2.15,,years from launch,"Zeposia's fitted ulcerative colitis launch curve, the book's default ramp for a new indication on a marketed product",
 BMY,Cobenfy,Autism Spectrum Disorder,US,base,ramp_steepness,,1.005,,,"Zeposia's fitted ulcerative colitis launch curve, the book's default ramp for a new indication on a marketed product",
+# Round 2, 2026-10-28
+#
+# Bipolar Disorder, NCT07140913 (Phase 3, 424 estimated, primary completion 2027-06-28): still not
+# seeded, and for the same reason the header gives. This study is the adjunctive one: KarXT or placebo
+# added to lithium, valproate or lamotrigine in adults 18 to 65 hospitalised for an acute manic
+# episode of bipolar I disorder, with or without mixed features, YMRS change at week 5 (registry
+# record read 2026-10-28). It does differ from the Mania layer's two dated studies, BALSAM-1
+# (NCT06951698) and BALSAM-2 (NCT06951711), which test KarXT alone against placebo. It does not differ
+# in patients: the Mania layer's pool is every US adult with 12-month bipolar I disorder and its
+# eligible share is those treated in specialty care (Merikangas 2007), which already includes the
+# patients on a mood stabiliser who would take KarXT as an adjunct, and BALSAM-3 (NCT06929273) on the
+# same layer already doses 'KarXT or Adjuvant KarXT'. A Bipolar Disorder pool would be the same
+# 1,601,870 adults under a second descriptor, a second number for one disease and the same manic
+# episode sold twice. An adjunct label widens how the drug may be used in patients the Mania layer
+# already prices; that belongs in the Mania layer's penetration if anywhere, and is not added.

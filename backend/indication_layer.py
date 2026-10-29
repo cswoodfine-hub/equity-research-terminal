@@ -59,9 +59,11 @@ _MARKETED_ONLY = ("base_revenue", "revenue_growth_pct", "revenue_ceiling_musd",
 
 
 def _missing(built: dict, entry: dict) -> list:
-    out = [k for k in ASSET_KEYS if built["scalars"].get(k) is None]
-    out += [k for k in INDICATION_KEYS if (entry.get("scalars") or {}).get(k) is None]
-    if forecast.net_price(built["scalars"]) is None:
+    own = entry.get("scalars") or {}
+    price, discontinuation = forecast.layer_terms(built["scalars"], own)
+    out = ["discontinuation_pct"] if discontinuation is None else []
+    out += [k for k in INDICATION_KEYS if own.get(k) is None]
+    if price is None:
         out.append("net_price_per_patient")
     return out
 
@@ -84,15 +86,50 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
         return {"ok": False, "missing": list(INDICATION_KEYS),
                 "why": "The indication carries no assumptions of its own."}
 
+    # The share of the pool already inside the approved business, which the marketed
+    # line scales the layer by (forecast._indication_layers). The gate built it at full
+    # size, so Imfinzi's bladder layer, 94% inside the business it already sells to, was
+    # staked at 2,080mm where the forecast adds 125mm. The pool is narrowed rather than
+    # the answer scaled, so the peak, the patients and the value all say the same thing.
+    # Asked before the keys a pool needs: a layer wholly inside the business needs no pool,
+    # and reporting "missing prevalence" for it read as unfinished research.
+    overlap = (entry.get("scalars") or {}).get("base_pool_overlap_pct")
+    # On a selling product built from patients, an indication is a layer only where the
+    # research marked it one, the rule forecast._risk_patient_layers holds the forecast to.
+    # Lipfendra carries no label in the book, so its approved hypercholesterolaemia read
+    # as unapproved and the gate staked the whole product, 3,953mm at peak, on an
+    # open-label safety extension.
+    mode = ((loaded.get("scalars") or {}).get("therapy_mode") or "").strip()
+    if (loaded.get("is_marketed") and mode in ("chronic", "one_time")
+            and overlap is None):
+        return {"ok": False, "missing": [],
+                "why": "On a product modelled from patients this indication is the "
+                       "product's own business unless the research marks it a layer by "
+                       "stating base_pool_overlap_pct."}
+    if overlap is not None and overlap >= 1.0:
+        return {"ok": False, "missing": [],
+                "why": "The pool is wholly inside the business already being sold to, so "
+                       "the readout moves evidence rather than patients."}
+
     gaps = _missing(loaded, entry)
     if gaps:
         return {"ok": False, "missing": gaps,
                 "why": "The layer needs its own pool and price before it can be built."}
 
     layer = copy.deepcopy(loaded)
+    entry = copy.deepcopy(entry)
+    if overlap:
+        entry["scalars"]["eligible_pct"] *= 1.0 - overlap
     layer["indications"] = [entry]
     layer["is_marketed"] = False          # the layer is the business not yet won
     scalars = layer["scalars"]
+    # A layer that prices differently from its product carries its own terms into the
+    # build, as forecast.layer_terms reads them for the marketed line.
+    for key in forecast.LAYER_PRICE_KEYS:
+        if (entry.get("scalars") or {}).get(key) is not None:
+            if key == "list_price_per_patient":
+                scalars.pop("net_price_per_patient", None)
+            scalars[key] = entry["scalars"][key]
     for key in _MARKETED_ONLY:
         scalars.pop(key, None)
     # A chronic biologic billed per year of therapy. The marketed mode it came from is
@@ -119,6 +156,7 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
         "revenue": out.get("revenue"),
         "treated": out.get("treated"),
         "notes": out.get("notes") or [],
+        "base_pool_overlap_pct": overlap,
         # The franchise check. Reported, not applied: see the docstring.
         "ceiling": ceiling,
         "base_peak_revenue": base_peak,

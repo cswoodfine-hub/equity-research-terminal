@@ -1,0 +1,62 @@
+# Journavx (VRTX). suzetrigine, an oral NaV1.8 inhibitor. $59.6mm in FY2025, acute pain only.
+#
+# Round 2, 2026-10-28.
+#
+# Diabetic Neuropathies: a layer, written in full, that the engine should still refuse, and the reason
+# is a fact about the book rather than a gap in the research.
+#
+# The asset's price is a course, not a year: vrtx_journavx_price.csv holds net_price_per_patient of
+# $232.50 for a seven-day acute course with price_basis 'course'. indication_layer.build reads one
+# asset-level price and builds every layer in chronic mode, stock times an annual price, so this layer
+# would bill each patient on the DPN stock one seven-day course a year, about 1/52 of a year of
+# therapy. A second net_price_per_patient would repeat a key the seed holds, and a list price would
+# never be read, because forecast.net_price takes the net price first. So no discontinuation_pct is
+# written: without it the layer is refused with that key named, which is honest, where with it the
+# layer would build at a fiftieth of its value. What would settle it: an indication-level price key
+# in indication_layer, or an annual DPN price from Vertex. For scale only, the label's acute regimen
+# taken every day for a year is 730 tablets at the $15.50 WAC ICER reports, $11,315, and Vertex has
+# set no DPN dose or price.
+#
+# The pool is the one the book already holds for painful DPN on LY4065967's 'Chronic Pain' row
+# (lly_ly4065967.csv), copied verbatim with its source so the book holds one number for one disease.
+# The penetration and ramp are built on that row's method so the two compare like with like.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Journavx,Diabetic Neuropathies,US,base,prevalence,,1822186,,patients,"US adults with painful DPN recognised in claims in a year, the pool the book already holds on LY4065967's Chronic Pain row, copied verbatim. Bromberg T et al., Endocrine 2024;86(3):1014-1024, doi:10.1007/s12020-024-03954-6 (PMC11554691; Optum Clinformatics, commercial and Medicare Advantage, 1,884,674 adults with type 1 or 2 diabetes over 2016 to 2020), Table 1: 44,432 with painful DPN (a DPN diagnosis and a fill of a non-opioid neuropathic pain drug, or a chronic pain diagnosis, in the baseline year) and 74,812 with severe painful DPN (two or more classes of neuropathic pain drug and an opioid), 119,244 or 6.3270%. Applied to the 28.8mm US adults aged 18 and over with diagnosed diabetes (CDC National Diabetes Statistics Report, 2023 data, cdc.gov, opened 2026-09-28, the figure data/epidemiology.csv's type 2 row is built from): 28,800,000 x 0.063270 = 1,822,186","stated equal to incidence, as the LY4065967 row states it: each year's recognised painful DPN patients are the cohort the drug competes for. Recognised disease, below the 15% to 25% of people with diabetes the literature puts at painful DPN"
+VRTX,Journavx,Diabetic Neuropathies,US,base,incidence,,1822186,,patients a year,"equal to the prevalence row, as the LY4065967 row states it: the pool is each year's recognised painful DPN patients (Bromberg et al. 2024 applied to CDC's 28.8mm)",
+VRTX,Journavx,Diabetic Neuropathies,US,base,eligible_pct,,1.0,,share of the pool,"the likely label is the DPNP label Lyrica and Lyrica CR carry, 'neuropathic pain associated with diabetic peripheral neuropathy', with no severity or prior-therapy cut (openFDA labels NDA021446 and NDA209501, as lly_ly4065967.csv reads them). The two efficacy studies, NCT07231419 and NCT06628908, enrol adults 18 to 80 with painful DPN and score the change in weekly average pain on the NPRS at week 12 against placebo","no narrowing is taken because the pool is already the recognised, largely treated population. The age cap of 80 is a trial filter, not a label"
+VRTX,Journavx,Diabetic Neuropathies,US,base,penetration_peak_pct,,0.08046,,share of each year's eligible patients,"pregabalin, the last new mechanism to reach DPNP with a measured share: of 12,074 US adults first diagnosed with DPN over 2006 to 2011 who started a DPNP medicine, 21.6% started pregabalin (Yang M, Qian C, Liu Y, Pain Med 2015;16(11):2075-2083, PMID 26118704, MarketScan), the anchor lly_ly4065967.csv uses. MULTIPLE 0.5, A JUDGEMENT: half pregabalin's share, 10.8% of the pool on the drug, against the 0.25 the later AT2R entrant takes, because suzetrigine would be first: Breakthrough Therapy designation in painful DPN and a successful end-of-Phase 2 meeting (Vertex 8-K exhibit 99.1, 0000875320-24-000137, Q1 2024). The pool is each year's cohort, so the steady stock is peak x pool / 0.745 at pregabalin's 74.5% first-year stopping, and a stock of 10.8% needs a peak of 0.108 x 0.745 = 0.08046","the most arguable row. It is solved on a 74.5% stopping rate, which this file does not write (see the header); if a discontinuation_pct is later set for the DPN use at another value, re-solve this. Against: generic gabapentin takes 59.0% of starts and pregabalin and duloxetine are generic, as lly_ly4065967.csv reads the market, and the DPN price is unset"
+VRTX,Journavx,Diabetic Neuropathies,US,base,ramp_midpoint_year,,3.7,,years from the forecast start,"data/launch_ramp.csv, the median climb of 41 launches to a peak nine years out, fitted on the engine's stock path at this pool and 74.5% stopping, the curve lly_ly4065967.csv fits for the same disease: midpoint 3.7 and k 0.50 at rmse 0.0219",
+VRTX,Journavx,Diabetic Neuropathies,US,base,ramp_steepness,,0.50,,logistic k,"fitted with the midpoint above to data/launch_ramp.csv on the engine's stock path, as lly_ly4065967.csv carries it",
+VRTX,Journavx,Diabetic Neuropathies,US,base,base_pool_overlap_pct,,0.0,,share of the pool already in the base,"a different use from the label: JOURNAVX 'is indicated for the treatment of moderate to severe acute pain, including postoperative pain, in adults' (openFDA label set d229cf71-96ec-4206-960b-d56fafc250ac, effective 2026-07-21), and the price seed notes use 'has not been studied beyond 14 days'. A chronic neuropathic pain patient on daily therapy is not in a revenue made of acute courses",
+VRTX,Journavx,Diabetic Neuropathies,US,base,pos,,0.460377,,,"the published transitions remaining to a Phase 3 that has not read out, on the Neurology cut: 0.531 Phase 3 to NDA/BLA (n=226) and 0.867 NDA/BLA to approval (n=165) (BIO / Informa Pharma Intelligence / QLS Advisors, Clinical Development Success Rates 2011-2020, Figure 2 page 7; data/pos_transitions.csv). 0.531 x 0.867 = 0.460377","the efficacy readouts are NCT07231419 (2027-04-06) and NCT06628908 (2027-05-31, with a pregabalin arm); NCT06696443 (2027-01-25) is a single-arm long-term safety study with adverse events as its endpoint, not an efficacy readout. Vertex said on 2026-08-03 that both Phase 3s will complete enrolment by the end of 2026 (8-K exhibit 99.1, 0000875320-26-000256), so the registry's 2027 dates may slip. Replace with 0.867 on two stated successes or 0 on failure"
+# Round 3, 2026-10-29
+#
+# The DPN layer's own price, gross-to-net and discontinuation, now that backend/forecast.py layer_terms reads
+# a layer's own list_price_per_patient, gross_to_net_pct and discontinuation_pct ahead of the product's. The
+# asset-level net_price_per_patient (one 7-day acute course, vrtx_journavx_price.csv) stays untouched and
+# keeps pricing the marketed acute line; with list_price_per_patient stated here, layer_terms drops the
+# course price for this layer only and nets the annual price below. The rows above are not edited.
+#
+# Annual price: one tablet a day for a year at Vertex's own per-tablet WAC, 365 x $15.50 = $5,657.50. The
+# schedule is the trials' once-daily regimen (NCT06696443: 'SUZ once daily (qd) up to 52 weeks'), and the
+# dose the DPN Phase 2 (NCT05660538) took highest was 69 mg once daily, against 23 and 46 mg. Vertex has
+# not said what a 69 mg tablet will cost, so the flat per-tablet price is a JUDGEMENT; priced by the
+# milligram instead, 69 / 50 x $15.50 x 365 = $7,807.35, the case for higher. Replace with Vertex's DPN WAC
+# when it sets one.
+#
+# Discontinuation: pregabalin's measured first-year stopping, 74.5% (Schuster et al. 2026), the rate the
+# penetration row above was already solved on, so penetration_peak_pct needs no re-solve.
+#
+# Gross-to-net: the house Part D convention, 0.5. Cross-check from Vertex's own figures: $59.6mm of FY2025
+# Journavx revenue over 'more than 550,000 prescriptions' (10-K 0000875320-26-000056) is $108.36 a
+# prescription, 46.6% of the $232.50 WAC of a 7-day course if each prescription is one course.
+#
+# Built on a copy of the book: $556.5mm a year unrisked at the steady stock (1,822,186 x 0.08046 / 0.745 =
+# 196,800 patients at a $2,828.75 net), $256mm in the marketed line at the layer's 0.460377 pos. The gate now
+# prices the layer, but on NCT06696443 (2027-01-25), the earliest dated readout and the single-arm safety
+# study the pos row above says is not an efficacy readout; the efficacy gate is NCT07231419 (2027-04-06).
+VRTX,Journavx,Diabetic Neuropathies,US,base,list_price_per_patient,,0.0056575,,mm USD per patient-year,"Vertex's own wholesale acquisition cost, 'Vertex has established a wholesale acquisition cost for JOURNAVX in the United States of $15.50 per 50mg pill' (Vertex release on FDA approval, 2025-01-30, Business Wire, read in syndicated copies and Reuters' report of it since news.vrtx.com is not reachable from this session; the same figure ICER's review prints, PMC12204333, and vrtx_journavx_price.csv carries), at one tablet a day for a year: 365 x $15.50 = $5,657.50. Once daily is the schedule of the DPN programme: the 52-week study NCT06696443 gives 'SUZ once daily (qd) up to 52 weeks' (ClinicalTrials.gov API, opened 2026-10-28), and the DPN Phase 2 (NCT05660538) gave 23, 46 or 69 mg once daily against pregabalin 100 mg three times daily (Lam CM, Robinson CL, Aiyer R et al., J Pain Res 2026;19, doi:10.2147/JPR.S577002, PMC13038033, the trial table)","JUDGEMENT on the strength: the per-tablet WAC is set on the 50 mg acute tablet and no DPN strength or price exists, so one tablet a day at the same per-tablet price is assumed. At a per-milligram price for the Phase 2 high dose, 69 / 50 x $15.50 x 365 = $7,807.35, the case for higher. A full labelled year, not a per-beneficiary figure: the pregabalin persistence below is a stopping rate, not a share of a year consumed, so 56.3% of starters who stop within three months (Schuster et al. 2026) are billed a full first year here, which leans high. Replace with Vertex's DPN WAC when it sets one"
+VRTX,Journavx,Diabetic Neuropathies,US,base,gross_to_net_pct,,0.5,,share taken off list,"Part D gross-to-net convention, measured at a median 96% of CMS's own negotiated net annual prices across the nine cycle-one IRA drugs (backend/gross_to_net.py), the rate lly_ly4065967.csv takes for the same DPN pool. Cross-checked on Vertex's own figures: $59.6mm of FY2025 Journavx product revenue (10-K 0000875320-26-000056) over 'more than 550,000 prescriptions' written and filled since pharmacy availability in March 2025 (same 10-K) is $108.36 a prescription, 46.6% of the $232.50 WAC of a typical 7-day course","direction checked: half comes off, so net is $2,828.75 a patient-year. The cross-check assumes one prescription is one 7-day course and ignores channel inventory, so it supports the size of the deduction rather than measuring it. Against a bigger discount: Vertex reports coverage for two-thirds of US covered lives and all three national PBMs (same 10-K), access a branded entrant in a generic class usually buys with rebates"
+VRTX,Journavx,Diabetic Neuropathies,US,base,discontinuation_pct,,0.745,,share of the stock per year,"Measured on the anchor drug: Schuster NM et al., Pain Medicine 2026;27(9):1027-1039, doi:10.1093/pm/pnag055 (PMC13537738; Merative MarketScan Commercial and Medicare, 22,955 US adults newly starting a pain medicine within 60 days of a DPN diagnosis, 2017 to 2022), Table 3: 906 of 1,216 patients starting pregabalin (74.5%) discontinued it, a gap of 90 days or more, within 12 months. Gabapentin 69.9%, duloxetine 63.8%, tramadol 96.8%, and about 77% across all index treatments","the same figure and source lly_ly4065967.csv carries for this pool, and the stopping rate the penetration_peak_pct row above was solved on (0.108 x 0.745 = 0.08046), so the two stay a pair. Switches count as stopping, which is right for one product's stock"

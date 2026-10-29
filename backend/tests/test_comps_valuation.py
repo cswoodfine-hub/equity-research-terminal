@@ -171,6 +171,10 @@ def _seed(path):
             _price(conn, "PFE", day.isoformat(), round(28.0 + i / 100.0, 2))
 
         # BNTX: every money row in euro while the company record says USD.
+        # The record as the seed held it until 2026-10-28, when it was corrected to EUR.
+        # Kept as the case, because a dollar record over euro rows must still be caught.
+        conn.execute("UPDATE companies SET reporting_currency = 'USD', country = 'US',"
+                     " is_foreign_private_issuer = 0 WHERE ticker = 'BNTX'")
         for metric, value in (("Revenues", 3000e6), ("NetIncomeLoss", -500e6),
                               ("CashFlowOperating", -800e6)):
             _fin(conn, "BNTX", metric, "FY", "2025-12-31", value, "EUR")

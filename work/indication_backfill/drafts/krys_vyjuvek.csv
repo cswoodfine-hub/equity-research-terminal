@@ -1,0 +1,29 @@
+# VYJUVEK (KRYS). Phase 3: price, discontinuation and layers.
+#
+# Asset-level only. Price is the CMS Part D 2024 per-beneficiary figure the book
+# already holds; the deduction is Krystal's own filed gross-to-net; stopping is
+# measured on the same Part D beneficiaries. All three rows are new: the seed in
+# data/assumptions/krys_vyjuvek.csv carries none of these keys.
+#
+# Epidermolysis Bullosa Dystrophica (NCT07016750, IOLITE, catalyst 2026-12): cannot
+# be sourced, so no layer rows are written. The study tests KB803, an eye drop
+# formulation of B-VEC, for recurrent corneal abrasions in DEB patients aged 6
+# months and over (16 participants, crossover against placebo, primary completion
+# 2026-12). The disease is the one the label already covers, but the use is not:
+# VYJUVEK is labelled for topical application to wounds (BLA 125774, section 1).
+# Krystal puts the US population with ocular complications at over 750 (FY2025 10-K
+# 0001711279-26-000016, Item 1), a figure that could seed the pool. What cannot be
+# sourced is the price: the engine prices every layer at the asset's own price, here
+# $582,157 a year for weekly skin cartons, and an eye drop dosed weekly then monthly
+# (the compassionate use case, NEJM February 2024, as the 10-K describes it) would not
+# sell at that figure. Krystal has disclosed no KB803 price. Nor is it known how many
+# of the 750 already buy VYJUVEK for their skin and so sit in the reported revenue.
+# What would settle it: a KB803 WAC disclosure or launch price after the IOLITE
+# readout, and Krystal's count of treated patients with ocular disease. The existing
+# seed's pos row already reads KB803 as a line extension folded into this asset.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+KRYS,VYJUVEK,,US,base,list_price_per_patient,,0.582157,,mm USD per patient-year,"CMS Medicare Part D 2024, which the book already carries for this asset (drug_demand, asset 419, part D, year 2024): $22,704,112.15 over 39 beneficiaries = $582,156.72 a beneficiary a year. Scale: the same row gives 929 claims and 2,322.5 dosage units, 2.5 mL a claim, which is one carton (a 1 mL vial of suspension and a 1.5 mL vial of gel, label section 16.1); and the 2024 Part D Prescribers by Provider and Drug file (data.cms.gov dataset 9552739e-3d05-4c1b-8eff-ecabf391e2e5, the 24 prescriber rows that clear its 11 claim floor) carries 855 claims and 5,973 days supply, 6.99 days a claim. So a claim is one weekly carton at $24,439, and a labelled year of weekly application is 365/7 = 52.14 cartons, $1,274,335. The per-beneficiary figure is 45.7% of it","a price per patient treated in a year, not per full year on drug, paired with the stopping row below, which is measured on the same 39 beneficiaries. Krystal's Medicare population is small, but it is the basis the book prices every asset with a CMS year on"
+KRYS,VYJUVEK,,US,base,gross_to_net_pct,,0.169214,,share off list,"KRYS FY2025 10-K (0001711279-26-000016), Note 2, the table of changes in allowances and discounts: provisions in 2025 of $79,258 thousand (rebates 65,273, prompt pay 13,478, other accruals 507) against product revenue, net of $389,130 thousand, so gross sales were $468,388 thousand and 79,258 / 468,388 = 16.92% came off list. FY2024 on the same basis: 55,485 on 290,515 net, 16.04%","the product's own filed deduction, since VYJUVEK is the whole of Krystal's revenue, used in place of the house Part D 0.5, which was calibrated on large retail classes. Direction: the CMS anchor is a pharmacy-level gross that includes dispensing margin Krystal never books, so the true net per beneficiary is a little below what this leaves. FY2025 includes the first German and Japanese sales, from August and October 2025"
+KRYS,VYJUVEK,,US,base,discontinuation_pct,,0.543168,,share of the treated stock a year,"measured on the same patients the price above is quoted on, by the method amgn_abp_206.csv and nvs_fabhalta.csv use. CMS Medicare Part D 2024 (drug_demand, asset 419): 929 claims of 7 days each is 6,503 days over 39 beneficiaries, 166.7 days, 0.4568 of a year against the label's once-a-week application (BLA 125774, openFDA drug/label set_id fe207c8c-04b4-4fdf-87cf-6dbc7eb6e9c2, effective 2025-09-29, section 2.1). 1 - 0.4568 = 0.5432","knowably biased high, and stated rather than adjusted. 2024 was the first full year after the May 2023 approval and Part D beneficiaries rose from 16 to 39, so many started part way through it. The label also treats a wound until it closes, so a patient whose selected wounds have healed and who pauses reads here as stopping. Replace with the 2025 data year, which carries a steady-state cohort"

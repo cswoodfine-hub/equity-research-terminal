@@ -5,6 +5,8 @@ all. A headline parser earns its keep by what it refuses: the commentary cases m
 more than the deal cases, since a false deal is worse than a missed one.
 """
 
+from pathlib import Path
+
 import pytest
 
 import db
@@ -481,3 +483,40 @@ def test_a_misread_party_is_refused(headline, names):
 def test_the_party_inside_a_roundup_a_from_or_a_run_on(headline, names, party, value):
     deal = parse_deal(headline, names)
     assert deal["counterparty"] == party and deal["announced_value"] == value
+
+
+
+# --- a deal done by someone else --------------------------------------------------------
+# The search returns every headline that mentions the company, including deals between two
+# other parties. Each of these was filed as the searched company's own acquisition.
+
+AZN_FEED = Path(__file__).parent / "fixtures" / "google_news_azn_deals.xml"
+
+
+def test_a_third_partys_acquisition_is_not_the_companys():
+    for headline, name, ticker in (
+            ("Azurity acquires Covis Pharma from existing investors", "AstraZeneca PLC",
+             "AZN"),
+            ("Deal of the Year: Gilead Buys Kite Pharma", "Vertex Pharmaceuticals Inc",
+             "VRTX"),
+            ("Roche to Buy U.S. Cancer-Drug Maker Ignyta for $1.7 Billion", "Bayer AG",
+             "BAYN"),
+            ("Double play: Thermo acquires Solventum filtration business and Sanofi "
+             "facility", "Sanofi", "SNY"),
+            ("JB Chemicals & Pharmaceuticals Ltd acquires Azmarda brand from Novartis",
+             "Novartis AG", "NVS")):
+        assert parse_deal(headline, {name, ticker, name.split()[0]}) is None, headline
+
+
+def test_the_feed_keeps_only_the_companys_own_deals(tmp_path):
+    path = str(tmp_path / "azn.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('AZN', 'AstraZeneca PLC')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    conn.commit()
+    conn.close()
+    rows = DealsNewsFetcher(path).normalise(
+        {"companies": [{"id": cid, "ticker": "AZN", "name": "AstraZeneca PLC"}],
+         "feeds": {"AZN": AZN_FEED.read_text()}, "errors": []})
+    assert sorted(r["counterparty"] for r in rows) == ["EsoBiotec", "Neogene Therapeutics"]

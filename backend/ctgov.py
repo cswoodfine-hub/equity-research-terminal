@@ -55,3 +55,39 @@ def normalize_phase(phases) -> str | None:
     if not phases:
         return None
     return PHASE_MAP.get(tuple(phases))
+
+
+# The words a company's name carries to say what kind of company it is in law. They are
+# dropped before two names are compared, so "Vertex Pharmaceuticals Inc" and "Vertex
+# Pharmaceuticals Incorporated" read as one company. "Co" is not among them: without it
+# "Merck & Co" would shrink to "Merck" and take Merck KGaA's studies as its own.
+_LEGAL_WORDS = {
+    "inc", "incorporated", "corp", "corporation", "plc", "ag", "se", "sa", "nv", "bv",
+    "gmbh", "ltd", "limited", "llc", "lp", "holding", "holdings",
+}
+
+
+def _key(name) -> str:
+    """A company name reduced for comparison: lowercase, punctuation to spaces, the
+    trailing legal form dropped. "Novo Nordisk A/S" and "Novo Nordisk" give one key."""
+    words = "".join(c if c.isalnum() else " " for c in (name or "").lower()).split()
+    while words and (words[-1] in _LEGAL_WORDS
+                     or (len(words) > 1 and words[-2:] == ["a", "s"])):
+        words = words[:-2] if words[-2:] == ["a", "s"] else words[:-1]
+    return " ".join(words)
+
+
+def lead_names(lead, names) -> bool:
+    """Whether the registry's lead sponsor is one of these companies.
+
+    The lead sponsor is the registry's own answer to whose study it is, so it is the
+    test, not the query that found the study. A name counts when it appears in the lead
+    as whole words, which is how a subsidiary is still its parent's: "Wyeth is now a
+    wholly owned subsidiary of Pfizer" and "Karuna Therapeutics, Inc., a Bristol Myers
+    Squibb company" both name the parent. A lead the registry does not state names
+    nobody.
+    """
+    lead_key = f" {_key(lead)} "
+    if not lead_key.strip():
+        return False
+    return any(key and f" {key} " in lead_key for key in map(_key, names or ()))

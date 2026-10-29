@@ -1,0 +1,23 @@
+# Remodulin (UTHR): Phase 3 asset price. No layer, and no discontinuation rate.
+#
+# The unit 'Lung Diseases, Interstitial' is not a Remodulin indication. Its catalyst study,
+# TETON-PPF (NCT05943535), tests inhaled treprostinil, 6 mcg a breath four times daily from
+# the Tyvaso ultrasonic nebulizer, in progressive pulmonary fibrosis (clinicaltrials.gov API
+# v2). That is nebulized Tyvaso, a separate asset in the book (asset 98) whose revenue
+# United Therapeutics reports on its own line. Remodulin is parenteral treprostinil labelled
+# for PAH only (openFDA set 6c80bb38-e8db-4138-9f0d-dbbf9c673185). A layer here would book
+# Tyvaso's patients as Remodulin revenue, and uthr_tyvaso_ipf.csv already carries the
+# inhaled fibrosis trials. The fix is a trial_asset_map row sending NCT05943535 to the
+# inhaled treprostinil asset, which is outside this draft. No row is written for the unit.
+#
+# discontinuation_pct is left out: cannot be sourced on the brief's basis. Remodulin has no
+# labelled year to measure dosage units against (it is titrated in ng/kg/min to effect), and
+# the published persistence series read (Barst RJ et al., Eur Respir J 2006;28:1195-1203,
+# 860 patients: 23% stopped for adverse events and 14% for deterioration over up to four
+# years) gives no exposure time to annualise. A Kaplan-Meier time on parenteral treprostinil
+# would settle it. Nothing prices off it while the asset has no layer.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+UTHR,Remodulin,,US,base,list_price_per_patient,,0.13377448,,mm USD per patient-year,"CMS Medicare Part B Spending by Drug, 2024 data year (data.cms.gov dataset 76a714ad-3a2c-43ac-b76d-9dadf8f7d890, HCPCS J3285 'Injection, treprostinil, 1 mg', Brnd_Name Remodulin*; drug_demand asset 67, part B): $121,601,005.70 over 909 beneficiaries = $133,774.48 a beneficiary a year (Avg_Spndng_Per_Bene_2024). The series: $149,014 (2020), $147,357, $130,711, $135,898, $133,774 (2024); the unit price is flat at $54.69 a mg","the per-beneficiary basis, not a labelled year. The Part D row (110 beneficiaries, $122,999) is left out. United Therapeutics reports in USD, so no conversion"
+UTHR,Remodulin,,US,base,gross_to_net_pct,,0.056604,,share off list,"house convention on a CMS Part B anchor (backend/gross_to_net.py): Part B pays 106% of average sales price, which is already net of manufacturer discounts, so 1 - 1/1.06 = 0.056604 comes off and nothing more",Remodulin is billed under Part B as a drug used with a durable infusion pump

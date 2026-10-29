@@ -1,0 +1,60 @@
+# Round 2 asset models
+
+Measured on a copy of the published book after the linking round, 2026-10-28.
+
+- ABBV | ABBV-400 | clinical-stage | readouts: Colorectal Neoplasms 2026-12 NCT06107413 (phase correction pending)
+- ABBV | Emrelis | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2028-02 NCT06568939
+- AMGN | Avacopan | clinical-stage | readouts: Pediatric ANCA-associated vasculitis 2027-07-18 NCT06321601
+- AMGN | Inebilizumab | clinical-stage | readouts: Lupus Erythematosus, Systemic 2028-08-06 NCT06570798
+- ARCT | ARCT-032 | clinical-stage | readouts: Cystic Fibrosis 2027-06 NCT06747858
+- ARGX | Vyvgart Hytrulo | marketed | readouts: Myositis 2028-09 NCT05979441; Purpura, Thrombocytopenic, Idiopathic 2027-10 NCT04812925; Sjogren's Syndrome 2027-07 NCT06684847
+- ARWR | Plozasiran | clinical-stage | readouts: Hypertriglyceridemia 2028-07 NCT06822790
+- AUTL | Aucatzyl | marketed | readouts: Lupus Nephritis 2028-08 NCT07053800
+- AXSM | AXS-14 (Esreboxetine) | clinical-stage | readouts: Fibromyalgia 2028-03 NCT07398417; Fibromyalgia 2028-05 NCT07637162
+- AXSM | Auvelity | marketed | readouts: Smoking Cessation 2027-12 NCT07766655
+- AXSM | Sunosi | marketed | readouts: Binge-Eating Disorder 2026-12 NCT06413433; Binge-Eating Disorder 2027-12 NCT06878976; Disorders of Excessive Somnolence 2026-12 NCT06568367; Pediatric attention deficit hyperactivity disorder 2027-12 NCT07773883; Pediatric attention deficit hyperactivity disorder 2028-06-30 NCT07717879; Pediatric attention deficit hyperactivity disorder 2028-06-30 NCT07717892
+- AZN | Baxfendy | marketed | readouts: Hyperaldosteronism 2027-07-27 NCT07007793
+- AZN | Datroway | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-11-01 NCT05687266
+- BAYN | Hyrnuo | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-10-28 NCT06452277
+- BEAM | BEAM-101 | clinical-stage | readouts: Anemia, Sickle Cell 2028-02 NCT05456880 (phase correction pending)
+- BEAM | BEAM-201 | clinical-stage | readouts: Precursor Cell Lymphoblastic Leukemia-Lymphoma 2026-12 NCT05885464 (phase correction pending)
+- BEAM | BEAM-301: Single dose of BEAM-301 administered by IV | clinical-stage | readouts: Hepatorenal form of glycogen storage disease 2027-12-30 NCT06735755 (phase correction pending)
+- BEAM | BEAM-302 | clinical-stage | readouts: alpha 1-Antitrypsin Deficiency 2028-05 NCT06389877 (phase correction pending)
+- BMY | Augtyro | marketed | readouts: Carcinoma, Non-Small-Cell Lung 2027-02-16 NCT06140836
+- BNTX | BNT166a | clinical-stage | readouts: Mpox, Monkeypox 2027-06 NCT07379580
+- CABA | CABA-201 | clinical-stage | readouts: Myositis 2028-07 NCT06154252
+- CRBU | CB-011 | clinical-stage | readouts: Multiple Myeloma 2027-12 NCT05722418 (phase correction pending)
+- CRSP | CTX340 | clinical-stage | readouts: Hypertension 2028-07-01 NCT07758634 (phase correction pending)
+- EXEL | XL092 | clinical-stage | readouts: Carcinoma, Renal Cell 2026-12-15 NCT05678673 (phase correction pending)
+- EXEL | Zanzalintinib | clinical-stage | readouts: Squamous Cell Carcinoma of Head and Neck 2028-08 NCT06082167
+- GILD | Sunlenca | marketed | readouts: Pre-Exposure Prophylaxis 2028-09 NCT07047716
+- GSK | PENMENVY | marketed | readouts: Pediatric meningococcal meningitis 2027-03-10 NCT05087056
+- INCY | INCA034176 | clinical-stage | readouts: Graft vs Host Disease 2027-09-28 NCT06585774; Graft vs Host Disease 2028-05-31 NCT06821542
+- INCY | INCB161734 | clinical-stage | readouts: Pancreatic Neoplasms 2028-09-15 NCT07522073
+- JNJ | Balversa | marketed | readouts: Non-Muscle Invasive Bladder Neoplasms 2028-04-06 NCT06919965; Non-Muscle Invasive Bladder Neoplasms 2028-06-28 NCT06319820
+- JNJ | Icotyde | marketed | readouts: Arthritis, Psoriatic 2027-02-10 NCT06807424; Colitis, Ulcerative 2028-01-14 NCT07196748; Crohn Disease 2028-09-19 NCT07196722
+- JNJ | Imaavy | marketed | readouts: Erythroblastosis, Fetal 2027-08-05 NCT05912517; Polyradiculoneuropathy, Chronic Inflammatory Demyelinating 2027-05-14 NCT05327114; Sjogren's Syndrome 2028-01-01 NCT06741969; Thrombocytopenia, Neonatal Alloimmune 2027-12-15 NCT06533098
+- JNJ | Inlexzo | marketed | readouts: Urinary Bladder Neoplasms 2026-12-30 NCT04658862
+- KRRO | KRRO-121 | clinical-stage | readouts: Urea Cycle Disorders, Inborn 2027-08 NCT07773246 (phase correction pending)
+- LEGN | LB2102 | clinical-stage | readouts: Small Cell Lung Carcinoma 2027-12 NCT05680922 (phase correction pending)
+- LEGN | LUCAR-G79D T cells | clinical-stage | readouts: Lupus Erythematosus, Systemic 2028-01-31 NCT07331272 (phase correction pending)
+- LNTH | [18F]PI-2620 | clinical-stage | readouts: Alzheimer Disease 2028-03 NCT05641688
+- MRK | Lipfendra | marketed | readouts: Hypercholesterolemia 2028-10-13 NCT06492291
+- MRNA | mRNA-1018-H5 | clinical-stage | readouts: Influenza, Human 2027-01-28 NCT07496450
+- MRNA | mRNA-1403 | clinical-stage | readouts: Caliciviridae Infections 2027-02-15 NCT06592794
+- NTLA | nexiguran ziclumeran | clinical-stage | readouts: Amyloid Neuropathies, Familial 2027-07 NCT06672237; Amyloidosis, Hereditary, Transthyretin-Related 2027-12 NCT06128629
+- NVS | Piqray | marketed | readouts: Lymphatic Abnormalities 2028-05-31 NCT05948943
+- PCVX | 0.5 mL of the low dose VAX-31 | clinical-stage | readouts: Pediatric pneumococcal infections 2027-12 NCT06720038
+- PCVX | 31-valent pneumococcal conjugate vaccine | clinical-stage | readouts: Pneumococcal Infections 2027-03 NCT07365826; Pneumococcal Infections 2027-03 NCT07425392
+- PFE | Litfulo | marketed | readouts: Alopecia universalis 2028-03-19 NCT06873945; Chronic Urticaria 2026-12-25 NCT07219615; Pediatric alopecia areata 2026-12-02 NCT07029711; Vitiligo 2027-03-31 NCT06163326; Vitiligo 2027-07-30 NCT06072183
+- PRAX | elsunersen | clinical-stage | readouts: Epilepsy 2026-12 NCT07019922 (phase correction pending)
+- PRAX | vormatrigine | clinical-stage | readouts: Seizures 2027-01 NCT07505004
+- QURE | AMT-191 | clinical-stage | readouts: Fabry Disease 2027-12-01 NCT06270316 (phase correction pending)
+- QURE | AMT-260 | clinical-stage | readouts: Epilepsy 2026-11-30 NCT06063850 (phase correction pending)
+- RCKT | RP-A501 | clinical-stage | readouts: Glycogen Storage Disease Type IIb 2028-06 NCT06092034
+- REGN | Veopoz | marketed | readouts: Geographic Atrophy 2028-07-31 NCT06541704; Hemoglobinuria, Paroxysmal 2028-10-10 NCT05744921
+- RGNX | RGX-121-3102 | clinical-stage | readouts: Mucopolysaccharidosis II 2028-04-30 NCT07236606
+- RVMD | daraxonrasib | clinical-stage | readouts: Carcinoma, Non-Small-Cell Lung 2027-12-01 NCT06881784; Pancreatic Neoplasms 2028-06 NCT07491445
+- SGMOQ | ST-503 | clinical-stage | readouts: Small Fiber Neuropathy 2027-07 NCT06980948 (phase correction pending)
+- SMMT | Ivonescimab Injection | clinical-stage | readouts: Carcinoma, Non-Small-Cell Lung 2028-04 NCT06767514; Colorectal Neoplasms 2028-05-31 NCT07228832
+- SNY | Menquadfi | marketed | readouts: Pediatric meningococcal infections 2028-03-13 NCT07710872

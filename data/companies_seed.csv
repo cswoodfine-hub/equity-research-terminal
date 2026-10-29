@@ -32,7 +32,7 @@ ALNY,"Alnylam Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://www.alnylam.com
 IONS,"Ionis Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://ir.ionis.com/rss/news-releases.xml,,Ionis Pharmaceuticals,,,,,
 ARWR,"Arrowhead Pharmaceuticals, Inc.",NASDAQ,US,USD,,0,1,,https://ir.arrowheadpharma.com/rss/news-releases.xml,,Arrowhead Pharmaceuticals,,,,,
 MRNA,"Moderna, Inc.",NASDAQ,US,USD,,0,1,,https://news.modernatx.com/feed/rss2,,"ModernaTX, Inc.",,,,,
-BNTX,BioNTech SE,NASDAQ,US,USD,,0,1,,https://investors.biontech.de/rss/news-releases.xml,,BioNTech SE,,,,,
+BNTX,BioNTech SE,NASDAQ,DE,EUR,BNTX,1,1,,https://investors.biontech.de/rss/news-releases.xml,,BioNTech SE,,,,,
 VKTX,"Viking Therapeutics, Inc.",NASDAQ,US,USD,,0,1,,https://ir.vikingtherapeutics.com/press-releases?pagetemplate=rss,,Viking Therapeutics,,,,,
 ALT,"Altimmune, Inc.",NASDAQ,US,USD,,0,1,,https://ir.altimmune.com/rss/news-releases.xml,,Altimmune,,,,,
 GPCR,Structure Therapeutics Inc.,NASDAQ,US,USD,,0,1,,https://ir.structuretx.com/rss/news-releases.xml,,Structure Therapeutics,,,,,

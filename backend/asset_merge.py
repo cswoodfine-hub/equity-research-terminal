@@ -403,6 +403,23 @@ def _absorb(conn, survivor_id: int, loser_id: int) -> int:
     _fold_one_per_asset(conn, survivor_id, loser_id)
     moved = conn.execute("UPDATE trials SET asset_id = ? WHERE asset_id = ?",
                          (survivor_id, loser_id)).rowcount
+    # A readout linked to one of the loser's indication pairs points at a row the loop
+    # below deletes wherever the survivor holds the same pair. Osavampator and its code
+    # NBI-1065845 each carried major depression with a readout on it, and the delete
+    # failed the foreign key and stopped the whole merge. The readout follows to the
+    # survivor's pair for the same disease, which is the same fact.
+    conn.execute(
+        """UPDATE catalysts SET asset_indication_id = (
+               SELECT keep.id FROM asset_indications keep
+                 JOIN asset_indications gone ON gone.id = catalysts.asset_indication_id
+                WHERE keep.asset_id = ? AND keep.indication_id = gone.indication_id
+                  AND COALESCE(keep.region, '') = COALESCE(gone.region, ''))
+            WHERE asset_indication_id IN (
+               SELECT gone.id FROM asset_indications gone
+                 JOIN asset_indications keep ON keep.asset_id = ?
+                  AND keep.indication_id = gone.indication_id
+                  AND COALESCE(keep.region, '') = COALESCE(gone.region, '')
+                WHERE gone.asset_id = ?)""", (survivor_id, survivor_id, loser_id))
     # Anything else keyed to the losing row follows the trials, so the delete cannot
     # orphan a mapping or break a foreign key. Where the survivor already holds the same
     # key, the move is skipped and the duplicate dropped: it is the same fact recorded

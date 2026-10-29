@@ -760,3 +760,44 @@ def test_a_terms_figure_that_is_the_company_s_own_revenue_is_refused(tmp_path):
     assert deals.is_own_revenue(conn, 1, 10_900_000_000) is False
     assert deals.is_own_revenue(conn, 1, None) is False
     conn.close()
+
+
+def test_prune_clears_a_deal_done_by_someone_else(tmp_path):
+    """"Rubicon Point Partners Acquires Shockwave Medical Headquarters Campus" and
+    "Azurity acquires Covis Pharma" were filed as the searched company's acquisitions.
+    The buyer is named before the verb, and it is not the company."""
+    db_file, conn, cid = _deals_db(tmp_path)
+    for party, quote, accession, curated in (
+            # Someone else's deal, from a headline: cleared.
+            ("Kite Pharma", "Deal of the Year: Gilead Buys Kite Pharma", None, 0),
+            # The company's own, named by its initials: kept.
+            ("Alpha Bio", "J&J to acquire Alpha Bio", None, 0),
+            # An analyst's row is never judged by a headline rule.
+            ("Beta Bio", "Beta Holdings acquires Beta Bio", None, 1),
+            # A filing's quote is prose, and names the buyer as "the Company".
+            ("Gamma Bio", "The Company agreed to acquire Gamma Bio.", "0003-1", 0),
+            # No deal verb to say who is doing it: kept.
+            ("Sail Biomedicines", "J&J and Sail", None, 0)):
+        conn.execute(
+            "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote,"
+            "  accession, is_curated, event_date_source)"
+            " VALUES (?, 'acquisition', ?, '2026-07-28', ?, ?, ?, 'news')",
+            (cid, party, quote, accession, curated))
+    conn.commit()
+    conn.close()
+
+    assert deals.prune_parties(db_file)["dropped"] == 1
+    conn = db.get_connection(db_file)
+    kept = {r[0] for r in conn.execute("SELECT counterparty FROM deals")}
+    conn.close()
+    assert kept == {"Alpha Bio", "Beta Bio", "Gamma Bio", "Sail Biomedicines"}
+
+
+def test_a_short_first_word_does_not_name_the_company():
+    """Novo Holdings is the foundation's investment arm, not Novo Nordisk."""
+    assert not deals.names_buyer("Novo Holdings completes", "Novo Nordisk A/S", "NVO")
+    assert deals.names_buyer("Novo Nordisk to", "Novo Nordisk A/S", "NVO")
+    assert deals.names_buyer("Lilly to", "Eli Lilly and Company", "LLY")
+    assert deals.names_buyer("Maryland Firm Scores Early Exit as Eli Lilly and Company",
+                             "Eli Lilly and Company", "LLY")
+    assert not deals.names_buyer("Double play: Thermo", "Sanofi", "SNY")

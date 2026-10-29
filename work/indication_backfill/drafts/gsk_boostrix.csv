@@ -1,0 +1,24 @@
+# Boostrix (GSK). Tdap vaccine, 654mm GBP in FY2025 (400mm GBP of it US). Draft seeds, 2026-10-28.
+#
+# Whooping Cough: ALREADY APPROVED, so nil. The pending readout, NCT07596199 (Phase 3, 102 enrolled,
+# single arm, healthy pregnant women in Japan vaccinated at 27 to 36 weeks of gestation, primary
+# completion 2026-11-23), measures anti-pertussis seropositivity in the mothers and in cord blood. It
+# is an immunogenicity bridging study for a Japanese filing, not an efficacy readout, and the
+# population it serves is already on the US label: 'immunization during the third trimester of
+# pregnancy to prevent pertussis in infants younger than 2 months of age' (DailyMed setid
+# cd98bff9-4602-4268-d68d-029a14a5513b, published 2026-07-23). The US revenue the layer is measured
+# against already contains these women, so base_pool_overlap_pct is 1.0 and no pool is seeded. A
+# Japanese approval would add ex-US sales, which is a question for the marketed line's growth rate,
+# not patients for a US layer.
+#
+# The asset price, deduction and stopping rate are written anyway, because the seed held none and
+# any later Boostrix layer needs them. All three follow gsk_arexvy.csv's method for a single-dose
+# vaccine, and the price is converted to GBP, the currency GSK reports in, because the engine reads
+# the number as GBP whatever the unit says.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GSK,Boostrix,,US,base,list_price_per_patient,,0.0000467836,,mm GBP per patient-year,"CMS Medicare Part D Spending by Drug 2024 (data.cms.gov dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b), row 'Boostrix Tdap', manufacturer GlaxoSmithKline: $94,390,236.18 over 1,511,572 beneficiaries = $62.45 a beneficiary. The same row gives 767,203.2 dosage units; a unit is 1 mL and a dose is 0.5 mL (DailyMed setid cd98bff9-4602-4268-d68d-029a14a5513b, section 2), so 1.015 doses a beneficiary: the per-beneficiary figure is one dose. Scale against the openly published list: the CDC Adult Vaccine Price List, prices last reviewed 2026-10-01 (cdc.gov/vaccines-for-children/media/pdfs/2026/09/Adult-Vaccine-Price-List-10-01-26.pdf), puts Boostrix, NDC 58160-0842-52, 10 pack of 1-dose syringes, at $50.141 a dose private sector and $29.348 on federal contract 75D30126D20935 to 2027-06-30. Converted to GBP: $62.4451 at 1.334765 USD per GBP (ECB, fx_rates as of 2026-10-26, backend/fx.py) is GBP 46.7836, 0.0000467836mm","the CMS per-beneficiary basis the brief sets, as gsk_arexvy.csv carries it. For a single-dose vaccine the per-beneficiary figure and a labelled course are the same thing"
+GSK,Boostrix,,US,base,gross_to_net_pct,,0.530019,,share off list,"measured between two published prices, as gsk_arexvy.csv measures it: the CDC federal contract price of $29.348 a dose (CDC Adult Vaccine Price List, 2026-10-01) against the $62.4451 CMS Part D per-beneficiary anchor above. 1 - 29.348 / 62.4451 = 0.5300","the deep end: the federal contract price covers only the publicly purchased share and the Part D figure includes pharmacy administration margin GSK never sees, so a blended net sits between this and nil. Conservative for revenue"
+GSK,Boostrix,,US,base,discontinuation_pct,,1.0,,share of the stock a year,"the label itself: each dose of BOOSTRIX is 0.5 mL, given as a booster from age 10 or once in the third trimester of each pregnancy (DailyMed setid cd98bff9-4602-4268-d68d-029a14a5513b, sections 1 and 2). The CMS Part D 2024 row agrees, at 1.015 doses a beneficiary, so a vaccinated person takes one dose in the year and leaves the stock","not a persistence measure: a one-off immunisation has no continuing stock, the reading gsk_arexvy.csv and pfe_prevnar.csv take"
+GSK,Boostrix,Whooping Cough,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved. BOOSTRIX is indicated for 'active booster immunization against tetanus, diphtheria, and pertussis in individuals aged 10 years and older' and 'immunization during the third trimester of pregnancy to prevent pertussis in infants younger than 2 months of age' (DailyMed setid cd98bff9-4602-4268-d68d-029a14a5513b, published 2026-07-23, section 1). NCT07596199 vaccinates healthy pregnant women at 27 to 36 weeks of gestation with the same dTpa vaccine and measures antibody, not disease","nil, not pending. A Japanese bridging study moves a Japanese filing, not US patients, so no pool is seeded"

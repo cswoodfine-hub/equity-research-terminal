@@ -1,0 +1,23 @@
+# Quemliclustat (GILD): AB680, Arcus Biosciences' small-molecule CD73 inhibitor. Gilead holds an exclusive licence to the
+# CD73 programme: it opted in under the 2021 amendment, the two companies co-develop globally and share US co-promotion,
+# and Gilead holds commercial rights outside the US subject to Taiho's in Japan and other Asian countries (Arcus FY2025
+# 10-K, 0001724521-26-000009). Not a second name for anything the book values: no seed, alias or trial row names it.
+#
+# The readout on this row is EDGE-Lung (NCT05676931), Gilead's Phase 2 platform of quemliclustat or domvanalimab with
+# zimberelimab in advanced non-small cell lung cancer, objective response rate as the primary endpoint. That programme is
+# stopped: in April 2026 STAR-121, the domvanalimab and zimberelimab Phase 3 in first-line NSCLC, failed its futility
+# analysis, and Arcus wrote that 'STAR-121, along with the Phase 2 EDGE-Lung study, will be discontinued' (Q1 2026
+# results, 8-K exhibit 99.1, 0001724521-26-000032). The registry shows it active, not recruiting (read 2026-10-28). No
+# Phase 3 of quemliclustat in lung cancer is registered and Arcus now describes it as 'a small-molecule CD73 inhibitor
+# for pancreatic cancer' (Q2 2026 results, 8-K exhibit 99.1, 0001724521-26-000042). So the NSCLC layer is the complete
+# answer "programme stopped": pos 0 and no pool.
+#
+# Not modelled: pancreatic cancer, the asset's value. PRISM-1 (Phase 3, quemliclustat with gemcitabine and
+# nab-paclitaxel in first-line metastatic pancreatic ductal adenocarcinoma) completed enrolment in September 2025 with
+# results 'expected in the first half of 2027' (0001724521-26-000042). The book carries no catalyst for it, and pricing
+# it needs Gilead's share of a US co-promotion, which the filings describe but do not quantify for this programme. That
+# is the next build for this asset; this file says only that the lung readout prices nothing.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+GILD,Quemliclustat,"Carcinoma, Non-Small-Cell Lung",US,base,pos,,0.0,,probability,"filed: Arcus Q1 2026 results (8-K exhibit 99.1, 0001724521-26-000032): 'In April 2026, Arcus announced the discontinuation of the Phase 3 STAR-121 study ... based on the recommendation from the Independent Data Monitoring Committee following its review of data from a pre-planned futility analysis ... STAR-121, along with the Phase 2 EDGE-Lung study, will be discontinued.' EDGE-Lung is NCT05676931, the readout this row carries (registry primary completion 2027-12, estimated)","programme stopped, not a failed quemliclustat result: every quemliclustat arm of EDGE-Lung pairs it with zimberelimab (arms A3, B1, B3, C1), whose NSCLC registration route ended with STAR-121, and no quemliclustat lung study is registered. Seed no pool. A new NSCLC Phase 3 would reopen it"

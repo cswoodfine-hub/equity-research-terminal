@@ -1,0 +1,33 @@
+# Dupixent (SNY). dupilumab. EUR 15,714mm in FY2025.
+#
+# Round 2, 2026-10-28. The asset carried no price and no stopping rate. Both are written here, so
+# any later Dupixent layer can price: CMS Part D 2025 spending per beneficiary across the pen and
+# the syringe, in euros, and the dosage-unit stopping rate on the same patients.
+#
+# No layer is written for either unit, and each is a complete answer:
+#
+# Pediatric prurigo nodularis (NCT06293053, 18 children aged 6 months to 17, PK and safety): a real
+# age extension, since the label approves prurigo nodularis in adults only (openFDA set
+# 595f437d-2729-40bb-9c62-c8ece1f82780, effective 2026-04-22), and a PK bridging study is how a
+# paediatric label is reached. CANNOT BE SOURCED: the pool. Searched PubMed and PMC for a US
+# paediatric PN prevalence; the one US source, Huang AH et al., 'Real-world disease burden and
+# comorbidities of pediatric prurigo nodularis', J Am Acad Dermatol 2022;86(3):655-657
+# (doi 10.1016/j.jaad.2021.02.030), is a research letter not open in PMC. Its patient count over
+# the base population of its database, or any US claims count of L28.1 under 18, would settle it.
+#
+# Pruritus (NCT05263206, LIBERTY-CPUO-CHIC, chronic pruritus of unknown origin): CANNOT BE SOURCED,
+# the pool. No US prevalence of CPUO exists in PubMed or PMC; a German itch centre cohort of 263
+# patients says itself that 'epidemiological studies are needed in order to establish
+# the exact prevalence of CPUO' (Pereira MP et al., Acta Derm Venereol 2021;101(9):adv00550,
+# PMC9425595), and a stack of a German self-reported chronic pruritus prevalence and a 6% unknown
+# origin share is not a US count. A US claims study of chronic pruritus with known causes excluded
+# would settle it. For whoever writes the pos when it is: Study A of this master protocol 'did not
+# achieve statistical significance in its primary itch responder endpoint (despite favorable
+# numerical improvements)' (Sanofi 6-K 0001193125-24-218683, exhibit 99.1, 2024-09-13), so the
+# 2027-06-02 readout is Study B, the second attempt.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+SNY,Dupixent,,US,base,list_price_per_patient,,0.02677019,,mm EUR per patient-year,"CMS Medicare Part D Spending by Drug, quarterly companion (data.cms.gov dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15), Mftr_Name Overall, row '2025 (Q1-Q4)': Dupixent Pen $3,967,514,710.96 over 133,291 beneficiaries and Dupixent Syringe $991,147,998.63 over 32,271, together $4,958,662,709.59 over 165,562 = $29,950.49 per beneficiary. In EUR because the engine models Sanofi in its reporting currency: at EUR/USD 1.1188 (ECB reference rate 2026-10-26, fx_rates, the rate sny_wayrilz.csv uses) that is EUR 26,770.19","per beneficiary, so paired with the dosage-unit stopping rate below. Pen and syringe are summed because Sanofi reports one Dupixent line; a patient who moved between them in the year counts once under each, so the per-patient figure leans low. Gross of rebates; the next row takes it to net"
+SNY,Dupixent,,US,base,gross_to_net_pct,,0.5,,share off list,"Part D gross-to-net convention, measured at a median 96% of CMS's own negotiated net annual prices across the nine cycle-one IRA drugs (backend/gross_to_net.py, PART_D_CONVENTION); the price above is CMS Part D gross spend, which is before rebates. The convention sny_wayrilz.csv and the other Sanofi Part D rows carry","the convention, not a Dupixent figure: Sanofi publishes no US gross-to-net for it. Net EUR 13,385 a patient-year"
+SNY,Dupixent,,US,base,discontinuation_pct,,0.429362,,share of the stock a year,"CMS Medicare Part D Spending by Drug annual file (data.cms.gov dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b), 2024, the latest year with dosage units: Dupixent Pen 1,903,445.06 units over 65,541 beneficiaries and Dupixent Syringe 718,891.80 over 22,833, together 2,622,336.86 over 88,374 = 29.67 units each. A unit is one mL: the pen's 2024 claim averaged $4,005.66 at $955.17 a unit, 4.19 units, which is two 2 mL syringes, a 28-day fill at 300 mg every two weeks. A labelled year at 300 mg every two weeks (Dupixent prescribing information, openFDA set 595f437d-2729-40bb-9c62-c8ece1f82780) is 26 x 2 mL = 52 mL, so a beneficiary averages 0.5706 of a labelled year and 1 - 0.5706 = 0.4294","the book's dosage-unit convention, measured on the patients the price is quoted on. It leans high: the 200 mg (1.14 mL) asthma dose and the every-four-weeks paediatric doses use fewer mL a year on drug, and a loading dose in the first year uses more"

@@ -1,0 +1,21 @@
+# Belsomra (MRK). suvorexant, 186mm USD in FY2025. Draft seeds, 2026-10-28.
+#
+# Sleep Initiation and Maintenance Disorders: ALREADY APPROVED, so nil. The pending readout,
+# MK-4305-098 (NCT06655883, Phase 3, 300 estimated, adults 18 to 70 with DSM-5 insomnia disorder and
+# opioid use disorder stable on medication for it; total sleep time at week 8; primary completion
+# 2027-06-24), treats insomnia, and the label covers 'insomnia characterized by difficulties with
+# sleep onset and/or sleep maintenance' with no restriction by comorbidity (openFDA label set
+# e5b72731-1acb-45b7-9c13-290ad12d3951, effective 2025-03-10). These patients are prescribable today
+# and inside the reported revenue, so base_pool_overlap_pct is 1.0 and no pool is seeded. A positive
+# study would add evidence in a population where prescribers are cautious with sedatives, which is a
+# growth-rate question for the marketed line, not a layer.
+#
+# The asset price, deduction and stopping rate are written anyway, because the seed held none and
+# any later Belsomra layer needs them.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+MRK,Belsomra,,US,base,list_price_per_patient,,0.001948,,mm USD per patient-year,"CMS Medicare Part D Spending by Drug 2024, the book's drug_demand row for this asset: $150,180,014.54 over 77,098 beneficiaries = $1,947.91 a beneficiary. Scale against a full labelled year: the same row gives 10,353,089.5 dosage units, tablets, at $14.51 each, and the label's one tablet nightly is 365 a year, about $5,295. The 2025 quarterly companion (dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15) gives $2,094.23 a beneficiary over 73,079","the per-beneficiary basis the brief sets; discontinuation_pct below is read off the same row"
+MRK,Belsomra,,US,base,gross_to_net_pct,,0.218686,,share off list,"Merck's own filed US figures: the current provision for aggregate customer discounts (chargebacks and rebates) related to US sales was $10,219mm in 2025, against US sales of $36,510mm (Merck FY2025 10-K, 0000310158-26-000063, the revenue recognition note's roll-forward of the aggregate customer discount accrual, and the consolidated sales by geographic area table). 10,219 / (10,219 + 36,510) = 0.2187","Merck's whole US book, weighted by Keytruda, which is a Part B product carrying little rebate. A Part D primary-care product in a generic-heavy class rebates deeper, so this reads light"
+MRK,Belsomra,,US,base,discontinuation_pct,,0.632096,,share of the stock a year,"read off the same CMS row as the price: 10,353,089.5 tablets over 77,098 beneficiaries is 134.28 a beneficiary in 2024, against the 365 a labelled year of one nightly tablet holds, 0.3679 of a year. 1 - 0.3679 = 0.6321","insomnia is often treated intermittently, so part of the shortfall is as-needed use rather than stopping; it is the share of a labelled year a beneficiary consumes, which is what pairs with the per-beneficiary price"
+MRK,Belsomra,Sleep Initiation and Maintenance Disorders,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"already approved. BELSOMRA 'is indicated for the treatment of insomnia, characterized by difficulties with sleep onset and/or sleep maintenance' (openFDA label set e5b72731-1acb-45b7-9c13-290ad12d3951, effective 2025-03-10, section 1), with no exclusion by comorbidity; the warnings caution that co-administration with other CNS depressants, opioids among them, increases the risk of CNS depression, which is a precaution, not a limit on the indication. NCT06655883 enrols adults meeting DSM-5 criteria for insomnia disorder who are stable on medication for opioid use disorder","nil, not pending. The readout moves evidence, not patients, so no pool is seeded"
