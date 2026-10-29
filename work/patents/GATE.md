@@ -152,3 +152,37 @@ Actemra stays flagged here. "A recent loss keeps eroding" is the follow-up: a lo
 the base that is younger than its erosion row's run would keep decaying from the year it
 began. It touches every product whose loss passed in the last few years, so it gets its
 own measured delta.
+
+## Follow-up: does a recent loss keep eroding? Measured, and no
+
+Tested 2026-10-29 with `work/patents/tools/decline_backtest.py`. The test takes each year a
+product's series fell after its loss had passed, projects it forward three ways, and
+compares with the reported level:
+
+- **fade:** today's rule, the rate fading to zero over five years;
+- **hold:** the rate held, capped at the erosion row's decay for that many years past
+  the loss;
+- **curve:** the erosion row's own decay for that many years past the loss.
+
+The filer series are too short (33 events), so the test runs on CMS Medicare spending,
+Part D and Part B, 2013 on. That is gross and Medicare only, but long.
+
+| events | horizon | fade, median / median abs | hold | curve |
+|---|---|---|---|---|
+| all 186 | 1 year (n 132) | -0.009 / 0.105 | +0.005 / 0.104 | -0.141 / 0.196 |
+| all 186 | 2 years (n 87) | -0.005 / 0.160 | -0.025 / 0.224 | -0.284 / 0.410 |
+| all 186 | 3 years (n 49) | -0.003 / 0.269 | -0.034 / 0.408 | -0.372 / 0.644 |
+| within 3 years of the loss, 35 | 1 year (n 28) | +0.009 / 0.141 | +0.105 / 0.170 | +0.092 / 0.180 |
+| within 3 years of the loss, 35 | 2 years (n 19) | +0.046 / 0.219 | +0.113 / 0.312 | +0.113 / 0.397 |
+| within 3 years of the loss, 35 | 3 years (n 11) | +0.253 / 0.269 | +0.222 / 0.248 | +0.222 / 0.707 |
+
+Errors are the log of projected over reported; negative over-predicts the fall.
+
+- The fade is unbiased and the most accurate at every horizon on all events.
+- The erosion curve suits a fresh cliff, not a line already past one: it over-predicts
+  the fall by about a third at three years.
+- Within three years of a loss, all three under-predict the fall. The fade is best or
+  tied at one and two years; at three years there are 11 events, too few to choose.
+
+So the rule built to hold Actemra's decline (39 assets, -47,416mm on a copy) is not kept,
+and Actemra stays on the merged treatment, which is the best measured of the three.
