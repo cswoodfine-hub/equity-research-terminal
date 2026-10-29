@@ -31,7 +31,7 @@ Every finding, with its quote, is in `filer_dates_2026-10-29.json`.
 | same year as the model (a table year against an exact Orange Book date) | 40 |
 | differs | 26 |
 | "expired" or lost, with no year | 4 |
-| a range of years the text cannot resolve (AstraZeneca) | 7 |
+| a range of years the text cannot resolve (AstraZeneca, GSK), read from the HTML below | 7 |
 
 ### Rows added (11)
 
@@ -71,19 +71,75 @@ crystal form as "drug substance", and the latest one is not the molecule.
   - Lutathera: orphan exclusivity only.
   - Benlysta and Toujeo: compound patent expired, no biosimilar named.
   - Breo Ellipta: a Paragraph IV trial is set for November 2026.
-- **AstraZeneca ranges:**
-  - Products: Saphnelo, Lokelma, Fasenra, Wainua, FluMist, Beyfortus, and Nucala (GSK).
-  - The 20-F marks molecule patents in bold and other patents in italics, and that
-    formatting is lost in text. Reading those needs the HTML.
+- **AstraZeneca and GSK ranges:** read from the HTML, below.
 - **Jevtana:** generics are on the market, but no US entry date is given.
+
+## AstraZeneca and GSK, read from the HTML
+
+The two 20-F tables mark which year is the molecule's, and plain text loses the marks.
+`tools/filer_dates/html_tables.py` reads the tables from the filing's HTML with each
+cell's runs marked bold or italic: inherited from the enclosing element, with an
+explicit style overriding it. GSK's spans set `font-style:normal` inside italic cells.
+
+- **AstraZeneca.**
+  - The key: "Bolded expiry dates relate to new molecular entity patents. The
+    remaining dates relate to other patents."
+  - The dates include granted SPC, PTE and paediatric exclusivity; regulatory data
+    exclusivity is not shown.
+  - A bold range is several molecule patents, so its end is the date; the existing
+    Strensiq row already reads it that way.
+  - Agree with the model: Tagrisso, Lynparza, Farxiga, Koselugo, Tezspire, Wainua and
+    Beyfortus. This confirms the first-listed-year reading.
+  - No US molecule patent listed: Lokelma, Fasenra, Airsupra, Breztri, Symbicort,
+    FluMist and Imjudo.
+  - Saphnelo's molecule patents run to 2029, inside its 12 years, so the floor sets its
+    date. The floor exposed the fetcher bug below.
+- **GSK.** "Patent expiry dates ... in normal text relate to the latest expiring new
+  molecular entity patents ... Patent expiry dates in italics relate to other patents",
+  and `*` marks a pending PTE.
+  - Agree with the model: Apretude, Cabenuva, Zejula, Trelegy, Anoro, Bexsero and
+    Shingrix.
+  - Pending (not taken): Exdensur, Jemperli and Ojjaara.
+  - Arexvy's 2030 is inside its 12 years.
+  - Nucala lists no US molecule patent and Benlysta's has expired, so both rest on the
+    floor, which the bug below had set late.
+  - Breo Ellipta's molecule patent has expired. The model's 2031 comes from other
+    patents, and a Paragraph IV trial on them is set for November 2026; it is kept
+    until a generic is on the market.
+
+No rows were added from either table.
+
+### The 12-year floor counted from a later BLA
+
+`fetchers/exclusivity_purplebook.py` computed each BLA's floor from that BLA's own
+approval date. A later BLA from the same sponsor for the same molecule earns no new
+exclusivity (42 U.S.C. 262(k)(7)(C)), yet it set a later floor. Now every BLA of one
+sponsor's proper name counts from the earliest licensure among them.
+
+Simulated on a copy (setting each asset's floors to its earliest, which is what the fixed
+parser writes), four values move, +7,769mm net:
+
+| product | floor before | after | NPV, mm |
+|---|---|---|---|
+| Benlysta | 2029-07-20 (the 2017 SC BLA) | 2023-03-09 | 3,124 to 9,461 |
+| Actemra | 2025-10-21 | 2022-01-08 | 2,520 to 6,726 |
+| Nucala | 2031-06-06 | 2027-11-04 | 3,866 to 2,262 |
+| Saphnelo | 2038-04-24 (the 2026 SC BLA) | 2033-07-30 | 4,490 to 3,320 |
+
+The real book takes it at the next Purple Book fetch. This environment's proxy refuses
+the host, so it could not be refetched here.
+
+The two rises come from a date that falls before the forecast's first year: the loss
+then sits in the base, with no erosion.
+
+- **Actemra:** right, since its US biosimilars launched in 2024.
+- **Benlysta:** no biosimilar is filed, so it now runs with no cliff. The legal date is
+  right; whether to model a biosimilar before one exists is a curated call, not a
+  reading of the filing.
 
 ## Not covered
 
 - **Roche and Bayer** are not SEC registrants: 31 valued products without a row.
-- **Formatting lost in the text:**
-  - AstraZeneca's and GSK's bold and italics, as above.
-  - The first-listed AstraZeneca year was read as the molecule's. The rows where that
-    already agrees with the model rest on that reading.
 - **Next season:** rerun when the FY2026 reports file.
   1. `get_annual.py <dir> TICKER:CIK ...`
   2. `snippets.py`
