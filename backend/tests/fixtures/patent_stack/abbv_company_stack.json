@@ -1,0 +1,184 @@
+{
+ "ticker": "ABBV",
+ "products": [
+  {
+   "asset_id": 88,
+   "brand": "Teflaro",
+   "generic": "Ceftaroline Fosamil",
+   "modality": "small molecule",
+   "loe": "2026-02-12",
+   "loe_year": 2026,
+   "basis": "generic marketed (2026-02-12, FDA Paragraph IV list)",
+   "past": true,
+   "listed_loe": null,
+   "governing": null,
+   "later_patents": 0,
+   "later_to": null,
+   "later_use": 0,
+   "paragraph_iv": {
+    "first_submission": "2014-10-29",
+    "pre_mma": false,
+    "filers": 2,
+    "first_marketing": "2026-02-12",
+    "first_approval": "2021-09-21",
+    "strengths": 1
+   },
+   "loe_range": null,
+   "erosion": null
+  },
+  {
+   "asset_id": 124,
+   "brand": "Kybella",
+   "generic": "Deoxycholic Acid",
+   "modality": "small molecule",
+   "loe": "2028-05-16",
+   "loe_year": 2028,
+   "basis": "drug substance patent",
+   "past": false,
+   "listed_loe": null,
+   "governing": {
+    "identifier": "8242294",
+    "expiry": "2028-05-16",
+    "effective": "2028-05-16",
+    "extended_to": null,
+    "term_extension": null,
+    "use_codes": [],
+    "kind": "molecule",
+    "type": "patent",
+    "governs": true,
+    "source": "orange_book"
+   },
+   "later_patents": 5,
+   "later_to": "2032-02-17",
+   "later_use": 1,
+   "paragraph_iv": {
+    "first_submission": "2018-07-13",
+    "pre_mma": false,
+    "filers": 1,
+    "first_marketing": null,
+    "first_approval": "2021-04-02",
+    "strengths": 1
+   },
+   "loe_range": null,
+   "erosion": null
+  },
+  {
+   "asset_id": 301,
+   "brand": "Venclexta",
+   "generic": "Venetoclax",
+   "modality": "small molecule",
+   "loe": "2032-01-29",
+   "loe_year": 2032,
+   "basis": "drug substance patent",
+   "past": false,
+   "listed_loe": null,
+   "governing": {
+    "identifier": "8722657",
+    "expiry": "2032-01-29",
+    "effective": "2032-01-29",
+    "extended_to": null,
+    "term_extension": null,
+    "use_codes": [],
+    "kind": "molecule",
+    "type": "patent",
+    "governs": true,
+    "source": "orange_book"
+   },
+   "later_patents": 6,
+   "later_to": "2033-09-06",
+   "later_use": 5,
+   "paragraph_iv": {
+    "first_submission": "2020-04-13",
+    "pre_mma": false,
+    "filers": 2,
+    "first_marketing": null,
+    "first_approval": "2026-05-15",
+    "strengths": 1
+   },
+   "loe_range": {
+    "why_bear": "the base",
+    "why_bull": "latest substance or product patent 11369599",
+    "bear": {
+     "date": "2032-01-29",
+     "npv": 9685.39066423857
+    },
+    "base": {
+     "date": "2032-01-29",
+     "npv": 9685.39066423857
+    },
+    "bull": {
+     "date": "2032-05-23",
+     "npv": 9685.39066423857
+    }
+   },
+   "erosion": {
+    "row": "small molecule",
+    "year1_pct": 0.71,
+    "decay_pct": 0.31,
+    "late_decay_pct": 0.23,
+    "late_from_year": 4.0,
+    "sample_n": 134,
+    "source": "measured 2026-10-29: 134 oral brands, average Part D gross cost kept after a first generic launch 0.299, 0.192, 0.138, 0.115, 0.078, 0.062 in years one to six after the launch year (n 134 to 70); this row reproduces those within 0.01. The filers' own US lines, net and every channel, agree in year one (15 launches, median ratio to Part D 1.05)"
+   }
+  },
+  {
+   "asset_id": 163,
+   "brand": "Rinvoq",
+   "generic": "Upadacitinib",
+   "modality": "small molecule",
+   "loe": "2036-10-17",
+   "loe_year": 2036,
+   "basis": "drug substance patent",
+   "past": false,
+   "listed_loe": null,
+   "governing": {
+    "identifier": "12110298",
+    "expiry": "2036-10-17",
+    "effective": "2036-10-17",
+    "extended_to": null,
+    "term_extension": null,
+    "use_codes": [],
+    "kind": "molecule",
+    "type": "patent",
+    "governs": true,
+    "source": "orange_book"
+   },
+   "later_patents": 2,
+   "later_to": "2038-03-09",
+   "later_use": 2,
+   "paragraph_iv": {
+    "first_submission": "2023-08-16",
+    "pre_mma": false,
+    "filers": 5,
+    "first_marketing": null,
+    "first_approval": null,
+    "strengths": 3
+   },
+   "loe_range": {
+    "why_bear": "molecule patent RE47221, extended under 35 USC 156",
+    "why_bull": "the base",
+    "bear": {
+     "date": "2033-08-16",
+     "npv": 45202.75104082395
+    },
+    "base": {
+     "date": "2036-10-17",
+     "npv": 54584.79774842256
+    },
+    "bull": {
+     "date": "2036-10-17",
+     "npv": 54584.79774842256
+    }
+   },
+   "erosion": {
+    "row": "small molecule",
+    "year1_pct": 0.71,
+    "decay_pct": 0.31,
+    "late_decay_pct": 0.23,
+    "late_from_year": 4.0,
+    "sample_n": 134,
+    "source": "measured 2026-10-29: 134 oral brands, average Part D gross cost kept after a first generic launch 0.299, 0.192, 0.138, 0.115, 0.078, 0.062 in years one to six after the launch year (n 134 to 70); this row reproduces those within 0.01. The filers' own US lines, net and every channel, agree in year one (15 launches, median ratio to Part D 1.05)"
+   }
+  }
+ ]
+}

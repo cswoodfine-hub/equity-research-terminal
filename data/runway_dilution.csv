@@ -1,0 +1,23 @@
+# What a cash-burning company's months of cash predict about the next twelve months,
+# measured 2026-10-29 by work/proxies/tools/runway_study.py (work/proxies/RESULTS_8B.md).
+#
+# Sample: 573 company-quarters across 56 companies whose trailing twelve months of
+# operating cash flow was negative, mostly 2020 on. Months of cash is cash plus short- and
+# long-term investments over the trailing burn, runway.py's own definition.
+#   p_raise_12m: share of company-quarters whose financing inflows over the next four
+#     quarters exceeded 10% of the cash on hand.
+#   share_growth_*: growth in weighted average diluted shares over the next four quarters;
+#     moves above +150% or below -50% left out as IPOs and reverse splits.
+#   extra_shares_12m: the 10%-trimmed average less the 7.5% of companies with five years
+#     of cash or more, which is employee stock the model already charges as a cost. That
+#     leaves the financing need.
+# A view beside the valuation: a raise at fair value is neutral, since the forecast
+# already charges the burn, and what it costs a holder depends on the share price, which
+# no value in the book reads.
+months_from,months_to,n,p_raise_12m,share_growth_median,share_growth_trimmed_mean,extra_shares_12m
+0,12,62,0.94,0.219,0.274,0.199
+12,18,55,0.91,0.191,0.257,0.182
+18,24,73,0.77,0.139,0.182,0.107
+24,36,129,0.68,0.084,0.130,0.055
+36,60,131,0.61,0.089,0.103,0.028
+60,,123,0.46,0.048,0.075,0.000

@@ -1247,7 +1247,7 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     import forecast_note
     note = forecast_note.write_company(v)
     assert note["headline"].startswith("On the model, TST's equity is worth $")
-    assert ("The single product already on the market supplies 84% of that value and "
+    assert ("The single product already on the market supplies 83% of that value and "
             "net cash 8%.") in note["headline"]
     assert ("The single candidate in development adds $0.81 once weighted by its chance "
             "of approval.") in note["headline"]

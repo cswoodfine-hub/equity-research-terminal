@@ -156,6 +156,16 @@ def _clean(value):
     return value if value and value.upper() != "N/A" else None
 
 
+def _molecule_key(product) -> tuple | None:
+    """One sponsor's molecule: the ticker (or the linked assets) and the proper name, so
+    two BLAs for anifrolumab-fnia from AstraZeneca share a key. None without a name."""
+    name = re.sub(r"\s+", " ", (product.get("generic") or "").strip().lower())
+    if not name:
+        return None
+    owner = product.get("ticker") or tuple(sorted(product.get("asset_ids") or ()))
+    return (owner, name)
+
+
 def parse_purple_book(csv_text, applicant_map, today=None, linked=None) -> list[dict]:
     """Turn the Purple Book CSV into biologic product rows with exclusivity. Pure.
 
@@ -222,6 +232,19 @@ def parse_purple_book(csv_text, applicant_map, today=None, linked=None) -> list[
                               or licensure < product["licensure"]):
                 product["licensure"] = licensure
 
+    # The 12-year clock runs from the molecule's first licensure, not each application's.
+    # A later BLA from the same sponsor for the same molecule (a new formulation or route)
+    # earns no new exclusivity (42 U.S.C. 262(k)(7)(C)), yet its own row carries its own
+    # approval date: Saphnelo's 2026 subcutaneous BLA set a 2038 floor over the 2033 one
+    # its 2021 licensure gives. So every BLA of one sponsor's molecule, read by its proper
+    # name, takes the earliest licensure among them.
+    first: dict = {}
+    for product in products.values():
+        key = _molecule_key(product)
+        if key and product["licensure"] and (key not in first
+                                             or product["licensure"] < first[key]):
+            first[key] = product["licensure"]
+
     # Add the statutory 12-year floor wherever the file publishes no reference-product
     # exclusivity of its own, so a biologic left with only an orphan date reads to the
     # real wall. A published reference-product date always wins over the computed one.
@@ -229,7 +252,8 @@ def parse_purple_book(csv_text, applicant_map, today=None, linked=None) -> list[
     for product in products.values():
         has_ref = any(e["protection_type"] == REF_PRODUCT_PROTECTION
                       for e in product["exclusivities"])
-        licensure = product.pop("licensure", None)
+        licensure = first.get(_molecule_key(product)) or product["licensure"]
+        product.pop("licensure", None)
         if not has_ref and licensure:
             product["exclusivities"].append(
                 {"protection_type": FLOOR_PROTECTION, "identifier": FLOOR_IDENTIFIER,

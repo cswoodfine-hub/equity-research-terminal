@@ -18,6 +18,7 @@ import re
 
 import assumption_log
 import db
+import dose_route
 import epidemiology
 import evidence
 import forecast
@@ -138,6 +139,10 @@ def _defaults(path, key_field):
             # with no late decay rate has to reach the engine as None.
             entry[field] = (float(entry[field])
                             if entry.get(field) not in (None, "") else None)
+        # How many launches an erosion row was fitted to, where it was fitted at all.
+        if "sample_n" in entry:
+            entry["sample_n"] = (int(entry["sample_n"])
+                                 if entry["sample_n"] not in (None, "") else None)
         out[row[key_field]] = entry
     return out
 
@@ -366,6 +371,7 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     import loe as loe_module
     found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
     loe = ({"loe": found.get("date"), "basis": found["basis"],
+            "observed": bool(found.get("observed")),
             "past": bool(found.get("past"))} if found else {})
     loe_year = int(loe["loe"][:4]) if loe.get("loe") else None
     actuals = [dict(r) for r in conn.execute(
@@ -438,7 +444,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "scalars": scalars,
         "indications": list(indications.values()),
         # A loss known to be past with no date is carried as that, not as a year.
-        "loe": ({"year": loe_year, "basis": loe.get("basis")} if loe_year
+        # "observed" only where a launch was recorded, so every other record keeps its
+        # shape (forecast.build reads it as a cliff that happened).
+        "loe": ({"year": loe_year, "basis": loe.get("basis"),
+                 **({"observed": True} if loe.get("observed") else {})} if loe_year
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
@@ -454,6 +463,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         # Pool figures taken from the disease rather than from a row on this asset.
         "epidemiology": filled,
         "modality": asset["modality"] if asset else None,
+        # Oral or not, from the product's RxNorm names: an oral brand erodes faster.
+        "route": dose_route.for_asset(conn, asset_id) if asset else None,
         "pos_defaults": pos_defaults(),
         # The area the asset's own label or trials put it in, and the published success
         # rates for it: an oncology phase 3 asset is not the same bet as a haematology one.

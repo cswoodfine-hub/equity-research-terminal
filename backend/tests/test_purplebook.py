@@ -219,3 +219,27 @@ def test_attach_licensures_ignores_an_unmarketed_asset(tmp_path):
 
     assert attach_licensures(conn, parse_licensures(LIVE_FORM))["written"] == 0
     conn.close()
+
+
+def test_a_later_bla_for_the_same_molecule_keeps_the_first_licensure_clock():
+    """Saphnelo's shape: a 2021 BLA and a 2026 BLA for the same proper name from the same
+    sponsor. The second earns no new 12 years (42 U.S.C. 262(k)(7)(C)), so both floors
+    count from 2021. A BLA with a different proper name keeps its own clock."""
+    header = FIXTURE.read_text().splitlines()[3]
+    rows = [
+        "U,MSD International Business GmbH,125514,Keytruda,pembrolizumab,351(a),50MG,"
+        "For Injection,Intravenous,Single-Dose Vial,Rx,Licensed,4-Sep-14,,N/A,N/A,,"
+        "Original,,2405,001,CDER,,,,,,",
+        "U,MSD International Business GmbH,761999,Keytruda,pembrolizumab,351(a),395MG,"
+        "Injection,Subcutaneous,Single-Dose Vial,Rx,Licensed,19-Sep-25,,N/A,N/A,,"
+        "Original,,2405,001,CDER,,,,,,",
+        "U,MSD International Business GmbH,761888,Keytruda Qlex,"
+        "pembrolizumab and berahyaluronidase alfa-pmph,351(a),790MG,Injection,"
+        "Subcutaneous,Single-Dose Vial,Rx,Licensed,19-Sep-25,,N/A,N/A,,Original,,2405,"
+        "001,CDER,,,,,,",
+    ]
+    csv_text = "\n".join(["sample", "", "legend", header] + rows) + "\n"
+    by_code = {r["internal_code"]: r for r in parse_purple_book(csv_text, APPLICANT_MAP)}
+    assert _floor(by_code["BLA125514"])["expiry_date"] == "2026-09-04"
+    assert _floor(by_code["BLA761999"])["expiry_date"] == "2026-09-04"
+    assert _floor(by_code["BLA761888"])["expiry_date"] == "2037-09-19"

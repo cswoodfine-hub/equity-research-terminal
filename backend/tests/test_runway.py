@@ -202,3 +202,16 @@ def test_build_excludes_commercial_companies(path):
     conn.commit()
     conn.close()
     assert [r["ticker"] for r in runway.build(path)] == []
+
+
+def test_expected_raise_reads_the_measured_table():
+    """data/runway_dilution.csv: what companies with this much cash did next."""
+    import runway as R
+    assert R.expected_raise(None) is None
+    short = R.expected_raise(8.0)
+    assert short == {"p_raise_12m": 0.94, "extra_shares_12m": 0.199, "n": 62}
+    assert R.expected_raise(12.0)["p_raise_12m"] == 0.91        # the band starts at 12
+    assert R.expected_raise(400.0)["extra_shares_12m"] == 0.0   # five years and more
+    # Fewer months of cash never means a smaller chance of raising.
+    bands = [R.expected_raise(m)["p_raise_12m"] for m in (6, 15, 20, 30, 45, 90)]
+    assert bands == sorted(bands, reverse=True)

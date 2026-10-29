@@ -861,6 +861,10 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .land td.w {{ color: var(--flag); font-size: 10.5px; }}
 .land tr.grp td {{ border-top: 1px solid var(--rule-strong); }}
 .land a {{ color: var(--text); text-decoration: none; }}
+.loe-stack .m {{ color: var(--muted); font-size: 10px; }}
+.loe-stack .d {{ font-family: var(--font-mono); white-space: nowrap; }}
+.loe-stack td:nth-child(2) {{ max-width: 240px; }}
+.loe-stack a {{ border-bottom: 1px dotted var(--rule-strong); }}
 /* The Medicare growth split (docs/design/medicare-demand-split.md): the sentence first,
    each figure with the tracked median under it, flags as numbered notes. */
 .mc-sentence {{ font-family: var(--font-prose); font-size: 14px; color: var(--text);

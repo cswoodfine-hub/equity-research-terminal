@@ -100,3 +100,89 @@ def test_loe_detail_marks_a_challenged_asset(tmp_path):
     zepbound = next(a for a in detail if a["brand_name"] == "Zepbound")
     assert zepbound["challenged"] == 1
     assert zepbound["challenge_date"] == "2025-06-01"
+
+
+# --- the spreadsheet issue (from 2026-09-28) ------------------------------
+# Rows cut from the 2026-09-28 list, values and cell types as FDA published them: a
+# text date (Ziagen), a Pre-MMA row with the sheet's carriage-return escapes (Excedrin),
+# a number in the name (Oxycontin), no number at all (Simcor).
+_WORKBOOK = (_FIX / "paragraph_iv_list.xlsx").read_bytes()
+
+
+def _by_rld(rows):
+    return {r["rld_name"]: r for r in rows}
+
+
+def test_workbook_reads_every_column_and_the_issue_date():
+    assert paragraph_iv.is_workbook(_WORKBOOK)
+    assert not paragraph_iv.is_workbook(b"%PDF-1.7")
+    list_date, rows = paragraph_iv.parse_workbook(_WORKBOOK)
+    assert list_date == "2026-09-28"
+    assert len(rows) == 8                              # the blank trailing row is skipped
+    farxiga = _by_rld(rows)["Farxiga"]
+    assert farxiga == {
+        "drug_name": "Dapagliflozin", "dosage_form": "Tablets",
+        "strength": "5 mg and 10 mg", "rld_name": "Farxiga",
+        "application_number": "NDA202293", "submission_date": "2018-01-08",
+        "pre_mma": 0, "anda_count": 20, "status_180": "Eligible",
+        "status_180_posted": "2026-04-13", "first_approval": "2026-04-06",
+        # Two days after the compound patent's paediatric extension ran out.
+        "first_marketing": "2026-04-06", "last_patent_expiry": "2030-05-26"}
+
+
+def test_workbook_reads_text_dates_pre_mma_and_odd_reference_cells():
+    rows = _by_rld(paragraph_iv.parse_workbook(_WORKBOOK)[1])
+    assert rows["Ziagen"]["submission_date"] == "2009-01-28"         # text, not a date
+    excedrin = rows["Excedrin (migraine)"]
+    assert excedrin["pre_mma"] == 1 and excedrin["submission_date"] is None
+    assert excedrin["application_number"] == "NDA20802"
+    assert "_x000D_" not in excedrin["strength"]
+    assert rows["Oxycontin (NDA 022272)"]["application_number"] == "NDA22272"
+    assert rows["Simcor"]["application_number"] is None              # none is invented
+    eliquis = rows["Eliquis"]
+    # Approved in 2019 and held off the market by settlement: an approval is not a launch.
+    assert eliquis["first_approval"] == "2019-12-23"
+    assert eliquis["first_marketing"] is None
+
+
+def test_workbook_summary_feeds_the_same_challenged_state(tmp_path):
+    db_file = tmp_path / "t.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    azn = conn.execute("SELECT id FROM companies WHERE ticker='AZN'").fetchone()[0]
+    asset_id = conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, generic_name, internal_code,"
+        " modality, is_marketed) VALUES (?, 'Farxiga', 'Dapagliflozin', 'NDA202293',"
+        " 'small molecule', 1)", (azn,)).lastrowid
+    conn.commit()
+    conn.close()
+
+    fetcher = ParagraphIvFetcher(db_file)
+    fetcher.list_date, raw = paragraph_iv.parse_workbook(_WORKBOOK)
+    rows = fetcher.normalise(raw)
+    assert [(r["asset_id"], r["first_submission"]) for r in rows] == [
+        (asset_id, "2018-01-08")]
+    fetcher.upsert(rows)
+    fetcher.upsert(fetcher.normalise(raw))                       # replaced, not appended
+    assert _challenges(db_file)[0]["asset_id"] == asset_id
+
+    conn = db.get_connection(db_file)
+    try:
+        listed = [dict(r) for r in conn.execute(
+            "SELECT list_date, rld_name, first_marketing FROM paragraph_iv_list")]
+    finally:
+        conn.close()
+    # Every row is kept, universe or not: the launches are the backtest's ground truth.
+    assert len(listed) == 8
+    assert {"list_date": "2026-09-28", "rld_name": "Farxiga",
+            "first_marketing": "2026-04-06"} in listed
+
+
+def test_fetch_reads_the_spreadsheet_issue(monkeypatch, tmp_path):
+    fetcher = ParagraphIvFetcher(tmp_path / "t.db")
+    pages = {paragraph_iv.LIST_PAGE: _PAGE.encode()}
+    monkeypatch.setattr(fetcher, "_get", lambda url: pages.get(url, _WORKBOOK))
+    rows = fetcher.fetch()
+    assert fetcher.list_date == "2026-09-28"
+    assert len(rows) == 8 and "first_marketing" in rows[0]

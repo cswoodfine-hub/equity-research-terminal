@@ -1,0 +1,759 @@
+{
+ "brand": "Rinvoq",
+ "ticker": "ABBV",
+ "loe": {
+  "loe": "2036-10-17",
+  "basis": "drug substance patent",
+  "loe_year": 2036,
+  "loe_identifier": "12110298",
+  "loe_past": false,
+  "loe_earliest_year": 2026,
+  "use_patent_year": 2038,
+  "last_listed_year": 2038,
+  "later_substance_year": null
+ },
+ "patents": [
+  {
+   "identifier": "I-919",
+   "expiry": "2026-05-18",
+   "effective": "2026-05-18",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "I-946",
+   "expiry": "2027-04-26",
+   "effective": "2027-04-26",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "NPP",
+   "expiry": "2027-04-26",
+   "effective": "2027-04-26",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "I-966",
+   "expiry": "2028-04-28",
+   "effective": "2028-04-28",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8962629",
+   "expiry": "2031-01-15",
+   "effective": "2031-01-15",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3255",
+    "U-3275",
+    "U-3341",
+    "U-3371",
+    "U-3624",
+    "U-3945",
+    "U-3946"
+   ],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "ODE-481",
+   "expiry": "2031-04-26",
+   "effective": "2031-04-26",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "ODE-538",
+   "expiry": "2032-04-28",
+   "effective": "2032-04-28",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "RE47221",
+   "expiry": "2033-08-16",
+   "effective": "2033-08-16",
+   "extended_to": null,
+   "term_extension": {
+    "extension": "989 days",
+    "original_expiry": "2030-12-01"
+   },
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10202393",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10344036",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10519164",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10550126",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10597400",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3255"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10730883",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10981923",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10981924",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10995095",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11186584",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11198697",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11365198",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3275",
+    "U-3946"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11512092",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3275",
+    "U-3371",
+    "U-3487",
+    "U-3946"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11524964",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3371"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11535624",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3255"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11535625",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11535626",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11661425",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11680069",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11718627",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11767326",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11773105",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11773106",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3275",
+    "U-3371",
+    "U-3487",
+    "U-3946"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11780847",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11780848",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3371"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11787815",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11795175",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3255"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11976077",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3298"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11993605",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3275",
+    "U-3946"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11993606",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3487"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12077545",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12091415",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12103933",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12110297",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12110298",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": true,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12116373",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12134621",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12365689",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3945"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12570664",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-4454"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "9951080",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "9963459",
+   "expiry": "2036-10-17",
+   "effective": "2036-10-17",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11564922",
+   "expiry": "2038-03-09",
+   "effective": "2038-03-09",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3624",
+    "U-4303"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11607411",
+   "expiry": "2038-03-09",
+   "effective": "2038-03-09",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [
+    "U-3341",
+    "U-4302"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  }
+ ],
+ "paragraph_iv": [
+  {
+   "strength": "15 mg",
+   "dosage_form": "Extended-release Tablets",
+   "submission_date": "2023-08-16",
+   "pre_mma": 0,
+   "anda_count": 5,
+   "status_180": null,
+   "first_approval": null,
+   "first_marketing": null,
+   "last_patent_expiry": "2038-03-09",
+   "list_date": "2026-09-28"
+  },
+  {
+   "strength": "30 mg",
+   "dosage_form": "Extended-release Tablets",
+   "submission_date": "2023-08-16",
+   "pre_mma": 0,
+   "anda_count": 4,
+   "status_180": null,
+   "first_approval": null,
+   "first_marketing": null,
+   "last_patent_expiry": "2038-03-09",
+   "list_date": "2026-09-28"
+  },
+  {
+   "strength": "45 mg",
+   "dosage_form": "Extended-release Tablets",
+   "submission_date": "2023-08-16",
+   "pre_mma": 0,
+   "anda_count": 3,
+   "status_180": null,
+   "first_approval": null,
+   "first_marketing": null,
+   "last_patent_expiry": "2038-03-09",
+   "list_date": "2026-09-28"
+  }
+ ],
+ "loe_range": {
+  "why_bear": "molecule patent RE47221, extended under 35 USC 156",
+  "why_bull": "the base",
+  "bear": {
+   "date": "2033-08-16",
+   "npv": 45202.75104082395
+  },
+  "base": {
+   "date": "2036-10-17",
+   "npv": 54584.79774842256
+  },
+  "bull": {
+   "date": "2036-10-17",
+   "npv": 54584.79774842256
+  }
+ },
+ "erosion": {
+  "row": "small molecule",
+  "year1_pct": 0.71,
+  "decay_pct": 0.31,
+  "late_decay_pct": 0.23,
+  "late_from_year": 4.0,
+  "sample_n": 134,
+  "source": "measured 2026-10-29: 134 oral brands, average Part D gross cost kept after a first generic launch 0.299, 0.192, 0.138, 0.115, 0.078, 0.062 in years one to six after the launch year (n 134 to 70); this row reproduces those within 0.01. The filers' own US lines, net and every channel, agree in year one (15 launches, median ratio to Part D 1.05)"
+ },
+ "challenges": [
+  {
+   "application_number": "NDA211675",
+   "first_submission": "2023-08-16"
+  }
+ ]
+}

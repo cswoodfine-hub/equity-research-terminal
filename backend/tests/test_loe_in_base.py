@@ -282,6 +282,19 @@ def test_a_recent_cliff_with_no_fall_since_lands_in_the_first_forecast_year():
     assert got["rnpv"] < F.build(_on_file(2017, YERVOY))["rnpv"]
 
 
+def test_a_recorded_launch_with_no_fall_since_stays_in_the_base():
+    """Symbicort's US generic launched in July 2023 and AstraZeneca's line, which carries
+    its authorised generic, did not fall. A launch that happened is not a cliff still to
+    come, so the convention that lands Yervoy's floor in 2026 does not apply."""
+    inputs = _on_file(2023, {2023: 2371.0, 2024: 2873.0, 2025: 2885.0},
+                      modality="small molecule")
+    inputs["loe"]["observed"] = True
+    inputs["loe"]["basis"] = "generic marketed (2023-07-31, FDA Paragraph IV list)"
+    got = F.build(inputs)
+    assert got["loe_in_base"] and got["loe_year"] == 2023
+    assert got["revenue_after_loe"] == got["revenue"]
+
+
 def test_a_recent_cliff_the_revenue_shows_stays_in_the_base():
     """Victoza's 2024 date shows: 8,664mm, 5,482mm, 3,020mm."""
     got = F.build(_on_file(2024, {2023: 8664.0, 2024: 5482.0, 2025: 3020.0},
@@ -342,3 +355,45 @@ def test_a_lever_on_a_cliff_not_yet_landed_moves_one_way_and_starts_from_the_bas
     values = [F.build(_on_file(2023, YERVOY, stated=s))["rnpv"] for s in range(2010, 2041)]
     assert all(b >= a - 1e-9 for a, b in zip(values, values[1:]))
     assert values[0] < base["rnpv"] < values[-1]
+
+
+def test_a_ceiling_the_line_cannot_reach_before_its_cliff_is_flagged():
+    """Auvelity's case: a published peak far above where the path is at its LOE."""
+    inputs = _product(record=2030)
+    inputs["scalars"]["revenue_ceiling_musd"] = 50000.0
+    got = F.build(inputs)
+    assert any("published peak and the cliff disagree" in n for n in got["notes"])
+    inputs["scalars"]["revenue_ceiling_musd"] = 1000.0        # already there: no note
+    assert not any("published peak" in n for n in F.build(inputs)["notes"])
+
+
+def test_a_dateless_european_region_opens_at_the_spc_limit_when_the_us_date_is_later():
+    """Januvia's case: US protection to 2026, first EU authorisation 2007, so Europe's
+    molecule protection ends by 2022 and its generics came that year."""
+    europe = [{"region": "EU", "label": "Europe", "share": 0.3, "share_basis": "filed",
+               "year": None, "in_base": False, "basis": None, "floor_year": 2017,
+               "floor_basis": "EU data and market protection", "cap_year": 2028,
+               "cap_basis": "EU SPC limit"}]
+    later = F.build(_product(record=2032, regions=europe))
+    region = later["regions"][0]
+    assert region["loe_year"] == 2028 and region["loe_basis"] == "EU SPC limit"
+    # A US date before the cap leaves Europe on the US date, as before.
+    earlier = F.build(_product(record=2027, regions=europe))
+    assert earlier["regions"][0]["loe_year"] == 2027
+    # A stated European date is never replaced by the cap.
+    stated = [dict(europe[0], year=2031, basis="stated")]
+    assert F.build(_product(record=2032, regions=stated))["regions"][0]["loe_year"] == 2031
+
+
+def test_a_past_spc_limit_is_in_the_base_and_never_makes_an_earlier_us_date_worth_more():
+    """Actemra's case: the cap passed in 2024, so Europe's loss is in the reported
+    revenue and is not cut again from the US date."""
+    europe = [{"region": "EU", "label": "Europe", "share": 0.3, "share_basis": "filed",
+               "year": None, "in_base": False, "basis": None, "floor_year": 2019,
+               "floor_basis": "EU data and market protection", "cap_year": 2024,
+               "cap_basis": "EU SPC limit"}]
+    built = F.build(_product(record=2029, regions=europe))
+    assert built["regions"][0]["in_base"] and built["regions"][0]["loe_year"] == 2024
+    values = [F.build(_product(stated=year, regions=europe))["npv"]
+              for year in range(2023, 2033)]
+    assert values == sorted(values)

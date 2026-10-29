@@ -9,7 +9,8 @@
 # valuation stays a sensitivity rather than a point estimate.
 #
 # year1_pct is the share of revenue lost in the first year after LOE; decay_pct the share
-# of the remainder lost in each following year.
+# of the remainder lost in each following year. sample_n is the number of launches a row's
+# first year was fitted to, blank where it was not fitted; the product page shows it.
 # Measured against US-basis evidence on 2026-09-20, and the 0.25 first-year figure is kept
 # because the evidence lands on it, not because nothing was found.
 #
@@ -58,6 +59,32 @@
 # What would settle it: CMS publishes one release at a time and does not keep the earlier
 # years, so the archive would have to be rebuilt release by release, or product revenue split
 # by market for the drugs that have already been through a cliff.
+# SMALL MOLECULE AND BIOLOGIC ROWS SET 2026-10-29 by measurement, chosen by Charles
+# (work/patents/EROSION.md, EROSION_3B.md; tools in work/patents/tools/). The literature
+# small-molecule row (0.60, 0.35, 0.10 from year four) is replaced, and the biologic decay
+# rises from 0.20 to 0.25.
+#   Events: 163 brands over $10mm in Medicare Part D before a first generic, launched 2014
+#   to 2023. The dates come from the FDA Paragraph IV list (first commercial marketing),
+#   or, for launches it never recorded, from Part D itself: the first year unbranded
+#   generics pass 5% of the molecule's claims, for a brand holding half its molecule.
+#   That detector names the list's year 70% of the time and within one 88%.
+#   Outcome: national Part D gross cost by year (CMS Part D Prescribers by Geography and
+#   Drug, 2013-2024), each year against the last full year before launch. The route is
+#   the Orange Book's (dose_route.py).
+#   AVERAGE, NOT MEDIAN. Value is linear in revenue and the book adds products into
+#   totals, so the rows are fitted to the average kept across launches, each launch
+#   capped at 1.0. The spread is skewed (most brands collapse, a few hold), so the
+#   average sits well above the median: oral 0.299 against 0.214 in year one, 0.138
+#   against 0.046 in year three. The median rows, the typical product, are in each
+#   row's note as the bear-case sensitivity.
+#   Gross of rebates and Medicare only, measured: on 15 oral launches with the filer's
+#   own US line (net, every channel; SEC data sets, fiscal 2016 on), that line kept a
+#   median 0.238 in year one and an average 0.349, and its median ratio to Part D on the
+#   same launches was 1.05. Pfizer, AbbVie and BMS do not tag the line and are not in it.
+#   Non-oral: 28 launches (topical 10, eye 9, inhaled 3, nasal 3, injectable 3), one row
+#   because no route reaches 15. An earlier fit counted oral suspensions as injectable
+#   ("pen" read inside "suspension") and is withdrawn.
+#
 # The decay runs in two stages where a late rate is on file. The steep fall after a cliff
 # is a cliff, not a permanent rate, and applying one rate for ever is arithmetic rather
 # than a finding: the studies behind the first-year figures below describe the first year
@@ -82,8 +109,9 @@
 # deliberately: the late stage has one observation in each dataset, Remicade, and it rises
 # in both (+10.2% worldwide, +4.6% in Part D). One drug that went up is not a rate, and
 # biologics are the majority of the value a late rate would move.
-modality,year1_pct,decay_pct,late_decay_pct,late_from_year,source,note
-small molecule,0.60,0.35,0.10,4,"FDA/ASPE and IQVIA generic entry studies: small-molecule brands typically lose 50-80% of volume within the first year of multi-source generic entry","cliff shape; sensitivity should sweep 0.4-0.8"
-biologic,0.25,0.20,,,"eight US-basis observations of a biologic losing revenue to marketed biosimilars, each the filer's own printed United States line, median first-year fall 26.9% (Stelara 42.7%, Humira 34.7%, Neupogen 32.7%, Neulasta 27.2%, Eylea 26.5%, Xgeva 10.1%, Remicade 6.5%, Prolia rose 3.2%); the decay from the same series and from CMS Part B, which runs 16% to 45% a year and does not reliably slow","the level is measured and the dispersion is the risk: +3% to -43% depending on how many biosimilars launched and how much of the year they had. The two most recent cliffs are the two steepest, so as a forecast this is generous. No late rate: Remicade fades to 5.7% by year nine while Neupogen still falls 25.5% at year ten"
-gene therapy,0.05,0.05,,,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
-unknown,0.25,0.20,,,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"
+modality,year1_pct,decay_pct,late_decay_pct,late_from_year,sample_n,source,note
+small molecule,0.71,0.31,0.23,4,134,"measured 2026-10-29: 134 oral brands, average Part D gross cost kept after a first generic launch 0.299, 0.192, 0.138, 0.115, 0.078, 0.062 in years one to six after the launch year (n 134 to 70); this row reproduces those within 0.01. The filers' own US lines, net and every channel, agree in year one (15 launches, median ratio to Part D 1.05)","bear case, the median launch: 0.80, 0.53, 0.22 (medians kept 0.214, 0.083, 0.046, 0.037; this reproduces them within 0.02). Year-one drop interquartile 0.59 to 0.90; one Paragraph IV filer with 180-day exclusivity keeps about 0.27 at the median, several about 0.15. The launch year itself, left whole by the engine, lost a median 25% of cost"
+small molecule (non-oral),0.52,0.34,0.10,4,28,"measured 2026-10-29: 28 brands taken other than by mouth (Orange Book route: topical 10, eye 9, inhaled 3, nasal 3, injectable 3), average Part D cost kept 0.463, 0.334, 0.207, 0.177, 0.171, 0.153 in years one to six (n 28 to 13); this row reproduces those within 0.02. Chosen where the Orange Book route of the asset's own application is not oral (dose_route.py)","thin and wide: year-one drop interquartile 0.26 to 0.78. Bear case, the median launch: 0.56, 0.60, 0.07 (medians kept 0.403, 0.202, 0.086, 0.046; this reproduces them within 0.04, and its late rate rests on 13 to 17 launches). Part B cannot add small-molecule injectables, since an ANDA generic bills on the brand's own code"
+biologic,0.25,0.25,,,9,"filers' own US lines (net, every channel): first-year fall median 26.5% over nine biosimilar cliffs (Stelara 42.7%, Humira 34.7%, Neupogen 32.7%, Neulasta 27.2%, Eylea 26.5%, Epogen 21% from the SEC data sets, Xgeva 10.1%, Remicade 6.5%, Prolia rose 3.2%); later years median 25.2% a year (n 10: Humira 41.3%, 57.1%; Neulasta 28.9%, 24.3%, 36.7%, 26.0%; Remicade 19.0%, 16.0%, 18.5%, 19.5%). Cross-check: Medicare Part B, eight biosimilar launches 2015-2023 on the reference product's own codes, year one kept 0.525, later years falling a median 31% a year (n 30, Lucentis left out since Vabysmo and Eylea took its patients too)","the filer lines set the row because the model values net, all-channel revenue; Part B, the Medicare physician-office channel, erodes faster and is the bear case. Part D cannot see a biologic's fall (Humira's Medicare claims barely moved 2022-2024 while its US line collapsed). Insulins are left out: their lines fell through the 2023 list price cuts. No late rate: Remicade fades to 5.7% by year nine while Neupogen still falls 25.5% at year ten"
+gene therapy,0.05,0.05,,,,"no observed precedent: no gene therapy has yet faced a direct analogue of generic entry","placeholder for review; one-time therapies deplete their pool instead"
+unknown,0.25,0.20,,,,"IQVIA Biosimilars in the United States reports, taken as the gentler of the two modality shapes where the modality is not on file","replace with the modality when known; the small-molecule cliff is steeper"

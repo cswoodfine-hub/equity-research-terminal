@@ -677,6 +677,11 @@ def decaying_pv(first: float, rate: float, decay_pct, late_decay_pct,
     return total + level * disc * (1.0 + rate) / (rate + late)
 
 
+# How far short of its ceiling a line may be in its LOE year before the forecast says the
+# published peak and the cliff disagree.
+PEAK_SHORTFALL = 0.9
+
+
 def erosion_factor(since: int, year1_pct, decay_pct, late_decay_pct=None,
                    late_from_year=None) -> float:
     """The share of revenue left ``since`` years after the LOE year: nothing lost at or
@@ -957,13 +962,25 @@ def cliff_window(inputs: dict, late_from_year=None) -> int | None:
     return min(found) if found else None
 
 
+# The small-molecule row is measured on oral brands; this one on everything else.
+NON_ORAL_SMALL_MOLECULE = "small molecule (non-oral)"
+
+
 def erosion_default(inputs: dict):
     """(default row, what it was chosen for) from the curated erosion file: the
     modality's row, or the "unknown" row where no modality is on file. A product with
     an LOE inside the window and no modality eroded at nothing, so Gardasil ran flat
-    through its own cliff."""
+    through its own cliff.
+
+    A small molecule whose RxNorm names say it is not taken by mouth (dose_route) takes
+    the non-oral row: Part D brands kept 0.41 of their cost in the first full year after
+    a generic launch against 0.245 for an oral brand, since a pharmacist substitutes a
+    tablet automatically and an inhaler, a pen or a cream rarely."""
     defaults = inputs.get("erosion_defaults") or {}
     modality = inputs.get("modality")
+    if (modality == "small molecule" and inputs.get("route") == "non-oral"
+            and defaults.get(NON_ORAL_SMALL_MOLECULE)):
+        return defaults[NON_ORAL_SMALL_MOLECULE], "small molecule, non-oral route"
     if modality and defaults.get(modality):
         return defaults[modality], modality
     if defaults.get("unknown"):
@@ -1292,7 +1309,13 @@ def build(inputs: dict) -> dict:
     # fall in any full reported year since has not landed, and by convention the cliff
     # lands in the first forecast year. Older dates, and recent ones with no full year
     # to compare, keep the rule above.
-    if record_in_base and record_year is not None:
+    # A launch someone recorded is different: a generic on sale (the FDA Paragraph IV
+    # list) or CMS finding one marketed is a cliff that happened, and a reported year
+    # since that did not fall says the line held, not that the fall is still to come.
+    # AstraZeneca's US Symbicort, generic since July 2023 and carrying its own authorised
+    # generic, reported 1,193mm in 2025; landing a fresh cliff on it in 2026 cut the
+    # product by 8,300mm.
+    if record_in_base and record_year is not None and not loe.get("observed"):
         window_length = cliff_window(inputs, late_from)
         if (window_length is not None and years[0] - record_year < window_length
                 and fell_since(inputs.get("actuals"), record_year) is False):
@@ -1376,6 +1399,18 @@ def build(inputs: dict) -> dict:
             # whole when a lever moved the US date before it, so the earlier date was worth
             # more than the later one.
             r_in_base = in_base and r_year + 1 < years[0]
+        elif (r_year is None and not r_known_past and region.get("cap_year") is not None
+              and loe_year is not None and loe_year > int(region["cap_year"])):
+            # No date for the region and the US date runs past the EU's own limit on
+            # molecule protection: fifteen years from first authorisation, the most a
+            # supplementary protection certificate allows. Europe opens at the cap.
+            # Unlike the floor, a cap is the latest the loss can be, so a past cap is a
+            # loss the reported revenue already carries, whatever the US record says:
+            # cutting it again from the US date counted it twice (Actemra, cap 2024,
+            # biosimilars in Europe that year).
+            r_year = int(region["cap_year"])
+            r_basis = region.get("cap_basis") or "EU SPC limit"
+            r_in_base = r_year + 1 < years[0]
         elif r_year is None and not r_known_past:
             # No date for the region: it keeps the US date, as the whole line did before.
             r_year, r_basis, r_in_base = loe_year, "no date for the region, so the US date", in_base
@@ -1485,6 +1520,19 @@ def build(inputs: dict) -> dict:
         if actual.get("period") == "FY" and reported:
             row["variance_pct"] = (modelled - reported) / reported
         calibration.append(row)
+
+    # A published peak the line cannot reach before its own cliff. The ceiling is
+    # somebody's forecast of the product at peak, and a path still well short of it in the
+    # LOE year says the peak and the date disagree: Auvelity's 8,000mm against 1,443mm by
+    # its 2043 cliff. Flagged, never trimmed, since which of the two is wrong is a
+    # question for the seed.
+    ceiling = scalars.get("revenue_ceiling_musd")
+    if (ceiling and loe_year is not None and not in_base and loe_year in years
+            and revenue[years.index(loe_year)] < PEAK_SHORTFALL * ceiling):
+        reached = revenue[years.index(loe_year)]
+        notes.append(f"the line reaches {reached:,.0f}mm by its {loe_year} LOE, "
+                     f"{reached / ceiling:.0%} of its {ceiling:,.0f}mm ceiling: the "
+                     "published peak and the cliff disagree, so one of them needs a look")
 
     return {
         "mode": mode, "years": years, "dcf_years": dcf_years,

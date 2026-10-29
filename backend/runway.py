@@ -32,7 +32,9 @@ the number moves the day they do. Nothing here models that.
 
 from __future__ import annotations
 
+import csv
 import datetime as dt
+import pathlib
 
 import db
 import financings
@@ -229,6 +231,39 @@ def for_company(db_path=None, ticker: str = "", today=None) -> dict | None:
         conn.close()
 
 
+DILUTION_CSV = (pathlib.Path(__file__).resolve().parent.parent / "data"
+                / "runway_dilution.csv")
+
+
+def dilution_table(path=None) -> list[dict]:
+    """The measured raise rates by months of cash (data/runway_dilution.csv)."""
+    source = pathlib.Path(path) if path else DILUTION_CSV
+    if not source.exists():
+        return []
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = [line for line in handle if not line.lstrip().startswith("#")]
+    out = []
+    for row in csv.DictReader(rows):
+        out.append({"from": float(row["months_from"]),
+                    "to": float(row["months_to"]) if row["months_to"] else None,
+                    "n": int(row["n"]), "p_raise_12m": float(row["p_raise_12m"]),
+                    "extra_shares_12m": float(row["extra_shares_12m"])})
+    return out
+
+
+def expected_raise(months, table=None) -> dict | None:
+    """What this many months of cash predicted over the next twelve months, measured on
+    573 company-quarters: the chance of a raise and the extra shares beyond employee
+    stock. None where there is no runway figure."""
+    if months is None:
+        return None
+    for row in table if table is not None else dilution_table():
+        if months >= row["from"] and (row["to"] is None or months < row["to"]):
+            return {"p_raise_12m": row["p_raise_12m"],
+                    "extra_shares_12m": row["extra_shares_12m"], "n": row["n"]}
+    return None
+
+
 def _row(conn, company, today) -> dict:
     money = liquidity(conn, company["id"])
     burn = trailing_burn(conn, company["id"])
@@ -307,6 +342,8 @@ def _row(conn, company, today) -> dict:
         # True when the next readout lands before the cash does, False when it lands
         # after, None when nothing is scheduled or there is no runway figure.
         "funded_to_readout": funded_to_readout,
+        # What companies with this much cash went on to do (data/runway_dilution.csv).
+        "expected_raise": expected_raise(months),
     }
 
 

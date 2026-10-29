@@ -375,6 +375,196 @@ def _prof_rows(pairs) -> str:
     return "".join(out)
 
 
+def _loe_range_html(rng) -> list:
+    """Bear, base and bull LOE dates with the product's value at each. The bear date is
+    the molecule patent with its extensions, the bull the latest molecule or formulation
+    patent; 89% of 122 past generic launches fell between them."""
+    if not rng or not rng.get("base"):
+        return []
+    ends = [(end, rng.get(end) or {}) for end in ("bear", "base", "bull")]
+    if len({e["date"] for _, e in ends}) == 1:
+        return ['<div class="prof-sub">LOE range</div>',
+                _prof_rows([("one date", f'{ends[1][1]["date"][:10]}: '
+                             f'{rng.get("why_bear") or "no range"}', True)])]
+    base_date = ends[1][1]["date"]
+    rows, why = [], []
+    for end, e in ends:
+        if end != "base" and e["date"] == base_date:
+            rows.append((end, "same as base", True))
+            continue
+        npv = e.get("npv")
+        value = f'{e["date"][:10]} · NPV {_money_mm(npv)}' if npv is not None else \
+            f'{e["date"][:10]} · no forecast'
+        rows.append((end, value))
+        if end != "base":
+            why.append((f"{end} basis", rng.get(f"why_{end}"), True))
+    return ['<div class="prof-sub">LOE range · 89% of 122 past generic launches fell '
+            'inside theirs</div>', _prof_rows(rows + why)]
+
+
+def _money_mm(value) -> str:
+    return f"{value / 1000:,.1f} bn" if abs(value) >= 1000 else f"{value:,.0f} mm"
+
+
+def _erosion_html(row) -> list:
+    """The erosion shape the valuation runs after the date, and what it rests on."""
+    if not row:
+        return []
+    shape = f'year one -{row["year1_pct"]:.0%}'
+    if row.get("decay_pct") is not None:
+        shape += f', then -{row["decay_pct"]:.0%} a year'
+    if row.get("late_decay_pct") is not None and row.get("late_from_year"):
+        shape += f', -{row["late_decay_pct"]:.0%} from year {int(row["late_from_year"])}'
+    sample = (f'fitted to {row["sample_n"]} launches' if row.get("sample_n")
+              else "stated on the asset" if row.get("row") == "stated"
+              else "not fitted to launches")
+    return ['<div class="prof-sub">erosion after LOE</div>',
+            _prof_rows([(row.get("row") or "row", shape), ("sample", sample, True)])]
+
+
+def _paragraph_iv_html(rows) -> list:
+    """The FDA Paragraph IV list for the product's own application, one line a strength.
+    The 30-month stay runs from the brand's notice, which the list does not date, so no
+    stay date is drawn."""
+    out = [f'<div class="prof-sub">Paragraph IV filings · FDA list of '
+           f'{html_escape((rows[0].get("list_date") or "")[:10])}</div>']
+    for r in rows:
+        filed = ("before 2003 (pre-MMA)" if r.get("pre_mma")
+                 else (r.get("submission_date") or "")[:10] or "no date")
+        facts = []
+        if r.get("anda_count"):
+            facts.append(f'{r["anda_count"]} filer{"s" if r["anda_count"] != 1 else ""}')
+        if r.get("status_180"):
+            facts.append(f'180-day {r["status_180"].lower()}')
+        if r.get("first_marketing"):
+            facts.append(f'generic sold from {r["first_marketing"][:10]}')
+        elif r.get("first_approval"):
+            facts.append(f'generic approved {r["first_approval"][:10]}, not yet sold')
+        if r.get("last_patent_expiry"):
+            facts.append(f'last challenged patent {r["last_patent_expiry"][:10]}')
+        strength = " ".join(x for x in (r.get("strength"), r.get("dosage_form")) if x)
+        out.append(f'<div class="prof-line"><span class="d">{html_escape(filed)}</span>'
+                   f'{html_escape(strength)}'
+                   f'{" · " + html_escape(", ".join(facts)) if facts else ""}</div>')
+    out.append('<div class="prof-line"><span class="d"></span>The 30-month stay runs from '
+               'the brand\'s notice, which the list does not date.</div>')
+    return out
+
+
+def _stack_sets_it(g, basis: str = "") -> str:
+    """The protection that sets the date, with what extended it, for one table cell."""
+    if not g:
+        # A patent basis with nothing flagged is the latest listed patent; any other
+        # basis (a filer's date, a launch, an exclusivity) is a date with no patent.
+        if (basis or "").lower() in ("patent", "drug product patent"):
+            return '<span class="m">no molecule patent flagged, latest listed patent</span>'
+        return '<span class="m">no patent: the basis is the date</span>'
+    bits = [f'{html_escape(g.get("identifier") or "")} '
+            f'<span class="m">{html_escape(g.get("kind") or g.get("type") or "")}</span>']
+    ext = []
+    if (g.get("term_extension") or {}).get("extension"):
+        ext.append(f'term extension {html_escape(g["term_extension"]["extension"])}')
+    if g.get("extended_to") and g["extended_to"] != g.get("expiry"):
+        ext.append("+6mo paediatric")
+    if ext:
+        bits.append(f'<br><span class="m">{", ".join(ext)}</span>')
+    return "".join(bits)
+
+
+def _stack_after(row) -> str:
+    n = row.get("later_patents") or 0
+    if not n:
+        return '<span class="m">none listed</span>'
+    use = row.get("later_use") or 0
+    return (f'{n} to {html_escape((row.get("later_to") or "")[:4])}'
+            + (f'<br><span class="m">{use} method of use</span>' if use else ""))
+
+
+def _stack_range(rng) -> str:
+    if not rng or not rng.get("base"):
+        return '<span class="m">no forecast</span>'
+    bear, base, bull = (rng.get(e) or {} for e in ("bear", "base", "bull"))
+    if bear.get("date") == base.get("date") == bull.get("date"):
+        return '<span class="m">one date</span>'
+    years = (f'{bear["date"][:4]} to {bull["date"][:4]}'
+             if bear["date"][:4] != bull["date"][:4]
+             else f'{bear["date"][:10]} to {bull["date"][:10]}')
+    # The value at each end that moves, beside the base it moves from.
+    values = [f'{end} {_money_mm(e["npv"])}' for end, e in (("bear", bear), ("base", base),
+                                                             ("bull", bull))
+              if e.get("npv") is not None
+              and (end == "base" or e.get("date") != base.get("date"))]
+    return years + (f'<br><span class="m">{", ".join(values)}</span>'
+                    if len(values) > 1 else "")
+
+
+def _stack_challenges(piv) -> str:
+    if not piv:
+        return '<span class="m">none on the FDA list</span>'
+    since = ("before 2003" if piv.get("pre_mma") and not piv.get("first_submission")
+             else (piv.get("first_submission") or "")[:4])
+    filers = piv.get("filers")
+    head = (f'{filers} filer{"s" if filers != 1 else ""}' if filers else "filed")
+    head += f' since {html_escape(since)}' if since else ""
+    if piv.get("first_marketing"):
+        tail = f'generic sold {piv["first_marketing"][:10]}'
+    elif piv.get("first_approval"):
+        tail = f'generic approved {piv["first_approval"][:10]}, not sold'
+    else:
+        tail = "no generic approved"
+    return f'{head}<br><span class="m">{html_escape(tail)}</span>'
+
+
+def _stack_erosion(row) -> str:
+    if not row:
+        return '<span class="m">no forecast</span>'
+    sample = (f'n {row["sample_n"]}' if row.get("sample_n")
+              else "stated" if row.get("row") == "stated" else "not fitted")
+    return (f'<span title="{html_escape(row.get("source") or "")}">'
+            f'-{row["year1_pct"]:.0%} year one<br><span class="m">'
+            f'{html_escape(row.get("row") or "")}, {sample}</span></span>')
+
+
+def _stack_listed(listed) -> str:
+    """The listed protection where it runs past the valued date: orphan exclusivity,
+    which covers one indication and holds off no generic, so neither the cliff nor the
+    value counts it."""
+    if not listed or not listed.get("date"):
+        return ""
+    return (f'<br><span class="m">{html_escape(listed.get("basis") or "listed")} to '
+            f'{html_escape(listed["date"][:10])}, not counted</span>')
+
+
+def _loe_stack_table_html(rows, ticker) -> str:
+    """The LOE view's stack: one line a product losing exclusivity in the window, read
+    left to right as why the cliff is where it is. Each product opens its fact profile,
+    which carries the full list."""
+    if not rows:
+        return ""
+    head = ("product", "date", "sets it", "listed after", "range", "Paragraph IV",
+            "erosion")
+    body = []
+    for r in rows:
+        link = (f'<a href="?ticker={html_escape(ticker)}&amp;product={r["asset_id"]}" '
+                f'target="_self">{html_escape(r.get("brand") or "")}</a>')
+        body.append(
+            "<tr>"
+            f'<td>{link}<br><span class="m">{html_escape(r.get("modality") or "")}</span></td>'
+            f'<td><span class="d">{html_escape((r.get("loe") or "")[:10])}</span>'
+            f'{" lapsed" if r.get("past") else ""}<br>'
+            f'<span class="m">{html_escape(r.get("basis") or "")}</span>'
+            f'{_stack_listed(r.get("listed_loe"))}</td>'
+            f'<td>{_stack_sets_it(r.get("governing"), r.get("basis"))}</td>'
+            f'<td>{_stack_after(r)}</td>'
+            f'<td>{_stack_range(r.get("loe_range"))}</td>'
+            f'<td>{_stack_challenges(r.get("paragraph_iv"))}</td>'
+            f'<td>{_stack_erosion(r.get("erosion"))}</td>'
+            "</tr>")
+    return ('<div class="land-wrap"><table class="land loe-stack"><thead><tr>'
+            + "".join(f"<th>{h}</th>" for h in head) + "</tr></thead><tbody>"
+            + "".join(body) + "</tbody></table></div>")
+
+
 def _render_product_profile(api_base, ticker, product, today) -> None:
     """The fact profile for one product: sourced facts on the left, the analyst's curated
     market-size / peak-sales / competitor view on the right, editable and saved back. Read
@@ -502,15 +692,27 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
 
         def _patent_row(p, lead=False):
             kind = p.get("kind") or p.get("type") or ""
+            # A method-of-use patent names the indications it claims by Orange Book use
+            # code. The data files carry no wording for the codes, so the codes it is.
+            if p.get("use_codes"):
+                kind += " · " + ", ".join(p["use_codes"])
             base = (p.get("expiry") or "")[:10]
             eff = (p.get("effective") or "")[:10]
             ped = (f'<span class="pt-ped">+6mo to {eff}</span>'
                    if p.get("extended_to") and p["extended_to"] != base else "")
+            # The Orange Book date already includes a term extension, so the row says
+            # what the USPTO certificate added rather than moving the date.
+            pte = p.get("term_extension") or {}
+            pte_txt = (f'<span class="pt-ped">extended {html_escape(pte["extension"])} '
+                       f'from {html_escape((pte.get("original_expiry") or "")[:10])} '
+                       f'(USPTO certificate)</span>'
+                       if pte.get("extension") else "")
             mark = ('<span class="pt-gov">sets the date</span>' if lead else "")
             return (f'<div class="prof-row pt{" gov" if lead else ""}">'
                     f'<span class="prof-k">{html_escape(p.get("identifier") or "—")}'
                     f'<span class="pt-kind">{html_escape(kind)}</span></span>'
-                    f'<span class="prof-v">{html_escape(base)}{ped}{mark}</span></div>')
+                    f'<span class="prof-v">{html_escape(base)}{pte_txt}{ped}{mark}'
+                    f'</span></div>')
 
         for p in governing:
             html.append(_patent_row(p, lead=True))
@@ -525,6 +727,8 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                         "listed expiry")
             html.append(f'<div class="prof-row"><span class="prof-k">basis</span>'
                         f'<span class="prof-v none">{note_txt}</span></div>')
+    html.extend(_loe_range_html(prof.get("loe_range")))
+    html.extend(_erosion_html(prof.get("erosion")))
 
     # Label, supplements, challenges: the regulatory footprint.
     lab = prof.get("label")
@@ -542,7 +746,9 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
             d = d if len(d) <= 80 else d[:79] + "…"
             html.append(f'<div class="prof-line"><span class="d">'
                         f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
-    if prof.get("challenges"):
+    if prof.get("paragraph_iv"):
+        html.extend(_paragraph_iv_html(prof["paragraph_iv"]))
+    elif prof.get("challenges"):
         html.append('<div class="prof-sub">Paragraph IV challenges</div>')
         html.append(_prof_rows([
             (c.get("application_number") or "application",
@@ -9927,14 +10133,20 @@ def _spine_items(feed_items: list, catalysts: list | None = None) -> list:
 
 
 def _spine_cliff(assets: list) -> dict:
-    """Per-year counts beyond 24 months, orphan excluded: the same convention as
-    the LOE tab, so the two views cannot disagree."""
+    """Per-year counts beyond 24 months on the date the valuation runs on, orphan
+    exclusivity left out: the same convention as the LOE tab, so the two views cannot
+    disagree. A product dated by orphan exclusivity counts at the date beneath it rather
+    than dropping off."""
     cliff: dict[int, int] = {}
     two_years_out = dt.date.today().year + 2
     for asset in assets:
-        if (asset.get("loe_basis") or "") == "orphan exclusivity":
-            continue
-        year = int((asset.get("loe") or "0000")[:4] or 0)
+        if "valued_loe" in asset:
+            date = asset.get("valued_loe")
+        elif (asset.get("loe_basis") or "") == "orphan exclusivity":
+            continue                        # an older API: no date beneath it to count
+        else:
+            date = asset.get("loe")
+        year = int((date or "0000")[:4] or 0)
         if year > two_years_out:
             cliff[year] = cliff.get(year, 0) + 1
     return cliff
@@ -10995,6 +11207,15 @@ with main:
                         except (ValueError, TypeError):
                             return None
 
+                    def _valued_loe_year(p):
+                        # An older API without the field counts on the listed date.
+                        if "valued_loe" not in p:
+                            return _loe_year(p)
+                        try:
+                            return int(str(p["valued_loe"])[:4]) if p["valued_loe"] else None
+                        except (ValueError, TypeError):
+                            return None
+
                     # One card per product: approvals repeat per indication, but revenue and
                     # exclusivity are per asset and shared, so collapse to the product and keep
                     # the earliest approval date.
@@ -11010,6 +11231,7 @@ with main:
                                 generic=a.get("generic_name"), modality=a.get("modality"),
                                 approved=a.get("approval_date"), loe=a.get("loe"),
                                 loe_basis=a.get("loe_basis"),
+                                valued_loe=a.get("valued_loe"),
                                 loe_earliest_year=(int(a["loe_earliest"][:4])
                                                    if a.get("loe_earliest") else None),
                                 revenue=a.get("revenue"),
@@ -11031,6 +11253,7 @@ with main:
                             brand=brand, generic=ex.get("generic_name"),
                             modality=ex.get("modality"), approved=None,
                             loe=ex.get("loe"), loe_basis=ex.get("loe_basis"),
+                            valued_loe=ex.get("valued_loe"),
                             loe_earliest_year=ex.get("loe_earliest_year"),
                             revenue=None, revenue_unit=None,
                             # A Purple Book biologic has no drugsfda row, so no label to read an
@@ -11248,8 +11471,13 @@ with main:
                             # whole cliff.
                             count_by_year: dict = {}
                             rev_by_year: dict = {}
+                            # Counted on the date the valuation runs on, which leaves
+                            # orphan exclusivity out: it covers one orphan indication and
+                            # holds off no generic. Humira lists orphan exclusivity to 2028
+                            # and its 12-year floor lapsed in 2014, so it is not a 2028
+                            # cliff. The cards keep the listed date.
                             for p in prods:
-                                y, r = _loe_year(p), p.get("revenue")
+                                y, r = _valued_loe_year(p), p.get("revenue")
                                 if y and today.year <= y <= today.year + 10:
                                     count_by_year[y] = count_by_year.get(y, 0) + 1
                                     if r:
@@ -11271,13 +11499,41 @@ with main:
                                                     value_fmt=lambda v: str(int(v))),
                                        css_class="chart-mount stretch")
                                 note("Every marketed product losing US exclusivity that year, "
-                                     "expiries from the Orange and Purple Books, counted whether or "
-                                     "not its revenue is tagged. A small molecule is placed at its "
-                                     "latest patent, a biologic at the later of its listed expiry "
-                                     "and the 12-year floor. A product with no published expiry "
-                                     "cannot be placed and is left out, never estimated: open its "
-                                     "card to see whether that is protection already lapsed or "
-                                     "nothing published yet.")
+                                     "on the date its valuation runs on, counted whether or not "
+                                     "its revenue is tagged. A small molecule is placed at its "
+                                     "molecule patent with its extensions unless the filer states "
+                                     "a date or a generic has launched, a biologic at the later of "
+                                     "its listed expiry and the 12-year floor. Orphan exclusivity "
+                                     "is left out: it covers one indication and holds off no "
+                                     "generic, so a card can list a later date than the chart "
+                                     "counts. A product with no published expiry cannot be placed "
+                                     "and is left out, never estimated: open its card to see "
+                                     "whether that is protection already lapsed or nothing "
+                                     "published yet.")
+                            # The stack behind each date in the window, so the cliff can be
+                            # argued with: what sets the date, what is listed after it, who
+                            # has challenged it, how far the date could move and what that
+                            # is worth, and the erosion the valuation runs from it.
+                            try:
+                                _stack = (api_get(api_base, f"/companies/{ticker}/patent-stack")
+                                          .get("products") or [])
+                            except Exception as exc:            # a view beside the cliff
+                                _stack = None
+                                note(f"The patent stack did not load: {str(exc).rstrip('.')}.")
+                            if _stack:
+                                section("The stack behind each date", len(_stack),
+                                        "next 10 years")
+                                st.markdown(_loe_stack_table_html(_stack, ticker),
+                                            unsafe_allow_html=True)
+                                note("Range: from the molecule patent with its extensions to "
+                                     "the latest molecule or formulation patent; 89% of 122 past "
+                                     "generic launches fell inside theirs, and the value is the "
+                                     "product's NPV at each end. Paragraph IV: the FDA list for "
+                                     "the product's own application, most filers on any strength. "
+                                     "Erosion: the first-year loss the valuation runs after the "
+                                     "date and the number of launches the row was fitted to. "
+                                     "Use patents can be carved out of a generic label, so they "
+                                     "are counted but do not move the date.")
 
                             # The fact sheet, under the cliff rather than inside the card grid.
                             # Opening above the cards pushed them down the page on every click;
@@ -11675,6 +11931,12 @@ with main:
                     "Funded to it": ("yes" if r["funded_to_readout"] else
                                      "no" if r["funded_to_readout"] is False else
                                      "none scheduled"),
+                    # Measured, not a view of this company: what companies with this much
+                    # cash did over the next twelve months (data/runway_dilution.csv).
+                    "Raised within 12m, peers": ((r.get("expected_raise") or {})
+                                                 .get("p_raise_12m")),
+                    "Extra shares in 12m, peers": ((r.get("expected_raise") or {})
+                                                   .get("extra_shares_12m")),
                     # Two ways the figure can mislead, said on the row rather than in a
                     # footnote: a burn paid for by a licence receipt, and a cash figure
                     # missing the securities the company actually holds its runway in.
@@ -11687,7 +11949,17 @@ with main:
                         "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
                         "Raised since, m": st.column_config.NumberColumn(format="%.0f"),
                         "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
-                        "Runway, months": st.column_config.NumberColumn(format="%.0f")})
+                        "Runway, months": st.column_config.NumberColumn(format="%.0f"),
+                        "Raised within 12m, peers": st.column_config.NumberColumn(
+                            format="percent",
+                            help="Share of cash-burning companies with this many months of "
+                                 "cash whose financing inflows over the next year passed "
+                                 "10% of their cash. 573 company-quarters, mostly 2020 on."),
+                        "Extra shares in 12m, peers": st.column_config.NumberColumn(
+                            format="percent",
+                            help="Growth in diluted shares over the next year for "
+                                 "companies with this much cash, less the 7.5% of "
+                                 "companies with five years of cash (employee stock).")})
 
                 # The sharpest thing this page knows. A company whose next readout lands
                 # after its cash does has to finance on no new data, which is the weakest

@@ -7,6 +7,7 @@ from pathlib import Path
 import db
 import refresh
 import seed
+import fetchers.consensus_nasdaq as consensus_nasdaq
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.deals_news import DealsNewsFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
@@ -68,6 +69,9 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     # it; every fetcher a refresh reaches has to be stubbed for that to hold. This takes
     # the fetcher's own no-feed path, so everything but the HTTP call still runs.
     monkeypatch.setattr(PressIrFetcher, "fetch", _ir_pages_without_the_network)
+    # Nasdaq's consensus pages too: a proxy that refuses the host turned the run partial.
+    # No payload is the path the parser already reads as no rows.
+    monkeypatch.setattr(consensus_nasdaq, "_get", lambda symbol, kind: None)
 
     db_file = tmp_path / "test.db"
     db.init(db_file)

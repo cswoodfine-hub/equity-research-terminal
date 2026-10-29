@@ -87,6 +87,7 @@ from fetchers.policy_fedreg import PolicyFedRegFetcher
 from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
+from fetchers.pte_uspto import PteFetcher
 from fetchers.press_ir import PressIrFetcher
 from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
@@ -188,12 +189,14 @@ def _universe_fetchers(db_path):
     reference set that lets the universe view convert to one display currency, and the
     EMA's authorisations, which start each product's European data protection, and the
     market rates every discount rate is built on, the index and sector closes a beta
-    is measured against, and the Medicare prices CMS has negotiated)."""
+    is measured against, the Medicare prices CMS has negotiated, and the USPTO's patent
+    term extensions, which name the patent that holds each molecule)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             EuMedicinesFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
-            ParagraphIvFetcher(db_path), DemandCmsFetcher(db_path),
+            ParagraphIvFetcher(db_path), PteFetcher(db_path),
+            DemandCmsFetcher(db_path),
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             PolicyFedRegFetcher(db_path),
             NegotiatedPricesCmsFetcher(db_path)]
@@ -525,7 +528,10 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
 
     ``force`` ignores every TTL. The daily job sets it, because a scheduled run that
     skips is a run that did nothing, and on a database rebuilt from exported history
-    every source looks freshly fetched while its data is absent.
+    every source looks freshly fetched while its data is absent. On a database restored
+    whole it is ``fetchers.base.DAILY`` instead: every source due daily or faster still
+    fetches, and the weekly and monthly ones skip inside their TTL, since their data is
+    there.
     """
     db.init(db_path)
     run_id = _start_run(db_path)
@@ -810,6 +816,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
             f"{gone['last_rows']} ({str(gone['last_seen'])[:10]})")
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
+              # Which TTLs held: True fetched everything, "daily" let slower sources
+              # skip, False is an analyst's refresh.
+              "force": force,
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
               "pdufa": goals, "submissions": filed, "relinked": relinked,

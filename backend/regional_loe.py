@@ -42,6 +42,14 @@ DATE_FOR = {"INTL": ("EU",), "EU": ("EU",), "JP": ("JP",), "CN": ("CN",),
 # Regions whose sales sit under the EU statute, so its floor applies.
 EUROPEAN = {"EU", "INTL"}
 PROTECTION_YEARS = 10
+# A supplementary protection certificate extends the molecule patent by up to five years,
+# and no further than fifteen from the substance's first EU authorisation (Regulation (EC)
+# No 469/2009, Art. 13). So without a stated date, Europe opens no later than fifteen
+# years after first authorisation, unless a later patent holds. Measured on 120 products
+# whose filers state an EU date: the US date held between this cap and the floor put 63%
+# within a year of the stated date and averaged 1.62 years out, against 57% and 1.82 for
+# the floor alone (work/patents/REGIONAL.md).
+SPC_CAP_YEARS = 15
 _PARTITION_TOLERANCE = 0.03
 
 
@@ -302,6 +310,11 @@ def for_asset(conn, asset_id: int, disclosed_path=None) -> list[dict]:
                                f"first authorisation of {authorised['name']} on "
                                f"{authorised['date']} (Directive 2001/83/EC, Art. 10(1); EMA)")
                 region["floor_year"], region["floor_basis"] = floor, floor_basis
+                region["cap_year"] = first.year + SPC_CAP_YEARS
+                region["cap_basis"] = (f"EU SPC limit, {SPC_CAP_YEARS} years from first "
+                                       f"authorisation of {authorised['name']} on "
+                                       f"{authorised['date']} (Regulation (EC) No 469/2009, "
+                                       "Art. 13; EMA)")
                 if region["year"] is not None and not region["in_base"] and floor > region["year"]:
                     region["year"], region["basis"] = floor, floor_basis
         out.append(region)

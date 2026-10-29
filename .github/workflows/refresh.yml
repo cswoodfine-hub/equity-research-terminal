@@ -12,7 +12,12 @@ on:
     # 06:00 UTC daily. Scheduled runners can start late under load, so nothing here
     # depends on the exact minute.
     - cron: '0 6 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: "Fetch every source, ignoring every TTL (as a rebuilt run does)"
+        type: boolean
+        default: false
 
 # One refresh at a time; a slow run must not overlap the next tick.
 concurrency:
@@ -56,9 +61,36 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
+      - name: Restore yesterday's database
+        # From 2026-10-08 the run took an hour or more where it had taken 20 minutes,
+        # because it began each day from history alone: the pharmacology lookups, the
+        # drug codes and the Part D readers keep their data outside the export, so each
+        # of them refetched everything every day. Starting from the database the last
+        # run published lets the sources slower than daily skip inside their TTL. Every
+        # daily source still fetches every run (fetchers/base.py), and Sunday fetches
+        # everything. history.py restore-check accepts the file only if it is intact and
+        # at least as recent as the committed history; otherwise it is removed and the
+        # run below rebuilds and fetches every source, as before.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/restore"
+          if gh release download data-latest --pattern 'er_tool.db.gz' \
+               --dir "$RUNNER_TEMP/restore" --clobber; then
+            gunzip -c "$RUNNER_TEMP/restore/er_tool.db.gz" > backend/er_tool.db || rm -f backend/er_tool.db
+          else
+            echo "No published database to restore; the run rebuilds from history."
+          fi
+          if python backend/history.py restore-check \
+               && [ "${{ inputs.force_all }}" != "true" ]; then
+            echo "ER_REFRESH_FORCE=daily" >> "$GITHUB_ENV"
+          fi
+
       - name: Rebuild the database from committed history
-        # The diff engine needs the prior snapshots to detect what changed. On the
-        # first ever run data/history is empty and this is a harmless no-op.
+        # The diff engine needs the prior snapshots to detect what changed. On a restored
+        # database this merges the committed history into it (a row replaces the one
+        # with its id); on none it builds the database from history alone. On the first
+        # ever run data/history is empty and this is a harmless no-op.
         run: python backend/history.py rebuild
 
       - name: Seed the universe

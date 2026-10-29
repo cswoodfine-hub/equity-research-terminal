@@ -159,30 +159,155 @@ def cms_deselections(conn, path=None) -> dict:
     return out
 
 
-def compound_expiry(rows, identifier=None) -> tuple:
+def compound_expiry(rows, identifier=None, extended=None) -> tuple:
     """(date, identifier) of the patent that holds the molecule, PED included.
+
+    The rule and its order are ``compound_source``'s; this is the date and the patent
+    without the reason, for callers that only want the date.
+    """
+    date, patent, _ = compound_source(rows, identifier, extended)
+    return date, patent
+
+
+def compound_source(rows, identifier=None, extended=None) -> tuple:
+    """(date, identifier, how) of the patent that sets the date, PED included.
 
     ``identifier`` is the curated compound patent for this asset. Given one, that patent
     sets the date, extended by its own paediatric exclusivity where the book lists one:
     Farxiga's 6515117 expires 2025-10-04 and its "*PED" row runs to 2026-04-04, and April
-    2026 is when generics could come.
+    2026 is when generics could come. ``how`` is "curated".
 
-    Without one this falls back to the latest drug substance patent, which is what the app
-    did before the curated file existed. That is not the compound patent either, but it is
-    the conservative end of a range the book does not resolve, and guessing the other end
-    would put Ozempic out of patent five years early.
+    Without one this falls back to the latest drug substance patent, ``how``
+    "substance". That is often a salt or a crystal form rather than the molecule.
+
+    ``extended`` does not change the date; see ``molecule_patent``, which reads it. It is
+    accepted here so a caller passes one set of facts to both.
     """
     dated = [r for r in rows if r["expiry_date"]]
     if identifier:
-        own = [r for r in dated
-               if (r["identifier"] or "").split(_PED_SUFFIX)[0] == identifier]
+        own = _own(dated, identifier)
         if own:
-            return max(r["expiry_date"] for r in own), identifier
+            return max(r["expiry_date"] for r in own), identifier, "curated"
     substance = [r for r in dated if (r["patent_kind"] or "") == "substance"]
     if not substance:
-        return None, None
+        return None, None, None
     last = max(substance, key=lambda r: r["expiry_date"])
-    return last["expiry_date"], last["identifier"] or None
+    return last["expiry_date"], last["identifier"] or None, "substance"
+
+
+def _own(dated, patent):
+    return [r for r in dated if (r["identifier"] or "").split(_PED_SUFFIX)[0] == patent]
+
+
+def molecule_patent(rows, extended) -> tuple:
+    """(date, identifier) of the patent the USPTO extended under 35 USC 156, PED included,
+    or (None, None) where the asset lists none.
+
+    Section 156 extends one patent per product and the holder extends the one claiming
+    the molecule: all five curated compound patents are the extended patent. So this
+    identifies the molecule patent the Orange Book's "drug substance" flag leaves
+    ambiguous. A combination lists each component's extended patent; the latest is taken,
+    since a generic of the combination needs every molecule free.
+
+    It is the **floor** of the LOE range, not the date. Measured on 122 drugs whose first
+    generic launch the FDA Paragraph IV list records (work/patents/BACKTEST.md), launch
+    came a median 0.3 years after the extended patent and its paediatric extension, with
+    a median error of 1.6 years and 44% within a year: later patents and settlements hold
+    a generic off as often as not. On Rinvoq the extended patent reads 2033 where the
+    latest substance patent reads 2036, and taking the floor as the date would move value
+    on a rule that is typically a year and a half out.
+    """
+    dated = [r for r in rows if r["expiry_date"]]
+    listed = {(r["identifier"] or "").split(_PED_SUFFIX)[0] for r in dated}
+    hits = sorted(p for p in listed if p in (extended or ()))
+    if not hits:
+        return None, None
+    return max((max(r["expiry_date"] for r in _own(dated, p)), p) for p in hits)
+
+
+def latest_composition_patent(rows) -> tuple:
+    """(date, identifier) of the latest drug substance or drug product patent, PED
+    included, or (None, None). A use-only patent is left out: a generic can carve its
+    use out of the label and launch on the rest, so it does not hold the product."""
+    dated = [r for r in rows if r["expiry_date"]]
+    kinds = {(r["identifier"] or "").split(_PED_SUFFIX)[0]: r["patent_kind"]
+             for r in dated if r["patent_kind"]}
+    held = [r for r in dated
+            if kinds.get((r["identifier"] or "").split(_PED_SUFFIX)[0])
+            in ("substance", "product")]
+    if not held:
+        return None, None
+    last = max(held, key=lambda r: r["expiry_date"])
+    return last["expiry_date"], (last["identifier"] or "").split(_PED_SUFFIX)[0]
+
+
+# Bases that are a fact or a contract, not a reading of patents: a filer's own date, a
+# settlement, a generic on sale, CMS finding one marketed. They have no range.
+_SETTLED = ("10-k", "20-f", "disclos", "settle", "generic marketed", "cms deselection",
+            "biosimilar")
+
+
+def date_range(found: dict) -> dict | None:
+    """Bear, base and bull LOE dates for one ``for_assets`` result, each with its reason.
+
+    - **bear**: the molecule patent with its paediatric extension, where it is earlier
+      than the base. Measured on 122 past launches (work/patents/BACKTEST.md), 9 of the
+      99 with later patents launched before it.
+    - **bull**: the latest drug substance or drug product patent, where later than the
+      base. 2 of the 99 launched after the last qualifying patent.
+
+    So the range held 89% of past launches. The base stays the valuation. A date that is a
+    fact or a contract (``_SETTLED``) has no range, and neither does a product with
+    nothing either side of its base.
+    """
+    base = found.get("date") if found else None
+    if not base:
+        return None
+    basis = (found.get("basis") or "").lower()
+    if any(word in basis for word in _SETTLED) or found.get("past"):
+        return {"bear": base, "base": base, "bull": base,
+                "why": "the date is a fact or a contract, not a reading of patents"}
+    bear, bull = base, base
+    bear_why = bull_why = "the base"
+    if found.get("molecule_date") and found["molecule_date"] < base:
+        bear = found["molecule_date"]
+        bear_why = f"molecule patent {found.get('molecule_patent')}, extended under 35 USC 156"
+    if found.get("latest_patent_date") and found["latest_patent_date"] > base:
+        bull = found["latest_patent_date"]
+        bull_why = f"latest substance or product patent {found.get('latest_patent')}"
+    return {"bear": bear, "base": base, "bull": bull,
+            "bear_why": bear_why, "bull_why": bull_why}
+
+
+def extended_patents(conn) -> set:
+    """The patent numbers the USPTO lists a term extension certificate for. Empty on a
+    database from before the source, which leaves the substance rule in force."""
+    try:
+        return {r[0] for r in conn.execute(
+            "SELECT patent FROM patent_term_extensions WHERE kind = 'certificate'")}
+    except Exception:                       # noqa: BLE001 - no table yet
+        return set()
+
+
+def generic_launches(conn) -> dict:
+    """{asset_id: first commercial marketing date} from the FDA Paragraph IV list.
+
+    The list records when the first Paragraph IV filer began selling its generic: a
+    launch that happened, not a patent that might fall. Matched exactly on the reference
+    drug's NDA number against the asset's application, earliest strength first. An
+    approval alone is not taken, since a settlement can hold an approved generic off the
+    market for years: Eliquis's first generic was approved in December 2019 and is not
+    sold.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT a.id AS asset_id, MIN(p.first_marketing) AS launched"
+            "  FROM paragraph_iv_list p JOIN assets a"
+            "    ON a.internal_code = p.application_number"
+            " WHERE p.first_marketing IS NOT NULL GROUP BY a.id").fetchall()
+    except Exception:                       # noqa: BLE001 - no table yet
+        return {}
+    return {r["asset_id"]: r["launched"] for r in rows}
 
 
 def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
@@ -214,6 +339,7 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         grouped.setdefault(row["asset_id"], []).append(row)
 
     curated = curated_compound(conn)
+    extended = extended_patents(conn)
     floors = {r["asset_id"]: r for r in conn.execute(
         "SELECT asset_id, floor_year, loe_date, basis, disclosed_year FROM biologic_loe")}
 
@@ -232,27 +358,35 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         latest = max((r["expiry_date"] for r in dated), default=None)
         basis = next((r["protection_type"] for r in sorted(
             dated, key=lambda r: r["expiry_date"], reverse=True)), None)
-        compound, identifier = compound_expiry(rows, curated.get(asset_id))
+        compound, identifier, how = compound_source(rows, curated.get(asset_id),
+                                                    extended)
         bio = floors.get(asset_id)
         disclosed = None
         if bio and bio["disclosed_year"] and bio["loe_date"]:
             disclosed = (bio["loe_date"], bio["basis"])
         date, why = effective(latest, basis, bio["floor_year"] if bio else None,
                               compound, disclosed=disclosed)
-        if why == "compound patent" and asset_id not in curated:
+        if why == "compound patent" and how != "curated":
             why = "drug substance patent"
+        floor_date, floor_patent = molecule_patent(rows, extended)
+        ceiling_date, ceiling_patent = latest_composition_patent(rows)
         out[asset_id] = {"date": date, "basis": why, "identifier": identifier,
-                         "past": bool(date and date < today)}
+                         "past": bool(date and date < today),
+                         "molecule_patent": floor_patent, "molecule_date": floor_date,
+                         "latest_patent": ceiling_patent, "latest_patent_date": ceiling_date}
 
     requested = set(asset_ids) if asset_ids is not None else None
     today_date = dt.date.today()
 
     # What the filer states in its own 10-K sets the date outright, over everything the
     # books imply, and before the inferences and links below, which only fill a gap.
+    stated_by_filer = set()
     for asset_id, stated in curated_disclosed(conn).items():
         if requested is not None and asset_id not in requested:
             continue
-        out[asset_id] = {"date": stated["date"], "identifier": None,
+        stated_by_filer.add(asset_id)
+        out[asset_id] = {**(out.get(asset_id) or {}),
+                         "date": stated["date"], "identifier": None,
                          "past": stated["date"] is None or stated["date"] < today,
                          "basis": f"{stated['basis']} ({stated['stated']})",
                          "note": stated["note"] or None}
@@ -269,10 +403,29 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
             continue                      # already a loss with no date; nothing to add
         if held and held <= found["date"]:
             continue
-        out[asset_id] = {"date": found["date"], "identifier": None,
-                         "past": found["date"] < today,
+        out[asset_id] = {**known, "date": found["date"], "identifier": None,
+                         "past": found["date"] < today, "observed": True,
                          "basis": f"{found['basis']} ({found['stated']})",
                          "note": found["note"] or None}
+
+    # A generic on sale is the market opened, and like a deselection it can only pull a
+    # date earlier. Januvia's first generic launched 2026-05-28 under the settlements
+    # Merck disclosed, where the latest substance patent read 2026-11-24. It sits beneath
+    # what the filer states: Revlimid's generics launched in March 2022 under volume
+    # limits BMS negotiated, and BMS's 2026-01-31, when the limits end, is the cliff. A
+    # loss the filer states with no date takes the launch as its date.
+    for asset_id, launched in generic_launches(conn).items():
+        if requested is not None and asset_id not in requested:
+            continue
+        known = out.get(asset_id) or {}
+        held = known.get("date")
+        if asset_id in stated_by_filer and held:
+            continue
+        if held and held <= launched:
+            continue
+        out[asset_id] = {**known, "date": launched, "identifier": None,
+                         "past": launched < today, "observed": True,
+                         "basis": f"generic marketed ({launched}, FDA Paragraph IV list)"}
 
     # Two inferences from silence, run before links so a holder carries what they give.
     # Each establishes that exclusivity is gone and not when it went, so each records a
@@ -515,6 +668,9 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
     conn = db.get_connection(db_path)
     try:
         resolved = for_assets(conn, [a["asset_id"] for a in assets])
+        # The valuation's date beside the view's: orphan exclusivity left out, as the
+        # forecast does. The LOE cliff counts on it.
+        valued = for_assets(conn, [a["asset_id"] for a in assets], exclude_orphan=True)
     finally:
         conn.close()
 
@@ -532,6 +688,9 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
         item["loe"] = loe
         item["loe_basis"] = basis
         item["loe_year"] = int(loe[:4])
+        worth = valued.get(asset["asset_id"]) or {}
+        item["valued_loe"], item["valued_loe_basis"] = worth.get("date"), worth.get("basis")
+        item["valued_loe_past"] = bool(worth.get("past"))
         # The window a small molecule loses protection over: first molecule patent to
         # last. Without substance flags it stays the whole listed range, which is all
         # that is known for that product.

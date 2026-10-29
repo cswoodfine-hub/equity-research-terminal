@@ -1,0 +1,49 @@
+{
+ "ticker": "AZN",
+ "products": [
+  {
+   "asset_id": 493,
+   "brand": "Fasenra",
+   "generic": "Benralizumab",
+   "modality": "biologic",
+   "loe": "2029-11-14",
+   "loe_year": 2029,
+   "basis": "reference product exclusivity (12y)",
+   "past": false,
+   "listed_loe": {
+    "date": "2031-09-17",
+    "basis": "orphan exclusivity"
+   },
+   "governing": null,
+   "later_patents": 0,
+   "later_to": null,
+   "later_use": 0,
+   "paragraph_iv": null,
+   "loe_range": {
+    "why_bear": "the base",
+    "why_bull": "the base",
+    "bear": {
+     "date": "2029-11-14",
+     "npv": 2712.7826926969133
+    },
+    "base": {
+     "date": "2029-11-14",
+     "npv": 2712.7826926969133
+    },
+    "bull": {
+     "date": "2029-11-14",
+     "npv": 2712.7826926969133
+    }
+   },
+   "erosion": {
+    "row": "biologic",
+    "year1_pct": 0.25,
+    "decay_pct": 0.25,
+    "late_decay_pct": null,
+    "late_from_year": null,
+    "sample_n": 9,
+    "source": "filers' own US lines (net, every channel): first-year fall median 26.5% over nine biosimilar cliffs (Stelara 42.7%, Humira 34.7%, Neupogen 32.7%, Neulasta 27.2%, Eylea 26.5%, Epogen 21% from the SEC data sets, Xgeva 10.1%, Remicade 6.5%, Prolia rose 3.2%); later years median 25.2% a year (n 10: Humira 41.3%, 57.1%; Neulasta 28.9%, 24.3%, 36.7%, 26.0%; Remicade 19.0%, 16.0%, 18.5%, 19.5%). Cross-check: Medicare Part B, eight biosimilar launches 2015-2023 on the reference product's own codes, year one kept 0.525, later years falling a median 31% a year (n 30, Lucentis left out since Vabysmo and Eylea took its patients too)"
+   }
+  }
+ ]
+}

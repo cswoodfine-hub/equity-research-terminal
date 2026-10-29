@@ -57,6 +57,47 @@ def test_profile_assembles_sourced_fields_and_merges_loe(tmp_path):
                           "thesis": None, "updated_at": None}
 
 
+def test_profile_carries_the_stack_behind_the_date(tmp_path):
+    """Plan step 7: the term extension and use codes on each patent, the Paragraph IV
+    list for the product's own application, and nothing invented where none is on file."""
+    db_file, aid = _seed_product(tmp_path)
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE assets SET internal_code = 'NDA111' WHERE id = ?", (aid,))
+    conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                 " expiry_date, patent_kind, use_codes, source)"
+                 " VALUES (?, 'patent', '6515117', '2032-10-04', 'substance',"
+                 " 'U-2139,U-493', 'orange_book')", (aid,))
+    conn.execute("INSERT INTO patent_term_extensions (patent, kind, original_expiry,"
+                 " extension) VALUES ('6515117', 'certificate', '2027-10-04', '5 years')")
+    conn.execute("INSERT INTO paragraph_iv_list (application_number, strength,"
+                 " submission_date, anda_count, status_180, first_marketing)"
+                 " VALUES ('NDA111', '10 mg', '2024-01-08', 4, 'Eligible', NULL)")
+    conn.commit()
+    conn.close()
+    p = pp.product_profile(db_file, "LLY", aid)
+    molecule = next(r for r in p["patents"] if r["identifier"] == "6515117")
+    assert molecule["term_extension"] == {"extension": "5 years",
+                                          "original_expiry": "2027-10-04"}
+    assert molecule["use_codes"] == ["U-2139", "U-493"]
+    plain = next(r for r in p["patents"] if r["identifier"] == "X")
+    assert plain["term_extension"] is None and plain["use_codes"] == []
+    assert [(r["strength"], r["anda_count"], r["first_marketing"])
+            for r in p["paragraph_iv"]] == [("10 mg", 4, None)]
+    # No assumptions on file, so no forecast: no range and no erosion row, not a default.
+    assert p["loe_range"] is None
+
+
+def test_profile_names_the_erosion_row_and_its_sample():
+    inputs = {"scalars": {"therapy_mode": "marketed"}, "modality": "small molecule",
+              "route": "non-oral",
+              "erosion_defaults": pp.assumptions_module.erosion_defaults()}
+    row = pp._erosion(inputs)
+    assert row["row"] == "small molecule, non-oral route" and row["sample_n"] == 28
+    stated = pp._erosion({"scalars": {"erosion_year1_pct": 0.5}})
+    assert stated["row"] == "stated" and stated["sample_n"] is None
+    assert pp._erosion({"scalars": {}}) is None
+
+
 def test_profile_is_scoped_to_the_owning_company(tmp_path):
     db_file, aid = _seed_product(tmp_path)
     # The asset belongs to LLY, so asking under another ticker must not leak it.
@@ -108,3 +149,68 @@ def test_demand_reports_each_part_and_never_sums_patients(tmp_path):
     assert b["beneficiaries"] == 5 and d["beneficiaries"] == 5
     assert b["patient_growth"] == 0.25 and d["patient_growth"] == 0.0
     assert b["like_for_like"] and d["like_for_like"]
+
+
+def test_company_stack_lists_each_product_in_the_window_with_its_stack(tmp_path):
+    """The LOE view's rows: the patent that sets the date with its extension, the later
+    patents counted, the Paragraph IV record cut to one line, and a product outside the
+    window left out."""
+    import datetime as dt
+
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    soon = _asset(conn, "LLY", "Soondrug")
+    late = _asset(conn, "LLY", "Latedrug")
+    year = dt.date.today().year
+    conn.execute("UPDATE assets SET internal_code = 'NDA222' WHERE id = ?", (soon,))
+    rows = ((soon, "1111111", f"{year + 2}-03-01", "substance", None),
+            (soon, "2222222", f"{year + 5}-03-01", "use", "U-1,U-2"),
+            (soon, "3333333", f"{year + 6}-03-01", "product", None),
+            (late, "4444444", f"{year + 14}-01-01", "substance", None))
+    for aid, ident, expiry, kind, codes in rows:
+        conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                     " expiry_date, patent_kind, use_codes, source)"
+                     " VALUES (?, 'patent', ?, ?, ?, ?, 'orange_book')",
+                     (aid, ident, expiry, kind, codes))
+    conn.execute("INSERT INTO patent_term_extensions (patent, kind, original_expiry,"
+                 " extension) VALUES ('1111111', 'certificate', ?, '2 years')",
+                 (f"{year}-03-01",))
+    # Two biologics dated by orphan exclusivity, as Humira and Fasenra are: the first's
+    # floor lapsed years ago, so it is off the cliff; the second's is in the window, so
+    # it is in the table at the floor with the orphan date beside it.
+    lapsed = _asset(conn, "LLY", "Lapsedmab", "biologic")
+    floored = _asset(conn, "LLY", "Flooredmab", "biologic")
+    for aid, floor, orphan in ((lapsed, "2014-12-31", f"{year + 2}-02-24"),
+                               (floored, f"{year + 3}-11-14", f"{year + 5}-09-17")):
+        conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                     " expiry_date, source) VALUES"
+                     " (?, 'reference product exclusivity (12y)', '12-year statutory floor',"
+                     " ?, 'purple_book'),"
+                     " (?, 'orphan exclusivity', 'orphan exclusivity', ?, 'purple_book')",
+                     (aid, floor, aid, orphan))
+    for strength, filers, approved in (("5 mg", 3, None), ("10 mg", 6, f"{year}-01-02")):
+        conn.execute("INSERT INTO paragraph_iv_list (application_number, strength,"
+                     " submission_date, anda_count, first_approval)"
+                     " VALUES ('NDA222', ?, '2021-04-01', ?, ?)", (strength, filers, approved))
+    conn.commit()
+    conn.close()
+
+    stack = pp.company_stack(db_file, "LLY")
+    assert [r["brand"] for r in stack] == ["Soondrug", "Flooredmab"]
+    mab = stack[1]
+    assert mab["loe"] == f"{year + 3}-11-14"
+    assert mab["listed_loe"] == {"date": f"{year + 5}-09-17", "basis": "orphan exclusivity"}
+    row = stack[0]
+    assert row["governing"]["identifier"] == "1111111"
+    assert row["governing"]["term_extension"]["extension"] == "2 years"
+    assert row["later_patents"] == 2 and row["later_use"] == 1
+    assert row["later_to"] == f"{year + 6}-03-01"
+    assert row["paragraph_iv"] == {"first_submission": "2021-04-01", "pre_mma": False,
+                                   "filers": 6, "first_marketing": None,
+                                   "first_approval": f"{year}-01-02", "strengths": 2}
+    # No assumptions on file: no range and no erosion, never a default filled in.
+    assert row["loe_range"] is None and row["erosion"] is None
+    assert row["listed_loe"] is None and row["past"] is False
+    assert pp.company_stack(db_file, "ZZZZ") is None

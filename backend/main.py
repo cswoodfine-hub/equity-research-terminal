@@ -426,6 +426,15 @@ def company_exclusivities(ticker: str) -> dict:
     return {"ticker": ticker.upper(), "assets": rows}
 
 
+@app.get("/companies/{ticker}/patent-stack")
+def company_patent_stack(ticker: str, horizon_years: int = 10) -> dict:
+    """The stack behind each LOE date in the window, one row a product, for the LOE view."""
+    rows = product_profile_module.company_stack(None, ticker, horizon_years)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "horizon_years": horizon_years, "products": rows}
+
+
 @app.get("/companies/{ticker}/filing-text")
 def company_filing_text(ticker: str) -> dict:
     """Risk factors and MD&A of the latest filings, diffed against the prior of the same
@@ -567,6 +576,11 @@ def company_approvals(ticker: str) -> dict:
         # drug substance, the filer's own biosimilar date where it states one, the
         # statutory floor under both. Resolved once for the page, not per row.
         resolved = loe_module.for_assets(conn, [r["asset_id"] for r in rows])
+        # And the date the valuation runs on, which leaves orphan exclusivity out: it
+        # covers one orphan indication and holds off no generic or biosimilar. The LOE
+        # cliff counts on this one, so the chart and the value agree.
+        valued = loe_module.for_assets(conn, [r["asset_id"] for r in rows],
+                                       exclude_orphan=True)
     finally:
         conn.close()
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
@@ -588,6 +602,9 @@ def company_approvals(ticker: str) -> dict:
         r["loe"], r["loe_basis"] = found.get("date"), found.get("basis")
         r["loe_past"] = bool(found.get("past"))
         r["loe_identifier"] = found.get("identifier")
+        worth = valued.get(r["asset_id"]) or {}
+        r["valued_loe"], r["valued_loe_basis"] = worth.get("date"), worth.get("basis")
+        r["valued_loe_past"] = bool(worth.get("past"))
         # The window opens at the compound patent, which is what a generic waits out.
         r["loe_earliest"] = r.pop("substance_earliest") or r["loe_earliest"]
         # Reported beside the date and never as it. A use patent covers one indication

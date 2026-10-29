@@ -26,6 +26,17 @@ _SQLITE_TS = "%Y-%m-%d %H:%M:%S"  # shape of datetime('now'), always UTC
 FETCH_ATTEMPTS = 3
 FETCH_BACKOFF_S = 2.0
 
+# A daily run on a restored database (scheduled_refresh, ER_REFRESH_FORCE=daily) fetches
+# every source due daily or faster whatever its last fetch says, and lets a slower one
+# skip inside its TTL. The daily TTLs are exactly 24 hours and GitHub starts the
+# scheduled job anywhere from 10:26 to 15:02 UTC, so a daily source left to its TTL would
+# skip on any day the job started earlier than the day before: a day of filings and
+# trials missed. A slower source comes due TTL_SLACK_S early on such a run, so a weekly
+# source read at 14:00 is read again on the seventh day rather than the eighth.
+DAILY = "daily"
+_DAY_S = 24 * 60 * 60
+TTL_SLACK_S = 6 * 60 * 60
+
 # EAI_NONAME and EAI_AGAIN: the resolver could not answer, which says nothing about
 # whether the source would have.
 _DNS_ERRNOS = {socket.EAI_NONAME, socket.EAI_AGAIN}
@@ -175,16 +186,24 @@ class BaseFetcher(ABC):
         # job to skip a source, and on a rebuilt database it is actively wrong: the
         # snapshots restored from history say a fetch happened that this machine never
         # made, and the data that fetch produced is not in the export.
-        if getattr(self, "force", False):
+        #
+        # ``force`` is True (fetch everything: a rebuilt database), DAILY (a database
+        # restored whole, data and all: fetch whatever is due daily, let slower sources
+        # skip inside their TTL) or False (an analyst's refresh: every TTL holds).
+        force = getattr(self, "force", False)
+        if force is True:
             return False
         if self.ttl_seconds <= 0:
+            return False
+        if force == DAILY and self.ttl_seconds <= _DAY_S:
             return False
         last = self._last_live_fetch_at()
         if not last:
             return False
         last_dt = dt.datetime.strptime(last, _SQLITE_TS).replace(tzinfo=dt.timezone.utc)
         age_s = (dt.datetime.now(dt.timezone.utc) - last_dt).total_seconds()
-        return age_s < self.ttl_seconds
+        slack = TTL_SLACK_S if force == DAILY else 0
+        return age_s < self.ttl_seconds - slack
 
     def _fetch_with_retry(self):
         """The source's own fetch, tried again when the failure was the local resolver.
