@@ -348,6 +348,102 @@ filings and their 30-month dates, the exclusivities, the chosen basis and the be
 and bull dates. The erosion row in use shows its sample size. A reader can see why the
 cliff is where it is and argue with it.
 
+## Step 8: proxies the book's own data can infer
+
+Agreed 2026-10-29. Five proxies, each built from data the book already holds, each
+tested against a number a company later reports before it touches value. Each one stops
+for agreement with a value delta on a copy, as step 3b did.
+
+### 8a. Trial spend: R&D ahead, bottom up
+
+- **Exists.** `development.py` costs each registry study at a per-patient rate
+  (`data/development_costs.csv`) over its run from start to primary completion. It is
+  deliberately beside the valuation, because the forecast already charges company R&D as
+  `rd_pct` × revenue.
+- **Build.** For each company and calendar year, the cost of every study it sponsors that
+  is running in that year: active studies (`trials`) and completed ones
+  (`completed_trials`). That is the company's clinical spend path.
+- **Test.** Can the change in that path predict the change in reported R&D (`financials`,
+  `ResearchAndDevelopmentExpense`) the next year, better than `rd_pct` × revenue does?
+  The test runs on every company-year the registry and the filings both cover, and
+  reports the error of each rule.
+  - Look-ahead bias, stated: the registry is today's record, so enrolment is often the
+    actual figure rather than the target known at the time.
+  - Two fields the fetcher should add: enrolment type (actual or anticipated) and site
+    count.
+- **Use, if it wins.** It sets company R&D for the first two to three forecast years as a
+  company-level line in the sum of the parts. The difference from `rd_pct` × revenue is a
+  cash-flow adjustment, so nothing is counted twice. `rd_pct` resumes after those years.
+- **Show.** On the company page: R&D ahead by phase, stacked, against reported R&D. In
+  What Changed: when a large study starts or ends.
+
+### 8b. Cash runway, and the dilution it implies
+
+- **Exists.** `runway.py` (cash with marketable securities, trailing twelve-month burn)
+  and `financings.py` (raises after the balance sheet date).
+- **Build.**
+  - Forward burn: 8a's clinical path plus the company's non-clinical spend, its reported
+    operating cash outflow less clinical.
+  - Months of cash ahead, and whether the cash runs out before the next priced catalyst.
+- **Test.** On the history in `financings`: did companies with under 12, 18 or 24 months
+  of cash raise within the next six months, and how much, as a share of market
+  capitalisation and at what discount?
+- **Use.** Expected dilution in the per-share value of clinical-stage companies: the
+  probability of a raise, times its size, at the measured discount. Today per-share value
+  uses current diluted shares, as if no raise were coming.
+- **Show.** The runway list ranked by months left, with "raise before readout" flagged; a
+  dilution line on the company valuation.
+
+### 8c. What the market prices in
+
+- **Exists.** `event_moves.py` sets the model's move on a readout beside the move options
+  imply, where a chain exists. `gate_calls` and `call_log` score the model's calls.
+- **Build.** The share price move net of the sector index (`benchmark_prices`) over a
+  window around each past dated catalyst (`catalysts`, `trial_readouts`, approvals), by
+  outcome, phase and therapy area.
+- **Test.** For resolved catalysts, the model's stake against the realised move.
+- **Use.** A calibration of the gate engine. A measured bias in the stake size is
+  reported and, if agreed, corrected. No market price enters a value.
+- **Show.** A "model against market" column in the catalyst calendar, and the catalysts
+  where the two differ most.
+
+### 8d. Safety signal
+
+- **Exists.** `trial_result_safety` (serious adverse events by arm, shown only in the
+  landscape) and `labels` with its snapshots (boxed warnings).
+- **Build.**
+  - Each completed study's serious adverse event rate against its comparator arm.
+  - The rate for each mechanism class within an indication.
+  - Boxed warnings added between label snapshots.
+- **Test.**
+  - Does an imbalance predict the next phase failing or the programme stopping?
+    Measured on completed studies and what became of their assets.
+  - For marketed drugs: the change in Part D prescriber counts after a boxed warning.
+- **Use.** Only where measured: a probability adjustment, or a peak-share adjustment.
+  Otherwise a flag that does not move value.
+- **Show.** A safety column in the landscape and on drug cards, and a What Changed entry.
+
+### 8e. Deal appetite
+
+- **Exists.** `deals` (161 rows with terms), LOE dates, the pipeline rNPV, and
+  `future_pipeline.py`.
+- **Build.** Each company's gap, its US revenue losing exclusivity within five years over
+  the pipeline rNPV plus future-pipeline value, beside its capacity to pay (net cash,
+  leverage).
+- **Test.** Did the companies that bought have the larger gaps beforehand? The `deals`
+  history, by year.
+- **Use.**
+  - For buyers: where their cash goes.
+  - For targets: a takeover probability and premium as a bull-case overlay, never in the
+    base case.
+- **Show.** A universe screen of who must buy and who could be bought, matched by
+  therapy area.
+
+### Order
+
+8a, 8b, 8c, 8d, 8e. 8b needs 8a's path. Each lands as a view first, then stops for
+agreement before it moves value.
+
 ## Order of work, one concern per commit
 
 1. Paragraph IV fetcher on the spreadsheet; fixture and test. Baseline report.
