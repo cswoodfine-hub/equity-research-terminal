@@ -31,5 +31,9 @@ python-dotenv==1.2.1
 # Tests
 pytest==8.4.2
 
-# Forecast workbook export: the assumptions sheet an analyst vets in Excel.
+# Forecast workbook export: the assumptions sheet an analyst vets in Excel. Also reads
+# the FDA Paragraph IV list and the USPTO extension applications, both XLSX.
 openpyxl==3.1.5
+# The USPTO's patent term extension certificates are published as .xls (BIFF), which
+# openpyxl cannot open.
+xlrd==2.0.2
