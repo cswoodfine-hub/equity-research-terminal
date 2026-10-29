@@ -199,3 +199,8 @@ AXSM,Sunosi,2040-03-01,"Axsome 10-K, settled generic entry","0001193125-26-06426
 MRK,Dificid,2025-07,"Merck 10-K, U.S. loss of exclusivity","0000310158-26-000063, MD&A: 'Dificid lost market exclusivity in the U.S. in July 2025'"
 SNY,Mozobil,2023,"Sanofi 20-F, U.S. generic competition","0001628280-26-008403, Item 5: 'generic competition in the US since July 2023'; Item 4 says 'since the end of 2023'. The two disagree on the month, so the year is taken"
 VRTX,Symdeko (Copackaged),2027,"Vertex 10-K, U.S. basic product patent","0000875320-26-000056, Item 1 patent table: 'SYMDEKO/SYMKEVI 2027 2033' (U.S., Europe basic product patent), the tezacaftor patent. PTE and pediatric exclusivity are not reflected unless noted; none is noted"
+# An analyst's choice, recorded 2026-10-29, and the one row here not on a molecule date.
+# Benlysta's 12 years lapsed in 2023 with no biosimilar filed, so the floor alone put
+# the loss in the base and ran it with no cliff. It is dated instead at the first of
+# the U.S. patents GSK still lists, which a biosimilar would have to clear or contest.
+GSK,Benlysta,2029,"GSK 20-F, first remaining U.S. patent (other patents, not the molecule); analyst's choice","0001131399-26-000004, Pharmaceutical products and intellectual property table: 'Benlysta, Benlysta (SC and IV) belimumab Systemic lupus erythematosus, lupus nephritis expired 2029- 2035' (U.S. new molecular entity patent expired, U.S. other patents 2029 to 2035 in italics; footnote: 'Patent expiry dates in italics relate to other patents'). The 12-year floor from the 2011 licensure lapsed 2023-03-09 and no biosimilar is filed. Taken at 2029 by the analyst on 2026-10-29, not as the molecule's date; 2035, the last listed, is the later end"
