@@ -177,6 +177,19 @@ def test_company_stack_lists_each_product_in_the_window_with_its_stack(tmp_path)
     conn.execute("INSERT INTO patent_term_extensions (patent, kind, original_expiry,"
                  " extension) VALUES ('1111111', 'certificate', ?, '2 years')",
                  (f"{year}-03-01",))
+    # Two biologics dated by orphan exclusivity, as Humira and Fasenra are: the first's
+    # floor lapsed years ago, so it is off the cliff; the second's is in the window, so
+    # it is in the table at the floor with the orphan date beside it.
+    lapsed = _asset(conn, "LLY", "Lapsedmab", "biologic")
+    floored = _asset(conn, "LLY", "Flooredmab", "biologic")
+    for aid, floor, orphan in ((lapsed, "2014-12-31", f"{year + 2}-02-24"),
+                               (floored, f"{year + 3}-11-14", f"{year + 5}-09-17")):
+        conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                     " expiry_date, source) VALUES"
+                     " (?, 'reference product exclusivity (12y)', '12-year statutory floor',"
+                     " ?, 'purple_book'),"
+                     " (?, 'orphan exclusivity', 'orphan exclusivity', ?, 'purple_book')",
+                     (aid, floor, aid, orphan))
     for strength, filers, approved in (("5 mg", 3, None), ("10 mg", 6, f"{year}-01-02")):
         conn.execute("INSERT INTO paragraph_iv_list (application_number, strength,"
                      " submission_date, anda_count, first_approval)"
@@ -185,7 +198,10 @@ def test_company_stack_lists_each_product_in_the_window_with_its_stack(tmp_path)
     conn.close()
 
     stack = pp.company_stack(db_file, "LLY")
-    assert [r["brand"] for r in stack] == ["Soondrug"]
+    assert [r["brand"] for r in stack] == ["Soondrug", "Flooredmab"]
+    mab = stack[1]
+    assert mab["loe"] == f"{year + 3}-11-14"
+    assert mab["listed_loe"] == {"date": f"{year + 5}-09-17", "basis": "orphan exclusivity"}
     row = stack[0]
     assert row["governing"]["identifier"] == "1111111"
     assert row["governing"]["term_extension"]["extension"] == "2 years"
@@ -196,5 +212,5 @@ def test_company_stack_lists_each_product_in_the_window_with_its_stack(tmp_path)
                                    "first_approval": f"{year}-01-02", "strengths": 2}
     # No assumptions on file: no range and no erosion, never a default filled in.
     assert row["loe_range"] is None and row["erosion"] is None
-    assert row["valued_loe"] is None
+    assert row["listed_loe"] is None and row["past"] is False
     assert pp.company_stack(db_file, "ZZZZ") is None

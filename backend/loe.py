@@ -668,6 +668,9 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
     conn = db.get_connection(db_path)
     try:
         resolved = for_assets(conn, [a["asset_id"] for a in assets])
+        # The valuation's date beside the view's: orphan exclusivity left out, as the
+        # forecast does. The LOE cliff counts on it.
+        valued = for_assets(conn, [a["asset_id"] for a in assets], exclude_orphan=True)
     finally:
         conn.close()
 
@@ -685,6 +688,9 @@ def loe_detail(db_path, ticker: str) -> list[dict] | None:
         item["loe"] = loe
         item["loe_basis"] = basis
         item["loe_year"] = int(loe[:4])
+        worth = valued.get(asset["asset_id"]) or {}
+        item["valued_loe"], item["valued_loe_basis"] = worth.get("date"), worth.get("basis")
+        item["valued_loe_past"] = bool(worth.get("past"))
         # The window a small molecule loses protection over: first molecule patent to
         # last. Without substance flags it stays the whole listed range, which is all
         # that is known for that product.

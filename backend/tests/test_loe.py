@@ -225,3 +225,39 @@ def test_the_approvals_view_carries_the_use_patent_tail(tmp_path, monkeypatch):
     assert len(rows) == 1
     assert rows[0]["use_patent_year"] == 2041
     assert "use_max" not in rows[0]
+
+
+def test_the_views_carry_the_valuation_date_beneath_orphan_exclusivity(tmp_path, monkeypatch):
+    """Humira's shape: a 12-year floor and a later orphan exclusivity. The listed date is
+    the orphan one; the valuation, and so the LOE cliff, leaves orphan exclusivity out
+    and runs on the floor. Both views carry both dates."""
+    import datetime as dt
+
+    import main
+    year = dt.date.today().year
+    path = tmp_path / "orphan.db"
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'ABBV', 'AbbVie')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, modality,"
+                 " is_marketed) VALUES (1, 1, 'Orphanmab', 'biologic', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date,"
+                 " application_number) VALUES (1, 'US', 'FDA', ?, 'BLA100001')",
+                 (f"{year - 9}-03-01",))
+    conn.execute("INSERT INTO exclusivities (asset_id, region, protection_type, identifier,"
+                 " expiry_date, source) VALUES"
+                 " (1, 'US', 'reference product exclusivity (12y)', '12-year statutory floor',"
+                 " ?, 'purple_book'),"
+                 " (1, 'US', 'orphan exclusivity', 'orphan exclusivity', ?, 'purple_book')",
+                 (f"{year + 3}-03-01", f"{year + 6}-05-01"))
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr(db, "DB_PATH", path)
+
+    row = main.company_approvals("ABBV")["approvals"][0]
+    assert row["loe"] == f"{year + 6}-05-01" and row["loe_basis"] == "orphan exclusivity"
+    assert row["valued_loe"] == f"{year + 3}-03-01"
+    assert row["valued_loe_basis"] == "reference product exclusivity (12y)"
+    assert row["valued_loe_past"] is False
+    item = loe.loe_detail(path, "ABBV")[0]
+    assert (item["loe"], item["valued_loe"]) == (f"{year + 6}-05-01", f"{year + 3}-03-01")
