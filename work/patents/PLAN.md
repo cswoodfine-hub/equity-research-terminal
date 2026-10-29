@@ -194,6 +194,106 @@ a cell has too few events, it falls back to the modality row and says so. Part D
 Medicaid figures are before rebates, so they measure volume and share, never revenue, as
 the house rules require.
 
+## Step 3b: close the erosion caveats
+
+Step 3 was built on 2026-10-29 (`EROSION.md`) with four caveats. Each one has a free data
+route. Each fix is measured, and none is assumed. Every route below was checked as
+reachable on 2026-10-29.
+
+### 1 and 2: gross of rebates, and Medicare only. Calibrate to the filers' US lines
+
+A filer's printed US product line is net of rebates and covers every channel (commercial,
+Medicare, Medicaid). So it closes both caveats at once, wherever it can be read.
+
+- **Data.**
+  - The SEC quarterly Financial Statement Data Sets keep the product and geography tags
+    back to 2009. The 2016 Q1 set holds 12,521 product-tagged rows, 321 of them revenue by
+    product and geography. Merck, Lilly and Pfizer tag Zetia, Cialis and Lyrica by product
+    that year. Which filers also tag the US split is the first thing measured.
+  - Where a filer does not tag the US split, its 10-K or 20-F product table does.
+    `revenue_mdna` already reads those tables, and `region_revenue.csv` holds them for
+    2025.
+  - The 20-F filers (AstraZeneca, Novartis, GSK, Novo, Sanofi) print the US by product in
+    their tables.
+- **Events.** Every product in the universe with a recorded generic launch, from 2010 to
+  2025 (Paragraph IV list, CMS deselections). Each needs a US line in the year before
+  launch and in at least one of the three years after. Expected: 30 to 50 events. The
+  count is reported, not assumed.
+- **Measure.**
+  - For each event, the filer's US line retained, beside the Part D brand cost retained
+    for the same product in the same years. The two measures sit on the same events, so
+    their ratio is a measurement of the rebate and channel gap, year by year.
+  - With 15 or more oral events, the oral row is refitted on the filer lines and Part D
+    becomes the cross-check. With fewer, the Part D curve is scaled by the median ratio,
+    and the ratio's spread is carried as the uncertainty.
+- **Authorised generics.** A filer's US line can include its own authorised generic, as
+  AstraZeneca's Symbicort does. Each event is flagged from FDA's "Listing of Authorized
+  Generics" (a PDF on fda.gov, the issue of 2026-10-05 reachable). Events with one and without one are measured as separate
+  rows, and a product that will launch one takes the row that matches.
+- **What stays.** Filer lines exist only for the universe's own products, which are large
+  brands, so the calibration describes large brands. That is what the book values. It is
+  said, not corrected.
+
+### 3: non-oral rows are thin. More events, and a row per route
+
+- **More launches.**
+  - Generic entry is read from Part D directly: the first year a product under the same
+    generic name from another labeler passes 5% of the molecule's claims. That adds
+    launches the Paragraph IV list never recorded because no patent was challenged
+    (Advair's Wixela in 2019, glatiramer's generics).
+  - The detector is checked first against the 104 Paragraph IV events, on whether it
+    names the same launch year, and that agreement rate is reported.
+- **Physician-given injectables.** Small-molecule injectables are mostly Medicare Part B,
+  not Part D. Medicare Physician & Other Practitioners by Geography and Service (one
+  dataset a year, 2013 to 2024) gives national services and allowed amounts by billing
+  code, so Velcade, Alimta, Abraxane and Treanda are measurable on their own codes.
+- **Rows.** A row per route where a route reaches 15 events (inhaled, injectable, topical
+  or transdermal, eye); the pooled non-oral row below that. Each row carries its count and
+  spread, and a hold-out test as in step 6.
+
+### 4: biologics untouched. Measure them in Part B, where they are billed
+
+- **Data.**
+  - Medicare Physician & Other Practitioners by Geography and Service (2013 to 2024) and
+    Medicare Outpatient Hospitals by Geography and Service (2015 to 2024), by billing
+    code.
+  - A biosimilar carries its own Q code (Zarxio's Q5101 from 2015), so the launch year and
+    the brand's share read straight from the data.
+  - Part B pays from the average sales price, which is net of the discounts and rebates
+    manufacturers give purchasers. That is closer to net revenue than Part D's gross cost.
+- **Events.** About 10 to 12 launches:
+
+  | biosimilar launch year | brands |
+  |---|---|
+  | 2015 | Neupogen |
+  | 2016 | Remicade |
+  | 2018 | Epogen and Procrit, Neulasta |
+  | 2019 | Herceptin, Avastin, Rituxan |
+  | 2022 | Lucentis |
+  | 2024 | Actemra and others |
+
+  Humira (2023) and Stelara (2025) are pharmacy drugs. They are read on Part D claims
+  share, since Part D gross cost rose through Humira's cliff.
+- **Fit.** The Part B curves, the Part D share curves and the eight filers' US lines on
+  file are three sources on overlapping events. They are fitted together, with the number
+  of biosimilars in year one as the feature that the eight filer lines already say
+  separates the outcomes. With too few events for a feature, one row with its spread.
+- **What stays.** Launches from 2025 on enter only as CMS publishes the year, plus the
+  quarterly Part B spending file for 2025 and 2026 Q1.
+
+### Order, and the stop
+
+1. The filer US-line events table, with its coverage reported.
+2. The authorised-generic flag.
+3. The Part D entry detector, checked against the Paragraph IV events.
+4. Part B small-molecule injectables.
+5. Part B and outpatient biologics.
+6. The rows refitted, with a hold-out test for each.
+7. The value delta on a copy, as in step 6. **Stop for agreement** before the defaults
+   file changes.
+
+No new host is needed: sec.gov, data.cms.gov and fda.gov are all reachable.
+
 ## Step 4: tie the peak and the tail to the date
 
 - **Peak before LOE.** The growth fade must finish by the LOE year. A product whose
