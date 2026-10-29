@@ -355,3 +355,13 @@ def test_a_lever_on_a_cliff_not_yet_landed_moves_one_way_and_starts_from_the_bas
     values = [F.build(_on_file(2023, YERVOY, stated=s))["rnpv"] for s in range(2010, 2041)]
     assert all(b >= a - 1e-9 for a, b in zip(values, values[1:]))
     assert values[0] < base["rnpv"] < values[-1]
+
+
+def test_a_ceiling_the_line_cannot_reach_before_its_cliff_is_flagged():
+    """Auvelity's case: a published peak far above where the path is at its LOE."""
+    inputs = _product(record=2030)
+    inputs["scalars"]["revenue_ceiling_musd"] = 50000.0
+    got = F.build(inputs)
+    assert any("published peak and the cliff disagree" in n for n in got["notes"])
+    inputs["scalars"]["revenue_ceiling_musd"] = 1000.0        # already there: no note
+    assert not any("published peak" in n for n in F.build(inputs)["notes"])

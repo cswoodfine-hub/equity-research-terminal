@@ -677,6 +677,11 @@ def decaying_pv(first: float, rate: float, decay_pct, late_decay_pct,
     return total + level * disc * (1.0 + rate) / (rate + late)
 
 
+# How far short of its ceiling a line may be in its LOE year before the forecast says the
+# published peak and the cliff disagree.
+PEAK_SHORTFALL = 0.9
+
+
 def erosion_factor(since: int, year1_pct, decay_pct, late_decay_pct=None,
                    late_from_year=None) -> float:
     """The share of revenue left ``since`` years after the LOE year: nothing lost at or
@@ -1503,6 +1508,19 @@ def build(inputs: dict) -> dict:
         if actual.get("period") == "FY" and reported:
             row["variance_pct"] = (modelled - reported) / reported
         calibration.append(row)
+
+    # A published peak the line cannot reach before its own cliff. The ceiling is
+    # somebody's forecast of the product at peak, and a path still well short of it in the
+    # LOE year says the peak and the date disagree: Auvelity's 8,000mm against 1,443mm by
+    # its 2043 cliff. Flagged, never trimmed, since which of the two is wrong is a
+    # question for the seed.
+    ceiling = scalars.get("revenue_ceiling_musd")
+    if (ceiling and loe_year is not None and not in_base and loe_year in years
+            and revenue[years.index(loe_year)] < PEAK_SHORTFALL * ceiling):
+        reached = revenue[years.index(loe_year)]
+        notes.append(f"the line reaches {reached:,.0f}mm by its {loe_year} LOE, "
+                     f"{reached / ceiling:.0%} of its {ceiling:,.0f}mm ceiling: the "
+                     "published peak and the cliff disagree, so one of them needs a look")
 
     return {
         "mode": mode, "years": years, "dcf_years": dcf_years,
