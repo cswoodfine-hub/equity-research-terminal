@@ -1,7 +1,8 @@
 # Patents into the revenue build: the plan
 
-Status: proposed 2026-10-29. Steps 0 and the sources for step 1 are built; the
-backtest (`BACKTEST.md`) revised step 1, and the base-date rule is Charles's decision.
+Status, 2026-10-29: steps 0 to 3b, 5, 7 and 8 are built. Step 4 has its peak-shortfall
+flag; carve-outs and the IRA bear step are open, for want of a source. Step 6's value
+gate is in `GATE.md`, for agreement before the branch merges.
 
 ## Update after the backtest (2026-10-29)
 
