@@ -125,11 +125,80 @@ def rebuild(db_path=None, in_dir: Path | None = None,
     return loaded
 
 
+def _history_last_run(in_dir: Path) -> int | None:
+    source = in_dir / "refresh_runs.ndjson"
+    if not source.exists():
+        return None
+    last = None
+    with source.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line:
+                run_id = json.loads(line).get("id")
+                if isinstance(run_id, int) and (last is None or run_id > last):
+                    last = run_id
+    return last
+
+
+def restore_check(db_path=None, in_dir: Path | None = None) -> dict:
+    """Whether a database restored from yesterday's published release can be refreshed
+    as it is, rather than rebuilt from the exported history.
+
+    A rebuilt database holds the history tables and nothing else, so every source has to
+    fetch in full, and the sources slower than daily (the pharmacology lookups, the drug
+    codes, the Part D readers) took the daily run from 20 minutes to over an hour from
+    2026-10-08. A restored one holds their data, so their TTLs can hold.
+
+    Accepted only when it is the release the last committed run produced, or a later one:
+    it opens, passes SQLite's quick check, and its latest refresh run is at least the
+    latest in the committed history. A later one is the 2026-10-26 case, a release that
+    went out when the history push failed, and the rebuild that follows merges the
+    committed rows into it without losing its own. Anything else is removed, so the
+    rebuild starts clean and the run fetches every source, as it did before.
+    """
+    path = Path(db_path if db_path is not None else db.DB_PATH)
+    in_dir = Path(in_dir) if in_dir else DEFAULT_DIR
+    expected = _history_last_run(in_dir)
+
+    def refuse(why: str) -> dict:
+        for suffix in ("", "-wal", "-shm"):
+            Path(str(path) + suffix).unlink(missing_ok=True)
+        return {"restored": False, "why": why, "history_last_run": expected}
+
+    if not path.exists():
+        return {"restored": False, "why": "no database was restored",
+                "history_last_run": expected}
+    try:
+        conn = sqlite3.connect(path)
+        try:
+            check = conn.execute("PRAGMA quick_check").fetchone()[0]
+            last = conn.execute("SELECT MAX(id) FROM refresh_runs").fetchone()[0]
+        finally:
+            conn.close()
+    except sqlite3.Error as exc:
+        return refuse(f"the restored file does not open as a database: {exc}")
+    if check != "ok":
+        return refuse(f"the restored database fails its integrity check: {check}")
+    if last is None:
+        return refuse("the restored database records no refresh run")
+    if expected is not None and last < expected:
+        return refuse(f"the restored database stops at run {last}, before the committed "
+                      f"history's run {expected}")
+    return {"restored": True, "why": f"restored at run {last}",
+            "history_last_run": expected}
+
+
 if __name__ == "__main__":
     import sys
 
     action = sys.argv[1] if len(sys.argv) > 1 else "export"
     if action == "rebuild":
         print(json.dumps({"rebuilt": rebuild()}, indent=2))
+    elif action == "restore-check":
+        # Exit 0 when the restored database stands, 3 when it was refused or absent, so
+        # the workflow can choose the fetch mode on the exit code alone.
+        verdict = restore_check()
+        print(json.dumps(verdict, indent=2))
+        sys.exit(0 if verdict["restored"] else 3)
     else:
         print(json.dumps({"exported": export()}, indent=2))

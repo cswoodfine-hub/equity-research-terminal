@@ -528,7 +528,10 @@ def run_refresh_all(db_path=None, force: bool = False) -> dict:
 
     ``force`` ignores every TTL. The daily job sets it, because a scheduled run that
     skips is a run that did nothing, and on a database rebuilt from exported history
-    every source looks freshly fetched while its data is absent.
+    every source looks freshly fetched while its data is absent. On a database restored
+    whole it is ``fetchers.base.DAILY`` instead: every source due daily or faster still
+    fetches, and the weekly and monthly ones skip inside their TTL, since their data is
+    there.
     """
     db.init(db_path)
     run_id = _start_run(db_path)
@@ -813,6 +816,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
             f"{gone['last_rows']} ({str(gone['last_seen'])[:10]})")
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
     detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
+              # Which TTLs held: True fetched everything, "daily" let slower sources
+              # skip, False is an analyst's refresh.
+              "force": force,
               "sources": list(by_source.values()), "readouts": readouts,
               "trial_mapping": mapped,
               "pdufa": goals, "submissions": filed, "relinked": relinked,

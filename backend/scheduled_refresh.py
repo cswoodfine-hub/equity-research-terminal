@@ -122,15 +122,36 @@ def _record_calls(db_path, run_id) -> None:
         _log(f"calls not recorded: {type(exc).__name__}: {exc}")
 
 
+def force_mode(env=None, today=None):
+    """True (fetch every source) or "daily" (fetch what is due daily, let slower sources
+    skip inside their TTL), from ``ER_REFRESH_FORCE``.
+
+    "daily" is only safe on a database restored whole, which the workflow says by setting
+    it after ``history.py restore-check`` passes; anything else, unset included, is a
+    rebuilt database and fetches everything, as every scheduled run did before. On a
+    Sunday (UTC) the run fetches everything regardless: a weekly backstop, so a slower
+    source whose TTL guard was wrong is still read at least once a week.
+    """
+    env = os.environ if env is None else env
+    today = today or dt.datetime.now(dt.timezone.utc).date()
+    if (env.get("ER_REFRESH_FORCE") or "").strip().lower() != "daily":
+        return True
+    return True if today.weekday() == 6 else "daily"
+
+
 def run(refresh_fn=None, db_path=None) -> int:
     """Run one scheduled refresh. ``refresh_fn`` is injectable for tests."""
     # A scheduled run fetches. Left to the TTLs it would skip everything a rebuilt
     # database claims to have already, which is how a runner published a database with
-    # prices and nothing else.
+    # prices and nothing else. On a database restored whole the sources slower than
+    # daily may skip inside their TTL (force_mode); every daily source still fetches.
     # The path is optional here: this is called with no arguments when the database is
     # the default one, which is every scheduled run.
+    mode = force_mode()
+    _log("fetch mode: " + ("every source" if mode is True
+                           else "daily sources, slower ones on their TTL"))
     refresh_fn = refresh_fn or (
-        lambda path=None: refresh.run_refresh_all(path, force=True))
+        lambda path=None: refresh.run_refresh_all(path, force=mode))
     if not _acquire_lock():
         _log("skipped: another refresh is already running")
         return 0
