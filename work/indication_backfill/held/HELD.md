@@ -134,3 +134,17 @@ disease it was in.
 - `amgn_evenity_paediatric.csv`: the existing osteogenesis imperfecta layer was retired by
   migration 093 (penetration 0), so the paediatric layer is the only one on these
   children. Appended back to `drafts/amgn_evenity.csv`.
+
+## amgn_pavblu.csv: the whole file (round 4, 2026-10-29)
+
+Sound research: FY2025 $700mm (US $691mm, rest of world $9mm), the company half copied
+from amgn_kyprolis.csv, CMS Part B 2025 price and discontinuation on Pavblu's own
+patients, and an 8 mg layer against Eylea HD. Held for two reasons. Pavblu's sales already
+sit inside Amgen's "Other products" company line (data/company_lines/amgn.csv, $5,981mm),
+so valuing it as a product counts $700mm twice. And no peak is published, so the +63%
+the 2026 quarters imply has nothing to cap it. The 8 mg layer would not price in any case:
+Pavblu's 2 mg label names wet AMD, so the label test reads the pair as approved.
+
+**What would release it:** Pavblu carved out of Amgen's other-products line, as UPLIZNA
+and IMDELLTRA were, and a published peak (or a decision to run the measured fade without
+one); the 8 mg readout on an indication or asset of its own.
