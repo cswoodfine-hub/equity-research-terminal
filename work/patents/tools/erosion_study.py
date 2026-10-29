@@ -66,23 +66,33 @@ def _name(text):
 
 
 def route(form):
-    f = (form or "").lower()
-    if any(w in f for w in ("inhal", "aerosol", "nebuliz")):
-        return "inhaled"
-    if any(w in f for w in ("inject", "subcutaneous", "intravenous", "for injection",
-                            "infusion", "intramuscular", "vial", "syringe", "pen")):
-        return "injectable"
-    if "ophthalmic" in f or "otic" in f:
+    """The route from a dose form: the Orange Book's "FORM;ROUTE" (the route part is
+    read), or the Paragraph IV list's "Oral Suspension", "Injection", "Tablets".
+
+    Words, not substrings: "pen" inside "suspension" once read every oral suspension as
+    an injectable (Exjade, Megace ES, CellCept, Zyvox)."""
+    text = (form or "").lower()
+    part = text.partition(";")[2] if ";" in text else text
+    words = set(re.findall(r"[a-z]+", part))
+    if words & {"ophthalmic", "otic", "intravitreal"}:
         return "eye or ear"
-    if "nasal" in f:
+    if words & {"inhalation", "inhaled", "inhaler", "aerosol", "nebulizer", "nebulization"} \
+            or "inhal" in part:
+        return "inhaled"
+    if "nasal" in words:
         return "nasal"
-    if any(w in f for w in ("topical", "cream", "gel", "ointment", "lotion", "patch",
-                            "transdermal", "foam", "shampoo", "film, extended")):
+    if words & {"topical", "transdermal", "cream", "gel", "ointment", "lotion", "patch",
+                "foam", "shampoo", "cutaneous", "dermal"}:
         return "topical or transdermal"
-    if any(w in f for w in ("tablet", "capsule", "oral", "granule", "pellet", "powder",
-                            "suspension", "solution", "chewable", "sprinkle", "syrup",
-                            "elixir")):
+    if words & {"oral", "tablet", "tablets", "capsule", "capsules", "chewable",
+                "sublingual", "buccal", "granules", "pellets", "syrup", "elixir"}:
         return "oral"
+    if words & {"injection", "injectable", "intravenous", "subcutaneous", "intramuscular",
+                "infusion", "vial", "vials", "syringe", "pen", "injector", "intrathecal",
+                "implant"}:
+        return "injectable"
+    if words & {"suspension", "solution", "powder", "sprinkle"}:
+        return "oral"                  # a list row with no route word is taken by mouth
     return "other"
 
 
@@ -115,8 +125,83 @@ def load_partd(folder):
     return out
 
 
-def events(conn):
-    """{brand name: {launch, form, route, anda_count, status_180}}, earliest launch."""
+def load_molecules(folder):
+    """{year: {generic name: (unbranded generic claims, all claims)}}.
+
+    A Part D row whose brand name is its generic name is an unbranded generic (or an
+    authorised generic sold under the molecule's name); every row under the generic name
+    is the molecule."""
+    out = {}
+    for path in sorted(pathlib.Path(folder).glob("*.json")):
+        mols = {}
+        for row in json.loads(path.read_text()):
+            brand, generic = _name(row.get("Brnd_Name")), _name(row.get("Gnrc_Name"))
+            claims = _num(row.get("Tot_Clms")) or 0.0
+            if not generic:
+                continue
+            g, t = mols.get(generic, (0.0, 0.0))
+            mols[generic] = (g + (claims if brand == generic else 0.0), t + claims)
+        out[int(path.stem)] = mols
+    return out
+
+
+ENTRY_SHARE, PRIOR_SHARE = 0.05, 0.02
+OWNS_MOLECULE = 0.5
+
+
+def _is_generic_name(brand, generic):
+    """A Part D "brand" that is the molecule's own name ("SILDENAFIL" under
+    "SILDENAFIL CITRATE", "AMPHETAMINE SALT COMBO")."""
+    first = (brand or "").split()[:1]
+    return bool(first) and first[0] in (generic or "").split()
+
+
+def detect_entries(partd, mols):
+    """{brand: entry year}: the first year unbranded generics pass ENTRY_SHARE of the
+    molecule's Part D claims, having been under PRIOR_SHARE the year before. Reads
+    launches the Paragraph IV list never recorded because no patent was challenged."""
+    out = {}
+    for year in sorted(partd):
+        if year - 1 not in partd:
+            continue
+        for brand, (cost, _, generic) in partd[year - 1].items():
+            if brand in out or cost < MIN_BASE_COST or not generic:
+                continue
+            if _is_generic_name(brand, generic):
+                continue
+            g0, t0 = mols.get(year - 1, {}).get(generic, (0.0, 0.0))
+            g1, t1 = mols.get(year, {}).get(generic, (0.0, 0.0))
+            # The brand must own its molecule: Abilify Maintena shares "aripiprazole"
+            # with oral Abilify, whose generics are not its competition.
+            brand_claims = partd[year - 1][brand][1] or 0.0
+            if not t0 or brand_claims / t0 < OWNS_MOLECULE:
+                continue
+            if t1 and g0 / t0 < PRIOR_SHARE and g1 / t1 >= ENTRY_SHARE:
+                out[brand] = year
+    return out
+
+
+def ob_routes(zip_path):
+    """{trade name: route} from the Orange Book's products file, the route most of a
+    trade name's rows carry."""
+    import zipfile
+    counts = collections.defaultdict(collections.Counter)
+    with zipfile.ZipFile(zip_path) as archive:
+        lines = archive.read("products.txt").decode("latin-1").splitlines()
+    head = lines[0].split("~")
+    i_name, i_form = head.index("Trade_Name"), head.index("DF;Route")
+    for line in lines[1:]:
+        parts = line.split("~")
+        if len(parts) > max(i_name, i_form):
+            counts[_name(parts[i_name])][route(parts[i_form])] += 1
+    return {name: c.most_common(1)[0][0] for name, c in counts.items() if name}
+
+
+def events(conn, partd=None, mols=None, ob=None, ag=None):
+    """{brand name: {launch, form, route, anda_count, status_180, source, ag}}.
+
+    Paragraph IV launches first, with their dates; then, where Part D data is given,
+    entries its own rows show for brands the list does not carry, dated to the year."""
     out = {}
     for r in conn.execute(
             "SELECT rld_name, dosage_form, first_marketing, anda_count, status_180"
@@ -127,8 +212,29 @@ def events(conn):
         if name not in out or r["first_marketing"] < out[name]["launch"]:
             out[name] = {"launch": r["first_marketing"], "form": r["dosage_form"],
                          "route": route(r["dosage_form"]), "anda_count": r["anda_count"],
-                         "status_180": r["status_180"]}
+                         "status_180": r["status_180"], "source": "paragraph_iv"}
+    if partd is not None and mols is not None:
+        for brand, year in detect_entries(partd, mols).items():
+            if brand not in out and (ob or {}).get(brand):
+                # A brand the Orange Book does not carry has no route on file and is
+                # left out rather than guessed (insulin, devices, biologics in Part D).
+                out[brand] = {"launch": f"{year}", "form": None,
+                              "route": ob[brand],
+                              "anda_count": None, "status_180": None, "source": "part_d"}
+    for brand, ev in out.items():
+        ev["ag"] = brand in (ag or {})
     return out
+
+
+def validate_detector(conn, partd, mols):
+    """How often the Part D detector names the Paragraph IV launch year."""
+    detected = detect_entries(partd, mols)
+    listed = events(conn)
+    offsets = collections.Counter()
+    for brand, ev in listed.items():
+        if brand in detected and int(ev["launch"][:4]) - 1 in partd:
+            offsets[detected[brand] - int(ev["launch"][:4])] += 1
+    return offsets
 
 
 def measure(partd, found):
@@ -145,6 +251,7 @@ def measure(partd, found):
         claims = ({k: (partd.get(launch + k, {}).get(brand) or (0.0, 0.0, None))[1]
                    / base[1] for k in cost} if base[1] else {})
         rows.append({"brand": brand, "launch": ev["launch"], "route": ev["route"],
+                     "source": ev.get("source"), "ag": ev.get("ag"),
                      "anda_count": ev["anda_count"], "base_cost": base[0],
                      "pre_trend": (base[0] / before[0] - 1) if before and before[0] else None,
                      "cost": cost, "claims": claims})
@@ -178,6 +285,15 @@ def summarise(rows):
         return {"n": len(sample), "cost": cost, "claims": claims}
 
     report = {"all": block(rows, "all routes")}
+    for source in ("paragraph_iv", "part_d"):
+        sample = [r for r in rows if r.get("source") == source and r["route"] == "oral"]
+        if sample:
+            report[f"oral, {source}"] = block(sample, f"oral, events from {source}")
+    for flag in (True, False):
+        sample = [r for r in rows if r["route"] == "oral" and r.get("ag") is flag]
+        if sample:
+            report[f"oral, AG listed {flag}"] = block(
+                sample, f"oral, authorised generic on FDA's list: {flag}")
     by_route = collections.defaultdict(list)
     for r in rows:
         by_route[r["route"]].append(r)
@@ -201,7 +317,21 @@ def main(argv):
         return
     conn = db.get_connection()
     partd = load_partd(argv[0])
-    found = events(conn)
+    wide = "--wide" in argv
+    mols = load_molecules(argv[0]) if wide else None
+    ob = ob_routes(argv[argv.index("--ob") + 1]) if "--ob" in argv else None
+    ag = None
+    if "--ag" in argv:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import ag_list
+        ag = {_name(k): v for k, v in ag_list.load(argv[argv.index("--ag") + 1]).items()}
+    if wide:
+        offsets = validate_detector(conn, partd, mols)
+        n = sum(offsets.values())
+        print(f"detector against {n} Paragraph IV launches: detected year minus launch "
+              f"year {dict(sorted(offsets.items()))}; same year "
+              f"{offsets.get(0, 0) / n:.0%}, within one {sum(v for k, v in offsets.items() if abs(k) <= 1) / n:.0%}")
+    found = events(conn, partd if wide else None, mols, ob, ag)
     rows = measure(partd, found)
     joined = sum(1 for b in found if any(b in partd[y] for y in partd))
     print(f"launch events {len(found)}; joined to a Part D brand {joined}; measurable "
