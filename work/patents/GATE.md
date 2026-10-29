@@ -144,3 +144,11 @@ By company:
     biologic that is only two years into its biosimilar competition.
   - The book holds no Actemra revenue before FY2025, so the fall so far cannot be
     measured here.
+
+## Agreed
+
+2026-10-29, by Charles: the gate is accepted and the branch merges as it stands.
+Actemra stays flagged here. "A recent loss keeps eroding" is the follow-up: a loss in
+the base that is younger than its erosion row's run would keep decaying from the year it
+began. It touches every product whose loss passed in the last few years, so it gets its
+own measured delta.
