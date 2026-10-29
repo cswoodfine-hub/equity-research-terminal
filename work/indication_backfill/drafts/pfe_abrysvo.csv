@@ -1,0 +1,23 @@
+# Abrysvo (PFE), respiratory syncytial virus vaccine. Marketed; the model is data/assumptions/pfe_abrysvo.csv,
+# anchored on reported revenue. These rows are not a new model and not a priced layer.
+#
+# Round 3, 2026-10-29. Five pending readouts sat on two second names for this vaccine, 'RSVpreF' (four) and
+# 'RSVpreF Vaccine' (one); round3/GD_MAPPINGS.csv maps both to Abrysvo. Every one of them is in a population
+# the label already covers, or outside the US, so the answer is "already approved: overlap 1.0" and no pool is
+# seeded. Abrysvo is indicated for pregnant individuals at 32 through 36 weeks, for everyone 60 and over, and
+# for adults 18 through 59 at increased risk (DailyMed setid be18292e-b1a2-4815-a0ed-003efaa6bea3, 2026-07-20).
+#   NCT05035212 RENOIR: efficacy in adults 60 and over, the trial the 60-plus approval rests on; completion 2027-01-18
+#   NCT07653100: safety and immunogenicity in adults in India only; the book models the US
+#   NCT07819097: safety and immune response in adults 60 and over, China and the US
+#   NCT06866405: a second dose in a later pregnancy, and duration of protection from one dose
+#   NCT07768345: revaccination of immunocompromised adults at 1, 2 and 3 year intervals
+# The last two are the only ones that could add revenue, and they add doses to patients already on the label,
+# not patients. That is a revaccination interval, which moves the marketed line's volume (its growth rate),
+# not an indication: the label states one dose and no revaccination schedule. Pricing it would need a
+# revaccination uptake rate no source publishes, and both studies score safety and immunogenicity first.
+# What would change this: an FDA label adding a revaccination schedule, at which point the marketed
+# growth rate, not a layer, is the row to revisit.
+#
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+PFE,Abrysvo,Respiratory Syncytial Virus Infections,US,base,base_pool_overlap_pct,,1.0,,share of the pool already in the base,"all of it. The Abrysvo label (DailyMed setid be18292e-b1a2-4815-a0ed-003efaa6bea3, published 2026-07-20) covers 'active immunization of pregnant individuals at 32 through 36 weeks gestational age', 'individuals 60 years of age and older' and 'individuals 18 through 59 years of age who are at increased risk for LRTD caused by RSV'. The five pending studies (NCT05035212, NCT07653100, NCT07819097, NCT06866405, NCT07768345; ClinicalTrials.gov API, opened 2026-10-28) enrol adults 18 and over, adults 60 and over, or pregnant participants, each inside those three populations, and NCT07653100 runs in India alone","no pool is seeded, because the readouts move evidence and dosing frequency rather than patients. Abrysvo's US revenue already carries these populations: CMS Part D 2024 shows 1,621,026 Abrysvo beneficiaries (data/drug_demand), and Pfizer reported Abrysvo revenue of $388mm worldwide and $139mm in the US for the first half of 2026 (8-K exhibit 99.1, 0000078003-26-000094)"
