@@ -87,23 +87,52 @@ def download(folder):
     print("done")
 
 
+_TITLED = re.compile(r"titled\s*[\"\u201c]([^\"\u201d]{20,300})[\"\u201d]", re.I)
+
+
+def headline(item):
+    """The press release's own title where the 8-K quotes it, else the item's first
+    500 characters. Reading the whole item let a secondary endpoint further down decide
+    a readout whose headline called it positive."""
+    m = _TITLED.search(item)
+    return m.group(1) if m else item[:500]
+
+
 def classify(item):
-    if not (READOUT.search(item) and RESULTS.search(item)):
+    text = headline(item)
+    if not (READOUT.search(text) and RESULTS.search(text)):
         return None
-    if FAILED.search(item):
+    if FAILED.search(text):
         return "failed"
-    if MET.search(item):
+    if MET.search(text):
         return "met"
     return "unclassified"
 
 
+def _shares(conn, ticker):
+    """[(period end, diluted shares)] by quarter, for a market cap at any date: the
+    prices table carries no market capitalisation."""
+    return sorted((r["period_end"], r["value"]) for r in conn.execute(
+        "SELECT f.period_end, f.value FROM financials f JOIN companies c"
+        "  ON c.id = f.company_id WHERE c.ticker = ?"
+        "   AND f.metric = 'WeightedAverageDilutedShares' AND f.period_type = 'Q'"
+        "   AND f.value > 0", (ticker,)))
+
+
+def cap_at(shares, day, close):
+    known = [v for end, v in shares if end <= day]
+    return known[-1] * close if known and close else None
+
+
 def _series(conn, ticker):
     rows = conn.execute(
-        "SELECT p.as_of, p.close, p.market_cap FROM prices p JOIN companies c"
+        "SELECT p.as_of, p.close FROM prices p JOIN companies c"
         "  ON c.id = p.company_id WHERE c.ticker = ? AND p.interval = '1d'"
         "   AND p.close IS NOT NULL ORDER BY p.as_of", (ticker,)).fetchall()
-    return [r["as_of"][:10] for r in rows], [r["close"] for r in rows], \
-        [r["market_cap"] for r in rows]
+    dates = [r["as_of"][:10] for r in rows]
+    closes = [r["close"] for r in rows]
+    shares = _shares(conn, ticker)
+    return dates, closes, [cap_at(shares, d, c) for d, c in zip(dates, closes)]
 
 
 def _bench(conn):
@@ -132,18 +161,15 @@ def model_stakes(conn):
     latest = {}
     for r in conn.execute("SELECT * FROM gate_calls ORDER BY as_of"):
         latest[r["catalyst_id"]] = dict(r)
-    caps = {}
-    for r in conn.execute(
-            "SELECT c.ticker, p.market_cap FROM prices p JOIN companies c ON c.id ="
-            " p.company_id WHERE p.interval = '1d' AND p.market_cap IS NOT NULL"
-            " ORDER BY p.as_of"):
-        caps[r["ticker"]] = r["market_cap"]
+    shares = {}
     out = collections.defaultdict(lambda: {"success": [], "failure": []})
     for call in latest.values():
         price, now = call["price"], call["per_share_now"]
         if not price or now is None:
             continue
-        b = band(caps.get(call["ticker"]))
+        if call["ticker"] not in shares:
+            shares[call["ticker"]] = _shares(conn, call["ticker"])
+        b = band(cap_at(shares[call["ticker"]], call["as_of"][:10], price))
         if call["per_share_success"] is not None:
             out[b]["success"].append((call["per_share_success"] - now) / price)
         if call["per_share_failure"] is not None:
