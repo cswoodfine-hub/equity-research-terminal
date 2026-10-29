@@ -34,11 +34,11 @@ def test_a_non_oral_small_molecule_takes_its_own_measured_row():
     defaults = assumptions.erosion_defaults()
     oral, why = forecast.erosion_default({"modality": "small molecule", "route": "oral",
                                           "erosion_defaults": defaults})
-    assert why == "small molecule" and oral["year1_pct"] == 0.77
+    assert why == "small molecule" and oral["year1_pct"] == 0.71
     non, why = forecast.erosion_default({"modality": "small molecule",
                                          "route": "non-oral",
                                          "erosion_defaults": defaults})
-    assert why == "small molecule, non-oral route" and non["year1_pct"] == 0.58
+    assert why == "small molecule, non-oral route" and non["year1_pct"] == 0.52
     # No route on file keeps the modality's row; a biologic is never routed.
     assert forecast.erosion_default({"modality": "small molecule",
                                      "erosion_defaults": defaults})[1] == "small molecule"
@@ -47,8 +47,9 @@ def test_a_non_oral_small_molecule_takes_its_own_measured_row():
 
 
 def test_the_measured_rows_reproduce_the_measurement():
-    """Part D cost retained after a first generic launch, medians from
-    work/patents/tools/erosion_study.py: oral n=86, non-oral n=18."""
+    """The average Part D cost kept after a first generic launch, from
+    work/patents/tools/erosion_study.py --wide (each launch capped at 1.0): oral n=134,
+    non-oral n=28. Averages, not medians, because the book adds products into totals."""
     rows = assumptions.erosion_defaults()
 
     def path(row):
@@ -56,11 +57,18 @@ def test_the_measured_rows_reproduce_the_measurement():
                                         row["late_decay_pct"], row["late_from_year"])
                 for k in range(1, 7)]
 
-    measured = {"small molecule": [0.245, 0.098, 0.061, 0.043, 0.030, 0.024],
-                "small molecule (non-oral)": [0.412, 0.285, 0.172, 0.137, 0.110, 0.069]}
+    measured = {"small molecule": [0.299, 0.192, 0.138, 0.115, 0.078, 0.062],
+                "small molecule (non-oral)": [0.463, 0.334, 0.207, 0.177, 0.171, 0.153]}
     for name, want in measured.items():
         for got, expected in zip(path(rows[name]), want):
             assert abs(got - expected) <= 0.02, (name, got, expected)
+
+
+def test_the_biologic_decay_is_the_filers_later_years():
+    """Year one 0.25 from nine filer US cliffs (median 26.5%), then 0.25 a year from ten
+    later-year observations (median 25.2%)."""
+    row = assumptions.erosion_defaults()["biologic"]
+    assert (row["year1_pct"], row["decay_pct"]) == (0.25, 0.25)
 
 
 def test_the_assets_own_application_sets_its_route(tmp_path):

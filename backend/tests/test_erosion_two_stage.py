@@ -58,8 +58,8 @@ def test_only_the_small_molecule_default_carries_a_late_rate():
     """The biologic and unknown rows are held deliberately: one observation, and it
     rises. This test is the guard on that decision."""
     rows = assumptions.erosion_defaults()
-    # Measured on 86 oral brands' Part D cost after a generic launch (2026-10-29).
-    assert rows["small molecule"]["late_decay_pct"] == 0.26
+    # Measured on 134 oral brands' Part D cost after a generic launch (2026-10-29).
+    assert rows["small molecule"]["late_decay_pct"] == 0.23
     assert rows["small molecule"]["late_from_year"] == 4
     for modality in ("biologic", "unknown", "gene therapy"):
         assert rows[modality].get("late_decay_pct") in (None, ""), modality
