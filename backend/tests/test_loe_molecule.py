@@ -107,3 +107,28 @@ def test_the_molecule_floor_is_reported_without_moving_the_date(tmp_path):
     assert got["date"] == "2036-10-17"
     assert got["basis"] == "drug substance patent"
     assert (got["molecule_date"], got["molecule_patent"]) == ("2033-08-16", "RE47221")
+
+
+def test_the_range_runs_from_the_molecule_patent_to_the_latest_composition_patent(tmp_path):
+    """Rinvoq on the book's rule: base the latest substance patent, 2036; bear the
+    extended molecule patent with its PED, 2033; no later composition patent, so the
+    bull is the base."""
+    got = loe.for_assets(_db(tmp_path), [13])[13]
+    rng = loe.date_range(got)
+    assert (rng["bear"], rng["base"], rng["bull"]) == ("2033-08-16", "2036-10-17",
+                                                        "2036-10-17")
+    assert "RE47221" in rng["bear_why"]
+
+
+def test_a_use_patent_never_sets_the_bull_date():
+    rows = [_row("111", "2030-01-01", "substance"), _row("222", "2040-01-01", "use"),
+            _row("333", "2034-01-01", "product"), _row("333*PED", "2034-07-01", None)]
+    assert loe.latest_composition_patent(rows) == ("2034-07-01", "333")
+
+
+def test_a_settled_or_observed_date_has_no_range(tmp_path, monkeypatch):
+    _disclose(monkeypatch, tmp_path, "BMY,Revlimid,2026-01-31,BMS 10-K,\n")
+    got = loe.for_assets(_db(tmp_path), [11])[11]
+    rng = loe.date_range(got)
+    assert rng["bear"] == rng["base"] == rng["bull"]
+    assert loe.date_range({"date": None}) is None

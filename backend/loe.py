@@ -225,6 +225,60 @@ def molecule_patent(rows, extended) -> tuple:
     return max((max(r["expiry_date"] for r in _own(dated, p)), p) for p in hits)
 
 
+def latest_composition_patent(rows) -> tuple:
+    """(date, identifier) of the latest drug substance or drug product patent, PED
+    included, or (None, None). A use-only patent is left out: a generic can carve its
+    use out of the label and launch on the rest, so it does not hold the product."""
+    dated = [r for r in rows if r["expiry_date"]]
+    kinds = {(r["identifier"] or "").split(_PED_SUFFIX)[0]: r["patent_kind"]
+             for r in dated if r["patent_kind"]}
+    held = [r for r in dated
+            if kinds.get((r["identifier"] or "").split(_PED_SUFFIX)[0])
+            in ("substance", "product")]
+    if not held:
+        return None, None
+    last = max(held, key=lambda r: r["expiry_date"])
+    return last["expiry_date"], (last["identifier"] or "").split(_PED_SUFFIX)[0]
+
+
+# Bases that are a fact or a contract, not a reading of patents: a filer's own date, a
+# settlement, a generic on sale, CMS finding one marketed. They have no range.
+_SETTLED = ("10-k", "20-f", "disclos", "settle", "generic marketed", "cms deselection",
+            "biosimilar")
+
+
+def date_range(found: dict) -> dict | None:
+    """Bear, base and bull LOE dates for one ``for_assets`` result, each with its reason.
+
+    - **bear**: the molecule patent with its paediatric extension, where it is earlier
+      than the base. Measured on 122 past launches (work/patents/BACKTEST.md), 9 of the
+      99 with later patents launched before it.
+    - **bull**: the latest drug substance or drug product patent, where later than the
+      base. 2 of the 99 launched after the last qualifying patent.
+
+    So the range held 89% of past launches. The base stays the valuation. A date that is a
+    fact or a contract (``_SETTLED``) has no range, and neither does a product with
+    nothing either side of its base.
+    """
+    base = found.get("date") if found else None
+    if not base:
+        return None
+    basis = (found.get("basis") or "").lower()
+    if any(word in basis for word in _SETTLED) or found.get("past"):
+        return {"bear": base, "base": base, "bull": base,
+                "why": "the date is a fact or a contract, not a reading of patents"}
+    bear, bull = base, base
+    bear_why = bull_why = "the base"
+    if found.get("molecule_date") and found["molecule_date"] < base:
+        bear = found["molecule_date"]
+        bear_why = f"molecule patent {found.get('molecule_patent')}, extended under 35 USC 156"
+    if found.get("latest_patent_date") and found["latest_patent_date"] > base:
+        bull = found["latest_patent_date"]
+        bull_why = f"latest substance or product patent {found.get('latest_patent')}"
+    return {"bear": bear, "base": base, "bull": bull,
+            "bear_why": bear_why, "bull_why": bull_why}
+
+
 def extended_patents(conn) -> set:
     """The patent numbers the USPTO lists a term extension certificate for. Empty on a
     database from before the source, which leaves the substance rule in force."""
@@ -315,9 +369,11 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         if why == "compound patent" and how != "curated":
             why = "drug substance patent"
         floor_date, floor_patent = molecule_patent(rows, extended)
+        ceiling_date, ceiling_patent = latest_composition_patent(rows)
         out[asset_id] = {"date": date, "basis": why, "identifier": identifier,
                          "past": bool(date and date < today),
-                         "molecule_patent": floor_patent, "molecule_date": floor_date}
+                         "molecule_patent": floor_patent, "molecule_date": floor_date,
+                         "latest_patent": ceiling_patent, "latest_patent_date": ceiling_date}
 
     requested = set(asset_ids) if asset_ids is not None else None
     today_date = dt.date.today()
