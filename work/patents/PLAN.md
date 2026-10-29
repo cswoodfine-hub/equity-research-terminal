@@ -1,6 +1,24 @@
 # Patents into the revenue build: the plan
 
-Status: proposed 2026-10-29, for Charles to agree before any code is written.
+Status: proposed 2026-10-29. Steps 0 and the sources for step 1 are built; the
+backtest (`BACKTEST.md`) revised step 1, and the base-date rule is Charles's decision.
+
+## Update after the backtest (2026-10-29)
+
+Built: the Paragraph IV fetcher reads FDA's spreadsheet (333 products challenged, 413
+launch dates); the USPTO's extension lists are a source (1,141 certificates, 709
+applications); each product reports its molecule patent as the floor of its range; a
+recorded generic launch dates a loss beneath a filer's own date.
+
+What the backtest changed: the molecule patent is the floor, not the date. Against 122
+real launches it is a median 1.6 years out, while filers' disclosed dates are 0.4 years
+out. So step 1's order stands with one change: rung 2 (the molecule patent) becomes the
+bear date and the range's floor, and the base date for a product with no disclosure is
+Charles's choice between the latest substance patent (today's rule, untestable) and the
+molecule patent plus paediatric extension (tested, near unbiased, 1.6 years typical
+error). The bar in step 6 is revised from "80% within 6 months" to the measured errors
+above, and the first accuracy work is disclosures for the largest patent-dated products.
+
 
 ## The problem in one paragraph
 
