@@ -366,6 +366,7 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
     import loe as loe_module
     found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
     loe = ({"loe": found.get("date"), "basis": found["basis"],
+            "observed": bool(found.get("observed")),
             "past": bool(found.get("past"))} if found else {})
     loe_year = int(loe["loe"][:4]) if loe.get("loe") else None
     actuals = [dict(r) for r in conn.execute(
@@ -438,7 +439,8 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "scalars": scalars,
         "indications": list(indications.values()),
         # A loss known to be past with no date is carried as that, not as a year.
-        "loe": ({"year": loe_year, "basis": loe.get("basis")} if loe_year
+        "loe": ({"year": loe_year, "basis": loe.get("basis"),
+                 "observed": loe.get("observed", False)} if loe_year
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,

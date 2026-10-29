@@ -282,6 +282,19 @@ def test_a_recent_cliff_with_no_fall_since_lands_in_the_first_forecast_year():
     assert got["rnpv"] < F.build(_on_file(2017, YERVOY))["rnpv"]
 
 
+def test_a_recorded_launch_with_no_fall_since_stays_in_the_base():
+    """Symbicort's US generic launched in July 2023 and AstraZeneca's line, which carries
+    its authorised generic, did not fall. A launch that happened is not a cliff still to
+    come, so the convention that lands Yervoy's floor in 2026 does not apply."""
+    inputs = _on_file(2023, {2023: 2371.0, 2024: 2873.0, 2025: 2885.0},
+                      modality="small molecule")
+    inputs["loe"]["observed"] = True
+    inputs["loe"]["basis"] = "generic marketed (2023-07-31, FDA Paragraph IV list)"
+    got = F.build(inputs)
+    assert got["loe_in_base"] and got["loe_year"] == 2023
+    assert got["revenue_after_loe"] == got["revenue"]
+
+
 def test_a_recent_cliff_the_revenue_shows_stays_in_the_base():
     """Victoza's 2024 date shows: 8,664mm, 5,482mm, 3,020mm."""
     got = F.build(_on_file(2024, {2023: 8664.0, 2024: 5482.0, 2025: 3020.0},

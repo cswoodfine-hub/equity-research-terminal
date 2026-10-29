@@ -1292,7 +1292,13 @@ def build(inputs: dict) -> dict:
     # fall in any full reported year since has not landed, and by convention the cliff
     # lands in the first forecast year. Older dates, and recent ones with no full year
     # to compare, keep the rule above.
-    if record_in_base and record_year is not None:
+    # A launch someone recorded is different: a generic on sale (the FDA Paragraph IV
+    # list) or CMS finding one marketed is a cliff that happened, and a reported year
+    # since that did not fall says the line held, not that the fall is still to come.
+    # AstraZeneca's US Symbicort, generic since July 2023 and carrying its own authorised
+    # generic, reported 1,193mm in 2025; landing a fresh cliff on it in 2026 cut the
+    # product by 8,300mm.
+    if record_in_base and record_year is not None and not loe.get("observed"):
         window_length = cliff_window(inputs, late_from)
         if (window_length is not None and years[0] - record_year < window_length
                 and fell_since(inputs.get("actuals"), record_year) is False):

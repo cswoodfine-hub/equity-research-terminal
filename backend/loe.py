@@ -348,7 +348,7 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         if held and held <= found["date"]:
             continue
         out[asset_id] = {**known, "date": found["date"], "identifier": None,
-                         "past": found["date"] < today,
+                         "past": found["date"] < today, "observed": True,
                          "basis": f"{found['basis']} ({found['stated']})",
                          "note": found["note"] or None}
 
@@ -368,7 +368,7 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         if held and held <= launched:
             continue
         out[asset_id] = {**known, "date": launched, "identifier": None,
-                         "past": launched < today,
+                         "past": launched < today, "observed": True,
                          "basis": f"generic marketed ({launched}, FDA Paragraph IV list)"}
 
     # Two inferences from silence, run before links so a holder carries what they give.
