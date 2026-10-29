@@ -6,7 +6,7 @@ The builders live in the Streamlit script, which runs the whole app on import, s
 are read out of its source by name and run on what the profile returned for two real
 products on a copy of the book (``fixtures/patent_stack/``): Rinvoq, whose molecule
 patent and latest patent differ, and Farxiga, whose first generic launched in 2026; and
-rows of the LOE view's table: four AbbVie products and Keytruda, whose listed orphan
+rows of the LOE view's table: four AbbVie products and Fasenra, whose listed orphan
 exclusivity runs past the date it is valued on.
 """
 
@@ -131,12 +131,15 @@ def test_the_loe_view_reads_each_product_left_to_right(view):
 
 
 def test_the_loe_view_dates_on_the_valuation_and_notes_the_listed_orphan_date(view):
-    rows, _ = _stack_rows(view, "mrk_company_stack")
-    keytruda = rows["Keytruda"]
-    listed = load("mrk_company_stack")["products"][0]["listed_loe"]
-    # Dated on the 12-year floor the valuation runs on, which has passed.
-    assert keytruda.startswith("Keytruda biologic 2026-09-04 lapsed")
-    assert f'orphan exclusivity to {listed["date"]}, not counted' in keytruda
+    rows, _ = _stack_rows(view, "azn_company_stack")
+    fasenra = rows["Fasenra"]
+    row = load("azn_company_stack")["products"][0]
+    # Dated on the 12-year floor the valuation runs on, the orphan date beside it.
+    assert fasenra.startswith(f'Fasenra biologic {row["loe"]}')
+    assert f'orphan exclusivity to {row["listed_loe"]["date"]}, not counted' in fasenra
+    assert "lapsed" not in fasenra
+    lapsed = view["_loe_stack_table_html"]([dict(row, past=True)], "AZN")
+    assert f'Fasenra biologic {row["loe"]} lapsed' in text_of(lapsed)
     abbv, _ = _stack_rows(view)
     assert "not counted" not in " ".join(abbv.values())
 
