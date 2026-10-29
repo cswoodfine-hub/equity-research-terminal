@@ -169,6 +169,8 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
     # another. Any row saying substance makes it a substance patent, since the book is
     # asserting the claim somewhere.
     patent_kinds: dict = {}
+    # A patent is listed once per strength and use, so its codes are gathered across rows.
+    use_codes: dict = {}
     patents = collections.defaultdict(list)
     aidx, arows = _rows(patents_text)
     for parts in arows:
@@ -185,7 +187,10 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
                                               "use": False})
         flags["substance"] |= _field(parts, aidx, "Drug_Substance_Flag").strip() == "Y"
         flags["product"] |= _field(parts, aidx, "Drug_Product_Flag").strip() == "Y"
-        flags["use"] |= bool(_field(parts, aidx, "Patent_Use_Code").strip())
+        code = _field(parts, aidx, "Patent_Use_Code").strip()
+        flags["use"] |= bool(code)
+        if code:
+            use_codes.setdefault(key, set()).add(code)
 
     exclusivity = collections.defaultdict(list)
     eidx, erows = _rows(exclusivity_text)
@@ -212,11 +217,13 @@ def parse_orange_book(products_text, patents_text, exclusivity_text, applicant_m
                 if key in seen:
                     continue
                 seen.add(key)
+                codes = use_codes.get((appl_no, identifier)) if kind == "patent" else None
                 rows.append({"protection_type": kind, "identifier": identifier,
                              "expiry_date": expiry.isoformat(),
                              "patent_kind": patent_kind(
                                  patent_kinds.get((appl_no, identifier)))
-                             if kind == "patent" else None})
+                             if kind == "patent" else None,
+                             "use_codes": ",".join(sorted(codes)) if codes else None})
         # A marketed product with nothing listed is kept, marked, and attached only to
         # an asset already on file: the silence is a finding about that product, and
         # not a reason to create an asset for every old NDA in the book.
@@ -298,10 +305,11 @@ def attach_direct(conn, product: dict, source: str, with_kind: bool) -> int:
             if with_kind:
                 conn.execute(
                     "INSERT INTO exclusivities (asset_id, region, protection_type,"
-                    " identifier, expiry_date, patent_kind, source)"
-                    " VALUES (?, 'US', ?, ?, ?, ?, ?)",
+                    " identifier, expiry_date, patent_kind, use_codes, source)"
+                    " VALUES (?, 'US', ?, ?, ?, ?, ?, ?)",
                     (asset_id, excl["protection_type"], excl["identifier"],
-                     excl["expiry_date"], excl.get("patent_kind"), source))
+                     excl["expiry_date"], excl.get("patent_kind"), excl.get("use_codes"),
+                     source))
             else:
                 conn.execute(
                     "INSERT INTO exclusivities (asset_id, region, protection_type,"
@@ -425,11 +433,12 @@ class OrangeBookFetcher(BaseFetcher):
                         """
                         INSERT INTO exclusivities
                             (asset_id, region, protection_type, identifier, expiry_date,
-                             patent_kind, source)
-                        VALUES (?, 'US', ?, ?, ?, ?, ?)
+                             patent_kind, use_codes, source)
+                        VALUES (?, 'US', ?, ?, ?, ?, ?, ?)
                         """,
                         (asset_id, excl["protection_type"], excl["identifier"],
-                         excl["expiry_date"], excl.get("patent_kind"), OB_SOURCE),
+                         excl["expiry_date"], excl.get("patent_kind"),
+                         excl.get("use_codes"), OB_SOURCE),
                     )
                     written += 1
             conn.commit()

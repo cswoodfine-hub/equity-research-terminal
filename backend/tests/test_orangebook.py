@@ -199,3 +199,15 @@ def test_a_listing_with_nothing_live_reads_as_an_loe_in_the_past(tmp_path):
                  " identifier, expiry_date, source) VALUES"
                  " (522, 'US', 'patent', '1', '2030-05-28', 't')")
     assert loe.for_assets(conn, [522])[522]["date"] == "2030-05-28"
+
+
+def test_use_codes_are_kept_as_codes():
+    """Mounjaro's 12343382 is a method-of-use patent with code U-4229 in the fixture."""
+    rows = {r["brand"]: r for r in _parsed()}
+    patents = {e["identifier"]: e for e in rows["Mounjaro"]["exclusivities"]
+               if e["protection_type"] == "patent"}
+    assert patents["12343382"]["use_codes"] == "U-4229"
+    assert patents["12343382"]["patent_kind"] == "use"
+    exclusivities = [e for e in rows["Mounjaro"]["exclusivities"]
+                     if e["protection_type"] != "patent"]
+    assert all(e["use_codes"] is None for e in exclusivities)
