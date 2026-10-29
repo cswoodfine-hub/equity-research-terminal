@@ -11675,6 +11675,12 @@ with main:
                     "Funded to it": ("yes" if r["funded_to_readout"] else
                                      "no" if r["funded_to_readout"] is False else
                                      "none scheduled"),
+                    # Measured, not a view of this company: what companies with this much
+                    # cash did over the next twelve months (data/runway_dilution.csv).
+                    "Raised within 12m, peers": ((r.get("expected_raise") or {})
+                                                 .get("p_raise_12m")),
+                    "Extra shares in 12m, peers": ((r.get("expected_raise") or {})
+                                                   .get("extra_shares_12m")),
                     # Two ways the figure can mislead, said on the row rather than in a
                     # footnote: a burn paid for by a licence receipt, and a cash figure
                     # missing the securities the company actually holds its runway in.
@@ -11687,7 +11693,17 @@ with main:
                         "Cash and investments, m": st.column_config.NumberColumn(format="%.0f"),
                         "Raised since, m": st.column_config.NumberColumn(format="%.0f"),
                         "Burn, m/yr": st.column_config.NumberColumn(format="%.0f"),
-                        "Runway, months": st.column_config.NumberColumn(format="%.0f")})
+                        "Runway, months": st.column_config.NumberColumn(format="%.0f"),
+                        "Raised within 12m, peers": st.column_config.NumberColumn(
+                            format="percent",
+                            help="Share of cash-burning companies with this many months of "
+                                 "cash whose financing inflows over the next year passed "
+                                 "10% of their cash. 573 company-quarters, mostly 2020 on."),
+                        "Extra shares in 12m, peers": st.column_config.NumberColumn(
+                            format="percent",
+                            help="Growth in diluted shares over the next year for "
+                                 "companies with this much cash, less the 7.5% of "
+                                 "companies with five years of cash (employee stock).")})
 
                 # The sharpest thing this page knows. A company whose next readout lands
                 # after its cash does has to finance on no new data, which is the weakest
