@@ -444,6 +444,18 @@ for agreement with a value delta on a copy, as step 3b did.
 8a, 8b, 8c, 8d, 8e. 8b needs 8a's path. Each lands as a view first, then stops for
 agreement before it moves value.
 
+### Results, 2026-10-29 (`work/proxies/RESULTS_8A.md` to `RESULTS_8D_8E.md`)
+
+None moves value, by the step's own rule.
+
+| proxy | result | in the terminal |
+|---|---|---|
+| 8a trial spend | A real signal (elasticity 0.18) but no better than `rd_pct` × revenue or flat at predicting next year's R&D; helps only when trial load moves over 30% | study only; feeds 8b's forward burn in those years |
+| 8b runway | Strong: under 18 months of cash, over 90% raise within a year, about 18 to 20% extra shares | the runway page shows the peers' raise rate and extra shares (`data/runway_dilution.csv`) |
+| 8c market moves | Success legs agree for large companies; failure legs not measurable (4 of 200 headlines say so) | to be scored on the call log as catalysts resolve |
+| 8d safety | Blocked by survivorship: the book holds the assets that went on | display only, until the full Phase 2 history and label history are read |
+| 8e deal appetite | No signal (rank correlation +0.09, 75 company-years) | descriptive screen only |
+
 ## Order of work, one concern per commit
 
 1. Paragraph IV fetcher on the spreadsheet; fixture and test. Baseline report.
