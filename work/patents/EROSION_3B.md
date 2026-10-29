@@ -1,7 +1,10 @@
 # Step 3b: the four erosion caveats, measured
 
-Run 2026-10-29 on a copy of the published book. Nothing in `data/erosion_defaults.csv`
-has changed yet. This is the report the plan stops on.
+Run 2026-10-29 on a copy of the published book. **Decided the same day: option B, the
+averages**, now in `data/erosion_defaults.csv`. On the copy the book is 2,606,574mm
+against 2,659,091mm on main's rows (-52,517mm, -2.0%). Each row's note carries the
+median fit as its bear case: oral 0.80 / 0.53 / 0.22, non-oral 0.56 / 0.60 / 0.07.
+Those are recorded in the notes, not yet wired as a scenario.
 
 ## What was built (all under `work/patents/tools/`)
 

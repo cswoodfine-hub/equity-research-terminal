@@ -1,5 +1,9 @@
 # Erosion after a generic launch, measured
 
+**Superseded 2026-10-29 by `EROSION_3B.md`**: the rows below were fitted to medians on
+86 Paragraph IV launches, with a route bug in the non-oral sample. The rows in force are
+fitted to averages on 163 launches, checked against filers' US lines.
+
 Run 2026-10-29. Reproduce with
 `ER_TOOL_DB=<copy> python3 work/patents/tools/erosion_study.py --download <dir>` then
 `ER_TOOL_DB=<copy> python3 work/patents/tools/erosion_study.py <dir>`.
