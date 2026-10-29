@@ -96,7 +96,8 @@ def summarise(indications: str | None) -> str | None:
 PATENT_KINDS = {"substance": "molecule", "product": "formulation", "use": "method of use"}
 
 
-def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
+def _patents(conn, asset_id: int, governing: str | None,
+             certificates: dict | None = None) -> list[dict]:
     """Every patent and exclusivity on the product, with the one that sets the date marked.
 
     A product does not have a patent, it has a stack of them, and the stack is why two
@@ -116,7 +117,8 @@ def _patents(conn, asset_id: int, governing: str | None) -> list[dict]:
         """SELECT identifier, expiry_date, patent_kind, protection_type, source,
                   use_codes
              FROM exclusivities WHERE asset_id = ? ORDER BY expiry_date""", (asset_id,))]
-    certificates = _term_extensions(conn)
+    if certificates is None:
+        certificates = _term_extensions(conn)
     extensions = {}
     for row in rows:
         name = row["identifier"] or ""
@@ -203,13 +205,85 @@ def _erosion(inputs: dict | None) -> dict | None:
             "sample_n": default.get("sample_n"), "source": default.get("source")}
 
 
-def _range(conn, asset_id: int) -> dict | None:
+def _range(conn, asset_id: int, found=None, inputs=None) -> dict | None:
     """Bear, base and bull LOE dates with the value at each, or None where there is no
     range or no forecast. A failure here costs the panel, never the profile."""
     try:
-        return loe_range.for_asset(conn, asset_id)
+        return loe_range.for_asset(conn, asset_id, found=found, inputs=inputs)
     except Exception:                       # noqa: BLE001 - a view beside the profile
         return None
+
+
+def _challenge_summary(rows: list[dict]) -> dict | None:
+    """The Paragraph IV list cut to one line for a product: the first challenge, the most
+    filers on any strength, and whether a generic has been approved or sold."""
+    if not rows:
+        return None
+    dated = [r["submission_date"] for r in rows if r.get("submission_date")]
+    sold = [r["first_marketing"] for r in rows if r.get("first_marketing")]
+    approved = [r["first_approval"] for r in rows if r.get("first_approval")]
+    counts = [r["anda_count"] for r in rows if r.get("anda_count") is not None]
+    return {"first_submission": min(dated) if dated else None,
+            "pre_mma": any(r.get("pre_mma") for r in rows),
+            "filers": max(counts) if counts else None,
+            "first_marketing": min(sold) if sold else None,
+            "first_approval": min(approved) if approved else None,
+            "strengths": len(rows)}
+
+
+def company_stack(db_path, ticker: str, horizon_years: int = 10) -> list[dict] | None:
+    """The stack behind the date for every product a company loses inside the window, one
+    row each, for the LOE view: the protection that sets the date with its extensions,
+    what is listed after it, the Paragraph IV record, the range valued at each end and
+    the erosion row. The same pieces as the product profile, cut to a line a product.
+    None when the ticker is unknown."""
+    import datetime as dt
+
+    rows = loe_module.loe_detail(db_path, ticker)
+    if rows is None:
+        return None
+    last_year = dt.date.today().year + horizon_years
+    rows = [r for r in rows if r["loe_year"] <= last_year]
+    conn = db.get_connection(db_path)
+    try:
+        ids = [r["asset_id"] for r in rows]
+        # The date's own patent as the view's date resolves it, and the range as the
+        # valuation does, which leaves orphan exclusivity out.
+        dated = loe_module.for_assets(conn, ids)
+        resolved = loe_module.for_assets(conn, ids, exclude_orphan=True)
+        certificates = _term_extensions(conn)
+        out = []
+        for row in rows:
+            aid = row["asset_id"]
+            patents = _patents(conn, aid, (dated.get(aid) or {}).get("identifier"),
+                               certificates)
+            governing = next((p for p in patents if p["governs"]), None)
+            later = [p for p in patents if p["type"] == "patent" and not p["governs"]
+                     and governing and (p["effective"] or "") > (governing["effective"] or "")]
+            inputs = assumptions_module.load(conn, aid, "base")
+            # The valuation leaves orphan exclusivity out, since it covers one orphan
+            # indication and does not hold off a generic or biosimilar. Where that gives
+            # a different date from the view's, both are shown: Humira's cliff reads its
+            # 2028 orphan exclusivity, its value the 12-year floor that lapsed in 2014.
+            valued = resolved.get(aid) or {}
+            out.append({
+                "asset_id": aid, "brand": row["brand_name"], "generic": row["generic_name"],
+                "modality": row["modality"], "loe": row["loe"], "loe_year": row["loe_year"],
+                "basis": row["loe_basis"],
+                "valued_loe": (None if valued.get("date") == row["loe"] else
+                               {"date": valued.get("date"), "basis": valued.get("basis"),
+                                "past": bool(valued.get("past"))}),
+                "governing": governing,
+                "later_patents": len(later),
+                "later_to": max((p["effective"] for p in later), default=None),
+                "later_use": sum(1 for p in later if p["kind"] == "method of use"),
+                "paragraph_iv": _challenge_summary(_paragraph_iv(conn, aid)),
+                "loe_range": _range(conn, aid, found=resolved.get(aid), inputs=inputs),
+                "erosion": _erosion(inputs),
+            })
+        return out
+    finally:
+        conn.close()
 
 
 def _loe(conn, asset_id: int) -> dict:

@@ -426,6 +426,15 @@ def company_exclusivities(ticker: str) -> dict:
     return {"ticker": ticker.upper(), "assets": rows}
 
 
+@app.get("/companies/{ticker}/patent-stack")
+def company_patent_stack(ticker: str, horizon_years: int = 10) -> dict:
+    """The stack behind each LOE date in the window, one row a product, for the LOE view."""
+    rows = product_profile_module.company_stack(None, ticker, horizon_years)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "horizon_years": horizon_years, "products": rows}
+
+
 @app.get("/companies/{ticker}/filing-text")
 def company_filing_text(ticker: str) -> dict:
     """Risk factors and MD&A of the latest filings, diffed against the prior of the same

@@ -28,15 +28,22 @@ def _npv(inputs: dict, year: int | None):
         return None
 
 
-def for_asset(conn, asset_id: int, scenario: str = "base") -> dict | None:
+def for_asset(conn, asset_id: int, scenario: str = "base", found=None,
+              inputs=None) -> dict | None:
     """{bear, base, bull: {date, npv}, why...} or None where the asset has no LOE date or
     no forecast. A range of one date (a settled date, or nothing either side) is returned
-    with the three ends equal, so a reader sees that it has none."""
-    found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
+    with the three ends equal, so a reader sees that it has none.
+
+    ``found`` (the asset's ``loe.for_assets`` entry) and ``inputs`` (its loaded
+    assumptions) may be passed by a caller that already holds them, as the company view
+    does for every product at once."""
+    if found is None:
+        found = loe_module.for_assets(conn, [asset_id], exclude_orphan=True).get(asset_id)
     rng = loe_module.date_range(found)
     if not rng:
         return None
-    inputs = assumptions_module.load(conn, asset_id, scenario)
+    if inputs is None:
+        inputs = assumptions_module.load(conn, asset_id, scenario)
     if not inputs or not inputs.get("scalars"):
         return None
     base_npv = _npv(inputs, None)

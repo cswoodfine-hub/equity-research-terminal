@@ -149,3 +149,52 @@ def test_demand_reports_each_part_and_never_sums_patients(tmp_path):
     assert b["beneficiaries"] == 5 and d["beneficiaries"] == 5
     assert b["patient_growth"] == 0.25 and d["patient_growth"] == 0.0
     assert b["like_for_like"] and d["like_for_like"]
+
+
+def test_company_stack_lists_each_product_in_the_window_with_its_stack(tmp_path):
+    """The LOE view's rows: the patent that sets the date with its extension, the later
+    patents counted, the Paragraph IV record cut to one line, and a product outside the
+    window left out."""
+    import datetime as dt
+
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    conn = db.get_connection(db_file)
+    soon = _asset(conn, "LLY", "Soondrug")
+    late = _asset(conn, "LLY", "Latedrug")
+    year = dt.date.today().year
+    conn.execute("UPDATE assets SET internal_code = 'NDA222' WHERE id = ?", (soon,))
+    rows = ((soon, "1111111", f"{year + 2}-03-01", "substance", None),
+            (soon, "2222222", f"{year + 5}-03-01", "use", "U-1,U-2"),
+            (soon, "3333333", f"{year + 6}-03-01", "product", None),
+            (late, "4444444", f"{year + 14}-01-01", "substance", None))
+    for aid, ident, expiry, kind, codes in rows:
+        conn.execute("INSERT INTO exclusivities (asset_id, protection_type, identifier,"
+                     " expiry_date, patent_kind, use_codes, source)"
+                     " VALUES (?, 'patent', ?, ?, ?, ?, 'orange_book')",
+                     (aid, ident, expiry, kind, codes))
+    conn.execute("INSERT INTO patent_term_extensions (patent, kind, original_expiry,"
+                 " extension) VALUES ('1111111', 'certificate', ?, '2 years')",
+                 (f"{year}-03-01",))
+    for strength, filers, approved in (("5 mg", 3, None), ("10 mg", 6, f"{year}-01-02")):
+        conn.execute("INSERT INTO paragraph_iv_list (application_number, strength,"
+                     " submission_date, anda_count, first_approval)"
+                     " VALUES ('NDA222', ?, '2021-04-01', ?, ?)", (strength, filers, approved))
+    conn.commit()
+    conn.close()
+
+    stack = pp.company_stack(db_file, "LLY")
+    assert [r["brand"] for r in stack] == ["Soondrug"]
+    row = stack[0]
+    assert row["governing"]["identifier"] == "1111111"
+    assert row["governing"]["term_extension"]["extension"] == "2 years"
+    assert row["later_patents"] == 2 and row["later_use"] == 1
+    assert row["later_to"] == f"{year + 6}-03-01"
+    assert row["paragraph_iv"] == {"first_submission": "2021-04-01", "pre_mma": False,
+                                   "filers": 6, "first_marketing": None,
+                                   "first_approval": f"{year}-01-02", "strengths": 2}
+    # No assumptions on file: no range and no erosion, never a default filled in.
+    assert row["loe_range"] is None and row["erosion"] is None
+    assert row["valued_loe"] is None
+    assert pp.company_stack(db_file, "ZZZZ") is None
