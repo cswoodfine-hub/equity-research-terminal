@@ -375,6 +375,82 @@ def _prof_rows(pairs) -> str:
     return "".join(out)
 
 
+def _loe_range_html(rng) -> list:
+    """Bear, base and bull LOE dates with the product's value at each. The bear date is
+    the molecule patent with its extensions, the bull the latest molecule or formulation
+    patent; 89% of 122 past generic launches fell between them."""
+    if not rng or not rng.get("base"):
+        return []
+    ends = [(end, rng.get(end) or {}) for end in ("bear", "base", "bull")]
+    if len({e["date"] for _, e in ends}) == 1:
+        return ['<div class="prof-sub">LOE range</div>',
+                _prof_rows([("one date", f'{ends[1][1]["date"][:10]}: '
+                             f'{rng.get("why_bear") or "no range"}', True)])]
+    base_date = ends[1][1]["date"]
+    rows, why = [], []
+    for end, e in ends:
+        if end != "base" and e["date"] == base_date:
+            rows.append((end, "same as base", True))
+            continue
+        npv = e.get("npv")
+        value = f'{e["date"][:10]} · NPV {_money_mm(npv)}' if npv is not None else \
+            f'{e["date"][:10]} · no forecast'
+        rows.append((end, value))
+        if end != "base":
+            why.append((f"{end} basis", rng.get(f"why_{end}"), True))
+    return ['<div class="prof-sub">LOE range · 89% of 122 past generic launches fell '
+            'inside theirs</div>', _prof_rows(rows + why)]
+
+
+def _money_mm(value) -> str:
+    return f"{value / 1000:,.1f} bn" if abs(value) >= 1000 else f"{value:,.0f} mm"
+
+
+def _erosion_html(row) -> list:
+    """The erosion shape the valuation runs after the date, and what it rests on."""
+    if not row:
+        return []
+    shape = f'year one -{row["year1_pct"]:.0%}'
+    if row.get("decay_pct") is not None:
+        shape += f', then -{row["decay_pct"]:.0%} a year'
+    if row.get("late_decay_pct") is not None and row.get("late_from_year"):
+        shape += f', -{row["late_decay_pct"]:.0%} from year {int(row["late_from_year"])}'
+    sample = (f'fitted to {row["sample_n"]} launches' if row.get("sample_n")
+              else "stated on the asset" if row.get("row") == "stated"
+              else "not fitted to launches")
+    return ['<div class="prof-sub">erosion after LOE</div>',
+            _prof_rows([(row.get("row") or "row", shape), ("sample", sample, True)])]
+
+
+def _paragraph_iv_html(rows) -> list:
+    """The FDA Paragraph IV list for the product's own application, one line a strength.
+    The 30-month stay runs from the brand's notice, which the list does not date, so no
+    stay date is drawn."""
+    out = [f'<div class="prof-sub">Paragraph IV filings · FDA list of '
+           f'{html_escape((rows[0].get("list_date") or "")[:10])}</div>']
+    for r in rows:
+        filed = ("before 2003 (pre-MMA)" if r.get("pre_mma")
+                 else (r.get("submission_date") or "")[:10] or "no date")
+        facts = []
+        if r.get("anda_count"):
+            facts.append(f'{r["anda_count"]} filer{"s" if r["anda_count"] != 1 else ""}')
+        if r.get("status_180"):
+            facts.append(f'180-day {r["status_180"].lower()}')
+        if r.get("first_marketing"):
+            facts.append(f'generic sold from {r["first_marketing"][:10]}')
+        elif r.get("first_approval"):
+            facts.append(f'generic approved {r["first_approval"][:10]}, not yet sold')
+        if r.get("last_patent_expiry"):
+            facts.append(f'last challenged patent {r["last_patent_expiry"][:10]}')
+        strength = " ".join(x for x in (r.get("strength"), r.get("dosage_form")) if x)
+        out.append(f'<div class="prof-line"><span class="d">{html_escape(filed)}</span>'
+                   f'{html_escape(strength)}'
+                   f'{" · " + html_escape(", ".join(facts)) if facts else ""}</div>')
+    out.append('<div class="prof-line"><span class="d"></span>The 30-month stay runs from '
+               'the brand\'s notice, which the list does not date.</div>')
+    return out
+
+
 def _render_product_profile(api_base, ticker, product, today) -> None:
     """The fact profile for one product: sourced facts on the left, the analyst's curated
     market-size / peak-sales / competitor view on the right, editable and saved back. Read
@@ -502,15 +578,27 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
 
         def _patent_row(p, lead=False):
             kind = p.get("kind") or p.get("type") or ""
+            # A method-of-use patent names the indications it claims by Orange Book use
+            # code. The data files carry no wording for the codes, so the codes it is.
+            if p.get("use_codes"):
+                kind += " · " + ", ".join(p["use_codes"])
             base = (p.get("expiry") or "")[:10]
             eff = (p.get("effective") or "")[:10]
             ped = (f'<span class="pt-ped">+6mo to {eff}</span>'
                    if p.get("extended_to") and p["extended_to"] != base else "")
+            # The Orange Book date already includes a term extension, so the row says
+            # what the USPTO certificate added rather than moving the date.
+            pte = p.get("term_extension") or {}
+            pte_txt = (f'<span class="pt-ped">extended {html_escape(pte["extension"])} '
+                       f'from {html_escape((pte.get("original_expiry") or "")[:10])} '
+                       f'(USPTO certificate)</span>'
+                       if pte.get("extension") else "")
             mark = ('<span class="pt-gov">sets the date</span>' if lead else "")
             return (f'<div class="prof-row pt{" gov" if lead else ""}">'
                     f'<span class="prof-k">{html_escape(p.get("identifier") or "—")}'
                     f'<span class="pt-kind">{html_escape(kind)}</span></span>'
-                    f'<span class="prof-v">{html_escape(base)}{ped}{mark}</span></div>')
+                    f'<span class="prof-v">{html_escape(base)}{pte_txt}{ped}{mark}'
+                    f'</span></div>')
 
         for p in governing:
             html.append(_patent_row(p, lead=True))
@@ -525,6 +613,8 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                         "listed expiry")
             html.append(f'<div class="prof-row"><span class="prof-k">basis</span>'
                         f'<span class="prof-v none">{note_txt}</span></div>')
+    html.extend(_loe_range_html(prof.get("loe_range")))
+    html.extend(_erosion_html(prof.get("erosion")))
 
     # Label, supplements, challenges: the regulatory footprint.
     lab = prof.get("label")
@@ -542,7 +632,9 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
             d = d if len(d) <= 80 else d[:79] + "…"
             html.append(f'<div class="prof-line"><span class="d">'
                         f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
-    if prof.get("challenges"):
+    if prof.get("paragraph_iv"):
+        html.extend(_paragraph_iv_html(prof["paragraph_iv"]))
+    elif prof.get("challenges"):
         html.append('<div class="prof-sub">Paragraph IV challenges</div>')
         html.append(_prof_rows([
             (c.get("application_number") or "application",

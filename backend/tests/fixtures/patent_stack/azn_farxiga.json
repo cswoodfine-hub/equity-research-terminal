@@ -1,0 +1,345 @@
+{
+ "brand": "Farxiga",
+ "ticker": "AZN",
+ "loe": {
+  "loe": "2026-04-04",
+  "basis": "compound patent",
+  "loe_year": 2026,
+  "loe_identifier": "6515117",
+  "loe_past": true,
+  "loe_earliest_year": 2025,
+  "use_patent_year": 2041,
+  "last_listed_year": 2041,
+  "later_substance_year": 2029
+ },
+ "patents": [
+  {
+   "identifier": "6515117",
+   "expiry": "2025-10-04",
+   "effective": "2026-04-04",
+   "extended_to": "2026-04-04",
+   "term_extension": {
+    "extension": "5 years",
+    "original_expiry": "2020-10-04"
+   },
+   "use_codes": [
+    "U-2139",
+    "U-493"
+   ],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": true,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "M-298",
+   "expiry": "2026-05-08",
+   "effective": "2026-05-08",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "PED",
+   "expiry": "2026-11-08",
+   "effective": "2026-11-08",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8329648",
+   "expiry": "2026-08-18",
+   "effective": "2027-02-18",
+   "extended_to": "2027-02-18",
+   "term_extension": null,
+   "use_codes": [
+    "U-2139",
+    "U-2212",
+    "U-2213"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8906851",
+   "expiry": "2026-08-18",
+   "effective": "2027-02-18",
+   "extended_to": "2027-02-18",
+   "term_extension": null,
+   "use_codes": [
+    "U-2139"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "NPP",
+   "expiry": "2027-06-12",
+   "effective": "2027-06-12",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "PED",
+   "expiry": "2027-12-12",
+   "effective": "2027-12-12",
+   "extended_to": null,
+   "term_extension": null,
+   "use_codes": [],
+   "kind": null,
+   "type": "regulatory exclusivity",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8501698",
+   "expiry": "2027-06-20",
+   "effective": "2027-12-20",
+   "extended_to": "2027-12-20",
+   "term_extension": null,
+   "use_codes": [
+    "U-493"
+   ],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8221786",
+   "expiry": "2028-03-21",
+   "effective": "2028-09-21",
+   "extended_to": "2028-09-21",
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8361972",
+   "expiry": "2028-03-21",
+   "effective": "2028-09-21",
+   "extended_to": "2028-09-21",
+   "term_extension": null,
+   "use_codes": [
+    "U-2139",
+    "U-493"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8716251",
+   "expiry": "2028-03-21",
+   "effective": "2028-09-21",
+   "extended_to": "2028-09-21",
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "7851502",
+   "expiry": "2028-08-19",
+   "effective": "2029-02-19",
+   "extended_to": "2029-02-19",
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "7919598",
+   "expiry": "2029-12-16",
+   "effective": "2030-06-16",
+   "extended_to": "2030-06-16",
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "molecule",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8721615",
+   "expiry": "2030-01-18",
+   "effective": "2030-07-18",
+   "extended_to": "2030-07-18",
+   "term_extension": null,
+   "use_codes": [],
+   "kind": "formulation",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "8685934",
+   "expiry": "2030-05-26",
+   "effective": "2030-11-26",
+   "extended_to": "2030-11-26",
+   "term_extension": null,
+   "use_codes": [
+    "U-1522"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11826376",
+   "expiry": "2039-07-18",
+   "effective": "2040-01-18",
+   "extended_to": "2040-01-18",
+   "term_extension": null,
+   "use_codes": [
+    "U-3766"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12472194",
+   "expiry": "2039-07-18",
+   "effective": "2040-01-18",
+   "extended_to": "2040-01-18",
+   "term_extension": null,
+   "use_codes": [
+    "U-4346"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "10973836",
+   "expiry": "2040-03-09",
+   "effective": "2040-09-09",
+   "extended_to": "2040-09-09",
+   "term_extension": null,
+   "use_codes": [
+    "U-3127"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "11903955",
+   "expiry": "2040-03-09",
+   "effective": "2040-09-09",
+   "extended_to": "2040-09-09",
+   "term_extension": null,
+   "use_codes": [
+    "U-3825"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12213988",
+   "expiry": "2041-04-01",
+   "effective": "2041-10-01",
+   "extended_to": "2041-10-01",
+   "term_extension": null,
+   "use_codes": [
+    "U-4140"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  },
+  {
+   "identifier": "12409186",
+   "expiry": "2041-04-01",
+   "effective": "2041-10-01",
+   "extended_to": "2041-10-01",
+   "term_extension": null,
+   "use_codes": [
+    "U-4140"
+   ],
+   "kind": "method of use",
+   "type": "patent",
+   "governs": false,
+   "source": "orange_book"
+  }
+ ],
+ "paragraph_iv": [
+  {
+   "strength": "5 mg and 10 mg",
+   "dosage_form": "Tablets",
+   "submission_date": "2018-01-08",
+   "pre_mma": 0,
+   "anda_count": 20,
+   "status_180": "Eligible",
+   "first_approval": "2026-04-06",
+   "first_marketing": "2026-04-06",
+   "last_patent_expiry": "2030-05-26",
+   "list_date": "2026-09-28"
+  }
+ ],
+ "loe_range": {
+  "why_bear": "the date is a fact or a contract, not a reading of patents",
+  "why_bull": "the date is a fact or a contract, not a reading of patents",
+  "bear": {
+   "date": "2026-04-04",
+   "npv": 6654.018669502263
+  },
+  "base": {
+   "date": "2026-04-04",
+   "npv": 6654.018669502263
+  },
+  "bull": {
+   "date": "2026-04-04",
+   "npv": 6654.018669502263
+  }
+ },
+ "erosion": {
+  "row": "small molecule",
+  "year1_pct": 0.71,
+  "decay_pct": 0.31,
+  "late_decay_pct": 0.23,
+  "late_from_year": 4.0,
+  "sample_n": 134,
+  "source": "measured 2026-10-29: 134 oral brands, average Part D gross cost kept after a first generic launch 0.299, 0.192, 0.138, 0.115, 0.078, 0.062 in years one to six after the launch year (n 134 to 70); this row reproduces those within 0.01. The filers' own US lines, net and every channel, agree in year one (15 launches, median ratio to Part D 1.05)"
+ },
+ "challenges": [
+  {
+   "application_number": "NDA202293",
+   "first_submission": "2018-01-08"
+  }
+ ]
+}
