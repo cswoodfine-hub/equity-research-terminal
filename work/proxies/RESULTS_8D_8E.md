@@ -80,7 +80,10 @@ points of excess serious events: 21% against a 28% base, about three quarters. T
 needs agreement and a value delta on a copy first.
 
 Label history for marketed drugs is not read. FDA's Drug Safety-related Labeling
-Changes database dates boxed warning changes from 2016, and would be the source.
+Changes database dates boxed warning changes from 2016 and would be the source, but it
+answers only its interactive search. A scripted query, even naming one drug (Xeljanz,
+boxed warning 2021), gets the blank search page back (tried 2026-10-30). The book's
+label snapshots, from September 2026, will date new boxed warnings from here on.
 
 ## 8e: deal appetite
 
