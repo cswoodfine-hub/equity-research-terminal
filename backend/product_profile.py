@@ -119,6 +119,7 @@ def _patents(conn, asset_id: int, governing: str | None,
              FROM exclusivities WHERE asset_id = ? ORDER BY expiry_date""", (asset_id,))]
     if certificates is None:
         certificates = _term_extensions(conn)
+    wording = _use_code_wording(conn)
     extensions = {}
     for row in rows:
         name = row["identifier"] or ""
@@ -140,6 +141,8 @@ def _patents(conn, asset_id: int, governing: str | None,
             "extended_to": extended,
             "term_extension": certificates.get(pte.patent_key(name)),
             "use_codes": [c for c in (row["use_codes"] or "").split(",") if c],
+            "use_code_text": {c: wording[c] for c in (row["use_codes"] or "").split(",")
+                              if c in wording},
             "kind": PATENT_KINDS.get(row["patent_kind"] or ""),
             "type": row["protection_type"],
             "governs": bool(governing and name == governing),
@@ -147,6 +150,14 @@ def _patents(conn, asset_id: int, governing: str | None,
         })
     out.sort(key=lambda r: (r["effective"] or "", r["identifier"] or ""))
     return out
+
+
+def _use_code_wording(conn) -> dict:
+    """{U-code: FDA's wording}, empty on a database from before the source."""
+    try:
+        return dict(conn.execute("SELECT code, definition FROM patent_use_codes"))
+    except Exception:                       # noqa: BLE001 - no table yet
+        return {}
 
 
 def _term_extensions(conn) -> dict:

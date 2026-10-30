@@ -726,11 +726,17 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                        f'(USPTO certificate)</span>'
                        if pte.get("extension") else "")
             mark = ('<span class="pt-gov">sets the date</span>' if lead else "")
+            # What each use code claims, in FDA's words, so a reader sees which
+            # indication a later patent holds.
+            claims = "".join(
+                f'<div class="pt-use">{html_escape(code)}: '
+                f'{html_escape(text[:1] + text[1:].lower())}</div>'
+                for code, text in (p.get("use_code_text") or {}).items())
             return (f'<div class="prof-row pt{" gov" if lead else ""}">'
                     f'<span class="prof-k">{html_escape(p.get("identifier") or "—")}'
                     f'<span class="pt-kind">{html_escape(kind)}</span></span>'
                     f'<span class="prof-v">{html_escape(base)}{pte_txt}{ped}{mark}'
-                    f'</span></div>')
+                    f'</span></div>{claims}')
 
         for p in governing:
             html.append(_patent_row(p, lead=True))
