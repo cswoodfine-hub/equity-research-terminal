@@ -1573,6 +1573,21 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .st-key-gen_note button, .st-key-gen_sheet button {{
   min-height: 22px; padding: 0.02rem 0.4rem; font-size: 10.5px; line-height: 1.2;
 }}
+/* The engine chip: the door back to the front door. Quiet enough to sit beside the
+   search without competing with the company name, and carrying its engine's own colour
+   on one edge, which is the only thing that marks it until the pointer is on it.
+   --chip is set per render beside the button, from the same tokens the dial is drawn in. */
+.st-key-engine_chip button {{
+  min-height: 20px; padding: 0.02rem 0.4rem; line-height: 1.2;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+  color: var(--muted); background: transparent;
+  border: 1px solid var(--rule); border-left: 2px solid var(--chip, var(--muted));
+}}
+.st-key-engine_chip button:hover {{
+  background: var(--panel); border-color: var(--chip, var(--muted));
+  color: var(--text);
+}}
 .st-key-gen_note {{ margin-bottom: 3px; }}
 section[data-testid="stSidebar"] {{ background: var(--panel);
   border-right: 1px solid var(--rule-strong); }}

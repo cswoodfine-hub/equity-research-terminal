@@ -9765,7 +9765,10 @@ def _jump_to_search():
 # company is applied here, before the selector reads its key.
 universe_page.apply_goto(tickers)
 
-bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
+# The chip's slice comes out of the name's column and nothing else: the search, the run
+# state and the refresh button keep the widths they had, so the bar reads as it did with
+# one more thing on it.
+bar = st.columns([0.085, 0.33, 0.20, 0.07, 0.20, 0.115], gap="small")
 with bar[0]:
     st.markdown('<span class="topbar-anchor"></span><div class="pick">',
                 unsafe_allow_html=True)
@@ -9779,6 +9782,10 @@ st.query_params["ticker"] = ticker
 # universe would be a one-way door.
 _ENGINE_LABELS = {"pharma": "Big pharma", "biotech": "Biotech",
                   "cellgene": "Cell and gene"}
+# The three colours the front door's dial is drawn in, so the chip that leads back to it
+# is the colour of the wedge it came from.
+_ENGINE_ACCENTS = {"pharma": TK.UP, "biotech": TK.ENGINE_BIOTECH,
+                   "cellgene": TK.PURPLE_BOOK}
 st.sidebar.markdown("#### Engine")
 st.sidebar.caption(_ENGINE_LABELS.get(engine, "The whole universe")
                    + f" · {len(tickers)} companies")
@@ -9819,6 +9826,24 @@ with bar[2]:
                   placeholder="jump to ticker or name", on_change=_jump_to_search)
     st.markdown("</div>", unsafe_allow_html=True)
 with bar[3]:
+    # The way back out, next to the search because the two are the same kind of control:
+    # one changes which company the page is about, the other which universe it is drawn
+    # from. The sidebar holds the same button, and the sidebar opens closed.
+    st.markdown(
+        "<style>.st-key-engine_chip { --chip: "
+        + (_ENGINE_ACCENTS.get(engine) or TK.MUTED) + "; }</style>",
+        unsafe_allow_html=True)
+    # One word, whichever engine it is, because the colour already says which: a chip
+    # wide enough for "Cell and gene" would be three times the width of one for
+    # "Biotech", and the bar would move under you as you changed engine.
+    if st.button("Engine", key="engine_chip",
+                 help=_ENGINE_LABELS.get(engine, "The whole universe")
+                      + ". Pick another engine"):
+        st.query_params.pop("engine", None)
+        st.query_params.pop("ticker", None)
+        st.session_state.pop("engine", None)
+        st.rerun()
+with bar[4]:
     latest_run = api_get(api_base, "/runs/latest")
     if latest_run.get("finished_at"):
         cls = "ok" if latest_run.get("status") == "complete" else "bad"
@@ -9837,7 +9862,7 @@ with bar[3]:
     else:
         st.markdown('<div class="topbar-run">no refresh run yet</div>',
                     unsafe_allow_html=True)
-with bar[4]:
+with bar[5]:
     if st.button("Refresh all", key="topbar_refresh", width="stretch"):
         run_refresh(api_base, "/refresh?scope=all", "all_run",
                     "Refreshing the universe")
