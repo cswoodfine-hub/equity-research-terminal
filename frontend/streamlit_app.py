@@ -6984,10 +6984,11 @@ def _ki_bridge(sotp: dict, forward_check=None) -> dict:
     claims = s.get("other_claims_per_share") or 0.0
     net = s.get("net_cash_per_share")
     if net is None:
-        if claims:
-            steps.append({"label": "other claims", "value": claims, "kind": "step",
-                          "tip": "other claims on the business"})
-            run += claims
+        # Other claims sit below the enterprise value, not inside it: the equity on file
+        # is the enterprise value plus net cash plus the claims. So with no debt filed,
+        # where the bridge stops at the enterprise value, the claims have nowhere to go
+        # and are left off rather than folded into an end they are not part of.
+        # Arrowhead's bar read 0.94 against an enterprise value of 1.22 because they were.
         steps.append({"label": "EV today", "kind": "end"})
         ev = s.get("enterprise_today_per_share")
         if ev is None or abs(run - ev) > 0.01:
