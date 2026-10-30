@@ -422,6 +422,24 @@ def _erosion_html(row) -> list:
             _prof_rows([(row.get("row") or "row", shape), ("sample", sample, True)])]
 
 
+def _ira_bear_html(bear) -> list:
+    """The Medicare negotiated price as a bear case: the cohort's average cut, from the
+    year the price applies, on the US line. Beside the value, never in it."""
+    if not bear:
+        return []
+    cut = (f'{bear["savings_share"]:.1%} of Medicare Part D gross '
+           f'({bear["part_d_year"]}), the {bear["ipay"]} cohort\'s average')
+    line = (f'{T.num(bear["annual_cut"], 0)} {html_escape(bear["currency"])} mm a year, '
+            f'{bear["factor"]:.0%} of the US line'
+            + (", capped at the whole line" if bear.get("capped") else ""))
+    value = (f'{_money_mm(bear["npv_base"])} to {_money_mm(bear["npv_bear"])}'
+             if bear.get("npv_base") is not None and bear.get("npv_bear") is not None
+             else None)
+    return ['<div class="prof-sub">Medicare negotiated price · bear case</div>',
+            _prof_rows([(f'from {bear["ipay"]}', line), ("cut", cut, True),
+                        ("NPV", value)])]
+
+
 def _paragraph_iv_html(rows) -> list:
     """The FDA Paragraph IV list for the product's own application, one line a strength.
     The 30-month stay runs from the brand's notice, which the list does not date, so no
@@ -729,6 +747,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                         f'<span class="prof-v none">{note_txt}</span></div>')
     html.extend(_loe_range_html(prof.get("loe_range")))
     html.extend(_erosion_html(prof.get("erosion")))
+    html.extend(_ira_bear_html(prof.get("ira_bear")))
 
     # Label, supplements, challenges: the regulatory footprint.
     lab = prof.get("label")

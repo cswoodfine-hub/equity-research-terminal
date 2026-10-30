@@ -205,6 +205,16 @@ def _erosion(inputs: dict | None) -> dict | None:
             "sample_n": default.get("sample_n"), "source": default.get("source")}
 
 
+def _ira_bear(conn, asset_id: int) -> dict | None:
+    """The Medicare negotiated price's bear case, or None where the asset has none. A
+    failure here costs the panel, never the profile."""
+    try:
+        import ira_bear
+        return ira_bear.for_asset(conn, asset_id)
+    except Exception:                       # noqa: BLE001 - a view beside the profile
+        return None
+
+
 def _range(conn, asset_id: int, found=None, inputs=None) -> dict | None:
     """Bear, base and bull LOE dates with the value at each, or None where there is no
     range or no forecast. A failure here costs the panel, never the profile."""
@@ -479,6 +489,7 @@ def product_profile(db_path, ticker: str, asset_id: int) -> dict | None:
             # row the valuation uses with the number of launches behind it.
             "paragraph_iv": _paragraph_iv(conn, asset_id),
             "loe_range": _range(conn, asset_id),
+            "ira_bear": _ira_bear(conn, asset_id),
             "erosion": _erosion(assumptions_module.load(conn, asset_id, "base")),
             "catalysts": catalysts,
             "trials": trials,
