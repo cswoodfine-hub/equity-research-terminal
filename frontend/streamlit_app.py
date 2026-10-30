@@ -9131,68 +9131,6 @@ def _pulse_panel(api_base: str) -> None:
          "appear in that company's What changed.")
 
 
-def _review_queue_panel(api_base: str) -> None:
-    """The evidence queue, a sentence at a time.
-
-    Folded, and drawn at the foot of the Universe tab, because it is book-wide rather
-    than about the company in focus and it is read when an analyst sits down to it
-    rather than at a glance.
-
-    One house convention stands behind hundreds of assets, so the row offered is the
-    sentence and not the assumption. Confirming marks reviewed what a rule already read:
-    it changes no grade and no value, and every row it touches reaches the ledger.
-    """
-    try:
-        got = api_get(api_base, "/review-queue?limit=40")
-    except Exception:                                               # noqa: BLE001
-        return
-    groups, total = got.get("groups") or [], got.get("unreviewed") or 0
-    if not groups:
-        return
-    head, allc = st.columns([6, 1], vertical_alignment="center")
-    with head:
-        section("Evidence to confirm", count=total,
-                basis="judgement and convention, unreviewed")
-    with allc:
-        if st.button("Confirm all", key="rev_all", width="stretch"):
-            try:
-                out = api_post_body(api_base, "/review-queue/confirm-all", {})
-            except Exception as exc:                                # noqa: BLE001
-                st.warning(f"That did not go through: {exc}")
-            else:
-                api_get.clear()
-                st.toast(f"{out['confirmed']} rows confirmed in bulk.")
-                st.rerun()
-    note("The book grades every assumption off its own source and marks the grade "
-         "unreviewed until an analyst confirms it. One convention stands behind "
-         "hundreds of assets, so what is offered here is the sentence rather than the "
-         "row. Confirming marks the grade reviewed; it never changes a grade and never "
-         "touches a value, and every row it marks reaches the change ledger.")
-    for n, g in enumerate(groups[:12]):
-        row, act = st.columns([7, 1], vertical_alignment="center")
-        with row:
-            where = g.get("key") or f"{g.get('keys')} keys"
-            st.markdown(
-                f'<div class="whym-lead"><b>{html_escape(str(where))}</b> '
-                f'&nbsp;·&nbsp; {g["rows"]} rows on {g["assets"]} assets '
-                f'&nbsp;·&nbsp; <span class="u-tag">{html_escape(g["evidence"])}</span>'
-                f'</div><div class="byline">{html_escape(str(g["source"])[:190])}</div>',
-                unsafe_allow_html=True)
-        with act:
-            if st.button("Confirm", key=f"rev_{n}_{abs(hash(g['source'])) % 10**8}",
-                         width="stretch"):
-                try:
-                    out = api_post_body(
-                        api_base, "/review-queue/confirm",
-                        {"source": g["source"], "evidence": g["evidence"]})
-                except Exception as exc:                            # noqa: BLE001
-                    st.warning(f"That did not go through: {exc}")
-                else:
-                    api_get.clear()
-                    st.toast(f"{out['confirmed']} rows confirmed.")
-                    st.rerun()
-
-
 def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
     """POST a JSON body. api_post sends none, and this needs one."""
     request = urllib.request.Request(
@@ -10436,7 +10374,6 @@ with main:
             _pulse_panel(api_base)
         # Book-wide, so it sits at the foot of the book-wide tab rather than on a
         # company page, and it draws nothing when the queue is empty.
-        _review_queue_panel(api_base)
 
     with insights_tab:
         # The company on one page (company-scorecard.md 1.3): where it stands against its
