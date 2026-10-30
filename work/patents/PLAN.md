@@ -346,6 +346,16 @@ because a past cap stops a second cut to revenue that already carries the loss. 
 done: the +1 year for a new indication and the paediatric six months (no EU record of
 either in the book), and Japan (no free JP approval dates).
 
+**Follow-up (2026-10-30, REGIONAL.md).**
+- **Japan.** The PMDA's English list of approvals is now a source. A Japanese region
+  carries a floor of first approval plus 8 years (10 for an orphan). On 67 products
+  with a stated JP date, 52% land within a year against 48%, and the mean error falls
+  from 1.81 to 1.64 years. +9mm on the book.
+- **Paediatric six months.** The EMA's PIP compliance checks were tested as the
+  trigger and made the EU dates slightly worse (mean 1.568 to 1.576 years). Not
+  applied.
+- **+1 year.** Still no record: the grant sits only in each Commission decision.
+
 ## Step 6: validate before it goes live
 
 The test is whether the method would have called past LOEs correctly, run blind:
