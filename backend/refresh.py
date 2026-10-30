@@ -70,6 +70,7 @@ from fetchers.filing_text_edgar import FilingTextEdgarFetcher
 from fetchers.exclusivity_orangebook import OrangeBookFetcher
 from fetchers.exclusivity_purplebook import PurpleBookFetcher
 from fetchers.eu_medicines_ema import EuMedicinesFetcher
+from fetchers.approvals_pmda import PmdaApprovalsFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.financials_esef import FinancialsEsefFetcher
@@ -188,13 +189,14 @@ def _universe_fetchers(db_path):
     """Sources that download one file for the whole universe (LOE weekly, product
     revenue from the SEC bulk data sets which move quarterly, the ECB daily FX
     reference set that lets the universe view convert to one display currency, and the
-    EMA's authorisations, which start each product's European data protection, and the
+    EMA's authorisations, which start each product's European data protection, the
+    PMDA's approvals, which start each product's Japanese re-examination period, and the
     market rates every discount rate is built on, the index and sector closes a beta
     is measured against, the Medicare prices CMS has negotiated, and the USPTO's patent
     term extensions, which name the patent that holds each molecule, and the
     wording of the Orange Book's patent use codes)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
-            EuMedicinesFetcher(db_path),
+            EuMedicinesFetcher(db_path), PmdaApprovalsFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), PteFetcher(db_path),

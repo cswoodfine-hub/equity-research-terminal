@@ -14,7 +14,9 @@ supplies the regions, and every number in them is read, never set:
   European region has no stated date, the EU's own statute still sets a floor: ten years of
   data and market protection from the substance's first EU authorisation (Directive
   2001/83/EC, Article 10(1)), read from the EMA. The floor only ever pushes a date later
-  than the US one; with no US date there is nothing for it to push.
+  than the US one; with no US date there is nothing for it to push. Japan has one too:
+  the re-examination period from the substance's first Japanese approval, read from the
+  PMDA's list of approvals.
 
 A region with neither a stated date nor a binding floor follows the US date, which is what
 every region did before this module existed.
@@ -50,7 +52,19 @@ PROTECTION_YEARS = 10
 # within a year of the stated date and averaged 1.62 years out, against 57% and 1.82 for
 # the floor alone (work/patents/REGIONAL.md).
 SPC_CAP_YEARS = 15
+# A new active ingredient approved in Japan is re-examined after eight years, ten for an
+# orphan drug, and no generic can be filed before then (Act on Pharmaceuticals and
+# Medical Devices, Art. 14-4). Japan caps no total term as the SPC does. Measured on 67
+# products whose filers state a Japanese date: the US date held above this floor put
+# 52% within a year and averaged 1.64 years out, against 48% and 1.81 for the US date
+# alone, and each of the four the floor moved went toward the stated date
+# (work/patents/REGIONAL.md).
+JP_REEXAMINATION_YEARS = 8
+JP_ORPHAN_REEXAMINATION_YEARS = 10
 _PARTITION_TOLERANCE = 0.03
+# The suffix the FDA adds to a biologic's name (glofitamab-gxbm), which no other
+# regulator uses.
+_US_SUFFIX = re.compile(r"-[a-z]{4}$")
 
 
 def _norm(text: str | None) -> str:
@@ -272,6 +286,50 @@ def first_eu_authorisation(conn, asset_id: int) -> dict | None:
     return {"date": first["authorised_on"], "name": first["name"]}
 
 
+def _jp_rows(conn) -> list[dict]:
+    """Every row of the PMDA list, lower cased once per state of the table."""
+    where = next((r[2] for r in conn.execute("PRAGMA database_list") if r[1] == "main"), "")
+    try:
+        stamp = tuple(conn.execute(
+            "SELECT COUNT(*), MAX(fetched_at) FROM jp_approvals").fetchone())
+    except Exception:          # a database from before the table
+        return []
+    key = ("jp", where, stamp)
+    if key not in _CACHE:
+        for old in [k for k in _CACHE if isinstance(k, tuple) and k[:2] == ("jp", where)]:
+            del _CACHE[old]
+        _CACHE[key] = [
+            {"approved_on": r["approved_on"], "text": r["entry"].lower(),
+             "new": bool(r["is_new_ingredient"]), "orphan": bool(r["is_orphan"])}
+            for r in conn.execute(
+                "SELECT approved_on, entry, is_new_ingredient, is_orphan FROM jp_approvals"
+                " ORDER BY approved_on")]
+    return _CACHE[key]
+
+
+def first_jp_approval(conn, asset_id: int) -> dict | None:
+    """{"date", "orphan"} of the substance's first Japanese approval as a new active
+    ingredient, or None.
+
+    A row is the product's where it names the product's generic or brand. The earliest
+    such row has to be the new ingredient row: where the product appears earlier in a
+    row that is not one, the new ingredient row is another substance's in a shared row,
+    or the first approval predates the list (April 2004), and no date is given."""
+    asset = conn.execute("SELECT brand_name, generic_name FROM assets WHERE id = ?",
+                         (asset_id,)).fetchone()
+    if asset is None:
+        return None
+    names = {_US_SUFFIX.sub("", (n or "").strip().lower())
+             for n in (asset["generic_name"], asset["brand_name"])}
+    patterns = [re.compile(r"\b" + re.escape(n) + r"\b") for n in names if len(n) > 4]
+    if not patterns:
+        return None
+    hits = [r for r in _jp_rows(conn) if any(p.search(r["text"]) for p in patterns)]
+    if not hits or not hits[0]["new"]:
+        return None
+    return {"date": hits[0]["approved_on"], "orphan": hits[0]["orphan"]}
+
+
 def for_asset(conn, asset_id: int, disclosed_path=None) -> list[dict]:
     """The engine's ``regions`` input for one asset. Empty where no split is on file."""
     found = split(conn, asset_id)
@@ -315,6 +373,20 @@ def for_asset(conn, asset_id: int, disclosed_path=None) -> list[dict]:
                                        f"authorisation of {authorised['name']} on "
                                        f"{authorised['date']} (Regulation (EC) No 469/2009, "
                                        "Art. 13; EMA)")
+                if region["year"] is not None and not region["in_base"] and floor > region["year"]:
+                    region["year"], region["basis"] = floor, floor_basis
+        elif code == "JP":
+            approved = first_jp_approval(conn, asset_id)
+            if approved:
+                years = (JP_ORPHAN_REEXAMINATION_YEARS if approved["orphan"]
+                         else JP_REEXAMINATION_YEARS)
+                floor = int(approved["date"][:4]) + years
+                floor_basis = (f"Japanese re-examination period, {years} years from first "
+                               f"approval as a new active ingredient on {approved['date']}"
+                               + (" (orphan drug)" if approved["orphan"] else "")
+                               + " (Act on Pharmaceuticals and Medical Devices, Art. 14-4;"
+                                 " PMDA)")
+                region["floor_year"], region["floor_basis"] = floor, floor_basis
                 if region["year"] is not None and not region["in_base"] and floor > region["year"]:
                     region["year"], region["basis"] = floor, floor_basis
         out.append(region)

@@ -17,6 +17,7 @@ from fetchers.press_ir import PressIrFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.trials_ctgov import TrialsFetcher
 from fetchers.use_codes_ob import UseCodesFetcher
+from fetchers.approvals_pmda import PmdaApprovalsFetcher
 
 FIXTURE = Path(__file__).parent / "fixtures" / "yahoo_chart_lly.json"
 
@@ -76,6 +77,9 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     # And FDA's patent pages, which the use-code reader asks for any code the run's
     # Orange Book rows carry without a definition.
     monkeypatch.setattr(UseCodesFetcher, "fetch", lambda self: [])
+    # And the PMDA's list of approvals: a release already read is the path that reads
+    # no rows.
+    monkeypatch.setattr(PmdaApprovalsFetcher, "fetch", lambda self: {"text": None})
 
     db_file = tmp_path / "test.db"
     db.init(db_file)

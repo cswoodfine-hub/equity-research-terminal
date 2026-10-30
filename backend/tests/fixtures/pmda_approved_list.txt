@@ -1,0 +1,72 @@
+New Drugs Approved in May 2025
+
+
+
+                                                                          Brand Name                              New Approval/          Active Ingredient
+Review Category        Approval Date        No.                      (Applicant Company)                          Partial Change     (underlined: new active                                   Notes
+                                                                                                                                             ingredient)
+
+         5            May 19, 2025        1       Slinda 28 Tablets                                              Approval            Drospirenone                 A drug with a new indication, a new dosage, and other
+                                                  (ASKA  Pharmaceutical Co., Ltd.)                                                                                characteristics for contraception.
+
+
+
+
+         1            May 19, 2025        2       Fabhalta Capsules 200 mg                                       Change              Iptacopan hydrochloride      A drug with a new indication for the treatment of
+                                                  (Novartis Pharma K.K.)                                                             hydrate                      complement 3 glomerulopathy.
+                                                                                                                                                                  [Orphan drug]
+
+
+
+        3-2           May 19, 2025        3       Vabysmo Solution for Intravitreal Injection 120                Change              Faricimab (genetical         Drugs with a new indication and a new dosage for the
+                                                  mg/mL                                                          Change              recombination)               treatment of choroidal neovascularization associated
+                                                  Vabysmo Kit for Intravitreal Injection 120 mg/mL                                                                with angioid streaks.
+                                                  (Chugai Pharmaceutical Co., Ltd.)                                                                               [Orphan drug]
+
+
+
+          1           Jun. 24, 2024        1        Nexium Capsules 10 mg                                           Change              Esomeprazole                  Drugs with a new additional pediatric dosage indicated
+                                                    Nexium Capsules 20 mg                                           Change              magnesium hydrate             for the prevention of recurrent reflux esophagitis and
+                                                    Nexium Granules for Suspension 10 mg                            Change                                            gastric or duodenal ulcer after dosing non-steroid anti-
+                                                    Nexium Granules for Suspension 20 mg                            Change                                            inflammatory drugs, and prevention of recurrent gastric
+                                                    (AstraZeneca K.K.)                                                                                                or duodenal ulcer after dosing low-dose aspirins.
+
+
+
+          1           Jun. 24, 2024        2        Fabhalta Capsules 200 mg                                        Approval            Iptacopan hydrochloride       A drug with a new active ingredient indicated for the
+                                                    (Novartis Pharma K.K.)                                                              hydrate                       treatment of paroxysmal nocturnal haemoglobinuria.
+
+
+
+
+          1           Jun. 24, 2024        3        Vtama Cream 1%                                                  Approval            Tapinarof                     A drug with a new active ingredient indicated for the
+                                                    (Japan Tobacco Inc.)                                                                                              treatment of atopic dermatitis and plaque psoriasis.
+                                            (Hisamitsu Pharmaceutical Co., Inc.)
+
+
+
+     3-2         Mar. 28, 2022      70      Vabysmo Solution for Intravitreal Injection 120            Approval            Faricimab (genetical        A drug with a new active ingredient indicated for
+                                            mg/mL                                                                          recombination)              the treatment of age-related macular degeneration
+                                            (Chugai Pharmaceutical Co., Ltd.)                                                                          associated with subfoveal choroidal
+                                                                                                                                                       neovascularization and diabetic macular edema.
+
+      4          Jun. 23, 2021      71      Recarbrio Combination for Intravenous Drip                 Approval            Relebactam                  A new combination drug with a new active
+                                            Infusion                                                                       hydrate/Imipenem            ingredient indicated for the treatment of infections
+Table-18.  A List of Approved Articles in 2005 (New Drugs)
+
+
+                                                                       Date of                                                                                                                                           Trade Name                                                                                                                                               Approval/                                      Name of Ingredient
+         Category                                                  Approval                                                                                                                             (Name of Company)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     NotesPartial(underlined: new active
+                                                                                                                                                                                                                                                                                                                                                                                  change                                                                      ingredient)
+1                                                          11-Apr-05                                                                1       Actemra Liquid Concentrate                                                                                                                                                                                                                                                                                ApprovalTocilizumab (genetical                                                        Drugs containing a new active ingredient indicated for improving
+                                                                                                                                            Actemra  for Intravenous Infusion 200                                                                                                                                                                               Approval                                                       recombination                                                                                                various symptoms and laboratory findings associated with
+                                                                                                                                            (Chugai Pharmaceutical Co., Ltd.)                                                                                                                                                                                                                                                                                                                                                               Castleman’s disease for which lymphadenectomy is not indicated.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [Orphan drug]
+1                                                          16-Sep-05                                                                         2Zefix Tablets 100                                                                                                                                                                                                                                                                                                                                                                                          PartialLamivudineA new indication for “improving viral markers in patients with
+                                                                                                                                            (GlaxoSmithKline K.K.)                                                                                                                                                                                                                                                                                                                                                                          hepatitis B cirrhosis complicated by proliferation of hepatitis B virus
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            and with abnormal hepatic function to be confirmed” in
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            monotherapy
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            [Priority review]
+1                                                          11-Oct-05                                                                3       Propecia Tablets-1mg                                                                                                                                                                                                                                                                                                                                                ApprovalFinasteride         Drugs containing a new active ingredient used for delaying
+                                                                                                                                            Propecia Tablets-0.2mg                                                                                                                                                                                                                                                                                                                                                                          progression of male pattern alopecia in men.
+                                                                                                                                            (Banyu Pharmaceutical Co., Ltd.)
