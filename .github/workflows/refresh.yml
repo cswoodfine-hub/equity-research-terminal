@@ -105,6 +105,24 @@ jobs:
         # so it is re-seeded before the refresh and the diff read it.
         run: cd backend && python seed.py
 
+      - name: Fetch the daily pulse
+        # The daily biopharma pulse, a scheduled Claude run, commits each weekday's
+        # briefing to claude/pulse-feed as data/pulse/YYYY-MM-DD.json. They are read into
+        # a folder outside the working tree, so the history commit below never carries
+        # them, and the refresh reads that folder (fetchers/news_pulse.py). No branch, or
+        # no folder on it, is no pulse: the reader finds nothing and skips.
+        run: |
+          mkdir -p "$RUNNER_TEMP/pulse"
+          if git fetch --depth=1 origin claude/pulse-feed; then
+            git archive FETCH_HEAD data/pulse \
+              | tar -x -C "$RUNNER_TEMP/pulse" --strip-components=2 \
+              || echo "The pulse branch holds no data/pulse yet."
+          else
+            echo "No pulse branch yet."
+          fi
+          echo "ER_PULSE_DIR=$RUNNER_TEMP/pulse" >> "$GITHUB_ENV"
+          echo "$(ls "$RUNNER_TEMP/pulse" | wc -l) pulse files; newest: $(ls "$RUNNER_TEMP/pulse" | tail -1)"
+
       - name: Refresh the universe
         # Prices from yfinance are often blocked from runner IPs; the fetcher fails
         # soft and the run finishes partial, which still advanced the fundamentals and
