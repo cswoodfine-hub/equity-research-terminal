@@ -144,7 +144,20 @@ then sits in the base, with no erosion.
 
 ## Not covered
 
-- **Roche and Bayer** are not SEC registrants: 31 valued products without a row.
+- **Roche and Bayer** are not SEC registrants, so their reports were read directly.
+  - Roche: the Finance Report 2025 (fb25e.pdf) dates its biosimilar entries, read
+    on 2026-10-30 into seven US rows, five EU and three Japan.
+  - Bayer: patent table A 1.3/8 of the Annual Report 2025 dates seven products.
+    It lists none of the other eight valued lines: Mirena, YAZ, Ultravist, Gadovist,
+    Adalat, Aspirin Cardio, Glucobay and CT Fluid Delivery. The report's text gives
+    no expiry for them either (read 2026-10-30, management-report-bayer-ar25.pdf),
+    so they keep the registry's reading:
+    - YAZ: a Paragraph IV launch in 2010; Ultravist: lapsed;
+    - Mirena: the Orange Book patent, 2029; Gadavist: the statutory default, 2025;
+    - Adalat, Aspirin Cardio, Glucobay and CT Fluid Delivery: no record and no
+      approval year, so no cliff is applied. For the three old molecules that reads
+      the same as a loss already in the base, which is where the generics have been
+      for years. The device line has none to lose.
 - **Next season:** rerun when the FY2026 reports file.
   1. `get_annual.py <dir> TICKER:CIK ...`
   2. `snippets.py`
