@@ -28,7 +28,13 @@
      and is not part of it, so without this the centring pushes it off the bottom. */
   .wrap { display: grid; place-items: center; padding-bottom: 3.6rem; }
   .stage { position: relative; display: grid; place-items: center; }
-  canvas { display: block; touch-action: none; cursor: default; }
+  /* The canvas is far wider than the dial drawn on it and is centred over the stage,
+     which keeps its own size so the caption and the scanline ring still sit on the
+     dial rather than on the canvas. */
+  canvas {
+    display: block; touch-action: none; cursor: default;
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  }
   canvas.live { cursor: pointer; }
 
   /* One line, pinned under the dial, so the graphic never competes with type. */
@@ -83,7 +89,7 @@
 <div class="wrap" id="wrap">
   <div class="stage" id="stage">
     <canvas id="c" aria-hidden="true"></canvas>
-    <div class="caption">
+    <div class="caption" id="cap">
       <div class="name" id="capName">Select an engine</div>
       <div class="bar" id="capBar"></div>
     </div>
@@ -146,12 +152,16 @@ var canvas = document.getElementById("c");
 var ctx = canvas.getContext("2d");
 var stage = document.getElementById("stage");
 var wrap = document.getElementById("wrap");
+var cap = document.getElementById("cap");
 var capName = document.getElementById("capName");
 var capBar = document.getElementById("capBar");
 var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 var ENGINES = [];
-var size = 0, dpr = 1;
+// size is the dial. bw/bh are the canvas it is drawn on, which is much larger, and
+// offX/offY place the dial's own origin inside it, so every drawing routine below still
+// works in dial coordinates from 0 to size.
+var size = 0, dpr = 1, bw = 0, bh = 0, offX = 0, offY = 0;
 var hover = -1, chosen = -1;
 var lit = [], take = 0, launch = 0;
 var spin = 0, life = 0, t0 = null, running = false;
@@ -172,19 +182,29 @@ function measure() {
   // Bigger than it was, but still bounded by the shorter side: a dial taller than the
   // window would put its own caption below the fold.
   size = Math.max(280, Math.min(w, avail - 120, 640));
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(size * dpr);
-  canvas.height = Math.round(size * dpr);
-  canvas.style.width = canvas.style.height = size + "px";
-  stage.style.width = stage.style.height = size + "px";
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  placeHits();
   // Masthead at the top, then the dial centred in everything below it, so the front
   // door reads as one object in the middle of the screen rather than as a graphic
   // resting on the header.
   var mastH = document.querySelector(".mast").offsetHeight || 44;
   var box = Math.max(size + 124, Math.round(avail));
   wrap.style.height = (box - mastH) + "px";
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  stage.style.width = stage.style.height = size + "px";
+
+  // The launch scales the chosen wedge well past the dial, and a disc wider than its
+  // own canvas is a rectangle: that is what made the launch read as a box opening. So
+  // the canvas is as large as the room allows, the dial sits in the middle of it, and
+  // the context is offset once rather than every coordinate being rewritten.
+  bw = Math.min(document.documentElement.clientWidth || 900, size * 2.6);
+  bh = Math.max(size, Math.min(box - mastH - 16, size * 2.6));
+  offX = Math.round((bw - size) / 2);
+  offY = Math.round((bh - size) / 2);
+  canvas.width = Math.round(bw * dpr);
+  canvas.height = Math.round(bh * dpr);
+  canvas.style.width = bw + "px";
+  canvas.style.height = bh + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, offX * dpr, offY * dpr);
+  placeHits();
   Streamlit.height(Math.ceil(box));
 }
 
@@ -564,9 +584,10 @@ function frame(t) {
   var ruleStrong = (cs.getPropertyValue("--rule-strong") || "#2E4249").trim();
 
   var g = geom();
-  ctx.clearRect(0, 0, size, size);
+  ctx.clearRect(-offX, -offY, bw, bh);
 
   var L = ease(launch);
+  cap.style.opacity = L > 0 ? String(Math.max(0, 1 - L * 1.6)) : "";
   ctx.save();
   if (L > 0) {
     ctx.translate(g.c, g.c); ctx.scale(1 + L * 1.5, 1 + L * 1.5);
@@ -585,7 +606,7 @@ function frame(t) {
     bloom.addColorStop(0, hexA(e.accent, (0.30 + ease(take) * 0.35) * k));
     bloom.addColorStop(1, hexA(e.accent, 0));
     ctx.fillStyle = bloom;
-    ctx.fillRect(0, 0, size, size);
+    ctx.fillRect(-offX, -offY, bw, bh);
   });
 
   ENGINES.forEach(function (e, i) {
@@ -625,6 +646,34 @@ function frame(t) {
   });
   hubPlate(g, ground, ruleStrong);
   ctx.restore();
+
+  if (L > 0) {
+    // The growing disc is wiped back to nothing before it can reach any edge of the
+    // canvas, so what the eye sees is a dial dissolving outward rather than a colour
+    // running into a corner. The canvas is large enough that this happens well outside
+    // the dial; the band is pinned clear of the ticks in case it is not.
+    var rOut = Math.min(bw, bh) / 2;
+    var rIn = Math.min(rOut * 0.94, Math.max(g.tick + 8, rOut * 0.5));
+    var mask = ctx.createRadialGradient(g.c, g.c, rIn, g.c, g.c, rOut);
+    mask.addColorStop(0, "rgba(0,0,0,0)");
+    mask.addColorStop(1, "rgba(0,0,0,1)");
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = mask;
+    ctx.fillRect(-offX, -offY, bw, bh);
+    ctx.globalCompositeOperation = "source-over";
+
+    if (ENGINES[chosen]) {
+      // And a radial that fades to nothing before the same edge carries the engine's
+      // colour out past where the dial was.
+      var out = ctx.createRadialGradient(g.c, g.c, g.hub * 0.5, g.c, g.c, rOut);
+      var k2 = Math.sin(L * Math.PI);               // up and away, not a step
+      out.addColorStop(0, hexA(ENGINES[chosen].accent, 0.26 * k2));
+      out.addColorStop(0.5, hexA(ENGINES[chosen].accent, 0.11 * k2));
+      out.addColorStop(1, hexA(ENGINES[chosen].accent, 0));
+      ctx.fillStyle = out;
+      ctx.fillRect(-offX, -offY, bw, bh);
+    }
+  }
   requestAnimationFrame(frame);
 }
 
@@ -632,7 +681,7 @@ function frame(t) {
 canvas.addEventListener("pointermove", function (ev) {
   if (!ENGINES.length) return;
   var b = canvas.getBoundingClientRect(), g = geom();
-  var dx = ev.clientX - b.left - g.c, dy = ev.clientY - b.top - g.c;
+  var dx = ev.clientX - b.left - offX - g.c, dy = ev.clientY - b.top - offY - g.c;
   var r = Math.hypot(dx, dy);
   if (r < g.hub || r > g.rim * 1.10) { setHover(-1); return; }
   var rel = ((Math.atan2(dy, dx) - START) % TAU + TAU) % TAU;
@@ -667,6 +716,7 @@ window.addEventListener("message", function (e) {
   });
   lit = ENGINES.map(function () { return 0; });
   chosen = -1; hover = -1; take = 0; launch = 0;
+  cap.style.opacity = "";
   setHover(-1);
   measure();
 
