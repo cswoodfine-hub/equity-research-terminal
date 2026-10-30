@@ -106,4 +106,7 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
     if change_type.startswith("press_"):
         kind = change_type[len("press_"):].replace("_", " ")
         return "PDUFA" if kind == "pdufa" else kind
+    # The daily pulse, an AI-written briefing: the label says so wherever it is printed.
+    if change_type.startswith("pulse_"):
+        return f"daily pulse (AI summary), {change_type[len('pulse_'):]}"
     return None

@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
+import sqlite3
 
 import db
 import edgar_items
@@ -75,6 +76,17 @@ def _event_dates(conn) -> dict:
         " WHERE n.source IN ('press_ir', 'press_page')"
         "   AND n.published_at IS NOT NULL"):
         dates[("company", f"{r['ticker']}|{r['url']}")] = r["published_at"]
+    # A daily pulse item is dated by the article it cites, or the briefing where it gives
+    # none, for every universe company it names.
+    try:
+        pulse = conn.execute(
+            "SELECT c.ticker, p.url, COALESCE(p.published_at, p.pulse_date) AS d"
+            "  FROM pulse_items p JOIN pulse_item_companies pc ON pc.item_id = p.id"
+            "  JOIN companies c ON c.id = pc.company_id").fetchall()
+    except sqlite3.OperationalError:          # a database from before the pulse
+        pulse = []
+    for r in pulse:
+        dates[("company", f"{r['ticker']}|{r['url']}")] = r["d"]
     return dates
 
 
@@ -137,8 +149,8 @@ def _recent_changes(conn, days):
             # A leadership change stores a fragment ("Chief Executive Officer
             # departure") that reads as a sentence once lowered. A press release stores
             # the company's own headline, where the case is carrying drug names, so it
-            # is printed as written.
-            if (r["change_type"] or "").startswith("press_"):
+            # is printed as written, and so is a daily pulse item, which is a sentence.
+            if (r["change_type"] or "").startswith(("press_", "pulse_")):
                 headline = f"{ticker} {r['new_value']}"
             else:
                 headline = f"{ticker} {(r['new_value'] or '').lower()}"

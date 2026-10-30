@@ -1716,10 +1716,49 @@ def company_news(ticker: str) -> dict:
         ticker,
         """
         SELECT source, title, url, published_at FROM news
-         WHERE company_id = ? ORDER BY published_at DESC LIMIT 60
+         WHERE company_id = ?1
+        UNION
+        -- A daily pulse item naming this company and another is stored once in news,
+        -- under the first, so the second reads it from the items.
+        SELECT 'pulse', p.headline, p.url, COALESCE(p.published_at, p.pulse_date)
+          FROM pulse_items p JOIN pulse_item_companies pc ON pc.item_id = p.id
+         WHERE pc.company_id = ?1
+           AND p.url NOT IN (SELECT url FROM news WHERE company_id = ?1)
+         ORDER BY published_at DESC LIMIT 60
         """,
     )
     return {"ticker": ticker, "news": rows}
+
+
+@app.get("/pulse")
+def pulse_feed(days: int = Query(default=14)) -> dict:
+    """The daily biopharma pulse's items across the whole sector, newest briefing first
+    and by tier within it, with each briefing's opening read.
+
+    An AI-written summary of the trade press, labelled as one wherever it is shown. Every
+    item is kept, so private rounds and companies outside the universe are here too;
+    ``tickers`` names the universe companies among those it mentions."""
+    conn = db.get_connection()
+    try:
+        since = f"-{int(days)} days"
+        reads = [dict(r) for r in conn.execute(
+            "SELECT pulse_date, read, items FROM pulse_reads"
+            " WHERE pulse_date >= date('now', ?) ORDER BY pulse_date DESC", (since,))]
+        items = []
+        for r in conn.execute(
+                "SELECT pulse_date, tier, kind, headline, detail, url, published_at,"
+                " companies, tickers FROM pulse_items WHERE pulse_date >= date('now', ?)"
+                " ORDER BY pulse_date DESC, COALESCE(tier, 4), id", (since,)):
+            row = dict(r)
+            try:
+                row["companies"] = json.loads(row["companies"] or "[]")
+            except ValueError:
+                row["companies"] = []
+            row["tickers"] = [t for t in (row["tickers"] or "").split(",") if t]
+            items.append(row)
+    finally:
+        conn.close()
+    return {"label": "Daily pulse (AI summary)", "reads": reads, "items": items}
 
 
 @app.get("/regulatory-news")
