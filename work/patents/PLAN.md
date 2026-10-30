@@ -486,7 +486,7 @@ None moves value, by the step's own rule.
 | 8a trial spend | A real signal (elasticity 0.18) but no better than `rd_pct` × revenue or flat at predicting next year's R&D; helps only when trial load moves over 30% | study only; feeds 8b's forward burn in those years |
 | 8b runway | Strong: under 18 months of cash, over 90% raise within a year, about 18 to 20% extra shares | the runway page shows the peers' raise rate and extra shares (`data/runway_dilution.csv`) |
 | 8c market moves | Success legs agree for large companies; failure legs not measurable (4 of 200 headlines say so) | to be scored on the call log as catalysts resolve |
-| 8d safety | Blocked by survivorship: the book holds the assets that went on | display only, until the full Phase 2 history and label history are read |
+| 8d safety | Retested 2026-10-30 on 606 sponsor Phase 2s, 88% outside the book: a weak gradient (47% reach Phase 3 with the drug arm 5 points lower in serious events, 20% with it 10 points higher; rank correlation +0.09), carried by small studies and partly efficacy | display only; a cut to the Phase 2 probability needs agreement. Label history not read |
 | 8e deal appetite | No signal (rank correlation +0.09, 75 company-years) | descriptive screen only |
 
 ## Order of work, one concern per commit

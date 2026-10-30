@@ -36,6 +36,52 @@ attrition it is meant to measure.
 Until then the safety figures are a display: the drug arm's excess over the comparator
 on the landscape and drug cards, moving no value.
 
+### Retest without survivorship (2026-10-30)
+
+Tool: `work/proxies/tools/safety_history_study.py`. It reads every Phase 2 and Phase 3
+the companies' lead sponsors registered from 2008, from ClinicalTrials.gov, with arms,
+interventions and posted adverse-event groups: 11,969 studies across 75 sponsors.
+
+- **Sample.** 606 Phase 2 studies covering 462 compounds, with a placebo or sham arm,
+  posted events, and three years since completion. A compound already in a Phase 3
+  when the Phase 2 started is left out. 88% name no compound the book holds, so the
+  programmes that died are now in the sample.
+- **Outcome.** A Phase 3 of the same sponsor naming the compound, within three years.
+  28% reached one, close to the industry's usual Phase 2 success rate.
+
+| serious adverse events, drug less comparator | n | reached Phase 3 | study terminated |
+|---|---|---|---|
+| lower by over 5 points | 51 | 47% | 27% |
+| lower by up to 5 | 159 | 31% | 14% |
+| higher by up to 5 | 292 | 25% | 20% |
+| higher by 5 to 10 | 63 | 22% | 22% |
+| higher by over 10 | 41 | 20% | 39% |
+
+The rank correlation of the imbalance with stopping is +0.089 (one-sided permutation p
+0.012, 2,000 shuffles).
+
+**A signal, but not one to put in value.**
+
+- **Small studies carry it.** With 100 or more patients at risk the three bands (drug
+  lower, higher by up to 5, higher by 5 or more) reach Phase 3 at 36%, 31% and 29%.
+  Under 100 at risk they read 33%, 17% and 16%.
+- **The high band is not stable.** It reached Phase 3 at 31% for studies completed to
+  2015 and 13% for those completed since.
+- **It is partly efficacy.** In many diseases the serious events are the disease
+  itself (exacerbations, hospitalisations), so a drug arm with fewer of them is often a
+  drug that worked. The strongest band, drug lower by over 5 points, is the one that
+  reads most like efficacy.
+- **Name matching undercounts Phase 3s.** A compound renamed between phases, or
+  licensed to another sponsor, counts as stopped. That pulls every band down alike.
+
+So the safety figures stay a display. If they are to move value, the one defensible
+use is a modest cut to the Phase 2 to Phase 3 probability for a study with 5 or more
+points of excess serious events: 21% against a 28% base, about three quarters. That
+needs agreement and a value delta on a copy first.
+
+Label history for marketed drugs is not read. FDA's Drug Safety-related Labeling
+Changes database dates boxed warning changes from 2016, and would be the source.
+
 ## 8e: deal appetite
 
 **No predictive signal in the data the book holds.**
