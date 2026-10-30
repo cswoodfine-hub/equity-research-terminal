@@ -546,6 +546,15 @@ h3 {{ font-size: 0.9rem; }}
           text-transform: uppercase; }}
 .pt-ped {{ display: block; font-size: 9px; color: var(--muted); }}
 .pt-use {{ font-size: 9.5px; color: var(--muted); padding: 0 0 3px 12px; }}
+.pulse-read {{ font-size: 12px; color: var(--muted); margin: 0.1rem 0 0.4rem; }}
+.pulse-day {{ font-size: 10px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 0.5rem 0 0.15rem; }}
+.pulse-item {{ padding: 4px 0; border-bottom: 1px solid var(--rule); }}
+.pulse-item a {{ font-size: 12.5px; font-weight: 600; color: var(--text);
+  text-decoration: none; }}
+.pulse-tier {{ display: inline-block; min-width: 18px; font-size: 9.5px;
+  color: var(--muted); margin-right: 4px; }}
+.pulse-meta {{ font-size: 10.5px; color: var(--muted); padding-left: 22px; }}
 details.pt-more {{ margin: 0.15rem 0 0.35rem; }}
 details.pt-more > summary {{ list-style: none; cursor: pointer; font-size: 10px;
   color: var(--muted); padding: 2px 0; }}
