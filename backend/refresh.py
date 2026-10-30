@@ -88,6 +88,7 @@ from fetchers.rates_fred import RatesFredFetcher
 from fetchers.news_fda import NewsFdaFetcher
 from fetchers.paragraph_iv_fda import ParagraphIvFetcher
 from fetchers.pte_uspto import PteFetcher
+from fetchers.use_codes_ob import UseCodesFetcher
 from fetchers.press_ir import PressIrFetcher
 from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
@@ -190,12 +191,14 @@ def _universe_fetchers(db_path):
     EMA's authorisations, which start each product's European data protection, and the
     market rates every discount rate is built on, the index and sector closes a beta
     is measured against, the Medicare prices CMS has negotiated, and the USPTO's patent
-    term extensions, which name the patent that holds each molecule)."""
+    term extensions, which name the patent that holds each molecule, and the
+    wording of the Orange Book's patent use codes)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             EuMedicinesFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), PteFetcher(db_path),
+            UseCodesFetcher(db_path),
             DemandCmsFetcher(db_path),
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             PolicyFedRegFetcher(db_path),

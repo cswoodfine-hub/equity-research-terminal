@@ -16,6 +16,7 @@ from fetchers.prices import IntradayPricesFetcher, PricesFetcher
 from fetchers.press_ir import PressIrFetcher
 from fetchers.ndc_marketing import NdcMarketingFetcher
 from fetchers.trials_ctgov import TrialsFetcher
+from fetchers.use_codes_ob import UseCodesFetcher
 
 FIXTURE = Path(__file__).parent / "fixtures" / "yahoo_chart_lly.json"
 
@@ -72,6 +73,9 @@ def test_refresh_populates_then_skips_within_ttl(tmp_path, monkeypatch):
     # Nasdaq's consensus pages too: a proxy that refuses the host turned the run partial.
     # No payload is the path the parser already reads as no rows.
     monkeypatch.setattr(consensus_nasdaq, "_get", lambda symbol, kind: None)
+    # And FDA's patent pages, which the use-code reader asks for any code the run's
+    # Orange Book rows carry without a definition.
+    monkeypatch.setattr(UseCodesFetcher, "fetch", lambda self: [])
 
     db_file = tmp_path / "test.db"
     db.init(db_file)
