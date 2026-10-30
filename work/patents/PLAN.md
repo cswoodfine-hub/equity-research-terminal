@@ -310,6 +310,20 @@ No new host is needed: sec.gov, data.cms.gov and fda.gov are all reachable.
   the step is backtested against the 2026 prices CMS has published. The MFP file is on
   www.cms.gov (blocked).
 
+**Result (2026-10-30).**
+- **Peak before LOE:** a flag, built earlier.
+- **Carve-outs:** not valued. A marketed forecast does not split revenue by indication,
+  and no free source gives sales by indication, so there is no measured section viii case
+  to fit a retained share to. The plan's fallback holds: the layer erodes with the
+  product. The product page now shows what each method-of-use patent claims, in FDA's
+  own wording (`patent_use_codes`, read from the Orange Book's patent pages), so a
+  reader can see which indication a later patent holds.
+- **IRA:** a bear case, beside the value (`ira_bear.py`). A selected drug loses its
+  cohort's average net cut from the year its price applies: CMS's stated net savings
+  over the cohort's gross, 10.7% of the drug's Part D gross for 2026 and 28.2% for 2027.
+  A drug's own cut is confidential. The base is unchanged until the 2026 prices can be
+  checked against 2026 reported revenue.
+
 ## Step 5: regional dates
 
 The US date drives US revenue. Europe and Japan have their own:
