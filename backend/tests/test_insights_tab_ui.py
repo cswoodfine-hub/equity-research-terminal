@@ -447,11 +447,15 @@ def test_a_bridge_that_does_not_add_up_is_not_drawn(view):
     # No debt on file: the sum stops at enterprise value, and must reach the one on file.
     # Viking's bar read 32.87 against an enterprise value of 20.56: growth capital was left
     # out and nothing checked.
-    ev_run = 89.61 + 12.32 + 88.76 + 10.58 - 3.62 - 0.54
+    # Other claims are not in it either: they sit below the enterprise value, alongside
+    # net cash, so the end here is the enterprise value without them. Arrowhead's bar
+    # read 0.94 against an enterprise value of 1.22 while they were folded in.
+    ev_run = 89.61 + 12.32 + 88.76 + 10.58 - 3.62
     ev = view["_ki_bridge"](dict(AZN_SOTP, net_cash_per_share=None,
                                  enterprise_today_per_share=ev_run))
     assert ev["ok"] and ev["steps"][-1]["label"] == "EV today"
-    assert [x["label"] for x in ev["steps"]][-3:-1] == ["growth capital", "other claims"]
+    assert [x["label"] for x in ev["steps"]][-2] == "growth capital"
+    assert "other claims" not in [x["label"] for x in ev["steps"]]
     assert ev["end"] == pytest.approx(ev_run)
     assert not view["_ki_bridge"](dict(AZN_SOTP, net_cash_per_share=None,
                                        enterprise_today_per_share=ev_run + 12.3))["ok"]
