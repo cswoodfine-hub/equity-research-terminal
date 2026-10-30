@@ -619,17 +619,49 @@ def price_unit_rate(conn, company_id: int) -> dict:
             "as_of": rates.get("as_of")}
 
 
-def _share_count_row(conn, company_id: int):
-    """The filed share count the divisor is read from, {value, period_end}, or None where
-    only the earnings-per-share route is left."""
+# The limit comps_valuation already applies when it compares two share counts for the
+# market cap: beyond it they are not two measurements of one thing and one is in the
+# wrong scale. It belongs here as well, because the divisor the rNPV is read through is
+# the same count. Iovance tags its weighted diluted shares in thousands, 450,189 against
+# 452,971,432 outstanding, and comps caught that while the sum of the parts did not: it
+# divided by the smaller and put Iovance's cash at $833 a share against a $9.56 close.
+SHARE_SCALE_LIMIT = 5
+
+
+def share_count_pick(conn, company_id: int):
+    """(metric, row, scaled) for the filed share count the divisor is read from, or
+    (None, None, False).
+
+    The preference is the weighted average diluted count, then the cover page, except
+    where the two cannot both be share counts (SHARE_SCALE_LIMIT). ``scaled`` is True
+    where that exception is what chose the cover count, which is why comps has no second
+    count to read the market cap against.
+    """
+    rows = {}
     for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
         row = conn.execute(
-            """SELECT value, period_end FROM financials WHERE company_id = ? AND metric = ?
+            """SELECT value, period_type, period_end FROM financials
+                WHERE company_id = ? AND metric = ?
                 AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
                 period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
         if row and row["value"]:
-            return row
-    return None
+            rows[metric] = row
+    weighted = rows.get("WeightedAverageDilutedShares")
+    outstanding = rows.get("SharesOutstanding")
+    if (weighted and outstanding
+            and outstanding["value"] / weighted["value"] > SHARE_SCALE_LIMIT):
+        return "SharesOutstanding", outstanding, True
+    if weighted:
+        return "WeightedAverageDilutedShares", weighted, False
+    if outstanding:
+        return "SharesOutstanding", outstanding, False
+    return None, None, False
+
+
+def _share_count_row(conn, company_id: int):
+    """The filed share count the divisor is read from, {value, period_end}, or None where
+    only the earnings-per-share route is left."""
+    return share_count_pick(conn, company_id)[1]
 
 
 def _diluted_shares(conn, company_id: int):
