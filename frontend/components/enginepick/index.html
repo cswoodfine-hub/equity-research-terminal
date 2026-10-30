@@ -7,136 +7,88 @@
      here or the text falls back to black on the dark panel and to the system serif. */
   html, body {
     margin: 0; padding: 0; background: transparent;
-    color: var(--text); font-family: var(--font-ui); font-size: 14px;
+    color: var(--text); font-family: var(--font-mono); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
   * { box-sizing: border-box; }
 
   /* --- Masthead ---------------------------------------------------------- */
-  /* One line, because the page has one question and the answer is below it. */
-  .mast { display: flex; align-items: center; gap: 1rem; padding: 0 0 1.4rem; }
-  .wordmark { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.26em;
-              text-transform: uppercase; white-space: nowrap; }
-  /* The rule runs to the right edge and the label sits before it, because Streamlit's
-     own Deploy chrome occupies the top right of the page above this frame. */
+  /* The wordmark only. The dial's own caption asks the question, so the rule here
+     would have asked it twice. */
+  .mast { display: flex; align-items: center; gap: 1rem; padding: 0 0 1.1rem; }
+  .wordmark {
+    font-family: var(--font-ui); font-size: 0.95rem; font-weight: 700;
+    letter-spacing: 0.26em; text-transform: uppercase; white-space: nowrap;
+  }
   .mast .rule { flex: 1 1 auto; height: 1px; background: var(--rule-strong); }
-  .mast .ask { font-family: var(--font-mono); font-size: 10px; color: var(--muted);
-               letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap; }
 
-  /* --- The three doors --------------------------------------------------- */
-  #panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  @media (max-width: 1000px) { #panels { grid-template-columns: 1fr; } }
+  /* --- The dial ----------------------------------------------------------- */
+  /* The dial is the page, so it sits in the middle of what is left of the screen
+     under the masthead. The padding is the caption's room: it hangs below the stage
+     and is not part of it, so without this the centring pushes it off the bottom. */
+  .wrap { display: grid; place-items: center; padding-bottom: 3.6rem; }
+  .stage { position: relative; display: grid; place-items: center; }
+  canvas { display: block; touch-action: none; cursor: default; }
+  canvas.live { cursor: pointer; }
 
-  .engine {
-    position: relative; overflow: hidden; isolation: isolate;
-    min-height: 430px; display: flex; flex-direction: column;
-    background: var(--panel);
-    border: 1px solid var(--rule);
-    cursor: pointer;
-    transition: transform 260ms cubic-bezier(.2,.7,.3,1),
-                border-color 260ms linear, box-shadow 260ms linear;
+  /* One line, pinned under the dial, so the graphic never competes with type. */
+  .caption {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: -2.7rem; width: max-content; text-align: center; pointer-events: none;
   }
-  @media (max-width: 1000px) { .engine { min-height: 320px; } }
-
-  /* The accent is the whole identity of a card, set once per engine and read by the
-     glow, the motif, the rule and the name. */
-  .engine.pharma   { --accent: var(--up); }
-  .engine.biotech  { --accent: var(--flag); }
-  .engine.cellgene { --accent: var(--purple-book); }
-
-  /* A wash of the accent from the top, so the card is lit rather than coloured. */
-  .engine::before {
-    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background: radial-gradient(120% 70% at 50% 0%,
-                color-mix(in srgb, var(--accent) 26%, transparent) 0%,
-                transparent 62%);
-    opacity: 0.55; transition: opacity 300ms linear;
+  .caption .name {
+    font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase;
+    font-weight: 600; color: var(--muted);
+    transition: color 300ms linear, letter-spacing 400ms cubic-bezier(.2,.7,.3,1);
   }
-  /* Scanlines. A terminal has them and they cost one gradient. */
-  .engine::after {
-    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  .caption .name.on { letter-spacing: 0.46em; }
+  .caption .bar {
+    height: 1px; margin: 0.5rem auto 0; width: 0; background: currentColor;
+    opacity: 0.55; transition: width 420ms cubic-bezier(.2,.7,.3,1);
+  }
+  .caption .bar.on { width: 100%; }
+
+  .stage::after {                       /* scanlines, as the terminal has */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    /* Clipped to the dial. Square, it read as a lighter panel behind the circle
+       wherever the host's ground is not exactly --ground. */
+    border-radius: 50%;
     background: repeating-linear-gradient(180deg,
-                rgba(255,255,255,0.022) 0px, rgba(255,255,255,0.022) 1px,
-                transparent 1px, transparent 3px);
-    mix-blend-mode: overlay;
+      rgba(255,255,255,0.014) 0px, rgba(255,255,255,0.014) 1px,
+      transparent 1px, transparent 3px);
   }
-  .engine:hover, .engine:focus-visible {
-    transform: translateY(-4px);
-    border-color: color-mix(in srgb, var(--accent) 55%, var(--rule));
-    box-shadow: 0 18px 44px -22px color-mix(in srgb, var(--accent) 70%, transparent);
-    outline: none;
+
+  /* Real buttons so a keyboard and a screen reader reach the wedges, and nothing is
+     drawn for them. pointer-events are off: on top of the canvas they took the mouse
+     mid-wedge and the hover dropped every time the pointer crossed one. */
+  .hit {
+    position: absolute; width: 16%; height: 16%; transform: translate(-50%, -50%);
+    background: none; border: 1px solid transparent; border-radius: 50%;
+    padding: 0; margin: 0; color: transparent; font: inherit;
+    overflow: hidden; white-space: nowrap; text-indent: -999em;
+    pointer-events: none;
   }
-  .engine:hover::before, .engine:focus-visible::before { opacity: 1; }
-
-  /* The index, drawn large and nearly invisible, the way a plate number is. */
-  .idx {
-    position: absolute; top: 10px; right: 16px; z-index: 1;
-    font-family: var(--font-mono); font-size: 5.2rem; font-weight: 600;
-    line-height: 1; letter-spacing: -0.04em;
-    color: transparent; -webkit-text-stroke: 1px var(--accent);
-    opacity: 0.16; transition: opacity 300ms linear, transform 400ms ease-out;
-  }
-  .engine:hover .idx { opacity: 0.34; transform: translateY(2px); }
-
-  /* --- Motif ------------------------------------------------------------- */
-  .art { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; }
-  .art svg { display: block; width: 100%; height: 100%; }
-  .art .stroke { stroke: var(--accent); fill: none; vector-effect: non-scaling-stroke; }
-  .art .fill { fill: var(--accent); }
-  .art .dim { opacity: 0.30; }
-  .art .mid { opacity: 0.62; }
-
-  /* --- Plate ------------------------------------------------------------- */
-  .plate { position: relative; z-index: 2; padding: 0 1.15rem 1.15rem; }
-  .kicker { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.2em;
-            text-transform: uppercase; color: var(--accent); opacity: 0.9; }
-  .name { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em;
-          line-height: 1.05; margin: 0.42rem 0 0; }
-  .tag { font-size: 11.5px; color: var(--muted); line-height: 1.45; margin-top: 0.4rem; }
-  .enter { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.95rem;
-           padding-top: 0.7rem; border-top: 1px solid var(--rule);
-           font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.16em;
-           text-transform: uppercase; color: var(--muted);
-           transition: color 200ms linear; }
-  .engine:hover .enter { color: var(--text); }
-  .enter .bar { flex: 1 1 auto; height: 1px; background: var(--rule-strong);
-                transform-origin: left; transform: scaleX(0.18);
-                transition: transform 340ms cubic-bezier(.2,.7,.3,1),
-                            background 200ms linear; }
-  .engine:hover .enter .bar { transform: scaleX(1); background: var(--accent); }
-  .enter .arrow { transition: transform 260ms cubic-bezier(.2,.7,.3,1); }
-  .engine:hover .enter .arrow { transform: translateX(4px); }
-
-  /* --- Motion ------------------------------------------------------------ */
-  /* Slow and small. The page should feel alive at a glance and never ask to be
-     watched, so nothing here loops faster than four seconds. */
-  @keyframes glimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
-  @keyframes drift   { from { transform: translateX(0); } to { transform: translateX(-80px); } }
-  @keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes spinback{ from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
-  @keyframes pulse   { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.85; } }
-
-  /* Each capsule fades on its own offset, so the field shifts without anything moving. */
-  .cap { animation: glimmer 5.6s ease-in-out infinite; }
-  .helix   { animation: drift 9s linear infinite; }
-  .ring-a  { transform-origin: 50% 50%; animation: spin 34s linear infinite; }
-  .ring-b  { transform-origin: 50% 50%; animation: spinback 22s linear infinite; }
-  .nucleus { transform-origin: 50% 50%; animation: pulse 3.6s ease-in-out infinite; }
-
+  .hit:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
-    .cap, .helix, .ring-a, .ring-b, .nucleus { animation: none; }
-    .engine { transition: none; }
+    .caption .name, .caption .bar { transition: none; }
   }
 </style>
 </head>
 <body>
 <div class="mast">
   <span class="wordmark">Novatalis</span>
-  <span class="ask">Select an engine</span>
   <span class="rule"></span>
 </div>
-<div id="panels"></div>
+<div class="wrap" id="wrap">
+  <div class="stage" id="stage">
+    <canvas id="c" aria-hidden="true"></canvas>
+    <div class="caption">
+      <div class="name" id="capName">Select an engine</div>
+      <div class="bar" id="capBar"></div>
+    </div>
+  </div>
+</div>
 <script>
 function post(type, extra) {
   window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
@@ -148,168 +100,21 @@ const Streamlit = {
   value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
 };
 
-// --- The three motifs ------------------------------------------------------
-// Drawn here rather than server-side because none of it is data. Each is a shape that
-// says what its cohort is without stating a number: mass for the majors, a strand for
-// the ones still proving the science, a cell for the platforms.
-const W = 300, H = 200;
-
-function pharmaArt() {
-  // A field of capsules. The first draft was a skyline of bars, which read as a chart,
-  // and a chart is the one thing this page is not: it would have looked like data with
-  // no data behind it. A capsule is the shape of the industry and means nothing at all.
-  const rows = 5, cols = 7, cw = 34, ch = 13;
-  const gapX = (W + 40) / cols, gapY = (H + 20) / rows;
-  let out = "";
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      // Every other row steps half a column, so the field reads as packed rather than
-      // as a grid, and no two capsules line up down the card.
-      const x = c * gapX + (r % 2 ? gapX / 2 : 0) - 20;
-      const y = r * gapY + 8;
-      const seed = (r * 7 + c * 13) % 11;
-      const filled = seed % 3 === 0;
-      const opacity = 0.24 + (seed / 11) * 0.66;
-      const delay = ((r * cols + c) % 9) * -0.62;
-      out += '<g class="cap" style="animation-delay:' + delay.toFixed(2) + 's"'
-           + ' transform="translate(' + x.toFixed(1) + ' ' + y.toFixed(1)
-           + ') rotate(-24)">'
-           + '<rect class="' + (filled ? "fill" : "stroke") + '" x="0" y="0"'
-           + ' width="' + cw + '" height="' + ch + '" rx="' + (ch / 2) + '"'
-           + (filled ? "" : ' stroke-width="1"')
-           + ' opacity="' + opacity.toFixed(2) + '"/>'
-           // The seam across the middle, which is what makes it a capsule rather than a
-           // rounded rectangle.
-           + '<line class="stroke" x1="' + (cw / 2) + '" y1="1.5" x2="' + (cw / 2)
-           + '" y2="' + (ch - 1.5) + '" stroke-width="0.75"'
-           + ' opacity="' + (opacity * 0.75).toFixed(2) + '"/>'
-           + '</g>';
-    }
-  }
-  return svg(out);
-}
-
-function biotechArt() {
-  // A double helix. One strand is the science and the other is the money, and the rungs
-  // are where a readout joins them. Drawn wider than the frame so it can drift.
-  const amp = 46, mid = H / 2, span = W + 100, step = 4;
-  let a = "", b = "";
-  for (let x = 0; x <= span; x += step) {
-    const t = (x / 80) * Math.PI;
-    const ya = mid + Math.sin(t) * amp, yb = mid - Math.sin(t) * amp;
-    a += (x ? "L" : "M") + x + " " + ya.toFixed(1) + " ";
-    b += (x ? "L" : "M") + x + " " + yb.toFixed(1) + " ";
-  }
-  let rungs = "";
-  for (let x = 0; x <= span; x += 20) {
-    const t = (x / 80) * Math.PI;
-    const ya = mid + Math.sin(t) * amp, yb = mid - Math.sin(t) * amp;
-    const near = Math.abs(ya - yb) / (amp * 2);
-    rungs += '<line class="stroke" x1="' + x + '" y1="' + ya.toFixed(1) + '" x2="' + x
-           + '" y2="' + yb.toFixed(1) + '" stroke-width="1"'
-           + ' opacity="' + (0.14 + near * 0.5).toFixed(2) + '"/>'
-           + '<circle class="fill" cx="' + x + '" cy="' + ya.toFixed(1) + '" r="2.2"'
-           + ' opacity="' + (0.35 + near * 0.55).toFixed(2) + '"/>'
-           + '<circle class="fill" cx="' + x + '" cy="' + yb.toFixed(1) + '" r="2.2"'
-           + ' opacity="' + (0.35 + near * 0.55).toFixed(2) + '"/>';
-  }
-  return svg('<g class="helix">' + rungs
-    + '<path class="stroke mid" d="' + a + '" stroke-width="1.6"/>'
-    + '<path class="stroke" d="' + b + '" stroke-width="1.6" opacity="0.85"/></g>');
-}
-
-function cellgeneArt() {
-  // A nucleus and what orbits it. A platform company is one method pointed at many
-  // targets, so the centre is bright and everything else is arranged around it.
-  const cx = W / 2, cy = H / 2;
-  let rings = "";
-  [34, 52, 70, 88].forEach(function (r, i) {
-    rings += '<circle class="stroke ' + (i % 2 ? "dim" : "mid") + '" cx="' + cx
-           + '" cy="' + cy + '" r="' + r + '" stroke-width="' + (i % 2 ? 0.6 : 1)
-           + '" stroke-dasharray="' + (i % 2 ? "2 7" : "1 5") + '"/>';
-  });
-  function nodes(radius, count, offset, size) {
-    let out = "";
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + offset;
-      out += '<circle class="fill" cx="' + (cx + Math.cos(angle) * radius).toFixed(1)
-           + '" cy="' + (cy + Math.sin(angle) * radius).toFixed(1) + '" r="' + size
-           + '" opacity="' + (0.4 + (i % 3) * 0.2).toFixed(2) + '"/>';
-    }
-    return out;
-  }
-  let spokes = "";
-  for (let i = 0; i < 12; i++) {
-    const angle = (i / 12) * Math.PI * 2;
-    spokes += '<line class="stroke dim" x1="' + (cx + Math.cos(angle) * 20).toFixed(1)
-            + '" y1="' + (cy + Math.sin(angle) * 20).toFixed(1)
-            + '" x2="' + (cx + Math.cos(angle) * 92).toFixed(1)
-            + '" y2="' + (cy + Math.sin(angle) * 92).toFixed(1)
-            + '" stroke-width="0.5"/>';
-  }
-  return svg(spokes + rings
-    + '<g class="ring-a">' + nodes(52, 7, 0.3, 3) + '</g>'
-    + '<g class="ring-b">' + nodes(88, 11, 0.9, 2) + '</g>'
-    + '<circle class="fill nucleus" cx="' + cx + '" cy="' + cy + '" r="15"'
-    + ' opacity="0.7"/>'
-    + '<circle class="stroke" cx="' + cx + '" cy="' + cy + '" r="20"'
-    + ' stroke-width="1.2" opacity="0.9"/>');
-}
-
-function svg(inner) {
-  // preserveAspectRatio="none" would shear the helix and oval the nucleus, so the motif
-  // keeps its shape and the card crops it.
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid slice"'
-       + ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>';
-}
-
-const ART = { pharma: pharmaArt, biotech: biotechArt, cellgene: cellgeneArt };
-const KICKER = { pharma: "Engine 01", biotech: "Engine 02", cellgene: "Engine 03" };
-const INDEX = { pharma: "01", biotech: "02", cellgene: "03" };
-
-function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
-  });
-}
-
-function card(entry) {
-  const art = (ART[entry.engine] || pharmaArt)();
-  return '<div class="engine ' + esc(entry.engine) + '" data-engine="' + esc(entry.engine)
-       + '" tabindex="0" role="button" aria-label="' + esc(entry.label) + '">'
-       + '<div class="idx">' + esc(INDEX[entry.engine] || "") + '</div>'
-       + '<div class="art">' + art + '</div>'
-       + '<div class="plate">'
-       + '<div class="kicker">' + esc(KICKER[entry.engine] || "Engine") + '</div>'
-       + '<div class="name">' + esc(entry.label) + '</div>'
-       + '<div class="tag">' + esc(entry.tagline || "") + '</div>'
-       + '<div class="enter"><span>Enter</span><span class="bar"></span>'
-       + '<span class="arrow">&rarr;</span></div>'
-       + '</div></div>';
-}
-
-let wired = false;
-let fontsCopied = false;
-
 function copyFontFaces() {
   // The host bundles its fonts as @font-face rules with base64 data: sources. A font
   // loaded in the parent document is not available in this one, and the iframe is
-  // same-origin, so the rules are copied across rather than shipping the binaries twice
-  // or sending them through the component args on every rerun. On any failure the CSS
-  // font stack falls back to the system sans, which still reads correctly.
-  if (fontsCopied) return;
-  fontsCopied = true;
+  // same-origin, so the rules are copied across rather than shipping the binaries twice.
+  if (copyFontFaces.done) return;
+  copyFontFaces.done = true;
   try {
     let faces = "";
     const sheets = window.parent.document.styleSheets;
     for (let i = 0; i < sheets.length; i++) {
       let rules;
-      try { rules = sheets[i].cssRules; } catch (e) { continue; }  // opaque sheet
+      try { rules = sheets[i].cssRules; } catch (e) { continue; }
       if (!rules) continue;
       for (let j = 0; j < rules.length; j++) {
-        if (rules[j].type === 5 /* CSSRule.FONT_FACE_RULE */) {
-          faces += rules[j].cssText + "\n";
-        }
+        if (rules[j].type === 5) { faces += rules[j].cssText + "\n"; }
       }
     }
     if (faces) {
@@ -320,61 +125,552 @@ function copyFontFaces() {
   } catch (e) { /* cross-origin or no access: the fallback stack stands */ }
 }
 
-let lastHeight = 0;
+// --- the dial --------------------------------------------------------------
+// A pie, not a ring: each wedge runs from the hub to the rim and the whole of it is
+// one target. Hovering releases the lugs that hold it and brings its motif alive;
+// picking it sweeps that wedge out until it owns the dial, then launches through it.
+//
+// The three motifs are the ones the cards carried, bent into polar space: a field of
+// capsules for the majors, a double helix for the ones still proving the science, a
+// engineered receptor on a cell surface for the platforms. None of it is data.
+
+var TAU = Math.PI * 2;
+var GAP = 0.055;                       // radians of dark between wedges
+var START = -Math.PI / 2;
+// Biotech reads on the warm end of the palette, on a burnt orange that is its own
+// token rather than the gold of a filed phase or the red of a negative delta, both
+// of which already carry a meaning on every other page.
+var ACCENT_TOKEN = { pharma: "up", biotech: "engine-biotech", cellgene: "purple-book" };
+
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d");
+var stage = document.getElementById("stage");
+var wrap = document.getElementById("wrap");
+var capName = document.getElementById("capName");
+var capBar = document.getElementById("capBar");
+var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var ENGINES = [];
+var size = 0, dpr = 1;
+var hover = -1, chosen = -1;
+var lit = [], take = 0, launch = 0;
+var spin = 0, life = 0, t0 = null, running = false;
+
 function measure() {
-  requestAnimationFrame(function () {
-    const h = Math.ceil(document.body.getBoundingClientRect().height) + 12;
-    // Only when it actually moved. The frame height is set on the parent, which can
-    // reflow this document, so posting unconditionally risks a measure loop.
-    if (Math.abs(h - lastHeight) < 2) return;
-    lastHeight = h;
-    Streamlit.height(h);
+  var pad = 28;
+  var w = (document.documentElement.clientWidth || 900) - pad * 2;
+  // The iframe is only as tall as we ask it to be, so its own viewport says nothing
+  // about the screen. The host page is same-origin and does know, and the frame's own
+  // top tells us how much of it the header above has already taken. Guessing that
+  // number left the dial sitting high with the page empty under it.
+  var vh = 760, top = 90;
+  try {
+    vh = window.parent.innerHeight || vh;
+    top = window.frameElement.getBoundingClientRect().top;
+  } catch (e) { /* fallbacks stand */ }
+  var avail = Math.max(360, vh - top - 24);
+  // Bigger than it was, but still bounded by the shorter side: a dial taller than the
+  // window would put its own caption below the fold.
+  size = Math.max(280, Math.min(w, avail - 120, 640));
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(size * dpr);
+  canvas.height = Math.round(size * dpr);
+  canvas.style.width = canvas.style.height = size + "px";
+  stage.style.width = stage.style.height = size + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  placeHits();
+  // Masthead at the top, then the dial centred in everything below it, so the front
+  // door reads as one object in the middle of the screen rather than as a graphic
+  // resting on the header.
+  var mastH = document.querySelector(".mast").offsetHeight || 44;
+  var box = Math.max(size + 124, Math.round(avail));
+  wrap.style.height = (box - mastH) + "px";
+  Streamlit.height(Math.ceil(box));
+}
+
+function geom() {
+  var c = size / 2;
+  return { c: c, rim: c * 0.845, hub: c * 0.135, tick: c * 0.945 };
+}
+
+function sector(i) {
+  var span = TAU / ENGINES.length;
+  var a0 = START + i * span + GAP / 2, a1 = START + (i + 1) * span - GAP / 2;
+  if (i === chosen && take > 0) {
+    // The wedge opens out until it is the whole dial. Each motif draws across
+    // whatever arc it is given, so the material carries round with it.
+    var t = ease(take);
+    a0 = a0 + (START - a0) * t;
+    a1 = a1 + (START + TAU - a1) * t;
+  }
+  return { a0: a0, a1: a1 };
+}
+
+function placeHits() {
+  Array.prototype.slice.call(stage.querySelectorAll(".hit")).forEach(function (n) {
+    n.remove();
+  });
+  var g = geom();
+  ENGINES.forEach(function (e, i) {
+    var s = sector(i), mid = (s.a0 + s.a1) / 2, r = g.rim * 0.58;
+    var b = document.createElement("button");
+    b.className = "hit"; b.type = "button";
+    b.setAttribute("data-engine", e.key);
+    b.textContent = e.label + ". " + (e.tagline || "");
+    b.style.left = (50 + Math.cos(mid) * (r / size) * 100) + "%";
+    b.style.top = (50 + Math.sin(mid) * (r / size) * 100) + "%";
+    b.addEventListener("focus", function () { setHover(i); });
+    b.addEventListener("blur", function () { setHover(-1); });
+    b.addEventListener("click", function () { choose(i); });
+    stage.appendChild(b);
   });
 }
 
-// The cards are a three-column grid that becomes one column under 1000px, which triples
-// the height. Streamlit sizes the frame once per render, so without this the page keeps
-// its desktop height on a narrow window and clips two cards. Body rather than the root
-// element: body's height is its content's, so it cannot be driven by the frame height
-// this observer is about to change.
-if (window.ResizeObserver) {
-  new ResizeObserver(measure).observe(document.body);
-} else {
-  window.addEventListener("resize", measure);
+function setHover(i) {
+  if (hover === i) return;
+  hover = i;
+  var e = ENGINES[i];
+  canvas.classList.toggle("live", i >= 0);
+  if (e) {
+    capName.textContent = e.label;
+    capName.style.color = e.accent;
+    capName.classList.add("on");
+    capBar.classList.add("on");
+    capBar.style.color = e.accent;
+  } else if (chosen < 0) {
+    capName.textContent = "Select an engine";
+    capName.style.color = "";
+    capName.classList.remove("on");
+    capBar.classList.remove("on");
+  }
 }
 
+function choose(i) {
+  if (chosen >= 0 || !ENGINES[i]) return;
+  chosen = i;
+  var e = ENGINES[i];
+  capName.textContent = e.label;
+  capName.style.color = e.accent;
+  capName.classList.add("on");
+  capBar.classList.add("on");
+  capBar.style.color = e.accent;
+  // Reported once the wedge has taken the dial and the launch has begun, so the
+  // gesture is seen before Streamlit reruns the page underneath it.
+  setTimeout(function () {
+    Streamlit.value({ engine: e.key, nonce: Date.now() });
+  }, reduced ? 0 : 620);
+}
+
+function hexA(hex, a) {
+  var h = (hex || "#7E9098").trim();
+  if (h[0] !== "#" || (h.length !== 7 && h.length !== 4)) h = "#7E9098";
+  if (h.length === 4) h = "#" + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  var n = parseInt(h.slice(1), 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) +
+         "," + Math.max(0, Math.min(1, a)).toFixed(3) + ")";
+}
+
+function wedgePath(g, s, turn, grow) {
+  ctx.beginPath();
+  ctx.arc(g.c, g.c, g.rim + grow, s.a0 + turn, s.a1 + turn);
+  ctx.arc(g.c, g.c, g.hub, s.a1 + turn, s.a0 + turn, true);
+  ctx.closePath();
+}
+
+function capsules(g, s, k, turn, accent) {
+  // Motile: each row carries its field around the arc, alternate rows against each
+  // other, so the whole thing reads as stock moving rather than a pattern printed on
+  // the wedge. Speed falls with radius, as anything on a wheel does, and the hover
+  // quickens it.
+  var rows = 6, inner = g.hub * 1.5, band = (g.rim - inner) / rows;
+  var span = s.a1 - s.a0;
+  for (var r = 0; r < rows; r++) {
+    var rad = inner + band * (r + 0.5);
+    var count = Math.max(3, Math.round(span * rad / (band * 0.92)));
+    var dir = r % 2 ? -1 : 1;
+    var flow = life * (0.055 - r * 0.004) * dir * (0.55 + k * 0.9);
+    for (var i = 0; i < count; i++) {
+      var step = span / count;
+      // Wrapped inside the wedge, so a capsule leaving one edge returns at the other
+      // and the row never empties.
+      var along = (step * (i + 0.5) + (r % 2 ? step / 2 : 0) + flow) % span;
+      if (along < 0) along += span;
+      var a = s.a0 + along + turn;
+      var seed = (r * 7 + i * 13) % 11;
+      var drift = Math.sin(life * 0.55 + seed) * band * 0.08 * (0.3 + k);
+      var w = band * 0.72, h = band * 0.29;
+      ctx.save();
+      ctx.translate(g.c + Math.cos(a) * (rad + drift), g.c + Math.sin(a) * (rad + drift));
+      ctx.rotate(a + Math.PI / 2 - 0.42);
+      var op = (0.18 + (seed / 11) * 0.5) * (0.55 + k * 0.45);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, h / 2);
+      else ctx.rect(-w / 2, -h / 2, w, h);
+      if (seed % 3 === 0) { ctx.fillStyle = hexA(accent, op); ctx.fill(); }
+      else { ctx.strokeStyle = hexA(accent, op); ctx.lineWidth = 1; ctx.stroke(); }
+      ctx.beginPath();
+      ctx.moveTo(0, -h / 2 + 1); ctx.lineTo(0, h / 2 - 1);
+      ctx.strokeStyle = hexA("#0C1417", op); ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore();
+    }
+  }
+}
+
+function helix(g, s, k, turn, accent) {
+  // A helix reads as three dimensions because one strand passes behind the other.
+  // Both strands drawn flat at one weight is what made this a fan: the radial
+  // zigzag was right and the depth cue was missing. So each is drawn in segments
+  // whose alpha follows cos of the same phase, which is where that piece of the
+  // strand sits front to back, and the back one is laid down first.
+  var inner = g.hub * 1.5, mid = (inner + g.rim) / 2, amp = (g.rim - inner) * 0.32;
+  var turns = 6, steps = 240, phase = life * (0.5 + k * 1.3);
+  var span = s.a1 - s.a0;
+
+  function at(t, off) {
+    var ph = t * turns * TAU + phase + off;
+    return { a: s.a0 + span * t + turn, r: mid + Math.sin(ph) * amp,
+             depth: Math.cos(ph) };          // +1 toward the reader, -1 away
+  }
+  function strand(off, lead) {
+    for (var i = 0; i < steps; i++) {
+      var p0 = at(i / steps, off), p1 = at((i + 1) / steps, off);
+      var d = (p0.depth + 1) / 2;            // 0 behind, 1 in front
+      ctx.beginPath();
+      ctx.moveTo(g.c + Math.cos(p0.a) * p0.r, g.c + Math.sin(p0.a) * p0.r);
+      ctx.lineTo(g.c + Math.cos(p1.a) * p1.r, g.c + Math.sin(p1.a) * p1.r);
+      ctx.strokeStyle = hexA(accent, (0.12 + d * 0.62) * (0.6 + k * 0.4) * lead);
+      ctx.lineWidth = 1.1 + d * 1.5;         // nearer is heavier
+      ctx.stroke();
+    }
+  }
+
+  strand(Math.PI, 0.85);                     // the one going away, laid down first
+  var rungs = turns * 3;
+  for (var j = 0; j <= rungs; j++) {
+    var t = j / rungs, a = at(t, 0), b = at(t, Math.PI);
+    var open = Math.abs(a.r - b.r) / (amp * 2);   // widest where the strands face us
+    ctx.beginPath();
+    ctx.moveTo(g.c + Math.cos(a.a) * a.r, g.c + Math.sin(a.a) * a.r);
+    ctx.lineTo(g.c + Math.cos(b.a) * b.r, g.c + Math.sin(b.a) * b.r);
+    ctx.strokeStyle = hexA(accent, (0.05 + open * 0.3) * (0.6 + k * 0.4));
+    ctx.lineWidth = 1; ctx.stroke();
+    [a, b].forEach(function (pt) {
+      var d = (pt.depth + 1) / 2;
+      ctx.beginPath();
+      ctx.arc(g.c + Math.cos(pt.a) * pt.r, g.c + Math.sin(pt.a) * pt.r,
+              1.5 + d * 1.4, 0, TAU);
+      ctx.fillStyle = hexA(accent, (0.2 + d * 0.5) * (0.6 + k * 0.4));
+      ctx.fill();
+    });
+  }
+  strand(0, 1);                              // the one coming toward us, on top
+}
+
+function hexDot(x, y, r, alpha, accent, fill) {
+  // An antigen. A hexagon rather than a dot, so what the receptor is reaching for is
+  // plainly a different kind of thing from the receptor itself.
+  ctx.beginPath();
+  for (var v = 0; v < 6; v++) {
+    var va = v / 6 * TAU + 0.26;
+    var px = x + Math.cos(va) * r, py = y + Math.sin(va) * r;
+    if (v) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+  }
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = hexA(accent, alpha * 0.55); ctx.fill(); }
+  ctx.strokeStyle = hexA(accent, alpha); ctx.lineWidth = 1; ctx.stroke();
+}
+
+function carCell(g, s, k, turn, accent) {
+  // Cell and gene: a CAR standing on the surface of a T cell. The membrane runs
+  // round the wedge, the engineered receptors stand out of it, the antigen they were
+  // built to find drifts above, and the signalling domains sit under it. A receptor
+  // catches one, lights, and fires a pulse down its stem into the cell. The binding
+  // runs round the arc rather than everywhere at once, so the wedge is never uniformly
+  // on. Drawn from constants: none of it is data.
+  var inner = g.hub * 1.3;
+  var unit = g.rim - inner;
+  var memb = inner + unit * 0.44;
+  var span = s.a1 - s.a0;
+  var dim = 0.55 + k * 0.45;
+  var n = Math.max(4, Math.round(span * memb / (unit * 0.235)));
+
+  function band(r, alpha, width, dash) {
+    ctx.beginPath();
+    ctx.arc(g.c, g.c, r, s.a0 + turn, s.a1 + turn);
+    if (dash) ctx.setLineDash(dash);
+    ctx.strokeStyle = hexA(accent, alpha * dim);
+    ctx.lineWidth = width; ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // Inside the cell, washed a shade darker than outside it, because two arcs alone
+  // read as rings on a dial rather than as a surface with a cell under it.
+  ctx.beginPath();
+  ctx.arc(g.c, g.c, memb, s.a0 + turn, s.a1 + turn);
+  ctx.arc(g.c, g.c, inner * 0.6, s.a1 + turn, s.a0 + turn, true);
+  ctx.closePath();
+  ctx.fillStyle = hexA(accent, 0.05 * dim); ctx.fill();
+
+  // The membrane itself: a filled bilayer, not a hairline.
+  ctx.beginPath();
+  ctx.arc(g.c, g.c, memb + unit * 0.018, s.a0 + turn, s.a1 + turn);
+  ctx.arc(g.c, g.c, memb - unit * 0.018, s.a1 + turn, s.a0 + turn, true);
+  ctx.closePath();
+  ctx.fillStyle = hexA(accent, 0.16 * dim); ctx.fill();
+
+  band(inner + unit * 0.06, 0.2, 0.7, [2, 6]);     // the nucleus, far inside
+  band(memb - unit * 0.018, 0.46, 1, null);        // the two faces of the bilayer
+  band(memb + unit * 0.018, 0.62, 1.2, null);
+
+  // Free antigen in the extracellular space, drifting across the wedge.
+  var free = n * 2;
+  for (var f = 0; f < free; f++) {
+    var seed = (f * 37) % 17;
+    var al = ((span * ((f + 0.5) / free) +
+               life * 0.018 * (seed % 2 ? 1 : -1)) % span + span) % span;
+    var fa = s.a0 + al + turn;
+    var fr = memb + unit * (0.36 + (seed % 5) * 0.03) +
+             Math.sin(life * 0.7 + seed) * unit * 0.015;
+    hexDot(g.c + Math.cos(fa) * fr, g.c + Math.sin(fa) * fr,
+           unit * 0.034, (0.16 + (seed % 4) * 0.07) * dim, accent, false);
+  }
+
+  for (var i = 0; i < n; i++) {
+    var a = s.a0 + span * ((i + 0.5) / n) + turn;
+    var cyc = (Math.sin(life * (0.55 + k * 0.8) - i * 0.85) + 1) / 2;
+    var bound = Math.max(0, (cyc - 0.52) / 0.48);   // 0 free, 1 engaged
+    var stem = unit * 0.17, arm = unit * 0.1;
+
+    ctx.save();
+    ctx.translate(g.c + Math.cos(a) * memb, g.c + Math.sin(a) * memb);
+    ctx.rotate(a);                                  // local +x points out of the cell
+
+    // Intracellular: the costimulatory domain and the signalling tail under it.
+    [0.055, 0.125].forEach(function (d, j) {
+      var bw = unit * 0.05, bh = unit * (j ? 0.085 : 0.065);
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(-unit * d - bw / 2, -bh / 2, bw, bh, 1.5);
+      else ctx.rect(-unit * d - bw / 2, -bh / 2, bw, bh);
+      ctx.strokeStyle = hexA(accent, (0.28 + bound * 0.42) * dim);
+      ctx.lineWidth = 1; ctx.stroke();
+    });
+
+    ctx.beginPath();                                // the stem through the membrane
+    ctx.moveTo(-unit * 0.03, 0); ctx.lineTo(stem, 0);
+    ctx.strokeStyle = hexA(accent, (0.34 + bound * 0.48) * dim);
+    ctx.lineWidth = 1.3; ctx.stroke();
+
+    var sprd = 0.62 - bound * 0.18;                 // the fork closes on a catch
+    [-1, 1].forEach(function (sg) {                 // the binding arms: the scFv
+      ctx.beginPath();
+      ctx.moveTo(stem, 0);
+      ctx.lineTo(stem + arm * Math.cos(sprd), sg * arm * Math.sin(sprd));
+      ctx.strokeStyle = hexA(accent, (0.4 + bound * 0.48) * dim);
+      ctx.lineWidth = 1.2; ctx.stroke();
+    });
+
+    if (bound > 0.02) {
+      ctx.save();
+      ctx.shadowColor = hexA(accent, 0.6 * bound * k);
+      ctx.shadowBlur = unit * 0.1 * bound * k;
+      ctx.beginPath(); ctx.arc(stem, 0, 1.5 + bound * 1.2, 0, TAU);
+      ctx.fillStyle = hexA(accent, (0.35 + bound * 0.6) * dim); ctx.fill();
+      ctx.restore();
+      // The antigen it has caught, coming in to rest in the cleft.
+      hexDot(stem + arm * 0.8 + unit * 0.3 * (1 - bound), 0,
+             unit * 0.038, (0.3 + bound * 0.6) * dim, accent, bound > 0.6);
+      if (bound > 0.35) {                           // and the signal it sends down
+        var pl = (life * 0.8 + i * 0.3) % 1;
+        ctx.beginPath();
+        ctx.arc(stem - (stem + unit * 0.13) * pl, 0, 1.5, 0, TAU);
+        ctx.fillStyle = hexA(accent, (1 - pl) * 0.75 * bound * dim); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+}
+
+var MOTIF = { pharma: capsules, biotech: helix, cellgene: carCell };
+
+function lugs(g, s, e, k, turn) {
+  // The bayonet. Two lugs hold the wedge at its edges; hovering retracts them.
+  [s.a0, s.a1].forEach(function (a, side) {
+    var dir = side ? 1 : -1, ang = a + turn + k * 0.03 * dir, r = g.rim * 0.93;
+    ctx.save();
+    ctx.translate(g.c + Math.cos(ang) * r, g.c + Math.sin(ang) * r);
+    ctx.rotate(ang + Math.PI / 2 + k * dir * 0.6);
+    var h = size * 0.040 * (1 - k * 0.45), w = size * 0.0105;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(-w / 2, -h / 2, w, h, w / 2);
+    else ctx.rect(-w / 2, -h / 2, w, h);
+    ctx.fillStyle = k > 0.5 ? hexA(e.accent, 0.3 + k * 0.45) : hexA(e.rule, 1);
+    ctx.fill();
+    ctx.strokeStyle = k > 0.5 ? hexA(e.accent, 0.85) : hexA(e.ruleFaint, 1);
+    ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function dial(g, ruleStrong, rule) {
+  ctx.save(); ctx.translate(g.c, g.c); ctx.rotate(spin);
+  for (var d = 0; d < 360; d += 5) {
+    var a = d * Math.PI / 180, major = d % 30 === 0, len = major ? 9 : 4;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * g.tick, Math.sin(a) * g.tick);
+    ctx.lineTo(Math.cos(a) * (g.tick - len), Math.sin(a) * (g.tick - len));
+    ctx.strokeStyle = major ? ruleStrong : rule; ctx.lineWidth = 1; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function hubPlate(g, ground, ruleStrong) {
+  var tint = ruleStrong, glow = 0;
+  for (var i = 0; i < ENGINES.length; i++) {
+    if (lit[i] > glow) { glow = lit[i]; tint = ENGINES[i].accent; }
+  }
+  ctx.save();
+  ctx.shadowColor = hexA(tint, 0.5 * glow);
+  ctx.shadowBlur = size * 0.07 * glow;
+  ctx.beginPath(); ctx.arc(g.c, g.c, g.hub, 0, TAU);
+  ctx.fillStyle = ground; ctx.fill();
+  ctx.restore();
+  [1, 0.66, 0.34].forEach(function (f, i) {
+    ctx.beginPath(); ctx.arc(g.c, g.c, g.hub * f, 0, TAU);
+    ctx.strokeStyle = hexA(tint, (0.42 + glow * 0.48) * (1 - i * 0.2));
+    ctx.lineWidth = i === 0 ? 1.2 : 0.7; ctx.stroke();
+  });
+  ctx.beginPath();
+  ctx.arc(g.c, g.c, size * 0.007 + glow * size * 0.004, 0, TAU);
+  ctx.fillStyle = hexA(tint, 0.5 + glow * 0.5); ctx.fill();
+}
+
+function ease(x) { return 1 - Math.pow(1 - x, 3); }
+
+function frame(t) {
+  if (t0 === null) t0 = t;
+  var dt = Math.min(64, t - t0); t0 = t;
+  spin += dt * 0.000028; life += dt * 0.0016;
+  if (chosen >= 0) {
+    take = Math.min(1, take + dt / 620);
+    if (take > 0.82) launch = Math.min(1, launch + dt / 520);
+  }
+  for (var i = 0; i < ENGINES.length; i++) {
+    var want = (i === hover || i === chosen) ? 1 : 0;
+    lit[i] += (want - lit[i]) * Math.min(1, dt / 130);
+  }
+
+  var cs = getComputedStyle(document.documentElement);
+  var ground = (cs.getPropertyValue("--ground") || "#0C1417").trim();
+  var rule = (cs.getPropertyValue("--rule") || "#1F2E33").trim();
+  var ruleStrong = (cs.getPropertyValue("--rule-strong") || "#2E4249").trim();
+
+  var g = geom();
+  ctx.clearRect(0, 0, size, size);
+
+  var L = ease(launch);
+  ctx.save();
+  if (L > 0) {
+    ctx.translate(g.c, g.c); ctx.scale(1 + L * 1.5, 1 + L * 1.5);
+    ctx.translate(-g.c, -g.c); ctx.globalAlpha = 1 - L;
+  }
+  dial(g, ruleStrong, rule);
+
+  // The bloom sits under everything, so a lit wedge glows through the ground.
+  ENGINES.forEach(function (e, i) {
+    var k = lit[i];
+    if (k < 0.02) return;
+    var s = sector(i), mid = (s.a0 + s.a1) / 2;
+    var reach = g.rim * 0.55 * (1 - ease(take) * (i === chosen ? 1 : 0));
+    var bx = g.c + Math.cos(mid) * reach, by = g.c + Math.sin(mid) * reach;
+    var bloom = ctx.createRadialGradient(bx, by, 0, bx, by, g.rim * 0.95);
+    bloom.addColorStop(0, hexA(e.accent, (0.30 + ease(take) * 0.35) * k));
+    bloom.addColorStop(1, hexA(e.accent, 0));
+    ctx.fillStyle = bloom;
+    ctx.fillRect(0, 0, size, size);
+  });
+
+  ENGINES.forEach(function (e, i) {
+    var s = sector(i), k = lit[i];
+    // The ones not chosen give way rather than sitting there dimmed.
+    var fade = (chosen >= 0 && i !== chosen) ? Math.max(0, 1 - take * 2.2) : 1;
+    if (fade <= 0.001) return;
+    var turn = k * 0.018, grow = k * size * 0.022;
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    wedgePath(g, s, turn, grow);
+    ctx.clip();
+    var grd = ctx.createRadialGradient(g.c, g.c, g.hub, g.c, g.c, g.rim + grow);
+    grd.addColorStop(0, hexA(e.accent, 0.14 + k * 0.12));
+    grd.addColorStop(1, hexA(e.accent, 0.035 + k * 0.055));
+    ctx.fillStyle = grd; ctx.fill();
+    (MOTIF[e.key] || capsules)(g, s, k, turn, e.accent);
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.shadowColor = hexA(e.accent, 0.8 * k);
+    ctx.shadowBlur = size * 0.045 * k;
+    wedgePath(g, s, turn, grow);
+    ctx.strokeStyle = hexA(e.accent, 0.42 + k * 0.53);
+    ctx.lineWidth = 1 + k * 1.2; ctx.stroke();
+    ctx.restore();
+
+    // The lugs hold a wedge in place, so once it has taken the dial they go.
+    var hold = fade * (i === chosen ? Math.max(0, 1 - take * 1.8) : 1);
+    if (hold > 0.001) {
+      ctx.save(); ctx.globalAlpha = hold;
+      lugs(g, s, e, k, turn);
+      ctx.restore();
+    }
+  });
+  hubPlate(g, ground, ruleStrong);
+  ctx.restore();
+  requestAnimationFrame(frame);
+}
+
+// The whole wedge is the target: anywhere between the hub and the rim.
+canvas.addEventListener("pointermove", function (ev) {
+  if (!ENGINES.length) return;
+  var b = canvas.getBoundingClientRect(), g = geom();
+  var dx = ev.clientX - b.left - g.c, dy = ev.clientY - b.top - g.c;
+  var r = Math.hypot(dx, dy);
+  if (r < g.hub || r > g.rim * 1.10) { setHover(-1); return; }
+  var rel = ((Math.atan2(dy, dx) - START) % TAU + TAU) % TAU;
+  setHover(Math.min(ENGINES.length - 1, Math.floor(rel / (TAU / ENGINES.length))));
+});
+canvas.addEventListener("pointerleave", function () { setHover(-1); });
+canvas.addEventListener("click", function () { if (hover >= 0) choose(hover); });
+window.addEventListener("resize", measure);
+
 window.addEventListener("message", function (e) {
-  const d = e.data;
+  var d = e.data;
   if (!d || d.type !== "streamlit:render") return;
-  const a = d.args || {};
-  const tk = a.tokens || {};
-  const root = document.documentElement;
-  // The host page's CSS variables do not cross into the iframe, so the tokens are passed
-  // in and set here. One source of truth stays in tokens.py.
+  var a = d.args || {};
+  var tk = a.tokens || {};
+  var root = document.documentElement;
+  // The host page's CSS variables do not cross into the iframe, so the tokens are
+  // passed in and set here. One source of truth stays in tokens.py.
   Object.keys(tk).forEach(function (k) { root.style.setProperty("--" + k, tk[k]); });
   copyFontFaces();
 
-  document.getElementById("panels").innerHTML =
-    (a.panels || []).map(card).join("");
-
-  measure();
-  // A web font arriving after first paint changes the height of everything, so the frame
-  // is measured again once they are ready. Without this the last card is clipped on a
-  // cold load and correct on every rerun after it, which is the confusing way round.
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
-
-  if (!wired) {
-    wired = true;
-    function fire(target) {
-      const engine = target.closest("[data-engine]");
-      if (!engine) return;
-      Streamlit.value({ engine: engine.getAttribute("data-engine"), nonce: Date.now() });
-    }
-    document.body.addEventListener("click", function (ev) { fire(ev.target); });
-    document.body.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); fire(ev.target); }
-    });
+  var cs = getComputedStyle(root);
+  function tok(name, fallback) {
+    return (cs.getPropertyValue("--" + name) || fallback).trim() || fallback;
   }
+  ENGINES = (a.panels || []).map(function (p) {
+    return {
+      key: p.engine, label: p.label, tagline: p.tagline,
+      accent: tok(ACCENT_TOKEN[p.engine] || "muted", "#7E9098"),
+      rule: tok("rule-strong", "#2E4249"),
+      ruleFaint: tok("rule", "#1F2E33")
+    };
+  });
+  lit = ENGINES.map(function () { return 0; });
+  chosen = -1; hover = -1; take = 0; launch = 0;
+  setHover(-1);
+  measure();
+
+  if (!running) { running = true; requestAnimationFrame(frame); }
 });
 Streamlit.ready();
 </script>

@@ -45,6 +45,10 @@ PHASE_RAMP["Phase 2/3"] = PHASE_RAMP["Phase 3"]
 # Always paired with a label; never gradients.
 ORANGE_BOOK = "#C98A4B"
 PURPLE_BOOK = "#8B7FC7"
+# The biotech engine's identity on the front door. The warm end of the palette was
+# already spoken for: the gold is a filed phase, the red is a negative delta. So the
+# engine gets its own burnt orange and borrows nothing that means something elsewhere.
+ENGINE_BIOTECH = "#D4883F"
 # The FDA on the Universe tab: a clear blue for approvals, PDUFA and decision dates (a
 # small molecule's NDA on the FDA row), a teal-cyan for a biologic's BLA, both clear of
 # the deals' purple.

@@ -94,6 +94,7 @@ LANDING_TOKENS = {
     "rule-strong": TK.RULE_STRONG, "text": TK.TEXT, "muted": TK.MUTED,
     "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
     "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
+    "engine-biotech": TK.ENGINE_BIOTECH,
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
 }
 # The Comps valuation view is the same kind of iframe, with more of the palette: the faint
@@ -9637,9 +9638,6 @@ if not engine and not (st.query_params.get("ticker") or ""):
         [{"engine": entry["key"], "label": entry["label"],
           "tagline": entry["tagline"]} for entry in catalogue],
         tokens=LANDING_TOKENS, key="engine_pick")
-    st.caption(
-        "An engine decides which companies the picker offers and which tabs a company "
-        "page can fill. Search always reaches the whole universe.")
     # A click is acted on once. The nonce changes per click, so a rerun caused by
     # anything else does not send the visit somewhere it has already been.
     if isinstance(picked, dict) and picked.get("nonce") != st.session_state.get(
