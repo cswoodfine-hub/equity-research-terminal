@@ -186,3 +186,16 @@ Errors are the log of projected over reported; negative over-predicts the fall.
 
 So the rule built to hold Actemra's decline (39 assets, -47,416mm on a copy) is not kept,
 and Actemra stays on the merged treatment, which is the best measured of the three.
+
+## Agreed, second round (2026-10-30)
+
+Both value changes made since the first merge are accepted and merge with the branch:
+
+| change | value | basis |
+|---|---|---|
+| Roche's biosimilar entries from its 2025 Finance Report | -19,422mm (Xolair -15,120, Perjeta -4,302) | `data/disclosed_loe.csv`, `disclosed_loe_regions.csv`; FILER_DATES.md |
+| Japan's re-examination floor from the PMDA list | +9mm (Gazyva's Japanese line from 2026) | REGIONAL.md, "Japan: the re-examination floor" |
+
+The IRA bear case and the use-code wording are display only and move no value. The
+Phase 2 safety gradient (work/proxies/RESULTS_8D_8E.md) stays a display; no cut to the
+Phase 2 probability was taken.
