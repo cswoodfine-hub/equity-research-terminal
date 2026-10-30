@@ -688,12 +688,13 @@ LEGS = ("pos_success", "pos_failure")
 # The FDA decision itself, and the regulatory events that only inform it.
 DECISION_KINDS = ("PDUFA", "regulatory decision")
 ADVISORY_KINDS = ("AdCom", "EMA decision")
-# Why a priced derived row cannot be resolved by a click in this version.
-# Recording a derived outcome writes a resolved catalyst the daily refresh has to keep. The
-# 06:00 job runs the main branch, whose derive_readouts deletes a resolved derived row once
-# its trial leaves the window, so a recorded outcome would be lost the next morning. Off
-# until main carries d6dba2f and 8e09039; an analyst's stated legs are not affected.
-DERIVED_RESOLVE = False
+# Whether a priced derived row can be resolved by a click. Recording a derived outcome
+# writes a resolved catalyst the daily refresh has to keep, and the 06:00 job runs the
+# main branch. It was off while main's derive_readouts deleted a resolved derived row once
+# its trial left the window. Main has kept resolved rows, and their recorded day, since
+# d6dba2f and 8e09039 merged with #3 on 2026-10-30. The switch and its note stay, so it
+# can be turned off again without touching the views.
+DERIVED_RESOLVE = True
 DERIVED_RESOLVE_NOTE = ("Recording this outcome is switched off until the daily refresh "
                         "keeps resolved readouts.")
 RESOLVE_NOTES = {

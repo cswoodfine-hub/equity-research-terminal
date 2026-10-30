@@ -71,11 +71,68 @@ earlier date is never worth more. `test_loe_in_base` holds both cases.
 - **Outside the US as one region.** Where a filer reports only US and the rest, the rest
   takes Europe's date and bounds, as it already did for the floor. Japan inside it has no
   fifteen-year cap: its term extension runs up to five years from the patent.
-- **Paediatric extension.** An SPC with a paediatric extension runs six months longer
-  (Regulation (EC) No 1901/2006, Art. 36). The book holds no EU paediatric record, so the
-  cap does not add it; a product that has one opens up to half a year late here.
+- **Paediatric extension, measured and not applied (2026-10-30).** An SPC with a
+  paediatric extension runs six months longer (Regulation (EC) No 1901/2006, Art. 36).
+  - The EMA's PIP report (`medicines-output-paediatric_investigation_plans-output-json-report_en.json`)
+    gives 401 plans a positive compliance check, the condition for the extension. The
+    extension itself is granted country by country and is in no EMA record.
+  - Tested on 125 products with a stated EU date, 41 of them with a positive check:
+    a cap of 15.5 years from the authorisation date where the check is positive moves
+    7 caps, 3 toward the stated date (both Jakavi rows, Eylea HD) and 4 away (Kalydeco,
+    Veklury, Benlysta, Lutathera).
+  - Exact years fall from 30% to 29% and the mean error rises from 1.568 to 1.576
+    years. Filers appear to state the SPC year without the extension, so the cap stays
+    at fifteen.
 - **The extra year for a new indication** (Directive 2001/83/EC, Art. 10(1), the "+1" of
-  8+2+1) is not applied: the book holds no record of whether the EMA granted it.
-- **Japan.** No free source in the book gives JP approval dates, so a Japanese region with
-  no stated date keeps the US date. The PMDA publishes approvals, in Japanese PDFs; not
-  attempted.
+  8+2+1) is not applied. Neither EMA report records whether it was granted: the
+  medicines report carries no such field, and the grant sits only in each product's
+  Commission decision text.
+
+## Japan: the re-examination floor (2026-10-30)
+
+A new active ingredient approved in Japan is re-examined after eight years, ten for an
+orphan drug, and no generic can be filed before then (Act on Pharmaceuticals and Medical
+Devices, Art. 14-4). It is the counterpart of Europe's ten-year floor. Japan has no
+counterpart of the SPC's fifteen-year cap.
+
+- **Source.** The PMDA's English "List of Approved Products" (New Drugs, April 2004 to
+  February 2026), one 3 MB PDF linked from
+  `pmda.go.jp/english/review-services/reviews/approved-information/drugs/0002.html`.
+  - `fetchers/approvals_pmda.py` reads it into `jp_approvals` (migration 100): 2,324
+    rows, 750 of them new active ingredients, 479 marked orphan.
+  - A release already read is never downloaded again (`jp_approval_releases`).
+- **Match.** `regional_loe.first_jp_approval` takes the earliest row naming the
+  product's generic (without the FDA's four-letter suffix) or brand. That row must
+  itself be the new ingredient row. Where the product appears earlier in another
+  kind of row, its first approval predates the list or shares a row with another
+  substance, and no date is given.
+- **Rule.** A Japanese region (`JP`) carries `floor_year`, first approval plus 8 (10 for
+  an orphan), and the engine applies it as it does Europe's: it pushes a US date that
+  falls earlier, and pushes a stated date that falls earlier. Asia Pacific and the rest
+  of the world, which take Japan's stated date, do not take the floor, since the statute
+  is Japan's alone.
+
+Date test, `work/patents/tools/jp_backtest.py`, on 67 products with a stated JP date
+(11 more lack a US date or a first approval in the list):
+
+| rule | within one year | exact | mean years out |
+|---|---|---|---|
+| inherit the US date (the rule before) | 48% | 31% | 1.81 |
+| floor, 8 years | 51% | 33% | 1.67 |
+| **floor, 8 years, 10 for an orphan (now)** | **52%** | **34%** | **1.64** |
+
+The floor moves four of them, and each moves toward the stated date:
+
+| product | US date | floor | stated JP |
+|---|---|---|---|
+| Talzenna | 2029 | 2032 | 2034 |
+| Truqap | 2030 | 2032 | 2033 |
+| Reblozyl | 2031 | 2034 | 2034 |
+| Tukysa | 2031 | 2034 | 2034 |
+
+Value delta: +9mm in all, on Roche. Only Roche reports a Japanese line among the valued
+products with no stated JP date (19 products, through Chugai). The floor binds on two:
+
+- **Gazyva:** Japanese approval 2018-07-02, floor 2026 against a US date of 2025.
+- **Pulmozyme:** an orphan drug approved 2012-03-30, floor 2022, which is past and in
+  the base either way.

@@ -310,6 +310,20 @@ No new host is needed: sec.gov, data.cms.gov and fda.gov are all reachable.
   the step is backtested against the 2026 prices CMS has published. The MFP file is on
   www.cms.gov (blocked).
 
+**Result (2026-10-30).**
+- **Peak before LOE:** a flag, built earlier.
+- **Carve-outs:** not valued. A marketed forecast does not split revenue by indication,
+  and no free source gives sales by indication, so there is no measured section viii case
+  to fit a retained share to. The plan's fallback holds: the layer erodes with the
+  product. The product page now shows what each method-of-use patent claims, in FDA's
+  own wording (`patent_use_codes`, read from the Orange Book's patent pages), so a
+  reader can see which indication a later patent holds.
+- **IRA:** a bear case, beside the value (`ira_bear.py`). A selected drug loses its
+  cohort's average net cut from the year its price applies: CMS's stated net savings
+  over the cohort's gross, 10.7% of the drug's Part D gross for 2026 and 28.2% for 2027.
+  A drug's own cut is confidential. The base is unchanged until the 2026 prices can be
+  checked against 2026 reported revenue.
+
 ## Step 5: regional dates
 
 The US date drives US revenue. Europe and Japan have their own:
@@ -331,6 +345,16 @@ from 1.82 to 1.62 years. Nine products move, -2,511mm in all; Actemra and Enbrel
 because a past cap stops a second cut to revenue that already carries the loss. Not
 done: the +1 year for a new indication and the paediatric six months (no EU record of
 either in the book), and Japan (no free JP approval dates).
+
+**Follow-up (2026-10-30, REGIONAL.md).**
+- **Japan.** The PMDA's English list of approvals is now a source. A Japanese region
+  carries a floor of first approval plus 8 years (10 for an orphan). On 67 products
+  with a stated JP date, 52% land within a year against 48%, and the mean error falls
+  from 1.81 to 1.64 years. +9mm on the book.
+- **Paediatric six months.** The EMA's PIP compliance checks were tested as the
+  trigger and made the EU dates slightly worse (mean 1.568 to 1.576 years). Not
+  applied.
+- **+1 year.** Still no record: the grant sits only in each Commission decision.
 
 ## Step 6: validate before it goes live
 
@@ -462,7 +486,7 @@ None moves value, by the step's own rule.
 | 8a trial spend | A real signal (elasticity 0.18) but no better than `rd_pct` × revenue or flat at predicting next year's R&D; helps only when trial load moves over 30% | study only; feeds 8b's forward burn in those years |
 | 8b runway | Strong: under 18 months of cash, over 90% raise within a year, about 18 to 20% extra shares | the runway page shows the peers' raise rate and extra shares (`data/runway_dilution.csv`) |
 | 8c market moves | Success legs agree for large companies; failure legs not measurable (4 of 200 headlines say so) | to be scored on the call log as catalysts resolve |
-| 8d safety | Blocked by survivorship: the book holds the assets that went on | display only, until the full Phase 2 history and label history are read |
+| 8d safety | Retested 2026-10-30 on 606 sponsor Phase 2s, 88% outside the book: a weak gradient (47% reach Phase 3 with the drug arm 5 points lower in serious events, 20% with it 10 points higher; rank correlation +0.09), carried by small studies and partly efficacy | display only; a cut to the Phase 2 probability needs agreement. Label history not read |
 | 8e deal appetite | No signal (rank correlation +0.09, 75 company-years) | descriptive screen only |
 
 ## Order of work, one concern per commit

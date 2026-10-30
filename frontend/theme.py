@@ -545,6 +545,7 @@ h3 {{ font-size: 0.9rem; }}
 .pt-gov {{ display: block; font-size: 9px; color: var(--up); letter-spacing: 0.04em;
           text-transform: uppercase; }}
 .pt-ped {{ display: block; font-size: 9px; color: var(--muted); }}
+.pt-use {{ font-size: 9.5px; color: var(--muted); padding: 0 0 3px 12px; }}
 details.pt-more {{ margin: 0.15rem 0 0.35rem; }}
 details.pt-more > summary {{ list-style: none; cursor: pointer; font-size: 10px;
   color: var(--muted); padding: 2px 0; }}

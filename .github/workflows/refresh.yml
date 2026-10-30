@@ -38,6 +38,13 @@ jobs:
       OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The branch as it stands when the job starts, not the commit the run was
+          # triggered on. A run queued behind another (the concurrency group above)
+          # otherwise starts from before that run's history commit: on 2026-10-29 run
+          # 105 waited out a manual run, checked out the older commit, and its push
+          # conflicted with the history the manual run had just committed.
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v7
         with:
@@ -134,25 +141,45 @@ jobs:
         # the run went red, the database release went out, and the history that no
         # source can hand back again was left uncommitted until it was noticed.
         #
-        # The day's commit only ever touches data/history, and nobody else writes those
-        # files, so rebasing onto whatever landed meanwhile is always the right move.
+        #
+        # A text rebase is the wrong tool for the retry. The export rewrites each file
+        # whole from the database, so when another refresh has committed history
+        # meanwhile both commits append to the same files and the rebase conflicts
+        # (run 105, 2026-10-29). The database already holds this run's rows, so the
+        # retry takes what landed, merges it into the database (a row replaces the one
+        # with its id, as the rebuild step does) and exports again: a superset of both,
+        # committed on top. The concurrency group keeps two runs from writing the same
+        # ids, so the merge never trades this run's rows for another's.
         run: |
           git config user.name  "er-terminal-bot"
           git config user.email "actions@github.com"
-          git add data/history
-          if git diff --cached --quiet; then
+          branch="${GITHUB_REF_NAME:-main}"
+          commit_history() {
+            git add data/history
+            if git diff --cached --quiet; then
+              return 1
+            fi
+            git commit -m "chore(history): daily refresh $(date -u +%Y-%m-%d)"
+          }
+          if ! commit_history; then
             echo "No history changes to commit."
             exit 0
           fi
-          git commit -m "chore(history): daily refresh $(date -u +%Y-%m-%d)"
           for attempt in 1 2 3; do
-            if git push; then
+            if git push origin "HEAD:$branch"; then
               echo "Pushed on attempt $attempt."
               exit 0
             fi
-            echo "Push rejected; rebasing onto origin and retrying."
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || exit 1
+            echo "Push rejected; merging what landed into the database and exporting again."
             sleep $((attempt * 5))
+            git fetch origin "$branch" || continue
+            git reset --hard "origin/$branch"
+            python backend/history.py rebuild || exit 1
+            python backend/history.py export || exit 1
+            if ! commit_history; then
+              echo "What landed already holds this run's history."
+              exit 0
+            fi
           done
           echo "::error::The day's history could not be pushed after three attempts."
           exit 1
