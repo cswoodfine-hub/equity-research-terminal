@@ -132,9 +132,12 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 ### Daily pulse (sector news)
 
 - A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London) emails a ranked
-  briefing and commits its items as `data/pulse/YYYY-MM-DD.json` to the
-  `claude/pulse-feed` branch, never to main. The refresh workflow reads that branch into
-  `ER_PULSE_DIR`, and `fetchers/news_pulse.py` loads it.
+  briefing and saves its items as `pulse-YYYY-MM-DD.json` in the Google Drive folder
+  "Terminal pulse feed". Its runs cannot open the repository, so a relay session ("Pulse
+  relay", woken weekdays 08:40 London by "Pulse relay to terminal") copies each file
+  unchanged to `data/pulse/YYYY-MM-DD.json` on the `claude/pulse-feed` branch, never to
+  main. The refresh workflow reads that branch into `ER_PULSE_DIR`, and
+  `fetchers/news_pulse.py` loads it.
 - It is an AI-written summary of the trade press, not a registry. An item is kept only
   with the link it summarises, every view labels it "Daily pulse (AI summary)", and it
   reaches news, the change feed and the Sector news panel only: never a value, a deal
