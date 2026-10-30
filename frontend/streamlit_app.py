@@ -11201,27 +11201,6 @@ with main:
                     html.append("</details>")
                 html.append("</div>")
                 st.markdown("".join(html), unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">One row per compound in trials that the company does '
-                    'not yet sell, grouped by the furthest phase it has reached, with the '
-                    'number of studies behind it and the next primary completion date due. '
-                    'Open a compound for its own studies, each linking to the registry. '
-                    'Derived from the drug each registry entry names, so a compound appears '
-                    'only where a trial names it. A comparator, a shared chemotherapy '
-                    'backbone and another company\'s marketed drug are excluded, so this is '
-                    'the sponsor\'s own work rather than everything its studies '
-                    'mention. Below the phases sit the programmes the company describes in '
-                    'its own filing and the registry has never seen, at the stage the filing '
-                    'states and never at a phase, each opening onto the sentence it was read '
-                    'from. The last column is what the compound is worth a share on the '
-                    'forecast tab: a figure where the engine builds it, "needs" where it '
-                    'read the assumptions and stopped on a gap the tooltip names, a starred '
-                    'figure where it ran on a placeholder curve and is shown without being '
-                    'counted, and a dash where no assumptions are on file at all. A figure '
-                    'underlined red launches in the model before the earliest approval the '
-                    'registry and the FDA review clock allow, amber where its seed cites a '
-                    'filing or readout not on file; its tooltip says which.</div>',
-                    unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
