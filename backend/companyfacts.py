@@ -307,6 +307,33 @@ DEBT_CURRENT_CANDIDATES = [("us-gaap", "DebtCurrent"),
                            ("us-gaap", "LongTermDebtCurrent"),
                            ("us-gaap", "ShortTermBorrowings")]
 
+# Drawn facilities, which sit outside a convertible note rather than inside it. These
+# are only consulted where the note is the whole of the non-current leg (below): a filer
+# that tags LongTermDebtNoncurrent has put its facility in that total already, and most
+# of the book tags one of these somewhere as a facility disclosure, so reading them more
+# widely than this empties the debt line for Lilly, Pfizer and forty others.
+FACILITY_BORROWINGS = [("us-gaap", "LineOfCredit"),
+                       ("us-gaap", "LongTermLineOfCredit"),
+                       ("us-gaap", "SecuredDebt")]
+
+
+def _convertible_split(facts: dict) -> dict:
+    """Convertible notes, non-current plus the current portion, at every date both or
+    the non-current alone resolve."""
+    _, noncurrent = instant_series(facts, [("us-gaap", "ConvertibleDebtNoncurrent")])
+    _, current = instant_series(facts, [("us-gaap", "ConvertibleDebtCurrent")])
+    out = {}
+    for key, entry in noncurrent.items():
+        near = current.get(key)
+        # As with the long-term split: a filer that tags a current portion somewhere but
+        # not on this date has a gap in its tagging rather than nothing due within a year.
+        if near is None and current:
+            continue
+        out[key] = {"val": entry["val"] + (near["val"] if near else 0),
+                    "unit": entry["unit"],
+                    "concept": "ConvertibleDebtNoncurrent + current portion"}
+    return out
+
 
 def total_debt_series(facts: dict) -> dict[str, dict]:
     """Total debt at every date it resolves, as {end: {'val','unit','concept'}}.
@@ -336,11 +363,24 @@ def total_debt_series(facts: dict) -> dict[str, dict]:
             continue
         split[key] = {"val": entry["val"] + (near["val"] if near else 0),
                       "unit": entry["unit"],
-                      "concept": "LongTermDebtNoncurrent + current portion"}
+                      "concept": f"{entry.get('concept') or 'LongTermDebtNoncurrent'}"
+                                 " + current portion"}
 
+    # Convertible notes, last. A company whose only borrowing is a convertible tags the
+    # note and nothing else, which reads the same as no debt: Alnylam's $1.01bn of
+    # converts was missing from a book that showed its $3.6bn of cash, and the sum of
+    # the parts stopped at the enterprise value for want of the other half.
+    #
+    # It is a basis of its own rather than another candidate beside LongTermDebtNoncurrent
+    # because a candidate reaching a later date wins the whole series: as a candidate it
+    # moved Regeneron's debt from $1.99bn at 2025-12-31 to nil at 2019-12-31 and lost
+    # Revolution Medicines' altogether. Last in the order, it is reached only by filers
+    # the three bases above leave empty.
+    conv = _convertible_split(facts)
     bases = [(b, u) for b, u in ((split, None),
                                  (combined, combined_unit),
-                                 (single, single_unit)) if b]
+                                 (single, single_unit),
+                                 (conv, None)) if b]
     if not bases:
         return {}
     latest = max(k for b, _ in bases for k in b)
@@ -352,6 +392,32 @@ def total_debt_series(facts: dict) -> dict[str, dict]:
             continue
         for key, entry in base.items():
             merged.setdefault(key, entry)
+
+    # Where a convertible note is the whole of the non-current leg, a drawn facility on
+    # the same date is a second instrument the ladder cannot add to it, and none of the
+    # bases is a sum across instruments. Reporting the note alone would read as net cash
+    # the company does not have, so the date is dropped instead: Arrowhead tags
+    # $682.7mm of converts and a $181.4mm drawn line at 2026-06-30, and $682.7mm is not
+    # its debt. A filer tagging LongTermDebtNoncurrent has its facility in that total
+    # already, so this never reaches one.
+    # The convertible basis is a single instrument, so anything else the filer owes on
+    # the same date sits outside it and no basis here sums across instruments. Reporting
+    # the note alone would read as net cash the company does not have, so a filer with
+    # both resolves to nothing and says so: Arrowhead tags $682.7mm of converts and a
+    # $181.4mm drawn line at 2026-06-30, and $682.7mm is not its debt.
+    if conv and chosen is conv:
+        # A drawn facility is a live second instrument, and the note alone is not the
+        # filer's debt on any date: dropping only the dates the facility is tagged on
+        # left Arrowhead resolving to $681.9mm from the quarter before, which the sum
+        # would have read against a balance sheet where it owed half as much again.
+        _, facilities = instant_series(facts, FACILITY_BORROWINGS)
+        if facilities:
+            return {}
+        # A long-term tag is not: Alnylam carries one for a 2022 instrument that no
+        # longer exists, and it never shares a balance sheet with the converts, so only
+        # the dates the two do share are dropped.
+        beside = set(noncurrent) | set(combined) | set(single)
+        merged = {k: e for k, e in merged.items() if k not in beside}
 
     return {end: {"val": e["val"], "unit": e.get("unit") or chosen_unit,
                   "concept": e.get("concept", "LongTermDebt")}
