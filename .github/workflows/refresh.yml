@@ -9,13 +9,27 @@ name: Daily refresh
 
 on:
   schedule:
-    # 06:00 UTC daily. Scheduled runners can start late under load, so nothing here
-    # depends on the exact minute.
+    # 06:00 UTC daily, before any market this book quotes has opened. Yahoo's daily
+    # chart carries a bar for today from the opening bell, whose close is the last
+    # trade, so a run after 08:00 UTC would write an intraday price into the snapshot
+    # history and no later run could tell it was wrong. Scheduled runners can start
+    # late under load, so nothing here depends on the exact minute, but the hour is
+    # not free to move.
     - cron: '0 6 * * *'
+    # 10:00 UTC on weekdays: the daily pulse alone, hours after its scheduled run has
+    # pushed the morning's briefing to claude/pulse-feed. The pulse wants the opposite
+    # of what prices want, since its value is the European morning, so it is read by a
+    # pass of its own rather than moving the refresh off 06:00. The 06:00 run still
+    # reads the whole pulse folder, so this pass being missed costs a day, not a file.
+    - cron: '0 10 * * 1-5'
   workflow_dispatch:
     inputs:
       force_all:
         description: "Fetch every source, ignoring every TTL (as a rebuilt run does)"
+        type: boolean
+        default: false
+      pulse_only:
+        description: "Read the daily pulse and publish, without fetching any source"
         type: boolean
         default: false
 
@@ -31,6 +45,11 @@ jobs:
   refresh:
     runs-on: ubuntu-latest
     env:
+      # Which of the two schedules fired, as one flag the steps below read. A pulse pass
+      # reuses every step around the refresh itself: it restores the published database,
+      # merges the committed history, reads the pulse folder, exports, publishes and
+      # commits exactly as the full run does. Only the fetching is skipped.
+      PULSE_ONLY: ${{ github.event.schedule == '0 10 * * 1-5' || inputs.pulse_only }}
       # EDGAR blocks requests without a real identifier. Set this repo secret.
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       # Optional: set to run the generated note; absent, the note stays rules-only.
@@ -53,6 +72,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Check the EDGAR identifier is set
+        if: env.PULSE_ONLY != 'true'
         # Without it every SEC fetch fails and the run limps to a partial finish ten
         # minutes later, reporting a source error that reads like a network problem.
         # Better to say the one true thing immediately.
@@ -127,7 +147,16 @@ jobs:
         # Prices from yfinance are often blocked from runner IPs; the fetcher fails
         # soft and the run finishes partial, which still advanced the fundamentals and
         # wrote the day's snapshots. A partial run exits 0 on purpose.
+        if: env.PULSE_ONLY != 'true'
         run: python backend/scheduled_refresh.py
+
+      - name: Read the daily pulse
+        # The pulse pass in place of the refresh: the briefing the folder above holds,
+        # read into news and the change feed and nothing else. It opens no refresh run,
+        # so the top bar's "last refresh" keeps meaning the last time the universe was
+        # actually fetched (backend/pulse_refresh.py).
+        if: env.PULSE_ONLY == 'true'
+        run: python backend/pulse_refresh.py
 
       - name: Export the refreshed history
         run: python backend/history.py export

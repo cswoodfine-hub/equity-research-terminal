@@ -131,13 +131,23 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 
 ### Daily pulse (sector news)
 
-- A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London) emails a ranked
-  briefing and saves its items as `pulse-YYYY-MM-DD.json` in the Google Drive folder
-  "Terminal pulse feed". Its runs cannot open the repository, so a relay session ("Pulse
-  relay", woken weekdays 08:40 London by "Pulse relay to terminal") copies each file
-  unchanged to `data/pulse/YYYY-MM-DD.json` on the `claude/pulse-feed` branch, never to
-  main. The refresh workflow reads that branch into `ER_PULSE_DIR`, and
-  `fetchers/news_pulse.py` loads it.
+- A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London) on the machine
+  that holds the clone emails a ranked briefing and commits its items as
+  `data/pulse/YYYY-MM-DD.json` to the `claude/pulse-feed` branch, never to main. It
+  publishes to git itself; there is no file store in between.
+- The pulse is read by a pass of its own, not by the daily refresh. The two want times
+  that cannot be reconciled. Prices have to be read before any market opens, because
+  `fetchers/prices.py` takes Yahoo's daily chart as it stands and from the opening bell
+  that chart carries a bar for today whose close is the last trade: a refresh after
+  08:00 UTC would write an intraday price into the snapshot history, which no later run
+  could correct. So the refresh stays at 06:00 UTC. The pulse wants the opposite, since
+  its value is the European morning, so `refresh.yml` runs a second schedule at 10:00
+  UTC on weekdays that restores, reads the branch into `ER_PULSE_DIR`, runs
+  `backend/pulse_refresh.py` and publishes, fetching no source. The 06:00 run still
+  reads the whole pulse folder, so a missed pass costs a day, not a file.
+- That pass opens no `refresh_runs` row on purpose: `/runs/latest` is what the top bar
+  reads for "last refresh", and a pulse pass that opened one would have the terminal
+  date the universe to the morning's briefing.
 - It is an AI-written summary of the trade press, not a registry. An item is kept only
   with the link it summarises, every view labels it "Daily pulse (AI summary)", and it
   reaches news, the change feed and the Sector news panel only: never a value, a deal
