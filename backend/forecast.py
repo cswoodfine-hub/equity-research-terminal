@@ -1369,6 +1369,16 @@ def build(inputs: dict) -> dict:
     # at its reported share and eroded on its own clock. The rest stays on the US date.
     regions, us_share = regional_split(inputs.get("regions"))
     us_revenue = [value * us_share for value in revenue]
+    # A step down in the US line from a year on, for a view that asks what a price set
+    # outside the company would cost: the Medicare negotiated price in ira_bear's bear
+    # case. Never in the base: nothing the assumptions table loads sets it.
+    step = inputs.get("price_step")
+    if step and step.get("factor"):
+        keep = max(0.0, 1.0 - float(step["factor"]))
+        us_revenue = [value * keep if year >= int(step["from_year"]) else value
+                      for year, value in zip(years, us_revenue)]
+        notes.append(f"from {int(step['from_year'])} the US line is cut by "
+                     f"{float(step['factor']):.1%} ({step.get('basis') or 'a price step'})")
     if in_base:
         eroded = list(us_revenue)
         notes.append(f"LOE {loe_year or 'already past'} ({loe_basis}) is in the base: the reported "

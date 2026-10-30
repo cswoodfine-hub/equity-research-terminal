@@ -1,0 +1,14 @@
+# What CMS says each negotiated cohort would have saved Medicare, net, had its prices been
+# in force in the base year, from its own fact sheet. The savings over the cohort's gross
+# Part D spending is the share of a drug's gross spending ira_bear.py takes as the bear
+# case's yearly cut, from the year the prices apply.
+#
+# A cohort average, not a drug's own figure: CMS publishes each drug's discount from list
+# price but not from its net price, since rebates are confidential, and a drug's net cut
+# can sit well above or below its cohort's. So the bear case says what the average cut
+# would cost this drug, and is labelled so. The base case is unchanged.
+#
+# Read 2026-10-30 from www.cms.gov/files/document/ (the two fact sheets named below).
+ipay,base_year,drugs,gross_usd_bn,net_savings_usd_bn,net_savings_pct,source,quote
+2026,2023,10,56.2,6,0.22,fact-sheet-negotiated-prices-initial-price-applicability-year-2026.pdf,"These selected drugs accounted for $56.2 billion in total Part D gross covered prescription drug costs ... the negotiated prices would have saved an estimated $6 billion in net covered prescription drug costs, which would have represented 22% lower net spending in aggregate."
+2027,2024,15,42.5,12,0.44,fact-sheet-negotiated-prices-ipay-2027.pdf,"These selected drugs accounted for $42.5 billion in total Part D gross covered prescription drug costs ... the negotiated prices would have saved an estimated $12 billion in net covered prescription drug costs, which would have amounted to approximately 44% lower net spending in aggregate."
