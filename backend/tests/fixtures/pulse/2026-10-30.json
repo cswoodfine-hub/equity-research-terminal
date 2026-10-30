@@ -1,0 +1,25 @@
+{
+  "pulse_date": "2026-10-30",
+  "read": "A test briefing: one large deal, one readout and a quiet private market.",
+  "items": [
+    {"tier": 1, "kind": "deal", "headline": "Lilly agrees to buy Testco Bio for $2.1bn",
+     "detail": "Test item: $1.5bn upfront, the rest in milestones.",
+     "url": "https://news.example.com/lilly-testco", "published": "2026-10-29",
+     "companies": ["Eli Lilly", "Testco Bio"], "tickers": ["LLY", "TSTC"]},
+    {"tier": 2, "kind": "deal", "headline": "Roche and Regeneron sign a test co-development pact",
+     "detail": null, "url": "https://news.example.com/roche-regeneron",
+     "published": "2026-10-29", "companies": ["Roche", "Regeneron"], "tickers": []},
+    {"tier": 2, "kind": "readout", "headline": "Merck KGaA reports a test Phase 2 readout",
+     "url": "https://news.example.com/merck-kgaa", "published": "2026-10-28",
+     "companies": ["Merck KGaA"], "tickers": ["MRK.DE"]},
+    {"tier": 3, "kind": "financing", "headline": "Privateco raises a $120m test Series B",
+     "detail": "Led by a test investor.", "url": "https://news.example.com/privateco",
+     "published": "2026-10-31", "companies": ["Privateco"], "tickers": []},
+    {"tier": 3, "kind": "other", "headline": "An item with no link", "url": "",
+     "companies": ["Pfizer"]},
+    {"tier": 1, "kind": "deal", "headline": "The Lilly item a second time",
+     "url": "https://news.example.com/lilly-testco", "companies": ["Eli Lilly"]},
+    {"tier": 7, "kind": "rumour", "headline": "Vertex test item with an unknown tier and kind",
+     "url": "https://news.example.com/vertex", "tickers": ["vrtx"]}
+  ]
+}

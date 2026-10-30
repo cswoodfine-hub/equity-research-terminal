@@ -9063,6 +9063,74 @@ def _key_insights_tab(api_base: str, ticker: str, feed: list, prices: dict) -> N
     _china_bd(api_base, ticker)
 
 
+_PULSE_TIERS = {1: "T1", 2: "T2", 3: "T3"}
+
+
+def _pulse_html(got: dict, days_open: int = 1) -> str:
+    """The daily pulse's items, newest briefing first and by tier within it.
+
+    Every item names its source, and the section says what the pulse is: an AI-written
+    summary of the trade press, not a filing. The newest briefing opens with its read
+    of the sector; older ones are folded."""
+    items = got.get("items") or []
+    if not items:
+        return ""
+    reads = {r["pulse_date"]: r.get("read") for r in got.get("reads") or []}
+    by_day: dict = {}
+    for it in items:
+        by_day.setdefault(it["pulse_date"], []).append(it)
+    out = []
+    for n, (day, rows) in enumerate(sorted(by_day.items(), reverse=True)):
+        body = []
+        if reads.get(day):
+            body.append(f'<div class="pulse-read">{html_escape(reads[day])}</div>')
+        for it in rows:
+            named = it.get("tickers") or []
+            others = [c for c in it.get("companies") or [] if c]
+            meta = " · ".join(
+                ([", ".join(named)] if named else [])
+                + ([", ".join(others)] if others and not named else [])
+                + ([it["kind"]] if it.get("kind") and it["kind"] != "other" else []))
+            detail = it.get("detail") or ""
+            body.append(
+                f'<div class="pulse-item"><span class="pulse-tier">'
+                f'{_PULSE_TIERS.get(it.get("tier"), "")}</span>'
+                f'<a href="{html_escape(it["url"])}" target="_blank">'
+                f'{html_escape(it["headline"])}</a>'
+                + (f'<div class="pulse-meta">{html_escape(detail)}</div>' if detail else "")
+                + (f'<div class="pulse-meta">{html_escape(meta)}</div>' if meta else "")
+                + "</div>")
+        count = f"{len(rows)} item{'' if len(rows) == 1 else 's'}"
+        if n < days_open:
+            out.append(f'<div class="pulse-day">{html_escape(day)} · {count}</div>'
+                       + "".join(body))
+        else:
+            out.append(f'<details class="pt-more"><summary>{html_escape(day)} · '
+                       f'{count}</summary>{"".join(body)}</details>')
+    return "".join(out)
+
+
+def _pulse_panel(api_base: str) -> None:
+    """Sector news from the daily pulse, the whole sector rather than the universe:
+    private rounds and other biotechs are kept. Drawn nothing when no briefing is on
+    file."""
+    try:
+        got = api_get(api_base, "/pulse?days=14")
+    except Exception:                                               # noqa: BLE001
+        return
+    markup = _pulse_html(got)
+    if not markup:
+        return
+    section("Sector news", count=len(got.get("items") or []),
+            basis=got.get("label") or "Daily pulse (AI summary)")
+    st.markdown(markup, unsafe_allow_html=True)
+    note("From the daily biopharma pulse, a scheduled Claude run that reads the trade "
+         "press each weekday morning and ranks what it finds in three tiers. Each item "
+         "links the article it summarises. It is a summary, not a source: nothing in it "
+         "moves a value, a deal term or a catalyst. Items naming a covered company also "
+         "appear in that company's What changed.")
+
+
 def _review_queue_panel(api_base: str) -> None:
     """The evidence queue, a sentence at a time.
 
@@ -10363,6 +10431,9 @@ with main:
         else:
             _universe_overview(api_base, engine, _engine_name, _covered,
                                _all_changes, universe_feed)
+        # The sector's news, wider than the universe, under the overview it belongs to.
+        if _view == "Overview":
+            _pulse_panel(api_base)
         # Book-wide, so it sits at the foot of the book-wide tab rather than on a
         # company page, and it draws nothing when the queue is empty.
         _review_queue_panel(api_base)

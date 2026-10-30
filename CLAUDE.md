@@ -45,6 +45,7 @@ equity-research/
       catalysts.py          # curated CRUD + auto extraction
       deals_news.py         # business development from headlines
       news_rss.py
+      news_pulse.py         # the daily pulse's briefings, from claude/pulse-feed
       codes_rxnav.py        # RxCUIs and NDC product codes per marketed asset
       prescribers_cms.py    # Medicare Part D Prescribers, per brand
       utilization_medicaid.py  # Medicaid State Drug Utilization Data, national rows
@@ -127,6 +128,18 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   when it claims a method of use. The molecule patent gates a generic; a method-of-use
   patent covers one indication and can be carved out of a generic label. Store the flags
   and let the substance patent set the LOE.
+
+### Daily pulse (sector news)
+
+- A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London) emails a ranked
+  briefing and commits its items as `data/pulse/YYYY-MM-DD.json` to the
+  `claude/pulse-feed` branch, never to main. The refresh workflow reads that branch into
+  `ER_PULSE_DIR`, and `fetchers/news_pulse.py` loads it.
+- It is an AI-written summary of the trade press, not a registry. An item is kept only
+  with the link it summarises, every view labels it "Daily pulse (AI summary)", and it
+  reaches news, the change feed and the Sector news panel only: never a value, a deal
+  term or a catalyst. Items outside the universe (private rounds, other biotechs) are
+  kept, with no company attached.
 
 ### Catalysts
 
