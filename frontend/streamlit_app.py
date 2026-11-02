@@ -6965,8 +6965,19 @@ def _ki_bridge(sotp: dict, forward_check=None) -> dict:
                       "tip": f"{_ki_plural(ln['n'], 'revenue line')} no product model holds"})
         run += v
     fut = (s.get("future") or {}).get("per_share")
-    steps.append({"label": "launches", "value": fut, "kind": "step",
-                  "tip": "launches past the modelled pipeline, from R&D"})
+    # The ceiling these are held to, said here rather than left in the module. It is the
+    # strongest claim the sum makes and the binding constraint on any gap to a higher
+    # price: the launches refill what erodes and never make the company larger in real
+    # terms than its own best modelled year.
+    cap = (s.get("future") or {}).get("cap") or {}
+    fut_tip = "launches past the modelled pipeline, from R&D"
+    if cap.get("peak"):
+        fut_tip += (f"; held to the book's own best year, ${cap['peak']:,.0f}mm in "
+                    f"{cap.get('peak_year')}, grown at "
+                    f"{(cap.get('growth') or 0):.2%} a year"
+                    + (f", which binds on {cap['capped_share']:.0%} of what the "
+                       f"research offers" if cap.get("binds") else ", which does not bind"))
+    steps.append({"label": "launches", "value": fut, "kind": "step", "tip": fut_tip})
     run += fut or 0.0
     carry = s.get("carry_per_share")
     if carry:

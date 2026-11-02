@@ -2443,6 +2443,22 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
             "book_peak": peak, "book_peak_year": peak_year,
+            # The ceiling the launches are held to, named rather than left implicit.
+            # It is the single strongest claim in the sum: the company's revenue never
+            # exceeds its own best modelled year in real terms, so the launches refill
+            # erosion and never make the business bigger. It is also the binding
+            # constraint on the gap to any price above the book. For Lilly the future
+            # pipeline asymptotes near $315bn however productive its research is, where
+            # closing the gap to the market would take $764bn, so no launch rate reaches
+            # it and the break-point on that lever correctly reports no answer.
+            "cap": {
+                "peak": peak, "peak_year": peak_year, "growth": long_run,
+                "basis": "the book's own best year in real terms, grown at the long-run "
+                         "rate from it: the launches refill what erodes and do not make "
+                         "the company larger than it has ever modelled being",
+                "capped_share": got.get("capped_share"),
+                "binds": bool((got.get("capped_share") or 0) > 0.01),
+            },
             "growth_investment": invest,
             "history_rd": record["history_rd"], "history_cohorts": got.get("history_cohorts"),
             "named_launch_revenue": sum(named.values()),

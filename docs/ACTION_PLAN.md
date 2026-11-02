@@ -30,7 +30,47 @@ now being fixed.
 
 ## The order of work
 
-### 1. Settle the perpetuity question — the only thing that moves the numbers
+### 1. Settle the perpetuity question — ANSWERED 2026-11-02, see below
+
+The answer is not a terminal growth rate or a discount rate. It is a revenue ceiling in
+`future_pipeline.room()` that nothing on any page named.
+
+**The book holds a company plus its launches to its own best modelled year, in real
+terms, for ever.** Lilly's book peaks at $175,431mm in 2031, so the launches may refill
+what erodes and may never make the company larger than that, grown at 2.35% expected
+inflation. That is the strongest claim in the sum and it was implicit.
+
+It is also the binding constraint on the whole disagreement with the market, which the
+launch-productivity break-point reports as unreachable without saying why:
+
+| launch rate | future pipeline | capped away |
+|---|---|---|
+| 0.4026 (measured) | $191,756mm | 0.0% |
+| 0.80 | $300,501mm | 10.6% |
+| 1.50 | $308,180mm | 31.3% |
+| 3.00 | $315,213mm | 54.1% |
+
+The value asymptotes near **$315bn however productive the research is**, and closing the
+gap to Lilly's price needs **$764bn**. So no launch rate reaches the price, and the
+break-point is right to return no answer: the ceiling stops it, not the rate.
+
+The future-pipeline module itself is in good order and should not be changed to chase
+the market. Its rate is measured, its known downward bias is argued at length against
+measured productivity decay, and it names 0.4102 as the top of the range. The problem was
+never the rate.
+
+What was done: the ceiling is now published on the sum as `future.cap` (peak, peak year,
+long-run rate, the share it caps away and whether it binds) and stated in the bridge's
+launches step. Merck's binds on 1.2% today; Lilly's does not bind at the measured rate
+and binds hard above it.
+
+What is left to decide, and it is a judgement rather than a build: whether a book that
+can never exceed its own peak is the right model of a company that went from $34bn in
+2023 to a guided $91.5bn in 2026. Do not change it by fitting to a price. Change it, if
+at all, on evidence about whether large-cap pharma revenue in real terms has historically
+exceeded its own prior peak, which is measurable from the filings already on file.
+
+### 1b. The original framing, kept for the record
 
 This is the whole gap. The book values a portfolio to its patent cliffs and adds one
 `future` line for launches beyond the modelled pipeline ($206bn for Lilly). The market
