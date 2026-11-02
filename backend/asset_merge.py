@@ -247,6 +247,13 @@ def canonical_generic(name: str) -> str:
     """A generic name reduced to the molecule, with salt and hydrate words removed."""
     text = " " + re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip() + " "
     for salt in _SALTS:
+        # The stereo descriptor belongs to the salt, not to the molecule. Exelixis files
+        # Cabometyx's ingredient as "Cabozantinib S-Malate", and taking the salt alone
+        # left "cabozantinibs", which no longer matched the "Cabozantinib" row carrying
+        # the fifteen indications and the whole forecast. Only these letters, and only
+        # against a salt: dropping every lone letter would make one molecule of
+        # Penicillin G and Penicillin V, and of Amphotericin B and Polymyxin B.
+        text = re.sub(rf" (?:[sdrl]|dl|rs) {re.escape(salt)} ", " ", text)
         text = text.replace(f" {salt} ", " ")
     return re.sub(r"[^a-z0-9]+", "", text)
 

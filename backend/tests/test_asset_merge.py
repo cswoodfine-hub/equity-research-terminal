@@ -561,6 +561,21 @@ def test_a_leading_zero_does_not_make_a_second_application(tmp_path):
     conn.close()
 
 
+def test_a_stereo_descriptor_belongs_to_the_salt_and_not_the_molecule():
+    """Exelixis files Cabometyx's ingredient as "Cabozantinib S-Malate". Taking the salt
+    alone left "cabozantinibs", which no longer matched the plain compound row."""
+    assert asset_merge.canonical_generic("Cabozantinib S-Malate") == "cabozantinib"
+    assert asset_merge.canonical_generic("Cabozantinib") == "cabozantinib"
+
+
+def test_a_lone_letter_that_names_the_molecule_is_kept():
+    """The rule is for a descriptor against a salt, not for every single letter: these
+    are different molecules and collapsing them would merge two products."""
+    assert (asset_merge.canonical_generic("Penicillin G Potassium")
+            != asset_merge.canonical_generic("Penicillin V Potassium"))
+    assert asset_merge.canonical_generic("Amphotericin B") == "amphotericinb"
+
+
 def test_two_products_sharing_a_brand_and_not_a_code_are_left_alone(tmp_path):
     """The rule it relaxes still holds everywhere else: two rows that share a brand and
     carry different applications are two products, and picking one would lose the other."""
