@@ -1,0 +1,12 @@
+-- Whether the FDA still lists the application as marketed.
+--
+-- openFDA's drugsfda products carry marketing_status, and the fetcher has read it since
+-- it was written and thrown it away. Without it "marketed" in this book means "was
+-- approved and nobody has said otherwise", which is a different claim: of 141 of the
+-- eight largest filers' applications checked against openFDA, 20 are Discontinued, and
+-- 19 of those 20 carry no revenue. They were reading as products whose revenue the book
+-- had not got to, when the truth is the company stopped selling them.
+--
+-- Per application rather than per asset, because an asset can hold several and they can
+-- disagree: a brand whose capsule is discontinued and whose tablet is not is still sold.
+ALTER TABLE approvals ADD COLUMN marketing_status TEXT;

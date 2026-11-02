@@ -24,6 +24,7 @@ import breakpoints
 import fair_value
 import backtest as backtest_module
 import completeness as completeness_module
+import shelf as shelf_module
 import valuation_history as valuation_history_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
@@ -1720,6 +1721,18 @@ def regulatory_stream(days: int = Query(default=120)) -> dict:
     panel votes ahead, announcements behind, each tagged by kind and by company where the
     item names a covered one."""
     return regulatory_module.build(None, days=days)
+
+
+@app.get("/companies/{ticker}/shelf")
+def company_shelf(ticker: str) -> dict:
+    """Every marketed product of one company by where it stands: selling and protected,
+    selling off patent, withdrawn in the US, or unknown. The reading is American, from
+    openFDA's marketing status and the book's own exclusivity, and it says so."""
+    out = shelf_module.for_company(None, ticker)
+    if not out.get("rows"):
+        raise HTTPException(status_code=404,
+                            detail=f"no marketed products on file for {ticker}")
+    return out
 
 
 @app.get("/completeness")

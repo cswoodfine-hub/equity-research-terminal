@@ -260,11 +260,31 @@ def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
                 "generic": generic,
                 "modality": _modality(appl),
                 "approval_date": approval_date,
-                "marketing_status": products[0].get("marketing_status"),
+                # Across every product on the application, not the first one: a brand
+                # whose capsule is discontinued and whose tablet is not is still sold,
+                # and reading products[0] alone made that a coin toss on payload order.
+                "marketing_status": _marketing_status(products),
                 "active_ingredients": _ingredients(products[0]),
             }
         )
     return rows
+
+
+# openFDA's own words, in the order a reader should take them: anything still sold
+# outranks anything not, because an application with one live product is a live
+# application.
+_STATUS_ORDER = ("Prescription", "Over-the-counter", "None (Tentative Approval)",
+                 "Discontinued")
+
+
+def _marketing_status(products: list) -> str | None:
+    """What the FDA says about the application: the strongest status any of its products
+    carries, or None where the payload states none."""
+    seen = {p.get("marketing_status") for p in (products or []) if p.get("marketing_status")}
+    for status in _STATUS_ORDER:
+        if status in seen:
+            return status
+    return next(iter(seen), None)
 
 
 def _ingredients(product: dict) -> list:
@@ -664,10 +684,12 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                 conn.execute(
                     """
                     INSERT INTO approvals
-                        (asset_id, region, agency, approval_date, application_number, source)
-                    VALUES (?, 'US', 'FDA', ?, ?, ?)
+                        (asset_id, region, agency, approval_date, application_number,
+                         source, marketing_status)
+                    VALUES (?, 'US', 'FDA', ?, ?, ?, ?)
                     """,
-                    (asset_id, row["approval_date"], row["application_number"], OPENFDA_SOURCE),
+                    (asset_id, row["approval_date"], row["application_number"],
+                     OPENFDA_SOURCE, row.get("marketing_status")),
                 )
             # Efficacy supplements attach to the asset that holds the application, so
             # they resolve against the same internal_code the approval created.
