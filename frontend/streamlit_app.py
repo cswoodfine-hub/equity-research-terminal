@@ -6983,7 +6983,10 @@ def _ki_bridge(sotp: dict, forward_check=None) -> dict:
         run -= abs(growth)
     claims = s.get("other_claims_per_share") or 0.0
     net = s.get("net_cash_per_share")
-    if net is None:
+    # No equity figure is the same end as no debt line: the sum stops at the enterprise
+    # value. It is refused where the company sells products the book does not model, and
+    # carrying on to "today" would draw a bar to a number that was withheld.
+    if net is None or s.get("equity_per_share") is None:
         # Other claims sit below the enterprise value, not inside it: the equity on file
         # is the enterprise value plus net cash plus the claims. So with no debt filed,
         # where the bridge stops at the enterprise value, the claims have nowhere to go

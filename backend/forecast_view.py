@@ -2600,8 +2600,25 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     # outside net cash (other_claims).
     claims = other_claims.for_company(conn, ticker)
     claims_total = claims["total"] if not claims.get("reason") else 0.0
+    # A company that sells things and whose products are all unmodelled has no sum to
+    # take to a share price. The parts are cash, a pipeline and nothing for the business
+    # the company actually runs, so the figure reads as a company worth its balance
+    # sheet: BioMarin came out at minus $16.78 a share against $57.49 on $3.2bn of
+    # revenue, Neurocrine at $6.00 against $146.38 on $2.9bn. That is not a smaller sum,
+    # it is the wrong one, which is the refusal the engine already makes of a layer it
+    # cannot fully specify.
+    #
+    # Nil, not thin. A book covering part of a company is reported with its coverage
+    # share and read as thin, which is what that number is for; Ionis covers 12% of its
+    # revenue and its modelled products are still worth $18.19 a share.
+    # Products it sells and does not model, not merely nil product value: a clinical
+    # stage company with collaboration revenue and no marketed product at all is valued
+    # correctly as a pipeline and cash, and Beam, Moderna and Korro were refused by a
+    # reading that only asked whether the product value was nil.
+    sells_unmodelled = (bool((coverage or {}).get("unmodelled"))
+                        and (m_rnpv + s_rnpv) == 0)
     equity = ((enterprise_today + net_cash + claims_total)
-              if net_cash is not None else None)
+              if net_cash is not None and not sells_unmodelled else None)
     dividends, div_year = _dividends(conn, company_id)
     equity_ps = per_share(equity)
     dps = per_share(dividends)
@@ -2699,6 +2716,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
             ("cost of equity: no CAPM components on file", ke is not None),
             ("dividend: no recent dividends-paid line on file, so nothing is taken off "
              "the roll-forward", dividends is not None),
+            ("marketed products: none of what the company reports selling is modelled, "
+             "so the sum stops at enterprise value rather than reporting an equity "
+             "value its own business is missing from", not sells_unmodelled),
             (f"future pipeline: {future.get('reason')}", future.get("value") is not None),
             ("share price: none on file", bool(close))) if not ok],
     }

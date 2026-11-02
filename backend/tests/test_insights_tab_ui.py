@@ -3427,6 +3427,30 @@ def test_the_bridge_reconciles_for_every_modelled_company(view):
 
 
 @live
+def test_no_company_prices_an_equity_value_its_own_business_is_missing_from():
+    """A company that sells things and whose products are all unmodelled has no sum to
+    take to a share price: the parts are cash, a pipeline and nothing for the business it
+    runs. BioMarin came out at minus $16.78 a share against $57.49 on $3.2bn of revenue
+    and Neurocrine at $6.00 against $146.38 on $2.9bn, both read as a company worth its
+    balance sheet. Thin coverage is a different thing and still prices: Ionis covers 12%
+    of its revenue and its modelled products are worth $18.19 a share."""
+    refused = []
+    for ticker in [c["ticker"] for c in _get("/comps/valuation")["companies"]]:
+        sotp = (_get(f"/companies/{urllib.parse.quote(ticker)}/forecast-verdict")
+                or {}).get("sotp") or {}
+        sells = sotp.get("last_reported") or sotp.get("revenue_path")
+        product = ((sotp.get("marketed") or {}).get("rnpv") or 0.0) + \
+                  ((sotp.get("lines") or {}).get("rnpv") or 0.0)
+        if product == 0 and (sotp.get("not_valued") or []):
+            assert sotp.get("equity_per_share") is None, ticker
+            assert sotp.get("forward_12m") is None, ticker
+            assert any("marketed products" in m for m in (sotp.get("missing") or [])), ticker
+            refused.append(ticker)
+    # The book has such companies; a test that found none would be passing on nothing.
+    assert refused
+
+
+@live
 def test_the_live_note_is_open_on_arrival_and_written_from_the_page(tab):
     body = "\n".join(_markdown(tab["tab"]))
     note = re.search(r'<span class="sec-label">Morning note</span>'
