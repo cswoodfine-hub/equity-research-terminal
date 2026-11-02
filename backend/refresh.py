@@ -48,6 +48,7 @@ import deals
 import diff
 import evidence
 import guidance as guidance_module
+import valuation_history
 import leadership
 import applications
 import pdufa
@@ -833,6 +834,14 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
               "trial_readouts": trial_reads, "mdna_revenue": mdna_revenue,
               "quarter_revenue": quarter_revenue,
               "deals": deal_reads, "leadership": leaders, "changes": changes}
+    # What the book now says each company is worth, kept so the call can be read back
+    # against what the price did. Last, because it values the book this run just wrote,
+    # and soft, because a valuation that cannot be computed must not fail a refresh that
+    # has already done its work (valuation_history).
+    try:
+        detail["valuations"] = valuation_history.record(db_path, run_id=run_id)
+    except Exception as exc:                                       # noqa: BLE001
+        detail["valuations_error"] = str(exc)
     return _finish_run(db_path, run_id, status, detail)
 
 
