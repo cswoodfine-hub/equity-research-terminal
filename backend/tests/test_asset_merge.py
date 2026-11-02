@@ -517,6 +517,50 @@ def test_one_brand_under_one_application_number_is_one_product(tmp_path):
     conn.close()
 
 
+def test_the_application_number_is_read_from_the_approval_where_the_row_has_no_code(
+        tmp_path):
+    """Novartis's second Kesimpta row carries no code and no generic, only an approval,
+    so it reads as identified and the codes it shared with the first were {BLA125326, ""}.
+    The number is the same either way it is written down."""
+    path = str(tmp_path / "m3.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'NVS', 'Novartis')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (1, 1, 'Kesimpta', 'Ofatumumab', 'BLA125326', 1)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES (2, 1, 'Kesimpta', NULL, NULL, 1)")
+    for asset in (1, 2):
+        conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date,"
+                     " application_number) VALUES (?, 'US', 'FDA', '2020-08-20',"
+                     " 'BLA125326')", (asset,))
+    conn.commit()
+    assert asset_merge.find_brand_duplicates(conn, 1) == [(1, [2])]
+    conn.close()
+
+
+def test_a_leading_zero_does_not_make_a_second_application(tmp_path):
+    """Lantheus files Definity's as NDA021064 on one row and NDA21064 on the other, which
+    is one application written two ways, and left two rows for one product."""
+    path = str(tmp_path / "m4.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LNTH', 'Lantheus')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (1, 1, 'Definity', 'Perflutren', 'NDA21064', 1)")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, generic_name,"
+                 " internal_code, is_marketed) VALUES"
+                 " (2, 1, 'Definity', NULL, 'NDA021064', 1)")
+    conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date,"
+                 " application_number) VALUES (1, 'US', 'FDA', '2001-07-31', 'NDA021064')")
+    conn.commit()
+    assert asset_merge.find_brand_duplicates(conn, 1) == [(1, [2])]
+    assert asset_merge.canonical_application("NDA021064") == "NDA21064"
+    conn.close()
+
+
 def test_two_products_sharing_a_brand_and_not_a_code_are_left_alone(tmp_path):
     """The rule it relaxes still holds everywhere else: two rows that share a brand and
     carry different applications are two products, and picking one would lose the other."""
