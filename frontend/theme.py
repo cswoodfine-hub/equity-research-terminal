@@ -1577,6 +1577,22 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    search without competing with the company name, and carrying its engine's own colour
    on one edge, which is the only thing that marks it until the pointer is on it.
    --chip is set per render beside the button, from the same tokens the dial is drawn in. */
+/* The coverage board: a work queue, so it reads as a dense table rather than cards. */
+table.cov {{ width: 100%; border-collapse: collapse; font-size: 12px;
+            font-family: var(--font-mono); margin-top: 0.4rem; }}
+table.cov th {{ text-align: left; font-weight: 600; color: var(--muted);
+                font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+                border-bottom: 1px solid var(--rule-strong); padding: 0 8px 4px 0; }}
+table.cov td {{ padding: 3px 8px 3px 0; border-bottom: 1px solid var(--rule-faint);
+                vertical-align: top; }}
+table.cov th.n, table.cov td.n {{ text-align: right; font-variant-numeric: tabular-nums; }}
+table.cov td.t {{ font-weight: 700; color: var(--text); }}
+table.cov td.s.ok {{ color: var(--up); }}
+table.cov td.s.warn {{ color: var(--flag); }}
+table.cov td.s.bad {{ color: var(--down); }}
+table.cov td.g, table.cov td.w {{ color: var(--muted); }}
+table.cov tbody tr:hover td {{ background: var(--panel); }}
+
 .st-key-engine_chip button {{
   min-height: 20px; padding: 0.02rem 0.4rem; line-height: 1.2;
   font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;

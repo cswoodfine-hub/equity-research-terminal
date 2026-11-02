@@ -23,6 +23,8 @@ import auto_resolve as auto_resolve_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
+import completeness as completeness_module
+import valuation_history as valuation_history_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
 import company_lines as company_lines_module
@@ -1718,6 +1720,27 @@ def regulatory_stream(days: int = Query(default=120)) -> dict:
     panel votes ahead, announcements behind, each tagged by kind and by company where the
     item names a covered one."""
     return regulatory_module.build(None, days=days)
+
+
+@app.get("/completeness")
+def completeness_board() -> dict:
+    """How complete the book is, company by company: coverage, whether it reaches a
+    value and why not, the gap to guidance and how old that guidance is, and the revenue
+    carried at nothing. Served from a fifteen-minute cache: it values the whole book to
+    build itself and is a status board, not a figure to trade on."""
+    return completeness_module.build(None, use_cache=True)
+
+
+@app.get("/valuation-backtest")
+def valuation_backtest() -> dict:
+    """Did the book's own upside rank what the price did next.
+
+    Reads the calls the refresh has been keeping (valuation_snapshots) against the price
+    series, each company's forward return less the universe's over the same window. It
+    reports that there is not enough history until there is, which for a twelve-month
+    window means twelve months.
+    """
+    return valuation_history_module.build()
 
 
 @app.get("/backtest")

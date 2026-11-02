@@ -9115,6 +9115,93 @@ def _pulse_html(got: dict, days_open: int = 1) -> str:
     return "".join(out)
 
 
+# The state in a word for the column, and the sentence it means for the tooltip. A table
+# of seventy-five is read down its left edge, so the column has to be short.
+_COVERAGE_STATES = {
+    "complete": ("complete", "ok",
+                 "every product it sells is modelled and the sum reaches a value"),
+    "partial": ("partial", "warn",
+                "priced, with revenue the book carries at nothing"),
+    "no product modelled": ("no product", "bad",
+                            "nothing it sells is modelled, so no value is published"),
+    "refused": ("refused", "warn",
+                "the sum stops before an equity value, for the reason beside it"),
+    "error": ("error", "bad", "the company could not be valued at all"),
+}
+
+
+def _coverage_view(api_base: str) -> None:
+    """How complete the book is, which is the question that has no page anywhere else.
+
+    The terminal covers seventy-five companies and the honest refusals it makes are
+    invisible one page at a time: a company that stops at enterprise value because its
+    debt is unresolved reads, from outside, exactly like one nobody has got to. This
+    separates the two and sorts by what is worth doing next, which is the revenue the
+    book carries at nothing.
+    """
+    try:
+        board = api_get(api_base, "/completeness")
+    except Exception:                                               # noqa: BLE001
+        state("Coverage unavailable", "The completeness board did not answer.")
+        return
+    totals = board.get("totals") or {}
+    section("Coverage", count=totals.get("companies"),
+            basis=f"as of {board.get('as_of')}"
+                  + (f", cached {board.get('cached_seconds')}s" if board.get("cached_seconds") else ""))
+    figs = [
+        (f"{totals.get('complete', 0)}", "complete", "up", "every product modelled"),
+        (f"{totals.get('partial', 0)}", "partial", "", "priced, with revenue at nothing"),
+        (f"{totals.get('no_product_modelled', 0)}", "no product", "down",
+         "nothing they sell is modelled"),
+        (f"{totals.get('refused', 0)}", "refused", "", "the sum stops before equity"),
+        (f"${(totals.get('unmodelled_revenue_musd') or 0):,.0f}mm", "carried at nothing",
+         "down", "reported revenue no model holds"),
+        (f"{totals.get('guidance_stale', 0)} of {totals.get('guidance_rows', 0)}",
+         "guidance stale", "", "a quarter and a half past its reading"),
+    ]
+    st.markdown(
+        '<div class="ki-figs">' + "".join(
+            f'<div class="ki-f" title="{_ki_attr(tip)}"><span class="v {tone}">'
+            f'{html_escape(value)}</span><span class="k">{html_escape(key)}</span></div>'
+            for value, key, tone, tip in figs) + "</div>",
+        unsafe_allow_html=True)
+
+    rows = sorted(board.get("rows") or [],
+                  key=lambda r: -(r.get("unmodelled_revenue_musd") or 0))
+    body = []
+    for row in rows:
+        label, tone, meaning = _COVERAGE_STATES.get(
+            row.get("state"), (row.get("state") or "", "", ""))
+        cov = row.get("coverage")
+        guid = row.get("guidance") or {}
+        gap = guid.get("gap_pct")
+        guid_text = ("no guidance on file" if not guid.get("ok")
+                     else f"{gap:+.1%} vs guidance of {guid.get('as_of')}"
+                          + (" (stale)" if guid.get("stale") else ""))
+        unmodelled = row.get("unmodelled_revenue_musd") or 0
+        count = row.get("unmodelled_products") or 0
+        # What to do about it, not a second printing of the state: the reasons where the
+        # sum refused, the products carried at nothing where it did not.
+        why = "; ".join(row.get("missing") or [])
+        if not why and count:
+            why = f"{_ki_plural(count, 'product')} carried at nothing"
+        body.append(
+            f'<tr><td class="t">{html_escape(row.get("ticker") or "")}</td>'
+            f'<td class="s {tone}" title="{_ki_attr(meaning)}">{html_escape(label)}</td>'
+            f'<td class="n">{"" if cov is None else f"{cov:.0%}"}</td>'
+            f'<td class="n">{f"${unmodelled:,.0f}mm" if unmodelled else ""}</td>'
+            f'<td class="g">{html_escape(guid_text)}</td>'
+            f'<td class="w" title="{_ki_attr(why)}">{html_escape(why[:88])}</td></tr>')
+    st.markdown(
+        '<table class="cov"><thead><tr><th>company</th><th>state</th>'
+        '<th class="n">revenue covered</th><th class="n">carried at nothing</th>'
+        '<th>against guidance</th><th>what is missing</th></tr></thead>'
+        f'<tbody>{"".join(body)}</tbody></table>', unsafe_allow_html=True)
+    note("Read as a work queue: the companies are sorted by the revenue the book carries "
+         "at nothing, which is what a model is worth writing for. A refusal is a state "
+         "rather than a gap, and the reason is the column beside it.")
+
+
 def _pulse_panel(api_base: str) -> None:
     """Sector news from the daily pulse, the whole sector rather than the universe:
     private rounds and other biotechs are kept. Drawn nothing when no briefing is on
@@ -10378,7 +10465,8 @@ with main:
         # away and they still belong to the universe rather than to a company, so
         # they are views here rather than tabs of their own.
         _view = st.segmented_control(
-            "Universe view", ["Overview", "Markets", "Policy"], default="Overview",
+            "Universe view", ["Overview", "Markets", "Policy", "Coverage"],
+            default="Overview",
             key="universe_view", label_visibility="collapsed") or "Overview"
 
         _all_changes = api_get(api_base, "/changes")
@@ -10390,6 +10478,8 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
+        elif _view == "Coverage":
+            _coverage_view(api_base)
         elif (_universe_redesigned(ticker, _view, (company or {}).get("engine"))
               and universe_page.render(api_base, ticker)):
             pass
