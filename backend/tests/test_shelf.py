@@ -8,6 +8,8 @@ revenue column and nothing to tell them apart.
 import datetime as dt
 
 import db
+import loe
+import marketing_status
 import shelf
 
 TODAY = dt.date(2026, 11, 2)
@@ -82,3 +84,65 @@ def test_the_two_unknowns_are_kept_apart(tmp_path):
     states = {r["name"]: r["state"] for r in shelf.for_company(path, "AAA", today=TODAY)["rows"]}
     assert states["NoLoe"] == "selling, exclusivity unknown"
     assert states["NoStatus"] == "status unknown"
+
+
+def test_a_withdrawn_product_that_still_earns_is_its_own_state(tmp_path):
+    """The FDA status is American and the revenue line beside it is worldwide. Pfizer's
+    Vyndaqel is discontinued here, because Vyndamax replaced it, and carries $6,380mm of
+    the tafamidis family's sales. Calling that withdrawn reads as $6.4bn of dead revenue
+    and calling it selling contradicts the FDA, so it is neither."""
+    path = _book(tmp_path, [("Gone", ["Discontinued"], "2033-01-01", 0),
+                            ("Earning", ["Discontinued"], "2033-01-01", 6380)])
+    states = {r["name"]: r["state"]
+              for r in shelf.for_company(path, "AAA", today=TODAY)["rows"]}
+    assert states["Gone"] == "withdrawn in the US"
+    assert states["Earning"] == "withdrawn in the US, still earning"
+
+
+def test_a_withdrawn_product_that_earns_nothing_has_no_us_cliff(tmp_path):
+    """It cannot lose US exclusivity: it is not sold here. Vizimpro sat in the 2032
+    column of the cliff chart on a patent protecting a product Pfizer stopped selling."""
+    path = _book(tmp_path, [("Gone", ["Discontinued"], "2033-01-01", 0)])
+    conn = db.get_connection(path)
+    try:
+        assert loe.for_assets(conn, [1]).get(1) is None
+        assert loe.for_assets(conn).get(1) is None
+    finally:
+        conn.close()
+
+
+def test_a_withdrawn_product_that_earns_keeps_its_cliff(tmp_path):
+    """Revenue is the evidence that something under the row is still sold. The $6,380mm
+    on Vyndaqel's application is the family's, and the molecule patent does gate it, so
+    dropping the date would hand a real cliff back five years of annuity."""
+    path = _book(tmp_path, [("Earning", ["Discontinued"], "2033-01-01", 6380)])
+    conn = db.get_connection(path)
+    try:
+        assert (loe.for_assets(conn, [1]).get(1) or {})["date"] == "2033-01-01"
+    finally:
+        conn.close()
+
+
+def test_the_strongest_status_across_applications_is_read_once_for_every_caller(tmp_path):
+    """shelf and loe have to agree about what is sold, so the rule lives in one module."""
+    path = _book(tmp_path, [("Both", ["Discontinued", "Prescription"], None, 0)])
+    conn = db.get_connection(path)
+    try:
+        assert marketing_status.for_assets(conn, [1]) == {1: "Prescription"}
+        assert marketing_status.for_assets(conn, []) == {}
+    finally:
+        conn.close()
+
+
+def test_the_status_read_is_batched_so_a_long_list_cannot_exceed_the_bind_limit(tmp_path):
+    """The cliff reads this for every asset carrying a date still ahead of it, 558 of
+    them today, and SQLite's parameter limit is a build option the call site must not
+    have to know."""
+    path = _book(tmp_path, [(f"P{i}", ["Prescription"], None, 0) for i in range(950)])
+    conn = db.get_connection(path)
+    try:
+        ids = list(range(1, 951))
+        assert marketing_status._BATCH < len(ids)
+        assert marketing_status.for_assets(conn, ids) == marketing_status.for_assets(conn)
+    finally:
+        conn.close()

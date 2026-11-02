@@ -584,6 +584,12 @@ def company_approvals(ticker: str) -> dict:
         # cliff counts on this one, so the chart and the value agree.
         valued = loe_module.for_assets(conn, [r["asset_id"] for r in rows],
                                        exclude_orphan=True)
+        # Where each product stands: selling and protected, selling off patent,
+        # withdrawn in the US, or one of the two unknowns. The card reads it beside the
+        # revenue, because a blank revenue column meant both "the company stopped
+        # selling it" and "no free source breaks it out" and they need opposite
+        # responses (backend/shelf.py).
+        standing = shelf_module.states_for(conn, [r["asset_id"] for r in rows])
     finally:
         conn.close()
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
@@ -594,6 +600,9 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
+        stands = standing.get(r["asset_id"]) or {}
+        r["marketing_status"] = stands.get("marketing_status")
+        r["shelf_state"] = stands.get("state")
         r["approval_status"] = ("recorded" if r.get("application_number")
                                 else "missing_record")
         # The filer's own biosimilar date sets the LOE where the 10-K states one; the
@@ -1727,7 +1736,9 @@ def regulatory_stream(days: int = Query(default=120)) -> dict:
 def company_shelf(ticker: str) -> dict:
     """Every marketed product of one company by where it stands: selling and protected,
     selling off patent, withdrawn in the US, or unknown. The reading is American, from
-    openFDA's marketing status and the book's own exclusivity, and it says so."""
+    openFDA's marketing status and the book's own exclusivity, and it says so: a product
+    the FDA calls discontinued that still files revenue gets its own state rather than
+    being filed under either, because the status is American and the revenue is not."""
     out = shelf_module.for_company(None, ticker)
     if not out.get("rows"):
         raise HTTPException(status_code=404,

@@ -1440,6 +1440,32 @@ _WHY_MODALITY = ("Small molecule or biologic, which decides the register the exp
                  "comes from: the Orange Book for one, the Purple Book for the other.")
 _WHY_BASIS = "Which patent or exclusivity sets the date above."
 
+# What the FDA says about whether the product is still on sale, from the marketing status
+# openFDA carries on every application (backend/shelf.py). Shown only where that is not
+# "on sale": the expected state on a marketed card is selling, and a chip on every one of
+# them would be decoration. Each reading is American and each caption says so, because
+# the revenue line beside it is worldwide.
+_SHELF_CHIP = {
+    "withdrawn in the US": ("withdrawn in the US", "gone", (
+        "The FDA lists every application for this product as discontinued, so it is no "
+        "longer sold in the United States. A blank revenue line here is the fact rather "
+        "than a gap: there is nothing to tag. openFDA knows what the FDA approved and "
+        "nothing about Europe or Japan, so this is withdrawn here and not withdrawn.")),
+    "withdrawn in the US, still earning": ("withdrawn in the US", "earning", (
+        "The FDA lists this application as discontinued and the filer still reports "
+        "revenue against it, which is the American status meeting a worldwide revenue "
+        "line. Either the product sells outside the United States, or the revenue row "
+        "covers a family whose other presentation is still on sale here. Pfizer's "
+        "Vyndaqel is the second: Vyndamax replaced it in the US and the $6,380mm is the "
+        "tafamidis family's. The valuation keeps the cliff where the row earns, because "
+        "the molecule patent gates whatever is being sold under it.")),
+    "status unknown": ("US status unknown", "unknown", (
+        "No application for this product carries a marketing status in openFDA, so "
+        "whether it is still sold here is not on file. This is most of the filers who "
+        "register outside the United States. It is an absence in the register, not a "
+        "withdrawal, and it is not read as either.")),
+}
+
 # How long after approval a small molecule can still hold unexpired protection. Beyond
 # it, nothing listed means nothing left rather than nothing published: five years of new
 # chemical entity exclusivity plus a patent term that rarely runs past the middle of the
@@ -11376,6 +11402,8 @@ with main:
                                                    if a.get("loe_earliest") else None),
                                 revenue=a.get("revenue"),
                                 revenue_unit=a.get("revenue_unit"),
+                                shelf_state=a.get("shelf_state"),
+                                marketing_status=a.get("marketing_status"),
                                 area=a.get("area"))
                         elif a.get("approval_date") and (
                                 not p["approved"] or a["approval_date"] < p["approved"]):
@@ -11689,12 +11717,36 @@ with main:
 
 
                     with _products_col:
+                        # How many of these the FDA no longer lists as on sale, named in
+                        # the heading rather than left to be counted card by card. It was
+                        # the larger half of the blank revenue column: across the book 421
+                        # of 1,524 marketed products are withdrawn here and 416 of those
+                        # carry no revenue, so the blank was the answer and not the gap.
+                        _shelved = sum(1 for p in prods
+                                       if (p.get("shelf_state") or "").startswith("withdrawn"))
                         section("Products",
-                                f"{len(prods)} &middot; click one for its fact sheet")
+                                f"{len(prods)} &middot; "
+                                + (f"{_shelved} withdrawn in the US &middot; " if _shelved else "")
+                                + "click one for its fact sheet")
 
                         def _product_card_html(p):
                             mod = (p.get("modality") or "").lower()
                             cls = "bio" if "bio" in mod else "small" if mod else ""
+                            # Whether the FDA still lists the product as on sale. A card
+                            # that is not sold here and earns nothing steps back: it is
+                            # shelved, not unfinished, and it was the larger half of the
+                            # blank revenue column this chip exists to explain.
+                            chip, chip_html = _SHELF_CHIP.get(p.get("shelf_state")), ""
+                            if chip:
+                                label, tone, why = chip
+                                chip_html = (f'<div><span class="pf-shelf {tone}" '
+                                             f'title="{html_escape(why)}">{label}</span></div>')
+                                # Dimmed only where the FDA says the product is gone
+                                # and nothing is earned against it. A product whose
+                                # status the register does not carry is not shelved, and
+                                # greying it would make an absence look like an answer.
+                                if tone == "gone":
+                                    cls += " shelved"
                             y = _loe_year(p)
                             near = y is not None and y <= today.year + 3
                             rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
@@ -11760,6 +11812,7 @@ with main:
                                 f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
                                 f'{html_escape(p.get("modality") or "")}</span></div>'
                                 f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                                f'{chip_html}'
                                 f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
                                 f'<span class="pf-k">approved</span>'
                                 f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'

@@ -10,27 +10,31 @@ runs three different things together under one word and one blank revenue column
 
 They look identical on the page and need opposite responses. The first should leave the
 book, the second is genuinely no free data and should say so, and only the third is work.
-Of 141 applications of the eight largest filers checked against openFDA, 20 are
-Discontinued and 19 of those carry no revenue.
+Of 1,524 marketed products, 421 are withdrawn in the US and 416 of those carry no
+revenue: the blank was the truth rather than a gap.
 
-Two readings settle it, and both are already on file once the fetcher stops dropping the
-first:
+Two readings settle it, and both are already on file:
 
-- **sold**, from openFDA's ``marketing_status`` on the application (``approvals``).
-  Prescription and over-the-counter are sold; Discontinued is not.
+- **sold**, from openFDA's marketing status on the application
+  (``marketing_status.for_assets``). Prescription and over-the-counter are sold;
+  Discontinued is not.
 - **exclusivity**, from the book's own LOE (``loe.for_assets``). A date in the past means
   generics or biosimilars are on the market, whatever the brand still earns.
 
 Nothing here is estimated. A product whose application the FDA does not resolve is
 reported as unknown rather than assumed to be selling.
 
-The reading is American, and the state says so. openFDA knows what the FDA approved and
-nothing about what a filer sells in Europe or Japan, so a discontinued application means
-withdrawn in the US and not withdrawn: $8.5bn of revenue sits on applications the FDA
-calls Discontinued, which is a product that stopped selling here and did not stop
-selling. The 218 assets with no status at all are mostly the filers who register
-elsewhere, and they carry $205.5bn, so this classification covers the American book and
-says where it does not reach.
+The reading is American, and the states say so. openFDA knows what the FDA approved and
+nothing about what a filer sells in Europe or Japan, while the revenue row beside it is
+worldwide. Where the two disagree the product gets its own state rather than being filed
+under either: Pfizer's Vyndaqel is discontinued here, because Vyndamax replaced it, and
+carries $6,380mm of the tafamidis family's worldwide sales. Calling that withdrawn would
+read as $6.4bn of dead revenue, and calling it selling would contradict the FDA. It is
+both, and the state is the pair.
+
+The 218 assets with no status at all are mostly the filers who register elsewhere, and
+they carry $205.5bn, so this classification covers the American book and says where it
+does not reach.
 """
 
 from __future__ import annotations
@@ -39,29 +43,67 @@ import datetime as dt
 
 import db
 import loe
+import marketing_status
 
-# openFDA's words for an application that is still on sale. Tentative approval is not:
-# it means the FDA would approve but something, usually exclusivity on the brand, stops
-# the product being marketed.
-SELLING = ("Prescription", "Over-the-counter")
+# Re-exported: callers that read a shelf row should not have to know which module holds
+# the FDA's vocabulary.
+SELLING = marketing_status.SELLING
 
 # Two different unknowns, kept apart. A product the FDA says is on sale and whose
 # exclusivity the book does not hold is a gap in the patent data; one whose status the
 # FDA does not resolve is a gap in the registry. Running them together put $216.9bn of
 # revenue under one word that meant neither.
+#
+# And two different withdrawals. One is the common case, a product that stopped selling
+# and earns nothing. The other is a product the FDA says is gone that still files
+# revenue, which is the American status meeting a worldwide revenue line, and it is five
+# products carrying $8,525mm.
 STATES = ("selling, protected", "selling, off patent", "selling, exclusivity unknown",
-          "withdrawn in the US", "status unknown")
+          "withdrawn in the US, still earning", "withdrawn in the US", "status unknown")
 
 
-def _state(status: str | None, loe_date: str | None, today: dt.date) -> str:
-    if status and status not in SELLING:
-        return "withdrawn in the US"
+def state_for(status: str | None, loe_date: str | None, today: dt.date,
+              revenue: float | None = None) -> str:
+    """One product's state, from its FDA status and the book's own exclusivity."""
+    if status and not marketing_status.sold_in_us(status):
+        return ("withdrawn in the US, still earning" if (revenue or 0) > 0
+                else "withdrawn in the US")
     if not status:
         return "status unknown"
     if not loe_date:
         return "selling, exclusivity unknown"
     return ("selling, off patent"
             if dt.date.fromisoformat(loe_date) < today else "selling, protected")
+
+
+def states_for(conn, asset_ids, today=None) -> dict:
+    """{asset_id: {marketing_status, state, loe, loe_basis}} for any list of assets.
+
+    The product page reads this beside each card and ``for_company`` totals it, so a card
+    and the board behind it cannot disagree about what a product is.
+    """
+    ids = list(asset_ids)
+    if not ids:
+        return {}
+    today = today or dt.date.today()
+    statuses = marketing_status.for_assets(conn, ids)
+    dates = loe.for_assets(conn, ids)
+    revenue = {r["asset_id"]: r["value"] for r in conn.execute(
+        f"""SELECT asset_id, value FROM asset_revenue
+             WHERE period = 'FY' AND asset_id IN ({', '.join('?' for _ in ids)})
+               AND fiscal_year = (SELECT MAX(fiscal_year) FROM asset_revenue r2
+                                   WHERE r2.asset_id = asset_revenue.asset_id
+                                     AND r2.period = 'FY')""", ids)}
+    out = {}
+    for asset_id in ids:
+        entry = dates.get(asset_id) or {}
+        status = statuses.get(asset_id)
+        out[asset_id] = {
+            "marketing_status": status,
+            "loe": entry.get("date"), "loe_basis": entry.get("basis"),
+            "state": state_for(status, entry.get("date"), today, revenue.get(asset_id)),
+        }
+    return out
 
 
 def for_company(db_path=None, ticker: str = "", today=None) -> dict:
@@ -73,30 +115,15 @@ def for_company(db_path=None, ticker: str = "", today=None) -> dict:
             """SELECT a.id, COALESCE(a.brand_name, a.generic_name) AS name,
                       (SELECT r.value / 1e6 FROM asset_revenue r
                         WHERE r.asset_id = a.id AND r.period = 'FY'
-                        ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue,
-                      (SELECT GROUP_CONCAT(DISTINCT ap.marketing_status)
-                         FROM approvals ap
-                        WHERE ap.asset_id = a.id
-                          AND ap.marketing_status IS NOT NULL) AS statuses
+                        ORDER BY r.fiscal_year DESC LIMIT 1) AS revenue
                  FROM assets a JOIN companies c ON c.id = a.owner_company_id
                 WHERE c.ticker = ? AND a.is_marketed = 1
                 ORDER BY a.id""", (ticker.upper(),))]
-        dates = loe.for_assets(conn, [r["id"] for r in rows]) if rows else {}
+        found = states_for(conn, [r["id"] for r in rows], today=today)
     finally:
         conn.close()
 
-    out = []
-    for row in rows:
-        entry = dates.get(row["id"]) or {}
-        # The strongest status across every application the asset holds, not the latest
-        # one's: a brand whose superseded formulation is discontinued and whose current
-        # one is not is still sold, and reading the newest application alone withdrew
-        # $11.7bn of selling revenue.
-        seen = {s for s in (row.pop("statuses", "") or "").split(",") if s}
-        status = next((s for s in SELLING if s in seen), None) or next(iter(seen), None)
-        out.append({**row, "marketing_status": status,
-                    "loe": entry.get("date"), "loe_basis": entry.get("basis"),
-                    "state": _state(status, entry.get("date"), today)})
+    out = [{**row, **found.get(row["id"], {})} for row in rows]
     totals = {state: {"products": 0, "revenue": 0.0} for state in STATES}
     for row in out:
         bucket = totals[row["state"]]

@@ -37,6 +37,22 @@
   .pf-v { font-family: var(--font-mono); color: var(--text); }
   .pf-v.none { color: var(--muted); }
   .pf-v.near { color: var(--down); font-weight: 600; }
+  /* Where the FDA says the product stands, shown only when that is not "on sale": the
+     expected state on a marketed card is selling, and a chip on all 448 of them would
+     be noise rather than an answer. */
+  .pf-shelf { display: inline-block; font-size: 8.5px; letter-spacing: 0.055em;
+              text-transform: uppercase; padding: 1px 4px; margin: 0 0 5px;
+              border: 1px solid var(--rule-strong); color: var(--muted);
+              white-space: nowrap; }
+  .pf-shelf.earning { border-color: var(--down); color: var(--down); }
+  /* An absence in the register is the quietest of the three: it says the FDA does not
+     carry the product, which is most of the filers who register elsewhere, and it must
+     not read as loudly as a withdrawal. */
+  .pf-shelf.unknown { border-color: var(--rule); }
+  /* A product that is not sold here and earns nothing reads as shelved, so the whole
+     card steps back rather than competing with the ones that are live. */
+  .pf-card.shelved { opacity: 0.6; }
+  .pf-card.shelved:hover { opacity: 1; }
 </style>
 </head>
 <body>
