@@ -23,6 +23,10 @@ import auto_resolve as auto_resolve_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
+import event_signal as event_signal_module
+import gate_odds as gate_odds_module
+import comparator_link as comparator_link_module
+import refusal_calendar as refusal_calendar_module
 import completeness as completeness_module
 import shelf as shelf_module
 import valuation_history as valuation_history_module
@@ -1765,6 +1769,57 @@ def valuation_backtest() -> dict:
     window means twelve months.
     """
     return valuation_history_module.build()
+
+
+@app.get("/refusal-calendar")
+def refusal_calendar_view() -> dict:
+    """The products the book refused to value, each with the condition that would make
+    it value them, kept verbatim, and the filing window where that condition names a
+    reporting year. Each is a moment the book is forced to reprice."""
+    return refusal_calendar_module.build()
+
+
+@app.get("/comparator-links")
+def comparator_links_view() -> dict:
+    """Which marketed drug each pipeline price and peak uptake was borrowed from, read
+    out of the assumption's own source, and how far that drug has since moved in CMS.
+
+    A link is taken only where the source says it borrowed, and a comparator is matched
+    to a brand the book holds rather than inferred; a row naming a class is reported as
+    unresolved. The drift is the comparator's realised spending per beneficiary and
+    beneficiaries in the latest CMS year against the year the seed cites.
+    """
+    return comparator_link_module.build(None)
+
+
+@app.get("/gate-odds")
+def gate_odds_view() -> dict:
+    """The probability the price pays for on each readout that carries its company,
+    against the probability the book holds, and whether the disagreement is about the
+    odds or about the payoff.
+
+    The rest of the company is taken out before the gate is inverted, and a gate is
+    reported only where its swing is a fifth or more of the book's value. An implied
+    probability above one is not a mispriced coin: the market disagrees about what the
+    asset is worth if it works, which the readout cannot settle, and the row says so.
+    """
+    return gate_odds_module.build(None)
+
+
+@app.get("/event-signal")
+def event_signal_view(benchmark: str = Query(default=event_signal_module.DEFAULT_BENCHMARK)) -> dict:
+    """Which detected changes precede a move, measured forward from the day the book
+    recorded them against XBI and a date-matched placebo.
+
+    The complement of /backtest, which measures around real event dates and finds the
+    move is already in the price. This measures from detection time, which is the day the
+    book could first have acted. It reports not enough history until the change feed has
+    accrued the company-months a result needs, and says so.
+    """
+    if benchmark not in (*event_signal_module.BENCHMARKS, "universe"):
+        raise HTTPException(status_code=400,
+                            detail=f"benchmark must be one of {event_signal_module.BENCHMARKS} or universe")
+    return event_signal_module.build(None, benchmark=benchmark)
 
 
 @app.get("/backtest")
