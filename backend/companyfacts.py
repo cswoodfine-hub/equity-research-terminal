@@ -316,6 +316,14 @@ FACILITY_BORROWINGS = [("us-gaap", "LineOfCredit"),
                        ("us-gaap", "LongTermLineOfCredit"),
                        ("us-gaap", "SecuredDebt")]
 
+# Borrowings and finance leases reported as one line. An upper bound on debt rather than
+# debt, so it is the last basis the ladder tries and only a filer the others leave stale
+# ever reaches it (total_debt_series says which).
+LEASE_MIXED_CANDIDATES = [
+    ("us-gaap", "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities"),
+    ("us-gaap", "LongTermDebtAndCapitalLeaseObligations"),
+]
+
 
 def _convertible_split(facts: dict) -> dict:
     """Convertible notes, non-current plus the current portion, at every date both or
@@ -377,10 +385,24 @@ def total_debt_series(facts: dict) -> dict[str, dict]:
     # Revolution Medicines' altogether. Last in the order, it is reached only by filers
     # the three bases above leave empty.
     conv = _convertible_split(facts)
+    # A filer can stop tagging the three concepts above and keep filing its debt under
+    # the lease-mixed one. Lantheus did after 2022: it owes $571.7mm of 2.625% converts
+    # at 2026-09-30 and its debt line read $558.1mm at 2022-12-31, 45 months stale, so
+    # the sum stopped at enterprise value for "no debt line filed near the balance
+    # sheet" however many of its products were modelled.
+    #
+    # The concept covers finance leases as well as borrowings, which is why it is last:
+    # it is an upper bound on debt, not debt. Operating leases, the large ones for this
+    # universe, are a different concept and are not in it, and the finance-lease part is
+    # what makes this approximate. Lantheus is the whole of its reach in this book: of
+    # the ten companies carrying a debt line stale by nine months or more, nine do not
+    # tag it at all and the tenth, Century Therapeutics, last tagged it in 2023.
+    lease_unit, lease_mixed = instant_series(facts, LEASE_MIXED_CANDIDATES)
     bases = [(b, u) for b, u in ((split, None),
                                  (combined, combined_unit),
                                  (single, single_unit),
-                                 (conv, None)) if b]
+                                 (conv, None),
+                                 (lease_mixed, lease_unit)) if b]
     if not bases:
         return {}
     latest = max(k for b, _ in bases for k in b)

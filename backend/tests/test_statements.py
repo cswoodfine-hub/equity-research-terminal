@@ -260,3 +260,34 @@ def test_capital_spending_survives_a_filer_changing_the_concept_it_tags_it_under
     assert names.index("PaymentsToAcquirePropertyPlantAndEquipment") < \
            names.index("PaymentsForCapitalImprovements") < \
            names.index("PaymentsToAcquireOtherProductiveAssets")
+
+
+def test_debt_survives_a_filer_moving_to_the_lease_mixed_concept():
+    """Lantheus stopped tagging LongTermDebtNoncurrent after 2022 and kept filing its
+    debt under the lease-mixed concept. Its line read $558.1mm at 2022-12-31 against
+    $571.7mm of converts outstanding at 2026-09-30, 45 months stale, so the sum stopped
+    at enterprise value whatever else was modelled.
+
+    The concept covers finance leases as well as borrowings, so it is an upper bound on
+    debt rather than debt, and it is the last basis the ladder tries.
+    """
+    import companyfacts
+    names = [name for _taxonomy, name in companyfacts.LEASE_MIXED_CANDIDATES]
+    assert names[0].endswith("IncludingCurrentMaturities")
+
+    def instant(value, end):
+        return {"units": {"USD": [{"end": end, "val": value, "form": "10-Q"}]}}
+
+    # A filer the other bases leave stale reaches it.
+    facts = {"us-gaap": {
+        "LongTermDebtNoncurrent": instant(558_100_000, "2022-12-31"),
+        "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities":
+            instant(571_700_000, "2026-09-30")}}
+    series = companyfacts.total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 571_700_000
+
+    # A filer whose standard line is current never does: the basis reaching the latest
+    # date wins, and an upper bound must not displace a figure that is debt exactly.
+    facts["us-gaap"]["LongTermDebtNoncurrent"] = instant(600_000_000, "2026-09-30")
+    series = companyfacts.total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 600_000_000
