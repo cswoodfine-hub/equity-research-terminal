@@ -4,6 +4,22 @@ Written after an audit that started from a question: a student's Eli Lilly deck 
 within 4% of the price and this book is 62% below it, so what is the book doing wrong.
 The audit answered it, and the answer moved the work.
 
+## Answered since, and it changes the premise
+
+**2026-11-07, `docs/where_the_gap_is.md`: there is no systematic gap.** Across the
+sixteen large caps the book's median upside is **+3.5%**, nine above the price and seven
+below; across all 47 it priced, −8.7% with twenty above. The book is centred on the
+market and disagrees in both directions. The audit's starting premise, that this book
+reads low, is false as a general statement.
+
+Lilly's $850.19 a share is one position, and it is not reachable by fixing anything.
+Forty-five of fifty-one levers cannot meet the price at any value in bounds, including
+Mounjaro's discount rate at its 2% floor, its LOE pushed to 2066 and its year-one erosion
+set to nil. The six that reach it need Mounjaro at $369,777mm of peak revenue against the
+$72,000mm modelled. Stated as one number: the book nets to **−0.23% real perpetual
+growth** on peak cash flow and the price requires **+3.13%**, against a measured
+historical organic figure of −0.02%.
+
 ## What the audit established
 
 **The revenue forecasting is not the problem.** Measured against the companies' own
