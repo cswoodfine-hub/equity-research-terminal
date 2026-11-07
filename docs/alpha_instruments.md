@@ -141,13 +141,30 @@ days ago with nothing found, kept rather than deleted. A regulatory catalyst wit
 approval is never missed, because there is no free register of complete response
 letters. The resolution is dated by the market's event, which is what `call_log` reads.
 
-**The first dry run was wrong, and the guard that fixed it is the finding.** An
-announced readout carries no trial id and is matched on company, drug and phase. GSK had
-two pending Jemperli Phase 2 readouts and Novartis six pending Rhapsido Phase 3s, and one
-announcement fitted all of them; the unguarded resolver picked one. Now an announcement
-that fits more than one pending catalyst resolves none and is logged as ambiguous. On
-2026-11-07 the guarded run resolves two by approval, slips three, marks two unknown and
-logs two ambiguous. Calibration still reads nil, correctly: every resolution so far
+**The first dry run was wrong, and reading the announcement properly is the finding.**
+An announced readout carries no trial id and is matched on company, drug and phase. GSK
+had two pending Jemperli Phase 2 readouts and Novartis six pending Rhapsido Phase 3s, and
+one announcement fitted all of them; the unguarded resolver picked one. The fix is to
+read the announcement itself, in three tiers. First the NCT numbers it names: Novartis's
+names NCT05147220 and NCT05156281, REMODEL-1/-2 in multiple sclerosis, neither of them a
+catalyst, so the announcement resolves none of the six urticaria readouts and is logged
+as *elsewhere*. That is the common case: of the stored announcements that name an NCT,
+seven of eight name one outside the register, because a trial that completed before the
+book looked never became a catalyst. Then the registry's own words for each sibling, its
+conditions, MeSH terms and primary outcome, against the text: GSK's says dMMR/MSI-H
+rectal cancer and cCR12, which of its three Jemperli studies (rectal, lung, head and
+neck) fits only AZUR-1, and that one resolves met. Where no body is stored the press
+release is fetched once from its SEC URL and cached. A word two siblings share cannot
+tell them apart, so any word in more than one sibling is dropped, and what is left is
+weighted by how rare it is across the whole register. Only words that fit every sibling
+alike leave a readout ambiguous. On 2026-11-07 the run resolves three met, slips three,
+marks two unknown, logs one elsewhere and nothing ambiguous.
+
+The *elsewhere* count is a finding about the register, not the resolver. A trial that
+completed before the book looked at it never becomes a catalyst, because the derivation
+only reads completion dates still ahead. The readouts the book most wants to score are
+the ones that happen, and seven of the eight announcements that name a trial name one
+the calendar never held. That gap is noted here and not yet fixed. Calibration still reads nil, correctly: every resolution so far
 predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on 11-22
 will be the first scored gates. The ledger travels in git.
 

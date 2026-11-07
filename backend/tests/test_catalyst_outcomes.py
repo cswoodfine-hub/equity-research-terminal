@@ -34,7 +34,7 @@ def test_a_pdufa_resolves_met_on_an_approval_row_and_is_dated_by_the_approval(tm
     conn.execute("INSERT INTO approvals (asset_id, region, agency, approval_date, application_number, source)"
                  " VALUES (10, 'US', 'FDA', '2026-09-03', 'NDA220210', 'openfda')")
     conn.commit()
-    assert CO.resolve(path, today=TODAY)["met"] == 1
+    assert CO.resolve(path, today=TODAY, fetch=False)["met"] == 1
     row = conn.execute("SELECT status, updated_at FROM catalysts WHERE id = 1").fetchone()
     assert row["status"] == "met" and row["updated_at"] == "2026-09-03"
     led = CO.ledger(path)[0]
@@ -47,7 +47,7 @@ def test_a_superseded_pdufa_is_slipped_and_names_its_successor(tmp_path):
     path, conn = _book(tmp_path)
     _catalyst(conn, 1, "PDUFA", "2026-08-22", "Deramiocel PDUFA")
     _catalyst(conn, 2, "PDUFA", "2026-11-22", "Deramiocel PDUFA, extended")
-    got = CO.resolve(path, today=TODAY)
+    got = CO.resolve(path, today=TODAY, fetch=False)
     assert got["slipped"] == 1 and got["open"] == 0
     assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "slipped"
     assert conn.execute("SELECT status FROM catalysts WHERE id = 2").fetchone()[0] == "pending"
@@ -59,7 +59,7 @@ def test_a_regulatory_catalyst_with_no_approval_is_never_missed(tmp_path):
     unknown after the grace period, not a refusal the book did not read."""
     path, conn = _book(tmp_path)
     _catalyst(conn, 1, "PDUFA", "2026-08-01", "Something PDUFA")
-    got = CO.resolve(path, today=TODAY)
+    got = CO.resolve(path, today=TODAY, fetch=False)
     assert got["unknown"] == 1 and got["missed"] == 0
 
 
@@ -72,7 +72,7 @@ def test_a_readout_resolves_on_an_announced_result_matched_on_drug_and_phase(tmp
     conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date)"
                  " VALUES ('0001-26-2', 1, 'otherdrug', 2, 'positive', '2026-11-04')")
     conn.commit()
-    got = CO.resolve(path, today=TODAY)
+    got = CO.resolve(path, today=TODAY, fetch=False)
     assert got["missed"] == 1 and got["met"] == 0
     assert conn.execute("SELECT updated_at FROM catalysts WHERE id = 1").fetchone()[0] == "2026-11-04"
 
@@ -81,35 +81,110 @@ def test_a_registry_slip_is_logged_and_the_row_stays_pending(tmp_path):
     """derive_readouts updates a derived readout in place when the registry moves its
     date, so a terminal status here would block its own successor."""
     path, conn = _book(tmp_path)
-    _catalyst(conn, 1, "data readout", "2026-10-15", "Phase 3, Rhapsido", "NCT1")
+    _catalyst(conn, 1, "data readout", "2026-10-15", "Phase 3, Rhapsido", "NCT00000001")
     conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, title, phase, overall_status,"
-                 " primary_completion_date) VALUES ('NCT1', 1, 'T', 'Phase 3', 'Recruiting', '2027-03-31')")
+                 " primary_completion_date) VALUES ('NCT00000001', 1, 'T', 'Phase 3', 'Recruiting', '2027-03-31')")
     conn.commit()
-    got = CO.resolve(path, today=TODAY)
+    got = CO.resolve(path, today=TODAY, fetch=False)
     assert got["slipped"] == 1
     assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
     assert "2027-03-31" in CO.ledger(path)[0]["evidence"]
     # Idempotent: the same slip is not logged twice.
-    assert CO.resolve(path, today=TODAY)["slipped"] == 0
+    assert CO.resolve(path, today=TODAY, fetch=False)["slipped"] == 0
 
 
 def test_a_window_still_open_is_left_alone(tmp_path):
     path, conn = _book(tmp_path)
-    _catalyst(conn, 1, "data readout", "2026-11", "Phase 3, Rhapsido", "NCT1")   # the month is open
-    assert CO.resolve(path, today=TODAY) == {"met": 0, "missed": 0, "slipped": 0, "unknown": 0, "open": 0}
+    _catalyst(conn, 1, "data readout", "2026-11", "Phase 3, Rhapsido", "NCT00000001")   # the month is open
+    assert CO.resolve(path, today=TODAY, fetch=False) == {"met": 0, "missed": 0, "slipped": 0, "unknown": 0, "open": 0}
     assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
 
 
-def test_a_readout_that_fits_two_pending_catalysts_resolves_neither(tmp_path):
-    """GSK had three pending Jemperli Phase 2 readouts and one announced result. The
-    announcement carries no trial id, so it fits all three, and resolving any is a guess."""
+def test_an_nct_named_in_the_announcement_resolves_that_sibling_alone(tmp_path):
+    """Two pending Rhapsido Phase 2s; the announcement names one trial's NCT."""
     path, conn = _book(tmp_path)
-    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 2, Rhapsido", "NCT1")
-    _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 2, Rhapsido", "NCT2")
-    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date)"
-                 " VALUES ('0001-26-9', 1, 'remibrutinib', 2, 'positive', '2026-10-03')")
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 2, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 2, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-1', 1, 'remibrutinib', 2, 'positive', '2026-10-03', 'The NCT00000002 study met its endpoint.')")
     conn.commit()
-    got = CO.resolve(path, today=TODAY)
-    assert got["met"] == 0 and got["missed"] == 0
-    assert {r["status"] for r in conn.execute("SELECT status FROM catalysts")} == {"pending"}
-    assert any(r["outcome"] == "ambiguous" for r in CO.ledger(path))
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 1
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 2").fetchone()[0] == "met"
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
+
+
+def test_an_announced_trial_outside_the_register_resolves_nothing_and_says_so(tmp_path):
+    """REMODEL-1/-2: the Novartis announcement names two MS trials, neither a catalyst,
+    while six urticaria readouts of the same drug sit pending. None of them happened."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 3, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-2', 1, 'remibrutinib', 3, 'positive', '2026-10-03',"
+                 " 'REMODEL-1/-2 (NCT05147220, NCT05156281) met their primary endpoint.')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 0
+    assert {r[0] for r in conn.execute("SELECT status FROM catalysts")} == {"pending"}
+    led = CO.ledger(path)
+    assert len(led) == 1 and led[0]["outcome"] == "elsewhere" and "NCT05147220" in led[0]["evidence"]
+
+
+def test_the_registrys_own_words_single_out_a_sibling_when_no_nct_is_named(tmp_path):
+    """GSK's three Jemperli Phase 2s are rectal, lung and head-and-neck studies, and the
+    announcement says dMMR/MSI-H rectal cancer and cCR12."""
+    path, conn = _book(tmp_path)
+    for cid, nct, title, cond, mesh, po in (
+            (1, "NCT00000011", "Phase 2, Jemperli", '["Neoplasms, Rectal"]',
+             '{"meshes":[{"term":"Rectal Neoplasms"}]}', "sustained complete clinical response (cCR12)"),
+            (2, "NCT00000012", "Phase 2, Jemperli", '["Lung Cancer, Non-Small Cell"]',
+             '{"meshes":[{"term":"Carcinoma, Non-Small-Cell Lung"}]}', "adverse events"),
+            (3, "NCT00000013", "Phase 2, Jemperli", '["Neoplasms, Head and Neck"]',
+             '{"meshes":[{"term":"Head and Neck Neoplasms"}]}', "event-free survival")):
+        _catalyst(conn, cid, "data readout", "2026-10-01", title, nct)
+        conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, title, phase, overall_status,"
+                     " conditions, mesh_terms, primary_outcome) VALUES (?, 1, ?, 'Phase 2', 'Recruiting', ?, ?, ?)",
+                     (nct, "A Study of Dostarlimab in " + cond, cond, mesh, po))
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-3', 1, 'Jemperli', 2, 'positive', '2026-10-03',"
+                 " 'Positive data in dMMR/MSI-H rectal cancer: the single arm trial met its"
+                 " primary objective, a sustained clinical complete response at 12 months (cCR12).')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 1
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "met"
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 2").fetchone()[0] == "pending"
+    assert "tokens" in CO.ledger(path)[0]["basis"]
+
+
+def test_words_that_fit_every_sibling_alike_stay_ambiguous(tmp_path):
+    path, conn = _book(tmp_path)
+    for cid, nct in ((1, "NCT00000021"), (2, "NCT00000022")):
+        _catalyst(conn, cid, "data readout", "2026-10-01", "Phase 2, Rhapsido", nct)
+        conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, title, phase, overall_status, conditions)"
+                     " VALUES (?, 1, 'Remibrutinib in chronic urticaria', 'Phase 2', 'Recruiting', '[\"Urticaria\"]')", (nct,))
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-4', 1, 'remibrutinib', 2, 'positive', '2026-10-03', 'Urticaria study met its endpoint.')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 0
+    assert {r[0] for r in conn.execute("SELECT status FROM catalysts")} == {"pending"}
+    assert CO.ledger(path)[0]["outcome"] == "ambiguous"
+
+
+def test_a_fetched_announcement_is_cached_and_read_once(tmp_path):
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 2, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 2, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote, source_url)"
+                 " VALUES ('A-5', 1, 'remibrutinib', 2, 'positive', '2026-10-03', 'met.', 'https://x/a.htm')")
+    conn.commit()
+    calls = []
+    def get(url):
+        calls.append(url)
+        return "<html><body>Results of the NCT00000002 study: met.</body></html>"
+    got = CO.resolve(path, today=TODAY, fetch=True, get=get)
+    assert got["met"] == 1 and calls == ["https://x/a.htm"]
+    cached = conn.execute("SELECT text FROM filing_sections WHERE accession='A-5' AND section='readout'").fetchone()
+    assert cached and "NCT00000002" in cached["text"]
