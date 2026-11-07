@@ -243,3 +243,20 @@ def test_derived_lines_reference_lines_that_exist():
         left, op, right = line.derived
         assert op == "-"
         assert left in statements.LINES_BY_KEY and right in statements.LINES_BY_KEY
+
+
+def test_capital_spending_survives_a_filer_changing_the_concept_it_tags_it_under():
+    """Lantheus moved off PaymentsToAcquireProductiveAssets after 2023 and Incyte after
+    2022, so both carried revenue to 2025 and capex to 2023 and 2022, and no free cash
+    margin could be struck for either. The later concepts are candidates now, and sit
+    after the standard ones so a filer whose usual line is current keeps it."""
+    names = [name for _taxonomy, name in
+             statements.LINES_BY_KEY["CapitalExpenditure"].candidates]
+    assert "PaymentsForCapitalImprovements" in names
+    assert "PaymentsToAcquireOtherProductiveAssets" in names
+    # Order is the rule: the standard line is tried first, and capital improvements
+    # before other productive assets, because Lantheus tags both and its other-assets
+    # line reads nil in 2025 where its improvements line reads $36.1mm.
+    assert names.index("PaymentsToAcquirePropertyPlantAndEquipment") < \
+           names.index("PaymentsForCapitalImprovements") < \
+           names.index("PaymentsToAcquireOtherProductiveAssets")

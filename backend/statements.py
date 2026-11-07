@@ -258,6 +258,16 @@ _CASHFLOW = (
              ("us-gaap", "PaymentsToAcquirePropertyPlantAndEquipment"),
              ("us-gaap", "PaymentsToAcquireOtherPropertyPlantAndEquipment"),
              ("us-gaap", "PaymentsToAcquireProductiveAssets"),
+             # A filer can change the concept it tags capital spending under and leave
+             # the series stopping dead: Lantheus moved off ProductiveAssets after 2023
+             # and Incyte after 2022, so both carried revenue to 2025 and capex to 2023
+             # and 2022, and no free cash margin could be struck for either. These two
+             # sit after the ones above, and a candidate only wins when it reaches the
+             # latest period, so a filer whose standard line is current keeps it.
+             # Capital improvements first: Lantheus tags both, and its OtherProductive
+             # line reads nil in 2025 where its improvements line reads $36.1mm.
+             ("us-gaap", "PaymentsForCapitalImprovements"),
+             ("us-gaap", "PaymentsToAcquireOtherProductiveAssets"),
              ("ifrs-full", "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities"),
              # Sanofi reports one payments line covering fixed and intangible assets
              # together and no PP&E-only figure, so this is its capital expenditure as
