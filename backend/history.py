@@ -9,7 +9,7 @@ cleanly. This is the git-scraping pattern, and it doubles as the backup.
 Only the tables the app produces over time are exported. Prices, financials and
 current trial state are re-fetchable and left out; the snapshot history that feeds
 the diff engine, the detected changes, the catalysts, the notes, the run ledger,
-the annotations and the FX rates are not, so those travel.
+the annotations, the FX rates and the model's own dated calls are not, so those travel.
 
 Rebuild is the inverse: recreate the schema, then load every row back with foreign
 keys off, since the export is already internally consistent and the referenced
@@ -33,6 +33,14 @@ HISTORY_TABLES = [
     # The model's calls as made each day (call_log.py): exported so each day's commit is
     # the dated record they are scored against.
     "model_calls", "gate_calls",
+    # What the book said each company was worth, on the day it said it
+    # (valuation_history.py). The same reason as the call log and a sharper one: a
+    # valuation call is scored against a forward return twelve months out, so the record
+    # has to survive twelve months of runs. It lived only inside the published database
+    # release, which no source can hand back if that asset is ever lost or a restore
+    # falls through to the rebuild path, and the twelve-month clock would start again
+    # from nothing.
+    "valuation_snapshots",
     # Every change to an analyst assumption (assumption_log.py). The assumptions table
     # itself reseeds from data/assumptions/*.csv, so the seeds and this ledger together
     # carry the model through a rebuild; the ledger alone carries what the seeds cannot,
