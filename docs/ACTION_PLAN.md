@@ -30,7 +30,7 @@ now being fixed.
 
 ## The order of work
 
-### 1. Settle the perpetuity question — ANSWERED 2026-11-02, see below
+### 1. Settle the perpetuity question — SETTLED 2026-11-07, see docs/perpetuity.md
 
 The answer is not a terminal growth rate or a discount rate. It is a revenue ceiling in
 `future_pipeline.room()` that nothing on any page named.
@@ -64,11 +64,25 @@ long-run rate, the share it caps away and whether it binds) and stated in the br
 launches step. Merck's binds on 1.2% today; Lilly's does not bind at the measured rate
 and binds hard above it.
 
-What is left to decide, and it is a judgement rather than a build: whether a book that
-can never exceed its own peak is the right model of a company that went from $34bn in
-2023 to a guided $91.5bn in 2026. Do not change it by fitting to a price. Change it, if
-at all, on evidence about whether large-cap pharma revenue in real terms has historically
-exceeded its own prior peak, which is measurable from the filings already on file.
+**Settled on the evidence, 2026-11-07. Keep the cap.** Ten-year real revenue growth for
+US large-cap pharma, 2007 to 2025, deflated by US CPI: +1.00% a year across every window,
+and **−0.02% once the four purchase windows are held out** (Schering-Plough, Celgene,
+Allergan, Alexion). Organic real growth is zero and the whole of the positive figure is
+bought, which the future pipeline line does not model. Conditioned on a peak instead of
+any starting point, the median large cap is at 0.95 times its old real peak ten years on.
+Gilead, the one prior organic breakout of Lilly's shape, went 2.9 times in two years on
+hepatitis C and then fell 4.0% a year for a decade to 0.66 times its peak. The sample is
+survivors, so the measured growth is biased up and the true organic figure is at or below
+zero. Full working in `docs/perpetuity.md`.
+
+**And the framing below needs correcting.** The ceiling is not the binding constraint on
+the disagreement with the market at the launch rate actually measured. Sweeping the cap
+from 0.0% to +4.0% real moves Lilly by 38 cents, from $523.51 to $523.13, because the
+launches never reach the ceiling at 0.4026 and where it sits is irrelevant. It costs
+0.04%. The ceiling is what makes the value asymptote near $315bn when launch productivity
+is swept to 3.00, and that is a different statement. The book is 62% below the price
+before the cap binds at all, so the gap is not in this line. Finding where it is, is now
+the open question.
 
 ### 1b. The original framing, kept for the record
 

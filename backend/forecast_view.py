@@ -2455,7 +2455,12 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
                 "peak": peak, "peak_year": peak_year, "growth": long_run,
                 "basis": "the book's own best year in real terms, grown at the long-run "
                          "rate from it: the launches refill what erodes and do not make "
-                         "the company larger than it has ever modelled being",
+                         "the company larger than it has ever modelled being. Measured, "
+                         "not assumed: ten-year real revenue growth for US large-cap "
+                         "pharma from 2007 to 2025 is nil once purchases are held out, "
+                         "and the one prior organic breakout of this shape, Gilead on "
+                         "hepatitis C, gave back a third of its peak within a decade "
+                         "(docs/perpetuity.md)",
                 "capped_share": got.get("capped_share"),
                 "binds": bool((got.get("capped_share") or 0) > 0.01),
             },
