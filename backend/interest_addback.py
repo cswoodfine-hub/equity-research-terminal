@@ -33,6 +33,7 @@ WINDOWS = {
     "BMY": (2023, 2025), "GILD": (2023, 2025), "GSK": (2023, 2025),
     "INCY": (2023, 2025), "JNJ": (2023, 2025), "MRK": (2023, 2025),
     "NVO": (2023, 2025), "NVS": (2023, 2025), "PFE": (2023, 2025),
+    "LNTH": (2023, 2025),
     "REGN": (2023, 2025), "SNY": (2023, 2025), "UTHR": (2023, 2025),
     "LLY": (2018, 2025),      # "over 2018 to 2025", the capacity build-out note
     "VRTX": (2021, 2025),     # "over the five years to 2025", the Alpine note

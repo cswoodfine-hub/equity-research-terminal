@@ -1,0 +1,24 @@
+# Neuraceq (LNTH). $51.4mm in FY2025, and NOT YET VALUABLE: no annual comparison exists.
+#
+# A florbetaben F-18 PET agent for amyloid imaging, which came to Lantheus with Life
+# Molecular Imaging. The acquisition closed in the second half of 2025: the filer's own
+# Consolidated Revenues Analysis (8-K exhibit 0001193125-26-336771, filed 2026-08-06)
+# shows Neuraceq earning $39,616 thousand in the second quarter of 2026 against nil in
+# the second quarter of 2025, and $75,055 thousand in the first half of 2026 against nil
+# in the first half of 2025, which the filer states as 100.0%.
+#
+# So there is no like-for-like pair anywhere on file. The FY2025 figure of $51.4mm is a
+# part year of ownership, not a year of trading, and the growth against it would be the
+# acquisition rather than the product. revenue_growth_pct is left out, so the engine will
+# refuse this model until it is written, which is the same convention Niktimvo, Aucatzyl
+# and PENMENVY carry.
+#
+# What would settle it: the FY2026 10-K, which gives the first full year, or an interim
+# comparison once two halves of ownership exist. The twelve months to 2026-06-30 are
+# computable today at $126.5mm, being the $51.4mm of FY2025 (all of it in the second
+# half, since the first half was nil) plus the $75.1mm of the first half of 2026, but a
+# base without a growth rate is not a forecast.
+#
+# The book holds a 2029-03-18 loss of exclusivity for it (loe.for_assets, drug substance
+# patent), so the horizon is short and the number will matter less than the date.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
