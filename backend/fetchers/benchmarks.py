@@ -58,6 +58,11 @@ SYMBOLS = {
     "XLV": "Health Care Select Sector SPDR, the sector a pharma book is read against",
     "PPH": "VanEck Pharmaceutical ETF, the global big pharma group the Universe tab is read "
            "against",
+    # The benchmark every forward-return measurement in this book is read against
+    # (event_signal says why the book's own universe cannot be). Equal-weight, so a
+    # small name counts as much as a large one, which is what the signal measures.
+    "XBI": "SPDR S&P Biotech ETF, equal-weight, the benchmark for every abnormal return",
+    "IBB": "iShares Biotechnology ETF, cap-weight, kept beside XBI as the check on it",
 }
 
 

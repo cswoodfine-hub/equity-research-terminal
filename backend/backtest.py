@@ -1,5 +1,8 @@
 """Backtest: did the change signals lead price moves?
 
+Every window is measured against XBI (``benchmark_series`` says why), with the book's
+own universe only as a stated fallback where XBI's series does not reach.
+
 The snapshot engine records a change when it first sees one. That is the point of
 keeping the history: over time it becomes a labelled set of events whose worth can be
 measured against what the stock actually did. This replays that set. For each change
@@ -23,6 +26,7 @@ from __future__ import annotations
 import bisect
 from collections import defaultdict
 
+import benchmark_series
 import db
 
 # Windows around the event, in trading days relative to the last bar on or before the
@@ -109,6 +113,7 @@ def build(db_path=None) -> dict:
     conn = db.get_connection(db_path)
     try:
         series = _series(conn)
+        bars = benchmark_series.series(conn, benchmark_series.BENCHMARK)
         events = _events(conn)
     finally:
         conn.close()
@@ -119,8 +124,13 @@ def build(db_path=None) -> dict:
         for window in WINDOWS:
             own = span_return(series, event["company_id"], event["date"],
                               window["a"], window["b"])
-            market = universe_span(series, event["date"], window["a"], window["b"],
-                                   event["company_id"])
+            # XBI where it covers the window, the book's own universe only where it does
+            # not, and the result says which: the universe is a benchmark almost anything
+            # beats (benchmark_series), so a figure against it is not the same claim.
+            market = benchmark_series.span(bars, event["date"], window["a"], window["b"])
+            if market is None:
+                market = universe_span(series, event["date"], window["a"], window["b"],
+                                       exclude=event["company_id"])
             if own is None or market is None:
                 continue
             by_type[event["change_type"]][window["key"]].append(own - market)

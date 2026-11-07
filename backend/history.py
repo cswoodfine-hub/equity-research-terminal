@@ -41,6 +41,11 @@ HISTORY_TABLES = [
     # falls through to the rebuild path, and the twelve-month clock would start again
     # from nothing.
     "valuation_snapshots",
+    # What became of each catalyst (catalyst_outcomes.py). The same reason again: a
+    # resolution is dated by an approval or an announcement and no source hands the
+    # calendar's own record back, so it travels with the snapshots rather than living
+    # only in the published database.
+    "catalyst_resolutions",
     # Every change to an analyst assumption (assumption_log.py). The assumptions table
     # itself reseeds from data/assumptions/*.csv, so the seeds and this ledger together
     # carry the model through a rebuild; the ledger alone carries what the seeds cannot,

@@ -11,7 +11,7 @@ Scoring (``score``) asks two questions of the record:
 
 - Does the model's 12-month upside rank the companies by what they then returned against
   the sector? Per day, the rank correlation (Spearman) between the upside and the return
-  over the horizon less PPH's, averaged over days: the information coefficient. The same is
+  over the horizon less XBI's, averaged over days: the information coefficient. The same is
   done for the analysts' targets, so the model is scored against the street, not in a vacuum.
   The hit rate is the share of calls whose upside had the sign of the excess return, and the
   spread is the top third's excess return less the bottom third's.
@@ -34,10 +34,11 @@ import os
 import subprocess
 from pathlib import Path
 
+import benchmark_series
 import db
 
 HORIZONS = {"1m": 30, "3m": 91, "6m": 182, "12m": 365}
-BENCHMARK = "PPH"
+BENCHMARK = benchmark_series.BENCHMARK   # XBI; benchmark_series says why
 # A horizon's end must have a close within this many days, so a stale price never stands in
 # for the end of a window.
 END_SLACK_DAYS = 5
@@ -211,11 +212,8 @@ def _close_on(conn, ticker: str, day: str) -> tuple | None:
 
 
 def _bench_on(conn, day: str) -> tuple | None:
-    row = conn.execute(
-        """SELECT substr(as_of, 1, 10) AS d, close FROM benchmark_prices
-            WHERE symbol = ? AND close IS NOT NULL AND substr(as_of, 1, 10) <= ?
-            ORDER BY as_of DESC LIMIT 1""", (BENCHMARK, day)).fetchone()
-    return (row["d"], row["close"]) if row else None
+    """(date, close) of the benchmark's last bar on or before ``day``, adjusted."""
+    return benchmark_series.on_or_before(benchmark_series.series(conn, BENCHMARK), day)
 
 
 def _ranks(values: list[float]) -> list[float]:
@@ -244,7 +242,8 @@ def spearman(xs: list[float], ys: list[float]) -> float | None:
 
 
 def _excess(conn, call, days: int, today: dt.date) -> float | None:
-    """The call's return over ``days`` from its close, less PPH's over the same dates."""
+    """The call's return over ``days`` from its close, less the benchmark's over the same
+    dates (XBI; benchmark_series says why not the book's own universe or PPH)."""
     start = call["price_date"] or call["as_of"]
     if not call["price"] or not start:
         return None

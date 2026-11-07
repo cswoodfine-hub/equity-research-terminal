@@ -51,9 +51,8 @@ import random
 import statistics
 from collections import Counter, defaultdict
 
-import bisect
-
 import backtest
+import benchmark_series as _bench
 import db
 
 # The benchmark a signal has to beat. XBI is the equal-weight biotech ETF, so it matches
@@ -62,7 +61,7 @@ import db
 # for comparison and not as the default: it is dragged by its own casualties and almost
 # anything beats it (the module docstring measures by how much).
 BENCHMARKS = ("XBI", "IBB", "XLV", "^GSPC")
-DEFAULT_BENCHMARK = "XBI"
+DEFAULT_BENCHMARK = _bench.BENCHMARK
 
 # Forward windows, in trading days from the day the book recorded the change.
 WINDOWS = ({"key": "fwd_1m", "label": "1 month", "days": 21},
@@ -105,25 +104,13 @@ def events(conn) -> list[dict]:
 
 
 def benchmark_series(conn, symbol: str = DEFAULT_BENCHMARK) -> list:
-    """[(day, close)] for one benchmark, adjusted where the source gives an adjusted
-    close. Returns [] for "universe", which has no series of its own."""
-    if symbol == "universe":
-        return []
-    return [(r["as_of"][:10], r["close"]) for r in conn.execute(
-        """SELECT as_of, COALESCE(adjclose, close) AS close FROM benchmark_prices
-            WHERE symbol = ? AND COALESCE(adjclose, close) IS NOT NULL
-            ORDER BY as_of""", (symbol,))]
+    """[(day, close)] for one benchmark; [] for "universe", which has no series."""
+    return [] if symbol == "universe" else _bench.series(conn, symbol)
 
 
 def benchmark_return(bars: list, day: str, days: int):
-    """The benchmark's return over the same window, or None where it runs off the end."""
-    if not bars:
-        return None
-    i = bisect.bisect_right([x[0] for x in bars], day) - 1
-    j = i + days
-    if not (0 <= i < len(bars)) or not (0 <= j < len(bars)):
-        return None
-    return bars[j][1] / bars[i][1] - 1 if bars[i][1] else None
+    """The benchmark's forward return over ``days`` bars, or None off the series."""
+    return _bench.span(bars, day, 0, days)
 
 
 def abnormal(series: dict, company_id: int, day: str, days: int, bars: list = None):

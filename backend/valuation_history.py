@@ -31,6 +31,7 @@ import bisect
 import datetime as dt
 from collections import defaultdict
 
+import benchmark_series
 import db
 
 # Forward windows, in trading days. A valuation is a slower claim than an approval, so
@@ -165,6 +166,7 @@ def build(db_path=None) -> dict:
     conn = db.get_connection(db_path)
     try:
         series = _series(conn)
+        bars = benchmark_series.series(conn, benchmark_series.BENCHMARK)
         calls = [dict(r) for r in conn.execute(
             "SELECT company_id, as_of, upside FROM valuation_snapshots"
             " WHERE upside IS NOT NULL ORDER BY as_of")]
@@ -180,8 +182,12 @@ def build(db_path=None) -> dict:
         bucket = _bucket(call["upside"])
         for window in WINDOWS:
             own = forward_return(series, call["company_id"], call["as_of"], window["days"])
-            market = universe_forward(series, call["as_of"], window["days"],
-                                      call["company_id"])
+            # XBI, and the book's own universe only where XBI's series does not reach
+            # (benchmark_series says why the universe is a benchmark almost anything beats).
+            market = benchmark_series.span(bars, call["as_of"], 0, window["days"])
+            if market is None:
+                market = universe_forward(series, call["as_of"], window["days"],
+                                          call["company_id"])
             if own is None or market is None:
                 continue
             by_bucket[bucket][window["key"]].append(own - market)
@@ -204,6 +210,7 @@ def build(db_path=None) -> dict:
 
     measured = max((w["n"] for r in rows for w in r["windows"].values()), default=0)
     return {
+        "benchmark": benchmark_series.BENCHMARK if bars else "universe",
         "windows": [{"key": w["key"], "label": w["label"]} for w in WINDOWS],
         "rows": rows,
         "calls": len(calls),

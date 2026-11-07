@@ -79,7 +79,7 @@ def _prices(conn, ticker, rows):
 
 
 def test_upside_that_ranks_the_returns_scores_one_and_a_reversed_street_minus_one(book):
-    # Six calls on one day; each stock's return over the month is its upside, PPH flat.
+    # Six calls on one day; each stock's return over the month is its upside, XBI flat.
     upsides = [-0.3, -0.1, 0.05, 0.1, 0.2, 0.4]
     for t, up in zip(TICKERS, upsides):
         call_log.record(book, as_of="2026-01-02", tickers=[t],
@@ -89,7 +89,7 @@ def test_upside_that_ranks_the_returns_scores_one_and_a_reversed_street_minus_on
     for t, up in zip(TICKERS, upsides):
         _prices(conn, t, [("2026-01-02", 100.0), ("2026-02-01", 100.0 * (1 + up))])
     for day in ("2026-01-02", "2026-02-01"):
-        conn.execute("INSERT INTO benchmark_prices (symbol, as_of, close) VALUES ('PPH', ?, 50)",
+        conn.execute("INSERT INTO benchmark_prices (symbol, as_of, close) VALUES ('XBI', ?, 50)",
                      (day,))
     conn.commit()
     conn.close()
@@ -108,7 +108,7 @@ def test_a_window_with_no_close_near_its_end_is_not_scored(book):
                     fair_fn=lambda t: _fair(100.0, 0.2), stakes_fn=lambda t: {})
     conn = db.get_connection(book)
     _prices(conn, "AAA", [("2026-01-02", 100.0), ("2026-01-10", 130.0)])
-    conn.execute("INSERT INTO benchmark_prices (symbol, as_of, close) VALUES ('PPH', '2026-01-02', 50)")
+    conn.execute("INSERT INTO benchmark_prices (symbol, as_of, close) VALUES ('XBI', '2026-01-02', 50)")
     conn.commit()
     conn.close()
     out = call_log.score(book, today=dt.date(2026, 3, 1))

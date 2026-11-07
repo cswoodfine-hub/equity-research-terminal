@@ -116,3 +116,55 @@ divestiture, nothing will settle.
 Trading the readout, which the run-up table settles. The rNPV level on a pre-revenue
 name, which is twenty-six rows where three carry the answer and all three are borrowed.
 And, after one afternoon, the first version of item 1, which the benchmark had made up.
+
+## Credibility, 2026-11-07: three things that turn instruments into a record
+
+Instruments with no track record are not credible, however good the calls. These three
+are what make the calls scorable.
+
+### Catalysts resolve (`catalyst_outcomes`, `/catalyst-resolutions`)
+
+Every one of the 814 catalysts on file was pending, and not because none had happened.
+`derive_readouts` deletes a derived readout once its date passes; a PDUFA row stays
+pending for ever; nothing read the approvals table or the announced readouts back
+against the calendar. Zilganersen was approved on 2026-09-03 under NDA220210 and its
+PDUFA, due 2026-09-22, was still pending. So `call_log` had scored no gate and the Brier
+calibration had never run.
+
+The resolver runs inside the refresh before the derivation that would delete the
+evidence, with four outcomes and a stated rule for each: met or missed from an approval
+row or an announced result dated inside the window; slipped where a PDUFA was superseded
+by a later row (deramiocel's three rows for 2026-08-22, extended to 2026-11-22) or the
+registry moved a readout's date, in which case the slip is logged and the row stays
+pending because `derive_readouts` updates it in place; unknown where a window closed 45
+days ago with nothing found, kept rather than deleted. A regulatory catalyst with no
+approval is never missed, because there is no free register of complete response
+letters. The resolution is dated by the market's event, which is what `call_log` reads.
+
+**The first dry run was wrong, and the guard that fixed it is the finding.** An
+announced readout carries no trial id and is matched on company, drug and phase. GSK had
+two pending Jemperli Phase 2 readouts and Novartis six pending Rhapsido Phase 3s, and one
+announcement fitted all of them; the unguarded resolver picked one. Now an announcement
+that fits more than one pending catalyst resolves none and is logged as ambiguous. On
+2026-11-07 the guarded run resolves two by approval, slips three, marks two unknown and
+logs two ambiguous. Calibration still reads nil, correctly: every resolution so far
+predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on 11-22
+will be the first scored gates. The ledger travels in git.
+
+### One benchmark (`benchmark_series`)
+
+Four modules measured against three things: `backtest` and `valuation_history` against
+the book's own universe, `call_log.score` against PPH, `event_signal` against XBI. All
+four now read XBI through one module, with the universe only as a stated fallback where
+XBI's series does not reach. XBI and IBB were never in the benchmark fetcher and had
+stopped at 2026-10-07; they are in it now and current.
+
+### The book against the street (`street`, `/street`)
+
+Agreement, not accuracy. Of 71 companies with a consensus target, 32 are readable (three
+or more analysts, a same-day call). Thirteen have book and street both above the price,
+three both below, and **sixteen have the book below the price and the street above it**.
+The book never stands above the street alone. Median gap of book to street mid: −21.9%.
+The sixteen include Lilly (book $474.50, street $1,396.75, 22 analysts), Viking, Praxis,
+NewAmsterdam and Capricor, which are the gate-odds names. Accuracy is `call_log.score`'s
+question and its first scorable horizon closes 2026-11-07.

@@ -27,6 +27,8 @@ import event_signal as event_signal_module
 import gate_odds as gate_odds_module
 import comparator_link as comparator_link_module
 import refusal_calendar as refusal_calendar_module
+import catalyst_outcomes as catalyst_outcomes_module
+import street as street_module
 import completeness as completeness_module
 import shelf as shelf_module
 import valuation_history as valuation_history_module
@@ -1769,6 +1771,29 @@ def valuation_backtest() -> dict:
     window means twelve months.
     """
     return valuation_history_module.build()
+
+
+@app.get("/catalyst-resolutions")
+def catalyst_resolutions_view(limit: int = Query(default=200)) -> dict:
+    """What became of each catalyst whose date has passed: met or missed from the
+    approvals table and the announced readouts, slipped where a successor row or the
+    registry moved it, unknown where a window closed with nothing found. The resolver
+    runs inside the refresh before the derivation that would otherwise delete the
+    evidence, and this is its ledger, dated by the market's event rather than the run."""
+    rows = catalyst_outcomes_module.ledger(None, limit=limit)
+    counts: dict = {}
+    for r in rows:
+        counts[r["outcome"]] = counts.get(r["outcome"], 0) + 1
+    return {"rows": rows, "counts": counts}
+
+
+@app.get("/street")
+def street_view() -> dict:
+    """The book against the street, company by company, today: the newest consensus
+    target with its range and analyst count beside the book's value from the same day's
+    call, and the street's FY2026 revenue beside the book's where both exist. Agreement,
+    not accuracy; call_log.score measures accuracy as the horizons close."""
+    return street_module.build(None)
 
 
 @app.get("/refusal-calendar")

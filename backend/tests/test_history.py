@@ -170,3 +170,23 @@ def test_a_second_run_in_a_day_replaces_its_call_rather_than_doubling_it(tmp_pat
             "SELECT COUNT(*) FROM valuation_snapshots").fetchone()[0] == 1
     finally:
         conn.close()
+
+
+def test_catalyst_resolutions_travel_in_git_like_the_valuation_calls(tmp_path):
+    """A resolution is dated by an approval or an announcement and no source hands the
+    calendar's own record back."""
+    assert "catalyst_resolutions" in history.HISTORY_TABLES
+    src = tmp_path / "src.db"
+    db.init(src)
+    seed.load_companies(src)
+    conn = db.get_connection(src)
+    conn.execute("INSERT INTO catalysts (id, company_id, catalyst_type, expected_date, title, status)"
+                 " VALUES (7, 1, 'PDUFA', '2026-09-22', 'X', 'met')")
+    conn.execute("INSERT INTO catalyst_resolutions (catalyst_id, outcome, event_date, source, evidence, basis, dedupe)"
+                 " VALUES (7, 'met', '2026-09-03', 'approvals', 'FDA approval NDA220210', 'rule', 'FDA approval NDA220210')")
+    conn.commit()
+    conn.close()
+    out = tmp_path / "history"
+    assert history.export(src, out)["catalyst_resolutions"] == 1
+    dest = tmp_path / "dest.db"
+    assert history.rebuild(dest, out)["catalyst_resolutions"] == 1
