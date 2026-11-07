@@ -1,0 +1,25 @@
+# CRENESSITY (NBIX). $301.2mm in FY2025, and NOT YET VALUABLE: this is a launch, not a
+# growth rate.
+#
+# Crinecerfont for congenital adrenal hyperplasia, launched in the US in December 2024.
+# Neurocrine's own Revenues table (10-Q 0000914475-26-000037, filed 2026-07-31) prints
+# $336.8mm of CRENESSITY net product sales in the first half of 2026 against $67.7mm in
+# the first half of 2025, which is +397.5%. The first half of 2026 alone already exceeds
+# the whole of FY2025.
+#
+# That is a ramp and not a rate. Carried into the engine as revenue_growth_pct it would
+# compound a launch curve for five fading years and then a perpetuity, which is not a
+# forecast of anything. The house convention for a launch product is a published peak
+# with the rate solved to reach it (forecast_view.apply_lever, revenue_ceiling_musd), and
+# Neurocrine publishes neither a peak nor FY2026 revenue guidance: fair_value.guidance
+# reads "no FY2026 revenue guidance on file" and nothing in the filings on file states a
+# peak sales expectation for the product.
+#
+# So revenue_growth_pct is left out and the engine will refuse this model until it is
+# written, which is the same convention Niktimvo, Aucatzyl and PENMENVY carry.
+#
+# What would settle it: an FY2026 full year, which gives the first pair of comparable
+# years, or a published peak. The book holds a 2043-01-12 loss of exclusivity for it
+# (loe.for_assets, drug substance patent), so the horizon is long and the peak is what
+# the value will turn on.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

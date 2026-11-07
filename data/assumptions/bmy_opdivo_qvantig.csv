@@ -1,0 +1,19 @@
+# OPDIVO QVANTIG (BMY). $238mm in FY2025, and NOT YET VALUABLE: a ramp, not a rate.
+#
+# Subcutaneous nivolumab with hyaluronidase, approved 2024-12-27, which converts existing
+# Opdivo patients rather than opening a new market. Bristol's own quarterly table (8-K
+# exhibit, 2026-10-29) prints worldwide sales of $334mm for the third quarter of 2026 and
+# states the growth only as ">200%" in every column it gives, against $38mm in the first
+# half of 2025 and $424mm in the first half of 2026.
+#
+# ">200%" is not a rate, and the underlying number is a conversion curve: the product
+# grows by taking volume from Opdivo, which this book already models, so an independent
+# growth rate on it would double count the franchise until the conversion settles.
+#
+# revenue_growth_pct is left out, so the engine will refuse this model until it is
+# written, which is the convention Niktimvo, Aucatzyl and PENMENVY carry. Bristol reaches
+# an equity value without it: this is 0.5% of a company guiding $50bn for 2026.
+#
+# What would settle it: a stated share of Opdivo volume the company expects to convert,
+# or two full years at a settled mix.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
