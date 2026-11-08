@@ -96,7 +96,8 @@ def test_a_registry_slip_is_logged_and_the_row_stays_pending(tmp_path):
 def test_a_window_still_open_is_left_alone(tmp_path):
     path, conn = _book(tmp_path)
     _catalyst(conn, 1, "data readout", "2026-11", "Phase 3, Rhapsido", "NCT00000001")   # the month is open
-    assert CO.resolve(path, today=TODAY, fetch=False) == {"met": 0, "missed": 0, "slipped": 0, "unknown": 0, "open": 0}
+    assert CO.resolve(path, today=TODAY, fetch=False) == {"met": 0, "missed": 0, "slipped": 0,
+                                                          "unknown": 0, "open": 0, "overturned": 0}
     assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
 
 
@@ -136,11 +137,11 @@ def test_twin_studies_named_together_both_resolve_on_the_one_result(tmp_path):
     assert all(r["event_date"] == "2026-08-20" for r in led)
 
 
-def test_an_unknown_readout_names_the_announcements_nobody_labelled(tmp_path):
-    """263 readouts closed unknown on the first lookback run and 160 of them had a
-    filing by the company inside the window flagged as a readout and never labelled. An
-    unlabelled row carries no drug and no phase, so the match is the company's alone and
-    the record says so. The labelling queue is the ledger itself."""
+def test_an_unknown_readout_names_the_filings_read_blank_inside_its_window(tmp_path):
+    """263 readouts closed unknown on the first lookback run and 171 of them had a
+    filing by the company inside the window that the reader had recorded as stating no
+    result. Such a row carries no drug and no phase, so the match is the company's alone
+    and the record says so: those are the filings a second reading goes back to."""
     path, conn = _book(tmp_path)
     _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
     for i, day in enumerate(("2026-08-15", "2026-08-20", "2026-09-01", "2026-09-10")):
@@ -153,9 +154,9 @@ def test_an_unknown_readout_names_the_announcements_nobody_labelled(tmp_path):
     assert got["unknown"] == 1
     led = CO.ledger(path)[0]
     assert led["outcome"] == "unknown"
-    assert led["evidence"].startswith("4 of the company's announcements")
+    assert led["evidence"].startswith("4 of the company's filings inside the window were read")
     assert "A-0, A-1, A-2 and 1 more" in led["evidence"] and "A-far" not in led["evidence"]
-    assert "unlabelled" in led["basis"]
+    assert "second reading" in led["basis"]
 
 
 def test_an_announced_trial_the_book_never_held_resolves_nothing_and_says_so(tmp_path):
@@ -230,6 +231,135 @@ def test_a_fetched_announcement_is_cached_and_read_once(tmp_path):
         calls.append(url)
         return "<html><body>Results of the NCT00000002 study: met.</body></html>"
     got = CO.resolve(path, today=TODAY, fetch=True, get=get)
-    assert got["met"] == 1 and calls == ["https://x/a.htm"]
+    # A page this short reads as an envelope, so the reader also looks for its exhibit;
+    # the folder index is the one extra request, and no exhibit is listed in it.
+    assert got["met"] == 1 and calls == ["https://x/a.htm", "https://x/index.json"]
     cached = conn.execute("SELECT text FROM filing_sections WHERE accession='A-5' AND section='readout'").fetchone()
     assert cached and "NCT00000002" in cached["text"]
+
+
+def test_a_result_labelled_later_overturns_an_unknown(tmp_path):
+    """The window closed with the filing read as an envelope, so the catalyst went
+    unknown. When the reader goes back with the exhibit and labels the result, the next
+    run overturns the unknown; both rows stay on the ledger and call_log reads met."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, outcome, event_date)"
+                 " VALUES ('A-5', 1, 'none', '2026-08-15')")
+    conn.commit()
+    first = CO.resolve(path, today=TODAY, fetch=False)
+    assert first["unknown"] == 1 and first["overturned"] == 0
+    led = CO.ledger(path)[0]
+    assert "were read and state no Phase 2 or 3 result: A-5" in led["evidence"]
+
+    conn.execute("UPDATE trial_readouts SET drug = 'remibrutinib', phase = 3, outcome = 'positive',"
+                 " quote = 'met its primary endpoint', reread_at = '2026-11-08' WHERE accession = 'A-5'")
+    conn.commit()
+    second = CO.resolve(path, today=TODAY, fetch=False)
+    assert second["met"] == 1 and second["overturned"] == 1 and second["unknown"] == 0
+    row = conn.execute("SELECT status, updated_at FROM catalysts WHERE id = 1").fetchone()
+    assert row["status"] == "met" and row["updated_at"] == "2026-08-15"
+    outcomes = sorted(r["outcome"] for r in CO.ledger(path))
+    assert outcomes == ["met", "unknown"]
+    # A third run changes nothing: the row is met, not unknown, so the pass skips it.
+    assert CO.resolve(path, today=TODAY, fetch=False)["overturned"] == 0
+
+
+def test_a_slip_or_grace_cannot_overturn_an_unknown(tmp_path):
+    """Only an announced result overturns an unknown; the registry and grace tiers are
+    not run again on a closed row."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
+                 " overall_status, primary_completion_date) VALUES ('NCT00000001', 1, 10, 'T',"
+                 " 'Phase 3', 'Active not recruiting', '2026-08-01')")
+    conn.commit()
+    assert CO.resolve(path, today=TODAY, fetch=False)["unknown"] == 1
+    conn.execute("UPDATE trials SET primary_completion_date = '2027-03-01' WHERE nct_id = 'NCT00000001'")
+    conn.commit()
+    again = CO.resolve(path, today=TODAY, fetch=False)
+    assert again["overturned"] == 0 and again["slipped"] == 0
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "unknown"
+
+
+def test_an_unknown_row_is_in_its_own_sibling_set_on_the_second_pass(tmp_path):
+    """argenx: Vyvgart Hytrulo's readout closed unknown; five more Vyvgart Phase 3s sit
+    pending for later years. The result labelled later names the unknown row's own
+    trial, so that row resolves and none of the five future ones does."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-01-12", "Phase 3, Rhapsido", "NCT00000001")
+    for i in range(2, 7):
+        _catalyst(conn, i, "data readout", f"2027-0{i}-01", "Phase 3, Rhapsido", f"NCT0000000{i}")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, outcome, event_date)"
+                 " VALUES ('A-6', 1, 'none', '2026-02-26')")
+    conn.commit()
+    assert CO.resolve(path, today=TODAY, fetch=False)["unknown"] == 1
+    conn.execute("UPDATE trial_readouts SET drug = 'remibrutinib', phase = 3, outcome = 'positive',"
+                 " quote = 'The NCT00000001 study met its primary endpoint.', reread_at = '2026-11-08'"
+                 " WHERE accession = 'A-6'")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["overturned"] == 1 and got["met"] == 1
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status[1] == "met" and all(status[i] == "pending" for i in range(2, 7))
+
+
+def test_the_second_pass_never_settles_a_pending_sibling(tmp_path):
+    """argenx again, the other way round: the labelled release fits a 2027 sibling's
+    registry words better than the unknown row's own. The sibling's window has not
+    closed, so the second pass leaves it and the announcement alone."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-01-12", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2027-06-01", "Phase 3, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase, overall_status,"
+                 " primary_completion_date, conditions) VALUES ('NCT00000002', 1, 10, 'Ocular study',"
+                 " 'Phase 3', 'Recruiting', '2027-06-01', '[\"Ocular myasthenia gravis\"]')")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, outcome, event_date)"
+                 " VALUES ('A-7', 1, 'none', '2026-02-20')")
+    conn.commit()
+    assert CO.resolve(path, today=TODAY, fetch=False)["unknown"] == 1
+    conn.execute("UPDATE trial_readouts SET drug = 'remibrutinib', phase = 3, outcome = 'positive',"
+                 " quote = 'The ocular myasthenia study met its primary endpoint.', reread_at = '2026-11-08'"
+                 " WHERE accession = 'A-7'")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["overturned"] == 0 and got["met"] == 0
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status == {1: "unknown", 2: "pending"}
+    assert all(r["outcome"] == "unknown" for r in CO.ledger(path))
+
+
+def test_a_sibling_at_another_phase_is_not_a_sibling(tmp_path):
+    """The phase is read off the catalyst's title, not the trial's registry title, which
+    rarely states one: a Phase 2 Vyvgart study was admitted to the siblings of a Phase 3
+    result and closed on it."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 2, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase, overall_status,"
+                 " primary_completion_date) VALUES ('NCT00000002', 1, 10, 'A study in adults', 'Phase 2',"
+                 " 'Recruiting', '2026-10-15')")
+    conn.commit()
+    rows = CO._sibling_rows(conn, {"id": 1, "company_id": 1, "asset_id": 10}, 3)
+    assert [r["id"] for r in rows] == [1]
+
+
+def test_an_ambiguous_release_does_not_stop_a_later_one_being_read(tmp_path):
+    """Two results for one drug inside one window: the first fits every sibling alike,
+    the second names this row's trial. The first is logged ambiguous; the second
+    resolves."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-10-20", "Phase 3, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-8', 1, 'remibrutinib', 3, 'positive', '2026-09-20', 'The study met its endpoint.')")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-9', 1, 'remibrutinib', 3, 'negative', '2026-10-05',"
+                 " 'The NCT00000001 study did not meet its primary endpoint.')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["missed"] == 1
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status == {1: "missed", 2: "pending"}
+    outcomes = sorted((r["outcome"], r["evidence"][:12]) for r in CO.ledger(path))
+    assert outcomes == [("ambiguous", "readout A-8:"), ("missed", "readout A-9:")]

@@ -55,7 +55,10 @@ logged as ``ambiguous`` and resolves nothing.
 **unknown.** A window that closed ``GRACE_DAYS`` ago with nothing found. The row is kept
 with that status rather than deleted, because a readout that was due and never announced
 is itself a fact about the company, and because ``derive_readouts`` only withdraws
-pending rows.
+pending rows. It is not final: the record names the company's filings inside the window
+that the reader found no result in, ``trial_readouts.reread`` reads those again with
+their exhibits, and a result labelled later overturns the unknown to met or missed on
+the next run. The unknown stays on the ledger beside the overturning row.
 
 Dating is the market's, not the machine's. The register's ``updated_at`` is what
 ``call_log`` reads as the resolution date, so it is set to the approval date or the
@@ -183,7 +186,7 @@ def announcement_text(conn, readout: dict, fetch: bool = True, get=None) -> str:
         try:
             form = conn.execute("SELECT form_type FROM filings WHERE accession = ?",
                                 (readout["accession"],)).fetchone()
-            text = trial_readouts.readout_text(
+            text, _read_from = trial_readouts.readout_text(
                 {"url": readout["source_url"],
                  "form_type": form["form_type"] if form else None},
                 get or trial_readouts._get)
@@ -279,14 +282,23 @@ def disambiguate(conn, siblings: list, text: str) -> tuple:
 
 
 def _sibling_rows(conn, cat, phase) -> list:
+    """The pending catalysts an announcement for this drug and phase could fit, and the
+    row under test itself whatever its status: on the second pass that row is unknown,
+    and judging the announcement against its future siblings alone, as the first
+    version did, left argenx's ADAPT OCULUS result fitting five studies and settling
+    none, with the one it was for not even in the set."""
     out = []
     for r in conn.execute(
-            """SELECT c.id, c.description AS nct, c.status, t.title, t.conditions,
-                      t.primary_outcome, t.mesh_terms
+            """SELECT c.id, c.description AS nct, c.status, c.title AS cat_title, t.title,
+                      t.conditions, t.primary_outcome, t.mesh_terms
                  FROM catalysts c LEFT JOIN trials t ON t.nct_id = c.description
                 WHERE c.company_id = ? AND c.asset_id IS ? AND c.catalyst_type = 'data readout'
-                  AND c.status = 'pending'""", (cat["company_id"], cat["asset_id"])):
-        if _phase_of(r["title"] if r["title"] else None) in (phase, None):
+                  AND (c.status = 'pending' OR c.id = ?)""",
+            (cat["company_id"], cat["asset_id"], cat["id"])):
+        # The phase is the catalyst's own title ("Phase 3, Vyvgart Hytrulo"); the trial's
+        # registry title rarely states one, and reading it there admitted a Phase 2
+        # study to the siblings of a Phase 3 result.
+        if _phase_of(r["cat_title"]) in (phase, None):
             row = dict(r)
             row["tokens"] = trial_tokens(r)
             out.append(row)
@@ -306,19 +318,19 @@ def _siblings(conn, cat, phase) -> int:
     n = 0
     for r in conn.execute(
             """SELECT title FROM catalysts WHERE company_id = ? AND asset_id IS ?
-                  AND catalyst_type = 'data readout' AND status = 'pending'""",
-            (cat["company_id"], cat["asset_id"])):
+                  AND catalyst_type = 'data readout' AND (status = 'pending' OR id = ?)""",
+            (cat["company_id"], cat["asset_id"], cat["id"])):
         if _phase_of(r["title"]) == phase:
             n += 1
     return n
 
 
-def _unread(conn, cat, lo, hi) -> tuple:
-    """(count, first accessions) of the company's announcements inside the window that
-    nobody has labelled. An unlabelled row carries no drug and no phase, only that a
-    filing was flagged as a readout, so the match is the company's alone and the record
-    says so. It cannot score the catalyst, but it is the reason the catalyst cannot be
-    scored, and naming the filings is what fills the labelling queue."""
+def _read_blank(conn, cat, lo, hi) -> tuple:
+    """(count, first accessions) of the company's filings inside the window that the
+    reader has on file as stating no Phase 2 or 3 result. They cannot score the
+    catalyst, but they are where its result would be if it was announced, so the record
+    names them: a person can check one, and ``trial_readouts.reread`` reads them again
+    with their exhibits, which is how an unknown is later overturned."""
     rows = [r["accession"] for r in conn.execute(
         """SELECT accession FROM trial_readouts
             WHERE company_id = ? AND COALESCE(outcome, '') NOT IN ('positive', 'negative')
@@ -327,11 +339,13 @@ def _unread(conn, cat, lo, hi) -> tuple:
     return len(rows), rows[:3]
 
 
-def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
+def _readout(conn, cat, window, today, fetch=True, get=None, announced_only=False) -> list | None:
     """The outcomes recorded for this catalyst's turn, one per row closed, or None.
 
     A list rather than one value because an announcement that names twin studies closes
-    both at once, and each is a scored call."""
+    both at once, and each is a scored call. ``announced_only`` is the second pass over
+    rows already closed unknown: only an announced result can overturn one, so the
+    registry and grace tiers are skipped."""
     lo, hi = _shift(window[0], -EARLY_DAYS), _shift(window[1], LATE_DAYS)
     phase = _phase_of(cat["title"])
     names = _names(conn, cat["asset_id"])
@@ -358,13 +372,23 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
             siblings = _sibling_rows(conn, cat, phase)
             text = announcement_text(conn, dict(r, company_id=cat["company_id"]), fetch, get)
             winners, how, why = disambiguate(conn, siblings, text)
+            if announced_only and winners and cat["id"] not in winners:
+                # The second pass asks one question, whether this closed row's result
+                # was announced. An announcement that fits a pending sibling better is
+                # that sibling's to take on its own turn, when its window has closed;
+                # closing it from here settled a 2027 study on a 2025 release.
+                continue
             if not winners:
                 _record(conn, cat["id"], how, "trial_readouts",
                         f"readout {r['accession']}: {why}",
                         "an announced result read against the pending catalysts it could "
                         "fit, by the trial numbers it names and then by the registry's own "
                         "words for each", r["event_date"], today)
-                return None
+                # Recorded, and passed over: a window can hold two results for one
+                # drug, and argenx's October CIDP release fitting six Vyvgart studies
+                # must not stop the February ADAPT OCULUS release, this row's own,
+                # from being read.
+                continue
             outcome = "met" if r["outcome"] == "positive" else "missed"
             basis = ("one of several pending catalysts, singled out by " + how
                      if len(winners) == 1 else
@@ -385,6 +409,8 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
                 r["event_date"], today)
         _close(conn, cat["id"], outcome, r["event_date"], today)
         return [outcome]
+    if announced_only:
+        return None
     # The registry moved the date: an event on a row that stays pending.
     if cat["description"] and str(cat["description"]).startswith("NCT"):
         trial = conn.execute(
@@ -398,14 +424,14 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
                 return ["slipped"]
             return None
     if _shift(window[1], GRACE_DAYS) < today.isoformat():
-        n_unread, first = _unread(conn, cat, lo, hi)
-        if n_unread:
-            more = f" and {n_unread - len(first)} more" if n_unread > len(first) else ""
-            ev = (f"{n_unread} of the company's announcements inside the window carry no "
-                  f"labelled outcome: {', '.join(first)}{more}")
-            basis = ("filings flagged as readouts sit inside the window unlabelled, so "
-                     "whether one of them is this trial's result cannot be read until "
-                     "they are")
+        n_blank, first = _read_blank(conn, cat, lo, hi)
+        if n_blank:
+            more = f" and {n_blank - len(first)} more" if n_blank > len(first) else ""
+            ev = (f"{n_blank} of the company's filings inside the window were read and "
+                  f"state no Phase 2 or 3 result: {', '.join(first)}{more}")
+            basis = ("the company filed inside the window and the reader found no "
+                     "result in what it read; a second reading with the exhibit can "
+                     "still overturn this")
         else:
             ev = None
             basis = (f"no announced result and no registry move {GRACE_DAYS} days after "
@@ -419,7 +445,7 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
 def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=None) -> dict:
     """Resolve every pending catalyst whose window has closed. Returns counts by outcome."""
     today = today or dt.date.today()
-    counts = {"met": 0, "missed": 0, "slipped": 0, "unknown": 0, "open": 0}
+    counts = {"met": 0, "missed": 0, "slipped": 0, "unknown": 0, "open": 0, "overturned": 0}
     # ``fetch`` lets the resolver read an announcement at its SEC URL where no body is
     # stored, once, and cache it; off in tests and anywhere a network call is unwanted.
     conn = db.get_connection(db_path)
@@ -445,6 +471,25 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
                 got = None
             for outcome in got or [None]:
                 counts[outcome or "open"] += 1
+        # Unknown is the one resolution that is not an observation: the window closed
+        # with nothing read. A result labelled later, when the reader went back to the
+        # filing with its exhibit, is the observation, and it overturns the unknown.
+        # The unknown stays on the ledger beside it; the register's status moves.
+        for cat in [dict(r) for r in conn.execute(
+                """SELECT id, company_id, asset_id, catalyst_type, expected_date, title,
+                          description FROM catalysts
+                    WHERE status = 'unknown' AND catalyst_type IN ('data readout')
+                      AND expected_date IS NOT NULL ORDER BY expected_date""")]:
+            if conn.execute("SELECT status FROM catalysts WHERE id = ?",
+                            (cat["id"],)).fetchone()["status"] != "unknown":
+                continue
+            window = date_window(cat["expected_date"])
+            if not window:
+                continue
+            got = _readout(conn, cat, window, today, fetch, get, announced_only=True)
+            for outcome in got or []:
+                counts[outcome] += 1
+                counts["overturned"] += 1
         conn.commit()
     finally:
         conn.close()

@@ -504,6 +504,8 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
+    # And the rows an earlier pass read from the envelope, once more with the exhibit.
+    trial_reads["reread"] = trial_readouts.reread(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
@@ -796,6 +798,8 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
     trial_reads = trial_readouts.extract(db_path)
+    # And the rows an earlier pass read from the envelope, once more with the exhibit.
+    trial_reads["reread"] = trial_readouts.reread(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.

@@ -188,10 +188,57 @@ the labelled register by drug name, and on the live book `pos_granular.stage_of`
 ulixacaltamide, venglustat and remibrutinib as "positive, NDA to approval" citing the
 same accessions the resolver does, while the seeded probabilities carry the readouts
 too. The stage is identical on both databases. What the resolution adds is the record
-pinned to its trial and dated by the market, which is what the scoreboard reads. Of the 265 unknown, 160 have a filing by the company
-inside the window that was flagged as a readout and never labelled, and the ledger now
-names those filings on each such row; that is the labelling queue, and it is the next
-constraint on the scoreboard. Calibration still reads nil, correctly: every resolution
+pinned to its trial and dated by the market, which is what the scoreboard reads. Of the 265 unknown, 171 have a filing by the company
+inside the window that the reader had on file as stating no result, and the ledger names
+those filings on each such row.
+
+**The reader, not the labelling, was the next constraint.** A `trial_readouts` row that
+says "none" is a filing the extractor read and found no Phase 2 or 3 result in. 1,287 of
+the 1,359 rows say so, and 251 of them were read from a cover under 6,000 characters
+with no result language; for 52 of those the exhibit already on file carries one. The
+first reader followed an 8-K to its EX-99 exhibit only when the cover lacked the cheap
+hint, never followed a 6-K at all, and an 8-K whose cover said "Phase 3" in its item
+line passed the hint and was read as if the cover were the release. Those rows were
+"did not look", recorded as "no result". Fixed 2026-11-08 in three parts. `readout_text`
+follows either form to its exhibit whenever the primary is short or states no result,
+and joins the two rather than swapping them so a drug named only on the cover still
+validates. `trial_readouts.reread` reads each such row once more through the same
+classifier and the same validation, the drug and the quoted sentence still required in
+the text the model read, stamps the row whatever it finds, and takes first the rows a
+catalyst closed unknown or pending past its date is waiting on. And the resolver lets a
+result labelled later overturn an unknown to met or missed, on the announced tier only;
+the unknown stays on the ledger beside it. In production the reading runs on the model
+the refresh has a key for, which today is Groq's Llama 3.3 70B; the Gemini key is local
+only.
+
+Measured on a copy of the book on 2026-11-08, with Gemini. The queue of "none" rows a
+catalyst was waiting on was 503 filings; the second reading took 13 minutes, labelled
+15 of them (14 positive, 1 negative), 10 of the 15 from text found only in the exhibit,
+and a guard added the same afternoon took three of the 15 back: a sentence that reports
+a result as already known, "as previously reported", "the designation is based on data
+from", is a restatement dated to the wrong filing and can settle a sibling the original
+already settled. Of the 12 that stand, one overturns an unknown: argenx's Vyvgart
+Hytrulo readout, due 2026-01-12, closed unknown and is met on the 2026-02-26 ADAPT
+OCULUS release, which the registry's words ("ocular", "myasthenia", "gravis") fit to
+NCT06558279 alone among six Vyvgart studies. The other eleven are results for trials the
+register never held as catalysts, Phase 2 cohorts and studies under another sponsor, or
+for catalysts already met. So the reader fault was real and the yield on the scoreboard
+is small: the 265 unknowns are mostly trials whose result was not announced in a filing
+inside the window at all. The constraint that remains is the announcement register's
+reach, not the reader.
+
+The copy also exposed three faults in the resolver's second pass, each fixed with a
+test. The sibling set was pending rows only, so an unknown row was judged against its
+future siblings and not itself, and the first version closed a 2027 Phase 2 Vyvgart study
+met on a 2025 Phase 3 CIDP release. The sibling phase was read off the trial's registry
+title, which rarely states one, rather than the catalyst's own, which is why that Phase 2
+was a sibling of a Phase 3 result at all. And a release judged ambiguous ended the row's
+turn, so the February release that was the argenx row's own was never read when the
+October one came first; an ambiguous release is now recorded and passed over. On the
+second pass only the row under test may win: a release that fits a pending sibling better
+is that sibling's to take on its own turn.
+
+Calibration still reads nil, correctly: every resolution
 predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on
 11-22 will be the first scored gates. The ledger travels in git.
 
