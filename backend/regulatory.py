@@ -98,6 +98,9 @@ def build(db_path=None, days: int = 120, today=None) -> dict:
     """
     today = today or dt.date.today()
     iso = today.isoformat()
+    # Counted from ``today``, not the database clock: a caller that fixes the day must
+    # get the same window every day it runs, or the page cannot be reproduced.
+    since = (today - dt.timedelta(days=int(days))).isoformat()
     conn = db.get_connection(db_path)
     try:
         meetings = [dict(r) for r in conn.execute(
@@ -112,9 +115,9 @@ def build(db_path=None, days: int = 120, today=None) -> dict:
             SELECT n.published_at AS date, n.source, n.title, n.url, c.ticker
               FROM news n LEFT JOIN companies c ON c.id = n.company_id
              WHERE n.source LIKE 'fda_%'
-               AND (n.published_at IS NULL OR n.published_at >= date('now', ?))
+               AND (n.published_at IS NULL OR n.published_at >= ?)
              ORDER BY n.published_at DESC, n.id DESC LIMIT 80
-            """, (f"-{int(days)} days",))]
+            """, (since,))]
     finally:
         conn.close()
 
