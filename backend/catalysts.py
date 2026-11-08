@@ -12,6 +12,8 @@ fetched yet, and remains a later add.
 
 from __future__ import annotations
 
+import datetime as dt
+
 import db
 
 CATALYST_TYPES = ["PDUFA", "data readout", "EMA decision", "AdCom", "conference", "other"]
@@ -41,6 +43,23 @@ NOTABLE_MIN_ENROLLMENT = 150
 # shown until it is near.
 READOUT_HORIZON_DAYS = 730
 
+# How far back a completed trial stays a readout. The register used to begin at today,
+# and a derived row was withdrawn the day after its date passed, so a trial that had
+# already completed when the book first looked never became a catalyst and one that
+# completed in the book's sight was deleted before any result could be matched to it.
+# Novartis's REMODEL-1 and -2 sat in ``trials`` at a July 2026 completion and were gone
+# from the calendar by the time their result was announced, so the resolver could only
+# log the announcement as "elsewhere". Reading back as far as forward keeps the row
+# pending until ``catalyst_outcomes`` closes it: met or missed on an announced result,
+# slipped on a registry move, unknown after its grace. Two years is as far back as the
+# announcement register reaches: on 2026-11-08 ``trial_readouts`` holds labelled results
+# from 2024 onward and nothing before, so an older row could only ever close unknown.
+#
+# The pipeline fetch never deletes, so a trial that completes on the registry keeps its
+# last live status here with its final date; that is what makes a completed trial
+# visible at all.
+READOUT_LOOKBACK_DAYS = 730
+
 # The pipeline in order, so "the most advanced thing this company is running" is a
 # computable idea rather than a list of phases.
 PHASE_RANK = {"Phase 1": 1, "Phase 1/2": 2, "Phase 2": 3, "Phase 2/3": 4,
@@ -50,10 +69,12 @@ PHASE_RANK = {"Phase 1": 1, "Phase 1/2": 2, "Phase 2": 3, "Phase 2/3": 4,
 # catalysts at all. Phase 3 is the line because the absolute rule already covers it.
 LEAD_PHASE_CEILING = PHASE_RANK["Phase 3"]
 
-# A trial that has stopped enrolling is still going to read out; one that was terminated
-# or withdrawn is not.
+# A trial that has stopped enrolling, or has completed, is still going to read out; one
+# that was terminated or withdrawn is not. The pipeline fetch asks the registry for live
+# studies only, so "Completed" never arrives from it today; it is admitted so that a row
+# the registry has closed is a readout the moment any fetch records that status.
 READOUT_STATUSES = ("Recruiting", "Active not recruiting", "Enrolling by invitation",
-                    "Not yet recruiting")
+                    "Not yet recruiting", "Completed")
 
 
 def add_catalyst(db_path, ticker, catalyst_type, expected_date, title,
@@ -177,12 +198,21 @@ def _readout_title(phase, brand, title) -> str:
     return f"{phase}, {subject}" if subject else phase
 
 
+def _is_ahead(due, today: str) -> bool:
+    """Whether a registry date is still to come. A month-only date is ahead while its
+    month is running, the reading the comps panel gives it."""
+    due = str(due or "")
+    if len(due) >= 10:
+        return due[:10] > today
+    return len(due) == 7 and due >= today[:7]
+
+
 def _date_confidence(expected_date) -> str:
     """A month-only date is coarser than an estimated day, and says so."""
     return "estimated" if len(str(expected_date or "")) >= 10 else "month"
 
 
-def _lead_phase_readouts(conn, within_days: int, already: set) -> list:
+def _lead_phase_readouts(conn, within_days: int, lookback_days: int, already: set) -> list:
     """Readouts for companies that have nothing at Phase 3, on their own lead phase.
 
     The thresholds above are calibrated on large pharma and say nothing about a
@@ -209,9 +239,9 @@ def _lead_phase_readouts(conn, within_days: int, already: set) -> list:
           LEFT JOIN assets a ON t.asset_id = a.id
          WHERE t.sponsor_company_id IS NOT NULL
            AND t.overall_status IN ({status_marks})
-           AND t.primary_completion_date BETWEEN date('now') AND date('now', ?)
+           AND t.primary_completion_date BETWEEN date('now', ?) AND date('now', ?)
         """,
-        (*READOUT_STATUSES, f"+{int(within_days)} days"),
+        (*READOUT_STATUSES, f"-{int(lookback_days)} days", f"+{int(within_days)} days"),
     ).fetchall()
 
     # The sponsor's most advanced active phase, across its whole live pipeline rather
@@ -242,10 +272,17 @@ def _lead_phase_readouts(conn, within_days: int, already: set) -> list:
 
 
 def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
+                    lookback_days=READOUT_LOOKBACK_DAYS,
                     late_phases=LATE_READOUT_PHASES,
                     notable_phases=NOTABLE_READOUT_PHASES,
                     min_enrollment=NOTABLE_MIN_ENROLLMENT) -> dict:
-    """Turn near-term trial primary completion dates into derived readout catalysts.
+    """Turn trial primary completion dates into derived readout catalysts.
+
+    The window runs ``lookback_days`` back and ``within_days`` ahead of today. A date
+    still ahead is a readout to come; one already passed is a readout to be scored, and
+    the row stays pending at its past date until the resolver closes it. Nothing that
+    lists upcoming catalysts shows a past row, because every such view filters on the
+    date; the resolver and the backtest are what read them.
 
     Late-stage phases qualify on the date alone. Earlier phases qualify only when their
     enrolment clears ``min_enrollment``, so a large Phase 2 efficacy study is a catalyst
@@ -263,7 +300,9 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
     A row resolved met or missed is history and is never touched again: no update, no
     second pending row for its trial, and no withdrawal once the trial leaves the
     window. pos_granular reads a resolved Phase 3 readout as evidence of where the
-    asset stands, so deleting one would quietly undo the readout.
+    asset stands, so deleting one would quietly undo the readout. Unknown is the one
+    resolution that is not an observation, and a row closed unknown whose registry date
+    has since moved ahead goes back to pending at the new date.
     """
     conn = db.get_connection(db_path)
     try:
@@ -278,21 +317,22 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
               LEFT JOIN assets a ON t.asset_id = a.id
              WHERE t.sponsor_company_id IS NOT NULL
                AND t.overall_status IN ({status_marks})
-               AND t.primary_completion_date BETWEEN date('now') AND date('now', ?)
+               AND t.primary_completion_date BETWEEN date('now', ?) AND date('now', ?)
                AND (
                      t.phase IN ({late_marks})
                      OR (t.phase IN ({notable_marks})
                          AND COALESCE(t.enrollment, 0) >= ?)
                    )
             """,
-            (*READOUT_STATUSES, f"+{int(within_days)} days",
+            (*READOUT_STATUSES, f"-{int(lookback_days)} days", f"+{int(within_days)} days",
              *late_phases, *notable_phases, min_enrollment),
         ).fetchall()
 
-        rows = list(rows) + _lead_phase_readouts(conn, within_days,
+        rows = list(rows) + _lead_phase_readouts(conn, within_days, lookback_days,
                                                  {r["nct_id"] for r in rows})
 
-        added = updated = 0
+        today = dt.date.today().isoformat()
+        added = updated = reopened = 0
         for row in rows:
             url = CTGOV_URL.format(nct_id=row["nct_id"])
             existing = conn.execute(
@@ -303,6 +343,22 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
             ).fetchone()
             title = _readout_title(row["phase"], row["brand_name"], row["title"])
             if existing is not None and (existing["status"] or "pending") != "pending":
+                # Unknown is the one resolution that is not an observation: the window
+                # closed with nothing found. A sponsor that updates the registry late
+                # then moves the date ahead, and the trial is a readout to come again,
+                # so the row goes back to pending at its new date. Met and missed are
+                # what happened and are never reopened.
+                if (existing["status"] == "unknown" and not existing["is_curated"]
+                        and _is_ahead(row["due"], today)):
+                    conn.execute(
+                        "UPDATE catalysts SET status = 'pending', expected_date = ?,"
+                        " date_confidence = ?, title = ?, company_id = ?,"
+                        " asset_id = COALESCE(?, asset_id),"
+                        " updated_at = datetime('now') WHERE id = ?",
+                        (row["due"], _date_confidence(row["due"]), title,
+                         row["company_id"], row["asset_id"], existing["id"]),
+                    )
+                    reopened += 1
                 continue                 # resolved: the readout happened, keep it as is
             if existing is None:
                 conn.execute(
@@ -336,9 +392,11 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                 )
                 updated += 1
 
-        # A trial that left the window, stopped, or read out should not linger as a
-        # pending catalyst. Only pending derived rows are withdrawn; curated ones are the
-        # analyst's, and resolved ones are the record of what happened.
+        # A trial that left the window or stopped should not linger as a pending
+        # catalyst. A trial whose date has passed is still inside the window, so a readout
+        # awaiting its result is kept for the resolver rather than withdrawn. Only pending
+        # derived rows are withdrawn; curated ones are the analyst's, and resolved ones
+        # are the record of what happened.
         live = {CTGOV_URL.format(nct_id=r["nct_id"]) for r in rows}
         stale = [
             r["id"] for r in conn.execute(
@@ -350,7 +408,7 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
         for catalyst_id in stale:
             conn.execute("DELETE FROM catalysts WHERE id = ?", (catalyst_id,))
         conn.commit()
-        return {"added": added, "updated": updated, "withdrawn": len(stale),
-                "total": len(rows)}
+        return {"added": added, "updated": updated, "reopened": reopened,
+                "withdrawn": len(stale), "total": len(rows)}
     finally:
         conn.close()

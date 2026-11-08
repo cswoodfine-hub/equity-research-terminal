@@ -145,28 +145,55 @@ letters. The resolution is dated by the market's event, which is what `call_log`
 An announced readout carries no trial id and is matched on company, drug and phase. GSK
 had two pending Jemperli Phase 2 readouts and Novartis six pending Rhapsido Phase 3s, and
 one announcement fitted all of them; the unguarded resolver picked one. The fix is to
-read the announcement itself, in three tiers. First the NCT numbers it names: Novartis's
-names NCT05147220 and NCT05156281, REMODEL-1/-2 in multiple sclerosis, neither of them a
-catalyst, so the announcement resolves none of the six urticaria readouts and is logged
-as *elsewhere*. That is the common case: of the stored announcements that name an NCT,
-seven of eight name one outside the register, because a trial that completed before the
-book looked never became a catalyst. Then the registry's own words for each sibling, its
-conditions, MeSH terms and primary outcome, against the text: GSK's says dMMR/MSI-H
-rectal cancer and cCR12, which of its three Jemperli studies (rectal, lung, head and
-neck) fits only AZUR-1, and that one resolves met. Where no body is stored the press
-release is fetched once from its SEC URL and cached. A word two siblings share cannot
-tell them apart, so any word in more than one sibling is dropped, and what is left is
-weighted by how rare it is across the whole register. Only words that fit every sibling
-alike leave a readout ambiguous. On 2026-11-07 the run resolves three met, slips three,
-marks two unknown, logs one elsewhere and nothing ambiguous.
+read the announcement itself, in three tiers. First the NCT numbers it names: a named
+trial that is a pending catalyst resolves, and where the release names several they all
+do, because Phase 3 programmes run as twins and report as one result. Named trials that
+are no catalyst at all mean the announcement is about something else, logged as
+*elsewhere*. Then the registry's own words for each sibling, its conditions, MeSH terms
+and primary outcome, against the text: GSK's says dMMR/MSI-H rectal cancer and cCR12,
+which of its three Jemperli studies (rectal, lung, head and neck) fits only AZUR-1, and
+that one resolves met. Where no body is stored the press release is fetched once from
+its SEC URL and cached. A word two siblings share cannot tell them apart, so any word in
+more than one sibling is dropped, and what is left is weighted by how rare it is across
+the whole register. Only words that fit every sibling alike leave a readout ambiguous.
+One announcement is one result: once it has closed a catalyst or been read and found to
+fit none, it is spent, and the sibling left pending after twins were named cannot take
+it as its own.
 
-The *elsewhere* count is a finding about the register, not the resolver. A trial that
-completed before the book looked at it never becomes a catalyst, because the derivation
-only reads completion dates still ahead. The readouts the book most wants to score are
-the ones that happen, and seven of the eight announcements that name a trial name one
-the calendar never held. That gap is noted here and not yet fixed. Calibration still reads nil, correctly: every resolution so far
-predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on 11-22
-will be the first scored gates. The ledger travels in git.
+**The register gap, found 2026-11-07 and closed 2026-11-08.** Novartis's release named
+NCT05147220 and NCT05156281, REMODEL-1 and -2, and the resolver logged it *elsewhere*
+because neither was a catalyst. Both were in `trials` all along, at a July 2026
+completion. The calendar had dropped them: `derive_readouts` began at today and withdrew
+a derived row the day after its date passed, so a trial that had completed before the
+book first looked never became a catalyst, and one that completed in the book's sight
+was deleted before its result could be matched to it. The resolver's 45-day grace never
+ran in production. The derivation now reads two years back as well as forward, as far
+back as the labelled announcements go (`trial_readouts` holds them from 2024), and keeps
+a past-dated row pending until the resolver closes it. No view of what is coming shows
+such a row, since every one filters on the date; the resolver and the backtest are what
+read them. The pipeline fetch never deletes, so a trial that completes on the registry
+keeps its last live status and its final date, which is what makes it visible at all;
+"Completed" is admitted too, so a fetch that ever records it makes a readout rather than
+a withdrawal. Unknown is the one resolution that is not an observation, so a row closed
+unknown whose registry date later moves ahead reopens as pending at the new date; met
+and missed never do.
+
+On a copy of the book on 2026-11-08 the lookback admits 337 past readouts (261 Phase 3)
+and the resolver closes 10 met, 3 slipped and 265 unknown, with 5 ambiguous and 68 still
+inside their grace. The met rows are ulixacaltamide (PRAX), aleniglipron (GPCR),
+tozorakimab and Tezspire (AZN), venglustat (SNY), REMODEL-1 and -2 (NVS, both on the one
+release), AZUR-1 (GSK) and the two approvals already on the ledger. No fair value moves, and
+none should: the position model had already read every one of these announcements from
+the labelled register by drug name, and on the live book `pos_granular.stage_of` gives
+ulixacaltamide, venglustat and remibrutinib as "positive, NDA to approval" citing the
+same accessions the resolver does, while the seeded probabilities carry the readouts
+too. The stage is identical on both databases. What the resolution adds is the record
+pinned to its trial and dated by the market, which is what the scoreboard reads. Of the 265 unknown, 160 have a filing by the company
+inside the window that was flagged as a readout and never labelled, and the ledger now
+names those filings on each such row; that is the labelling queue, and it is the next
+constraint on the scoreboard. Calibration still reads nil, correctly: every resolution
+predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on
+11-22 will be the first scored gates. The ledger travels in git.
 
 ### One benchmark (`benchmark_series`)
 

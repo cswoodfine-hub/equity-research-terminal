@@ -60,15 +60,19 @@ def _seed_trials(db_file):
     return soon
 
 
-def test_derive_readouts_selects_only_live_near_term_phase_three(tmp_path):
+def test_derive_readouts_selects_only_live_phase_three_inside_the_window(tmp_path):
+    """Two Phase 3s ahead and one already due are readouts; the small Phase 2, the
+    terminated study and the one three years out are not. The calendar of what is
+    coming shows the two ahead; the past one is held for the resolver."""
     db_file = tmp_path / "test.db"
     soon = _seed_trials(db_file)
 
     result = catalysts.derive_readouts(db_file)
-    assert result["added"] == 2 and result["total"] == 2
+    assert result["added"] == 3 and result["total"] == 3
 
     rows = catalysts.list_catalysts(db_file, within_days=365)
     assert {r["ticker"] for r in rows} == {"LLY", "MRK"}
+    assert not any(r["source_url"].endswith("NCT_PAST") for r in rows)
     row = next(r for r in rows if r["ticker"] == "LLY")
     assert row["catalyst_type"] == "data readout"
     assert row["expected_date"] == soon
@@ -165,6 +169,102 @@ def test_accepting_a_readout_protects_it_from_the_next_refresh(tmp_path):
     assert any(r["id"] == row["id"] for r in kept)
 
 
+def test_a_trial_already_due_is_a_readout_awaiting_its_result(tmp_path):
+    """The register used to begin at today, and a derived row was withdrawn the day
+    after its date passed, so a trial that had completed before the book looked never
+    became a catalyst and one that completed in its sight was deleted before a result
+    could be matched to it. Now a past date inside the lookback is a pending row at
+    that date, kept across runs, that only the resolver closes."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    past = conn.execute("SELECT status, expected_date, is_curated FROM catalysts"
+                        " WHERE source_url LIKE '%NCT_PAST'").fetchone()
+    conn.close()
+    expected = (dt.date.today() - dt.timedelta(days=30)).isoformat()
+    assert (past["status"], past["expected_date"], past["is_curated"]) == ("pending", expected, 0)
+
+    again = catalysts.derive_readouts(db_file)
+    assert again["withdrawn"] == 0 and again["added"] == 0      # kept, not withdrawn
+    conn = db.get_connection(db_file)
+    assert conn.execute("SELECT COUNT(*) FROM catalysts WHERE source_url LIKE '%NCT_PAST'"
+                        ).fetchone()[0] == 1
+    conn.close()
+
+
+def test_the_lookback_is_as_long_as_the_announcement_register(tmp_path):
+    """Two years back, where the labelled announcements begin. A Phase 3 that completed
+    before that could only ever close unknown, so it is not a catalyst."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    inside = (dt.date.today() - dt.timedelta(days=catalysts.READOUT_LOOKBACK_DAYS - 1)).isoformat()
+    outside = (dt.date.today() - dt.timedelta(days=catalysts.READOUT_LOOKBACK_DAYS + 1)).isoformat()
+    conn = db.get_connection(db_file)
+    _trial(conn, "NCT_EDGE", "MRK", "Phase 3", "Active not recruiting", inside)
+    _trial(conn, "NCT_OLD", "MRK", "Phase 3", "Active not recruiting", outside)
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    urls = {r[0] for r in conn.execute("SELECT source_url FROM catalysts")}
+    conn.close()
+    assert any(u.endswith("NCT_EDGE") for u in urls)
+    assert not any(u.endswith("NCT_OLD") for u in urls)
+
+
+def test_a_completed_trial_is_a_readout_not_a_withdrawal(tmp_path):
+    """A study the registry has closed is the one about to read out. The pipeline fetch
+    asks for live studies only, so the status never arrives from it today; admitting it
+    means any fetch that records it makes a readout rather than a withdrawal."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    due = (dt.date.today() - dt.timedelta(days=10)).isoformat()
+    conn = db.get_connection(db_file)
+    _trial(conn, "NCT_DONE", "LLY", "Phase 3", "Completed", due)
+    _trial(conn, "NCT_TERM", "LLY", "Phase 3", "Terminated", due)
+    conn.commit()
+    conn.close()
+    assert catalysts.derive_readouts(db_file)["added"] == 1
+    conn = db.get_connection(db_file)
+    urls = {r[0] for r in conn.execute("SELECT source_url FROM catalysts")}
+    conn.close()
+    assert any(u.endswith("NCT_DONE") for u in urls)
+    assert not any(u.endswith("NCT_TERM") for u in urls)
+
+
+def test_an_unknown_readout_reopens_when_the_registry_moves_its_date_ahead(tmp_path):
+    """Unknown is the one resolution that is not an observation. A sponsor that updates
+    the registry late moves the date ahead after the grace has closed the row, and the
+    trial is a readout to come again. Met and missed are what happened and stay."""
+    db_file = tmp_path / "test.db"
+    _seed_trials(db_file)
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    past_id = conn.execute("SELECT id FROM catalysts WHERE source_url LIKE '%NCT_PAST'").fetchone()[0]
+    p3_id = conn.execute("SELECT id FROM catalysts WHERE source_url LIKE '%NCT_P3'").fetchone()[0]
+    conn.close()
+    catalysts.set_status(db_file, past_id, "unknown")
+    catalysts.set_status(db_file, p3_id, "met")
+
+    ahead = (dt.date.today() + dt.timedelta(days=150)).isoformat()
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE trials SET primary_completion_date = ? WHERE nct_id IN ('NCT_PAST', 'NCT_P3')",
+                 (ahead,))
+    conn.commit()
+    conn.close()
+    result = catalysts.derive_readouts(db_file)
+    assert result["reopened"] == 1 and result["added"] == 0
+
+    conn = db.get_connection(db_file)
+    rows = {r["id"]: dict(r) for r in conn.execute("SELECT id, status, expected_date FROM catalysts")}
+    conn.close()
+    assert rows[past_id]["status"] == "pending" and rows[past_id]["expected_date"] == ahead
+    assert rows[p3_id]["status"] == "met"                       # history, untouched
+    assert len(rows) == 3                                       # no second row for either
+
+
 def test_derived_rows_are_withdrawn_when_the_trial_stops(tmp_path):
     db_file = tmp_path / "test.db"
     _seed_trials(db_file)
@@ -201,9 +301,10 @@ def test_a_resolved_readout_is_history_the_derivation_never_touches(tmp_path):
     again = catalysts.derive_readouts(db_file)
     assert again["added"] == 0 and again["updated"] == 0
 
+    # Terminated, not Completed: a completed study is still a readout and stays.
     conn = db.get_connection(db_file)
-    conn.execute("UPDATE trials SET overall_status = 'Completed'"
-                 " WHERE nct_id IN ('NCT_P3', 'NCT_P3B')")
+    conn.execute("UPDATE trials SET overall_status = 'Terminated'"
+                 " WHERE nct_id IN ('NCT_P3', 'NCT_P3B', 'NCT_PAST')")
     conn.commit()
     conn.close()
     gone = catalysts.derive_readouts(db_file)
@@ -212,7 +313,7 @@ def test_a_resolved_readout_is_history_the_derivation_never_touches(tmp_path):
     rows = [dict(r) for r in conn.execute(
         "SELECT id, status, expected_date, title, source_url FROM catalysts")]
     conn.close()
-    assert gone["withdrawn"] == 1                     # MRK's pending row, not the resolved
+    assert gone["withdrawn"] == 2                     # MRK's and the past pending rows
     assert len(rows) == 1
     kept = rows[0]
     assert kept["id"] == resolved["id"] and kept["status"] == "missed"

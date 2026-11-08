@@ -114,9 +114,54 @@ def test_an_nct_named_in_the_announcement_resolves_that_sibling_alone(tmp_path):
     assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
 
 
-def test_an_announced_trial_outside_the_register_resolves_nothing_and_says_so(tmp_path):
-    """REMODEL-1/-2: the Novartis announcement names two MS trials, neither a catalyst,
-    while six urticaria readouts of the same drug sit pending. None of them happened."""
+def test_twin_studies_named_together_both_resolve_on_the_one_result(tmp_path):
+    """REMODEL-1 and REMODEL-2 read out in a single Novartis release carrying one
+    outcome. Each named sibling is closed on it; the unnamed third stays pending."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-07-21", "Phase 3, Rhapsido", "NCT05147220")
+    _catalyst(conn, 2, "data readout", "2026-07-22", "Phase 3, Rhapsido", "NCT05156281")
+    _catalyst(conn, 3, "data readout", "2026-10-15", "Phase 3, Rhapsido", "NCT00000003")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-3', 1, 'remibrutinib', 3, 'positive', '2026-08-20',"
+                 " 'REMODEL-1/-2 (NCT05147220, NCT05156281) met their primary endpoint.')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    # The third's window has closed too, and the one announcement is spent on the twins
+    # it names: it must not take it as its own on its turn, so it stays open.
+    assert got["met"] == 2 and got["open"] == 1
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts")}
+    assert status == {1: "met", 2: "met", 3: "pending"}
+    led = CO.ledger(path)
+    assert len(led) == 2 and all("read out together" in r["evidence"] for r in led)
+    assert all(r["event_date"] == "2026-08-20" for r in led)
+
+
+def test_an_unknown_readout_names_the_announcements_nobody_labelled(tmp_path):
+    """263 readouts closed unknown on the first lookback run and 160 of them had a
+    filing by the company inside the window flagged as a readout and never labelled. An
+    unlabelled row carries no drug and no phase, so the match is the company's alone and
+    the record says so. The labelling queue is the ledger itself."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
+    for i, day in enumerate(("2026-08-15", "2026-08-20", "2026-09-01", "2026-09-10")):
+        conn.execute("INSERT INTO trial_readouts (accession, company_id, outcome, event_date)"
+                     " VALUES (?, 1, 'none', ?)", (f"A-{i}", day))
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, outcome, event_date)"
+                 " VALUES ('A-far', 1, 'none', '2026-10-30')")        # outside the window
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["unknown"] == 1
+    led = CO.ledger(path)[0]
+    assert led["outcome"] == "unknown"
+    assert led["evidence"].startswith("4 of the company's announcements")
+    assert "A-0, A-1, A-2 and 1 more" in led["evidence"] and "A-far" not in led["evidence"]
+    assert "unlabelled" in led["basis"]
+
+
+def test_an_announced_trial_the_book_never_held_resolves_nothing_and_says_so(tmp_path):
+    """The announcement names two trials that are no catalyst at all, while readouts of
+    the same drug sit pending. None of them happened. Since the register reads back as
+    far as the announcements go, this is now a trial the book never fetched."""
     path, conn = _book(tmp_path)
     _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 3, Rhapsido", "NCT00000001")
     _catalyst(conn, 2, "data readout", "2026-10-15", "Phase 3, Rhapsido", "NCT00000002")

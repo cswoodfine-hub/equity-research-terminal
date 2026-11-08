@@ -40,10 +40,13 @@ studies of one drug: Novartis had six pending Rhapsido Phase 3s, GSK two Jemperl
 announcement text, which is the stored filing body or, fetched once and cached, the
 press release at its own SEC URL, is read for NCT numbers: one that is a pending
 catalyst resolves that catalyst, and NCTs that are none of them mean the announced trial
-was never in the register, which is logged as ``elsewhere`` and resolves nothing. That is
-the common case, not the edge: of the stored announcements that name an NCT, seven of
-eight name one outside the register, because a trial that completed before the book
-looked never became a catalyst. Failing an NCT, the registry's own description of each
+was never in the register, which is logged as ``elsewhere`` and resolves nothing. Until
+2026-11-08 that was the common case, not the edge: the derivation began at today and
+withdrew a derived row the day after its date passed, so a trial that had completed was
+gone from the calendar by the time its result was announced. ``derive_readouts`` now
+reads two years back as well as forward and keeps a past-dated row pending for this
+module to close, so an announced trial is "elsewhere" only when the book never held it
+at all. Failing an NCT, the registry's own description of each
 sibling, its conditions, MeSH terms and primary outcome, is scored against the text,
 and a sibling that alone carries the announcement's words resolves: "dMMR/MSI-H",
 "rectal" and "cCR12" belong to one of GSK's three. Failing that, the announcement is
@@ -228,10 +231,14 @@ def _rare(conn, words: set) -> set:
 
 
 def disambiguate(conn, siblings: list, text: str) -> tuple:
-    """(winner catalyst id or None, how, evidence) for an announcement fitting several.
+    """(winning catalyst ids, how, evidence) for an announcement fitting several.
 
-    NCT first: a named trial that is a pending sibling wins outright; named trials that
-    are none of the siblings mean the announcement is about something else. Then the
+    NCT first: a named trial that is a pending sibling wins outright, and where the
+    announcement names several siblings they all do. Phase 3 programmes are commonly
+    run as twins and announced as one result: Novartis's REMODEL-1 and REMODEL-2 read
+    out in a single release, and an announcement carrying one outcome for the trials it
+    names is a result for each of them. Named trials that are none of the siblings mean
+    the announcement is about something else. Then the
     registry's words. A word two siblings share cannot tell them apart, so any word in
     more than one sibling is dropped, not only the words in all of them: GSK's rectal
     and head-and-neck studies both say "locally advanced" and "dostarlimab", and keeping
@@ -243,12 +250,12 @@ def disambiguate(conn, siblings: list, text: str) -> tuple:
     named = set(_NCT.findall(text))
     if named:
         hits = [s for s in siblings if s["nct"] in named]
-        if len(hits) == 1:
-            return hits[0]["id"], "nct", f"the announcement names {hits[0]['nct']}"
-        if not hits:
-            return None, "elsewhere", (f"the announcement names {', '.join(sorted(named))}, "
-                                       f"none of them a pending catalyst")
-        return None, "ambiguous", f"the announcement names {len(hits)} pending catalysts"
+        if hits:
+            listed = ", ".join(sorted(h["nct"] for h in hits))
+            together = ", read out together" if len(hits) > 1 else ""
+            return [h["id"] for h in hits], "nct", f"the announcement names {listed}{together}"
+        return [], "elsewhere", (f"the announcement names {', '.join(sorted(named))}, "
+                                 f"none of them a pending catalyst")
     counts: dict = {}
     for s in siblings:
         for w in s["tokens"]:
@@ -265,10 +272,10 @@ def disambiguate(conn, siblings: list, text: str) -> tuple:
     top = scored[0] if scored else None
     runner = scored[1][0] if len(scored) > 1 else 0.0
     if top and top[0] >= MIN_SCORE and top[0] >= LEAD_RATIO * max(runner, COMMON_WEIGHT):
-        return top[1]["id"], "tokens", (f"the announcement carries {', '.join(top[2][:6])}, "
-                                        f"which of the {len(siblings)} fit only {top[1]['nct']}")
-    return None, "ambiguous", (f"the announcement's words fit {len(siblings)} pending "
-                               f"catalysts and single out none")
+        return [top[1]["id"]], "tokens", (f"the announcement carries {', '.join(top[2][:6])}, "
+                                          f"which of the {len(siblings)} fit only {top[1]['nct']}")
+    return [], "ambiguous", (f"the announcement's words fit {len(siblings)} pending "
+                             f"catalysts and single out none")
 
 
 def _sibling_rows(conn, cat, phase) -> list:
@@ -306,7 +313,25 @@ def _siblings(conn, cat, phase) -> int:
     return n
 
 
-def _readout(conn, cat, window, today, fetch=True, get=None) -> str | None:
+def _unread(conn, cat, lo, hi) -> tuple:
+    """(count, first accessions) of the company's announcements inside the window that
+    nobody has labelled. An unlabelled row carries no drug and no phase, only that a
+    filing was flagged as a readout, so the match is the company's alone and the record
+    says so. It cannot score the catalyst, but it is the reason the catalyst cannot be
+    scored, and naming the filings is what fills the labelling queue."""
+    rows = [r["accession"] for r in conn.execute(
+        """SELECT accession FROM trial_readouts
+            WHERE company_id = ? AND COALESCE(outcome, '') NOT IN ('positive', 'negative')
+              AND event_date BETWEEN ? AND ? ORDER BY event_date""",
+        (cat["company_id"], lo, hi))]
+    return len(rows), rows[:3]
+
+
+def _readout(conn, cat, window, today, fetch=True, get=None) -> list | None:
+    """The outcomes recorded for this catalyst's turn, one per row closed, or None.
+
+    A list rather than one value because an announcement that names twin studies closes
+    both at once, and each is a scored call."""
     lo, hi = _shift(window[0], -EARLY_DAYS), _shift(window[1], LATE_DAYS)
     phase = _phase_of(cat["title"])
     names = _names(conn, cat["asset_id"])
@@ -321,16 +346,19 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> str | None:
             continue
         if not _drug_matches(r["drug"], names, cat["title"]):
             continue
+        # One announcement is one result. Once it has closed a catalyst, or been read
+        # and found to fit none, it is spent: the sibling left pending after twins were
+        # named must not take it as its own on a later turn.
+        already = conn.execute(
+            "SELECT 1 FROM catalyst_resolutions WHERE evidence LIKE ? LIMIT 1",
+            (f"readout {r['accession']}%",)).fetchone()
+        if already:
+            continue
         if ambiguous:
-            already = conn.execute(
-                "SELECT 1 FROM catalyst_resolutions WHERE evidence LIKE ? LIMIT 1",
-                (f"readout {r['accession']}%",)).fetchone()
-            if already:
-                return None                     # this announcement was read once already
             siblings = _sibling_rows(conn, cat, phase)
             text = announcement_text(conn, dict(r, company_id=cat["company_id"]), fetch, get)
-            winner, how, why = disambiguate(conn, siblings, text)
-            if winner is None:
+            winners, how, why = disambiguate(conn, siblings, text)
+            if not winners:
                 _record(conn, cat["id"], how, "trial_readouts",
                         f"readout {r['accession']}: {why}",
                         "an announced result read against the pending catalysts it could "
@@ -338,22 +366,25 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> str | None:
                         "words for each", r["event_date"], today)
                 return None
             outcome = "met" if r["outcome"] == "positive" else "missed"
-            _record(conn, winner, outcome, "trial_readouts",
-                    f"readout {r['accession']}: {r['drug']} Phase {r['phase']} {r['outcome']} "
-                    f"on {r['event_date']}; {why}",
-                    "one of several pending catalysts, singled out by " + how,
-                    r["event_date"], today)
-            _close(conn, winner, outcome, r["event_date"], today)
-            # The outcome is the winner's whichever sibling's turn found it: the loop
-            # skips a row closed earlier in the run, so it is counted exactly once here.
-            return outcome
+            basis = ("one of several pending catalysts, singled out by " + how
+                     if len(winners) == 1 else
+                     "several pending catalysts named together in one announcement, "
+                     "which carries one result for all of them")
+            for winner in winners:
+                _record(conn, winner, outcome, "trial_readouts",
+                        f"readout {r['accession']}: {r['drug']} Phase {r['phase']} {r['outcome']} "
+                        f"on {r['event_date']}; {why}", basis, r["event_date"], today)
+                _close(conn, winner, outcome, r["event_date"], today)
+            # The outcomes are the winners' whichever sibling's turn found them: the loop
+            # skips a row closed earlier in the run, so each is counted exactly once here.
+            return [outcome] * len(winners)
         outcome = "met" if r["outcome"] == "positive" else "missed"
         ev = f"readout {r['accession']}: {r['drug']} Phase {r['phase']} {r['outcome']} on {r['event_date']}"
         _record(conn, cat["id"], outcome, "trial_readouts", ev,
                 "an announced result for the same company, phase and drug inside the window",
                 r["event_date"], today)
         _close(conn, cat["id"], outcome, r["event_date"], today)
-        return outcome
+        return [outcome]
     # The registry moved the date: an event on a row that stays pending.
     if cat["description"] and str(cat["description"]).startswith("NCT"):
         trial = conn.execute(
@@ -364,14 +395,24 @@ def _readout(conn, cat, window, today, fetch=True, get=None) -> str | None:
             ev = f"registry primary completion moved to {str(due)[:10]}"
             if _record(conn, cat["id"], "slipped", "registry", ev,
                        "the trial's completion date now sits past the catalyst's window", None, today):
-                return "slipped"
+                return ["slipped"]
             return None
     if _shift(window[1], GRACE_DAYS) < today.isoformat():
-        _record(conn, cat["id"], "unknown", "calendar", None,
-                f"no announced result and no registry move {GRACE_DAYS} days after the window closed",
-                None, today)
+        n_unread, first = _unread(conn, cat, lo, hi)
+        if n_unread:
+            more = f" and {n_unread - len(first)} more" if n_unread > len(first) else ""
+            ev = (f"{n_unread} of the company's announcements inside the window carry no "
+                  f"labelled outcome: {', '.join(first)}{more}")
+            basis = ("filings flagged as readouts sit inside the window unlabelled, so "
+                     "whether one of them is this trial's result cannot be read until "
+                     "they are")
+        else:
+            ev = None
+            basis = (f"no announced result and no registry move {GRACE_DAYS} days after "
+                     f"the window closed")
+        _record(conn, cat["id"], "unknown", "calendar", ev, basis, None, today)
         _close(conn, cat["id"], "unknown", None, today)
-        return "unknown"
+        return ["unknown"]
     return None
 
 
@@ -397,12 +438,13 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
             if not window or window[1] >= today.isoformat():
                 continue
             if cat["catalyst_type"] in REGULATORY:
-                got = _regulatory(conn, cat, window, today)
+                got = [_regulatory(conn, cat, window, today)]
             elif cat["catalyst_type"] in READOUT:
                 got = _readout(conn, cat, window, today, fetch, get)
             else:
                 got = None
-            counts[got or "open"] += 1
+            for outcome in got or [None]:
+                counts[outcome or "open"] += 1
         conn.commit()
     finally:
         conn.close()
