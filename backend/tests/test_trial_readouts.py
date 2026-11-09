@@ -51,9 +51,20 @@ def test_validate_rejects_a_restatement_of_an_earlier_result():
            "patients receiving venglustat met the primary endpoint. As previously "
            "reported, the study met its primary endpoint with a 41% reduction. The "
            "application is based on positive data from the registrational phase II "
-           "AZUR-1 trial of venglustat, which met its primary endpoint.")
+           "AZUR-1 trial of venglustat, which met its primary endpoint. Roche announced "
+           "today late-breaking oral presentation data showing venglustat met its primary "
+           "endpoint. Full results from the positive phase 3 study showed venglustat met "
+           "its primary endpoint. Positive results from the venglustat study were "
+           "previously published in The New England Journal of Medicine and met the "
+           "primary endpoint.")
     for quote in ("The designation is based on data from the LEAP2MONO phase 3 study in "
                   "which patients receiving venglustat met the primary endpoint.",
+                  "Roche announced today late-breaking oral presentation data showing "
+                  "venglustat met its primary endpoint.",
+                  "Full results from the positive phase 3 study showed venglustat met its "
+                  "primary endpoint.",
+                  "Positive results from the venglustat study were previously published in "
+                  "The New England Journal of Medicine and met the primary endpoint.",
                   "The application is based on positive data from the registrational "
                   "phase II AZUR-1 trial of venglustat, which met its primary endpoint.",
                   "As previously reported, the study met its primary endpoint with a 41% "

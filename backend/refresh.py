@@ -59,6 +59,8 @@ import revenue_mdna
 import themes
 import trial_mapping
 import trial_readouts
+import press_readouts
+import registry_readouts
 import catalyst_outcomes
 from fetchers import brand_lookup_openfda
 from fetchers import product_revenue_sec
@@ -478,6 +480,14 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # What became of the catalysts whose dates have passed, read back from the approvals
     # and the announced readouts, before the derivation below withdraws a derived row
     # whose date is behind it. Resolving first is what turns the calendar into a record.
+    # The announced results, read before the resolver so a result found this run
+    # closes its catalyst this run: the filings, the rows an earlier pass read from the
+    # envelope, the companies' own releases, and the registry's record of the trials
+    # that fell due.
+    trial_reads = trial_readouts.extract(db_path)
+    trial_reads["reread"] = trial_readouts.reread(db_path)
+    trial_reads["press"] = press_readouts.extract(db_path)
+    trial_reads["registry"] = registry_readouts.extract(db_path)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
@@ -503,9 +513,6 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # And the quarterly table in the earnings exhibit, which is the only place a product
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
-    trial_reads = trial_readouts.extract(db_path)
-    # And the rows an earlier pass read from the envelope, once more with the exhibit.
-    trial_reads["reread"] = trial_readouts.reread(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
@@ -774,6 +781,10 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = deals.enrich(db_path)["filled"]
+    trial_reads = trial_readouts.extract(db_path)
+    trial_reads["reread"] = trial_readouts.reread(db_path)
+    trial_reads["press"] = press_readouts.extract(db_path)
+    trial_reads["registry"] = registry_readouts.extract(db_path)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
@@ -797,9 +808,6 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # And the quarterly table in the earnings exhibit, which is the only place a product
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
-    trial_reads = trial_readouts.extract(db_path)
-    # And the rows an earlier pass read from the envelope, once more with the exhibit.
-    trial_reads["reread"] = trial_readouts.reread(db_path)
     deal_reads = deals.extract(db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.

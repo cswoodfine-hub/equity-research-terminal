@@ -238,8 +238,57 @@ October one came first; an ambiguous release is now recorded and passed over. On
 second pass only the row under test may win: a release that fits a pending sibling better
 is that sibling's to take on its own turn.
 
-Calibration still reads nil, correctly: every resolution
-predates the first gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on
+### The register widened beyond the SEC (`press_readouts`, `registry_readouts`)
+
+The announced results were read from 8-K and 6-K filings alone, and that was the
+ceiling. Roche and Bayer file neither; Roche alone carried 30 of the 271 readouts that
+fell due in the last two years. AstraZeneca, with the most unresolved readouts of all,
+publishes every result on its own site and furnishes a 6-K late or not at all; 438
+investor-relations releases already in the news table had a result in their title and
+none had been read as a readout. And a trial stopped for futility is the result the
+filings least often carry: ten negatives on file against sixty-two positives.
+
+Two readers, built 2026-11-08. `press_readouts` reads the companies' own releases from
+the news table, those whose title states a result, through the same classifier and the
+same validation as the filings; a release that restates a result already labelled from a
+filing, the same company, drug and phase within ten days, is kept as a duplicate and is
+never a second event. The page is fetched with the browser-shaped agent the feed fetcher
+uses and, where a site refuses, through the Jina reader the press-page fetcher already
+depends on. `registry_readouts` asks ClinicalTrials.gov by NCT id about every derived
+readout that has fallen due: a termination whose stated reason is futility or lack of
+efficacy is a negative pinned to its trial, with the registry's sentence as the quote; a
+stop for enrolment or a sponsor decision is not a result and only brings the trial's
+status up to date; a date that moved is written to the trial so the slip tier sees it.
+Each row carries its source and, where the source states it, the trial's NCT, and a
+result pinned to its trial resolves that catalyst with no matching on drug or phase. A
+registry-dated resolution follows the event by weeks, so for those the gate scoring
+counts a call as a prediction only if it was made before the trial's own due date.
+
+Measured on a copy on 2026-11-08. The registry answered for all 348 due readouts in
+13 seconds: 2 futility stops (a GSK Phase 2, Ultragenyx's Phase 3), 10 stops for other
+reasons, and 78 trials whose status or date had moved, which surfaced 12 slips the book
+had not seen. The press reader took 217 releases in 13 minutes and labelled 125; a
+restatement guard took back 10, the conference presentation and the journal publication
+of a result announced earlier, leaving 115, 98 positive and 17 negative, with 16
+duplicates of filings. Negatives on file went from 10 to 29. Of the readouts that fell
+due in the last two years, 16 are now met and 4 missed, against 10 and 0 before; 11 of
+the met and 2 of the missed come from press releases, 2 missed from the registry. 251
+remain unknown and 18 readings are ambiguous, 10 of them AstraZeneca releases that fit
+several AstraZeneca studies alike.
+
+The run exposed two more rules that were wrong, each fixed with a test. The twin rule
+let a release naming several studies resolve all of them; AstraZeneca's Saphnelo release
+named five, due between 2025 and 2028, and all five closed met. Twins are now at most two
+studies due within ninety days of each other, and otherwise only the named study whose
+window held the release resolves. And a press row's body was fetched through the EDGAR
+path with the EDGAR agent, which astrazeneca.com refuses, so the tie-break read the
+quoted sentence alone; it now fetches the way the press reader does.
+
+What is left is not the register. The 251 unknowns are now mostly trials whose result
+was announced nowhere the book can read for free, or not at all, or whose release fits
+several of a company's studies alike. Calibration still reads nil, correctly: no
+resolved readout has a gate call on file, because every resolution predates the first
+gate call on 2026-10-08. Ivonescimab on 11-14 and deramiocel on
 11-22 will be the first scored gates. The ledger travels in git.
 
 ### One benchmark (`benchmark_series`)

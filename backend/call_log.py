@@ -304,7 +304,16 @@ def _gate_outcomes(conn) -> dict:
         key = (r["company_id"], (r["drug"] or "").strip().lower(), r["phase"])
         announced.setdefault(key, []).append((str(r["event_date"])[:10],
                                               r["outcome"] == "positive"))
-    return {"catalyst": by_catalyst, "announced": announced}
+    # A resolution read from the registry is dated by the registry's update, which can
+    # follow the stop by months. A call made in between was made after the fact, so for
+    # those the latest day a call counts as a prediction is the trial's own due date.
+    late = {}
+    for r in conn.execute(
+            """SELECT r.catalyst_id, c.expected_date FROM catalyst_resolutions r
+                 JOIN catalysts c ON c.id = r.catalyst_id
+                WHERE r.source LIKE 'trial_readouts:registry%' AND r.outcome IN ('met', 'missed')"""):
+        late[r["catalyst_id"]] = str(r["expected_date"] or "")[:10]
+    return {"catalyst": by_catalyst, "announced": announced, "late": late}
 
 
 def _gate_phase(gate: str | None) -> int | None:
@@ -353,6 +362,9 @@ def _calibration(conn) -> dict:
             resolved = min(later) if later else None
         if resolved is None or resolved[0] <= g["as_of"]:
             continue
+        bound = outcomes["late"].get(g["catalyst_id"])
+        if bound and g["as_of"] >= bound:
+            continue                     # dated late by its source; the call came after the due date
         last[(g["ticker"], g["catalyst_id"])] = (p, resolved[1])
     scored = list(last.values())
     bands = []

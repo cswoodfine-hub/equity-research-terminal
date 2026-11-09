@@ -186,10 +186,18 @@ def announcement_text(conn, readout: dict, fetch: bool = True, get=None) -> str:
         try:
             form = conn.execute("SELECT form_type FROM filings WHERE accession = ?",
                                 (readout["accession"],)).fetchone()
-            text, _read_from = trial_readouts.readout_text(
-                {"url": readout["source_url"],
-                 "form_type": form["form_type"] if form else None},
-                get or trial_readouts._get)
+            if readout.get("source") == "press" and get is None:
+                # A company release, not a filing: fetched the way the press reader
+                # fetches it. The EDGAR agent is refused by astrazeneca.com, and a
+                # refused fetch left the tie-break reading the quoted sentence alone,
+                # which is why one AstraZeneca release fitted eleven catalysts.
+                import press_readouts
+                text = press_readouts._get(readout["source_url"])[:pdufa._MAX_CHARS]
+            else:
+                text, _read_from = trial_readouts.readout_text(
+                    {"url": readout["source_url"],
+                     "form_type": form["form_type"] if form else None},
+                    get or trial_readouts._get)
         except Exception:                                      # noqa: BLE001
             text = ""
         if text:
@@ -233,7 +241,35 @@ def _rare(conn, words: set) -> set:
     return rare
 
 
-def disambiguate(conn, siblings: list, text: str) -> tuple:
+# Twins: two studies of one drug run in parallel and reported as one result. More than
+# two, or two due a season apart, is a programme list, not a pair: AstraZeneca's Saphnelo
+# release of 2025-09-17 named five studies due between 2025 and 2028, and the first twin
+# rule closed all five met on it.
+MAX_TWINS = 2
+TWIN_DAYS = 90
+
+
+def _days_apart(first: str, last: str) -> int:
+    """Days between two registry dates, a month-only date read as its first day; two
+    dates that cannot be read are treated as far apart, which is the cautious reading."""
+    try:
+        a = dt.date.fromisoformat(first if len(first) >= 10 else first + "-01")
+        b = dt.date.fromisoformat(last if len(last) >= 10 else last + "-01")
+    except ValueError:
+        return TWIN_DAYS + 1
+    return abs((b - a).days)
+
+
+def _due_on(sibling: dict, day: str | None) -> bool:
+    """Whether the announcement's day falls in this sibling's own window, widened as the
+    readout tier widens it."""
+    window = date_window(sibling.get("expected_date")) if sibling.get("expected_date") else None
+    if not window or not day:
+        return False
+    return _shift(window[0], -EARLY_DAYS) <= day[:10] <= _shift(window[1], LATE_DAYS)
+
+
+def disambiguate(conn, siblings: list, text: str, event_date: str | None = None) -> tuple:
     """(winning catalyst ids, how, evidence) for an announcement fitting several.
 
     NCT first: a named trial that is a pending sibling wins outright, and where the
@@ -253,6 +289,16 @@ def disambiguate(conn, siblings: list, text: str) -> tuple:
     named = set(_NCT.findall(text))
     if named:
         hits = [s for s in siblings if s["nct"] in named]
+        if len(hits) > 1:
+            dates = sorted(str(h.get("expected_date") or "") for h in hits)
+            if len(hits) > MAX_TWINS or _days_apart(dates[0], dates[-1]) > TWIN_DAYS:
+                due = [h for h in hits if _due_on(h, event_date)]
+                if len(due) == 1:
+                    return [due[0]["id"]], "nct", (f"the announcement names {len(hits)} of the drug's "
+                                                   f"studies; only {due[0]['nct']} was due when it was made")
+                return [], "ambiguous", (f"the announcement names {len(hits)} of the drug's studies, "
+                                         f"due across {dates[0]} to {dates[-1]}, and {len(due)} of them "
+                                         f"were due when it was made")
         if hits:
             listed = ", ".join(sorted(h["nct"] for h in hits))
             together = ", read out together" if len(hits) > 1 else ""
@@ -289,8 +335,8 @@ def _sibling_rows(conn, cat, phase) -> list:
     none, with the one it was for not even in the set."""
     out = []
     for r in conn.execute(
-            """SELECT c.id, c.description AS nct, c.status, c.title AS cat_title, t.title,
-                      t.conditions, t.primary_outcome, t.mesh_terms
+            """SELECT c.id, c.description AS nct, c.status, c.title AS cat_title,
+                      c.expected_date, t.title, t.conditions, t.primary_outcome, t.mesh_terms
                  FROM catalysts c LEFT JOIN trials t ON t.nct_id = c.description
                 WHERE c.company_id = ? AND c.asset_id IS ? AND c.catalyst_type = 'data readout'
                   AND (c.status = 'pending' OR c.id = ?)""",
@@ -347,11 +393,26 @@ def _readout(conn, cat, window, today, fetch=True, get=None, announced_only=Fals
     rows already closed unknown: only an announced result can overturn one, so the
     registry and grace tiers are skipped."""
     lo, hi = _shift(window[0], -EARLY_DAYS), _shift(window[1], LATE_DAYS)
+    # A result the source pins to this trial by its NCT id, the registry's own record
+    # of a stop for futility, needs no matching on drug or phase and no window: it is
+    # about this study and nothing else.
+    if cat["description"] and str(cat["description"]).startswith("NCT"):
+        for r in conn.execute(
+                """SELECT accession, outcome, event_date, quote, source FROM trial_readouts
+                    WHERE nct_id = ? AND outcome IN ('positive', 'negative')
+                    ORDER BY event_date LIMIT 1""", (cat["description"],)):
+            outcome = "met" if r["outcome"] == "positive" else "missed"
+            _record(conn, cat["id"], outcome, f"trial_readouts:{r['source']}",
+                    f"readout {r['accession']}: {(r['quote'] or '')[:160]}",
+                    "a result the source pins to this trial by its registry id; dated by "
+                    "the source's own record, which can follow the event", r["event_date"], today)
+            _close(conn, cat["id"], outcome, r["event_date"], today)
+            return [outcome]
     phase = _phase_of(cat["title"])
     names = _names(conn, cat["asset_id"])
     ambiguous = cat["asset_id"] is not None and _siblings(conn, cat, phase) > 1
     for r in conn.execute(
-            """SELECT accession, drug, phase, outcome, event_date, quote, source_url
+            """SELECT accession, drug, phase, outcome, event_date, quote, source_url, source
                  FROM trial_readouts
                 WHERE company_id = ? AND outcome IN ('positive', 'negative')
                   AND event_date BETWEEN ? AND ? ORDER BY event_date""",
@@ -371,7 +432,7 @@ def _readout(conn, cat, window, today, fetch=True, get=None, announced_only=Fals
         if ambiguous:
             siblings = _sibling_rows(conn, cat, phase)
             text = announcement_text(conn, dict(r, company_id=cat["company_id"]), fetch, get)
-            winners, how, why = disambiguate(conn, siblings, text)
+            winners, how, why = disambiguate(conn, siblings, text, r["event_date"])
             if announced_only and winners and cat["id"] not in winners:
                 # The second pass asks one question, whether this closed row's result
                 # was announced. An announcement that fits a pending sibling better is
@@ -480,6 +541,8 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
                           description FROM catalysts
                     WHERE status = 'unknown' AND catalyst_type IN ('data readout')
                       AND expected_date IS NOT NULL ORDER BY expected_date""")]:
+            # (A registry termination also reaches here: an unknown row whose trial the
+            # registry later shows stopped for futility is overturned to missed.)
             if conn.execute("SELECT status FROM catalysts WHERE id = ?",
                             (cat["id"],)).fetchone()["status"] != "unknown":
                 continue

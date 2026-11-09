@@ -60,8 +60,15 @@ _RESULT_WORDS = re.compile(
 # primary endpoint". A restatement carries the wrong market date and, matched on drug
 # and phase, can settle a sibling catalyst the original announcement already settled.
 _RESTATED = re.compile(
-    r"previously (?:reported|announced|disclosed|presented)|as announced on|"
-    r"(?:is|was|are|were) based on (?:\w+ ){0,4}?(?:data|results|findings) from", re.I)
+    r"previously (?:reported|announced|disclosed|presented|published)|as announced on|"
+    r"(?:is|was|are|were) based on (?:\w+ ){0,4}?(?:data|results|findings) from|"
+    # The conference and the journal: a result presented or published is one announced
+    # before. Roche's sefaxersen topline of 23 September came round again on 23 October
+    # as "late-breaking oral presentation data", a month later and matched to a second
+    # study; AstraZeneca's "full results from the positive Phase III CROSSING trial"
+    # are the full results of a readout already made.
+    r"late-breaking|(?:data|results) (?:to be |were |was |being )?presented|"
+    r"presentation (?:of|at)|full (?:results|data) from|published in", re.I)
 
 SYSTEM_PROMPT = """You read a company's press release or filing and decide whether it \
 announces the topline or primary-endpoint result of a Phase 2 or Phase 3 clinical trial, \

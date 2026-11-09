@@ -363,3 +363,69 @@ def test_an_ambiguous_release_does_not_stop_a_later_one_being_read(tmp_path):
     assert status == {1: "missed", 2: "pending"}
     outcomes = sorted((r["outcome"], r["evidence"][:12]) for r in CO.ledger(path))
     assert outcomes == [("ambiguous", "readout A-8:"), ("missed", "readout A-9:")]
+
+
+def test_an_nct_pinned_result_resolves_without_drug_or_phase(tmp_path):
+    """A row whose source states the trial needs no match on names: it is about this
+    study. Here the pinned result is a press row that named the NCT."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote, source, nct_id)"
+                 " VALUES ('news:7', 1, 'something else entirely', 2, 'positive', '2026-08-20', 'met.', 'press', 'NCT00000002')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 1
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status[2] == "met" and status[1] == "unknown"
+    assert CO.ledger(path)[0]["source"] == "trial_readouts:press" or any(
+        r["source"] == "trial_readouts:press" for r in CO.ledger(path))
+
+
+def test_a_press_rows_body_is_fetched_the_way_the_press_reader_fetches(tmp_path, monkeypatch):
+    """The EDGAR agent is refused by the companies' own sites, so a press row's body
+    comes through the press reader's fetcher, and is cached like any other."""
+    import press_readouts
+    path, conn = _book(tmp_path)
+    monkeypatch.setattr(press_readouts, "_get", lambda url: "<p>Release body naming NCT00000009.</p>")
+    monkeypatch.setattr(CO.trial_readouts, "_get", lambda url: (_ for _ in ()).throw(RuntimeError("403")))
+    readout = {"accession": "news:9", "company_id": 1, "quote": "met.", "source_url": "https://x/r",
+               "source": "press", "event_date": "2026-10-01"}
+    text = CO.announcement_text(conn, readout, True, None)
+    assert "NCT00000009" in text
+    assert conn.execute("SELECT COUNT(*) FROM filing_sections WHERE accession = 'news:9'").fetchone()[0] == 1
+
+
+def test_a_release_that_lists_the_programme_resolves_only_the_study_that_was_due(tmp_path):
+    """Saphnelo: one release named five studies due between 2025 and 2028. Twins are two
+    studies due within a season of each other; five across three years is a programme
+    list, and only the one whose window held the release resolves."""
+    path, conn = _book(tmp_path)
+    dates = {1: "2025-08-22", 2: "2026-11-02", 3: "2027-01-06", 4: "2027-02-23", 5: "2028-01-10"}
+    for i, d in dates.items():
+        _catalyst(conn, i, "data readout", d, "Phase 3, Rhapsido", f"NCT0000000{i}")
+    ncts = ", ".join(f"NCT0000000{i}" for i in dates)
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-10', 1, 'remibrutinib', 3, 'positive', '2025-09-17',"
+                 f" 'The programme spans {ncts}; the study met its primary endpoint.')")
+    conn.commit()
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["met"] == 1
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status[1] == "met" and all(status[i] == "pending" for i in (3, 4, 5))
+    assert status[2] in ("pending", "unknown")           # its own turn: no second result for it
+    led = [r for r in CO.ledger(path) if r["outcome"] == "met"][0]
+    assert "only NCT00000001 was due" in led["evidence"]
+
+
+def test_two_named_studies_a_season_apart_are_not_twins(tmp_path):
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-07-21", "Phase 3, Rhapsido", "NCT00000001")
+    _catalyst(conn, 2, "data readout", "2027-03-01", "Phase 3, Rhapsido", "NCT00000002")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome, event_date, quote)"
+                 " VALUES ('A-11', 1, 'remibrutinib', 3, 'positive', '2026-08-20',"
+                 " 'NCT00000001 met its endpoint; NCT00000002 continues.')")
+    conn.commit()
+    CO.resolve(path, today=TODAY, fetch=False)
+    status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
+    assert status == {1: "met", 2: "pending"}
