@@ -452,6 +452,10 @@
 /* An indication the label already covers: the readout decides nothing, so it sits at the
    quiet end of the ramp rather than reading as a pending event. */
 .cx .u5 { background: color-mix(in oklab, var(--muted) 28%, var(--panel)); }
+/* An expansion with no pool on file takes its own step on the same neutral ramp. The
+   reasons are categories and a phase colour means a phase everywhere else on the tab,
+   so what sets this one apart is its label, not a colour borrowed from the chart. */
+.cx .u6 { background: color-mix(in oklab, var(--muted) 40%, var(--panel)); }
 .cx-ub i.u2, .cx-ub i.u4, .cx-ub i.u5 { color: var(--text); }
 .cx-uk { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; font-size: 11px;
   color: var(--muted); }

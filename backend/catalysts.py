@@ -198,6 +198,29 @@ def _readout_title(phase, brand, title) -> str:
     return f"{phase}, {subject}" if subject else phase
 
 
+def _asset_for(conn, row, existing) -> int | None:
+    """The asset a derived readout belongs to.
+
+    The trial is the source of truth for a derived row, so its asset wins. Where the
+    trial has none, the asset already on the row is kept, since a mapping that lapses for
+    a run should not empty a good catalyst. But it is kept only while the study's sponsor
+    is the company that owns it: Biogen's salanersen study carries no asset and its
+    catalyst sat under AstraZeneca's Baxdrostat, which put a spinal muscular atrophy
+    readout on a hypertension product and into AstraZeneca's stakes. A plain COALESCE
+    could never let go of that.
+    """
+    if row["asset_id"] is not None:
+        return row["asset_id"]
+    held = existing["asset_id"] if existing is not None else None
+    if held is None:
+        return None
+    owner = conn.execute("SELECT owner_company_id FROM assets WHERE id = ?",
+                         (held,)).fetchone()
+    if owner is not None and owner["owner_company_id"] != row["company_id"]:
+        return None
+    return held
+
+
 def _is_ahead(due, today: str) -> bool:
     """Whether a registry date is still to come. A month-only date is ahead while its
     month is running, the reading the comps panel gives it."""
@@ -342,6 +365,7 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                 (url,),
             ).fetchone()
             title = _readout_title(row["phase"], row["brand_name"], row["title"])
+            asset_id = _asset_for(conn, row, existing)
             if existing is not None and (existing["status"] or "pending") != "pending":
                 # Unknown is the one resolution that is not an observation: the window
                 # closed with nothing found. A sponsor that updates the registry late
@@ -353,10 +377,10 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                     conn.execute(
                         "UPDATE catalysts SET status = 'pending', expected_date = ?,"
                         " date_confidence = ?, title = ?, company_id = ?,"
-                        " asset_id = COALESCE(?, asset_id),"
+                        " asset_id = ?,"
                         " updated_at = datetime('now') WHERE id = ?",
                         (row["due"], _date_confidence(row["due"]), title,
-                         row["company_id"], row["asset_id"], existing["id"]),
+                         row["company_id"], asset_id, existing["id"]),
                     )
                     reopened += 1
                 continue                 # resolved: the readout happened, keep it as is
@@ -380,15 +404,14 @@ def derive_readouts(db_path=None, within_days=READOUT_HORIZON_DAYS,
                     # tests: the readout follows. Pombiliti's sat under Structure
                     # Therapeutics after its study had gone back to BioMarin.
                     or existing["company_id"] != row["company_id"]
-                    or (row["asset_id"] is not None
-                        and existing["asset_id"] != row["asset_id"])):
+                    or existing["asset_id"] != asset_id):
                 conn.execute(
                     "UPDATE catalysts SET expected_date = ?, date_confidence = ?,"
                     " title = ?, company_id = ?,"
-                    " asset_id = COALESCE(?, asset_id),"
+                    " asset_id = ?,"
                     " updated_at = datetime('now') WHERE id = ?",
                     (row["due"], _date_confidence(row["due"]), title, row["company_id"],
-                     row["asset_id"], existing["id"]),
+                     asset_id, existing["id"]),
                 )
                 updated += 1
 

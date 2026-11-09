@@ -797,7 +797,10 @@ def test_reason_codes_are_the_contracts(path):
              "no_forecast", "stated_elsewhere", "nil", "no_gate", "regulatory_not_gate",
              "not_a_gate",
              "no_trial_link", "past_gate", "not_gate_phase", "phase_ahead_of_book",
-             "other_indication", "same_gate_later", "already_approved"}
+             "other_indication", "same_gate_later", "already_approved",
+             # A readout on an indication the label does not cover, with no pool on file
+             # to value the expansion it decides.
+             "needs_layer"}
     assert set(forecast_view.STAKE_REASONS) <= codes
     seen = set()
     for ticker in ("AZN", "NVO", "CRSP", "BAYN"):

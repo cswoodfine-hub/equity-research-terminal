@@ -513,3 +513,65 @@ def test_a_company_with_late_stage_work_is_untouched_by_the_lead_phase_rule(tmp_
     conn.close()
     catalysts.derive_readouts(db_file)
     assert catalysts.list_catalysts(db_file, within_days=365) == []
+
+
+def test_a_readout_lets_go_of_an_asset_its_sponsor_does_not_own(tmp_path):
+    """Biogen's salanersen study carries no asset, and its catalyst kept AstraZeneca's
+    Baxdrostat from an earlier mapping, which put a spinal muscular atrophy readout on a
+    hypertension product and into AstraZeneca's stakes. The trial is the source of truth
+    for a derived row, so an asset whose owner is not the study's sponsor is let go."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    soon = (dt.date.today() + dt.timedelta(days=120)).isoformat()
+    conn = db.get_connection(db_file)
+    lly = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, ?, 'Omvoh')",
+                 (lly,))
+    _trial(conn, "NCT_FOREIGN", "MRK", "Phase 3", "Recruiting", soon)   # Merck's study
+    _trial(conn, "NCT_OWN", "LLY", "Phase 3", "Recruiting", soon)       # Lilly's own
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+
+    # Both rows are handed Lilly's asset by an earlier mapping; only one should keep it.
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE catalysts SET asset_id = 1")
+    conn.commit()
+    conn.close()
+    result = catalysts.derive_readouts(db_file)
+    assert result["updated"] == 1 and result["added"] == 0
+
+    conn = db.get_connection(db_file)
+    held = {r["source_url"].rsplit("/", 1)[-1]: r["asset_id"] for r in conn.execute(
+        "SELECT source_url, asset_id FROM catalysts")}
+    conn.close()
+    assert held["NCT_FOREIGN"] is None        # Merck's study, so not Lilly's asset
+    assert held["NCT_OWN"] == 1               # the sponsor owns it: kept
+
+
+def test_a_mapped_trial_still_overrides_the_asset_on_the_row(tmp_path):
+    """Letting go must not reach further than it should: where the trial names an asset,
+    that asset wins whoever held the row before."""
+    db_file = tmp_path / "test.db"
+    db.init(db_file)
+    seed.load_companies(db_file)
+    soon = (dt.date.today() + dt.timedelta(days=120)).isoformat()
+    conn = db.get_connection(db_file)
+    lly = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, ?, 'Omvoh')",
+                 (lly,))
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (2, ?, 'Other')",
+                 (lly,))
+    _trial(conn, "NCT_MAPPED", "LLY", "Phase 3", "Recruiting", soon, asset_id=2)
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    conn.execute("UPDATE catalysts SET asset_id = 1")
+    conn.commit()
+    conn.close()
+    catalysts.derive_readouts(db_file)
+    conn = db.get_connection(db_file)
+    assert conn.execute("SELECT asset_id FROM catalysts").fetchone()[0] == 2
+    conn.close()

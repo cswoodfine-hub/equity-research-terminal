@@ -738,7 +738,7 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later", "already_approved")
+                 "same_gate_later", "already_approved", "needs_layer")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -1108,15 +1108,29 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             clean["ignored"] = state["ignored"]
         return clean
 
-    def refuse(row, reason, why):
+    def refuse(row, reason, why, missing_keys=None):
         unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
-                         "missing": missing(reason)})
+                         "missing": missing(reason) if missing_keys is None
+                         else list(missing_keys)})
 
     # Before anything else, because an approval that has already happened outranks every
     # other reading of the event. A readout in an indication the label covers decides
     # nothing the revenue does not already carry, whatever the legs or the phase say.
     asset_id = next((r["asset_id"] for r in rows if r.get("asset_id")), None)
     approved = approved_indications.for_asset(conn, asset_id) if asset_id else set()
+    # The label covers a disease in a setting, and a study in a setting it does not state
+    # is an expansion whatever the disease: Etcamah is approved in metastatic breast
+    # cancer and reads out in early breast cancer after adjuvant therapy. Those pairs are
+    # taken out of the approved set here, so the layer gate below may price them and the
+    # row says what it needs rather than that it decides nothing.
+    open_pairs: set = set()
+    if approved:
+        for row in rows:
+            if (row.get("asset_indication_id") in approved
+                    and approved_indications.setting_gap(conn, asset_id,
+                                                         row.get("description"))):
+                open_pairs.add(row["asset_indication_id"])
+        approved = approved - open_pairs
     if approved:
         standing, rows = rows, [r for r in rows
                                 if r.get("asset_indication_id") not in approved]
@@ -1175,6 +1189,39 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                        "An earlier readout in the same indication carries this layer, so "
                        "it is priced there once rather than again here.")
             rows = [r for r in rows if r.get("asset_indication_id") not in gated]
+        # A readout on an indication the label does not cover is an expansion, and where
+        # no pool is on file to value it the row is work waiting rather than an asset
+        # outside the gate model. The layer's own refusal says which keys it lacks; a
+        # layer that refuses on the evidence instead, because the pool is already inside
+        # the business being sold to, is left to the reasons below.
+        layers: dict = {}
+        answered = set()
+        for row in rows:
+            pair_id = row.get("asset_indication_id")
+            if not pair_id or pair_id in approved:
+                continue
+            if pair_id not in layers:
+                pair = conn.execute(
+                    "SELECT asset_id, indication_id FROM asset_indications WHERE id = ?",
+                    (pair_id,)).fetchone()
+                layers[pair_id] = (indication_layer.build(conn, pair["asset_id"],
+                                                          pair["indication_id"])
+                                   if pair else None)
+            layer = layers[pair_id]
+            gaps = list((layer or {}).get("missing") or [])
+            if layer is not None and not gaps:
+                continue
+            gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
+            lead = (f"The label covers this disease but not the {gap} setting this study "
+                    f"is in" if gap else "The label does not cover this indication")
+            refuse(row, "needs_layer",
+                   f"{lead}, so the readout decides an expansion the book does not value "
+                   f"yet. " + ((layer or {}).get("why")
+                               or "No assumptions are on file for this indication."),
+                   gaps or ["the indication's own assumptions"])
+            answered.add(row["id"])
+        if answered:
+            rows = [r for r in rows if r["id"] not in answered]
         reason, why = _no_gate_reason(state)
         for row in rows:
             refuse(row, reason, why)

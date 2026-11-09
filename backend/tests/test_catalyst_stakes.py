@@ -668,7 +668,7 @@ def test_derived_outcomes_are_not_recorded_while_the_switch_is_off(tmp_path, big
 
 
 # --- a readout in an indication the label already covers --------------------
-def _approved_db(tmp_path, label_text, indication="Crohn Disease", phase="Phase 3"):
+def _approved_db(tmp_path, label_text, indication="Crohn Disease", phase="Phase 3", study=None):
     """A marketed product with one indication, a label, and a readout on it."""
     path = str(tmp_path / "approved.db")
     db.init(path)
@@ -682,10 +682,16 @@ def _approved_db(tmp_path, label_text, indication="Crohn Disease", phase="Phase 
     if label_text is not None:
         conn.execute("INSERT INTO labels (asset_id, setid, effective_time,"
                      " indications_text) VALUES (1, 'x', 'Aug 11, 2026', ?)", (label_text,))
+    if study is not None:
+        conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title,"
+                     " phase, overall_status, primary_completion_date)"
+                     " VALUES ('NCT00000001', 1, 1, ?, 'Phase 3', 'Recruiting',"
+                     "         date('now', '+90 days'))", (study,))
     conn.execute("INSERT INTO catalysts (id, company_id, asset_id, asset_indication_id,"
-                 " catalyst_type, expected_date, title, status) VALUES"
+                 " catalyst_type, expected_date, title, description, status) VALUES"
                  " (10, 1, 1, 5, 'data readout', date('now', '+90 days'),"
-                 " 'Phase 3, Omvoh', 'pending')")
+                 " 'Phase 3, Omvoh', ?, 'pending')",
+                 ("NCT00000001" if study is not None else None,))
     conn.commit(); conn.close()
     return path
 
@@ -754,3 +760,87 @@ def test_the_newest_label_is_chosen_by_date_not_by_string(tmp_path):
     # Alphabetically "Aug" wins; by date "Oct 22, 2026" does, and only it covers Crohn's.
     assert AI.for_asset(conn, 1) == {5}
     conn.close()
+
+
+_SAPHNELO_LABEL = (
+    "SAPHNELO is indicated for the treatment of adult patients with moderate to severe "
+    "systemic lupus erythematosus, who are receiving standard therapy. Limitations of "
+    "Use The efficacy of SAPHNELO has not been evaluated in patients with severe active "
+    "lupus nephritis. Use of SAPHNELO is not recommended in these situations.")
+
+_METASTATIC_LABEL = ("ETCAMAH is indicated for the treatment of adult patients with "
+                     "HR-positive, HER2-negative locally advanced or metastatic Crohn's "
+                     "disease after endocrine therapy.")
+
+
+def test_a_sentence_that_denies_coverage_does_not_approve_an_indication(tmp_path):
+    """Saphnelo's label says the drug "has not been evaluated in patients with severe
+    active lupus nephritis", and reading the whole text found "lupus" and "nephritis"
+    in that denial and dismissed a live Phase 3 expansion as deciding nothing."""
+    path = _approved_db(tmp_path, _SAPHNELO_LABEL, indication="Lupus Nephritis")
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == set()
+    conn.close()
+    assert [r["reason"] for r in V.catalyst_stakes(path, "LLY")["unpriced"]] \
+        != ["already_approved"]
+
+
+def test_the_rest_of_the_label_still_approves_what_it_covers(tmp_path):
+    """Dropping the denial must not drop the indications beside it: the same label
+    approves systemic lupus erythematosus in the sentence before."""
+    path = _approved_db(tmp_path, _SAPHNELO_LABEL,
+                        indication="Lupus Erythematosus, Systemic")
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == {5}
+    conn.close()
+
+
+def test_an_indication_sentence_that_merely_says_not_is_kept():
+    """A real indication reads "who have not received prior therapy". Only the specific
+    denials are dropped, or the rule would un-approve half the book."""
+    kept = ("DRUG is indicated for adult patients who have not received prior systemic "
+            "therapy for metastatic disease.")
+    assert AI.covered_text(kept) == kept
+
+
+def test_a_study_in_a_setting_the_label_does_not_state_is_an_expansion(tmp_path):
+    """Etcamah is approved in locally advanced or metastatic disease and reads out in
+    early disease after adjuvant therapy. The disease name is the same in both, so the
+    name alone dismissed the expansion; the setting is what separates them."""
+    path = _approved_db(
+        tmp_path, _METASTATIC_LABEL,
+        study="A Study of Camizestrant in Early Crohn's Disease After at Least 2 Years "
+              "of Standard Adjuvant Therapy")
+    conn = db.get_connection(path)
+    assert AI.for_asset(conn, 1) == {5}                     # the disease is covered
+    assert AI.setting_gap(conn, 1, "NCT00000001") == "adjuvant"
+    conn.close()
+    out = V.catalyst_stakes(path, "LLY")
+    row = out["unpriced"][0]
+    assert row["reason"] == "needs_layer"
+    assert "not the adjuvant setting" in row["why"]
+    assert row["missing"]                                   # it names what it lacks
+
+
+def test_a_post_marketing_study_in_an_approved_use_stays_dismissed(tmp_path):
+    """Breztri in COPD and Airsupra against its own component name no setting at all,
+    and they are what the rule must keep refusing."""
+    path = _approved_db(tmp_path, _METASTATIC_LABEL,
+                        study="A Study Evaluating the Efficacy of Budesonide and "
+                              "Formoterol in Crohn's Disease")
+    conn = db.get_connection(path)
+    assert AI.setting_gap(conn, 1, "NCT00000001") is None
+    conn.close()
+    assert [r["reason"] for r in V.catalyst_stakes(path, "LLY")["unpriced"]] \
+        == ["already_approved"]
+
+
+def test_the_setting_vocabulary_reads_a_stage_but_not_a_later_one():
+    """"Stage IA2-IA3" is early disease and "Stage IV" is not, and a prefix match on the
+    numeral would call both of them early."""
+    assert AI.settings_in("EGFRm Stage IA2-IA3 NSCLC Following Complete Resection") == \
+        {"early stage"}
+    assert AI.settings_in("Participants With Stage IV Metastatic Disease") == set()
+    assert AI.settings_in("First-line Osimertinib") == {"first line"}
+    assert AI.settings_in("A Neoadjuvant Study") == {"neoadjuvant"}
+    assert "adjuvant" not in AI.settings_in("A Neoadjuvant Study")
