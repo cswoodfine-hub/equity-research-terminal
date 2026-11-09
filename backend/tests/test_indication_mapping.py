@@ -1025,3 +1025,78 @@ def test_a_study_named_on_two_rows_decides_neither(tmp_path, monkeypatch):
                     "X,A,D003093,\"Colitis, Ulcerative\",NCT9,two")
     im.build(path)
     assert _linked_name(path) is None
+
+
+# --- the override file, which is what survives a rebuild -------------------
+
+def _overrides_file(tmp_path, body):
+    path = tmp_path / "overrides.csv"
+    path.write_text("# a comment the reader skips\n"
+                    "ticker,asset,indication,phase,exclude,note\n" + body,
+                    encoding="utf-8")
+    return path
+
+
+def test_the_override_file_removes_the_pair_through_a_rebuild(tmp_path):
+    """The point of the file: ids are remade by every build, names are not."""
+    path = _seed(tmp_path)
+    im.build(path)
+    csv_path = _overrides_file(
+        tmp_path, 'X,A,"Anemia, Sickle Cell",,1,"the comparator arm, not our asset"\n')
+    conn = db.get_connection(path)
+    assert im.load_overrides(conn, csv_path) == 1
+    conn.commit(); conn.close()
+    summary = im.build(path)
+    assert summary["pairs"] == 0 and summary["excluded_by_override"] == 1
+    # And again, from a table the rebuild has already been through once.
+    assert im.build(path)["excluded_by_override"] == 1
+
+
+def test_the_override_file_can_force_the_phase(tmp_path):
+    path = _seed(tmp_path)
+    csv_path = _overrides_file(
+        tmp_path, 'X,A,"Anemia, Sickle Cell",Phase 2,,"the registry understates it"\n')
+    im.build(path)
+    conn = db.get_connection(path)
+    im.load_overrides(conn, csv_path)
+    conn.commit(); conn.close()
+    im.build(path)
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT phase FROM asset_indications").fetchone()[0] == "Phase 2"
+    conn.close()
+
+
+def test_a_row_with_no_reason_asserts_nothing(tmp_path):
+    path = _seed(tmp_path)
+    im.build(path)
+    csv_path = _overrides_file(tmp_path, 'X,A,"Anemia, Sickle Cell",,1,\n')
+    conn = db.get_connection(path)
+    assert im.load_overrides(conn, csv_path) == 0
+    conn.close()
+    assert im.build(path)["pairs"] == 1
+
+
+def test_a_row_naming_something_the_book_does_not_hold_is_left_for_later(tmp_path):
+    path = _seed(tmp_path)
+    im.build(path)
+    csv_path = _overrides_file(
+        tmp_path,
+        'X,NotAnAsset,"Anemia, Sickle Cell",,1,"an asset the book has not reached yet"\n'
+        'X,A,Narcolepsy,,1,"a disease no study on file names"\n')
+    conn = db.get_connection(path)
+    assert im.load_overrides(conn, csv_path) == 0
+    conn.close()
+    assert im.build(path)["pairs"] == 1
+
+
+def test_the_shipped_file_parses_and_every_row_says_why():
+    """The file is the record, so a row that asserts without a reason is a defect."""
+    import csv as _csv
+    with im.OVERRIDES_CSV.open(newline="", encoding="utf-8") as handle:
+        rows = list(_csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    assert rows
+    for row in rows:
+        assert row["ticker"].strip() and row["asset"].strip()
+        assert row["indication"].strip()
+        assert len((row["note"] or "").strip()) > 40

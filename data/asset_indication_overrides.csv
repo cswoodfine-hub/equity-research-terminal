@@ -1,0 +1,30 @@
+# Asset-indication pairs the derivation makes that the asset has no programme in, with
+# the reason (read by backend/indication_mapping.load_overrides into
+# asset_indication_overrides, which build then applies).
+#
+# This is the mirror of data/asset_indication_exclusions.csv for the other shape of
+# error. That file is for a master protocol giving different drugs to different
+# diseases, where the registry's two flat lists cannot be separated. This file is for a
+# condition the registry lists because the protocol mentions it: a background therapy
+# the trial adds the drug to, an entry criterion read as a disease under study, or a
+# second MeSH index of the disease the book already prices.
+#
+# The file exists because the table does not survive a rebuild. indication_mapping.build
+# deletes and remakes asset_indications wholesale, and the override table is keyed on the
+# ids it rebuilds, so a judgement typed into the database lasts until the next run and
+# never travels in git or reaches the nightly refresh. Keyed here by ticker, the asset's
+# name and the indication's name, following data/trial_asset_map.csv for the same reason.
+#
+# A row with no reason asserts nothing and is skipped. Name the study and say what its
+# own record shows. phase forces the phase where the registry understates it and is
+# usually blank; exclude is 1 to remove the pair.
+ticker,asset,indication,phase,exclude,note
+BMY,Cobenfy,Bipolar Disorder,,1,"NCT07140913 is the adjunctive arm of the same BALSAM mania programme as NCT06929273, NCT06951698 and NCT06951711, and the registry indexes it under both Mania and Bipolar Disorder where the other three carry Mania alone. The book prices this work on the Mania layer, whose pool is the 12-month bipolar I population; a Bipolar Disorder row beside it would hold the same patients twice and split one programme across two gates."
+LLY,Foundayo,Prediabetic State,,1,"NCT07794579 again: prediabetes is an enrolment characteristic, not a registered indication for this asset"
+LLY,Foundayo,Prehypertension,,1,NCT07794579 enrols overweight adults and lists their risk factors as conditions. Prehypertension is a characteristic of the population rather than something orforglipron is being developed to treat
+LLY,Kisunla,Cognitive Dysfunction,,1,"a MeSH double-index, not a second programme: TRAILBLAZER-ALZ 7 (NCT07589595, dementia with Lewy bodies with amyloid co-pathology) is indexed under both 'Cognitive Dysfunction' and 'Lewy Body Disease'. Excluded here so the pair exists once, under Lewy Body Disease, and the readout can link to it rather than being refused as ambiguous"
+LLY,Mounjaro,"Arthritis, Psoriatic",,1,"NCT06864026, the psoriatic arthritis twin of NCT06857942: the joint disease belongs to ixekizumab, not to tirzepatide"
+LLY,Mounjaro,Psoriasis,,1,"NCT06857942 is titled 'Tirzepatide Following Initiation of Ixekizumab', so the psoriasis belongs to ixekizumab and tirzepatide is the co-administered metabolic arm"
+LLY,Omvoh,Obesity,,1,"NCT06937086 and NCT06937099 study mirikizumab alongside tirzepatide in ulcerative colitis and Crohn's patients whose conditions read 'Obesity or Overweight'. That is a body-mass eligibility band, not a disease mirikizumab treats. Mirikizumab is an interleukin-23 antibody; the obesity belongs to the tirzepatide arm"
+LLY,Omvoh,Overweight,,1,same two trials as the Obesity row: an enrolment criterion read as a disease
+ROG,Itovebi,"Diabetes Mellitus, Type 2",,1,"NCT07748208 studies inavolisib and fulvestrant in advanced breast cancer patients who also have type 2 diabetes. The diabetes is the enrolled population, not the target"

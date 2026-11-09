@@ -361,6 +361,70 @@ ADDITIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
 EXCLUSIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
                   / "data" / "asset_indication_exclusions.csv")
 
+# The seed for asset_indication_overrides, which build reads but nothing wrote from a
+# file. The table is keyed on asset and indication ids, and this rebuild deletes and
+# remakes every row it points at, so a judgement entered straight into the database
+# survives until the next rebuild and no further: it never travels in git and never
+# reaches the nightly run. The file is the durable form, keyed by ticker, the asset's
+# name and the indication's name, following trial_asset_map.csv for the same reason.
+#
+# This is not the exclusions file above, which is for one shape of registry error and
+# says so. A row here is the answer to the other shape: a condition the registry lists
+# because the protocol mentions it, as a background therapy, an entry criterion or a
+# second MeSH index of the disease already modelled, where the asset has no programme
+# in it at all.
+OVERRIDES_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                 / "data" / "asset_indication_overrides.csv")
+
+
+def load_overrides(conn, path=None) -> int:
+    """Write ``data/asset_indication_overrides.csv`` into ``asset_indication_overrides``.
+
+    Resolves the asset by ticker and name and the indication by name, because both ids
+    are rebuilt with the database and the names are not. A row naming either one the
+    book does not hold yet is left for a later run rather than failing the rebuild.
+    Returns the rows written.
+    """
+    source = pathlib.Path(path) if path else OVERRIDES_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    written = 0
+    for row in rows:
+        name = (row.get("asset") or "").strip()
+        disease = (row.get("indication") or "").strip()
+        note = (row.get("note") or "").strip()
+        # A row asserts nothing without its reason, the same rule the exclusions file
+        # keeps: the book refuses what it cannot attribute.
+        if not (name and disease and note):
+            continue
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND ? IN (LOWER(TRIM(COALESCE(a.brand_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.generic_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.internal_code, ''))))
+                ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
+            ((row.get("ticker") or "").strip().upper(), name.lower())).fetchone()
+        indication = conn.execute(
+            "SELECT id FROM indications WHERE LOWER(name) = LOWER(?)",
+            (disease,)).fetchone()
+        if asset is None or indication is None:
+            continue
+        exclude = 1 if (row.get("exclude") or "").strip() in ("1", "true", "True") else 0
+        phase = (row.get("phase") or "").strip() or None
+        conn.execute(
+            """INSERT INTO asset_indication_overrides
+                   (asset_id, indication_id, phase, exclude, note)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(asset_id, indication_id) DO UPDATE SET
+                   phase = excluded.phase, exclude = excluded.exclude,
+                   note = excluded.note""",
+            (asset["id"], indication["id"], phase, exclude, note))
+        written += 1
+    return written
+
 
 def _curated_rows(conn, path):
     """(asset_id, row, studies) for each row of a curated pair file whose asset and
@@ -642,6 +706,10 @@ def build(db_path=None) -> dict:
         # redundant never becomes a row the layer model can price.
         parents_dropped = drop_parent_of_child(pairs)
         indication_ids = _upsert_indications(conn, pairs)
+        # The file first, so the rebuild reads the judgements as they are written down
+        # rather than whatever last survived in the table. The indications it names have
+        # to exist to be resolved, which is why this follows the upsert above.
+        load_overrides(conn)
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
         seen = {(r["asset_id"], r["indication_id"]): r["first_seen_phase"]
