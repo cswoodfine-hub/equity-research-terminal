@@ -41,12 +41,25 @@ _DENIES = re.compile(
 # both, so a test on the disease name alone dismissed the expansion as already approved.
 # Each entry is a setting and the words a label or a study uses for it, matched against
 # text whose punctuation has been flattened to spaces.
+# "early" alone is three different ideas. Early breast cancer is a stage and a real
+# expansion; "early symptomatic Alzheimer's disease" is the population Kisunla's label
+# already starts at, and "early in hospital initiation of inclisiran" is a timing. So it
+# counts only beside a word for the disease it stages. "adjuvant" is two ideas as well:
+# adjuvant therapy, and the Matrix-M adjuvant in a vaccine, which is why a text naming a
+# vaccine does not carry the setting at all.
+_VACCINE = re.compile(r"\bvaccin", re.I)
+
 SETTINGS = {
     "adjuvant": r"\badjuvant\b",
     "neoadjuvant": r"\bneoadjuvant\b|\bperioperative\b",
-    "early stage": (r"\bearly(?:[ -]stage)?\b|\bresect"
+    "early stage": (r"\bearly[- ]stage\b"
+                    r"|\bearly\b(?=[^.]{0,30}\b(?:cancer|carcinoma|neoplasm|tumou?r)\b)"
+                    r"|\bresect"
                     r"|\bstage\s+(?:i{1,3}[ab]?\d?|[123])\b"
                     r"|\bnon[ -]metastatic\b|\blocali[sz]ed\b"),
+    # Before symptoms begin, which no label reaches: Kisunla starts at mild cognitive
+    # impairment, and TRAILBLAZER-ALZ 3 enrols people who have none.
+    "preclinical": r"\bpreclinical\b|\bpre[- ]symptomatic\b|\basymptomatic\b",
     "first line": (r"\bfirst[ -]line\b|\b1l\b|\bpreviously untreated\b"
                    r"|\btreatment[ -]na[iï]ve\b"),
     "maintenance": r"\bmaintenance\b",
@@ -65,7 +78,10 @@ def covered_text(label: str) -> str:
 def settings_in(text: str) -> set:
     """The settings a piece of text names, by the vocabulary above."""
     flat = re.sub(r"[^a-z0-9]+", " ", (text or "").lower())
-    return {name for name, pattern in SETTINGS.items() if re.search(pattern, flat)}
+    found = {name for name, pattern in SETTINGS.items() if re.search(pattern, flat)}
+    if _VACCINE.search(flat):
+        found.discard("adjuvant")
+    return found
 
 
 def setting_gap(conn, asset_id: int, nct) -> str | None:

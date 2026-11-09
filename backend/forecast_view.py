@@ -738,7 +738,8 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later", "already_approved", "needs_layer", "in_the_base")
+                 "same_gate_later", "already_approved", "needs_layer", "in_the_base",
+                 "no_indication_link")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -957,6 +958,55 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                 f"the forecast does not value, so its result does not decide the modelled "
                 f"value.", nct, trial)
     return None, None, nct, trial
+
+
+def _indication_gap(conn, row: dict) -> str | None:
+    """Why a catalyst carries no indication of the book's, or None where it does.
+
+    Without one there is nothing to value: no layer, no pool, no label test. The row
+    read "marketed or outside the gate model", which says nothing a reader can act on
+    and is untrue of a marketed product. Each case here names what is missing instead.
+    """
+    if row.get("asset_indication_id"):
+        return None
+    # Only where the indication is the binding gap. A pipeline asset outside the gate
+    # model is outside it for its own reasons, which the caller's words already give;
+    # a marketed product's only route is the layer, and the layer needs an indication.
+    marketed = conn.execute("SELECT is_marketed FROM assets WHERE id = ?",
+                            (row.get("asset_id"),)).fetchone() if row.get("asset_id") else None
+    if not (marketed and marketed["is_marketed"]):
+        return None
+    nct, trial = _catalyst_trial(conn, row)
+    if trial is None:
+        # A catalyst with no study of its own is already named by the reasons above: a
+        # marketed asset is outside the gate model whether or not it carries a disease,
+        # and that is the more useful half of the answer.
+        return None
+    study = conn.execute(
+        "SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+    try:
+        terms = indication_mapping.indications_for(
+            study["conditions"],
+            indication_mapping.parse_browse(study["mesh_terms"])) if study else []
+    except Exception:                                      # noqa: BLE001 messy payload
+        terms = []
+    if not terms:
+        return ("The study's conditions name no disease the book holds, so it cannot be "
+                "tied to an indication and nothing can be valued against it.")
+    held = {r["indication_id"] for r in conn.execute(
+        "SELECT indication_id FROM asset_indications WHERE asset_id = ?",
+        (row.get("asset_id"),))} if row.get("asset_id") else set()
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    hits = {by_mesh[t["id"]] for t in terms if t["id"] in by_mesh} & held
+    if len(hits) > 1:
+        return (f"The study spans {len(hits)} of the asset's indications, so it decides "
+                f"no single one and the book has nowhere to put its result.")
+    if not hits:
+        return (f"The asset carries no indication for {terms[0]['term']}, the disease "
+                f"the study is in.")
+    return ("The study names one of the asset's indications but the catalyst was never "
+            "tied to it.")
 
 
 def _no_gate_reason(state: dict) -> tuple:
@@ -1245,6 +1295,12 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             rows = [r for r in rows if r["id"] not in answered]
         reason, why = _no_gate_reason(state)
         for row in rows:
+            # Only in place of the generic reason. "nil" and "no forecast" are statements
+            # about the value and say more than a missing indication would.
+            gap = _indication_gap(conn, row) if reason == "no_gate" else None
+            if gap:
+                refuse(row, "no_indication_link", gap, [])
+                continue
             refuse(row, reason, why)
         return priced, unpriced
 

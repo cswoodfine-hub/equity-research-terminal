@@ -846,6 +846,20 @@ def test_the_setting_vocabulary_reads_a_stage_but_not_a_later_one():
     assert "adjuvant" not in AI.settings_in("A Neoadjuvant Study")
 
 
+def test_early_and_adjuvant_mean_different_things_in_different_diseases():
+    """Three false gaps the first vocabulary opened. "Early breast cancer" is a stage;
+    "early symptomatic Alzheimer's disease" is where Kisunla's label already starts, and
+    "early in hospital initiation" is a timing. And the Matrix-M adjuvant in a flu
+    vaccine is not adjuvant therapy. Preclinical disease, which no label reaches, was
+    missing from the other side."""
+    assert AI.settings_in("Early Breast Cancer after adjuvant endocrine therapy") == \
+        {"early stage", "adjuvant"}
+    assert AI.settings_in("Participants With Early Symptomatic Alzheimer's Disease") == set()
+    assert AI.settings_in("Early in Hospital Initiation of Inclisiran") == set()
+    assert AI.settings_in("Influenza Vaccine With Matrix-M Adjuvant in Adults") == set()
+    assert AI.settings_in("Donanemab in Preclinical Alzheimer Disease") == {"preclinical"}
+
+
 def test_a_study_in_the_business_already_sold_to_says_so(tmp_path):
     """Lipfendra's India study and Fayuvi's follow-up of its own treated children are in
     the pool the product already sells to. The layer refuses them on the research rather
@@ -906,3 +920,46 @@ def test_one_studys_expansion_does_not_drag_its_on_label_siblings(tmp_path):
     by = {r["description"]: r["reason"] for r in V.catalyst_stakes(path, "LLY")["unpriced"]}
     assert by["NCT00000001"] == "already_approved"      # first line, as the label says
     assert by["NCT00000002"] == "needs_layer"           # adjuvant, which it does not
+
+
+def test_a_catalyst_tied_to_no_indication_says_which_way_it_failed(tmp_path):
+    """Two ways a readout with a study of its own ends up with no indication, both
+    reading as "marketed or outside the gate model" before: a basket study across
+    several of the asset's diseases, and a study whose conditions name none the book
+    holds. Neither is an asset outside the model. A catalyst with no study at all keeps
+    the older reason, which already names the asset."""
+    path = str(tmp_path / "c.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Lynparza', 1)")
+    for iid, name, mesh in ((1, "Ovarian Neoplasms", "D010051"),
+                            (2, "Breast Neoplasms", "D001943")):
+        conn.execute("INSERT INTO indications (id, name, mesh_id) VALUES (?, ?, ?)",
+                     (iid, name, mesh))
+        conn.execute("INSERT INTO asset_indications (asset_id, indication_id, phase, region)"
+                     " VALUES (1, ?, 'Phase 3', 'US')", (iid,))
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
+                 " overall_status, primary_completion_date, conditions, mesh_terms) VALUES"
+                 " ('NCT00000001', 1, 1, 'A basket study', 'Phase 3', 'Recruiting',"
+                 "  date('now', '+90 days'), ?, ?)",
+                 ('["Ovarian Cancer", "Breast Cancer"]',
+                  '{"meshes": [{"id": "D010051", "term": "Ovarian Neoplasms"},'
+                  ' {"id": "D001943", "term": "Breast Neoplasms"}], "ancestors": []}'))
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
+                 " overall_status, primary_completion_date, conditions) VALUES"
+                 " ('NCT00000002', 1, 1, 'A study in something else', 'Phase 3',"
+                 "  'Recruiting', date('now', '+90 days'), ?)", ('["Cancer"]',))
+    for cid, nct in ((10, "NCT00000001"), (11, "NCT00000002")):
+        conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                     " expected_date, title, description, source_url, status) VALUES"
+                     " (?, 1, 1, 'data readout', date('now', '+90 days'),"
+                     "  'Phase 3, Lynparza', ?, ?, 'pending')",
+                     (cid, nct, f"https://clinicaltrials.gov/study/{nct}" if nct else None))
+    conn.commit()
+    conn.close()
+    by = {r["id"]: r for r in V.catalyst_stakes(path, "LLY")["unpriced"]}
+    assert {r["reason"] for r in by.values()} == {"no_indication_link"}
+    assert "spans 2 of the asset's indications" in by[10]["why"]
+    assert "name no disease the book holds" in by[11]["why"]

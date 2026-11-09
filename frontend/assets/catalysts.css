@@ -459,6 +459,9 @@
 /* A study already inside the business: a decided question, so it sits at the quiet end
    beside the label's own, on the same neutral ramp. */
 .cx .u7 { background: color-mix(in oklab, var(--muted) 18%, var(--panel)); }
+/* Tied to no indication: a gap in the record rather than a decided question, so it
+   takes the ramp's darkest step and sits apart from the settled reasons. */
+.cx .u8 { background: color-mix(in oklab, var(--muted) 88%, var(--panel)); }
 .cx-ub i.u2, .cx-ub i.u4, .cx-ub i.u5, .cx-ub i.u7 { color: var(--text); }
 .cx-uk { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; font-size: 11px;
   color: var(--muted); }

@@ -57,6 +57,7 @@ REASON_SHORT = {
     "already_approved": "the label already covers it",
     "needs_layer": "an expansion with no pool on file",
     "in_the_base": "already in the business sold to",
+    "no_indication_link": "tied to no indication",
 }
 REASON_LONG = {
     "no_gate_marketed": "A marketed line: the readout is label work, outside the gate model.",
@@ -68,6 +69,7 @@ REASON_LONG = {
     "already_approved": "The label already covers this indication, so the approval is in the reported revenue.",
     "needs_layer": "An expansion the label does not cover, with no pool on file to value it.",
     "in_the_base": "A study in the pool the product is already sold to: it moves share rather than patients, which only stated legs price.",
+    "no_indication_link": "A study the book cannot tie to one of the asset's indications, so there is nothing to value it against.",
 }
 PANES = ("Legs and odds", "Cost to reach", "Studies and dates", "Market and evidence")
 MORE_TITLES = {"cal": "Calendar, 24 months", "slip": "Date slips", "loe": "Exclusivity",
