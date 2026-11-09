@@ -31,6 +31,13 @@ import pdufa
 MAX_TOKENS = 1200
 SOURCE = "guidance"
 LOOKBACK_DAYS = 400
+# Sections read in one pass, the same bound trial_readouts keeps. It was 20, which is
+# fewer than a single quarter's earnings releases across seventy-five companies: a
+# 1,267-section backlog would have taken sixty-four runs to clear, and the ledger was
+# not carried in history, so every rebuild started it again and it never finished. The
+# cost is bounded and temporary, because once the backlog is read the candidates are
+# the day's new filings.
+MAX_PER_RUN = 400
 SECTIONS = ("exhibit", "body", "mdna")
 _WINDOW = 2400          # characters around the guidance language sent to the model
 
@@ -156,7 +163,7 @@ def _ask(document: str, ticker: str, filed_date: str, complete=None) -> dict | N
     return parse_reply(complete(SYSTEM_PROMPT, user, MAX_TOKENS))
 
 
-def extract(db_path=None, limit: int = 20, complete=None) -> dict:
+def extract(db_path=None, limit: int = MAX_PER_RUN, complete=None) -> dict:
     """Read unscanned guidance-bearing sections and write what survives the gates.
 
     Every section is read at most once, ledgered in guidance_scans, so the model spend

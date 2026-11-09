@@ -51,6 +51,24 @@ HISTORY_TABLES = [
     # carry the model through a rebuild; the ledger alone carries what the seeds cannot,
     # which is every number edited in the terminal after it was first written.
     "assumption_edits",
+    # What the model read out of the filings: whether a Phase 3 met its endpoint
+    # (trial_readouts.py), the PDUFA dates in acceptance filings (pdufa.py), and the
+    # ledger and rows of management guidance (guidance.py).
+    #
+    # These are reads, not fetches. No source hands them back: the filing can be fetched
+    # again but the reading costs a model call, and a reading already paid for is the
+    # kind of thing history is for. They lived only inside the published database, and
+    # on 2026-11-09 a restore from that release arrived with every one of them empty,
+    # which took 1,359 readouts and 1,728 PDUFA reads out of the book in one step.
+    #
+    # Append-only and keyed on the filing accession, so a day's diff is the day's new
+    # filings: 1,359 rows is 524KB against the 50MB of snapshots already carried.
+    #
+    # consensus_estimates travels with guidance_scans and not apart from it. The scans
+    # table is the ledger that says a section has been read; carried alone it would tell
+    # a rebuilt database to skip sections whose rows had gone, and the guidance would
+    # never come back.
+    "trial_readouts", "pdufa_reads", "guidance_scans", "consensus_estimates",
 ]
 
 DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data" / "history"

@@ -190,3 +190,57 @@ def test_catalyst_resolutions_travel_in_git_like_the_valuation_calls(tmp_path):
     assert history.export(src, out)["catalyst_resolutions"] == 1
     dest = tmp_path / "dest.db"
     assert history.rebuild(dest, out)["catalyst_resolutions"] == 1
+
+
+def test_what_the_model_read_travels_in_git(tmp_path):
+    """A filing can be fetched again; the reading of it costs a model call. These lived
+    only inside the published database, and a restore from it on 2026-11-09 arrived with
+    every one empty, taking 1,359 readouts and 1,728 PDUFA reads out of the book.
+
+    Two of them carry no id column, so the round trip is checked rather than assumed."""
+    for table in ("trial_readouts", "pdufa_reads", "guidance_scans", "consensus_estimates"):
+        assert table in history.HISTORY_TABLES, table
+    src = tmp_path / "src.db"
+    db.init(src)
+    seed.load_companies(src)
+    conn = db.get_connection(src)
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date, quote) VALUES ('0001-26-1', 1, 'tirzepatide', 3, 'positive',"
+                 " '2026-10-03', 'met its primary endpoint')")
+    conn.execute("INSERT INTO pdufa_reads (accession, url, form_type, filed_date, outcome)"
+                 " VALUES ('0001-26-2', 'https://x', '8-K', '2026-10-03', 'none')")
+    conn.execute("INSERT INTO guidance_scans (accession, section, found)"
+                 " VALUES ('0001-26-3', 'exhibit', 1)")
+    conn.execute("INSERT INTO consensus_estimates (company_id, metric, period, value,"
+                 " currency, source, as_of, note) VALUES (1, 'Revenue', 'FY2026',"
+                 " 1.3e9, 'USD', 'guidance', '2026-05-06', 'Total net product revenues')")
+    conn.commit()
+    conn.close()
+
+    out = tmp_path / "history"
+    got = history.export(src, out)
+    assert all(got[t] == 1 for t in ("trial_readouts", "pdufa_reads", "guidance_scans",
+                                     "consensus_estimates"))
+
+    # Into a database that never held them, and then again, which must not duplicate the
+    # rows whose table has no id to replace on.
+    fresh = tmp_path / "fresh.db"
+    db.init(fresh)
+    history.rebuild(fresh, out)
+    history.rebuild(fresh, out)
+    conn = db.get_connection(fresh)
+    try:
+        for table in ("trial_readouts", "pdufa_reads", "guidance_scans",
+                      "consensus_estimates"):
+            assert conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 1, table
+        assert conn.execute("SELECT outcome FROM trial_readouts").fetchone()[0] == "positive"
+    finally:
+        conn.close()
+
+
+def test_the_guidance_reader_is_not_held_to_twenty_sections_a_run():
+    """At twenty a 1,267-section backlog takes sixty-four runs, and the ledger that
+    remembers the progress was not carried in history, so it never finished."""
+    import guidance
+    assert guidance.MAX_PER_RUN >= 400
+    assert guidance.extract.__defaults__[1] == guidance.MAX_PER_RUN
