@@ -52,8 +52,20 @@ jobs:
       PULSE_ONLY: ${{ github.event.schedule == '0 10 * * 1-5' || inputs.pulse_only }}
       # EDGAR blocks requests without a real identifier. Set this repo secret.
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
-      # Optional: set to run the generated note; absent, the note stays rules-only.
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # The model the readers use. Without it four of them do nothing and say so in the
+      # run record: the trial readouts that say whether a Phase 3 met its endpoint, the
+      # PDUFA dates read out of acceptance filings, management guidance, and what a deal
+      # pays. The note degrades to its rules layer too. It read "optional, for the note"
+      # until 2026-11-09, which is why it was never set and why the published database
+      # carried no readouts at all.
+      #
+      # Either secret name works, so the key can be rotated under a new name without
+      # editing this file. The environment variable must stay GROQ_API_KEY, since that
+      # is what llm.py reads.
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY_2 || secrets.GROQ_API_KEY }}
+      # Set this one instead to run the readers on Gemini, which llm.provider prefers
+      # only when no Groq key is present.
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
     steps:
       - uses: actions/checkout@v7
