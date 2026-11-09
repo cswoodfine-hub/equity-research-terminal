@@ -738,7 +738,7 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later", "already_approved", "needs_layer")
+                 "same_gate_later", "already_approved", "needs_layer", "in_the_base")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -1124,22 +1124,28 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
     # taken out of the approved set here, so the layer gate below may price them and the
     # row says what it needs rather than that it decides nothing.
     open_pairs: set = set()
-    if approved:
-        for row in rows:
-            if (row.get("asset_indication_id") in approved
-                    and approved_indications.setting_gap(conn, asset_id,
-                                                         row.get("description"))):
+    gap_of: dict = {}
+    for row in rows:
+        if row.get("asset_indication_id") in approved:
+            gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
+            gap_of[row["id"]] = gap
+            if gap:
                 open_pairs.add(row["asset_indication_id"])
-        approved = approved - open_pairs
-    if approved:
-        standing, rows = rows, [r for r in rows
-                                if r.get("asset_indication_id") not in approved]
-        for row in standing:
-            if row.get("asset_indication_id") in approved:
-                refuse(row, "already_approved",
-                       "The label already covers this indication, so the approval is in "
-                       "the reported revenue the forecast is grown from and the readout "
-                       "decides nothing further.")
+    # The gap is one study's, not the whole indication's. A sibling's expansion opens the
+    # pair so the layer below may value it, but must not carry the studies the label
+    # covers outright: two of Trodelvy's three triple-negative readouts are first-line
+    # metastatic, which the label states in as many words, and the third is adjuvant
+    # after surgery. Judging the pair rather than the study put all three in the queue.
+    covered = {row["id"] for row in rows
+               if row.get("asset_indication_id") in approved and not gap_of.get(row["id"])}
+    approved = approved - open_pairs
+    if covered:
+        for row in [r for r in rows if r["id"] in covered]:
+            refuse(row, "already_approved",
+                   "The label already covers this indication, so the approval is in "
+                   "the reported revenue the forecast is grown from and the readout "
+                   "decides nothing further.")
+        rows = [r for r in rows if r["id"] not in covered]
         if not rows:
             return priced, unpriced
 
@@ -1210,6 +1216,21 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             layer = layers[pair_id]
             gaps = list((layer or {}).get("missing") or [])
             if layer is not None and not gaps:
+                # The layer refused on the evidence rather than for want of a seed: the
+                # research has already said this indication is the product's own
+                # business. That is a readout deciding nothing, not an asset outside the
+                # gate model, which is what it read as before and is plainly untrue of a
+                # marketed big pharma product.
+                # What the pool cannot say: a result inside the business still moves
+                # share, and a head-to-head inside an approved use is the clearest case
+                # of it. The book has no way to derive how much share an evidence win
+                # takes, so the route is the analyst's stated legs, and the row names
+                # that rather than reading as worth nothing.
+                refuse(row, "in_the_base", (layer.get("why") or
+                       "The research marks this indication the product's own business.")
+                       + " A result here moves share rather than pool, which the book "
+                         "prices only from stated success and failure legs.", [])
+                answered.add(row["id"])
                 continue
             gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
             lead = (f"The label covers this disease but not the {gap} setting this study "

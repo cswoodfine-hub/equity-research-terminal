@@ -844,3 +844,65 @@ def test_the_setting_vocabulary_reads_a_stage_but_not_a_later_one():
     assert AI.settings_in("First-line Osimertinib") == {"first line"}
     assert AI.settings_in("A Neoadjuvant Study") == {"neoadjuvant"}
     assert "adjuvant" not in AI.settings_in("A Neoadjuvant Study")
+
+
+def test_a_study_in_the_business_already_sold_to_says_so(tmp_path):
+    """Lipfendra's India study and Fayuvi's follow-up of its own treated children are in
+    the pool the product already sells to. The layer refuses them on the research rather
+    than for want of a seed, and the row used to read "outside the gate model", which is
+    plainly untrue of a marketed product."""
+    path = _approved_db(tmp_path, _METASTATIC_LABEL, indication="Pediatric Crohn's disease",
+                        study="A Study of Mirikizumab in Children")
+    conn = db.get_connection(path)
+    pair = conn.execute("SELECT asset_id, indication_id FROM asset_indications").fetchone()
+    for key, value in (("base_pool_overlap_pct", 1.0), ("therapy_mode", None)):
+        conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                     " key, value, text_value, source) VALUES (?, ?, 'US', 'base', ?, ?, ?, 'test')",
+                     (pair["asset_id"], None if key == "therapy_mode" else pair["indication_id"],
+                      key, value, "chronic" if key == "therapy_mode" else None))
+    conn.commit()
+    conn.close()
+    rows = V.catalyst_stakes(path, "LLY")["unpriced"]
+    assert [r["reason"] for r in rows] == ["in_the_base"]
+    assert "already being sold to" in rows[0]["why"]
+    # And it names the route, because a result inside the business still moves share:
+    # three of the fifty-two are head-to-head trials in an approved use.
+    assert "stated success and failure legs" in rows[0]["why"]
+    assert rows[0]["missing"] == []
+
+
+def test_one_studys_expansion_does_not_drag_its_on_label_siblings(tmp_path):
+    """Trodelvy reads out three times in triple-negative breast cancer: two in first-line
+    metastatic disease, which the label states in as many words, and one in residual
+    disease after surgery, which it does not. Opening the pair on the adjuvant study put
+    all three in the seed queue. The gap belongs to the study, not to the indication."""
+    path = str(tmp_path / "c.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Trodelvy', 1)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (1, 'Breast Neoplasms')")
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase, region)"
+                 " VALUES (5, 1, 1, 'Phase 3', 'US')")
+    conn.execute("INSERT INTO labels (asset_id, setid, effective_time, indications_text)"
+                 " VALUES (1, 'x', 'Aug 11, 2026', ?)",
+                 ("TRODELVY is indicated for the first line treatment of adult patients "
+                  "with unresectable locally advanced or metastatic breast cancer.",))
+    for nct, title in (("NCT00000001", "Previously untreated locally advanced or metastatic "
+                                       "breast cancer"),
+                       ("NCT00000002", "Residual invasive disease after surgery and "
+                                       "neoadjuvant therapy")):
+        conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
+                     " overall_status, primary_completion_date) VALUES (?, 1, 1, ?, 'Phase 3',"
+                     " 'Recruiting', date('now', '+90 days'))", (nct, title))
+    for cid, nct in ((10, "NCT00000001"), (11, "NCT00000002")):
+        conn.execute("INSERT INTO catalysts (id, company_id, asset_id, asset_indication_id,"
+                     " catalyst_type, expected_date, title, description, status) VALUES"
+                     " (?, 1, 1, 5, 'data readout', date('now', '+90 days'),"
+                     " 'Phase 3, Trodelvy', ?, 'pending')", (cid, nct))
+    conn.commit()
+    conn.close()
+    by = {r["description"]: r["reason"] for r in V.catalyst_stakes(path, "LLY")["unpriced"]}
+    assert by["NCT00000001"] == "already_approved"      # first line, as the label says
+    assert by["NCT00000002"] == "needs_layer"           # adjuvant, which it does not
