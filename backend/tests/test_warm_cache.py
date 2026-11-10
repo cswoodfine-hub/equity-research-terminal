@@ -118,3 +118,16 @@ def test_a_saved_file_is_current_only_for_its_own_book_code_and_day(tmp_path, mo
         R.load_from_disk()
         # Loaded all the same, but stale: a company read recomputes before it is served.
         assert R._entries["/companies/AZN/fair-value?"]["stamp"] is None
+
+
+def test_an_empty_write_ahead_log_does_not_move_the_stamp(tmp_path, monkeypatch):
+    database = tmp_path / "book.db"
+    database.write_bytes(b"SQLite format 3\x00")
+    monkeypatch.setattr(R.db, "DB_PATH", database)
+    before = R.stamp()
+    # SQLite creates the log empty when a process first opens the database.
+    (tmp_path / "book.db-wal").write_bytes(b"")
+    assert R.stamp() == before
+    # A write puts pages in it, and that moves the stamp.
+    (tmp_path / "book.db-wal").write_bytes(b"page")
+    assert R.stamp() != before

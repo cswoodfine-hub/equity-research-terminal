@@ -119,10 +119,21 @@ def _newest_data_file() -> int:
     return newest
 
 
+def _wal_mtime(path) -> int:
+    """The write-ahead log's modification time, or 0 while it holds nothing. SQLite
+    creates the log empty the first time a process opens the database, which is not a
+    write: counting it moved the stamp under every entry loaded before that moment."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return 0
+    return info.st_mtime_ns if info.st_size else 0
+
+
 def stamp() -> tuple:
     """What every cached read was computed from, as cheaply comparable values."""
     database = str(db.DB_PATH)
-    return (database, _mtime(database), _mtime(database + "-wal"), _newest_data_file(),
+    return (database, _mtime(database), _wal_mtime(database + "-wal"), _newest_data_file(),
             dt.date.today().isoformat())
 
 
