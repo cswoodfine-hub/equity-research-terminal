@@ -471,6 +471,9 @@
 .cx-uk span { display: inline-flex; align-items: center; gap: 6px; }
 .cx-uk span i { width: 10px; height: 10px; display: inline-block; flex: 0 0 auto; }
 .cx-uk span b { color: var(--text); font-family: var(--font-mono); min-width: 18px; }
+/* The repeat dates: the same events as the priced ones, so the key names them without a
+   swatch, which would read as another reason the book cannot value something. */
+.cx-uk span.cx-rep { color: var(--muted); font-style: italic; }
 .cx-ugs { margin-top: 10px; }
 .cx-ug { display: grid; grid-template-columns: minmax(0, 1fr); padding: 5px 0;
   border-top: 1px solid var(--rule); font-size: 11px; }

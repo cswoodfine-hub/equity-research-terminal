@@ -1646,6 +1646,9 @@ def next_rows(p, n=12) -> list:
 def _why_short(e) -> str:
     if e.get("priced"):
         return f"{usd(e.get('per_share'))} at stake"
+    # Another date for an event that is priced, not an event with no price.
+    if e.get("priced_on"):
+        return "same event, priced earlier"
     if e.get("reason") == "no_gate" and e.get("marketed"):
         return "marketed, label expansion"
     return WHY_SHORT.get(e.get("reason"), "not priced")
@@ -2022,6 +2025,9 @@ def unpriced_html(p) -> str:
     tot = sum(cnt.values())
     events = p.get("events") or []
     priced = sum(1 for e in events if e.get("priced"))
+    # Repeat dates are left out of both the bar and the denominator: they are the same
+    # events as the priced ones, counted once there already.
+    repeats = int(p.get("repeat_dates") or 0)
     head = section_html(f"Why {tot} events carry no price", "stakes, by reason",
                         f"{tot} of {tot + priced}")
     if not tot:
@@ -2047,6 +2053,9 @@ def unpriced_html(p) -> str:
     ex = next((e for e in events if e.get("reason") == "other_indication" and e.get("why")), None)
     example = (f'<div class="rs-n">{esc(ex.get("asset") or "")} {dm(ex.get("date"))}: '
                f'{esc(ex["why"])}</div>' if ex else "")
+    if repeats:
+        keys.append(f'<span class="cx-rep"><b class="m">{repeats}</b> more dates belong '
+                    f'to events already priced</span>')
     return (head + f'<div class="cx-ub">{"".join(segs)}</div><div class="cx-uk">{"".join(keys)}</div>'
             + example + '<div class="cx-ugs">' + "".join(groups) + "</div>")
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import datetime as dt
+import json
 import logging
 import math
 import re
@@ -1066,6 +1067,64 @@ _LAYER_GATE_PHASES = {"Phase 3": "p3_to_nda", "Phase 2/3": "p3_to_nda",
                       "Phase 2": "p2_to_p3"}
 
 
+def _one_population_legs(conn, row: dict) -> list:
+    """The asset's indications a catalyst decides together, or [] where it decides none.
+
+    A readout the registry files under several of an asset's diseases is normally left
+    unlinked, because choosing one of them would be a guess. Sometimes it is not a
+    choice: Saphnelo's NCT06455449 enrols idiopathic inflammatory myopathies, one
+    randomised population with one endpoint, and the book holds dermatomyositis and
+    polymyositis as two seeded layers. The readout decides both and is worth their sum.
+
+    The registry says which it is. A study that treats its diseases as one population
+    files them as one condition string, "Polymyositis, Dermatomyositis"; a basket or a
+    master protocol lists them separately, as KEYNOTE-158 lists twenty-four and
+    orforglipron's lists obesity, overweight and type 2 diabetes. That single entry is
+    the whole test here, and on the book as it stands it admits one study of the
+    fourteen that span: the other thirteen are baskets, master protocols, and roll-over
+    or long-term extension studies, none of which decides anything together.
+
+    Parent and child are collapsed first (``drop_parent_matches``), so a study indexed under both a
+    disease and its own broader term is one leg rather than two counts of the same
+    patients.
+    """
+    if row.get("asset_indication_id") or not row.get("asset_id"):
+        return []
+    nct, trial = _catalyst_trial(conn, row)
+    if trial is None:
+        return []
+    study = conn.execute(
+        "SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+    if study is None:
+        return []
+    try:
+        named = json.loads(study["conditions"] or "[]")
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(named, list) or len(named) != 1:
+        return []
+    try:
+        terms = indication_mapping.indications_for(
+            study["conditions"], indication_mapping.parse_browse(study["mesh_terms"]))
+    except Exception:                                      # noqa: BLE001 messy payload
+        return []
+    held = {r["indication_id"]: r["id"] for r in conn.execute(
+        "SELECT id, indication_id FROM asset_indications WHERE asset_id = ?",
+        (row["asset_id"],))}
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    hits = {held[by_mesh[t["id"]]] for t in terms
+            if t["id"] in by_mesh and by_mesh[t["id"]] in held}
+    if len(hits) < 2:
+        return []
+    names = {pid: (conn.execute(
+        "SELECT i.name FROM asset_indications ai JOIN indications i"
+        "    ON i.id = ai.indication_id WHERE ai.id = ?", (pid,)).fetchone()[0]
+        or "").strip().lower() for pid in hits}
+    kept = sorted(indication_mapping.drop_parent_matches(names))
+    return kept if len(kept) > 1 else []
+
+
 def _layer_gate(conn, rows: list, approved: set) -> list:
     """[(row, priced)] for readouts that decide an unapproved indication on a product
     that already sells something else.
@@ -1084,21 +1143,39 @@ def _layer_gate(conn, rows: list, approved: set) -> list:
     area = None
     priced, seen = [], set()
     for row in sorted(rows, key=lambda r: r.get("expected_date") or ""):
-        pair_id = row.get("asset_indication_id")
-        if not pair_id or pair_id in approved or pair_id in seen:
+        # One pair where the catalyst names a disease, several where one randomised
+        # population covers several of them. Every leg has to clear every test: the
+        # readout is worth the sum only if the sum is actually built.
+        pair_ids = ([row["asset_indication_id"]] if row.get("asset_indication_id")
+                    else _one_population_legs(conn, row))
+        if not pair_ids or any(p in approved or p in seen for p in pair_ids):
             continue
-        pair = conn.execute(
-            "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
-            "  FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
-            " WHERE ai.id = ?", (pair_id,)).fetchone()
-        if pair is None:
+        legs = []
+        for pair_id in pair_ids:
+            pair = conn.execute(
+                "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
+                "  FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
+                " WHERE ai.id = ?", (pair_id,)).fetchone()
+            if pair is None:
+                break
+            leg_gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
+            if leg_gate is None:
+                break
+            built = indication_layer.build(conn, pair["asset_id"], pair["indication_id"])
+            if not built or not built.get("ok") or not built.get("npv"):
+                break
+            legs.append((pair, leg_gate, built))
+        if len(legs) != len(pair_ids):
             continue
-        gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
-        if gate is None:
+        # The legs are one event, so they have to be at one gate. Two diseases of the
+        # same asset at different phases are not decided by one readout.
+        gates = {g for _p, g, _b in legs}
+        if len(gates) != 1:
             continue
-        built = indication_layer.build(conn, pair["asset_id"], pair["indication_id"])
-        if not built or not built.get("ok") or not built.get("npv"):
-            continue
+        pair, gate, built = legs[0]
+        npv = sum(b["npv"] for _p, _g, b in legs)
+        peak = sum((b.get("peak_revenue") or 0.0) for _p, _g, b in legs) or None
+        binds = any(b.get("ceiling_binds") for _p, _g, b in legs)
         if area is None:
             area = pair["therapeutic_area"] or _asset_area(conn, pair["asset_id"])
         ahead = pos_granular.CHAIN[pos_granular.CHAIN.index(gate):]
@@ -1110,9 +1187,9 @@ def _layer_gate(conn, rows: list, approved: set) -> list:
         p_gate, after = odds[0], 1.0
         for p in odds[1:]:
             after *= p
-        seen.add(pair_id)
+        seen.update(pair_ids)
         priced.append((row, {
-            "npv": built["npv"], "pos_now": p_gate * after,
+            "npv": npv, "pos_now": p_gate * after,
             # The gate passing leaves what is still ahead of it; failing leaves nothing,
             # because an indication that misses its pivotal readout does not launch.
             "pos_success": after, "pos_failure": 0.0,
@@ -1120,11 +1197,16 @@ def _layer_gate(conn, rows: list, approved: set) -> list:
                 "legs_basis": "indication layer",
                 "gate": gate, "gate_label": pos_granular.GATE_LABELS.get(gate),
                 "p_gate": p_gate, "p_gate_published": p_gate, "held": None,
-                "basis": (f"an unapproved indication on a marketed product, valued "
-                          f"bottom-up over its own pool and risked at the published "
-                          f"{area or 'All indications'} transitions"),
-                "layer_peak_revenue": built["peak_revenue"],
-                "layer_ceiling_binds": built["ceiling_binds"],
+                "basis": ((f"{len(legs)} unapproved indications of a marketed product "
+                           f"that one randomised population covers, each valued "
+                           f"bottom-up over its own pool and risked together at the "
+                           f"published {area or 'All indications'} transitions")
+                          if len(legs) > 1 else
+                          (f"an unapproved indication on a marketed product, valued "
+                           f"bottom-up over its own pool and risked at the published "
+                           f"{area or 'All indications'} transitions")),
+                "layer_peak_revenue": peak,
+                "layer_ceiling_binds": binds,
                 "resolvable": False,
                 "resolve_note": ("The layer is derived, so there is no stated "
                                  "probability to step."),
@@ -1182,8 +1264,14 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             clean["ignored"] = state["ignored"]
         return clean
 
-    def refuse(row, reason, why, missing_keys=None):
+    def refuse(row, reason, why, missing_keys=None, priced_on=None):
+        # ``priced_on`` names the catalyst that does carry this event's stake. Three of
+        # the reasons are not refusals at all: they are the second and third dates of one
+        # event, 129 rows of the 522 on the book, and counting them as work outstanding
+        # overstated the queue by a quarter. The id lets the tab hang them under the row
+        # they belong to instead of listing them beside genuine gaps.
         unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
+                         "priced_on": priced_on,
                          "missing": missing(reason) if missing_keys is None
                          else list(missing_keys)})
 
@@ -1233,7 +1321,7 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                        "so nothing is at stake.")
                 continue
             if row["id"] != lead:
-                refuse(row, "stated_elsewhere", elsewhere[row["id"]])
+                refuse(row, "stated_elsewhere", elsewhere[row["id"]], priced_on=lead)
                 continue
             priced.append({**out(row), "priced": True, "legs_basis": "stated",
                            **money(row, state["stated"]["pos_success"],
@@ -1279,11 +1367,12 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             # same gate again, not one with no gate: Cobenfy's five Alzheimer's readouts
             # carry one layer, priced on the earliest, and the other four read as having
             # nothing to price, which counted them as work still to do.
-            gated = {r.get("asset_indication_id") for r, _ in layered}
+            gated = {r.get("asset_indication_id"): r["id"] for r, _ in layered}
             for row in [r for r in rows if r.get("asset_indication_id") in gated]:
                 refuse(row, "same_gate_later",
                        "An earlier readout in the same indication carries this layer, so "
-                       "it is priced there once rather than again here.")
+                       "it is priced there once rather than again here.",
+                       priced_on=gated[row["asset_indication_id"]])
             rows = [r for r in rows if r.get("asset_indication_id") not in gated]
         # A readout on an indication the label does not cover is an expansion, and where
         # no pool is on file to value it the row is work waiting rather than an asset
@@ -1354,7 +1443,8 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         if reason is None and row["id"] != lead:
             refuse(row, "same_gate_later",
                    f"An earlier catalyst ({eligible[0][0]['expected_date']}) decides the "
-                   f"same {legs['label'].lower()}, so this one is not priced twice.")
+                   f"same {legs['label'].lower()}, so this one is not priced twice.",
+                   priced_on=lead)
             continue
         if reason is not None:
             refuse(row, reason, why)

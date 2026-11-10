@@ -392,6 +392,9 @@ def _events(src: dict, lines: dict, gated: set, by_nct: dict, areas: dict, trial
             "gate_asset": aid if aid in gated else None,
             "reason": None if priced else r.get("reason"),
             "why": None if priced else r.get("why"),
+            # The catalyst that does carry this event's stake, where this row is only
+            # another of its dates rather than a gap in the model.
+            "priced_on": None if priced else r.get("priced_on"),
             "line_value": _num(line.get("per_share")), "marketed": marketed,
             "trial": trial, "slip": slip})
     out.sort(key=lambda e: (e["date"] or "9999", e["id"] or 0))
@@ -531,8 +534,16 @@ def assemble(src: dict) -> dict:
         regulatory.append({"date": str(c.get("detected_at") or "")[:10] or None,
                            "kind": reg_kind(head), "asset_id": aid, "asset": shown,
                            "headline": head, "url": c.get("url")})
+    # Two different things were being counted as one. A readout that repeats an event
+    # already priced on an earlier date is not an event the book cannot value; it is the
+    # same event again. Counting those as unpriced put 129 of the book's 522 rows in a
+    # queue of work that does not exist, so they are counted apart and the tab says so.
     reasons: dict = {}
+    repeats = 0
     for u in stakes.get("unpriced") or []:
+        if u.get("priced_on"):
+            repeats += 1
+            continue
         key = u.get("reason") or "unknown"
         reasons[key] = reasons.get(key, 0) + 1
     ok = bool(verdict.get("ok")) and bool(stakes)
@@ -552,7 +563,7 @@ def assemble(src: dict) -> dict:
         "no_loe": no_loe, "slips": _slips(by_nct, trials, names_by_id, gate_by_nct),
         "readouts": readouts, "regulatory": regulatory,
         "crowding": _crowding(src.get("competition") or {}),
-        "unpriced_reasons": reasons,
+        "unpriced_reasons": reasons, "repeat_dates": repeats,
     }
 
 

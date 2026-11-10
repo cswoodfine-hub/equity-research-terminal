@@ -780,8 +780,8 @@ def test_a_parent_descriptor_does_not_make_a_readout_ambiguous():
     """MeSH indexes an obesity study under "Obesity" and its own parent "Overweight",
     and both are real rows on the asset, so 38 readouts on the largest franchise in the
     book matched two indications and were left unlinked."""
-    assert im._narrow({1: "overweight", 2: "obesity"}) == {2: "obesity"}
-    assert im._narrow({1: "hidradenitis", 2: "hidradenitis suppurativa"}) == \
+    assert im.drop_parent_matches({1: "overweight", 2: "obesity"}) == {2: "obesity"}
+    assert im.drop_parent_matches({1: "hidradenitis", 2: "hidradenitis suppurativa"}) == \
         {2: "hidradenitis suppurativa"}
 
 
@@ -790,7 +790,7 @@ def test_two_unrelated_diseases_stay_ambiguous():
     Type 2 diabetes and obesity are two diseases and the readout is in one of them;
     choosing would be a guess about which, so it stays unlinked and says so."""
     names = {1: "diabetes mellitus, type 2", 2: "obesity"}
-    assert im._narrow(names) == names
+    assert im.drop_parent_matches(names) == names
 
 
 def test_a_study_the_registry_never_indexed_is_read_from_its_condition_text():

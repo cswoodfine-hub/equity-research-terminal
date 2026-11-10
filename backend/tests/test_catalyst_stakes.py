@@ -1044,3 +1044,111 @@ def test_a_label_that_covers_the_study_still_outranks_the_nil(tmp_path):
                                      "lung carcinoma")
     rows = V.catalyst_stakes(path, "GILD")["unpriced"]
     assert [r["reason"] for r in rows] == ["already_approved"]
+
+
+# --- one randomised population covering several of the asset's diseases -------------
+
+def _spanning_book(tmp_path, conditions, *, seed_both=True, phases=("Phase 3", "Phase 3")):
+    """Saphnelo's shape: a marketed product, two unapproved diseases each with a pool,
+    and one readout the registry files under both."""
+    path = str(tmp_path / "sp.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AZN', 'AstraZeneca')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Saphnelo', 1)")
+    for ind_id, name, mesh in ((1, "Dermatomyositis", "D003882"),
+                               (2, "Polymyositis", "D017285")):
+        conn.execute("INSERT INTO indications (id, name, mesh_id) VALUES (?, ?, ?)",
+                     (ind_id, name, mesh))
+    for pair_id, ind_id, phase in ((10, 1, phases[0]), (11, 2, phases[1])):
+        conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase,"
+                     " region) VALUES (?, 1, ?, ?, 'US')", (pair_id, ind_id, phase))
+    conn.execute("INSERT INTO labels (asset_id, setid, effective_time, indications_text)"
+                 " VALUES (1, 'x', 'Oct 5, 2026', ?)",
+                 ("SAPHNELO is indicated for adult patients with moderate to severe "
+                  "systemic lupus erythematosus.",))
+    browse = json.dumps({"meshes": [{"id": "D003882", "term": "Dermatomyositis"},
+                                    {"id": "D017285", "term": "Polymyositis"}]})
+    conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, title, phase,"
+                 " overall_status, enrollment, conditions, mesh_terms, first_posted)"
+                 " VALUES ('NCT06455449', 1, 1, 'Anifrolumab in idiopathic inflammatory"
+                 "  myopathies', 'Phase 3', 'Recruiting', 240, ?, ?, '2024-06-01')",
+                 (json.dumps(conditions), browse))
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, catalyst_type,"
+                 " expected_date, title, description, source_url, status)"
+                 " VALUES (30, 1, 1, 'data readout', date('now', '+200 days'),"
+                 "  'Phase 3, Saphnelo', 'NCT06455449',"
+                 "  'https://clinicaltrials.gov/study/NCT06455449', 'pending')")
+    base = {"therapy_mode": "marketed", "base_revenue": 686.0, "forecast_start_year": 2026,
+            "forecast_years": 12, "revenue_growth_pct": 0.1, "terminal_growth_pct": 0.0,
+            "growth_fade_years": 5, "cogs_pct": 0.18, "sga_pct": 0.35, "rd_pct": 0.24,
+            "tax_rate": 0.14, "risk_free": 0.05, "erp": 0.0414, "beta": 0.56,
+            "cost_of_debt": 0.056, "debt_weight": 0.055, "pos": 1.0,
+            "list_price_per_patient": 0.072, "gross_to_net_pct": 0.057,
+            "discontinuation_pct": 0.15}
+    for key, value in base.items():
+        conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                     " key, value, text_value, source)"
+                     " VALUES (1, NULL, 'US', 'base', ?, ?, ?, 'test')",
+                     (key, None if key == "therapy_mode" else value,
+                      "marketed" if key == "therapy_mode" else None))
+    pool = {"base_pool_overlap_pct": 0.0, "prevalence": 24010, "incidence": 3975,
+            "eligible_pct": 1.0, "penetration_peak_pct": 0.05,
+            "ramp_midpoint_year": 2.15, "ramp_steepness": 1.005, "pos": 0.6}
+    for ind_id in (1, 2) if seed_both else (1,):
+        for key, value in pool.items():
+            conn.execute("INSERT INTO assumptions (asset_id, indication_id, region,"
+                         " scenario, key, value, source)"
+                         " VALUES (1, ?, 'US', 'base', ?, ?, 'test')",
+                         (ind_id, key, value))
+    conn.commit(); conn.close()
+    return path
+
+
+def test_one_population_covering_two_diseases_is_priced_as_their_sum(tmp_path):
+    """The registry files this study's diseases as one condition string, which is how a
+    trial says it enrols one population. Both layers build, so the readout is worth both
+    and the row says so."""
+    path = _spanning_book(tmp_path, ["Polymyositis, Dermatomyositis"])
+    priced = V.catalyst_stakes(path, "AZN")["priced"]
+    assert [r["id"] for r in priced] == [30]
+    assert priced[0]["legs_basis"] == "indication layer"
+    assert "2 unapproved indications" in priced[0]["basis"]
+    assert "one randomised population" in priced[0]["basis"]
+    # The sum is the sum: both legs carry the same pool in this fixture, so the row's
+    # peak is exactly twice what one layer builds on its own.
+    import indication_layer
+    conn = db.get_connection(path)
+    one = indication_layer.build(conn, 1, 1)
+    conn.close()
+    assert priced[0]["layer_peak_revenue"] == pytest.approx(one["peak_revenue"] * 2,
+                                                            rel=1e-9)
+    assert priced[0]["swing"] > one["npv"]
+
+
+def test_a_basket_listing_its_diseases_separately_is_not_summed(tmp_path):
+    """The guard. A basket or master protocol names its conditions one by one, and its
+    cohorts succeed or fail apart, so there is no single result to value."""
+    path = _spanning_book(tmp_path, ["Dermatomyositis", "Polymyositis"])
+    got = V.catalyst_stakes(path, "AZN")
+    assert got["priced"] == []
+    assert [r["reason"] for r in got["unpriced"]] == ["no_indication_link"]
+    assert "spans 2 of the asset's indications" in got["unpriced"][0]["why"]
+
+
+def test_every_leg_has_to_build_before_any_of_them_is_priced(tmp_path):
+    """Half a sum is not an answer: with one pool missing the row stays in the queue."""
+    path = _spanning_book(tmp_path, ["Polymyositis, Dermatomyositis"], seed_both=False)
+    got = V.catalyst_stakes(path, "AZN")
+    assert got["priced"] == []
+    assert [r["reason"] for r in got["unpriced"]] == ["no_indication_link"]
+
+
+def test_legs_at_different_gates_are_not_one_event(tmp_path):
+    """Two diseases of one asset at different phases are not decided by one readout."""
+    path = _spanning_book(tmp_path, ["Polymyositis, Dermatomyositis"],
+                          phases=("Phase 3", "Phase 2"))
+    got = V.catalyst_stakes(path, "AZN")
+    assert got["priced"] == []
+    assert [r["reason"] for r in got["unpriced"]] == ["no_indication_link"]

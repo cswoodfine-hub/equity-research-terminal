@@ -1182,3 +1182,33 @@ def test_live_app_azn_draws_the_redesign():
 def test_live_app_another_company_keeps_todays_tab():
     md = _catalysts_markdown("CRSP")
     assert 'class="cx' not in md
+
+
+# --- the repeat dates, which are not gaps -------------------------------------------
+
+def test_a_repeat_date_is_not_counted_as_an_event_with_no_price(payload):
+    """The same event on a second date was being listed beside genuine gaps, which read
+    as work outstanding. It is named apart and left out of the heading's count."""
+    p = dict(payload)
+    p["unpriced_reasons"] = {"needs_layer": 3, "in_the_base": 2}
+    p["repeat_dates"] = 4
+    text = _visible(CV.unpriced_html(p))
+    assert "Why 5 events carry no price" in text
+    assert "4 more dates belong to events already priced" in text
+    _house_style(text)
+
+
+def test_with_no_repeats_the_block_says_nothing_about_them(payload):
+    p = dict(payload)
+    p["unpriced_reasons"] = {"needs_layer": 3}
+    p["repeat_dates"] = 0
+    text = _visible(CV.unpriced_html(p))
+    assert "belong to events already priced" not in text
+
+
+def test_a_repeat_dates_row_reads_as_the_same_event(payload):
+    assert CV._why_short({"priced": False, "priced_on": 41,
+                          "reason": "same_gate_later"}) == "same event, priced earlier"
+    # And a genuine gap keeps its own words.
+    assert CV._why_short({"priced": False, "reason": "needs_layer"}) == \
+        "an expansion with no pool on file"

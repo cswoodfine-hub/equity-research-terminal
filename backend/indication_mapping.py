@@ -915,7 +915,7 @@ _NARROWS_TO = {
 }
 
 
-def _narrow(names: dict) -> dict:
+def drop_parent_matches(names: dict) -> dict:
     """Drop every match that is the MeSH parent of another match on the same study.
 
     ``names`` maps the asset_indication id to its lowercased indication name. Returns
@@ -1089,7 +1089,8 @@ def attach_catalyst_indications(conn) -> dict:
             hits = _by_condition_text(row["conditions"], by_asset.get(row["asset_id"]) or [])
             text_matched += 1 if len(hits) == 1 else 0
         if len(hits) > 1:
-            hits = set(_narrow({pid: pair_name.get(pid, "") for pid in hits}))
+            hits = set(drop_parent_matches(
+                {pid: pair_name.get(pid, "") for pid in hits}))
         if len(hits) != 1:
             ambiguous += 1 if hits else 0
             continue
