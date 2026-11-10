@@ -114,12 +114,19 @@ def _shipped_stamp(target: pathlib.Path) -> str:
         return ""
 
 
-def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
-    """The API URL of the published database, looked up by tag.
+DB_ASSET = "er_tool.db.gz"
+# The responses the refresh computed after publishing the database (backend/warm_cache.py).
+RESPONSES_ASSET = "responses.db.gz"
+
+
+def _resolve_release_asset(repo: str, tag: str, token: str, name: str = DB_ASSET) -> str:
+    """The API URL of one asset of the published release, looked up by tag and name.
 
     An asset keeps its name and loses its id every time it is replaced, so the id is
     resolved on each start rather than configured once. The API URL is used, not the
-    browser one, because a private repository only serves the former to a token.
+    browser one, because a private repository only serves the former to a token. The
+    release carries the database and the saved responses, both gzipped, so an asset is
+    picked by its name: taking the first .gz could hand the responses over as the book.
     """
     request = urllib.request.Request(
         f"https://api.github.com/repos/{repo}/releases/tags/{tag}",
@@ -130,13 +137,20 @@ def _resolve_release_asset(repo: str, tag: str, token: str) -> str:
     with urllib.request.urlopen(request, timeout=30) as response:
         release = json.load(response)
     for asset in release.get("assets", []):
-        if asset.get("name", "").endswith(".gz"):
+        if asset.get("name") == name:
             return asset["url"]
-    raise RuntimeError(f"release {tag} in {repo} publishes no .gz asset")
+    raise RuntimeError(f"release {tag} in {repo} publishes no {name}")
 
 
 def _download_database(url: str, target: pathlib.Path) -> str:
-    """Fetch a gzipped database published by the refresh, or say why it could not.
+    """Fetch a gzipped database published by the refresh, or say why it could not."""
+    _download_sqlite(url, target)
+    return (f"the published refresh, {target.stat().st_size / 1e6:.0f} MB"
+            f"{_shipped_stamp(target)}")
+
+
+def _download_sqlite(url: str, target: pathlib.Path) -> None:
+    """Fetch a gzipped SQLite file from a release asset to ``target``, whole or not at all.
 
     The release asset's API URL answers with the asset's JSON description unless the
     request asks for the file, token or no token. Asking only when a token was set meant
@@ -169,8 +183,22 @@ def _download_database(url: str, target: pathlib.Path) -> str:
             unpacked.unlink()
             raise RuntimeError("the published file is not a SQLite database")
     unpacked.replace(target)
-    return (f"the published refresh, {target.stat().st_size / 1e6:.0f} MB"
-            f"{_shipped_stamp(target)}")
+
+
+def _fetch_saved_responses(token: str) -> str:
+    """Put the refresh's saved responses where the response cache looks for them, so the
+    first page is served at once rather than after the whole book is recomputed. Each
+    response is served as stale and recomputed behind it (backend/response_cache.py).
+    Returns a clause for the provenance line; a failure costs only speed."""
+    import response_cache
+    try:
+        url = _resolve_release_asset(DB_REPO, DB_TAG, token, RESPONSES_ASSET)
+        target = response_cache._disk_path()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _download_sqlite(url, target)
+        return ", with the refresh's saved responses"
+    except Exception as exc:
+        return f", without saved responses ({exc}), so the first pages compute"
 
 
 @st.cache_resource(show_spinner="Preparing the database")
@@ -198,7 +226,8 @@ def prepare_database() -> str:
             token = setting("ER_DB_TOKEN")
             url = (_resolve_release_asset(DB_REPO, DB_TAG, token) if DB_REPO
                    else DB_URL)
-            return _download_database(url, target)
+            fetched = _download_database(url, target)
+            return fetched + (_fetch_saved_responses(token) if DB_REPO else "")
         except Exception as exc:      # a bad tag or token must not take the app down
             st.warning(f"Could not fetch the published database, so the committed copy "
                        f"is shown instead: {exc}")
