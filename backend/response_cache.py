@@ -21,8 +21,10 @@ cached, and nor are the health and freshness checks, which exist to be live.
 
 The responses are kept on disk as well (``backend/cache/responses-*.db``, one file per
 book), so a restarted API serves the page at once rather than recomputing the book for
-minutes. A response read back from disk is always served as stale and recomputed: the code
-that computed it may have changed since, which no stamp can see. Off with the rest, or alone
+minutes. A response read back from disk is served as stale and recomputed: the code
+that computed it may have changed since, which no stamp can see. The one exception is a
+file ``warm_cache.py`` wrote, which records the database, commit and day it was computed
+from; where all three match, its responses are current (``saved_for_here``). Off with the rest, or alone
 with ``ER_TOOL_RESPONSE_CACHE_DISK=0``.
 
 Off when ``ER_TOOL_RESPONSE_CACHE=0``, which the test suite sets, since tests rewrite
@@ -124,6 +126,55 @@ def stamp() -> tuple:
             dt.date.today().isoformat())
 
 
+# --- saved for another machine ---------------------------------------------------------
+# A file of responses written by ``warm_cache.py`` says what it was computed from: the
+# database's bytes, the code's commit and the day. A process whose own database, code and
+# day are those same three is serving the exact reads the file holds, so the file's
+# entries are current there, company reads included. Anything else, including a file
+# from an earlier process on this machine, which carries no such record, is loaded as
+# stale, as it always was.
+SAVED_FOR = "saved_for"
+
+
+def book_sha(path) -> str | None:
+    """The database's bytes, hashed. About a second for the published book."""
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def code_commit() -> str | None:
+    """The commit the running code was checked out at, or None where it cannot be told."""
+    stated = os.getenv("ER_CODE_COMMIT") or os.getenv("GITHUB_SHA")
+    if stated:
+        return stated.strip()
+    import subprocess
+    try:
+        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(DATA_DIR.parent),
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+
+
+def saved_for_here(conn) -> bool:
+    """Whether a file of responses was computed from this database, code and day."""
+    try:
+        row = conn.execute(f"SELECT book_sha, code_commit, day FROM {SAVED_FOR}").fetchone()
+    except sqlite3.Error:
+        return False
+    if not row or not all(row):
+        return False
+    book, commit, day = row
+    return (day == dt.date.today().isoformat() and commit == code_commit()
+            and book == book_sha(str(db.DB_PATH)))
+
+
 def clear() -> None:
     with _lock:
         _entries.clear()
@@ -168,10 +219,13 @@ def load_from_disk() -> None:
         try:
             rows = conn.execute("SELECT key, body, media_type FROM responses ORDER BY stored"
                                 " DESC LIMIT ?", (MAX_ENTRIES,)).fetchall()
+            here = saved_for_here(conn)
         finally:
             conn.close()
     except (sqlite3.Error, OSError):
         return
+    # Current only when the file was computed from this very database, code and day.
+    loaded_stamp = stamp() if here else None
     with _lock:
         for key, body, media_type in reversed(rows):
             if key in _entries:
@@ -180,7 +234,7 @@ def load_from_disk() -> None:
                 raw = zlib.decompress(body)
             except zlib.error:
                 continue
-            _entries[key] = {"stamp": None, "body": raw, "checked": 0.0,
+            _entries[key] = {"stamp": loaded_stamp, "body": raw, "checked": 0.0,
                              "media_type": media_type or "application/json"}
 
 

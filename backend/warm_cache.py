@@ -8,15 +8,18 @@ cold on the 2026-11-09 book on a full machine and several minutes on the free ti
 
 So the daily refresh runs one warming pass after it publishes the database and saves the
 responses beside it as a release asset (``refresh.yml``). The cloud app downloads the file
-with the database (``streamlit_cloud_app.py``) and serves from it at once. A response read
-back from disk is always served as stale and recomputed, so a file from an older database
-or older code can only be slow to correct, never wrong for long.
+with the database (``streamlit_cloud_app.py``) and serves from it at once. The file records
+the database's hash, the commit and the day it was computed from: where the app's own are
+the same, its responses are current, company reads included. Anything else is served as
+stale and recomputed, so a file from an older database or older code can only be slow to
+correct, never wrong for long.
 
     ER_TOOL_DB=<database> python backend/warm_cache.py <out.db>
 """
 
 from __future__ import annotations
 
+import datetime as dt
 import pathlib
 import socket
 import sqlite3
@@ -62,6 +65,10 @@ def warm(out_path) -> dict:
                 raise RuntimeError(f"the API did not answer within {STARTUP_TIMEOUT_S}s")
             time.sleep(0.5)
 
+    # What the responses are computed from, read before the pass so it describes the
+    # database as published, whatever a read might write to it.
+    saved_for = (response_cache.book_sha(str(db.DB_PATH)), response_cache.code_commit(),
+                 dt.date.today().isoformat())
     started = time.time()
     done = response_cache.warm_once(base)
     response_cache.flush()
@@ -76,7 +83,18 @@ def warm(out_path) -> dict:
         responses = source.execute("SELECT COUNT(*) FROM responses").fetchone()[0]
     finally:
         source.close()
-    return {**done, "responses": responses, "seconds": round(time.time() - started)}
+    copy = sqlite3.connect(str(out))
+    try:
+        with copy:
+            copy.execute(f"DROP TABLE IF EXISTS {response_cache.SAVED_FOR}")
+            copy.execute(f"CREATE TABLE {response_cache.SAVED_FOR} (book_sha TEXT,"
+                         " code_commit TEXT, day TEXT)")
+            copy.execute(f"INSERT INTO {response_cache.SAVED_FOR} VALUES (?, ?, ?)",
+                         saved_for)
+    finally:
+        copy.close()
+    return {**done, "responses": responses, "seconds": round(time.time() - started),
+            "saved_for": {"commit": saved_for[1], "day": saved_for[2]}}
 
 
 if __name__ == "__main__":

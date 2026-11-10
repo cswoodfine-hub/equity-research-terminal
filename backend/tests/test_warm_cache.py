@@ -78,3 +78,43 @@ def test_the_app_takes_the_database_by_name_not_the_first_gz():
         assert "publishes no missing.gz" in str(exc)
     else:
         raise AssertionError("a missing asset must be reported")
+
+
+def _saved_file(folder, monkeypatch, book, commit, day):
+    """A database and a saved file beside it, recording the given book, commit and day,
+    with the process reset so the next read loads the file afresh."""
+    import datetime as dt
+    import zlib
+    folder.mkdir(parents=True, exist_ok=True)
+    database = folder / "book.db"
+    database.write_bytes(b"SQLite format 3\x00" + b"book" * 100)
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE", "1")
+    monkeypatch.setenv("ER_TOOL_RESPONSE_CACHE_DISK", "1")
+    monkeypatch.setattr(R.db, "DB_PATH", database)
+    monkeypatch.setattr(R, "DISK_DIR", folder / "cache")
+    monkeypatch.setattr(R, "code_commit", lambda: "abc123")
+    monkeypatch.setattr(R, "_disk_state", {"loaded": False, "writer": False})
+    monkeypatch.setattr(R, "_entries", R.OrderedDict())
+    conn = R._disk_connect()
+    with conn:
+        conn.execute("INSERT INTO responses VALUES (?, ?, ?, ?)",
+                     ("/companies/AZN/fair-value?", zlib.compress(b'{"v": 1}'),
+                      "application/json", 0.0))
+        conn.execute(f"CREATE TABLE {R.SAVED_FOR} (book_sha TEXT, code_commit TEXT,"
+                     " day TEXT)")
+        conn.execute(f"INSERT INTO {R.SAVED_FOR} VALUES (?, ?, ?)",
+                     (R.book_sha(str(database)) if book == "same" else "other", commit,
+                      dt.date.today().isoformat() if day == "today" else "2000-01-01"))
+    conn.close()
+
+
+def test_a_saved_file_is_current_only_for_its_own_book_code_and_day(tmp_path, monkeypatch):
+    _saved_file(tmp_path / "match", monkeypatch, "same", "abc123", "today")
+    R.load_from_disk()
+    assert R._entries["/companies/AZN/fair-value?"]["stamp"] == R.stamp()
+    for book, commit, day in (("other", "abc123", "today"), ("same", "zzz", "today"),
+                              ("same", "abc123", "past")):
+        _saved_file(tmp_path / f"{book}-{commit}-{day}", monkeypatch, book, commit, day)
+        R.load_from_disk()
+        # Loaded all the same, but stale: a company read recomputes before it is served.
+        assert R._entries["/companies/AZN/fair-value?"]["stamp"] is None
