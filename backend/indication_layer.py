@@ -102,7 +102,9 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
     mode = ((loaded.get("scalars") or {}).get("therapy_mode") or "").strip()
     if (loaded.get("is_marketed") and mode in ("chronic", "one_time")
             and overlap is None):
-        return {"ok": False, "missing": [],
+        # The key is named as missing, not left empty: this is the one refusal of the
+        # three that research can answer, and the caller lists what it lacks.
+        return {"ok": False, "missing": ["base_pool_overlap_pct"],
                 "why": "On a product modelled from patients this indication is the "
                        "product's own business unless the research marks it a layer by "
                        "stating base_pool_overlap_pct."}

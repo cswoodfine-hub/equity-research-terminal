@@ -9,7 +9,7 @@ cleanly. This is the git-scraping pattern, and it doubles as the backup.
 Only the tables the app produces over time are exported. Prices, financials and
 current trial state are re-fetchable and left out; the snapshot history that feeds
 the diff engine, the detected changes, the catalysts, the notes, the run ledger,
-the annotations and the FX rates are not, so those travel.
+the annotations, the FX rates and the model's own dated calls are not, so those travel.
 
 Rebuild is the inverse: recreate the schema, then load every row back with foreign
 keys off, since the export is already internally consistent and the referenced
@@ -33,11 +33,42 @@ HISTORY_TABLES = [
     # The model's calls as made each day (call_log.py): exported so each day's commit is
     # the dated record they are scored against.
     "model_calls", "gate_calls",
+    # What the book said each company was worth, on the day it said it
+    # (valuation_history.py). The same reason as the call log and a sharper one: a
+    # valuation call is scored against a forward return twelve months out, so the record
+    # has to survive twelve months of runs. It lived only inside the published database
+    # release, which no source can hand back if that asset is ever lost or a restore
+    # falls through to the rebuild path, and the twelve-month clock would start again
+    # from nothing.
+    "valuation_snapshots",
+    # What became of each catalyst (catalyst_outcomes.py). The same reason again: a
+    # resolution is dated by an approval or an announcement and no source hands the
+    # calendar's own record back, so it travels with the snapshots rather than living
+    # only in the published database.
+    "catalyst_resolutions",
     # Every change to an analyst assumption (assumption_log.py). The assumptions table
     # itself reseeds from data/assumptions/*.csv, so the seeds and this ledger together
     # carry the model through a rebuild; the ledger alone carries what the seeds cannot,
     # which is every number edited in the terminal after it was first written.
     "assumption_edits",
+    # What the model read out of the filings: whether a Phase 3 met its endpoint
+    # (trial_readouts.py), the PDUFA dates in acceptance filings (pdufa.py), and the
+    # ledger and rows of management guidance (guidance.py).
+    #
+    # These are reads, not fetches. No source hands them back: the filing can be fetched
+    # again but the reading costs a model call, and a reading already paid for is the
+    # kind of thing history is for. They lived only inside the published database, and
+    # on 2026-11-09 a restore from that release arrived with every one of them empty,
+    # which took 1,359 readouts and 1,728 PDUFA reads out of the book in one step.
+    #
+    # Append-only and keyed on the filing accession, so a day's diff is the day's new
+    # filings: 1,359 rows is 524KB against the 50MB of snapshots already carried.
+    #
+    # consensus_estimates travels with guidance_scans and not apart from it. The scans
+    # table is the ledger that says a section has been read; carried alone it would tell
+    # a rebuilt database to skip sections whose rows had gone, and the guidance would
+    # never come back.
+    "trial_readouts", "pdufa_reads", "guidance_scans", "consensus_estimates",
 ]
 
 DEFAULT_DIR = Path(__file__).resolve().parent.parent / "data" / "history"

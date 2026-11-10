@@ -1,0 +1,20 @@
+# PROLEUKIN (IOVA). $43.0mm in FY2025, and NOT YET VALUABLE: three years, no series.
+#
+# Aldesleukin, reacquired by Iovance from Clinigen in 2023 and used alongside Amtagvi.
+# The three annual figures on file are $1.2mm in 2023, $60.9mm in 2024 and $43.0mm in
+# 2025. That is an acquisition year, a stocking year and a fall, not a growth series, and
+# a rate fitted through them would be fitted to the ownership rather than to the product.
+#
+# Iovance guides a total, not a split, so the company rate cannot be attributed here the
+# way it can to Amtagvi: Proleukin is 16% of product revenue and moves on Amtagvi's
+# treatment volumes rather than on its own demand.
+#
+# The margin objection that blocks Amtagvi blocks this too, and harder: Iovance's filed
+# cost lines are 237.5% of revenue (iova_amtagvi.csv sets it out).
+#
+# revenue_growth_pct is left out, so the engine will refuse this model until it is
+# written.
+#
+# What would settle it: two consecutive years of ownership with no stocking effect, or a
+# split of the company's guidance by product.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

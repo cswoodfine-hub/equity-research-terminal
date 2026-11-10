@@ -242,10 +242,13 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 735        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+    assert seen == 746        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
                               # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25,
                               # then eleven Phase 3 seeds and nineteen verified from a parallel branch, 2026-09-26
                               # then 87 big pharma Phase 2 and 3 seeds, 2026-09-28
+                              # then Lantheus's Pylarify and Definity, the first two models of a company
+                              # that had none, 2026-11-07, then BioMarin's seven and Neurocrine's
+                              # Ingrezza, the same, 2026-11-07
                               # then Bayer's fifteen products and three lines, 2026-10-07
                               # then MK-8527 and zibotentan/dapagliflozin, Phase 3 gates, 2026-10-12,
                               # then saruparib, mevrometostat, AAA817, denecimig and ABP 234, the same day,
@@ -267,3 +270,4 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # then twenty-two from the asset-model round (seventeen clinical-stage, then Olumiant, Xofluza, Parsabiv, Tryngolza and Dawnzera), 2026-10-28
                               # then twenty-eight from round 2 (Sunosi, AXS-14, Auvelity, Aucatzyl, Yeztugo, Niktimvo, Penmenvy and twenty-one clinical-stage), 2026-10-28
                               # then twelve from round 3 (the no-forecast assets; pelacarsen's pos 0 file carries no company half), 2026-10-29
+                              # then Exelixis's Cabometyx, 2026-11-02

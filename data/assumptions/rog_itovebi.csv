@@ -1,0 +1,13 @@
+# ITOVEBI (ROG). CHF 113mm in FY2025, and NOT YET VALUABLE: one part year.
+#
+# Inavolisib, approved 2024-10-10, so FY2025 is its first year of selling and the only
+# figure on file: one row, from Roche's group financial data workbook. Roche files no
+# 10-Q, its half-year report is not among the sections stored here, and
+# fair_value.guidance reads "no FY2026 revenue guidance on file", so there is no second
+# period anywhere to make a pair with.
+#
+# revenue_growth_pct is left out, so the engine will refuse this model until it is
+# written. Roche reaches an equity value without it.
+#
+# What would settle it: the FY2026 figure, which gives the first pair.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

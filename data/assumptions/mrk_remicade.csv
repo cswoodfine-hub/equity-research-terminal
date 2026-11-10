@@ -1,0 +1,19 @@
+# REMICADE (MRK). $187mm in FY2025, and NOT YET VALUABLE: three figures, no series.
+#
+# Infliximab, which Merck distributes in certain territories under an arrangement with
+# Johnson & Johnson rather than owning. The three annual figures on file are $187mm in
+# 2023, $114mm in 2024 and $187mm in 2025, and the first and last come from different
+# sources: 2023 and 2024 from the SEC data sets (10-K 0000310158-26-000063), 2025 from
+# the revenue by product table of the same 10-K.
+#
+# A fall of 39% followed by a rise of 64% back to the starting figure is not a trend, and
+# a rate fitted through it would be fitted to whatever moved between the two sources.
+# Remicade has faced infliximab biosimilars since 2016, so the direction is down and the
+# series does not show it.
+#
+# revenue_growth_pct is left out, so the engine will refuse this model until it is
+# written. Merck reaches an equity value without it: this is 0.3% of a company guiding
+# $66.8bn for 2026.
+#
+# What would settle it: the two figures reconciled to one source, and a fourth year.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

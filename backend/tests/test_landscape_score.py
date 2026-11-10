@@ -747,14 +747,32 @@ def test_the_map_draws_every_scored_drug_and_labels_the_open_company():
 
 
 # --- the book guard (specification 7.3) ---------------------------------------------------------
-GUARD = {367: "obesity", 20: "lung", 371: "breast", 1: "type 2 diabetes", 383: "arthritis",
-         101: "myeloma"}
+# The diseases this guard reads, by the name the book calls them. They were row ids,
+# and rebuilding the database from committed history renumbers every table: obesity went
+# from 367 to 15 and 367 became Parotid Neoplasms, so three guards silently moved onto
+# indications with one asset each and failed on an empty landscape. A row id is the
+# database's to choose; the disease is what the test is about.
+GUARD = {"Obesity": "obesity", "Carcinoma, Non-Small-Cell Lung": "lung",
+         "Breast Neoplasms": "breast", "Diabetes Mellitus, Type 2": "type 2 diabetes",
+         "Arthritis, Rheumatoid": "arthritis", "Multiple Myeloma": "myeloma"}
 
 
-@pytest.mark.parametrize("indication", sorted(GUARD))
-def test_the_book_guard(book, indication, capsys):
+def _indication_id(name: str) -> int:
+    import db
+    conn = db.get_connection()
+    try:
+        row = conn.execute("SELECT id FROM indications WHERE name = ?", (name,)).fetchone()
+    finally:
+        conn.close()
+    assert row is not None, f"the book has no indication called {name}"
+    return row["id"]
+
+
+@pytest.mark.parametrize("disease", sorted(GUARD))
+def test_the_book_guard(book, disease, capsys):
     import db
     import landscape as L
+    indication = _indication_id(disease)
     land = L.landscape(str(db.DB_PATH), indication, verdict_for=lambda t: {"modelled": []})
     assert land is not None
     started = time.time()
@@ -787,23 +805,23 @@ def test_the_book_guard(book, indication, capsys):
         if r.get("z") is not None and "arm spread" in r["route"]:
             assert abs(r["z"]) <= 40, (names[r["asset_id"]], r["nct_id"])
     order = [a["name"] for a in placed]
-    if indication == 367:
+    if disease == "Obesity":
         assert len(placed) >= 8
         assert set(order[:2]) == {"Semaglutide", "Tirzepatide"}
         cell = built["pooled"][("percent change in body weight", "placebo alone")]
         tirz = next(e for aid, e in cell.items() if names[aid] == "Tirzepatide")
         assert 14 <= tirz["effect"] <= 22 and tirz["k"] >= 5
-    if indication == 1:
+    if disease == "Diabetes Mellitus, Type 2":
         cell = built["pooled"][("change in HbA1c", "placebo alone")]
         first = max(cell, key=lambda aid: cell[aid]["shrunk"])
         assert names[first] == "Tirzepatide"
         assert cell[first]["effect"] == pytest.approx(1.73, abs=0.01) and cell[first]["k"] == 5
-    if indication == 20:
+    if disease == "Carcinoma, Non-Small-Cell Lung":
         assert {"Osimertinib", "Pembrolizumab"} <= set(order[:3])
         pembro = next(aid for aid, n in names.items() if n == "Pembrolizumab")
         assert {s["why"] for s in built["skipped"]
                 if s["asset_id"] == pembro and s["nct_id"] == "NCT03976362"} == {"in both arms"}
-    if indication == 101:
+    if disease == "Multiple Myeloma":
         with capsys.disabled():
             print("\nmyeloma:", [(a["rank"], a["name"], round(a["safety"]["score"]))
                                  for a in placed])

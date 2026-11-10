@@ -146,6 +146,26 @@ def canonical_brand(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "", _QUALIFIER.sub(" ", name or "").lower())
 
 
+def canonical_application(code: str) -> str:
+    """An application number reduced to the one the agency issued.
+
+    Lantheus files Definity's as NDA021064 on one row and NDA21064 on the other, which is
+    the same application written with and without its leading zero. Comparing the strings
+    left two rows for one product.
+    """
+    text = re.sub(r"[^A-Z0-9]+", "", (code or "").upper())
+    match = re.match(r"^([A-Z]*)0*(\d+)$", text)
+    return f"{match.group(1)}{match.group(2)}" if match else text
+
+
+def _applications(row) -> set:
+    """Every application number behind a row, from its own code and its approvals."""
+    out = {canonical_application(row["internal_code"])}
+    for number in (row["application_numbers"] or "").split("|"):
+        out.add(canonical_application(number))
+    return {code for code in out if code}
+
+
 def _is_identified(row) -> bool:
     """Whether a row carries anything behind its name."""
     return bool(row["generic_name"] or row["internal_code"] or row["approvals"])
@@ -165,7 +185,9 @@ def find_brand_duplicates(conn, company_id: int) -> list[tuple]:
     """
     rows = conn.execute(
         "SELECT id, generic_name, brand_name, internal_code,"
-        "       (SELECT COUNT(*) FROM approvals ap WHERE ap.asset_id = assets.id) AS approvals"
+        "       (SELECT COUNT(*) FROM approvals ap WHERE ap.asset_id = assets.id) AS approvals,"
+        "       (SELECT GROUP_CONCAT(ap.application_number, '|') FROM approvals ap"
+        "         WHERE ap.asset_id = assets.id) AS application_numbers"
         "  FROM assets WHERE owner_company_id = ? AND is_marketed = 1"
         "    AND brand_name IS NOT NULL AND brand_name <> ''", (company_id,)).fetchall()
     groups: dict = {}
@@ -185,8 +207,11 @@ def find_brand_duplicates(conn, company_id: int) -> list[tuple]:
         # both BLA125326, both seeded, both counted, which put $4,426mm of revenue and a
         # whole forecast into the company twice.
         if len(identified) > 1:
-            codes = {(r["internal_code"] or "").strip() for r in identified}
-            if len(codes) == 1 and codes != {""}:
+            # The application number, wherever the row carries it: its own code, or the
+            # approval filed against it. Novartis's two Kesimpta rows name no common code
+            # because one of them has none, and both carry an approval for BLA125326.
+            shared = set.intersection(*(_applications(r) for r in identified))
+            if shared:
                 ranked = sorted(identified,
                                 key=lambda r: (-r["approvals"],
                                                not bool(r["generic_name"]), r["id"]))
@@ -222,6 +247,13 @@ def canonical_generic(name: str) -> str:
     """A generic name reduced to the molecule, with salt and hydrate words removed."""
     text = " " + re.sub(r"[^a-z0-9]+", " ", (name or "").lower()).strip() + " "
     for salt in _SALTS:
+        # The stereo descriptor belongs to the salt, not to the molecule. Exelixis files
+        # Cabometyx's ingredient as "Cabozantinib S-Malate", and taking the salt alone
+        # left "cabozantinibs", which no longer matched the "Cabozantinib" row carrying
+        # the fifteen indications and the whole forecast. Only these letters, and only
+        # against a salt: dropping every lone letter would make one molecule of
+        # Penicillin G and Penicillin V, and of Amphotericin B and Polymyxin B.
+        text = re.sub(rf" (?:[sdrl]|dl|rs) {re.escape(salt)} ", " ", text)
         text = text.replace(f" {salt} ", " ")
     return re.sub(r"[^a-z0-9]+", "", text)
 

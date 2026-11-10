@@ -1,0 +1,14 @@
+# DATROWAY (AZN). $79mm in FY2025, and NOT YET VALUABLE: a ramp, not a rate.
+#
+# Datopotamab deruxtecan, approved 2025-01-17 and partnered with Daiichi Sankyo.
+# AstraZeneca's own nine-month table (6-K, 2026-10-30) prints $176mm and states the
+# growth as ">4x", which is not a rate. FY2025 is a part year of selling.
+#
+# AstraZeneca's FY2026 revenue guidance is stated in words rather than a number
+# (fair_value.guidance), so there is no company rate to attribute either.
+#
+# revenue_growth_pct is left out, so the engine will refuse this model until it is
+# written. AstraZeneca reaches an equity value without it.
+#
+# What would settle it: a first full year, or guidance carrying a figure.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

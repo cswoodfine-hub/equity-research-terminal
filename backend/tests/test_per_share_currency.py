@@ -70,3 +70,47 @@ def test_a_rate_that_is_not_on_file_gives_no_per_share_figure(tmp_path):
     beside a dollar price would be worse than printing nothing."""
     conn = _company(tmp_path / "dkk", "NVO", "DKK", shares=4_447_850_630, per_adr=1.0)
     assert forecast_view._diluted_shares(conn, 1) is None
+
+
+def test_a_weighted_average_tagged_in_thousands_loses_to_the_cover_page_count(tmp_path):
+    """A weighted average and a cover-page count are the same company's shares and never
+    differ by more than an issuance. Iovance tags 450,189 against 452,971,432 outstanding,
+    and dividing by the smaller put its cash at $833 a share against a $9.56 close."""
+    path = str(tmp_path / "scale.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (1, 'IOVA', 'Iovance', 'USD')")
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+        " unit, fiscal_year, fiscal_period) VALUES (1, '2025-12-31', 'FY',"
+        " 'WeightedAverageDilutedShares', 450189, 'shares', 2025, 'FY')")
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+        " unit, fiscal_year, fiscal_period) VALUES (1, '2026-07-29', 'instant',"
+        " 'SharesOutstanding', 452971432, 'shares', 2026, 'Q3')")
+    conn.commit()
+    metric, row, scaled = forecast_view.share_count_pick(conn, 1)
+    assert metric == "SharesOutstanding" and scaled
+    assert row["value"] == 452971432
+
+
+def test_the_weighted_average_still_wins_where_both_are_share_counts(tmp_path):
+    """The guard is for a scale mismatch, not a preference: an issuance moves the two
+    apart by a fraction and the weighted average remains the better divisor."""
+    path = str(tmp_path / "normal.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name, reporting_currency)"
+                 " VALUES (1, 'AAAA', 'Normal', 'USD')")
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+        " unit, fiscal_year, fiscal_period) VALUES (1, '2025-12-31', 'FY',"
+        " 'WeightedAverageDilutedShares', 100e6, 'shares', 2025, 'FY')")
+    conn.execute(
+        "INSERT INTO financials (company_id, period_end, period_type, metric, value,"
+        " unit, fiscal_year, fiscal_period) VALUES (1, '2026-06-30', 'instant',"
+        " 'SharesOutstanding', 130e6, 'shares', 2026, 'Q2')")
+    conn.commit()
+    metric, _, scaled = forecast_view.share_count_pick(conn, 1)
+    assert metric == "WeightedAverageDilutedShares" and not scaled

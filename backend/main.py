@@ -23,6 +23,15 @@ import auto_resolve as auto_resolve_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
+import event_signal as event_signal_module
+import gate_odds as gate_odds_module
+import comparator_link as comparator_link_module
+import refusal_calendar as refusal_calendar_module
+import catalyst_outcomes as catalyst_outcomes_module
+import street as street_module
+import completeness as completeness_module
+import shelf as shelf_module
+import valuation_history as valuation_history_module
 import asset_revenue as asset_revenue_module
 import catalyst_grid as catalyst_grid_module
 import company_lines as company_lines_module
@@ -581,6 +590,12 @@ def company_approvals(ticker: str) -> dict:
         # cliff counts on this one, so the chart and the value agree.
         valued = loe_module.for_assets(conn, [r["asset_id"] for r in rows],
                                        exclude_orphan=True)
+        # Where each product stands: selling and protected, selling off patent,
+        # withdrawn in the US, or one of the two unknowns. The card reads it beside the
+        # revenue, because a blank revenue column meant both "the company stopped
+        # selling it" and "no free source breaks it out" and they need opposite
+        # responses (backend/shelf.py).
+        standing = shelf_module.states_for(conn, [r["asset_id"] for r in rows])
     finally:
         conn.close()
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
@@ -591,6 +606,9 @@ def company_approvals(ticker: str) -> dict:
     areas = product_areas.areas_for(None, [r["asset_id"] for r in rows])
     for r in rows:
         r["area"] = areas.get(r["asset_id"])
+        stands = standing.get(r["asset_id"]) or {}
+        r["marketing_status"] = stands.get("marketing_status")
+        r["shelf_state"] = stands.get("state")
         r["approval_status"] = ("recorded" if r.get("application_number")
                                 else "missing_record")
         # The filer's own biosimilar date sets the LOE where the 10-K states one; the
@@ -1531,78 +1549,6 @@ class ConfirmGradeIn(BaseModel):
     rationale: Optional[str] = None
 
 
-@app.get("/review-queue")
-def review_queue(limit: int = Query(default=200, le=1000)) -> dict:
-    """The unreviewed judgements and conventions, grouped by the words that graded them.
-
-    Read as rows the queue is 2,192 decisions and unworkable. Read as sentences it is
-    about twenty and a tail: one house convention stands behind 354 assets, and an
-    analyst confirms the convention rather than the assets.
-    """
-    conn = db.get_connection()
-    try:
-        groups = assumption_log.review_queue(conn, limit=limit)
-        total = conn.execute(
-            """SELECT COUNT(*) n FROM assumptions WHERE evidence_reviewed = 0
-                AND evidence IN ('convention', 'judgement')""").fetchone()["n"]
-    finally:
-        conn.close()
-    return {"unreviewed": total, "groups": groups,
-            "shown": sum(g["rows"] for g in groups)}
-
-
-@app.post("/review-queue/confirm")
-def confirm_review_grade(body: ConfirmGradeIn) -> dict:
-    """Confirm one graded sentence across every row that rests on it.
-
-    Marks reviewed what a rule already read. It never changes a grade and never touches
-    a value, and every row it marks gets its own ledger entry under one batch.
-    """
-    conn = db.get_connection()
-    try:
-        return assumption_log.confirm_grade(
-            conn, body.source, body.evidence, changed_by=body.changed_by,
-            rationale=body.rationale)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    finally:
-        conn.close()
-
-
-class ReopenGradeIn(BaseModel):
-    batch_id: Optional[str] = None
-    source: Optional[str] = None
-    changed_by: Optional[str] = None
-
-
-@app.post("/review-queue/confirm-all")
-def confirm_all_grades(changed_by: Optional[str] = Query(default=None)) -> dict:
-    """Confirm every unreviewed judgement and convention at once.
-
-    Every row it marks says in the ledger that it was confirmed in bulk rather than read,
-    because evidence_reviewed is the only field in the book that claims a person looked.
-    """
-    conn = db.get_connection()
-    try:
-        return assumption_log.confirm_all(conn, changed_by=changed_by)
-    finally:
-        conn.close()
-
-
-@app.post("/review-queue/reopen")
-def reopen_grades(body: ReopenGradeIn) -> dict:
-    """Put confirmed grades back in the queue, by batch or by the sentence they rest on."""
-    conn = db.get_connection()
-    try:
-        return assumption_log.reopen_grade(conn, batch_id=body.batch_id,
-                                           source=body.source,
-                                           changed_by=body.changed_by)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    finally:
-        conn.close()
-
-
 @app.get("/model-changes")
 def model_changes(ticker: Optional[str] = Query(default=None),
                   asset_id: Optional[int] = Query(default=None),
@@ -1790,6 +1736,115 @@ def regulatory_stream(days: int = Query(default=120)) -> dict:
     panel votes ahead, announcements behind, each tagged by kind and by company where the
     item names a covered one."""
     return regulatory_module.build(None, days=days)
+
+
+@app.get("/companies/{ticker}/shelf")
+def company_shelf(ticker: str) -> dict:
+    """Every marketed product of one company by where it stands: selling and protected,
+    selling off patent, withdrawn in the US, or unknown. The reading is American, from
+    openFDA's marketing status and the book's own exclusivity, and it says so: a product
+    the FDA calls discontinued that still files revenue gets its own state rather than
+    being filed under either, because the status is American and the revenue is not."""
+    out = shelf_module.for_company(None, ticker)
+    if not out.get("rows"):
+        raise HTTPException(status_code=404,
+                            detail=f"no marketed products on file for {ticker}")
+    return out
+
+
+@app.get("/completeness")
+def completeness_board() -> dict:
+    """How complete the book is, company by company: coverage, whether it reaches a
+    value and why not, the gap to guidance and how old that guidance is, and the revenue
+    carried at nothing. Served from a fifteen-minute cache: it values the whole book to
+    build itself and is a status board, not a figure to trade on."""
+    return completeness_module.build(None, use_cache=True)
+
+
+@app.get("/valuation-backtest")
+def valuation_backtest() -> dict:
+    """Did the book's own upside rank what the price did next.
+
+    Reads the calls the refresh has been keeping (valuation_snapshots) against the price
+    series, each company's forward return less the universe's over the same window. It
+    reports that there is not enough history until there is, which for a twelve-month
+    window means twelve months.
+    """
+    return valuation_history_module.build()
+
+
+@app.get("/catalyst-resolutions")
+def catalyst_resolutions_view(limit: int = Query(default=200)) -> dict:
+    """What became of each catalyst whose date has passed: met or missed from the
+    approvals table and the announced readouts, slipped where a successor row or the
+    registry moved it, unknown where a window closed with nothing found. The resolver
+    runs inside the refresh before the derivation that would otherwise delete the
+    evidence, and this is its ledger, dated by the market's event rather than the run."""
+    rows = catalyst_outcomes_module.ledger(None, limit=limit)
+    counts: dict = {}
+    for r in rows:
+        counts[r["outcome"]] = counts.get(r["outcome"], 0) + 1
+    return {"rows": rows, "counts": counts}
+
+
+@app.get("/street")
+def street_view() -> dict:
+    """The book against the street, company by company, today: the newest consensus
+    target with its range and analyst count beside the book's value from the same day's
+    call, and the street's FY2026 revenue beside the book's where both exist. Agreement,
+    not accuracy; call_log.score measures accuracy as the horizons close."""
+    return street_module.build(None)
+
+
+@app.get("/refusal-calendar")
+def refusal_calendar_view() -> dict:
+    """The products the book refused to value, each with the condition that would make
+    it value them, kept verbatim, and the filing window where that condition names a
+    reporting year. Each is a moment the book is forced to reprice."""
+    return refusal_calendar_module.build()
+
+
+@app.get("/comparator-links")
+def comparator_links_view() -> dict:
+    """Which marketed drug each pipeline price and peak uptake was borrowed from, read
+    out of the assumption's own source, and how far that drug has since moved in CMS.
+
+    A link is taken only where the source says it borrowed, and a comparator is matched
+    to a brand the book holds rather than inferred; a row naming a class is reported as
+    unresolved. The drift is the comparator's realised spending per beneficiary and
+    beneficiaries in the latest CMS year against the year the seed cites.
+    """
+    return comparator_link_module.build(None)
+
+
+@app.get("/gate-odds")
+def gate_odds_view() -> dict:
+    """The probability the price pays for on each readout that carries its company,
+    against the probability the book holds, and whether the disagreement is about the
+    odds or about the payoff.
+
+    The rest of the company is taken out before the gate is inverted, and a gate is
+    reported only where its swing is a fifth or more of the book's value. An implied
+    probability above one is not a mispriced coin: the market disagrees about what the
+    asset is worth if it works, which the readout cannot settle, and the row says so.
+    """
+    return gate_odds_module.build(None)
+
+
+@app.get("/event-signal")
+def event_signal_view(benchmark: str = Query(default=event_signal_module.DEFAULT_BENCHMARK)) -> dict:
+    """Which detected changes precede a move, measured forward from the day the book
+    recorded them against XBI and a date-matched placebo.
+
+    The complement of /backtest, which measures around real event dates and finds the
+    move is already in the price. This measures from detection time, which is the day the
+    book could first have acted. It reports not enough history until the change feed has
+    accrued the company-months a result needs, and says so.
+    """
+    if benchmark not in (*event_signal_module.BENCHMARKS, "universe"):
+        raise HTTPException(status_code=400,
+                            detail=f"benchmark must be one of {event_signal_module.BENCHMARKS} or universe")
+    return event_signal_module.build(None, benchmark=benchmark)
 
 
 @app.get("/backtest")

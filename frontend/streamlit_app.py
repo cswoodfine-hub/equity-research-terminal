@@ -94,6 +94,7 @@ LANDING_TOKENS = {
     "rule-strong": TK.RULE_STRONG, "text": TK.TEXT, "muted": TK.MUTED,
     "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
     "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
+    "engine-biotech": TK.ENGINE_BIOTECH,
     "font-ui": TK.FONT_UI, "font-mono": TK.FONT_MONO, "font-prose": TK.FONT_PROSE,
 }
 # The Comps valuation view is the same kind of iframe, with more of the palette: the faint
@@ -1438,6 +1439,32 @@ def area_label(area: str) -> str:
 _WHY_MODALITY = ("Small molecule or biologic, which decides the register the expiry "
                  "comes from: the Orange Book for one, the Purple Book for the other.")
 _WHY_BASIS = "Which patent or exclusivity sets the date above."
+
+# What the FDA says about whether the product is still on sale, from the marketing status
+# openFDA carries on every application (backend/shelf.py). Shown only where that is not
+# "on sale": the expected state on a marketed card is selling, and a chip on every one of
+# them would be decoration. Each reading is American and each caption says so, because
+# the revenue line beside it is worldwide.
+_SHELF_CHIP = {
+    "withdrawn in the US": ("withdrawn in the US", "gone", (
+        "The FDA lists every application for this product as discontinued, so it is no "
+        "longer sold in the United States. A blank revenue line here is the fact rather "
+        "than a gap: there is nothing to tag. openFDA knows what the FDA approved and "
+        "nothing about Europe or Japan, so this is withdrawn here and not withdrawn.")),
+    "withdrawn in the US, still earning": ("withdrawn in the US", "earning", (
+        "The FDA lists this application as discontinued and the filer still reports "
+        "revenue against it, which is the American status meeting a worldwide revenue "
+        "line. Either the product sells outside the United States, or the revenue row "
+        "covers a family whose other presentation is still on sale here. Pfizer's "
+        "Vyndaqel is the second: Vyndamax replaced it in the US and the $6,380mm is the "
+        "tafamidis family's. The valuation keeps the cliff where the row earns, because "
+        "the molecule patent gates whatever is being sold under it.")),
+    "status unknown": ("US status unknown", "unknown", (
+        "No application for this product carries a marketing status in openFDA, so "
+        "whether it is still sold here is not on file. This is most of the filers who "
+        "register outside the United States. It is an absence in the register, not a "
+        "withdrawal, and it is not read as either.")),
+}
 
 # How long after approval a small molecule can still hold unexpired protection. Beyond
 # it, nothing listed means nothing left rather than nothing published: five years of new
@@ -6964,8 +6991,19 @@ def _ki_bridge(sotp: dict, forward_check=None) -> dict:
                       "tip": f"{_ki_plural(ln['n'], 'revenue line')} no product model holds"})
         run += v
     fut = (s.get("future") or {}).get("per_share")
-    steps.append({"label": "launches", "value": fut, "kind": "step",
-                  "tip": "launches past the modelled pipeline, from R&D"})
+    # The ceiling these are held to, said here rather than left in the module. It is the
+    # strongest claim the sum makes and the binding constraint on any gap to a higher
+    # price: the launches refill what erodes and never make the company larger in real
+    # terms than its own best modelled year.
+    cap = (s.get("future") or {}).get("cap") or {}
+    fut_tip = "launches past the modelled pipeline, from R&D"
+    if cap.get("peak"):
+        fut_tip += (f"; held to the book's own best year, ${cap['peak']:,.0f}mm in "
+                    f"{cap.get('peak_year')}, grown at "
+                    f"{(cap.get('growth') or 0):.2%} a year"
+                    + (f", which binds on {cap['capped_share']:.0%} of what the "
+                       f"research offers" if cap.get("binds") else ", which does not bind"))
+    steps.append({"label": "launches", "value": fut, "kind": "step", "tip": fut_tip})
     run += fut or 0.0
     carry = s.get("carry_per_share")
     if carry:
@@ -6982,11 +7020,15 @@ def _ki_bridge(sotp: dict, forward_check=None) -> dict:
         run -= abs(growth)
     claims = s.get("other_claims_per_share") or 0.0
     net = s.get("net_cash_per_share")
-    if net is None:
-        if claims:
-            steps.append({"label": "other claims", "value": claims, "kind": "step",
-                          "tip": "other claims on the business"})
-            run += claims
+    # No equity figure is the same end as no debt line: the sum stops at the enterprise
+    # value. It is refused where the company sells products the book does not model, and
+    # carrying on to "today" would draw a bar to a number that was withheld.
+    if net is None or s.get("equity_per_share") is None:
+        # Other claims sit below the enterprise value, not inside it: the equity on file
+        # is the enterprise value plus net cash plus the claims. So with no debt filed,
+        # where the bridge stops at the enterprise value, the claims have nowhere to go
+        # and are left off rather than folded into an end they are not part of.
+        # Arrowhead's bar read 0.94 against an enterprise value of 1.22 because they were.
         steps.append({"label": "EV today", "kind": "end"})
         ev = s.get("enterprise_today_per_share")
         if ev is None or abs(run - ev) > 0.01:
@@ -9110,6 +9152,93 @@ def _pulse_html(got: dict, days_open: int = 1) -> str:
     return "".join(out)
 
 
+# The state in a word for the column, and the sentence it means for the tooltip. A table
+# of seventy-five is read down its left edge, so the column has to be short.
+_COVERAGE_STATES = {
+    "complete": ("complete", "ok",
+                 "every product it sells is modelled and the sum reaches a value"),
+    "partial": ("partial", "warn",
+                "priced, with revenue the book carries at nothing"),
+    "no product modelled": ("no product", "bad",
+                            "nothing it sells is modelled, so no value is published"),
+    "refused": ("refused", "warn",
+                "the sum stops before an equity value, for the reason beside it"),
+    "error": ("error", "bad", "the company could not be valued at all"),
+}
+
+
+def _coverage_view(api_base: str) -> None:
+    """How complete the book is, which is the question that has no page anywhere else.
+
+    The terminal covers seventy-five companies and the honest refusals it makes are
+    invisible one page at a time: a company that stops at enterprise value because its
+    debt is unresolved reads, from outside, exactly like one nobody has got to. This
+    separates the two and sorts by what is worth doing next, which is the revenue the
+    book carries at nothing.
+    """
+    try:
+        board = api_get(api_base, "/completeness")
+    except Exception:                                               # noqa: BLE001
+        state("Coverage unavailable", "The completeness board did not answer.")
+        return
+    totals = board.get("totals") or {}
+    section("Coverage", count=totals.get("companies"),
+            basis=f"as of {board.get('as_of')}"
+                  + (f", cached {board.get('cached_seconds')}s" if board.get("cached_seconds") else ""))
+    figs = [
+        (f"{totals.get('complete', 0)}", "complete", "up", "every product modelled"),
+        (f"{totals.get('partial', 0)}", "partial", "", "priced, with revenue at nothing"),
+        (f"{totals.get('no_product_modelled', 0)}", "no product", "down",
+         "nothing they sell is modelled"),
+        (f"{totals.get('refused', 0)}", "refused", "", "the sum stops before equity"),
+        (f"${(totals.get('unmodelled_revenue_musd') or 0):,.0f}mm", "carried at nothing",
+         "down", "reported revenue no model holds"),
+        (f"{totals.get('guidance_stale', 0)} of {totals.get('guidance_rows', 0)}",
+         "guidance stale", "", "a quarter and a half past its reading"),
+    ]
+    st.markdown(
+        '<div class="ki-figs">' + "".join(
+            f'<div class="ki-f" title="{_ki_attr(tip)}"><span class="v {tone}">'
+            f'{html_escape(value)}</span><span class="k">{html_escape(key)}</span></div>'
+            for value, key, tone, tip in figs) + "</div>",
+        unsafe_allow_html=True)
+
+    rows = sorted(board.get("rows") or [],
+                  key=lambda r: -(r.get("unmodelled_revenue_musd") or 0))
+    body = []
+    for row in rows:
+        label, tone, meaning = _COVERAGE_STATES.get(
+            row.get("state"), (row.get("state") or "", "", ""))
+        cov = row.get("coverage")
+        guid = row.get("guidance") or {}
+        gap = guid.get("gap_pct")
+        guid_text = ("no guidance on file" if not guid.get("ok")
+                     else f"{gap:+.1%} vs guidance of {guid.get('as_of')}"
+                          + (" (stale)" if guid.get("stale") else ""))
+        unmodelled = row.get("unmodelled_revenue_musd") or 0
+        count = row.get("unmodelled_products") or 0
+        # What to do about it, not a second printing of the state: the reasons where the
+        # sum refused, the products carried at nothing where it did not.
+        why = "; ".join(row.get("missing") or [])
+        if not why and count:
+            why = f"{_ki_plural(count, 'product')} carried at nothing"
+        body.append(
+            f'<tr><td class="t">{html_escape(row.get("ticker") or "")}</td>'
+            f'<td class="s {tone}" title="{_ki_attr(meaning)}">{html_escape(label)}</td>'
+            f'<td class="n">{"" if cov is None else f"{cov:.0%}"}</td>'
+            f'<td class="n">{f"${unmodelled:,.0f}mm" if unmodelled else ""}</td>'
+            f'<td class="g">{html_escape(guid_text)}</td>'
+            f'<td class="w" title="{_ki_attr(why)}">{html_escape(why[:88])}</td></tr>')
+    st.markdown(
+        '<table class="cov"><thead><tr><th>company</th><th>state</th>'
+        '<th class="n">revenue covered</th><th class="n">carried at nothing</th>'
+        '<th>against guidance</th><th>what is missing</th></tr></thead>'
+        f'<tbody>{"".join(body)}</tbody></table>', unsafe_allow_html=True)
+    note("Read as a work queue: the companies are sorted by the revenue the book carries "
+         "at nothing, which is what a model is worth writing for. A refusal is a state "
+         "rather than a gap, and the reason is the column beside it.")
+
+
 def _pulse_panel(api_base: str) -> None:
     """Sector news from the daily pulse, the whole sector rather than the universe:
     private rounds and other biotechs are kept. Drawn nothing when no briefing is on
@@ -9129,68 +9258,6 @@ def _pulse_panel(api_base: str) -> None:
          "links the article it summarises. It is a summary, not a source: nothing in it "
          "moves a value, a deal term or a catalyst. Items naming a covered company also "
          "appear in that company's What changed.")
-
-
-def _review_queue_panel(api_base: str) -> None:
-    """The evidence queue, a sentence at a time.
-
-    Folded, and drawn at the foot of the Universe tab, because it is book-wide rather
-    than about the company in focus and it is read when an analyst sits down to it
-    rather than at a glance.
-
-    One house convention stands behind hundreds of assets, so the row offered is the
-    sentence and not the assumption. Confirming marks reviewed what a rule already read:
-    it changes no grade and no value, and every row it touches reaches the ledger.
-    """
-    try:
-        got = api_get(api_base, "/review-queue?limit=40")
-    except Exception:                                               # noqa: BLE001
-        return
-    groups, total = got.get("groups") or [], got.get("unreviewed") or 0
-    if not groups:
-        return
-    head, allc = st.columns([6, 1], vertical_alignment="center")
-    with head:
-        section("Evidence to confirm", count=total,
-                basis="judgement and convention, unreviewed")
-    with allc:
-        if st.button("Confirm all", key="rev_all", width="stretch"):
-            try:
-                out = api_post_body(api_base, "/review-queue/confirm-all", {})
-            except Exception as exc:                                # noqa: BLE001
-                st.warning(f"That did not go through: {exc}")
-            else:
-                api_get.clear()
-                st.toast(f"{out['confirmed']} rows confirmed in bulk.")
-                st.rerun()
-    note("The book grades every assumption off its own source and marks the grade "
-         "unreviewed until an analyst confirms it. One convention stands behind "
-         "hundreds of assets, so what is offered here is the sentence rather than the "
-         "row. Confirming marks the grade reviewed; it never changes a grade and never "
-         "touches a value, and every row it marks reaches the change ledger.")
-    for n, g in enumerate(groups[:12]):
-        row, act = st.columns([7, 1], vertical_alignment="center")
-        with row:
-            where = g.get("key") or f"{g.get('keys')} keys"
-            st.markdown(
-                f'<div class="whym-lead"><b>{html_escape(str(where))}</b> '
-                f'&nbsp;·&nbsp; {g["rows"]} rows on {g["assets"]} assets '
-                f'&nbsp;·&nbsp; <span class="u-tag">{html_escape(g["evidence"])}</span>'
-                f'</div><div class="byline">{html_escape(str(g["source"])[:190])}</div>',
-                unsafe_allow_html=True)
-        with act:
-            if st.button("Confirm", key=f"rev_{n}_{abs(hash(g['source'])) % 10**8}",
-                         width="stretch"):
-                try:
-                    out = api_post_body(
-                        api_base, "/review-queue/confirm",
-                        {"source": g["source"], "evidence": g["evidence"]})
-                except Exception as exc:                            # noqa: BLE001
-                    st.warning(f"That did not go through: {exc}")
-                else:
-                    api_get.clear()
-                    st.toast(f"{out['confirmed']} rows confirmed.")
-                    st.rerun()
 
 
 def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
@@ -9699,9 +9766,6 @@ if not engine and not (st.query_params.get("ticker") or ""):
         [{"engine": entry["key"], "label": entry["label"],
           "tagline": entry["tagline"]} for entry in catalogue],
         tokens=LANDING_TOKENS, key="engine_pick")
-    st.caption(
-        "An engine decides which companies the picker offers and which tabs a company "
-        "page can fill. Search always reaches the whole universe.")
     # A click is acted on once. The nonce changes per click, so a rerun caused by
     # anything else does not send the visit somewhere it has already been.
     if isinstance(picked, dict) and picked.get("nonce") != st.session_state.get(
@@ -9828,7 +9892,10 @@ def _jump_to_search():
 # company is applied here, before the selector reads its key.
 universe_page.apply_goto(tickers)
 
-bar = st.columns([0.085, 0.40, 0.20, 0.20, 0.115], gap="small")
+# The chip's slice comes out of the name's column and nothing else: the search, the run
+# state and the refresh button keep the widths they had, so the bar reads as it did with
+# one more thing on it.
+bar = st.columns([0.085, 0.33, 0.20, 0.07, 0.20, 0.115], gap="small")
 with bar[0]:
     st.markdown('<span class="topbar-anchor"></span><div class="pick">',
                 unsafe_allow_html=True)
@@ -9842,6 +9909,10 @@ st.query_params["ticker"] = ticker
 # universe would be a one-way door.
 _ENGINE_LABELS = {"pharma": "Big pharma", "biotech": "Biotech",
                   "cellgene": "Cell and gene"}
+# The three colours the front door's dial is drawn in, so the chip that leads back to it
+# is the colour of the wedge it came from.
+_ENGINE_ACCENTS = {"pharma": TK.UP, "biotech": TK.ENGINE_BIOTECH,
+                   "cellgene": TK.PURPLE_BOOK}
 st.sidebar.markdown("#### Engine")
 st.sidebar.caption(_ENGINE_LABELS.get(engine, "The whole universe")
                    + f" · {len(tickers)} companies")
@@ -9882,6 +9953,24 @@ with bar[2]:
                   placeholder="jump to ticker or name", on_change=_jump_to_search)
     st.markdown("</div>", unsafe_allow_html=True)
 with bar[3]:
+    # The way back out, next to the search because the two are the same kind of control:
+    # one changes which company the page is about, the other which universe it is drawn
+    # from. The sidebar holds the same button, and the sidebar opens closed.
+    st.markdown(
+        "<style>.st-key-engine_chip { --chip: "
+        + (_ENGINE_ACCENTS.get(engine) or TK.MUTED) + "; }</style>",
+        unsafe_allow_html=True)
+    # One word, whichever engine it is, because the colour already says which: a chip
+    # wide enough for "Cell and gene" would be three times the width of one for
+    # "Biotech", and the bar would move under you as you changed engine.
+    if st.button("Engine", key="engine_chip",
+                 help=_ENGINE_LABELS.get(engine, "The whole universe")
+                      + ". Pick another engine"):
+        st.query_params.pop("engine", None)
+        st.query_params.pop("ticker", None)
+        st.session_state.pop("engine", None)
+        st.rerun()
+with bar[4]:
     latest_run = api_get(api_base, "/runs/latest")
     if latest_run.get("finished_at"):
         cls = "ok" if latest_run.get("status") == "complete" else "bad"
@@ -9900,7 +9989,7 @@ with bar[3]:
     else:
         st.markdown('<div class="topbar-run">no refresh run yet</div>',
                     unsafe_allow_html=True)
-with bar[4]:
+with bar[5]:
     if st.button("Refresh all", key="topbar_refresh", width="stretch"):
         run_refresh(api_base, "/refresh?scope=all", "all_run",
                     "Refreshing the universe")
@@ -10413,7 +10502,8 @@ with main:
         # away and they still belong to the universe rather than to a company, so
         # they are views here rather than tabs of their own.
         _view = st.segmented_control(
-            "Universe view", ["Overview", "Markets", "Policy"], default="Overview",
+            "Universe view", ["Overview", "Markets", "Policy", "Coverage"],
+            default="Overview",
             key="universe_view", label_visibility="collapsed") or "Overview"
 
         _all_changes = api_get(api_base, "/changes")
@@ -10425,6 +10515,8 @@ with main:
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
             _policy_view(api_base)
+        elif _view == "Coverage":
+            _coverage_view(api_base)
         elif (_universe_redesigned(ticker, _view, (company or {}).get("engine"))
               and universe_page.render(api_base, ticker)):
             pass
@@ -10436,7 +10528,6 @@ with main:
             _pulse_panel(api_base)
         # Book-wide, so it sits at the foot of the book-wide tab rather than on a
         # company page, and it draws nothing when the queue is empty.
-        _review_queue_panel(api_base)
 
     with insights_tab:
         # The company on one page (company-scorecard.md 1.3): where it stands against its
@@ -11240,27 +11331,6 @@ with main:
                     html.append("</details>")
                 html.append("</div>")
                 st.markdown("".join(html), unsafe_allow_html=True)
-                st.markdown(
-                    '<div class="byline">One row per compound in trials that the company does '
-                    'not yet sell, grouped by the furthest phase it has reached, with the '
-                    'number of studies behind it and the next primary completion date due. '
-                    'Open a compound for its own studies, each linking to the registry. '
-                    'Derived from the drug each registry entry names, so a compound appears '
-                    'only where a trial names it. A comparator, a shared chemotherapy '
-                    'backbone and another company\'s marketed drug are excluded, so this is '
-                    'the sponsor\'s own work rather than everything its studies '
-                    'mention. Below the phases sit the programmes the company describes in '
-                    'its own filing and the registry has never seen, at the stage the filing '
-                    'states and never at a phase, each opening onto the sentence it was read '
-                    'from. The last column is what the compound is worth a share on the '
-                    'forecast tab: a figure where the engine builds it, "needs" where it '
-                    'read the assumptions and stopped on a gap the tooltip names, a starred '
-                    'figure where it ran on a placeholder curve and is shown without being '
-                    'counted, and a dash where no assumptions are on file at all. A figure '
-                    'underlined red launches in the model before the earliest approval the '
-                    'registry and the FDA review clock allow, amber where its seed cites a '
-                    'filing or readout not on file; its tooltip says which.</div>',
-                    unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
@@ -11332,6 +11402,8 @@ with main:
                                                    if a.get("loe_earliest") else None),
                                 revenue=a.get("revenue"),
                                 revenue_unit=a.get("revenue_unit"),
+                                shelf_state=a.get("shelf_state"),
+                                marketing_status=a.get("marketing_status"),
                                 area=a.get("area"))
                         elif a.get("approval_date") and (
                                 not p["approved"] or a["approval_date"] < p["approved"]):
@@ -11645,12 +11717,36 @@ with main:
 
 
                     with _products_col:
+                        # How many of these the FDA no longer lists as on sale, named in
+                        # the heading rather than left to be counted card by card. It was
+                        # the larger half of the blank revenue column: across the book 421
+                        # of 1,524 marketed products are withdrawn here and 416 of those
+                        # carry no revenue, so the blank was the answer and not the gap.
+                        _shelved = sum(1 for p in prods
+                                       if (p.get("shelf_state") or "").startswith("withdrawn"))
                         section("Products",
-                                f"{len(prods)} &middot; click one for its fact sheet")
+                                f"{len(prods)} &middot; "
+                                + (f"{_shelved} withdrawn in the US &middot; " if _shelved else "")
+                                + "click one for its fact sheet")
 
                         def _product_card_html(p):
                             mod = (p.get("modality") or "").lower()
                             cls = "bio" if "bio" in mod else "small" if mod else ""
+                            # Whether the FDA still lists the product as on sale. A card
+                            # that is not sold here and earns nothing steps back: it is
+                            # shelved, not unfinished, and it was the larger half of the
+                            # blank revenue column this chip exists to explain.
+                            chip, chip_html = _SHELF_CHIP.get(p.get("shelf_state")), ""
+                            if chip:
+                                label, tone, why = chip
+                                chip_html = (f'<div><span class="pf-shelf {tone}" '
+                                             f'title="{html_escape(why)}">{label}</span></div>')
+                                # Dimmed only where the FDA says the product is gone
+                                # and nothing is earned against it. A product whose
+                                # status the register does not carry is not shelved, and
+                                # greying it would make an absence look like an answer.
+                                if tone == "gone":
+                                    cls += " shelved"
                             y = _loe_year(p)
                             near = y is not None and y <= today.year + 3
                             rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
@@ -11716,6 +11812,7 @@ with main:
                                 f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
                                 f'{html_escape(p.get("modality") or "")}</span></div>'
                                 f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
+                                f'{chip_html}'
                                 f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
                                 f'<span class="pf-k">approved</span>'
                                 f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'

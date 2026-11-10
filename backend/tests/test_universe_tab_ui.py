@@ -825,10 +825,12 @@ def test_every_other_company_keeps_todays_overview_called_as_before():
             and "universe_page.render(api_base, ticker)" in block)
     assert ("_universe_overview(api_base, engine, _engine_name, _covered,\n"
             "                               _all_changes, universe_feed)") in block
-    # The evidence queue is book-wide, so it sits at the foot of the book-wide tab,
-    # after the overview and never in front of it.
-    assert block.rstrip().endswith("_review_queue_panel(api_base)")
-    assert block.index("_universe_overview(") < block.index("_review_queue_panel(")
+    # The evidence queue panel was removed on 2026-10-30. Every assumption already
+    # carries its source and its grade, and a second flag saying somebody pressed
+    # Confirm on a CMS dataset id added ceremony rather than information. The evidence
+    # mix stays: what the tab reports is how much of the model is evidence, not who
+    # clicked.
+    assert "_review_queue_panel" not in source
     overview = source[source.index("def _universe_overview("):
                       source.index("def _markets_view(")]
     assert "universe_page" not in overview and "universe_cc" not in overview

@@ -15,6 +15,11 @@ never turned into a signed event.
 
 Without a model the module does nothing and says so; the backtest then has no readout
 signal, which is the honest state rather than an invented one.
+
+A row that found nothing is not final. ``reread`` reads such rows a second time with
+the exhibit, because the first reading followed an 8-K to its exhibit only when the
+cover lacked the cheap hint and never followed a 6-K, and the resolver lets a result
+found later overturn a catalyst it had closed unknown.
 """
 
 from __future__ import annotations
@@ -48,6 +53,22 @@ HINT = re.compile(
     r"statistically significant|phase 3|phase iii|phase 2|phase ii", re.I)
 _RESULT_WORDS = re.compile(
     r"primary endpoint|top-?line|statistically significant|met|did not meet|failed", re.I)
+# A sentence that reports a result as already known is a restatement, not the event.
+# The second reading of 461 filings found two in its first eleven labels: a designation
+# release "based on data from the LEAP2MONO phase 3 study", filed seven weeks after the
+# result itself, and a sentence beginning "As previously reported, the study met its
+# primary endpoint". A restatement carries the wrong market date and, matched on drug
+# and phase, can settle a sibling catalyst the original announcement already settled.
+_RESTATED = re.compile(
+    r"previously (?:reported|announced|disclosed|presented|published)|as announced on|"
+    r"(?:is|was|are|were) based on (?:\w+ ){0,4}?(?:data|results|findings) from|"
+    # The conference and the journal: a result presented or published is one announced
+    # before. Roche's sefaxersen topline of 23 September came round again on 23 October
+    # as "late-breaking oral presentation data", a month later and matched to a second
+    # study; AstraZeneca's "full results from the positive Phase III CROSSING trial"
+    # are the full results of a readout already made.
+    r"late-breaking|(?:data|results) (?:to be |were |was |being )?presented|"
+    r"presentation (?:of|at)|full (?:results|data) from|published in", re.I)
 
 SYSTEM_PROMPT = """You read a company's press release or filing and decide whether it \
 announces the topline or primary-endpoint result of a Phase 2 or Phase 3 clinical trial, \
@@ -87,15 +108,33 @@ def exhibit_url(primary_url: str, get=_get) -> str | None:
     return pdufa.exhibit_url(primary_url, get)
 
 
-def readout_text(filing: dict, get=_get) -> str:
-    """The text most likely to carry the result: the primary document, or for a US 8-K
-    whose cover has no result language, the EX-99 exhibit it points to."""
+# A primary document shorter than this is an envelope: Novo Nordisk's 6-K cover runs
+# 4,239 characters of address and check boxes, Sanofi's 1,229. The median stored cover
+# of a row that found nothing is about 4,000 characters for a 6-K and 2,600 for an 8-K;
+# the median exhibit beside it is over 12,000.
+ENVELOPE_CHARS = 6_000
+
+
+def readout_text(filing: dict, get=None) -> tuple[str, str]:
+    """(text, read_from) for the filing: the primary document, joined to its EX-99
+    exhibit wherever the primary reads as an envelope.
+
+    The exhibit is read for either form. The release is in the exhibit for a US 8-K
+    and for most foreign 6-Ks alike, and a cover that mentions "Phase 3" in its item
+    description still carries no result sentence, so the test is not the cheap hint
+    but whether the cover states a result at all and is long enough to be one. The
+    two are joined rather than swapped so a drug named only on the cover still
+    validates against the text the model read.
+    """
+    get = get or _get                 # resolved here so a test can stand in for EDGAR
     text = pdufa.strip_html(get(filing["url"]))
-    if filing["form_type"] == "8-K" and not HINT.search(text):
+    if len(text) < ENVELOPE_CHARS or not _RESULT_WORDS.search(text):
         exhibit = exhibit_url(filing["url"], get)
         if exhibit:
-            text = pdufa.strip_html(get(exhibit))
-    return text
+            body = pdufa.strip_html(get(exhibit))
+            if body.strip():
+                return (text + "\n\n" + body)[:pdufa._MAX_CHARS], "primary+exhibit"
+    return text[:pdufa._MAX_CHARS], "primary"
 
 
 def candidates(db_path=None, lookback_days: int = LOOKBACK_DAYS, today=None) -> list[dict]:
@@ -153,6 +192,8 @@ def validate(reply: dict | None, document: str) -> dict | None:
         return None
     if len(needle) < 25 or needle[:120] not in haystack or not _RESULT_WORDS.search(quote):
         return None
+    if _RESTATED.search(quote):
+        return None
     return {"drug": drug, "phase": phase, "outcome": outcome, "quote": quote}
 
 
@@ -164,18 +205,36 @@ def _classify(document: str, filing: dict, complete) -> dict | None:
     return validate(parse_reply(reply), document)
 
 
-def _store(conn, filing: dict, result: dict | None) -> None:
+def _store(conn, filing: dict, result: dict | None, read_from: str | None = None) -> None:
     conn.execute(
         """
         INSERT INTO trial_readouts
-            (accession, company_id, drug, phase, outcome, event_date, quote, source_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (accession, company_id, drug, phase, outcome, event_date, quote, source_url,
+             read_from)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(accession) DO NOTHING
         """,
         (filing["accession"], filing["company_id"],
          result["drug"] if result else None, result["phase"] if result else None,
          result["outcome"] if result else "none", filing["filed_date"],
-         result["quote"] if result else None, filing["url"]))
+         result["quote"] if result else None, filing["url"], read_from))
+
+
+def _relabel(conn, accession: str, result: dict | None, read_from: str, today) -> None:
+    """A second reading of a row that found nothing. The label is written only where
+    the row still says none, so a result already on file is never overwritten, and
+    the row is stamped either way so it is read again by nobody."""
+    if result:
+        conn.execute(
+            """UPDATE trial_readouts SET drug = ?, phase = ?, outcome = ?, quote = ?,
+                      read_from = ?, reread_at = ?
+                WHERE accession = ? AND outcome = 'none'""",
+            (result["drug"], result["phase"], result["outcome"], result["quote"],
+             read_from, today.isoformat(), accession))
+    else:
+        conn.execute("UPDATE trial_readouts SET read_from = ?, reread_at = ?"
+                     " WHERE accession = ? AND outcome = 'none'",
+                     (read_from, today.isoformat(), accession))
 
 
 def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
@@ -189,7 +248,7 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
     errors: list[str] = []
     for filing in candidates(db_path, today=today)[:limit]:
         try:
-            document = readout_text(filing)
+            document, read_from = readout_text(filing)
         except Exception as exc:
             errors.append(f"{filing['accession']}: {exc}")
             continue
@@ -204,7 +263,7 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
                 continue
         conn = db.get_connection(db_path)
         try:
-            _store(conn, filing, result)
+            _store(conn, filing, result, read_from)
             conn.commit()
         finally:
             conn.close()
@@ -216,6 +275,102 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
         time.sleep(0.3)                # polite to EDGAR and under the model's rate limit
     return {"status": "ok", "read": read, "positive": pos, "negative": neg,
             "errors": errors}
+
+
+def unread(db_path=None, today=None) -> list[dict]:
+    """Rows that found nothing and have not been read again, those a catalyst is
+    waiting on first.
+
+    A readout catalyst closed unknown, or pending past its date, names the window in
+    which its result would have been announced; a "none" filing by the same company
+    inside that window is the one whose second reading can change a score, so those
+    come first and the rest follow in date order. The window is the resolver's own:
+    EARLY_DAYS before the catalyst's date to LATE_DAYS after it, and the import is
+    local so the resolver, which imports this module, is not imported back.
+    """
+    import catalyst_outcomes as co
+    conn = db.get_connection(db_path)
+    try:
+        rows = {r["accession"]: dict(r) for r in conn.execute(
+            """SELECT tr.accession, tr.company_id, tr.event_date, f.form_type,
+                      f.filed_date, f.url, f.title, c.ticker
+                 FROM trial_readouts tr
+                 JOIN filings f ON f.accession = tr.accession
+                 JOIN companies c ON c.id = tr.company_id
+                WHERE tr.outcome = 'none' AND tr.reread_at IS NULL
+                  AND tr.read_from IS NULL""")}
+        waiting: set = set()
+        for cat in conn.execute(
+                """SELECT company_id, expected_date FROM catalysts
+                    WHERE catalyst_type = 'data readout'
+                      AND status IN ('unknown', 'pending') AND expected_date IS NOT NULL
+                      AND expected_date < date('now')"""):
+            window = co.date_window(cat["expected_date"])
+            if not window:
+                continue
+            lo, hi = co._shift(window[0], -co.EARLY_DAYS), co._shift(window[1], co.LATE_DAYS)
+            for r in conn.execute(
+                    """SELECT accession FROM trial_readouts
+                        WHERE company_id = ? AND event_date BETWEEN ? AND ?""",
+                    (cat["company_id"], lo, hi)):
+                waiting.add(r["accession"])
+    finally:
+        conn.close()
+    ordered = sorted(rows.values(),
+                     key=lambda r: (r["accession"] not in waiting, r["event_date"] or ""))
+    for r in ordered:
+        r["waited_on"] = r["accession"] in waiting
+    return ordered
+
+
+def reread(db_path=None, limit: int = MAX_PER_RUN, today=None) -> dict:
+    """Read the rows that found nothing a second time, with the exhibit.
+
+    The first reading of 1,287 filings followed an 8-K to its EX-99 exhibit only when
+    the cover lacked the cheap hint, and never followed a 6-K at all, so a quarter of
+    them were read from an envelope. This reads each such row once more through
+    ``readout_text`` as it now stands, and the same classifier and the same validation
+    decide what it says: the drug and the result sentence must be in the text the
+    model read, or the row stays none. A row read before is stamped and not read again,
+    whatever was found. Rows a catalyst is waiting on come first.
+    """
+    today = today or dt.date.today()
+    if llm.provider() is None:
+        return {"status": "no key", "read": 0, "positive": 0, "negative": 0,
+                "detail": "No model provider configured, so no readout rows were read "
+                          "again."}
+    read = pos = neg = waited = 0
+    errors: list[str] = []
+    for filing in unread(db_path, today=today)[:limit]:
+        try:
+            document, read_from = readout_text(filing)
+        except Exception as exc:
+            errors.append(f"{filing['accession']}: {exc}")
+            continue
+        result = None
+        if HINT.search(document):
+            try:
+                result = _classify(document, filing, llm.complete)
+            except Exception as exc:
+                if pdufa.is_fatal(exc):
+                    errors.append(f"model: {exc}")
+                    break
+                continue
+        conn = db.get_connection(db_path)
+        try:
+            _relabel(conn, filing["accession"], result, read_from, today)
+            conn.commit()
+        finally:
+            conn.close()
+        read += 1
+        waited += int(filing["waited_on"])
+        if result and result["outcome"] == "positive":
+            pos += 1
+        elif result and result["outcome"] == "negative":
+            neg += 1
+        time.sleep(0.3)
+    return {"status": "ok", "read": read, "waited_on": waited, "positive": pos,
+            "negative": neg, "errors": errors}
 
 
 def recent(db_path=None, ticker: str = "", today=None, within_days: int = 400,

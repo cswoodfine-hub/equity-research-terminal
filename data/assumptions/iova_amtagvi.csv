@@ -1,0 +1,30 @@
+# AMTAGVI (IOVA). $220.3mm in FY2025, and NOT YET VALUABLE: the margin cannot be struck.
+#
+# Lifileucel, a tumour-infiltrating lymphocyte therapy for advanced melanoma, approved
+# 2024-02-16. The growth is on file and is not the problem: Iovance guides FY2026 total
+# revenue to $410-420mm (press release of 2026-09-29), against $263.5mm reported for
+# FY2025, and Amtagvi is $220.3mm of that, so the company's own guided rate is almost
+# entirely this product's.
+#
+# The margin is the problem. Iovance's filed cost lines came to 237.5% of revenue in
+# FY2025: cost of revenue $173.2mm, selling, general and administrative $152.3mm and
+# research and development $300.3mm on revenue of $263.5mm, for a net loss of $391.0mm.
+# Costed on its own company's ratios the product is worth large negative numbers, which
+# is arithmetic rather than a valuation: the spending is development of a pipeline this
+# book values separately, not the cost of selling this product, whose gross margin is
+# positive at 34%.
+#
+# charge_floor cannot help either. The other-costs charge is solved so a book reproduces
+# the free cash margin the company earned, and Iovance's free cash margin is -127.6% of
+# revenue in FY2025. There is no calibration window on file and there could not be one.
+#
+# The alternative the house allows is a comparator estimate, as autl_aucatzyl.csv takes
+# Gilead's Yescarta ratios for a CAR-T. That would stack a second company's margins on
+# top of a first full year of selling, and the number would read as a measurement. So
+# revenue_growth_pct is left out and the engine will refuse this model until it is
+# written, which is the convention Niktimvo, Aucatzyl and PENMENVY carry.
+#
+# What would settle it: a year in which Iovance's cost of revenue and SG&A are a
+# commercial cost structure rather than a build-out, or a decision to carry a named
+# comparator's ratios and grade them as such.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

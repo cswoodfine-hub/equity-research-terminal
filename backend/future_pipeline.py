@@ -604,7 +604,16 @@ def room(book: dict, long_run_growth: float = 0.0) -> tuple[dict, float, int | N
     past its 2033, the peak year moved two years later, and the cap grown from it fell by
     about 8bn a year for every year after, so equity fell as the drug became likelier. A
     year's level is compared grown at the long-run rate, which is expected inflation, so
-    "best" means best in real terms."""
+    "best" means best in real terms.
+
+    The claim is measured rather than conservative. Ten-year real revenue growth for US
+    large-cap pharma over 2007 to 2025 is +1.00% a year across every window and -0.02%
+    once the four purchase windows are held out, and a purchase is what this line does
+    not model; conditioned on a peak rather than any starting point the median large cap
+    sits at 0.95 times its old real peak ten years on. Gilead, the one prior organic
+    breakout of Lilly's shape, went 2.9 times in two years on hepatitis C and then fell
+    4.0% a year for a decade to 0.66 times its peak. The sample is survivors, so the
+    figure is biased up and the truth is at or below zero (docs/perpetuity.md)."""
     if not book or max(book.values()) <= 0:
         return {}, 0.0, None
     g = long_run_growth or 0.0

@@ -447,11 +447,15 @@ def test_a_bridge_that_does_not_add_up_is_not_drawn(view):
     # No debt on file: the sum stops at enterprise value, and must reach the one on file.
     # Viking's bar read 32.87 against an enterprise value of 20.56: growth capital was left
     # out and nothing checked.
-    ev_run = 89.61 + 12.32 + 88.76 + 10.58 - 3.62 - 0.54
+    # Other claims are not in it either: they sit below the enterprise value, alongside
+    # net cash, so the end here is the enterprise value without them. Arrowhead's bar
+    # read 0.94 against an enterprise value of 1.22 while they were folded in.
+    ev_run = 89.61 + 12.32 + 88.76 + 10.58 - 3.62
     ev = view["_ki_bridge"](dict(AZN_SOTP, net_cash_per_share=None,
                                  enterprise_today_per_share=ev_run))
     assert ev["ok"] and ev["steps"][-1]["label"] == "EV today"
-    assert [x["label"] for x in ev["steps"]][-3:-1] == ["growth capital", "other claims"]
+    assert [x["label"] for x in ev["steps"]][-2] == "growth capital"
+    assert "other claims" not in [x["label"] for x in ev["steps"]]
     assert ev["end"] == pytest.approx(ev_run)
     assert not view["_ki_bridge"](dict(AZN_SOTP, net_cash_per_share=None,
                                        enterprise_today_per_share=ev_run + 12.3))["ok"]
@@ -3420,6 +3424,30 @@ def test_the_bridge_reconciles_for_every_modelled_company(view):
         if not b["ok"]:
             failed.append((t, b["reason"]))
     assert checked >= 15 and not failed, failed
+
+
+@live
+def test_no_company_prices_an_equity_value_its_own_business_is_missing_from():
+    """A company that sells things and whose products are all unmodelled has no sum to
+    take to a share price: the parts are cash, a pipeline and nothing for the business it
+    runs. BioMarin came out at minus $16.78 a share against $57.49 on $3.2bn of revenue
+    and Neurocrine at $6.00 against $146.38 on $2.9bn, both read as a company worth its
+    balance sheet. Thin coverage is a different thing and still prices: Ionis covers 12%
+    of its revenue and its modelled products are worth $18.19 a share."""
+    refused = []
+    for ticker in [c["ticker"] for c in _get("/comps/valuation")["companies"]]:
+        sotp = (_get(f"/companies/{urllib.parse.quote(ticker)}/forecast-verdict")
+                or {}).get("sotp") or {}
+        sells = sotp.get("last_reported") or sotp.get("revenue_path")
+        product = ((sotp.get("marketed") or {}).get("rnpv") or 0.0) + \
+                  ((sotp.get("lines") or {}).get("rnpv") or 0.0)
+        if product == 0 and (sotp.get("not_valued") or []):
+            assert sotp.get("equity_per_share") is None, ticker
+            assert sotp.get("forward_12m") is None, ticker
+            assert any("marketed products" in m for m in (sotp.get("missing") or [])), ticker
+            refused.append(ticker)
+    # The book has such companies; a test that found none would be passing on nothing.
+    assert refused
 
 
 @live

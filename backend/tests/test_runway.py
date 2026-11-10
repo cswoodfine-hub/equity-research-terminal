@@ -215,3 +215,35 @@ def test_expected_raise_reads_the_measured_table():
     # Fewer months of cash never means a smaller chance of raising.
     bands = [R.expected_raise(m)["p_raise_12m"] for m in (6, 15, 20, 30, 45, 90)]
     assert bands == sorted(bands, reverse=True)
+
+
+def test_a_month_precision_catalyst_due_this_month_is_inside_the_runway():
+    """A quarter of the register's dates are a month. "2026-11" sorts before
+    "2026-11-07" as a string, so a readout due this month fell out as if past."""
+    import runway
+    assert runway.date_window("2026-11") == ("2026-11-01", "2026-11-30")
+    assert runway.date_window("2026-12") == ("2026-12-01", "2026-12-31")
+    assert runway.date_window("2027-02-14") == ("2027-02-14", "2027-02-14")
+    assert runway.date_window(None) is None
+
+
+def test_funded_to_readout_compares_the_last_day_the_date_could_mean(tmp_path):
+    """Cash runs out on the 23rd and the readout is "that month": the first of the
+    month said funded, and the thirtieth says not, and the thirtieth is honest."""
+    import datetime as dt
+    import db
+    import runway
+    path = str(tmp_path / "r.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AAA', 'AAA')")
+    conn.execute("INSERT INTO catalysts (company_id, catalyst_type, expected_date,"
+                 " date_confidence, title, status) VALUES (1, 'data readout', '2027-01',"
+                 " 'month', 'Phase 3', 'pending')")
+    conn.commit()
+    conn.close()
+    # _row needs the full financial scaffold to reach the sign test, so the contract is
+    # asserted on the helper the sign test now reads: the month's last day, not its first.
+    window = runway.date_window("2027-01")
+    assert (window[1] <= "2027-01-23") is False       # the month's end runs past the cash
+    assert (window[0] <= "2027-01-23") is True        # which the old compare called funded

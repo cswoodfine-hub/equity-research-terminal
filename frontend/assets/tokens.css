@@ -23,6 +23,9 @@
   /* Modality, the two FDA book colours retuned into the palette. */
   --orange-book: #C98A4B;
   --purple-book: #8B7FC7;
+  /* The biotech engine's identity on the front door. The warm end of the palette was
+     already spoken for: the gold is a filed phase, the red is a negative delta. */
+  --engine-biotech: #D4883F;
   /* The FDA on the Universe tab: a clear blue for approvals, PDUFA and decision dates
      (a small molecule's NDA on the FDA row), and a teal-cyan for a biologic's BLA, both
      clear of the deals' purple. */

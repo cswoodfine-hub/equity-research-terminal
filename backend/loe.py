@@ -14,6 +14,7 @@ import pathlib
 
 import db
 import loe_link
+import marketing_status
 
 DATA_DIR = pathlib.Path(__file__).resolve().parent.parent / "data"
 
@@ -503,6 +504,31 @@ def for_assets(conn, asset_ids=None, exclude_orphan: bool = False,
         if link.get("reference_product") is False and asset_id in out:
             basis = (out[asset_id].get("basis") or "").lower()
             if "statutory floor" in basis or "reference product exclusivity" in basis:
+                del out[asset_id]
+
+    # A product the FDA says is not on sale here cannot lose US exclusivity, so a date
+    # still ahead of it is not a cliff and must not be counted as one. Vizimpro sat in
+    # the 2032 column of the chart on a patent protecting a product Pfizer stopped
+    # selling in 2023.
+    #
+    # Only a date in the future, and only where the row earns nothing. A protection that
+    # already lapsed is history and reporting it costs nothing. And revenue is the
+    # evidence that something under the row is still sold: Pfizer's Vyndaqel application
+    # is discontinued because Vyndamax replaced it, and the $6,380mm on the row is the
+    # tafamidis family's, which the 2026 molecule patent does gate. Dropping the date
+    # there would hand a real cliff back five years of annuity, so the test is the money
+    # and not the status alone.
+    ahead = [aid for aid, found in out.items()
+             if found.get("date") and found["date"] >= today]
+    statuses = marketing_status.for_assets(conn, ahead) if ahead else {}
+    withdrawn = [aid for aid in ahead
+                 if aid in statuses and not marketing_status.sold_in_us(statuses[aid])]
+    if withdrawn:
+        earning = {r["asset_id"] for r in conn.execute(
+            "SELECT DISTINCT asset_id FROM asset_revenue WHERE value > 0"
+            f"   AND asset_id IN ({', '.join('?' for _ in withdrawn)})", withdrawn)}
+        for asset_id in withdrawn:
+            if asset_id not in earning:
                 del out[asset_id]
     return out
 

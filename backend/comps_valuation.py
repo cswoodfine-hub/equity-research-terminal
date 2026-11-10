@@ -63,7 +63,8 @@ VIEW_SOURCES = ("prices", "consensus_nasdaq", "financials", "fx")
 COVER_COUNT_MAX_AGE_DAYS = 400
 # Two share counts further apart than this factor are not two measurements of one thing:
 # one of them is in the wrong scale (IOVA files its weighted diluted count in thousands).
-SHARE_SCALE_LIMIT = 5
+# Defined in forecast_view, which applies the same rule to the per-share divisor.
+SHARE_SCALE_LIMIT = forecast_view.SHARE_SCALE_LIMIT
 # Tickers whose cover-page count is known not to be the count EPS is struck on. Each entry
 # is added only with a cited reason, which the view shows.
 COVER_COUNT_EXCEPTIONS = {
@@ -659,23 +660,22 @@ def _diluted_basis(conn, company_id: int):
     phrase the market cap basis text uses, route). The route is ``weighted``, ``cover``
     (the helper fell back to the cover-page count, so it is not a second measurement) or
     ``implied`` (net income over diluted EPS)."""
-    for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
-        row = conn.execute(
-            """SELECT value, period_type, period_end FROM financials
-                WHERE company_id = ? AND metric = ? AND period_type IN ('FY', 'instant')
-                ORDER BY fiscal_year DESC, period_end DESC LIMIT 1""",
-            (company_id, metric)).fetchone()
-        if row and row["value"]:
-            if metric == "SharesOutstanding":
-                return (f"shares outstanding at {row['period_end'][:10]}",
-                        f"shares outstanding at {row['period_end'][:10]}, per US-listed share",
-                        "cover")
-            if row["period_type"] == "FY":
-                year = _snap(row["period_end"])[1]
-                return (f"FY{year} weighted average diluted",
-                        f"FY{year} weighted diluted shares, per US-listed share", "weighted")
-            return (f"weighted average diluted at {row['period_end'][:10]}",
-                    "weighted diluted shares, per US-listed share", "weighted")
+    # The same choice forecast_view._diluted_shares made, so these words name the count
+    # the figures were actually divided by. "scale" is the cover count reached because
+    # the weighted one is in the wrong scale, which the market cap below reports as its
+    # reason for having no second count to compare with.
+    metric, row, scaled = forecast_view.share_count_pick(conn, company_id)
+    if metric == "SharesOutstanding":
+        return (f"shares outstanding at {row['period_end'][:10]}",
+                f"shares outstanding at {row['period_end'][:10]}, per US-listed share",
+                "scale" if scaled else "cover")
+    if metric:
+        if row["period_type"] == "FY":
+            year = _snap(row["period_end"])[1]
+            return (f"FY{year} weighted average diluted",
+                    f"FY{year} weighted diluted shares, per US-listed share", "weighted")
+        return (f"weighted average diluted at {row['period_end'][:10]}",
+                "weighted diluted shares, per US-listed share", "weighted")
     row = conn.execute(
         """SELECT period_end FROM financials WHERE company_id = ?
             AND metric = 'NetIncomeLoss' AND period_type = 'FY'
@@ -856,14 +856,14 @@ def _record(u: _Universe, co: dict, stage: dict) -> tuple:
         basis_text = f"Shares outstanding at the {shares_cover_as_of} cover date"
         # A diluted count the helper took from the cover page is the same count, not a
         # second measurement, so there is no alternative to compare with.
-        alt_shares = shares_diluted_m if diluted_route != "cover" else None
+        alt_shares = shares_diluted_m if diluted_route not in ("cover", "scale") else None
         alt_basis = "diluted_weighted"
         disagreement_reason = "it is the more recent count"
     elif shares_diluted_m:
         mcap = price * shares_diluted_m
         basis = "diluted_weighted"
         basis_text = diluted_phrase[0].upper() + diluted_phrase[1:]
-        alt_shares = shares_cover_m if diluted_route != "cover" else None
+        alt_shares = shares_cover_m if diluted_route not in ("cover", "scale") else None
         alt_basis = "shares_outstanding"
         if shares_cover_m is None:
             rec.flag("market_cap_diluted_route", "market.market_cap_usd_m", "info")
@@ -892,8 +892,11 @@ def _record(u: _Universe, co: dict, stage: dict) -> tuple:
             rec.reason("market.market_cap_alt_usd_m", "share_count_scale")
             rec.reason("market.market_cap_disagreement", "share_count_scale")
     elif mcap is not None:
-        rec.reason("market.market_cap_alt_usd_m", "no_shares")
-        rec.reason("market.market_cap_disagreement", "no_shares")
+        # The weighted count exists but is in the wrong scale, so it is not a second
+        # measurement to read the market cap against; saying so beats "no_shares".
+        code = "share_count_scale" if diluted_route == "scale" else "no_shares"
+        rec.reason("market.market_cap_alt_usd_m", code)
+        rec.reason("market.market_cap_disagreement", code)
     else:
         code = "no_prices" if price is None else "no_shares"
         rec.reason("market.market_cap_alt_usd_m", code)

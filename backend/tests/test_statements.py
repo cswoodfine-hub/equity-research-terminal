@@ -156,6 +156,71 @@ def test_total_debt_skips_a_date_where_the_current_portion_is_untagged():
     assert "2026-03-31" not in series
 
 
+def test_a_convertible_note_is_debt_when_it_is_the_only_borrowing_tagged():
+    """Alnylam tags its converts and no other borrowing, which read as no debt at all:
+    $1.01bn was missing from a book that showed its $3.6bn of cash, and the sum of the
+    parts stopped at the enterprise value for want of the other half."""
+    facts = {"us-gaap": {
+        "ConvertibleDebtNoncurrent": {"units": {"USD": [
+            {"end": "2026-09-30", "val": 651087000, "form": "10-Q", "filed": "2026-10-30"},
+        ]}},
+        "ConvertibleDebtCurrent": {"units": {"USD": [
+            {"end": "2026-09-30", "val": 361529000, "form": "10-Q", "filed": "2026-10-30"},
+        ]}},
+    }}
+    series = total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 1012616000
+
+
+def test_a_long_term_tag_from_a_repaid_instrument_does_not_block_current_converts():
+    """Alnylam carries a 2022 long-term tag for an instrument that no longer exists and
+    tags its converts now. The two never share a balance sheet, so the converts stand on
+    the dates they are tagged rather than being refused for the older line's sake."""
+    facts = {"us-gaap": {
+        "LongTermDebt": {"units": {"USD": [
+            {"end": "2022-06-30", "val": 677_723_000, "form": "10-Q", "filed": "2022-08-01"},
+        ]}},
+        "ConvertibleDebtNoncurrent": {"units": {"USD": [
+            {"end": "2026-09-30", "val": 651_087_000, "form": "10-Q", "filed": "2026-10-30"},
+        ]}},
+        "ConvertibleDebtCurrent": {"units": {"USD": [
+            {"end": "2026-09-30", "val": 361_529_000, "form": "10-Q", "filed": "2026-10-30"},
+        ]}},
+    }}
+    series = total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 1_012_616_000
+
+
+def test_converts_beside_a_drawn_facility_resolve_to_nothing_rather_than_the_larger_half():
+    """Arrowhead tags $682.7mm of converts and a $181.4mm drawn line at 2026-06-30. No
+    basis here sums across instruments, so reporting the note alone would read as net
+    cash it does not have; the honest answer is that the debt is unresolved."""
+    facts = {"us-gaap": {
+        "ConvertibleDebtNoncurrent": {"units": {"USD": [
+            {"end": "2026-06-30", "val": 682707000, "form": "10-Q", "filed": "2026-08-01"},
+        ]}},
+        "LineOfCredit": {"units": {"USD": [
+            {"end": "2026-06-30", "val": 181400000, "form": "10-Q", "filed": "2026-08-01"},
+        ]}},
+    }}
+    assert total_debt_series(facts) == {}
+
+
+def test_a_drawn_facility_does_not_disturb_a_filer_with_a_long_term_debt_line():
+    """Most of the book tags a facility somewhere as a disclosure. Reading that more
+    widely than the convertible basis emptied the debt line for Lilly, Pfizer and forty
+    others."""
+    facts = {"us-gaap": {
+        "LongTermDebtNoncurrent": {"units": {"USD": [
+            {"end": "2026-06-30", "val": 40e9, "form": "10-Q", "filed": "2026-08-01"},
+        ]}},
+        "LineOfCredit": {"units": {"USD": [
+            {"end": "2026-06-30", "val": 1e9, "form": "10-Q", "filed": "2026-08-01"},
+        ]}},
+    }}
+    assert total_debt_series(facts)["2026-06-30"]["val"] == 40e9
+
+
 def test_every_line_key_is_unique_and_maps_back():
     keys = [line.key for line in statements.LINES]
     assert len(keys) == len(set(keys))
@@ -178,3 +243,51 @@ def test_derived_lines_reference_lines_that_exist():
         left, op, right = line.derived
         assert op == "-"
         assert left in statements.LINES_BY_KEY and right in statements.LINES_BY_KEY
+
+
+def test_capital_spending_survives_a_filer_changing_the_concept_it_tags_it_under():
+    """Lantheus moved off PaymentsToAcquireProductiveAssets after 2023 and Incyte after
+    2022, so both carried revenue to 2025 and capex to 2023 and 2022, and no free cash
+    margin could be struck for either. The later concepts are candidates now, and sit
+    after the standard ones so a filer whose usual line is current keeps it."""
+    names = [name for _taxonomy, name in
+             statements.LINES_BY_KEY["CapitalExpenditure"].candidates]
+    assert "PaymentsForCapitalImprovements" in names
+    assert "PaymentsToAcquireOtherProductiveAssets" in names
+    # Order is the rule: the standard line is tried first, and capital improvements
+    # before other productive assets, because Lantheus tags both and its other-assets
+    # line reads nil in 2025 where its improvements line reads $36.1mm.
+    assert names.index("PaymentsToAcquirePropertyPlantAndEquipment") < \
+           names.index("PaymentsForCapitalImprovements") < \
+           names.index("PaymentsToAcquireOtherProductiveAssets")
+
+
+def test_debt_survives_a_filer_moving_to_the_lease_mixed_concept():
+    """Lantheus stopped tagging LongTermDebtNoncurrent after 2022 and kept filing its
+    debt under the lease-mixed concept. Its line read $558.1mm at 2022-12-31 against
+    $571.7mm of converts outstanding at 2026-09-30, 45 months stale, so the sum stopped
+    at enterprise value whatever else was modelled.
+
+    The concept covers finance leases as well as borrowings, so it is an upper bound on
+    debt rather than debt, and it is the last basis the ladder tries.
+    """
+    import companyfacts
+    names = [name for _taxonomy, name in companyfacts.LEASE_MIXED_CANDIDATES]
+    assert names[0].endswith("IncludingCurrentMaturities")
+
+    def instant(value, end):
+        return {"units": {"USD": [{"end": end, "val": value, "form": "10-Q"}]}}
+
+    # A filer the other bases leave stale reaches it.
+    facts = {"us-gaap": {
+        "LongTermDebtNoncurrent": instant(558_100_000, "2022-12-31"),
+        "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities":
+            instant(571_700_000, "2026-09-30")}}
+    series = companyfacts.total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 571_700_000
+
+    # A filer whose standard line is current never does: the basis reaching the latest
+    # date wins, and an upper bound must not displace a figure that is debt exactly.
+    facts["us-gaap"]["LongTermDebtNoncurrent"] = instant(600_000_000, "2026-09-30")
+    series = companyfacts.total_debt_series(facts)
+    assert series["2026-09-30"]["val"] == 600_000_000

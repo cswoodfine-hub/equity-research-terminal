@@ -619,17 +619,49 @@ def price_unit_rate(conn, company_id: int) -> dict:
             "as_of": rates.get("as_of")}
 
 
-def _share_count_row(conn, company_id: int):
-    """The filed share count the divisor is read from, {value, period_end}, or None where
-    only the earnings-per-share route is left."""
+# The limit comps_valuation already applies when it compares two share counts for the
+# market cap: beyond it they are not two measurements of one thing and one is in the
+# wrong scale. It belongs here as well, because the divisor the rNPV is read through is
+# the same count. Iovance tags its weighted diluted shares in thousands, 450,189 against
+# 452,971,432 outstanding, and comps caught that while the sum of the parts did not: it
+# divided by the smaller and put Iovance's cash at $833 a share against a $9.56 close.
+SHARE_SCALE_LIMIT = 5
+
+
+def share_count_pick(conn, company_id: int):
+    """(metric, row, scaled) for the filed share count the divisor is read from, or
+    (None, None, False).
+
+    The preference is the weighted average diluted count, then the cover page, except
+    where the two cannot both be share counts (SHARE_SCALE_LIMIT). ``scaled`` is True
+    where that exception is what chose the cover count, which is why comps has no second
+    count to read the market cap against.
+    """
+    rows = {}
     for metric in ("WeightedAverageDilutedShares", "SharesOutstanding"):
         row = conn.execute(
-            """SELECT value, period_end FROM financials WHERE company_id = ? AND metric = ?
+            """SELECT value, period_type, period_end FROM financials
+                WHERE company_id = ? AND metric = ?
                 AND period_type IN ('FY', 'instant') ORDER BY fiscal_year DESC,
                 period_end DESC LIMIT 1""", (company_id, metric)).fetchone()
         if row and row["value"]:
-            return row
-    return None
+            rows[metric] = row
+    weighted = rows.get("WeightedAverageDilutedShares")
+    outstanding = rows.get("SharesOutstanding")
+    if (weighted and outstanding
+            and outstanding["value"] / weighted["value"] > SHARE_SCALE_LIMIT):
+        return "SharesOutstanding", outstanding, True
+    if weighted:
+        return "WeightedAverageDilutedShares", weighted, False
+    if outstanding:
+        return "SharesOutstanding", outstanding, False
+    return None, None, False
+
+
+def _share_count_row(conn, company_id: int):
+    """The filed share count the divisor is read from, {value, period_end}, or None where
+    only the earnings-per-share route is left."""
+    return share_count_pick(conn, company_id)[1]
 
 
 def _diluted_shares(conn, company_id: int):
@@ -706,7 +738,7 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later", "already_approved")
+                 "same_gate_later", "already_approved", "needs_layer", "in_the_base")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -1076,24 +1108,44 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             clean["ignored"] = state["ignored"]
         return clean
 
-    def refuse(row, reason, why):
+    def refuse(row, reason, why, missing_keys=None):
         unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
-                         "missing": missing(reason)})
+                         "missing": missing(reason) if missing_keys is None
+                         else list(missing_keys)})
 
     # Before anything else, because an approval that has already happened outranks every
     # other reading of the event. A readout in an indication the label covers decides
     # nothing the revenue does not already carry, whatever the legs or the phase say.
     asset_id = next((r["asset_id"] for r in rows if r.get("asset_id")), None)
     approved = approved_indications.for_asset(conn, asset_id) if asset_id else set()
-    if approved:
-        standing, rows = rows, [r for r in rows
-                                if r.get("asset_indication_id") not in approved]
-        for row in standing:
-            if row.get("asset_indication_id") in approved:
-                refuse(row, "already_approved",
-                       "The label already covers this indication, so the approval is in "
-                       "the reported revenue the forecast is grown from and the readout "
-                       "decides nothing further.")
+    # The label covers a disease in a setting, and a study in a setting it does not state
+    # is an expansion whatever the disease: Etcamah is approved in metastatic breast
+    # cancer and reads out in early breast cancer after adjuvant therapy. Those pairs are
+    # taken out of the approved set here, so the layer gate below may price them and the
+    # row says what it needs rather than that it decides nothing.
+    open_pairs: set = set()
+    gap_of: dict = {}
+    for row in rows:
+        if row.get("asset_indication_id") in approved:
+            gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
+            gap_of[row["id"]] = gap
+            if gap:
+                open_pairs.add(row["asset_indication_id"])
+    # The gap is one study's, not the whole indication's. A sibling's expansion opens the
+    # pair so the layer below may value it, but must not carry the studies the label
+    # covers outright: two of Trodelvy's three triple-negative readouts are first-line
+    # metastatic, which the label states in as many words, and the third is adjuvant
+    # after surgery. Judging the pair rather than the study put all three in the queue.
+    covered = {row["id"] for row in rows
+               if row.get("asset_indication_id") in approved and not gap_of.get(row["id"])}
+    approved = approved - open_pairs
+    if covered:
+        for row in [r for r in rows if r["id"] in covered]:
+            refuse(row, "already_approved",
+                   "The label already covers this indication, so the approval is in "
+                   "the reported revenue the forecast is grown from and the readout "
+                   "decides nothing further.")
+        rows = [r for r in rows if r["id"] not in covered]
         if not rows:
             return priced, unpriced
 
@@ -1143,6 +1195,54 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                        "An earlier readout in the same indication carries this layer, so "
                        "it is priced there once rather than again here.")
             rows = [r for r in rows if r.get("asset_indication_id") not in gated]
+        # A readout on an indication the label does not cover is an expansion, and where
+        # no pool is on file to value it the row is work waiting rather than an asset
+        # outside the gate model. The layer's own refusal says which keys it lacks; a
+        # layer that refuses on the evidence instead, because the pool is already inside
+        # the business being sold to, is left to the reasons below.
+        layers: dict = {}
+        answered = set()
+        for row in rows:
+            pair_id = row.get("asset_indication_id")
+            if not pair_id or pair_id in approved:
+                continue
+            if pair_id not in layers:
+                pair = conn.execute(
+                    "SELECT asset_id, indication_id FROM asset_indications WHERE id = ?",
+                    (pair_id,)).fetchone()
+                layers[pair_id] = (indication_layer.build(conn, pair["asset_id"],
+                                                          pair["indication_id"])
+                                   if pair else None)
+            layer = layers[pair_id]
+            gaps = list((layer or {}).get("missing") or [])
+            if layer is not None and not gaps:
+                # The layer refused on the evidence rather than for want of a seed: the
+                # research has already said this indication is the product's own
+                # business. That is a readout deciding nothing, not an asset outside the
+                # gate model, which is what it read as before and is plainly untrue of a
+                # marketed big pharma product.
+                # What the pool cannot say: a result inside the business still moves
+                # share, and a head-to-head inside an approved use is the clearest case
+                # of it. The book has no way to derive how much share an evidence win
+                # takes, so the route is the analyst's stated legs, and the row names
+                # that rather than reading as worth nothing.
+                refuse(row, "in_the_base", (layer.get("why") or
+                       "The research marks this indication the product's own business.")
+                       + " A result here moves share rather than pool, which the book "
+                         "prices only from stated success and failure legs.", [])
+                answered.add(row["id"])
+                continue
+            gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
+            lead = (f"The label covers this disease but not the {gap} setting this study "
+                    f"is in" if gap else "The label does not cover this indication")
+            refuse(row, "needs_layer",
+                   f"{lead}, so the readout decides an expansion the book does not value "
+                   f"yet. " + ((layer or {}).get("why")
+                               or "No assumptions are on file for this indication."),
+                   gaps or ["the indication's own assumptions"])
+            answered.add(row["id"])
+        if answered:
+            rows = [r for r in rows if r["id"] not in answered]
         reason, why = _no_gate_reason(state)
         for row in rows:
             refuse(row, reason, why)
@@ -2411,6 +2511,27 @@ def _future_pipeline(db_path, parts: list, anchor: str | None, ticker: str = "",
             "long_run_growth": long_run, "long_run_basis": long_run_basis,
             "book_rd_first": book_rd.get(base_year + 1),
             "book_peak": peak, "book_peak_year": peak_year,
+            # The ceiling the launches are held to, named rather than left implicit.
+            # It is the single strongest claim in the sum: the company's revenue never
+            # exceeds its own best modelled year in real terms, so the launches refill
+            # erosion and never make the business bigger. It is also the binding
+            # constraint on the gap to any price above the book. For Lilly the future
+            # pipeline asymptotes near $315bn however productive its research is, where
+            # closing the gap to the market would take $764bn, so no launch rate reaches
+            # it and the break-point on that lever correctly reports no answer.
+            "cap": {
+                "peak": peak, "peak_year": peak_year, "growth": long_run,
+                "basis": "the book's own best year in real terms, grown at the long-run "
+                         "rate from it: the launches refill what erodes and do not make "
+                         "the company larger than it has ever modelled being. Measured, "
+                         "not assumed: ten-year real revenue growth for US large-cap "
+                         "pharma from 2007 to 2025 is nil once purchases are held out, "
+                         "and the one prior organic breakout of this shape, Gilead on "
+                         "hepatitis C, gave back a third of its peak within a decade "
+                         "(docs/perpetuity.md)",
+                "capped_share": got.get("capped_share"),
+                "binds": bool((got.get("capped_share") or 0) > 0.01),
+            },
             "growth_investment": invest,
             "history_rd": record["history_rd"], "history_cohorts": got.get("history_cohorts"),
             "named_launch_revenue": sum(named.values()),
@@ -2568,8 +2689,25 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
     # outside net cash (other_claims).
     claims = other_claims.for_company(conn, ticker)
     claims_total = claims["total"] if not claims.get("reason") else 0.0
+    # A company that sells things and whose products are all unmodelled has no sum to
+    # take to a share price. The parts are cash, a pipeline and nothing for the business
+    # the company actually runs, so the figure reads as a company worth its balance
+    # sheet: BioMarin came out at minus $16.78 a share against $57.49 on $3.2bn of
+    # revenue, Neurocrine at $6.00 against $146.38 on $2.9bn. That is not a smaller sum,
+    # it is the wrong one, which is the refusal the engine already makes of a layer it
+    # cannot fully specify.
+    #
+    # Nil, not thin. A book covering part of a company is reported with its coverage
+    # share and read as thin, which is what that number is for; Ionis covers 12% of its
+    # revenue and its modelled products are still worth $18.19 a share.
+    # Products it sells and does not model, not merely nil product value: a clinical
+    # stage company with collaboration revenue and no marketed product at all is valued
+    # correctly as a pipeline and cash, and Beam, Moderna and Korro were refused by a
+    # reading that only asked whether the product value was nil.
+    sells_unmodelled = (bool((coverage or {}).get("unmodelled"))
+                        and (m_rnpv + s_rnpv) == 0)
     equity = ((enterprise_today + net_cash + claims_total)
-              if net_cash is not None else None)
+              if net_cash is not None and not sells_unmodelled else None)
     dividends, div_year = _dividends(conn, company_id)
     equity_ps = per_share(equity)
     dps = per_share(dividends)
@@ -2667,6 +2805,9 @@ def _sotp(conn, db_path, ticker: str, company_id: int, lines: list, streams: lis
             ("cost of equity: no CAPM components on file", ke is not None),
             ("dividend: no recent dividends-paid line on file, so nothing is taken off "
              "the roll-forward", dividends is not None),
+            ("marketed products: none of what the company reports selling is modelled, "
+             "so the sum stops at enterprise value rather than reporting an equity "
+             "value its own business is missing from", not sells_unmodelled),
             (f"future pipeline: {future.get('reason')}", future.get("value") is not None),
             ("share price: none on file", bool(close))) if not ok],
     }

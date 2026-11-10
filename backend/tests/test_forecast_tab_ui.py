@@ -9,6 +9,8 @@ Needs the API on localhost:8000 (or ER_API_BASE); skipped when it is not up, so 
 suite stays green on a machine that has not started the server.
 """
 
+import functools
+import json
 import os
 import pathlib
 import sys
@@ -31,6 +33,26 @@ def _api_up() -> bool:
 
 
 pytestmark = pytest.mark.skipif(not _api_up(), reason="API not running on 8000")
+
+
+@functools.lru_cache(maxsize=None)
+def _asset_id(name: str) -> int:
+    """Vertex's own id for a product, read from the book rather than written down here.
+
+    These were constants, and rebuilding the database moved them: Casgevy's row went
+    from 371 to 423 and 371 became a Merck vaccine, so the fixture handed the picker an
+    id Vertex does not offer and the page died formatting it. A row id is the database's
+    to choose, so the test asks for it by the name a reader would use. Called inside a
+    fixture or a test, never at import, so a machine with no API still collects.
+    """
+    base = os.getenv("ER_API_BASE", "http://localhost:8000")
+    with urllib.request.urlopen(base + "/companies/VRTX/forecast", timeout=10) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+    for group in ("pickable", "partnered"):
+        for row in payload.get(group) or []:
+            if (row.get("name") or "").strip().lower() == name.lower():
+                return row["asset_id"]
+    raise AssertionError(f"{name} is not in Vertex's forecast picker")
 
 
 def _patch_button_group_serialisation():
@@ -80,18 +102,17 @@ def app():
     # back to format_func, so both set_value("Casgevy") and select_index raise KeyError
     # against a format function keyed on asset ids. Session state holds what the app
     # itself holds, which is the id.
-    test.session_state["fc_pick_VRTX"] = CASGEVY
+    test.session_state["fc_pick_VRTX"] = _asset_id("Casgevy")
     test.run()
     return test
 
 
 # Casgevy. Vertex used to have one modelled asset and now has four, so which one the
 # picker defaults to is not something these assertions should rest on.
-CASGEVY = 371
 
 
 def _slider(app, name):
-    key = f"fc_wi_{name}_VRTX_{CASGEVY}"
+    key = f"fc_wi_{name}_VRTX_{_asset_id('Casgevy')}"
     matches = [s for s in app.slider if s.key == key]
     assert matches, f"slider {key} not rendered"
     return matches[0]
@@ -141,7 +162,8 @@ def test_moving_the_volume_slider_retells_the_page_itself(app):
 
 
 def test_the_reset_button_returns_the_tab_to_rest(app):
-    buttons = [b for b in app.button if b.key == "fc_wi_reset_VRTX_371"]
+    key = f"fc_wi_reset_VRTX_{_asset_id('Casgevy')}"
+    buttons = [b for b in app.button if b.key == key]
     assert buttons
     buttons[0].click()
     app.run()
@@ -167,7 +189,6 @@ def test_the_catalysts_tab_prices_the_casgevy_readout(app):
 # one: the share Alyftrek settles at once the switch is done. That is the only judgement
 # in the pair, so the tab gives it a slider and nothing else.
 
-ALYFTREK = 207
 
 
 @pytest.fixture(scope="module")
@@ -180,13 +201,13 @@ def franchise_app():
     test = AppTest.from_file(str(APP), default_timeout=120)
     test.query_params["ticker"] = "VRTX"
     test.run()
-    test.session_state["fc_pick_VRTX"] = ALYFTREK
+    test.session_state["fc_pick_VRTX"] = _asset_id("Alyftrek")
     test.run()
     return test
 
 
 def _plateau(app):
-    key = f"share_plateau_VRTX_{ALYFTREK}"
+    key = f"share_plateau_VRTX_{_asset_id('Alyftrek')}"
     matches = [s for s in app.slider if s.key == key]
     assert matches, f"slider {key} not rendered"
     return matches[0]
@@ -209,4 +230,4 @@ def test_the_first_year_does_not_move_with_the_plateau(franchise_app):
 
 
 def test_a_product_that_is_not_in_a_franchise_has_no_such_slider(app):
-    assert not [s for s in app.slider if s.key == f"share_plateau_VRTX_{CASGEVY}"]
+    assert not [s for s in app.slider if s.key == f"share_plateau_VRTX_{_asset_id('Casgevy')}"]

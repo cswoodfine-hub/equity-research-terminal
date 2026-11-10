@@ -264,6 +264,27 @@ def expected_raise(months, table=None) -> dict | None:
     return None
 
 
+def date_window(expected_date) -> tuple[str, str] | None:
+    """The first and last day a catalyst's date could mean.
+
+    A quarter of the register's dates are a month, "2026-11", and a string compare
+    reads that as sorting before "2026-11-07", so a readout due this month fell out of
+    the runway list as if it were past, and "2027-12" compared against a cash-out date
+    as if it were the first of December, which made funded_to_readout optimistic by up
+    to thirty days. The window puts both right: a month runs from its first day to its
+    last, and a day is itself.
+    """
+    if not expected_date:
+        return None
+    text = str(expected_date)[:10]
+    if len(text) == 7:
+        year, month = int(text[:4]), int(text[5:7])
+        last = (dt.date(year + (month == 12), (month % 12) + 1, 1)
+                - dt.timedelta(days=1))
+        return f"{text}-01", last.isoformat()
+    return text, text
+
+
 def _row(conn, company, today) -> dict:
     money = liquidity(conn, company["id"])
     burn = trailing_burn(conn, company["id"])
@@ -282,25 +303,41 @@ def _row(conn, company, today) -> dict:
     if months:
         cash_out = (today + dt.timedelta(days=int(months * 30.4))).isoformat()
         catalysts = [dict(r) for r in conn.execute(
-            "SELECT title, expected_date, catalyst_type FROM catalysts"
+            "SELECT title, expected_date, catalyst_type, date_confidence FROM catalysts"
             "  WHERE company_id = ? AND expected_date IS NOT NULL"
-            "    AND expected_date >= ? AND expected_date <= ?"
-            "  ORDER BY expected_date", (company["id"], today.isoformat(), cash_out))]
+            "  ORDER BY expected_date", (company["id"],))]
+        # Inside the runway if any day the date could mean falls between today and the
+        # cash-out: a month-precision readout due this month is a readout this month.
+        catalysts = [c for c in catalysts
+                     if (w := date_window(c["expected_date"]))
+                     and w[1] >= today.isoformat() and w[0] <= cash_out]
 
     # The next dated readout whether or not it falls inside the runway. An empty
     # catalyst list is two completely different situations, and printing a bare zero
     # for both hides the more important one: a company with no readout scheduled at all,
     # and a company whose readout is real but lands after its money runs out. The second
     # is the one worth acting on, because it has to finance on no new data.
-    following = conn.execute(
-        "SELECT title, expected_date, catalyst_type FROM catalysts"
-        "  WHERE company_id = ? AND expected_date IS NOT NULL AND expected_date >= ?"
-        "  ORDER BY expected_date LIMIT 1",
-        (company["id"], today.isoformat())).fetchone()
-    next_catalyst = dict(following) if following else None
+    ahead = []
+    for r in conn.execute(
+            "SELECT title, expected_date, catalyst_type, date_confidence FROM catalysts"
+            "  WHERE company_id = ? AND expected_date IS NOT NULL ORDER BY expected_date",
+            (company["id"],)):
+        w = date_window(r["expected_date"])
+        if w and w[1] >= today.isoformat():
+            ahead.append((w, dict(r)))
+    ahead.sort(key=lambda x: x[0][0])
+    next_catalyst = None
     funded_to_readout = None
-    if cash_out and next_catalyst:
-        funded_to_readout = next_catalyst["expected_date"][:10] <= cash_out
+    if ahead:
+        window, next_catalyst = ahead[0]
+        next_catalyst["window"] = {"from": window[0], "to": window[1]}
+        # Funded to the last day the date could mean, not the first: a month-precision
+        # readout and a cash-out in the same month is a coin, and the sign test should
+        # not call it funded. The confidence travels with the answer, since 561 of the
+        # 814 dates on file are the registry's estimate and slip, and a reader should
+        # see an estimated sign test for what it is.
+        if cash_out:
+            funded_to_readout = window[1] <= cash_out
 
     rd = conn.execute(
         "SELECT value FROM financials WHERE company_id = ?"
