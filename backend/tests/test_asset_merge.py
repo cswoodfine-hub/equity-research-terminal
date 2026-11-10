@@ -1,5 +1,7 @@
 """Folding a derived compound into the marketed product it turns out to be."""
 
+import pytest
+
 import asset_merge
 import db
 from fetchers.approvals_openfda import parse_drugsfda
@@ -643,3 +645,39 @@ def test_a_marketed_row_a_shared_spelling_and_an_existing_inn_are_each_left_alon
         (sold, first, second, holder, arm))} == {
         "LOXO-305", "vormatrogine", "20 mg vormatrogine", "elsunersen", "1mg elsunersen"}
     conn.close()
+
+
+def test_a_split_model_is_named_in_the_alias_map():
+    """A molecule under two rows, the assumptions on one and a pending readout on the
+    other, prices that readout against nothing. Four were found by accident in one night
+    and every one was silent. The merge collapses a pair once an alias names it, so the
+    rule here is not that no split exists, it is that every split has been named: a new
+    one fails until somebody writes the row that joins it.
+
+    Skipped, with the reason, where no built database is on file.
+    """
+    import csv as _csv
+    import pathlib as _pathlib
+    if not db.DB_PATH.exists():
+        pytest.skip(f"no built database at {db.DB_PATH}")
+    conn = db.get_connection()
+    try:
+        splits = asset_merge.split_models(conn)
+    finally:
+        conn.close()
+    named = set()
+    path = _pathlib.Path("data/asset_alias_map.csv")
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in _csv.DictReader(line for line in handle
+                                   if not line.lstrip().startswith("#")):
+            named.add(((row.get("ticker") or "").strip().upper(),
+                       asset_merge.molecule_key(row.get("programme_name"))))
+    unnamed = []
+    for group in splits:
+        for stray in group["stranded"]:
+            key = (group["ticker"], asset_merge.molecule_key(stray["name"]))
+            if key not in named:
+                unnamed.append(f"{group['ticker']} {stray['name']} "
+                               f"({stray['catalysts']} pending readouts) belongs with "
+                               f"{group['modelled'][0]['name']}")
+    assert not unnamed, "split models with no alias row: " + "; ".join(unnamed)

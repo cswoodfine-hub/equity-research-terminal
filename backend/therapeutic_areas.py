@@ -37,7 +37,7 @@ AREAS: tuple = (
     )),
     ("Metabolic", (
         "obesity", "overweight", "diabet", "weight", "nash", "steatohepatitis",
-        "dyslipidem", "hyperlipid", "cholesterol", "metabolic syndrome", "thyroid",
+        "dyslipidem", "hyperlip", "cholesterol", "metabolic syndrome", "thyroid",
         "gout", "hyperkal", "insulin", "triglycerid", "osteoporosis",
         "growth hormone", "growth failure",
     )),

@@ -623,6 +623,49 @@ def snapshot(conn, asset_id: int, scenario: str, result: dict) -> None:
 
 # --- the curated seed --------------------------------------------------------
 
+# A seed file naming an asset the book cannot resolve loads nothing, and says nothing.
+# ``load_seeds`` counts an unresolvable row as skipped and moves on, which is right for a
+# file written ahead of an asset arriving, and wrong for a file whose asset is simply
+# spelled differently: a hyphen in "31-valent", a suffix in "Etavopivat A", a
+# parenthetical in "BMS-986489 (Atigotatug+N...)". Twenty-seven files of analyst work with
+# citations sat unloaded on 2026-11-10, 602 rows between them, and the only trace was a
+# skipped count nobody reads. This names them instead.
+def unresolved_seed_files(conn, directory=None) -> dict:
+    """{file name: rows} for every seed file not one of whose rows resolves to an asset.
+
+    A file where some rows load and others do not is left out: that is a file naming
+    several products, one of which is not on file yet, which is the ordinary case the
+    loader is built for. A file where nothing loads is the broken one.
+    """
+    source_dir = pathlib.Path(directory) if directory else SEED_DIR
+    out: dict = {}
+    if not source_dir.exists():
+        return out
+    for path in sorted(source_dir.glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(
+                line for line in handle if not line.lstrip().startswith("#")))
+        if not rows:
+            continue
+        found = 0
+        for row in rows:
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c
+                     ON c.id = a.owner_company_id
+                    WHERE c.ticker = ?
+                      AND (LOWER(TRIM(a.brand_name)) = LOWER(?)
+                           OR LOWER(TRIM(a.generic_name)) = LOWER(?)) LIMIT 1""",
+                ((row.get("ticker") or "").strip().upper(),
+                 (row.get("brand") or "").strip(),
+                 (row.get("brand") or "").strip())).fetchone()
+            if asset:
+                found += 1
+                break
+        if not found:
+            out[path.name] = len(rows)
+    return out
+
+
 def load_seeds(conn, directory=None) -> dict:
     """Load every CSV under data/assumptions/ into the table. Returns counts.
 
@@ -696,7 +739,12 @@ def load_seeds(conn, directory=None) -> dict:
                 "evidence": row.get("evidence"),
             }], reason="initial_seed", batch_id=batch)
     conn.commit()
-    return {"written": written, "skipped": skipped}
+    # Named, not just counted: a file none of whose rows resolve is a file that is not
+    # in the book at all, and the skipped total hides it among the rows a reseed
+    # legitimately passes over because they are already there.
+    orphans = unresolved_seed_files(conn, directory)
+    return {"written": written, "skipped": skipped,
+            "unresolved_files": sorted(orphans), "unresolved_rows": sum(orphans.values())}
 
 
 # --- the Excel handoff -------------------------------------------------------

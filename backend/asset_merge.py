@@ -40,6 +40,7 @@ Idempotent: a second run finds nothing to merge.
 
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import re
@@ -93,6 +94,100 @@ _ISOTOPE = re.compile(r"\[?(\d{1,3})\s?([A-Z][a-z]?)\]?")
 # Rows a merge could not move because the survivor already held the same key. Reported
 # by merge() so a collapse that loses something says so.
 DROPPED: dict = {}
+
+
+# Two rows of the same molecule where the model landed on one and the readouts on the
+# other. Four were found by accident in one night, every one of them silent: alpelisib's
+# economics on "Piqray Vijoice" and its three pending readouts on "Piqray"; rimegepant's
+# on "Nurtec ODT / Vydura" against two readouts on "Nurtec Odt"; momelotinib marketed as
+# Ojjaara with the readout on a pipeline twin; Summit's two ivonescimab rows, which left
+# a whole company at nil. The merge fixes them once an alias names the pair, so what this
+# finds is the ones nobody has named yet.
+_MOLECULE_NOISE = re.compile(
+    r"\b(injection|infusion|solution|tablets?|capsules?|oral|intravenous|subcutaneous|"
+    r"inhal\w*|dose\s*\d+|\d+\s*mg|\d+\s*mcg|arm\s*\w|part\s*\w|copackaged|"
+    r"autoinjector|prefilled|syringe|pen|vial|sodium|hydrochloride|hcl|dihydrochloride|"
+    r"sulfate|acetate|succinate|tartrate|maleate|mesylate|citrate|phosphate|besylate|"
+    r"fumarate|revenue share)\b", re.I)
+_BIOSIMILAR_TAG = re.compile(r"-[a-z]{4}\b", re.I)
+
+
+def molecule_key(name) -> str:
+    """A name with the registry's formulation, dose and salt words stripped off."""
+    text = re.sub(r"\(.*?\)", " ", (name or "").lower())
+    text = _BIOSIMILAR_TAG.sub(" ", text)
+    text = _MOLECULE_NOISE.sub(" ", text)
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text).split())
+
+
+def split_models(conn) -> list:
+    """[{ticker, modelled, stranded}] where one row of a molecule carries the assumptions
+    and another carries a pending readout and none.
+
+    Matching is on ANY of an asset's names, not the first: the common case is a marketed
+    row keyed on its brand beside a pipeline row keyed on the generic, which an exact
+    match on one field each never joins. Containment counts too, so "Piqray" is seen
+    inside "Piqray Vijoice".
+    """
+    rows = {r["id"]: r for r in conn.execute(
+        """SELECT a.id, a.brand_name, a.generic_name, a.internal_code, a.owner_company_id,
+                  c.ticker,
+                  (SELECT COUNT(*) FROM assumptions s WHERE s.asset_id = a.id) AS rows_
+             FROM assets a JOIN companies c ON c.id = a.owner_company_id""")}
+    pending = collections.Counter()
+    for r in conn.execute(
+            """SELECT COALESCE(t.asset_id, k.asset_id) AS aid FROM catalysts k
+                 LEFT JOIN trials t ON k.source_url LIKE '%' || t.nct_id || '%'
+                WHERE k.status = 'pending' AND k.expected_date >= date('now')"""):
+        if r["aid"]:
+            pending[r["aid"]] += 1
+    names = {i: {n for n in (molecule_key(r["brand_name"]),
+                             molecule_key(r["generic_name"]),
+                             molecule_key(r["internal_code"])) if len(n) >= 5}
+             for i, r in rows.items()}
+    parent = {i: i for i in rows}
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    by_company: dict = collections.defaultdict(list)
+    for i, r in rows.items():
+        by_company[r["owner_company_id"]].append(i)
+    for ids in by_company.values():
+        for x in range(len(ids)):
+            for y in range(x + 1, len(ids)):
+                a, b = ids[x], ids[y]
+                na, nb = names[a], names[b]
+                if not (na and nb):
+                    continue
+                joined = bool(na & nb) or any(
+                    f" {p} " in f" {q} " or f" {q} " in f" {p} " for p in na for q in nb)
+                if joined:
+                    ra, rb = find(a), find(b)
+                    if ra != rb:
+                        parent[rb] = ra
+    groups: dict = collections.defaultdict(list)
+    for i in rows:
+        groups[find(i)].append(i)
+    out = []
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        modelled = [m for m in members if rows[m]["rows_"] > 0]
+        stranded = [m for m in members if pending[m] and not rows[m]["rows_"]]
+        if modelled and stranded:
+            out.append({
+                "ticker": rows[members[0]]["ticker"],
+                "modelled": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "rows": rows[m]["rows_"]}
+                             for m in modelled],
+                "stranded": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "catalysts": pending[m]}
+                             for m in stranded]})
+    return out
 
 
 def _canonical_names(asset) -> set:

@@ -114,8 +114,12 @@ def body(v: dict) -> list[str]:
     implied = v.get("implied_patients")
     if implied:
         # A price per course buys a course, not a year of treatment, and the count it
-        # implies has to be named for what it is.
-        unit = "courses" if (v.get("price_basis") or "") == "course" else "patients"
+        # implies has to be named for what it is. The basis is read rather than matched
+        # against a list: "course" was the only one the book had when this was written,
+        # and a diagnostic billed per scan was reported as patients, which is the one
+        # reading that is certainly wrong. Anything stated is pluralised as it stands.
+        basis = (v.get("price_basis") or "").strip().lower()
+        unit = (basis if basis.endswith("s") else f"{basis}s") if basis else "patients"
         out.append(
             f"At the net price on file the first forecast year implies "
             f"{implied:,.0f} {unit}. That is the check the price is for in a mode "

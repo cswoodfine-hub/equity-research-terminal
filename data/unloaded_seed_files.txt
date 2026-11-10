@@ -1,0 +1,58 @@
+# Seed files in data/assumptions/ not one of whose rows resolves to an asset, so
+# nothing in them reaches the book. Checked by backend/tests/test_assumptions.py so
+# the list cannot grow unnoticed; shrink it by fixing the brand string in the file to
+# the name assets actually stores, or delete the file where the asset is gone.
+#
+# Measured 2026-11-10: 27 files, 602 rows of written and cited analyst work. Three
+# shapes, all of them a name that does not match: a hyphen (31 valent against
+# 31-valent), a suffix (Etavopivat A against Etavopivat), a parenthetical
+# (BMS-986489 against BMS-986489 (Atigotatug+N...)). Some may be genuinely dead,
+# where the asset left the universe, and those should be deleted rather than fixed.
+#
+# smmt_ivonescimab.csv was the first fixed, 2026-11-10: its 33 rows named the brand
+# "Ivonescimab Dose 1", which no asset carries, so Summit modelled at nil. Repointed
+# to "Ivonescimab Injection", the asset the registry files the live studies under.
+# nvo_etavopivat.csv was the second, the same day and the same defect: the file named
+# "Etavopivat A" and the asset is "Etavopivat", so 23 rows had never loaded.
+#
+# Triage, 2026-11-10. Six more fixed the same way: promacta_revolade and
+# tafinlar_mekinist named a combined brand where the book stores the lead one;
+# pcvx_vax_31 a space where the book has a hyphen; bms_986489 the code without the
+# parenthetical the registry appended. What is left splits three ways.
+#
+# Written for an asset that no longer exists. uthr_tyvaso_ipf.csv says in its own
+# header that it is carried on 'the pipeline asset holding the inhaled treprostinil
+# fibrosis trials, whose registry name is Oral Treprostinil'. That asset is gone and
+# its two trials had landed on Remodulin, which is parenteral and priced for a
+# different disease; they are now pinned to Tyvaso. The seed's own content belongs as
+# an indication layer on Tyvaso rather than as a base, so repointing the brand would
+# load a confusing half of it. It needs rewriting, not renaming.
+#
+# The asset sits with another company. biib_salanersen (the asset is IONS #758),
+# gild_symtuza_revenue_share (Symtuza is JNJ #288) and sny_aldurazyme (Aldurazyme is
+# BMRN #441) each model one company's share of another's product. Which company books
+# it is a judgement, not a rename.
+#
+# No asset anywhere in the book. The rest. Uplizna and Jaypirca are real marketed
+# products, so those two are a gap in the universe fetcher rather than a dead file.
+abbv_bretisilocin.csv
+amgn_be_one.csv
+amgn_uplizna.csv
+biib_salanersen.csv
+bmy_pumitamig.csv
+gild_symtuza_revenue_share.csv
+jnj_abiomed.csv
+jnj_iti_1284.csv
+jnj_surgical.csv
+lly_ixo_vec.csv
+lly_jaypirca.csv
+lly_ly4515100_via_sad.csv
+lly_verve_102.csv
+mrk_cd388_injection.csv
+mrk_efinopegdutide.csv
+nvs_tour006_20_mg.csv
+pfe_pfizer_centre_one.csv
+sny_aldurazyme.csv
+sny_blu_808.csv
+sny_elenestinib.csv
+uthr_tyvaso_ipf.csv

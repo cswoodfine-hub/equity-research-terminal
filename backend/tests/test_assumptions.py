@@ -5,6 +5,8 @@ source, a scenario restates only what it changes, and the seed file reconstructs
 whole layer on a database rebuilt from nothing.
 """
 
+import pytest
+
 import db
 import assumptions as A
 
@@ -243,3 +245,31 @@ def test_a_brand_still_wins_over_a_compound_of_the_same_name(tmp_path):
     assert A.load(conn, 1)["scalars"].get("tax_rate") == 0.15   # the marketed row
     assert not A.load(conn, 3)["scalars"]
     conn.close()
+
+
+def test_no_seed_file_is_silently_unloaded():
+    """A seed file naming an asset the book cannot resolve loads nothing and says
+    nothing: load_seeds counts the row as skipped, among the many rows a reseed
+    legitimately passes over because they are already there. Twenty-seven files, 602
+    cited rows, were sitting unloaded when this was first measured. The list is checked
+    in so it cannot grow without the suite saying so."""
+    import db as _db
+    import pathlib as _pathlib
+    # The same rule the other book guards keep: skipped, with the reason, where no built
+    # database is on file.
+    if not _db.DB_PATH.exists():
+        pytest.skip(f"no built database at {_db.DB_PATH}")
+    known = {line.strip() for line in
+             _pathlib.Path("data/unloaded_seed_files.txt").read_text().splitlines()
+             if line.strip() and not line.startswith("#")}
+    conn = _db.get_connection()
+    try:
+        got = set(A.unresolved_seed_files(conn))
+    finally:
+        conn.close()
+    new = got - known
+    assert not new, f"seed files that now load nothing: {sorted(new)}"
+    # And when one is fixed, the list has to be trimmed with it.
+    fixed = known - got
+    assert not fixed, (f"these now resolve, remove them from "
+                       f"data/unloaded_seed_files.txt: {sorted(fixed)}")
