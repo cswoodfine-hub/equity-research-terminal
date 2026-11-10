@@ -242,3 +242,29 @@ jobs:
           done
           echo "::error::The day's history could not be pushed after three attempts."
           exit 1
+
+      - name: Save the slow reads for the deployed app
+        # The deployed app starts every container cold, and its first company page waited
+        # on the whole book being valued: 121 seconds on the 2026-11-09 book on a full
+        # machine, minutes on Streamlit's free tier. This computes those reads once against
+        # the database just published and uploads them beside it; the app downloads both and
+        # serves the saved reads at once while it recomputes behind them
+        # (backend/warm_cache.py). Last, after the history is safe, and never fatal: a
+        # failure here costs the app its head start, not the day's data. The pulse pass
+        # skips it, since the reads the morning's briefing changes are few and recompute fast.
+        if: env.PULSE_ONLY != 'true'
+        timeout-minutes: 60
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f backend/er_tool.db ]; then
+            echo "No database, so no reads to save."
+            exit 0
+          fi
+          if python backend/warm_cache.py "$RUNNER_TEMP/responses.db"; then
+            gzip -c "$RUNNER_TEMP/responses.db" > responses.db.gz
+            ls -lh responses.db.gz
+            gh release upload data-latest responses.db.gz --clobber
+          else
+            echo "::warning::The slow reads could not be saved; the deployed app computes them on its first pages."
+          fi
