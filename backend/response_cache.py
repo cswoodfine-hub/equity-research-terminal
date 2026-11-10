@@ -21,8 +21,10 @@ cached, and nor are the health and freshness checks, which exist to be live.
 
 The responses are kept on disk as well (``backend/cache/responses-*.db``, one file per
 book), so a restarted API serves the page at once rather than recomputing the book for
-minutes. A response read back from disk is always served as stale and recomputed: the code
-that computed it may have changed since, which no stamp can see. Off with the rest, or alone
+minutes. A response read back from disk is served as stale and recomputed: the code
+that computed it may have changed since, which no stamp can see. The one exception is a
+file ``warm_cache.py`` wrote, which records the database, commit and day it was computed
+from; where all three match, its responses are current (``saved_for_here``). Off with the rest, or alone
 with ``ER_TOOL_RESPONSE_CACHE_DISK=0``.
 
 Off when ``ER_TOOL_RESPONSE_CACHE=0``, which the test suite sets, since tests rewrite
@@ -117,11 +119,75 @@ def _newest_data_file() -> int:
     return newest
 
 
+def _wal_mtime(path) -> int:
+    """The write-ahead log's modification time, or 0 while it holds nothing. SQLite
+    creates the log empty the first time a process opens the database, which is not a
+    write: counting it moved the stamp under every entry loaded before that moment."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return 0
+    return info.st_mtime_ns if info.st_size else 0
+
+
 def stamp() -> tuple:
     """What every cached read was computed from, as cheaply comparable values."""
     database = str(db.DB_PATH)
-    return (database, _mtime(database), _mtime(database + "-wal"), _newest_data_file(),
+    return (database, _mtime(database), _wal_mtime(database + "-wal"), _newest_data_file(),
             dt.date.today().isoformat())
+
+
+# --- saved for another machine ---------------------------------------------------------
+# A file of responses written by ``warm_cache.py`` says what it was computed from: the
+# database's bytes, the code's commit and the day. A process whose own database, code and
+# day are those same three is serving the exact reads the file holds, so the file's
+# entries are current there, company reads included. Anything else, including a file
+# from an earlier process on this machine, which carries no such record, is loaded as
+# stale, as it always was.
+SAVED_FOR = "saved_for"
+
+
+def book_sha(path) -> str | None:
+    """The database's bytes, hashed. About a second for the published book."""
+    digest = hashlib.sha256()
+    try:
+        with open(path, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
+def code_commit() -> str | None:
+    """The commit the running code was checked out at, or None where it cannot be told.
+
+    Asked of git, never read from GITHUB_SHA: that is the commit a workflow run was
+    triggered on, and the refresh checks out the branch as it stands when the job starts,
+    which can be later. ER_CODE_COMMIT overrides both, for a host with no git."""
+    stated = os.getenv("ER_CODE_COMMIT")
+    if stated:
+        return stated.strip()
+    import subprocess
+    try:
+        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(DATA_DIR.parent),
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+
+
+def saved_for_here(conn) -> bool:
+    """Whether a file of responses was computed from this database, code and day."""
+    try:
+        row = conn.execute(f"SELECT book_sha, code_commit, day FROM {SAVED_FOR}").fetchone()
+    except sqlite3.Error:
+        return False
+    if not row or not all(row):
+        return False
+    book, commit, day = row
+    return (day == dt.date.today().isoformat() and commit == code_commit()
+            and book == book_sha(str(db.DB_PATH)))
 
 
 def clear() -> None:
@@ -168,10 +234,13 @@ def load_from_disk() -> None:
         try:
             rows = conn.execute("SELECT key, body, media_type FROM responses ORDER BY stored"
                                 " DESC LIMIT ?", (MAX_ENTRIES,)).fetchall()
+            here = saved_for_here(conn)
         finally:
             conn.close()
     except (sqlite3.Error, OSError):
         return
+    # Current only when the file was computed from this very database, code and day.
+    loaded_stamp = stamp() if here else None
     with _lock:
         for key, body, media_type in reversed(rows):
             if key in _entries:
@@ -180,7 +249,7 @@ def load_from_disk() -> None:
                 raw = zlib.decompress(body)
             except zlib.error:
                 continue
-            _entries[key] = {"stamp": None, "body": raw, "checked": 0.0,
+            _entries[key] = {"stamp": loaded_stamp, "body": raw, "checked": 0.0,
                              "media_type": media_type or "application/json"}
 
 
@@ -399,6 +468,36 @@ def _tickers() -> list[str]:
         conn.close()
 
 
+def warm_once(base: str) -> dict:
+    """One pass over the slow reads, in the order their embeddings need. Returns
+    {"reads", "failed"}. Used by the loop below and by ``warm_cache.py``, which saves the
+    result for a container that starts cold."""
+    done = {"reads": 0, "failed": 0}
+
+    def fetch(url):
+        try:
+            _fetch(url)
+            done["reads"] += 1
+        except Exception:
+            done["failed"] += 1
+        time.sleep(0.05)          # let a reader's request in between
+
+    urls = [base + p for p in GLOBAL_READS]
+    tickers = _tickers()
+    for ticker in tickers:
+        urls += [base + p.format(t=ticker) for p in COMPANY_READS]
+    urls += [base + p for p in LATE_GLOBAL_READS]
+    urls += [base + p for p in _area_reads()]
+    for url in urls:
+        fetch(url)
+    try:
+        for url in _universe_reads(base, tickers[0]) if tickers else []:
+            fetch(url)
+    except Exception:
+        done["failed"] += 1
+    return done
+
+
 def warm_forever(base: str) -> None:
     """Compute the slow reads ahead of the page, and again whenever the stamp moves."""
     warmed = None
@@ -406,27 +505,7 @@ def warm_forever(base: str) -> None:
         current = stamp()
         if current != warmed:
             try:
-                urls = [base + p for p in GLOBAL_READS]
-                for ticker in _tickers():
-                    urls += [base + p.format(t=ticker) for p in COMPANY_READS]
-                urls += [base + p for p in LATE_GLOBAL_READS]
-                urls += [base + p for p in _area_reads()]
-                for url in urls:
-                    try:
-                        _fetch(url)
-                    except Exception:
-                        pass
-                    time.sleep(0.05)      # let a reader's request in between
-                tickers = _tickers()
-                try:
-                    for url in _universe_reads(base, tickers[0]) if tickers else []:
-                        try:
-                            _fetch(url)
-                        except Exception:
-                            pass
-                        time.sleep(0.05)
-                except Exception:
-                    pass
+                warm_once(base)
                 warmed = current
             except Exception:
                 pass
