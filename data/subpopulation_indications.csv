@@ -1,0 +1,25 @@
+# A row of its own for part of a disease, where the registry indexes the part under the
+# whole (read by backend/indication_mapping.curated_subpopulations).
+#
+# This is the general form of data/paediatric_indications.csv, which does the same thing
+# for children and keeps a title rule of its own: a study whose title says children is
+# diverted to a paediatric row even when no file names it, because the word is reliable
+# evidence. No word marks an arbitrary sub-population, so a row here must name its
+# studies, and only the studies it names link to it.
+#
+# Why the row has to exist rather than the pool being written on the parent. On a
+# marketed product, forecast._indication_layers adds a layer only for an indication the
+# label does not cover. A pool written on the approved row is therefore never carried by
+# the valuation, while indication_layer.build would still price the catalyst off it, so
+# the readout would move the model by an amount the model does not contain. The split
+# keeps the stake and the forecast saying the same thing.
+#
+# mesh_id is MeSH's own concept for the sub-population where one exists and empty where
+# none does, because inventing an identifier MeSH does not have would put a false one in
+# the column every other module reads as MeSH. parent_mesh_id is the descriptor the
+# registry gives these studies. label_covers says what the approved label covers of this
+# population, which is what decides whether a layer on the row adds patients the reported
+# revenue does not already contain. The phase, status and enrolment come from the named
+# trials, which must already be mapped to the asset; nothing is read from this file.
+ticker,asset,mesh_id,term,parent_mesh_id,nct_ids,label_covers,basis
+LLY,Kisunla,,Preclinical Alzheimer's disease,D000544,NCT05026866,no,"TRAILBLAZER-ALZ 3 (NCT05026866, 2,996 participants) enrols people with neither dementia nor mild cognitive impairment: the registry (clinicaltrials.gov API v2, eligibilityModule, checked 2026-11-09) gives ages 55 to 80, requires 'a Telephone Interview for Cognitive Status - modified (TICS-M) score reflective of intact cognitive functioning' and 'a phosphorylated tau (P-tau) result consistent with the presence of amyloid pathology', and excludes mild cognitive impairment. The primary endpoint is time to clinical progression in participants whose baseline Clinical Dementia Rating is 0. Kisunla's label is the mild cognitive impairment and mild dementia stage, so none of this population is in it, and the registry indexes the study under Alzheimer Disease, the same descriptor the symptomatic studies get. The second preclinical study, NCT07571161, enrols in China and is not named here because the book models the US."

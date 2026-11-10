@@ -963,3 +963,84 @@ def test_a_catalyst_tied_to_no_indication_says_which_way_it_failed(tmp_path):
     assert {r["reason"] for r in by.values()} == {"no_indication_link"}
     assert "spans 2 of the asset's indications" in by[10]["why"]
     assert "name no disease the book holds" in by[11]["why"]
+
+
+# --- a programme the research has already closed ----------------------------
+
+def _stopped_book(tmp_path, pos_value, *, label_covers=False,
+                  trial_title="First-line combinations in advanced NSCLC"):
+    """A marketed product with one unapproved indication and a readout left in it."""
+    path = str(tmp_path / "s.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'GILD', 'Gilead')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Trodelvy', 1)")
+    conn.execute("INSERT INTO indications (id, name)"
+                 " VALUES (1, 'Carcinoma, Non-Small-Cell Lung')")
+    conn.execute("INSERT INTO asset_indications (id, asset_id, indication_id, phase, region)"
+                 " VALUES (7, 1, 1, 'Phase 2', 'US')")
+    text = ("TRODELVY is indicated for adult patients with metastatic non-small cell lung "
+            "carcinoma." if label_covers else
+            "TRODELVY is indicated for adult patients with metastatic breast cancer.")
+    conn.execute("INSERT INTO labels (asset_id, setid, effective_time, indications_text)"
+                 " VALUES (1, 'x', 'Jun 29, 2026', ?)", (text,))
+    conn.execute("INSERT INTO trials (nct_id, sponsor_company_id, asset_id, title, phase,"
+                 " overall_status, enrollment) VALUES ('NCT05186974', 1, 1, ?,"
+                 " 'Phase 2', 'Active not recruiting', 193)", (trial_title,))
+    conn.execute("INSERT INTO catalysts (id, company_id, asset_id, asset_indication_id,"
+                 " catalyst_type, expected_date, title, description, source_url, status)"
+                 " VALUES (20, 1, 1, 7, 'data readout', date('now', '+120 days'),"
+                 "  'Phase 2, Trodelvy', 'NCT05186974',"
+                 "  'https://clinicaltrials.gov/study/NCT05186974', 'pending')")
+    if pos_value is not None:
+        conn.execute("INSERT INTO assumptions (asset_id, indication_id, region, scenario,"
+                     " key, value, source) VALUES (1, 1, 'US', 'base', 'pos', ?, ?)",
+                     (pos_value, "the programme has failed. EVOKE-01 did not meet its "
+                                 "overall survival endpoint and Gilead impaired the "
+                                 "NSCLC in-process R&D asset in full"))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def test_a_readout_in_a_written_off_indication_is_not_a_missing_pool(tmp_path):
+    """The research answered this one already, and the answer was nil. Reading it as
+    needs_layer asks for a pool to be built on a programme its owner has written off."""
+    path = _stopped_book(tmp_path, 0.0)
+    rows = V.catalyst_stakes(path, "GILD")["unpriced"]
+    assert [r["reason"] for r in rows] == ["programme_stopped"]
+    assert "written this indication to nil" in rows[0]["why"]
+    # The analyst's own source travels with it, so the reader sees why rather than that.
+    assert "EVOKE-01" in rows[0]["why"]
+    # Closed as a sentence: the filed sources are notes and none of them ends in one,
+    # which the book's own contract on every unpriced reason requires.
+    assert rows[0]["why"].endswith(".")
+    assert rows[0]["missing"] == []
+
+
+def test_an_indication_with_a_live_probability_still_asks_for_its_pool(tmp_path):
+    """The reason is the analyst's nil, not the absence of a forecast."""
+    path = _stopped_book(tmp_path, 0.439)
+    rows = V.catalyst_stakes(path, "GILD")["unpriced"]
+    assert [r["reason"] for r in rows] == ["needs_layer"]
+
+
+def test_an_indication_with_no_pos_row_is_untouched(tmp_path):
+    path = _stopped_book(tmp_path, None)
+    rows = V.catalyst_stakes(path, "GILD")["unpriced"]
+    assert [r["reason"] for r in rows] == ["needs_layer"]
+
+
+def test_a_label_that_covers_the_study_still_outranks_the_nil(tmp_path):
+    """Precedence, stated rather than assumed. Where the label covers the disease in the
+    setting the study is in, the revenue already carries the readout and that is the
+    older rule, decided before this one. The nil speaks to an approval that is no longer
+    the question, so it does not displace it. The fixture's study has to be neutral about
+    its setting for the label test to reach that conclusion, which is why its title names
+    no line of therapy."""
+    path = _stopped_book(tmp_path, 0.0, label_covers=True,
+                         trial_title="Sacituzumab govitecan in metastatic non-small cell "
+                                     "lung carcinoma")
+    rows = V.catalyst_stakes(path, "GILD")["unpriced"]
+    assert [r["reason"] for r in rows] == ["already_approved"]

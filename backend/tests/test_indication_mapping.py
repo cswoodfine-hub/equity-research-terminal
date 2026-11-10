@@ -1100,3 +1100,129 @@ def test_the_shipped_file_parses_and_every_row_says_why():
         assert row["ticker"].strip() and row["asset"].strip()
         assert row["indication"].strip()
         assert len((row["note"] or "").strip()) > 40
+
+
+# --- the general form: any sub-population, not only children ------------------------
+
+_SUBPOP_HEADER = ("ticker,asset,mesh_id,term,parent_mesh_id,nct_ids,label_covers,"
+                  "basis\n")
+
+
+def _subpop_db(tmp_path):
+    """One asset, one Alzheimer study, and a catalyst on it. Nothing in the title says
+    children, so no age rule can reach it: only a file naming the study can."""
+    path = str(tmp_path / "sp.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X Pharma')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name) VALUES (1, 1, 'A')")
+    browse = json.dumps({"meshes": [{"id": "D000544", "term": "Alzheimer Disease"}]})
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT7', 1, 1, ?, ?, 'Phase 3', 'Active not recruiting', 2996,"
+        "  '2021-08-01', ?)",
+        ('["Alzheimer Disease"]', browse,
+         "A Study of A in Participants With Preclinical Alzheimer's Disease"))
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, title,"
+        " expected_date, status, source_url)"
+        " VALUES (1, 1, 'readout', 'A readout', '2030-01-01', 'pending', ?)",
+        (_CTGOV + "NCT7",))
+    conn.commit(); conn.close()
+    return path
+
+
+def _subpop_file(tmp_path, monkeypatch, *rows):
+    path = tmp_path / "subpopulation_indications.csv"
+    path.write_text(_SUBPOP_HEADER + "".join(r + "\n" for r in rows))
+    monkeypatch.setattr(im, "SUBPOPULATION_CSV", path)
+    return path
+
+
+def test_a_sub_population_with_no_age_in_it_gets_a_row_of_its_own(tmp_path, monkeypatch):
+    """The point of the generalisation. Children were the first case; preclinical
+    Alzheimer's is the same shape and no word in the title marks it, so the file naming
+    the study is the whole mechanism."""
+    path = _subpop_db(tmp_path)
+    _paediatric_file(tmp_path, monkeypatch)             # empty, so only the general file
+    _subpop_file(tmp_path, monkeypatch,
+                 "X,A,,Preclinical Alzheimer's disease,D000544,NCT7,no,"
+                 "the registry excludes mild cognitive impairment")
+    summary = im.build(path)
+    assert summary["subpopulation_pairs"] == 1
+    assert summary["paediatric_pairs"] == 0
+    row = _linked_name(path)
+    assert row["name"] == "Preclinical Alzheimer's disease" and row["mesh_id"] is None
+    # And the parent row still stands: the study is indexed under it and the asset has
+    # an Alzheimer's programme either way.
+    conn = db.get_connection(path)
+    names = {r[0] for r in conn.execute(
+        "SELECT i.name FROM asset_indications ai JOIN indications i"
+        "  ON i.id = ai.indication_id")}
+    conn.close()
+    assert names == {"Alzheimer Disease", "Preclinical Alzheimer's disease"}
+
+
+def test_the_age_rule_does_not_reach_a_sub_population_with_no_file_row(tmp_path,
+                                                                      monkeypatch):
+    """No word marks an arbitrary sub-population, so without a row naming the study the
+    readout stays on the parent. That is the deliberate limit of the general form."""
+    path = _subpop_db(tmp_path)
+    _paediatric_file(tmp_path, monkeypatch)
+    _subpop_file(tmp_path, monkeypatch)
+    summary = im.build(path)
+    assert summary["subpopulation_pairs"] == 0
+    assert _linked_name(path)["name"] == "Alzheimer Disease"
+
+
+def test_both_files_are_read_and_counted_apart(tmp_path, monkeypatch):
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    conn = db.get_connection(path)
+    conn.execute(
+        "INSERT INTO trials (nct_id, asset_id, sponsor_company_id, conditions, mesh_terms,"
+        " phase, overall_status, enrollment, first_posted, title)"
+        " VALUES ('NCT8', 1, 1, '[\"Crohn Disease\"]', ?, 'Phase 3', 'Recruiting', 50,"
+        "  '2022-01-01', 'A Study of A in Adults With Perianal Fistulising Disease')",
+        (json.dumps({"meshes": [{"id": "D003424", "term": "Crohn Disease"}]}),))
+    conn.commit(); conn.close()
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,,Pediatric Crohn disease,D003424,NCT9,6,registry ages 2 to 17")
+    _subpop_file(tmp_path, monkeypatch,
+                 "X,A,,Perianal fistulising Crohn disease,D003424,NCT8,no,"
+                 "the registry enrols draining perianal fistulas only")
+    summary = im.build(path)
+    assert summary["subpopulation_pairs"] == 2
+    assert summary["paediatric_pairs"] == 1
+
+
+def test_the_same_row_in_both_files_is_one_pair(tmp_path, monkeypatch):
+    """A duplicate is a data error, and folding it is safer than letting the file read
+    second decide: the studies join rather than one set being dropped."""
+    path = _paediatric_db(tmp_path, with_paediatric_row=False)
+    _paediatric_file(tmp_path, monkeypatch,
+                     "X,A,,Pediatric Crohn disease,D003424,NCT9,6,registry ages 2 to 17")
+    _subpop_file(tmp_path, monkeypatch,
+                 "X,A,,Pediatric Crohn disease,D003424,NCT9,no,the same row again")
+    conn = db.get_connection(path)
+    merged = im.curated_subpopulations(conn)
+    conn.close()
+    assert len(merged) == 1
+    item = merged[(1, "Pediatric Crohn disease")]
+    # One trial, counted once: the duplicate adds no study, so its enrolment is not
+    # folded in a second time.
+    assert item["nct_ids"] == {"NCT9"} and item["entry"]["trials"] == 1
+    summary = im.build(path)
+    assert summary["subpopulation_pairs"] == 1
+
+
+def test_the_shipped_sub_population_file_parses_and_every_row_says_why():
+    import csv as _csv
+    with im.SUBPOPULATION_CSV.open(newline="", encoding="utf-8") as handle:
+        rows = list(_csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    assert rows
+    for row in rows:
+        assert row["ticker"].strip() and row["asset"].strip() and row["term"].strip()
+        assert row["nct_ids"].split()
+        assert len((row["basis"] or "").strip()) > 40

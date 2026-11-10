@@ -55,7 +55,8 @@ WHY_SHORT = {"no_gate": "outside the gate model", "other_indication": "indicatio
              "already_approved": "the label already covers it",
              "needs_layer": "an expansion with no pool on file",
              "in_the_base": "already in the business sold to",
-             "no_indication_link": "tied to no indication"}
+             "no_indication_link": "tied to no indication",
+             "programme_stopped": "a programme written off"}
 REASONS = (
     ("no_gate", "marketed or outside the gate model"),
     ("other_indication", "a study in an indication the forecast does not value"),
@@ -66,11 +67,13 @@ REASONS = (
     ("needs_layer", "an expansion the book has no pool for"),
     ("in_the_base", "a study in the business already sold to"),
     ("no_indication_link", "a study tied to no indication the book holds"),
+    ("programme_stopped", "a readout in a programme the research has written off"),
 )
 REASON_CLASS = {"no_gate": "u0", "other_indication": "u1", "not_gate_phase": "u2",
                 "past_gate": "u3", "same_gate_later": "u4",
                 "already_approved": "u5", "needs_layer": "u6",
-                "in_the_base": "u7", "no_indication_link": "u8"}
+                "in_the_base": "u7", "no_indication_link": "u8",
+                "programme_stopped": "u9"}
 EVIDENCE = {"published": "published", "convention": "convention", "implied": "implied",
             "stated": "stated"}
 

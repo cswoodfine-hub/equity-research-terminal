@@ -516,6 +516,67 @@ def curated_paediatric(conn, path=None) -> dict:
     return out
 
 
+# The same mechanism for a sub-population that is not about age. A readout in part of a
+# disease the registry indexes under the whole descriptor has nowhere to land: it decides
+# the asset's approved indication, which the revenue already carries, and the book then
+# reads the one real gate the product has as settled. Children were the first case and
+# got the file above; preclinical Alzheimer's disease is the same shape, where the label
+# covers mild cognitive impairment and mild dementia and the study enrols people with
+# neither.
+#
+# The split matters more on a marketed product than it looks. forecast._indication_layers
+# adds a layer only for an indication the label does not cover, so a pool written on the
+# approved row is never carried by the valuation, while indication_layer.build would
+# price the catalyst off it: the stake would move the model by an amount the model does
+# not contain. A row of its own is what keeps the two agreeing.
+#
+# Age keeps a rule of its own that this file deliberately has no analogue for. A study
+# whose title says children is diverted to a paediatric row even when no file names it
+# (``_is_paediatric``), because the title is reliable evidence there. No such word marks
+# an arbitrary sub-population, so here the file must name the studies, which is the
+# stronger route anyway.
+SUBPOPULATION_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                     / "data" / "subpopulation_indications.csv")
+
+
+def curated_subpopulations(conn, paths=None) -> dict:
+    """(asset_id, term) -> {"mesh_id", "nct_ids", "entry"} over every sub-population file.
+
+    The paediatric file and the general one have the same shape and the same meaning: an
+    asset's own row for part of a disease, named, with the studies that read out in it.
+    Read together so one rule in ``build`` and one in ``attach_catalyst_indications``
+    serves both. ``paths`` overrides the files, for tests.
+    """
+    sources = ([pathlib.Path(p) for p in paths] if paths is not None
+               else [PAEDIATRIC_CSV, SUBPOPULATION_CSV])
+    out: dict = {}
+    for source in sources:
+        for key, item in curated_paediatric(conn, source).items():
+            held = out.get(key)
+            if held is None:
+                out[key] = item
+                continue
+            # The same asset and term in two files is one row, not two. Where the
+            # second names no study the first did not, it is the same row copied, and
+            # folding its studies again would count one trial's enrolment twice; the
+            # row is kept as it stands. Otherwise the studies join and the phase takes
+            # the further of them, rather than the file read second silently winning.
+            held["mesh_id"] = held["mesh_id"] or item["mesh_id"]
+            if item["nct_ids"] <= held["nct_ids"]:
+                continue
+            held["nct_ids"].update(item["nct_ids"])
+            other = item["entry"]
+            held["entry"]["phase"] = higher_phase(held["entry"]["phase"], other["phase"])
+            held["entry"]["statuses"] += other["statuses"]
+            held["entry"]["enrollment"] += other["enrollment"]
+            held["entry"]["trials"] += other["trials"]
+            if other["first_posted"] and (held["entry"]["first_posted"] is None
+                                          or other["first_posted"]
+                                          < held["entry"]["first_posted"]):
+                held["entry"]["first_posted"] = other["first_posted"]
+    return out
+
+
 def curated_exclusions(conn, path=None) -> set:
     """{(asset_id, mesh_id)} for each row of ``data/asset_indication_exclusions.csv``
     whose asset and trials are on file.
@@ -619,9 +680,9 @@ def _upsert_indications(conn, pairs) -> dict:
     return ids
 
 
-def _paediatric_indication(conn, term: str, mesh_id) -> int:
-    """The indications row a paediatric pair points at: the MeSH concept's row where MeSH
-    has one, otherwise the row of that name, created once."""
+def _subpopulation_indication(conn, term: str, mesh_id) -> int:
+    """The indications row a sub-population pair points at: the MeSH concept's row where
+    MeSH has one, otherwise the row of that name, created once."""
     if mesh_id:
         row = conn.execute("SELECT id FROM indications WHERE mesh_id = ?",
                            (mesh_id,)).fetchone()
@@ -751,9 +812,12 @@ def build(db_path=None) -> dict:
                  1 if lead.get(asset_id, (None, None))[1] == mesh_id else 0,
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
-        paediatric = 0
-        for (asset_id, term), item in sorted(curated_paediatric(conn).items()):
-            indication_id = _paediatric_indication(conn, term, item["mesh_id"])
+        # Read again only to tell the two kinds apart in the summary; the pairs
+        # themselves come from the merged view below.
+        paediatric_terms = set(curated_paediatric(conn))
+        paediatric = subpopulation = 0
+        for (asset_id, term), item in sorted(curated_subpopulations(conn).items()):
+            indication_id = _subpopulation_indication(conn, term, item["mesh_id"])
             if conn.execute("SELECT 1 FROM asset_indications WHERE asset_id = ?"
                             " AND indication_id = ? AND region = 'US'",
                             (asset_id, indication_id)).fetchone():
@@ -772,10 +836,14 @@ def build(db_path=None) -> dict:
                 (asset_id, indication_id, phase, status_for(entry["statuses"]),
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
-            paediatric += 1
+            subpopulation += 1
+            paediatric += 1 if (asset_id, term) in paediatric_terms else 0
         linked = attach_catalyst_indications(conn)
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
+                "subpopulation_pairs": subpopulation,
+                # Kept as its own number because the paediatric rows carry a title rule
+                # the others do not, and a change in one should be readable from a run.
                 "paediatric_pairs": paediatric,
                 "assets": len({a for a, _ in pairs}),
                 "parents_dropped": parents_dropped,
@@ -942,10 +1010,10 @@ def attach_catalyst_indications(conn) -> dict:
         if words & _PAEDIATRIC_WORDS:
             paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
 
-    # A paediatric row names the studies that read out in it, and those link to it by
+    # A sub-population row names the studies that read out in it, and those link to it by
     # name, whatever MeSH indexed them under or whether it indexed them at all.
     named = {}
-    for (asset_id, term), item in curated_paediatric(conn).items():
+    for (asset_id, term), item in curated_subpopulations(conn).items():
         found = conn.execute(
             "SELECT ai.id FROM asset_indications ai JOIN indications i"
             "    ON i.id = ai.indication_id"

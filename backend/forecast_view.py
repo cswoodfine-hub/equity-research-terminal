@@ -739,7 +739,7 @@ STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
                  "same_gate_later", "already_approved", "needs_layer", "in_the_base",
-                 "no_indication_link")
+                 "no_indication_link", "programme_stopped")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -958,6 +958,30 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                 f"the forecast does not value, so its result does not decide the modelled "
                 f"value.", nct, trial)
     return None, None, nct, trial
+
+
+def _programme_stopped(conn, pair_id) -> str | None:
+    """The analyst's own nil on one asset-indication pair, with the source they filed.
+
+    A pair written to ``pos = 0`` is a programme its research has closed, and 46 of them
+    carry one: Trodelvy's lung work after EVOKE-01 missed its overall survival endpoint
+    and Gilead impaired the whole NSCLC intangible, Jemperli's after belrestotug was
+    terminated, Vyvgart's Sjogren's after argenx discontinued UNITY. Their readouts read
+    "needs_layer" before this, which asks the reader for a pool that would be built on a
+    programme its own owner has written off, and counts them as research still to do.
+    Asset-wide stops are a separate thing the view already drops (``retired_programmes``);
+    this is the one indication of a product that still sells.
+    """
+    if not pair_id:
+        return None
+    pair = conn.execute("SELECT asset_id, indication_id FROM asset_indications"
+                        " WHERE id = ?", (pair_id,)).fetchone()
+    if pair is None:
+        return None
+    row = conn.execute("SELECT source FROM assumptions WHERE asset_id = ?"
+                       "   AND indication_id = ? AND key = 'pos' AND value = 0.0",
+                       (pair["asset_id"], pair["indication_id"])).fetchone()
+    return ((row["source"] or "").strip() or None) if row is not None else None
 
 
 def _indication_gap(conn, row: dict) -> str | None:
@@ -1227,6 +1251,22 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         # business it has and says nothing about the indication it does not. Where the
         # readout is in an indication the label does not cover and the layer can be
         # built, the expansion is priced as the pipeline asset it is.
+        # Before the layer is asked for: the research has already answered some of these
+        # and the answer was nil. A readout left in an indication its analyst wrote to
+        # zero decides nothing the book values, whatever pool could be built for it.
+        stopped = []
+        for row in rows:
+            basis = _programme_stopped(conn, row.get("asset_indication_id"))
+            if basis:
+                # The filed sources are written as notes and none of them ends in a full
+                # stop, so the sentence is closed here rather than in forty-six rows.
+                tail = basis if basis.endswith((".", "!", "?")) else basis + "."
+                refuse(row, "programme_stopped",
+                       "The research has written this indication to nil, so the readout "
+                       "decides nothing the book values. " + tail, [])
+                stopped.append(row["id"])
+        if stopped:
+            rows = [r for r in rows if r["id"] not in stopped]
         layered = _layer_gate(conn, rows, approved)
         if layered:
             for row, got in layered:
