@@ -131,10 +131,29 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 
 ### Daily pulse (sector news)
 
-- A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London) on the machine
-  that holds the clone emails a ranked briefing and commits its items as
-  `data/pulse/YYYY-MM-DD.json` to the `claude/pulse-feed` branch, never to main. It
-  publishes to git itself; there is no file store in between.
+- A scheduled Claude run ("Daily biopharma pulse", weekdays 07:45 London, a cloud run with
+  no copy of the repository) emails a ranked briefing and saves its items as
+  `pulse-YYYY-MM-DD.json` to the Google Drive folder "Terminal pulse feed". A second
+  scheduled run ("Pulse relay to terminal", weekdays 08:40 London) copies each file,
+  unchanged, to `data/pulse/YYYY-MM-DD.json` on the `claude/pulse-feed` branch, never to
+  main. Every file on that branch so far came through the relay.
+- Before it tags an item the pulse fetches `data/pulse_universe.json` from main (the
+  repository is public): every covered company's ticker as the terminal holds it, its
+  press names, its subsidiaries, the drugs it alone owns, and the names that look like a
+  covered company and are not one. `backend/pulse_universe.py` writes it from the
+  database and the refresh commits it with the day's history.
+- Schema 2 (`pulse.py`): each item carries `entities` (a covered company by ticker, with
+  a role: subject, party or read_across), an `event_key` that stays the same on every
+  day a story runs, `first_reported`, `update`, `phase` and `assets`, and keeps
+  `companies` and `tickers` so a schema 1 reader still reads it. The terminal takes a
+  ticker only if it holds it, else the entity's name compared whole, else drops the tie
+  and reports it; it never guesses. A story repeated without `update` reaches the change
+  feed once, and read-across reaches only the company's news, marked as read-across.
+- The Universe tab's ranked week (`universe_command._pulse_place`) ranks the pulse's tier
+  1 stories among the primary items: a deal after the priced deals, a readout after the
+  Phase 3 results, anything else after the rate move. Tier 2 follows the notices, tier 3
+  stays on the company's news, and a story a primary item already tells folds into it as
+  a row rather than ranking twice.
 - The pulse is read by a pass of its own, not by the daily refresh. The two want times
   that cannot be reconciled. Prices have to be read before any market opens, because
   `fetchers/prices.py` takes Yahoo's daily chart as it stands and from the opening bell
