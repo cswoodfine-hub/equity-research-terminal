@@ -399,6 +399,36 @@ def _tickers() -> list[str]:
         conn.close()
 
 
+def warm_once(base: str) -> dict:
+    """One pass over the slow reads, in the order their embeddings need. Returns
+    {"reads", "failed"}. Used by the loop below and by ``warm_cache.py``, which saves the
+    result for a container that starts cold."""
+    done = {"reads": 0, "failed": 0}
+
+    def fetch(url):
+        try:
+            _fetch(url)
+            done["reads"] += 1
+        except Exception:
+            done["failed"] += 1
+        time.sleep(0.05)          # let a reader's request in between
+
+    urls = [base + p for p in GLOBAL_READS]
+    tickers = _tickers()
+    for ticker in tickers:
+        urls += [base + p.format(t=ticker) for p in COMPANY_READS]
+    urls += [base + p for p in LATE_GLOBAL_READS]
+    urls += [base + p for p in _area_reads()]
+    for url in urls:
+        fetch(url)
+    try:
+        for url in _universe_reads(base, tickers[0]) if tickers else []:
+            fetch(url)
+    except Exception:
+        done["failed"] += 1
+    return done
+
+
 def warm_forever(base: str) -> None:
     """Compute the slow reads ahead of the page, and again whenever the stamp moves."""
     warmed = None
@@ -406,27 +436,7 @@ def warm_forever(base: str) -> None:
         current = stamp()
         if current != warmed:
             try:
-                urls = [base + p for p in GLOBAL_READS]
-                for ticker in _tickers():
-                    urls += [base + p.format(t=ticker) for p in COMPANY_READS]
-                urls += [base + p for p in LATE_GLOBAL_READS]
-                urls += [base + p for p in _area_reads()]
-                for url in urls:
-                    try:
-                        _fetch(url)
-                    except Exception:
-                        pass
-                    time.sleep(0.05)      # let a reader's request in between
-                tickers = _tickers()
-                try:
-                    for url in _universe_reads(base, tickers[0]) if tickers else []:
-                        try:
-                            _fetch(url)
-                        except Exception:
-                            pass
-                        time.sleep(0.05)
-                except Exception:
-                    pass
+                warm_once(base)
                 warmed = current
             except Exception:
                 pass
