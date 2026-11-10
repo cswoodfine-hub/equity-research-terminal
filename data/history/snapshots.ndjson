@@ -143206,3 +143206,4 @@
 {"captured_at": "2026-11-10 15:02:41", "entity_key": "BLA761142:3", "entity_type": "supplement", "id": 143206, "payload": "{\"approval_date\": \"2025-04-03\", \"ticker\": \"AMGN\"}", "refresh_run_id": 130, "source": "supplements"}
 {"captured_at": "2026-11-10 15:02:41", "entity_key": "BLA761142:4", "entity_type": "supplement", "id": 143207, "payload": "{\"approval_date\": \"2025-12-11\", \"ticker\": \"AMGN\"}", "refresh_run_id": 130, "source": "supplements"}
 {"captured_at": "2026-11-10 15:02:41", "entity_key": "BLA761347:11", "entity_type": "supplement", "id": 143208, "payload": "{\"approval_date\": \"2026-10-08\", \"ticker\": \"ROG\"}", "refresh_run_id": 130, "source": "supplements"}
+{"captured_at": "2026-11-10 17:37:24", "entity_key": "daily_pulse", "entity_type": "feed", "id": 143209, "payload": "{\"briefings\": [], \"items\": 0, \"problems\": [], \"fetch_kind\": \"live\"}", "refresh_run_id": null, "source": "pulse"}
