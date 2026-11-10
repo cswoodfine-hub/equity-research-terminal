@@ -149,8 +149,12 @@ def book_sha(path) -> str | None:
 
 
 def code_commit() -> str | None:
-    """The commit the running code was checked out at, or None where it cannot be told."""
-    stated = os.getenv("ER_CODE_COMMIT") or os.getenv("GITHUB_SHA")
+    """The commit the running code was checked out at, or None where it cannot be told.
+
+    Asked of git, never read from GITHUB_SHA: that is the commit a workflow run was
+    triggered on, and the refresh checks out the branch as it stands when the job starts,
+    which can be later. ER_CODE_COMMIT overrides both, for a host with no git."""
+    stated = os.getenv("ER_CODE_COMMIT")
     if stated:
         return stated.strip()
     import subprocess
