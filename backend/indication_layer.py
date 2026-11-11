@@ -58,10 +58,33 @@ _MARKETED_ONLY = ("base_revenue", "revenue_growth_pct", "revenue_ceiling_musd",
                   "growth_fade_years")
 
 
+def _layer_mode(loaded: dict) -> str:
+    """The dosing schedule a layer is built on.
+
+    A layer is a bottom-up build of patients, so it cannot inherit ``marketed``,
+    ``franchise`` or ``launch``: those describe how a revenue line is grown, not how a
+    patient is dosed, and the layer has no revenue line to grow. Those become chronic, a
+    biologic billed per year of therapy, which is what almost every expansion of a
+    marketed product is.
+
+    ``one_time`` is the exception and has to carry. It is a dosing schedule, and the
+    engine bills it once: Zolgensma is one infusion and [18F]PI-2620 is one scan, priced
+    in the book at 1,855 USD with the unit written "per scan". Forcing that to chronic
+    would ask for a persistence rate a single scan cannot have, and then carry each
+    patient forward and bill them again every year.
+    """
+    mode = ((loaded.get("scalars") or {}).get("therapy_mode") or "").strip()
+    return "one_time" if mode == "one_time" else "chronic"
+
+
 def _missing(built: dict, entry: dict) -> list:
     own = entry.get("scalars") or {}
     price, discontinuation = forecast.layer_terms(built["scalars"], own)
-    out = ["discontinuation_pct"] if discontinuation is None else []
+    # Only the modes that read it. forecast.build bills a one-time therapy at the year's
+    # patients and never looks at discontinuation_pct, so asking for one names a gap the
+    # research cannot fill and would not change the answer if it did.
+    out = (["discontinuation_pct"] if discontinuation is None
+           and _layer_mode(built) != "one_time" else [])
     out += [k for k in INDICATION_KEYS if own.get(k) is None]
     if price is None:
         out.append("net_price_per_patient")
@@ -134,9 +157,9 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
             scalars[key] = entry["scalars"][key]
     for key in _MARKETED_ONLY:
         scalars.pop(key, None)
-    # A chronic biologic billed per year of therapy. The marketed mode it came from is
-    # about a revenue line, not a dosing schedule, so it cannot carry over.
-    scalars["therapy_mode"] = "chronic"
+    # A chronic biologic billed per year of therapy, unless the product states a
+    # schedule of its own. See _layer_mode.
+    scalars["therapy_mode"] = _layer_mode(loaded)
     # Unrisked: see the docstring. pos is the gate's to apply.
     scalars["pos"] = 1.0
 

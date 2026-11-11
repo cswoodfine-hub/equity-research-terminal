@@ -242,7 +242,7 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                 assert assumptions.dated(row[isrc]) == "2026-09-01", path.name
                 # The variant is named, so the choice among his five is visible.
                 assert "trailing twelve month" in row[isrc], path.name
-    assert seen == 764        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
+    assert seen == 772        # 473, then the seven Roche Phase 3 seeds, then Elahere and Moderna's intismeran, all 2026-09-24,
                               # then nineteen big pharma late-stage seeds less amlitelimab, retired, 2026-09-25,
                               # then eleven Phase 3 seeds and nineteen verified from a parallel branch, 2026-09-26
                               # then 87 big pharma Phase 2 and 3 seeds, 2026-09-28
@@ -275,3 +275,6 @@ def test_the_committed_seeds_carry_a_dated_premium_and_no_round_number():
                               # no seed file at all and so could carry no indication layer, plus Datroway,
                               # whose file existed but held only a refusal. The ten company keys are copied
                               # verbatim from one donor sibling each, so this premium is the same dated row
+                              # then the small-cap cell and gene therapy cluster, 2026-11-11: Zevaskyn,
+                              # ARCT-032, ARCT-810, FT819, RGX-202, SGT-003, TSHA-102 and WVE-N531,
+                              # eight companies that between them had no modelled asset at all
