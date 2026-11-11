@@ -1387,7 +1387,12 @@ def fork_svg(r, close=None) -> str:
     else:
         v = leg(r["failure"])
         move = None if None in (r["failure"], r["now"]) else r["failure"] - r["now"]
+        # A scenario's legs are the two builds, not a programme and nothing. Failing
+        # leaves the product exactly where the base already has it, so saying a failed
+        # programme is nil would read as the marketed line going to zero.
         basis = ("the stated leg on file" if r.get("legs_basis") == "stated"
+                 else "a miss leaves the base case, so the stake is nil"
+                 if r.get("legs_basis") == "scenario"
                  else "a failed programme is nil, the model convention")
         o.append(f'<text x="144" y="74" class="fv2 dn m">{v}</text>'
                  f'<text x="{after(v):.0f}" y="74" class="fs m">{sgn(move)} · PoS '
@@ -1606,6 +1611,9 @@ def card_html(p, gid, facts_html="", lines=()) -> str:
         chips += f'<span class="u-chip basis" title="{esc(r.get("basis"))}">derived legs</span>'
     elif r.get("legs_basis") == "stated":
         chips += '<span class="u-chip basis">stated legs</span>'
+    elif r.get("legs_basis") == "scenario":
+        chips += (f'<span class="u-chip basis" title="{esc(r.get("scenario_basis"))}">'
+                  f'{esc(r.get("scenario") or "scenario")} case</span>')
     swing_share = (f" · {pct(r['swing'] / close, 1)} of price" if close and r["swing"] is not None
                    else "")
     why = f'<div class="cx-why">{esc(r["why"])}</div>' if r.get("why") else ""

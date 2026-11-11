@@ -1,0 +1,40 @@
+# A readout inside the business a product already sells, and the case its success puts
+# the product on (read by backend/catalyst_scenarios.py, priced by
+# forecast_view._scenario_stake).
+#
+# Fifty-eight readouts on the book sit in an indication the product's own pool already
+# covers, and indication_layer refuses them on the evidence: building a pool for them
+# would count patients the marketed line is already sold to. The stake tab called that
+# in_the_base and priced it at nothing.
+#
+# Nothing is the wrong answer for some of them. A cardiovascular outcomes trial inside
+# an approved population does not add a patient, and it changes the label claim, the
+# guideline position and the payer case, which is to say the rate the marketed line
+# grows at. The book cannot derive how much: the transition tables say what fraction of
+# programmes pass a gate, not what a win is worth to a product already selling. That
+# figure is the analyst's, and the mechanism for an analyst's figure already exists.
+# assumptions.load merges a named scenario over base, so a case restates the two or
+# three numbers a win moves and the engine recomputes everything else itself.
+#
+# A row ties one readout, by its registry id, to one scenario written in the assumptions
+# table for that asset. The stake is then NPV(scenario) - NPV(base), risked at the
+# published transitions between the study's phase and approval, exactly as an indication
+# layer is risked: a case that needs a label change is only worth its delta if the label
+# changes, and a miss leaves the base case rather than nothing.
+#
+# Keyed by ticker and the asset's name, because asset ids are rebuilt with the database
+# and a name is not. basis says what the restatement is written from and must cite it;
+# the scenario's own assumption rows carry the sources for the figures themselves.
+#
+# A row naming an asset the book does not hold, or a scenario with no rows written
+# against it, is reported by catalyst_scenarios.unresolved and fails a test. That second
+# case is the dangerous one: assumptions.load falls back to base key by key, so an empty
+# scenario would build the base forecast exactly and the readout would read as priced
+# while saying nothing at all.
+#
+# This file is deliberately short. Most of the fifty-eight are evidence-generation
+# studies - open-label extensions, symptom descriptions, Phase 3b work, lot-consistency
+# immunogenicity - and nil is the right answer for those. A row belongs here only where
+# a win changes the claim, the guideline or the payer position, and where that change
+# can be written from something published.
+ticker,asset,nct_id,scenario,basis

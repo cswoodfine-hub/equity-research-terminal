@@ -879,9 +879,11 @@ def test_a_study_in_the_business_already_sold_to_says_so(tmp_path):
     rows = V.catalyst_stakes(path, "LLY")["unpriced"]
     assert [r["reason"] for r in rows] == ["in_the_base"]
     assert "already being sold to" in rows[0]["why"]
-    # And it names the route, because a result inside the business still moves share:
-    # three of the fifty-two are head-to-head trials in an approved use.
-    assert "stated success and failure legs" in rows[0]["why"]
+    # And it names the route, because a result inside the business still moves share.
+    # The route is a named scenario restating what a win changes (catalyst_scenarios),
+    # and the row says so and says none is on file rather than reading as worth nothing.
+    assert "named scenario" in rows[0]["why"]
+    assert "none is on file" in rows[0]["why"]
     assert rows[0]["missing"] == []
 
 
