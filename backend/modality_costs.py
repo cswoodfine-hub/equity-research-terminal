@@ -45,6 +45,10 @@ changing mix should do but is no longer tied to the filed figure.
 
 from __future__ import annotations
 
+import csv
+import pathlib
+import re
+
 # Measured 2026-09-19, revenue weighted, over the fifteen filers with a solved cost of
 # sales, a modality mix on file and no material peptide revenue. Only the ratio between
 # the two is used; the level is each company's own filed figure.
@@ -60,6 +64,85 @@ RATES = {"biologic": BIOLOGIC_RATE, "small molecule": SMALL_MOLECULE_RATE}
 # The INN stem for a peptide. A drug tagged biologic stays biologic whatever its stem, so
 # dulaglutide is read as the fusion protein it is rather than as a peptide.
 PEPTIDE_STEM = "tide"
+
+
+# The WHO INN stem, read only where the book states no modality of its own. 339 modelled
+# assets carry none, and every one of them takes the conservative twelve-year biologic
+# floor from data/loe_defaults.csv: a small molecule is entitled to fourteen, so each
+# wrongly-defaulted one loses two years of peak revenue.
+#
+# A stated modality always wins and this never overrules one. That rule is what makes the
+# stem list safe: dulaglutide ends in -tide and is an Fc fusion protein, obecabtagene is
+# a cell therapy rather than the gene therapy its stem suggests, and the book already
+# says so for all eight such assets.
+#
+# The oligonucleotides and the peptides sit under small molecule on purpose, which is
+# where the book's own stated facts put all thirty-seven of them: an antisense oligo or a
+# peptide is filed as a drug under an NDA, not as a biologic under a BLA, so the
+# fourteen-year ceiling is the one that applies. Measured 2026-11-10 against every asset
+# with a stated modality: 407 agree, 8 disagree, and all eight state a modality already.
+_SMALL_MOLECULE_STEMS = (
+    ("rsen", "antisense oligonucleotide"), ("siran", "small interfering RNA"),
+    ("tide", "peptide"), ("nib", "kinase inhibitor"), ("vir", "antiviral"),
+    ("stat", "enzyme inhibitor"), ("pril", "ACE inhibitor"),
+    ("sartan", "angiotensin antagonist"), ("azole", "antifungal"),
+    ("cycline", "tetracycline"), ("floxacin", "quinolone"),
+    ("prazole", "proton pump inhibitor"), ("ciclib", "CDK inhibitor"),
+    ("parib", "PARP inhibitor"), ("rasib", "RAS inhibitor"),
+    ("setron", "5-HT3 antagonist"), ("triptan", "5-HT1 agonist"),
+    ("glifozin", "SGLT2 inhibitor"), ("gliptin", "DPP-4 inhibitor"),
+    ("olol", "beta blocker"), ("statin", "HMG-CoA reductase inhibitor"))
+_BIOLOGIC_STEMS = (
+    ("mab", "monoclonal antibody"), ("cept", "receptor fusion protein"),
+    ("ase", "enzyme"), ("kin", "interleukin"), ("poetin", "erythropoietin"),
+    ("gene", "gene therapy"), ("cel", "cell therapy"))
+
+
+# The curated override, for the assets no stem reaches: internal codes like
+# JNJ-78934804, trade pairs like "Rybrevant / Lazcluze", and INNs whose stem is not in
+# the table. Each row cites the filing, label or registry record that settles it, and the
+# file fills only: a modality already on the asset row always wins, because the fetchers
+# read it from the register and this is curation rather than correction.
+CURATED = (pathlib.Path(__file__).resolve().parent.parent
+           / "data" / "asset_modalities.csv")
+
+
+def curated_modalities(path=None) -> dict:
+    """{(ticker, lowercased asset name): modality} from data/asset_modalities.csv."""
+    source = pathlib.Path(path) if path else CURATED
+    if not source.exists():
+        return {}
+    out = {}
+    with source.open(newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(line for line in handle
+                                  if not line.lstrip().startswith("#")):
+            ticker = (row.get("ticker") or "").strip().upper()
+            name = (row.get("asset") or "").strip().lower()
+            found = (row.get("modality") or "").strip().lower()
+            # A row with no source asserts nothing, the rule every curated file here
+            # keeps: a wrong modality moves an exclusivity cliff two years in silence.
+            if ticker and name and found and (row.get("source") or "").strip():
+                out[(ticker, name)] = found
+    return out
+
+
+def infer_modality(name: str | None) -> tuple:
+    """(modality, the stem that said so), or (None, None) where no stem fits.
+
+    For filling a gap, never for correcting a statement: the caller must check that the
+    asset has no modality of its own first.
+    """
+    text = re.sub(r"[^a-z ]+", " ", (name or "").lower()).strip()
+    if not text:
+        return None, None
+    word = text.split()[0]
+    for stem, what in _SMALL_MOLECULE_STEMS:
+        if word.endswith(stem):
+            return "small molecule", f"-{stem}, {what}"
+    for stem, what in _BIOLOGIC_STEMS:
+        if word.endswith(stem):
+            return "biologic", f"-{stem}, {what}"
+    return None, None
 
 
 def classify(modality: str | None, generic_name: str | None) -> str:

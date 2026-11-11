@@ -120,6 +120,11 @@ def molecule_key(name) -> str:
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text).split())
 
 
+# A development code rather than a name: letters, a separator, then digits, which is how
+# a registry row for an unnamed compound is spelled (JNJ-79635322, PF-07868489, RGX-202).
+_DEV_CODE = re.compile(r"^[a-z]{2,6}[\s\-]?\d{3,}[a-z]?$", re.I)
+
+
 def split_models(conn) -> list:
     """[{ticker, modelled, stranded}] where one row of a molecule carries the assumptions
     and another carries a pending readout and none.
@@ -128,6 +133,13 @@ def split_models(conn) -> list:
     row keyed on its brand beside a pipeline row keyed on the generic, which an exact
     match on one field each never joins. Containment counts too, so "Piqray" is seen
     inside "Piqray Vijoice".
+
+    What this cannot find, and nothing in the book can. An INN beside its own development
+    code shares no letters, so no name rule joins them: "Ramantamig" and "JNJ-79635322"
+    are one trispecific antibody carrying 21 assumption rows each, and the registry files
+    every trial under one name or the other, so they share no study either. That pair was
+    found by reading J&J's filings. A sweep over the book's own data will not produce it,
+    and a clean run here is not evidence that none exists.
     """
     rows = {r["id"]: r for r in conn.execute(
         """SELECT a.id, a.brand_name, a.generic_name, a.internal_code, a.owner_company_id,
@@ -178,9 +190,26 @@ def split_models(conn) -> list:
             continue
         modelled = [m for m in members if rows[m]["rows_"] > 0]
         stranded = [m for m in members if pending[m] and not rows[m]["rows_"]]
-        if modelled and stranded:
+        # A molecule modelled on two rows at once is the worse shape, since it values the
+        # same patients twice: Ramantamig and JNJ-79635322 carry 21 assumption rows each.
+        # It is reported only where one of the pair is a bare development code with no
+        # brand, because name similarity alone cannot tell a duplicate from a brand
+        # family. Ozempic and Wegovy are both semaglutide and are two products with two
+        # labels and two revenue lines; so are Mounjaro and Zepbound. Flagging those was
+        # 23 false positives on a book with two real duplicates in it.
+        coded = [m for m in modelled
+                 if not (rows[m]["brand_name"] or "").strip()
+                 and _DEV_CODE.match((rows[m]["generic_name"] or "").strip())]
+        if len(modelled) > 1 and coded:
             out.append({
-                "ticker": rows[members[0]]["ticker"],
+                "ticker": rows[members[0]]["ticker"], "shape": "modelled twice",
+                "modelled": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "rows": rows[m]["rows_"],
+                              "catalysts": pending[m]} for m in modelled],
+                "stranded": []})
+        elif modelled and stranded:
+            out.append({
+                "ticker": rows[members[0]]["ticker"], "shape": "readout stranded",
                 "modelled": [{"id": m, "name": rows[m]["brand_name"]
                               or rows[m]["generic_name"], "rows": rows[m]["rows_"]}
                              for m in modelled],

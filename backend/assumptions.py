@@ -203,6 +203,44 @@ def launch_ramp(path=None) -> dict:
     return {"curve": sorted(curve), "products": products, "years_to_peak": 9}
 
 
+_CURATED_MODALITIES: dict = {}
+
+
+def _modality(asset, ticker=None) -> str | None:
+    """The asset's own modality, then the curated file, then the INN stem.
+
+    Three sources in falling order of authority, and each is a fill rather than a
+    correction: the register's own value always wins, because a fetcher read it off a
+    label or an application; data/asset_modalities.csv answers the 241 the stem cannot
+    reach, each row citing the filing that settles it; the stem answers the 92 whose INN
+    carries one. The column decides which statutory term data/loe_defaults.csv hands a
+    product with no patent on file, and the default where nothing is known is the
+    biologic floor of twelve years, so a small molecule left unknown loses the two years
+    35 U.S.C. 156(c)(3) allows it.
+    """
+    if asset is None:
+        return None
+    stated = (asset["modality"] or "").strip()
+    if stated:
+        return stated
+    import modality_costs
+    global _CURATED_MODALITIES
+    if not _CURATED_MODALITIES:
+        _CURATED_MODALITIES = modality_costs.curated_modalities() or {"": ""}
+    names = [asset[k] for k in ("brand_name", "generic_name")
+             if k in asset.keys() and asset[k]]
+    if ticker:
+        for name in names:
+            found = _CURATED_MODALITIES.get((ticker.upper(), name.strip().lower()))
+            if found:
+                return found
+    for name in names:
+        found, _why = modality_costs.infer_modality(name)
+        if found:
+            return found
+    return None
+
+
 def loe_defaults() -> dict:
     """{modality: {years_from_launch, source, note}}, the exclusivity a product that has
     not launched yet is given from its launch year, where nothing on file sets one."""
@@ -326,8 +364,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
             entry["series"].setdefault(key, {})[int(year)] = value
 
     asset = conn.execute(
-        "SELECT modality, brand_name, generic_name, owner_company_id, is_marketed"
-        " FROM assets WHERE id = ?", (asset_id,)).fetchone()
+        "SELECT a.modality, a.brand_name, a.generic_name, a.owner_company_id,"
+        "       a.is_marketed, c.ticker"
+        "  FROM assets a LEFT JOIN companies c ON c.id = a.owner_company_id"
+        " WHERE a.id = ?", (asset_id,)).fetchone()
 
     # Whether the label already covers each indication. The engine is pure and cannot
     # ask, so the answer travels with the input: marketed mode adds a layer for an
@@ -462,7 +502,13 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "crowding": crowding,
         # Pool figures taken from the disease rather than from a row on this asset.
         "epidemiology": filled,
-        "modality": asset["modality"] if asset else None,
+        # Stated where the book states one, and otherwise read from the INN stem. The
+        # modality decides which statutory term data/loe_defaults.csv hands a product
+        # with no patent on file, and 339 modelled assets carried none, so every one of
+        # them took the twelve-year biologic floor. A small molecule is entitled to
+        # fourteen. Filling only, never correcting: a stated modality always wins.
+        "modality": _modality(asset, asset["ticker"] if asset is not None
+                              and "ticker" in asset.keys() else None),
         # Oral or not, from the product's RxNorm names: an oral brand erodes faster.
         "route": dose_route.for_asset(conn, asset_id) if asset else None,
         "pos_defaults": pos_defaults(),
