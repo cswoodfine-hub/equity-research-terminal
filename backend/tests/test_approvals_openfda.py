@@ -446,3 +446,103 @@ def test_a_brand_already_answered_this_run_is_not_asked_for_again(tmp_path):
     fetcher._by_brand_name([{"application_number": "BLA020563",
                              "products": [{"brand_name": "Humalog"}]}])
     assert asked == []
+
+
+# --- one application, two brands --------------------------------------------
+
+_TWO_BRANDS = {"results": [{
+    "application_number": "NDA213051",
+    "sponsor_name": "NOVO",
+    "submissions": [{"submission_status": "AP", "submission_status_date": "20190920",
+                     "submission_type": "ORIG"}],
+    # The order openFDA actually returns them in on the live record: 006, 004, 002,
+    # 005, 003, 001. Not grouped, not sorted, and an Ozempic product first.
+    "products": [
+        {"product_number": "006", "brand_name": "OZEMPIC", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "9MG"}]},
+        {"product_number": "004", "brand_name": "OZEMPIC", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "1.5MG"}]},
+        {"product_number": "002", "brand_name": "RYBELSUS", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "7MG"}]},
+        {"product_number": "005", "brand_name": "OZEMPIC", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "4MG"}]},
+        {"product_number": "003", "brand_name": "RYBELSUS", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "14MG"}]},
+        {"product_number": "001", "brand_name": "RYBELSUS", "marketing_status": "Prescription",
+         "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "3MG"}]},
+    ]}]}
+
+
+def test_an_application_carrying_two_brands_yields_both():
+    """Novo added oral Ozempic to oral semaglutide's own application, so NDA213051 holds
+    RYBELSUS at 3, 7 and 14mg beside OZEMPIC at 1.5, 4 and 9mg. Two products, two labels,
+    two reported revenue lines. Reading products[0] took whichever the payload listed
+    first and the other was never created: Rybelsus lost, and the 22,093mm DKK it reports
+    was modelled nowhere in the book."""
+    rows = A.parse_drugsfda(_TWO_BRANDS, "NVO")
+    assert sorted(r["brand"] for r in rows) == ["Ozempic", "Rybelsus"]
+    assert {r["internal_code"] for r in rows} == {"NDA213051"}
+    assert all(r["brand_key"] for r in rows)
+
+
+def test_an_application_carrying_one_brand_is_still_one_row():
+    """The change has to be confined to the case that needs it: nearly every application
+    carries one brand across several strengths and forms, and those are looked up by the
+    number alone exactly as before."""
+    one = {"results": [{
+        "application_number": "NDA209637", "sponsor_name": "NOVO",
+        "submissions": [{"submission_status": "AP", "submission_status_date": "20171205",
+                         "submission_type": "ORIG"}],
+        "products": [
+            {"brand_name": "OZEMPIC", "marketing_status": "Prescription",
+             "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "0.5MG"}]},
+            {"brand_name": "OZEMPIC", "marketing_status": "Prescription",
+             "active_ingredients": [{"name": "SEMAGLUTIDE", "strength": "1MG"}]}]}]}
+    rows = A.parse_drugsfda(one, "NVO")
+    assert len(rows) == 1
+    assert rows[0]["brand"] == "Ozempic"
+    assert rows[0]["brand_key"] is False
+
+
+def test_each_brand_keeps_its_own_marketing_status():
+    """A brand withdrawn from an application the other brand keeps alive is not still
+    sold, and the status is read across that brand's products rather than all of them."""
+    payload = json.loads(json.dumps(_TWO_BRANDS))
+    for product in payload["results"][0]["products"]:
+        if product["brand_name"] == "RYBELSUS":
+            product["marketing_status"] = "Discontinued"
+    rows = {r["brand"]: r for r in A.parse_drugsfda(payload, "NVO")}
+    assert rows["Ozempic"]["marketing_status"] == "Prescription"
+    assert rows["Rybelsus"]["marketing_status"] == "Discontinued"
+
+
+def test_a_pen_is_not_a_second_product():
+    """The error that would be worse than the one being fixed. 28 of the 33 applications
+    in this book carrying more than one live brand are one drug in several presentations,
+    and splitting those would cut a working revenue line in half. Zepbound, Wegovy and
+    Mounjaro are the three largest."""
+    for brands in (["ZEPBOUND", "ZEPBOUND (AUTOINJECTOR)", "ZEPBOUND KWIKPEN"],
+                   ["WEGOVY", "WEGOVY FLEXTOUCH", "WEGOVY HD"],
+                   ["MOUNJARO", "MOUNJARO (AUTOINJECTOR)", "MOUNJARO KWIKPEN"],
+                   ["HUMULIN R", "HUMULIN R KWIKPEN", "HUMULIN R PEN"],
+                   ["LANTUS", "LANTUS SOLOSTAR"],
+                   ["FIASP", "FIASP FLEXTOUCH", "FIASP PENFILL"],
+                   # Neither of these is caught by a shared first word: one brand
+                   # contains the other, which is the second half of the rule.
+                   ["ASTEPRO ALLERGY", "CHILDREN'S ASTEPRO ALLERGY"],
+                   ["ACTIVASE", "CATHFLO ACTIVASE"],
+                   ["BOTOX", "BOTOX COSMETIC"],
+                   # And this one only by the first word, since MAX sits in the middle.
+                   ["TOUJEO MAX SOLOSTAR", "TOUJEO SOLOSTAR"]):
+        got = A._products_by_brand([{"brand_name": b} for b in brands])
+        assert len(got) == 1, (brands, list(got))
+
+
+def test_two_products_on_one_application_are_two():
+    """Every application in this book whose brands share no first word and where neither
+    contains the other. Each is two products with two labels and two reported lines."""
+    for brands in (["OZEMPIC", "RYBELSUS"], ["CAMPATH", "LEMTRADA"],
+                   ["ARZERRA", "KESIMPTA"], ["PROLIA", "XGEVA"],
+                   ["PEGINTRON", "SYLATRON"]):
+        got = A._products_by_brand([{"brand_name": b} for b in brands])
+        assert sorted(got) == sorted(brands)

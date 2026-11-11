@@ -39,12 +39,39 @@ def resolve_alias(conn, internal_code):
     return row[0] if row else None
 
 
-def upsert_asset(conn, company_id, internal_code, brand, generic, modality) -> int:
+def upsert_asset(conn, company_id, internal_code, brand, generic, modality,
+                 *, brand_key: bool = False) -> int:
     """Insert or fetch a marketed asset by internal_code; return its id.
 
     An application number already folded into another product resolves to that product
     rather than being inserted again.
+
+    ``brand_key`` widens the key to the application and the brand together, and the
+    caller sets it only for an application openFDA shows carrying more than one brand.
+    NDA213051 is the case: RYBELSUS at 3, 7 and 14mg beside OZEMPIC at 1.5, 4 and 9mg,
+    two products with two labels and two reported revenue lines on one application.
+    Keyed by the number alone, the second brand resolves onto the first brand's asset
+    and then overwrites its name, so which product the book holds depends on the order
+    openFDA happens to return products in. Every single-brand application, which is
+    nearly all of them, is looked up exactly as before.
     """
+    if brand_key and brand:
+        row = conn.execute(
+            "SELECT id FROM assets WHERE internal_code = ?"
+            "   AND LOWER(TRIM(COALESCE(brand_name, ''))) = LOWER(TRIM(?))",
+            (internal_code, brand)).fetchone()
+        if row is None:
+            # Not the alias either: an alias records which applications make up one
+            # product, and this application makes up two. Resolving through it is what
+            # put Rybelsus inside Ozempic and left its revenue line nowhere.
+            return _insert_asset(conn, company_id, internal_code, brand, generic,
+                                 modality)
+        conn.execute(
+            "UPDATE assets SET generic_name = COALESCE(?, generic_name),"
+            "  modality = COALESCE(?, modality), is_marketed = 1,"
+            "  updated_at = datetime('now') WHERE id = ?",
+            (generic, modality, row[0]))
+        return row[0]
     row = conn.execute(
         "SELECT id FROM assets WHERE internal_code = ?", (internal_code,)
     ).fetchone()
@@ -66,6 +93,10 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality) -> i
             (brand, generic, modality, row[0]),
         )
         return row[0]
+    return _insert_asset(conn, company_id, internal_code, brand, generic, modality)
+
+
+def _insert_asset(conn, company_id, internal_code, brand, generic, modality) -> int:
     cur = conn.execute(
         """
         INSERT INTO assets

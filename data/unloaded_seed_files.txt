@@ -35,6 +35,19 @@
 #
 # No asset anywhere in the book. The rest. Uplizna and Jaypirca are real marketed
 # products, so those two are a gap in the universe fetcher rather than a dead file.
+#
+# Found and fixed 2026-11-11: nvo_rybelsus.csv, and it was not a name defect at all.
+# Its 18 rows anchor on 22,093mm DKK, Novo's own FY2025 line for oral semaglutide, and
+# no asset held it. The cause was one application carrying two products. NDA213051 is
+# RYBELSUS at 3, 7 and 14mg and OZEMPIC at 1.5, 4 and 9mg, because Novo added oral
+# Ozempic to oral semaglutide's own application; openFDA returns those six products
+# unordered (006, 004, 002, 005, 003, 001) and the approvals fetcher read products[0]
+# for the brand. Ozempic won the toss, the asset was keyed by application number alone,
+# and Rybelsus was never created. Ozempic's own base_revenue is 127,089mm, its own line
+# and not the two together, so nothing absorbed the money. It was simply never modelled.
+# The fetcher now emits one row per brand and the asset key widens to the brand where
+# an application carries more than one; the asset is back and the forecast builds at
+# 35,842mm DKK. See backend/fetchers/approvals_openfda.parse_drugsfda.
 abbv_bretisilocin.csv
 amgn_be_one.csv
 amgn_uplizna.csv

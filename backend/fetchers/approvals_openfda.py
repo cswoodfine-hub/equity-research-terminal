@@ -236,6 +236,48 @@ def _iso(raw) -> str | None:
     return f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}" if raw and len(raw) == 8 else None
 
 
+def _brand_family(name: str) -> tuple:
+    """(the first word of a brand, the brand reduced to letters and digits)."""
+    text = re.sub(r"[^a-z0-9 ]+", " ", (name or "").lower())
+    words = text.split()
+    return (words[0] if words else ""), "".join(words)
+
+
+def _products_by_brand(products: list) -> dict:
+    """{brand: [its products]} for one application, one entry per distinct product.
+
+    The hard half of reading an application is that a brand string names a presentation,
+    not a product. Of the 33 applications in this book that carry more than one live
+    brand, 28 are one drug in several pens: ZEPBOUND beside ZEPBOUND KWIKPEN, LANTUS
+    beside LANTUS SOLOSTAR, HUMULIN R beside HUMULIN R PEN. Splitting those would cut a
+    working revenue line in half, which is a worse error than the one being fixed, so
+    the rule is deliberately reluctant: two brands are the same product unless they
+    share no first word AND neither contains the other.
+
+    That leaves five, and every one of them is two products with two labels and two
+    reported lines: OZEMPIC/RYBELSUS, CAMPATH/LEMTRADA, ARZERRA/KESIMPTA, PROLIA/XGEVA
+    and PEGINTRON/SYLATRON.
+
+    It is conservative in both directions on purpose. INVEGA HAFYERA and INVEGA TRINZA
+    are arguably two products and share a first word, so they stay one, and TOUJEO MAX
+    SOLOSTAR stays with TOUJEO SOLOSTAR for the same reason rather than on a list of
+    device words, which would need maintaining and would still miss the next pen.
+    """
+    out: dict = {}
+    for product in products or []:
+        brand = (product.get("brand_name") or "").strip().upper()
+        first, flat = _brand_family(brand)
+        for held in out:
+            kept_first, kept_flat = _brand_family(held)
+            if (first and first == kept_first) or (flat and kept_flat and (
+                    flat in kept_flat or kept_flat in flat)):
+                out[held].append(product)
+                break
+        else:
+            out[brand] = [product]
+    return out
+
+
 def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
     """Turn a drugsfda payload into approval rows. Pure."""
     rows = []
@@ -249,24 +291,44 @@ def parse_drugsfda(payload: dict, ticker: str) -> list[dict]:
         if approval_date is None:
             continue
         products = result.get("products") or [{}]
-        brand = products[0].get("brand_name")
-        generic = _generic(result, products[0])
-        rows.append(
-            {
-                "ticker": ticker,
-                "internal_code": internal_code,
-                "application_number": appl,
-                "brand": brand.title() if brand else None,
-                "generic": generic,
-                "modality": _modality(appl),
-                "approval_date": approval_date,
-                # Across every product on the application, not the first one: a brand
-                # whose capsule is discontinued and whose tablet is not is still sold,
-                # and reading products[0] alone made that a coin toss on payload order.
-                "marketing_status": _marketing_status(products),
-                "active_ingredients": _ingredients(products[0]),
-            }
-        )
+        # One row per brand on the application, not one per application. An application
+        # usually carries one brand across several strengths and forms, and for those
+        # this is the single row it always was. NDA213051 is not one of those: it holds
+        # RYBELSUS at 3, 7 and 14mg and OZEMPIC at 1.5, 4 and 9mg, two products with two
+        # labels and two reported revenue lines, because Novo added oral Ozempic to oral
+        # semaglutide's own application. Reading products[0] took whichever brand the
+        # payload happened to list first, and openFDA does not order them: the live
+        # record returns 006, 004, 002, 005, 003, 001. Rybelsus lost the toss, its asset
+        # was never created, and the 22,093mm DKK it reports was modelled nowhere.
+        #
+        # The same reasoning the marketing status already carries, one field over. That
+        # one says in as many words that reading products[0] "made that a coin toss on
+        # payload order"; so did this, and the stakes were a whole product rather than a
+        # flag.
+        by_brand = _products_by_brand(products)
+        for brand, held in by_brand.items():
+            first = held[0]
+            rows.append(
+                {
+                    "ticker": ticker,
+                    "internal_code": internal_code,
+                    "application_number": appl,
+                    "brand": brand.title() if brand else None,
+                    "generic": _generic(result, first),
+                    "modality": _modality(appl),
+                    "approval_date": approval_date,
+                    # Across every product of this brand, not the first one: a brand
+                    # whose capsule is discontinued and whose tablet is not is still
+                    # sold, and reading products[0] alone made that a coin toss on
+                    # payload order.
+                    "marketing_status": _marketing_status(held),
+                    "active_ingredients": _ingredients(first),
+                    # Only where the application carries more than one brand, so the
+                    # asset key widens exactly where it has to and every single-brand
+                    # application is looked up the way it always was.
+                    "brand_key": len(by_brand) > 1,
+                }
+            )
     return rows
 
 
@@ -665,6 +727,7 @@ class ApprovalsOpenFdaFetcher(BaseFetcher):
                 asset_id = upsert_asset(
                     conn, company_id, row["internal_code"], row["brand"],
                     row["generic"], row["modality"],
+                    brand_key=bool(row.get("brand_key")),
                 )
                 if row.get("active_ingredients"):
                     conn.execute(

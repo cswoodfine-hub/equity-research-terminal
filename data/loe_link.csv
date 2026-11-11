@@ -2,8 +2,8 @@
 #
 # A company books revenue under a name the FDA does not know it by. Sanofi books
 # Dupixent and the BLA is Regeneron's; Pfizer books Eliquis on Bristol's NDA and Xtandi on
-# Astellas's; Novo books Rybelsus on its own NDA, which the approvals feed folded into
-# Ozempic; Merck books Lynparza on AstraZeneca's. The Orange Book and the Purple Book
+# Astellas's; Novo books Rybelsus on an application it shares with Ozempic; Merck books
+# Lynparza on AstraZeneca's. The Orange Book and the Purple Book
 # attach exclusivity to the applicant, so none of these lines carried a date, and 121
 # of the 297 revenue-anchored forecasts ran to perpetuity for want of one.
 #
@@ -20,7 +20,7 @@
 # neither is a reference product, so no date resting on the BPCIA twelve years is read
 # for it. Blank means no claim either way.
 ticker,asset,application_number,note,reference_product
-NVO,Rybelsus,NDA213051,"oral semaglutide; openFDA lists the NDA under Novo and the approvals feed folded it into Ozempic, whose curated compound patent (8129343, 2031-12-05) is the same molecule"
+NVO,Rybelsus,NDA213051,"oral semaglutide. NDA213051 carries two brands: RYBELSUS at 3, 7 and 14mg and OZEMPIC at 1.5, 4 and 9mg, after Novo added oral Ozempic to oral semaglutide's own application. Until 2026-11-11 the approvals fetcher read the first product openFDA happened to return and so created only one of them, which is why this note used to say the feed folded Rybelsus into Ozempic; it never folded it, it never made it. Ozempic's curated compound patent (8129343, 2031-12-05) is the same molecule and governs both"
 SNY,Dupixent,BLA761055,"Regeneron's BLA; Sanofi books the global sales"
 PFE,Eliquis,NDA202155,"Bristol-Myers Squibb's NDA; Pfizer books its share of the alliance"
 AZN,Ultomiris,BLA761108,"Alexion's BLA, approved 2018-12-21; Alexion is AstraZeneca since 2021 and is not in the applicant map because mapping it would spawn a second Ultomiris"

@@ -681,3 +681,69 @@ def test_a_split_model_is_named_in_the_alias_map():
                                f"({stray['catalysts']} pending readouts) belongs with "
                                f"{group['modelled'][0]['name']}")
     assert not unnamed, "split models with no alias row: " + "; ".join(unnamed)
+
+
+# --- one application, two products -----------------------------------------
+
+def test_a_second_brand_on_one_application_is_its_own_asset(tmp_path):
+    """NDA213051 holds RYBELSUS at 3, 7 and 14mg and OZEMPIC at 1.5, 4 and 9mg, because
+    Novo added oral Ozempic to oral semaglutide's own application. They are two products
+    with two labels and two reported revenue lines.
+
+    Keyed by the application number alone the second brand resolves onto the first
+    brand's asset, so only one of them is ever created. That is what happened: Rybelsus
+    had no asset, and data/assumptions/nvo_rybelsus.csv, which anchors on the 22,093mm
+    DKK Novo reports for it, never loaded a row.
+    """
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    first = assets_util.upsert_asset(conn, company, "NDA213051", "Ozempic",
+                                     "Semaglutide", "small molecule", brand_key=True)
+    second = assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                                      "Semaglutide", "small molecule", brand_key=True)
+    assert first != second
+    assert sorted(r[0] for r in conn.execute(
+        "SELECT brand_name FROM assets WHERE internal_code = 'NDA213051'")) \
+        == ["Ozempic", "Rybelsus"]
+    # And it is stable: the same brand twice is the same asset, whatever order openFDA
+    # returns the application's products in.
+    assert assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                                    "Semaglutide", "small molecule",
+                                    brand_key=True) == second
+    conn.close()
+
+
+def test_the_second_brand_does_not_rename_the_first(tmp_path):
+    """The failure that would have been worse than the missing asset. upsert_asset writes
+    brand_name = COALESCE(?, brand_name), so an application resolving onto another
+    product's row renames it, and openFDA does not order its products: whichever brand
+    came last would own a 127,089mm DKK revenue line."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    keep = assets_util.upsert_asset(conn, company, "NDA213051", "Ozempic",
+                                    "Semaglutide", "small molecule", brand_key=True)
+    assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                             "Semaglutide", "small molecule", brand_key=True)
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (keep,)).fetchone()[0] == "Ozempic"
+    conn.close()
+
+
+def test_a_single_brand_application_is_looked_up_the_way_it_always_was(tmp_path):
+    """The change is confined to the application that needs it. Nearly every one carries
+    one brand across several strengths, and an absorbed number must still resolve to the
+    product that absorbed it or the merge undoes itself on the next refresh."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    keep = _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1,
+                  code="NDA1")
+    _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1, code="NDA2")
+    conn.commit()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    assert assets_util.upsert_asset(conn, company, "NDA2", "Zithromax", "Azithromycin",
+                                    "small molecule", brand_key=False) == keep
+    conn.close()
