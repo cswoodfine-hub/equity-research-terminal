@@ -260,7 +260,8 @@ def test_no_seed_file_is_silently_unloaded():
     if not _db.DB_PATH.exists():
         pytest.skip(f"no built database at {_db.DB_PATH}")
     known = {line.strip() for line in
-             _pathlib.Path("data/unloaded_seed_files.txt").read_text().splitlines()
+             (db.BACKEND_DIR.parent / "data" / "unloaded_seed_files.txt"
+              ).read_text().splitlines()
              if line.strip() and not line.startswith("#")}
     conn = _db.get_connection()
     try:

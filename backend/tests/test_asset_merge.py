@@ -666,7 +666,9 @@ def test_a_split_model_is_named_in_the_alias_map():
     finally:
         conn.close()
     named = set()
-    path = _pathlib.Path("data/asset_alias_map.csv")
+    # db.BACKEND_DIR, not a relative path: the pre-push hook runs the suite from
+    # backend/ and a path relative to the repo root is not found there.
+    path = db.BACKEND_DIR.parent / "data" / "asset_alias_map.csv"
     with path.open(newline="", encoding="utf-8") as handle:
         for row in _csv.DictReader(line for line in handle
                                    if not line.lstrip().startswith("#")):
