@@ -1666,7 +1666,9 @@ def company_news(ticker: str) -> dict:
         UNION
         -- A daily pulse item naming this company and another is stored once in news,
         -- under the first, so the second reads it from the items.
-        SELECT 'pulse', p.headline, p.url, COALESCE(p.published_at, p.pulse_date)
+        -- An item that matters to it by read-across only says so in its source.
+        SELECT CASE pc.role WHEN 'read_across' THEN 'pulse (read-across)' ELSE 'pulse' END,
+               p.headline, p.url, COALESCE(p.published_at, p.pulse_date)
           FROM pulse_items p JOIN pulse_item_companies pc ON pc.item_id = p.id
          WHERE pc.company_id = ?1
            AND p.url NOT IN (SELECT url FROM news WHERE company_id = ?1)

@@ -1,0 +1,18 @@
+{"schema": 2, "pulse_date": "2026-11-10", "read": "The second invented day.",
+ "items": [
+  {"event_key": "bayn:asundexian:fda-approval", "first_reported": "2026-11-09", "update": false,
+   "tier": 1, "kind": "approval",
+   "headline": "Bayer's factor XIa approval, a day on", "detail": null,
+   "url": "https://news.example.com/bayer-approval-2", "published": "2026-11-09",
+   "entities": [{"ticker": "BAYN", "role": "subject"},
+                {"ticker": "BMY", "role": "read_across"}]},
+  {"event_key": "rog:testco:deal", "first_reported": "2026-11-09", "update": true,
+   "tier": 1, "kind": "deal",
+   "headline": "Roche and Testco disclose the upfront", "detail": null,
+   "url": "https://news.example.com/roche-testco-2", "published": "2026-11-10",
+   "entities": [{"ticker": "ROG", "role": "subject"}]},
+  {"event_key": "nvo:q3:guidance", "tier": 1, "kind": "earnings",
+   "headline": "Novo Nordisk raises guidance", "detail": null,
+   "url": "https://news.example.com/novo", "published": "2026-11-10",
+   "entities": [{"ticker": "NVO", "name": "Novo Nordisk", "role": "subject"}]}
+ ]}
