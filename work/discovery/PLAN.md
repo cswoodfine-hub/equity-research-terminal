@@ -1,6 +1,9 @@
 # Discovery: early-stage research, scored for translation and commercial relevance
 
-Status, 2026-11-13: sources verified; the feasibility backtest is next. No app code yet.
+Status, 2026-11-13: sources verified and the feasibility backtest run
+(`RESULTS_STEP1.md`). A day-one score matches iCite for clinical translation and has only
+weak signal for company formation, so the watchlist is the thing to build, not a
+commercial score. No app code yet.
 
 ## What it is
 
