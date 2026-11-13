@@ -1,7 +1,7 @@
 # Discovery step 1: the feasibility backtest
 
-Run 2026-11-13, twice: first with one company outcome (NIH small-business awards), then
-with SEC Form D and UK Companies House added. Tools: `work/discovery/tools/corpus.py`,
+Run 2026-11-13, three times: first with one company outcome (NIH small-business awards),
+then with SEC Form D and UK Companies House added, then with OpenAlex author records. Tools: `work/discovery/tools/corpus.py`,
 `outcomes.py`, `backtest.py`.
 
 ## Verdict
@@ -19,6 +19,11 @@ with SEC Form D and UK Companies House added. Tools: `work/discovery/tools/corpu
 - **First-time founders are the hard case, and the one a VC cares about.** For papers
   whose authors have no company record yet, the top tenth is 2.8 times the base rate
   (15% against 5.3%). Real, and too weak to show as a score on its own.
+
+- **Ranking lab heads works better than ranking papers.** Of 4,099 lab heads active in
+  2019 and 2020, the top twentieth by score had a company record in the next three
+  years 21% of the time, against 2.8% overall (7.5 times), and the top tenth held 46% of
+  all the events.
 
 So the section is two things. A ranked feed for clinical translation, which the score
 supports. And a watchlist built around people and labs, where the commercial signal
@@ -120,6 +125,50 @@ are not clinical: number of authors, primate, efficacy, immunogenicity.
 better than the author count. That is the register's limit as much as the model's (see
 Limits), so it is not evidence that UK spinouts cannot be seen.
 
+## Third run: OpenAlex author records
+
+OpenAlex gave a record for 22,538 of 22,583 papers and 116,064 authors, matched to
+99.5% of the corpus's author names by position and surname. It cost under 15 cents of
+the free dollar a day. Three things changed.
+
+- **Preprints join the company studies.** OpenAlex carries each author's address where
+  Europe PMC has none, so 1,047 preprints with a US or UK author come in and the scored
+  set grows from 3,923 to 5,228. iCite has no record for a preprint, so its baseline
+  drops out of these rows.
+- **The senior author's output before the paper is a feature**, rebuilt as of the
+  paper's year from OpenAlex's counts by year. It is the strongest flag for a first
+  company record on an academic paper (+0.48), ahead of anything in the abstract.
+- **Lab heads can be ranked as people.** One identifier per author lets every paper by
+  the same last or corresponding author be read together.
+
+| Study | Scored | Events, base rate | Score | AUC | Top 1% | Top 5% | Top 10% |
+|---|---|---|---|---|---|---|---|
+| Paper: any company record | 5,228 | 560, 10.7% | rules + words | 0.777 | 56%, 5.2x | 51%, 4.8x | 38%, 3.5x |
+| | | | author count | 0.623 | 25%, 2.3x | 19%, 1.8x | 18%, 1.6x |
+| Paper: first record, academic only | 3,612 | 199, 5.5% | rules + words | 0.715 | 33%, 6.1x | 24%, 4.3x | 17%, 3.2x |
+| | | | author count | 0.615 | 8%, 1.5x | 10%, 1.9x | 10%, 1.8x |
+| Lab head: any company record | 4,099 | 114, 2.8% | rules + words | 0.777 | 29%, 10.5x | 21%, 7.5x | 13%, 4.6x |
+| | | | paper count | 0.648 | 29%, 10.5x | 11%, 3.9x | 8%, 2.9x |
+| Lab head: first record | 3,815 | 68, 1.8% | rules + words | 0.699 | 21%, 11.8x | 7%, 4.1x | 5%, 2.8x |
+| | | | paper count | 0.622 | 21%, 11.8x | 6%, 3.5x | 4%, 2.5x |
+
+The first-record study on academic papers moved from AUC 0.688 to 0.715, and its top
+twentieth from 3.0 to 4.3 times the base rate. Clinical translation did not move
+(AUC 0.849 against iCite's 0.854). The UK study is still no better than its floor.
+
+A lab head is anyone who was last or corresponding author, at a US or UK address, on a
+corpus paper in the two years to the cutoff: 6,340 people. They are described by all
+their papers to that date and scored on their own later records, trained at the end of
+2018 and scored at the end of 2020.
+
+**"No company record yet" means none in these three sources, and that is not the same
+as never having founded a company.** The top of the first-record list holds Jennifer
+Doudna, Matthew Porteus, Robert MacLaren and Adrian Thrasher. All had founded companies
+before 2020. None had been an officer or director on a Form D, held a small-business
+award, or held 25% of a live UK company. So part of what the first-record score learns
+is "senior and prolific", which finds known founders the sources miss as well as new
+ones. For lab heads the score barely clears the paper count on this study.
+
 ## What went wrong on the way, and the fix
 
 - **Name matching.** The first award outcome matched on first and last name alone. Of 574
@@ -164,8 +213,15 @@ Limits), so it is not evidence that UK spinouts cannot be seen.
 - **Preprints fall out of the company studies:** Europe PMC gives them no per-author
   address.
 - **Few events.** 40 to 148 in the first-record and UK studies, so those lifts are rough.
-- **Name matching is still name matching.** The state and town rules cut false matches
-  and lose some real ones. An author identifier (ORCID, OpenAlex) would do both better.
+- **Name matching is still name matching on the company side.** OpenAlex identifies the
+  author, but an award, a Form D and the UK register carry only a name and a place, so
+  the state and town rules still decide a match. They cut false matches and lose some
+  real ones.
+- **Founders who are neither officer nor director are not seen.** A scientific founder
+  with an advisory seat and under 25% leaves no trace in these sources. Patents by
+  inventor would catch many of them.
+- **OpenAlex's author totals are today's, wound back by year.** Its merging of people
+  with a shared name is not perfect, so a common name can carry someone else's papers.
 - **Conflict-of-interest text exists for 7,685 of 20,807 papers** in PubMed's field.
 - **iCite's score reads today's record,** so it is a harder baseline than a day-one score
   would face.
@@ -182,7 +238,9 @@ Limits), so it is not evidence that UK spinouts cannot be seen.
    again" is easy to rank and already useful. "Labs with no company yet" is the list a
    VC cannot get elsewhere, and the one where the score is weakest, so it is shown as a
    watchlist with evidence, not as a ranking to trust.
-4. **Still to add before a commercial score is shown:** patents by inventor match
-   (needs the USPTO key), UK directors (needs a Companies House key), and author
-   identifiers in place of names. Then retest.
-5. **Embeddings** in place of word counts, once a key or a local model is available.
+4. **Rank lab heads, and show papers under them.** The lab-level ranking is the
+   stronger one for company activity, and it is the object a watchlist is made of.
+5. **Still to add before a "first-time founder" list is trusted:** patents by inventor
+   match (needs the USPTO key) and UK directors (needs a Companies House key). Both
+   find founders the present sources miss, which is the gap that list has. Then retest.
+6. **Embeddings** in place of word counts, once a key or a local model is available.

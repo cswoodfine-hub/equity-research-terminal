@@ -5,6 +5,7 @@
     python3 work/discovery/tools/outcomes.py coi <corpus folder> <out.ndjson>
     python3 work/discovery/tools/outcomes.py formd <out.ndjson> [first year] [last year]
     python3 work/discovery/tools/outcomes.py uk <work folder> <out.ndjson>
+    python3 work/discovery/tools/outcomes.py openalex <corpus folder> <out folder>
 
 - ``sbir``: every NIH small-business award (SBIR and STTR, activity codes R41 to R44, U43,
   U44, SB1) from RePORTER, with its investigators, organisation and start date.
@@ -19,6 +20,12 @@
   natural-science research code (Companies House's free company data product), with its
   persons with significant control from the ownership snapshot. The snapshot is 33 files
   of about 85 MB; each is read and deleted in turn.
+- ``openalex``: OpenAlex's record of each paper's authors (an identifier per person, the
+  institutions with country and type, the address as printed, who is corresponding) and
+  of each author (works and citations by year, institutions by year). ``OPENALEX_API_KEY``
+  must hold a key; a list call costs $0.0001 and the whole corpus about 13 cents.
+  OpenAlex folds a preprint and its published version into one work, so a preprint's
+  authors are those of the published paper where there is one.
 """
 
 import csv
@@ -315,6 +322,108 @@ def uk(work, out):
             handle.write(json.dumps(company) + "\n")
 
 
+def _openalex(path, key, **query):
+    url = "https://api.openalex.org" + path + "?" + urllib.parse.urlencode(query)
+    for attempt in range(6):
+        try:
+            request = urllib.request.Request(url, headers=dict(
+                UA, Authorization="Bearer " + key))
+            with urllib.request.urlopen(request, timeout=120) as resp:
+                return json.load(resp)["results"]
+        except Exception as exc:                               # noqa: BLE001
+            print("retry", attempt, str(exc)[:100], flush=True)
+            time.sleep(2 ** (attempt + 1))
+    raise RuntimeError("no answer from OpenAlex")
+
+
+def _short(identifier):
+    return (identifier or "").rsplit("/", 1)[-1]
+
+
+def openalex(folder, out):
+    key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
+    if not key:
+        sys.exit("OPENALEX_API_KEY is empty")
+    out = pathlib.Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    by_pmid, by_doi = {}, {}
+    for path in sorted(pathlib.Path(folder).glob("*.ndjson")):
+        for line in path.open():
+            r = json.loads(line)
+            if r.get("pmid"):
+                by_pmid[str(r["pmid"])] = r["id"]
+            elif r.get("doi"):
+                by_doi[r["doi"].lower()] = r["id"]
+    people, found = set(), 0
+    with open(out / "works.ndjson", "w") as handle:
+        def keep(paper, work):
+            nonlocal found
+            authors = []
+            for a in work.get("authorships") or []:
+                person = _short((a.get("author") or {}).get("id"))
+                people.add(person)
+                authors.append({
+                    "aid": person, "name": (a.get("author") or {}).get("display_name"),
+                    "raw_name": a.get("raw_author_name"),
+                    "orcid": _short((a.get("author") or {}).get("orcid")) or None,
+                    "position": a.get("author_position"),
+                    "corresponding": bool(a.get("is_corresponding")),
+                    "countries": a.get("countries") or [],
+                    "institutions": [{"id": _short(i.get("id")), "name": i.get("display_name"),
+                                      "country": i.get("country_code"), "type": i.get("type")}
+                                     for i in a.get("institutions") or []],
+                    "addresses": a.get("raw_affiliation_strings") or []})
+            handle.write(json.dumps({"id": paper, "work": _short(work.get("id")),
+                                     "authors": authors}) + "\n")
+            found += 1
+
+        pmids = sorted(by_pmid, key=int)
+        for i in range(0, len(pmids), 100):
+            for work in _openalex("/works", key, filter="pmid:" + "|".join(pmids[i:i + 100]),
+                                  select="id,ids,authorships", **{"per-page": 100}):
+                paper = by_pmid.get(_short((work.get("ids") or {}).get("pmid")))
+                if paper:
+                    keep(paper, work)
+            time.sleep(0.1)
+        dois = sorted(by_doi)
+        for i in range(0, len(dois), 50):
+            for work in _openalex("/works", key, filter="doi:" + "|".join(dois[i:i + 50]),
+                                  select="id,doi,locations,authorships", **{"per-page": 100}):
+                # The work's own DOI is the published paper's; the preprint is a location.
+                seen = [(work.get("doi") or "")] + [
+                    (place.get("landing_page_url") or "") + " " + (place.get("id") or "")
+                    for place in work.get("locations") or []]
+                paper = next((by_doi[d] for d in dois[i:i + 50]
+                              if any(d in text.lower() for text in seen)), None)
+                if paper:
+                    keep(paper, work)
+            time.sleep(0.1)
+    print("works", found, "of", len(by_pmid) + len(by_doi), "; authors", len(people),
+          flush=True)
+    people = sorted(p for p in people if p)
+    with open(out / "authors.ndjson", "w") as handle:
+        for i in range(0, len(people), 100):
+            for a in _openalex("/authors", key, filter="id:" + "|".join(people[i:i + 100]),
+                               select="id,display_name,works_count,cited_by_count,"
+                                      "summary_stats,counts_by_year,affiliations",
+                               **{"per-page": 100}):
+                handle.write(json.dumps({
+                    "aid": _short(a.get("id")), "name": a.get("display_name"),
+                    "works": a.get("works_count"), "cited": a.get("cited_by_count"),
+                    "h": (a.get("summary_stats") or {}).get("h_index"),
+                    "by_year": [[y.get("year"), y.get("works_count"), y.get("cited_by_count")]
+                                for y in a.get("counts_by_year") or []],
+                    "institutions": [
+                        {"name": (x.get("institution") or {}).get("display_name"),
+                         "country": (x.get("institution") or {}).get("country_code"),
+                         "type": (x.get("institution") or {}).get("type"),
+                         "years": x.get("years") or []}
+                        for x in a.get("affiliations") or []]}) + "\n")
+            time.sleep(0.1)
+            if i % 10000 == 0:
+                print("authors", i, "of", len(people), flush=True)
+
+
 if __name__ == "__main__":
     what = sys.argv[1]
     if what == "sbir":
@@ -327,3 +436,5 @@ if __name__ == "__main__":
         formd(sys.argv[2], *(int(a) for a in sys.argv[3:5]))
     elif what == "uk":
         uk(sys.argv[2], sys.argv[3])
+    elif what == "openalex":
+        openalex(sys.argv[2], sys.argv[3])

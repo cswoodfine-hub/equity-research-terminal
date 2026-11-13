@@ -30,6 +30,17 @@ model the work reached and for CGT de-risking terms; a company among the affilia
 author already holding a small-business award; phrases of the conflict-of-interest
 statement. MeSH terms are not used: they are assigned months later.
 
+**OpenAlex**, where ``openalex/`` is in the data folder, adds an identifier per author,
+the address of each author on a preprint (Europe PMC gives none, so with it preprints
+join the company studies), the institution's country and type, and how much the last
+author had published and been cited before the paper's year. OpenAlex gives an author's
+totals as they stand today and by year, so the years from the paper's on are taken off.
+
+**Labs.** A second test ranks people, not papers: everyone who was last or corresponding
+author on a paper in the two years to a cutoff, described by all their papers to that
+date, and scored on whether they themselves get a company record in the three years
+after. Trained at the end of 2018, scored at the end of 2020.
+
 **Split.** Trained on 2017 and 2018, scored on 2019 and 2020.
 
 **Baselines.** iCite's ``apt``, computed from today's record, citations since
@@ -218,8 +229,88 @@ def load(folder):
                     owners[key].append((notified, born, (c.get("post_town") or "").lower(),
                                         bool(ACADEMIC_TITLE.match(person.get("title") or "")),
                                         c.get("name")))
+    people = {}
+    if (folder / "openalex" / "works.ndjson").exists():
+        for line in (folder / "openalex" / "works.ndjson").open():
+            record = json.loads(line)
+            if record["id"] in papers:
+                _attach(papers[record["id"]], record["authors"])
+        people = {r["aid"]: r for r in map(json.loads,
+                                           (folder / "openalex" / "authors.ndjson").open())}
     return {"papers": list(papers.values()), "icite": icite, "coi": coi, "awards": awards,
-            "officers": officers, "owners": owners}
+            "officers": officers, "owners": owners, "people": people}
+
+
+def _attach(paper, theirs):
+    """Give each of the paper's authors OpenAlex's record of them, matched on position and
+    surname. A paper with no author list of its own takes OpenAlex's."""
+    ours = paper.get("authors") or []
+    if not ours:
+        ours = paper["authors"] = [
+            {"first": " ".join((a.get("name") or "").split()[:-1]),
+             "last": (a.get("name") or " ").split()[-1], "affiliations": []} for a in theirs]
+    names = [_norm(f"{a.get('raw_name') or ''} {a.get('name') or ''}") for a in theirs]
+    taken = set()
+    for i, author in enumerate(ours):
+        last = _norm(author.get("last"))
+        if len(last) < 2:
+            continue
+        order = ([i] if len(ours) == len(theirs) else []) + list(range(len(theirs)))
+        for j in order:
+            if j not in taken and last in names[j]:
+                taken.add(j)
+                author["oa"] = theirs[j]
+                break
+
+
+def _before(person, year):
+    """(works, citations) OpenAlex credits a person with before ``year``."""
+    if not person:
+        return 0, 0
+    works = (person.get("works") or 0) - sum(w or 0 for y, w, _c in person["by_year"]
+                                             if y >= year)
+    cited = (person.get("cited") or 0) - sum(c or 0 for y, _w, c in person["by_year"]
+                                             if y >= year)
+    return max(0, works), max(0, cited)
+
+
+def _author(author):
+    """(name key, addresses, at a US address, at a UK address, at a company)."""
+    theirs = author.get("oa") or {}
+    addresses = ([x.strip() for x in (author.get("affiliations") or []) if x]
+                 or [x.strip() for x in theirs.get("addresses") or [] if x])
+    countries = set(theirs.get("countries") or [])
+    return (_name(author.get("first"), author.get("last")), addresses,
+            "US" in countries or any(US_ADDRESS.search(x) for x in addresses),
+            "GB" in countries or any(UK_ADDRESS.search(x) for x in addresses),
+            any(i.get("type") == "company" for i in theirs.get("institutions") or []))
+
+
+def _footprints(key, initial, addresses, american, in_uk, data):
+    """The company records taken as this person's: (kind, date, detail), where detail is
+    whether an award is about gene or cell therapy, or the day a UK company was formed."""
+    found = []
+    if american:
+        found += [("sbir", start, about) for start, about, _o in data["awards"].get(key) or ()]
+        states = _states(addresses)
+        found += [("formd", when, True)
+                  for when, where, theirs, _issuer in data["officers"].get(key) or ()
+                  if states & where or (initial and initial == theirs)]
+    if in_uk:
+        text = " ".join(addresses).lower()
+        found += [("uk", notified, born)
+                  for notified, born, town, titled, _c in data["owners"].get(key) or ()
+                  if titled or (town and town in text)]
+    return found
+
+
+def _split(records, date, until):
+    """The kinds of record a person had by ``date`` and gained by ``until``. A UK company
+    counts as gained only if it was formed after the date."""
+    had = {kind for kind, when, _d in records if when <= date}
+    later = {kind for kind, when, detail in records
+             if date < when <= until and (detail > date if kind == "uk" else detail)}
+    return had, later
 
 
 def describe(paper, data):
@@ -229,45 +320,32 @@ def describe(paper, data):
     until = date + dt.timedelta(days=HORIZON_DAYS)
     # A company record can only be seen for a paper with a named author at a US or UK
     # address: the awards and Form D are American, the ownership register British.
-    eligible = british = False
+    eligible = british = at_company = False
     before = after = after_new = False
     filed_before = filed = owned_before = owned = fresh = False
+    senior = most = (0, 0)
     for author in paper.get("authors") or []:
-        addresses = [x.strip() for x in (author.get("affiliations") or []) if x]
-        american = any(US_ADDRESS.search(x) for x in addresses)
-        in_uk = any(UK_ADDRESS.search(x) for x in addresses)
-        key = _name(author.get("first"), author.get("last"))
+        key, addresses, american, in_uk, commercial = _author(author)
+        at_company |= commercial
+        theirs = author.get("oa") or {}
+        record = _before(data["people"].get(theirs.get("aid")), date.year)
+        most = max(most, record)
+        if theirs.get("position") == "last":
+            senior = record
         if not key or not (american or in_uk):
             continue
         eligible |= american
         british |= in_uk
-        had = later = had_filing = later_filing = had_company = later_company = False
-        if american:
-            mine = awards.get(key) or ()
-            had = any(start <= date for start, _a, _o in mine)
-            later = any(date < start <= until and about for start, about, _o in mine)
-            states, initial = _states(addresses), _initial(author.get("first"))
-            for when, where, theirs, _issuer in data["officers"].get(key) or ():
-                if not (states & where or (initial and initial == theirs)):
-                    continue
-                had_filing |= when <= date
-                later_filing |= date < when <= until
-        if in_uk:
-            text = " ".join(addresses).lower()
-            for notified, born, town, titled, _company in data["owners"].get(key) or ():
-                if not (titled or (town and town in text)):
-                    continue
-                had_company |= notified <= date
-                later_company |= born > date and date < notified <= until
-        before |= had
-        after |= later
-        after_new |= later and not had
-        filed_before |= had_filing
-        filed |= later_filing
-        owned_before |= had_company
-        owned |= later_company
-        fresh |= ((later or later_filing or later_company)
-                  and not (had or had_filing or had_company))
+        had, later = _split(_footprints(key, _initial(author.get("first")), addresses,
+                                        american, in_uk, data), date, until)
+        before |= "sbir" in had
+        after |= "sbir" in later
+        after_new |= "sbir" in later and "sbir" not in had
+        filed_before |= "formd" in had
+        filed |= "formd" in later
+        owned_before |= "uk" in had
+        owned |= "uk" in later
+        fresh |= bool(later) and not had
     record = icite.get(str(paper.get("pmid") or ""))
     clinical = None
     if record is not None:
@@ -276,8 +354,8 @@ def describe(paper, data):
     affiliations = " ; ".join(x for a in paper.get("authors") or []
                               for x in (a.get("affiliations") or []) if x)
     affiliations = affiliations or (paper.get("affiliation") or "")
-    company = any(COMPANY.search(part) and not NOT_COMPANY.search(part)
-                  for part in re.split(r";", affiliations))
+    company = at_company or any(COMPANY.search(part) and not NOT_COMPANY.search(part)
+                                for part in re.split(r";", affiliations))
     text = f"{paper.get('title') or ''}. {paper.get('abstract') or ''}"
     flags = {name: int(bool(re.search(rule, text, re.I))) for name, rule in RULES.items()}
     stated = coi.get(str(paper.get("pmid") or ""), "")
@@ -289,6 +367,9 @@ def describe(paper, data):
     flags["prior_uk_company"] = int(owned_before)
     flags["us_author"] = int(eligible)
     flags["uk_author"] = int(british)
+    flags["senior_works"] = float(np.log1p(senior[0]))
+    flags["senior_cited"] = float(np.log1p(senior[1]))
+    flags["most_cited_author"] = float(np.log1p(most[1]))
     flags["preprint"] = int(paper.get("source") == "PPR")
     flags["authors_log"] = float(np.log1p(len(paper.get("authors") or [])))
     types = " ".join(paper.get("pub_types") or [])
@@ -311,7 +392,7 @@ def _top(scores, labels, share):
     return hits / k, hits / max(1, labels.sum())
 
 
-def evaluate(rows, outcome, where, out):
+def evaluate(rows, outcome, where, out, floor=("authors_log", "author count (floor)")):
     """Train on 2017-18, score 2019-20, and report the top of the list."""
     rows = [r for r in rows if r[outcome] is not None and where(r)]
     train = [r for r in rows if r["year"] <= 2018]
@@ -345,9 +426,9 @@ def evaluate(rows, outcome, where, out):
         scores["iCite apt (baseline)"] = np.nan_to_num(apt, nan=-1.0)
     # A paper with more authors has more names that can match a company record, by chance
     # or not, so the count alone is the floor any company outcome has to clear.
-    scores["author count (floor)"] = np.array([r["flags"]["authors_log"] for r in test])
+    scores[floor[1]] = np.array([r["flags"][floor[0]] for r in test])
     base = y_test.mean()
-    print(f"  papers scored {len(test):,}, events {int(y_test.sum())}, base rate {base:.1%}"
+    print(f"  scored {len(test):,}, events {int(y_test.sum())}, base rate {base:.1%}"
           f" (trained on {len(train):,} with {int(y_train.sum())})")
     result = {"n": len(test), "events": int(y_test.sum()), "base": float(base), "scores": {}}
     for name, s in scores.items():
@@ -371,6 +452,52 @@ def evaluate(rows, outcome, where, out):
                            "event": bool(y_test[i])} for i in order]
     out.append(result)
     return result
+
+
+def labs(data, described):
+    """One row per lab head and cutoff: what was known of them at the cutoff, and whether
+    they gained a company record in the three years after."""
+    flags_of = {r["id"]: r for r in described}
+    people = collections.defaultdict(list)
+    for paper in data["papers"]:
+        for author in paper.get("authors") or []:
+            theirs = author.get("oa") or {}
+            key, addresses, american, in_uk, _c = _author(author)
+            if (theirs.get("aid") and key and (american or in_uk)
+                    and (theirs.get("position") == "last" or theirs.get("corresponding"))):
+                people[theirs["aid"]].append((paper, key, _initial(author.get("first")),
+                                              addresses, american, in_uk))
+    rows = []
+    for year in (2018, 2020):
+        cutoff = dt.date(year, 12, 31)
+        until = cutoff + dt.timedelta(days=HORIZON_DAYS)
+        for aid, theirs in people.items():
+            known = [t for t in theirs if t[0]["date"] <= cutoff]
+            if not any(t[0]["date"].year >= year - 1 for t in known):
+                continue
+            records = set()
+            for _paper, key, initial, addresses, american, in_uk in known:
+                records |= set(_footprints(key, initial, addresses, american, in_uk, data))
+            had, later = _split(records, cutoff, until)
+            papers = [flags_of[t[0]["id"]] for t in known]
+            flags = {name: float(np.mean([p["flags"][name] for p in papers]))
+                     for name in papers[0]["flags"]
+                     if name not in ("authors_log", "senior_works", "senior_cited",
+                                     "most_cited_author", "prior_award", "prior_filing",
+                                     "prior_uk_company")}
+            works, cited = _before(data["people"].get(aid), year + 1)
+            flags.update({
+                "papers_log": float(np.log1p(len(known))),
+                "works_log": float(np.log1p(works)), "cited_log": float(np.log1p(cited)),
+                "prior_award": int("sbir" in had), "prior_filing": int("formd" in had),
+                "prior_uk_company": int("uk" in had)})
+            rows.append({
+                "text": " ".join(p["text"] for p in papers)[:20000], "flags": flags,
+                "year": year, "apt": None, "id": aid,
+                "title": f"{(data['people'].get(aid) or {}).get('name') or aid}"
+                         f" ({len(known)} papers)",
+                "lab": bool(later), "lab_new": bool(later) and not had, "had": bool(had)})
+    return rows
 
 
 def main(argv):
@@ -406,6 +533,18 @@ def main(argv):
         evaluate(rows, outcome, where, out)
         if out:
             report[label] = out[0]
+    if data["people"]:
+        heads = labs(data, rows)
+        print(f"\n{len({r['id'] for r in heads}):,} lab heads at a US or UK address")
+        for outcome, label, where in (
+                ("lab", "lab heads: any company record in the next 3 years", lambda r: True),
+                ("lab_new", "lab heads with no company record yet: a first one",
+                 lambda r: not r["had"])):
+            print(f"\n{label}")
+            out = []
+            evaluate(heads, outcome, where, out, floor=("papers_log", "paper count (floor)"))
+            if out:
+                report[label] = out[0]
     if "--json" in argv:
         pathlib.Path(argv[argv.index("--json") + 1]).write_text(json.dumps(report, indent=1))
 

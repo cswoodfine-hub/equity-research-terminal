@@ -1,8 +1,8 @@
 # Discovery: early-stage research, scored for translation and commercial relevance
 
-Status, 2026-11-13: sources verified and the feasibility backtest run twice
-(`RESULTS_STEP1.md`), the second time with SEC Form D and UK Companies House as company
-outcomes. A day-one score matches iCite for clinical translation. For company activity
+Status, 2026-11-13: sources verified and the feasibility backtest run three times
+(`RESULTS_STEP1.md`): with SEC Form D and UK Companies House added as company outcomes,
+then with OpenAlex author records, which let lab heads be ranked as people. A day-one score matches iCite for clinical translation. For company activity
 the authors' record carries the signal (42% of papers by a prior Form D officer lead to
 another filing, against 5%), and first-time founders stay hard to rank. So the thing to
 build is a ranked feed plus a watchlist of people and labs, not a commercial score. No
@@ -61,8 +61,9 @@ Gene Therapy Catapult, Crossref, PatentsView.
    and author matching on USPTO data, which is public domain but needs a free USPTO key
    (`api.uspto.gov`, sent as `X-Api-Key`). Not set up, so patents are not in the
    backtest.
-2. **OpenAlex key.** Requested 2026-11-13 and waiting on the activation email. It would
-   replace name matching with author identifiers. Semantic Scholar's is still open.
+2. **OpenAlex key.** Active from 2026-11-13, $1 of free use a day; the whole corpus cost
+   under 15 cents. It is in the backtest (author identifiers, preprint addresses, the
+   senior author's prior output). Semantic Scholar's is still open and not needed.
 3. **SEC identifier** for Form D: agreed 2026-11-13, and the outcome is in the backtest.
 4. **Companies House API key** (free). The bulk files give owners of 25% or more only;
    the API gives directors, which is where a diluted academic founder shows.
