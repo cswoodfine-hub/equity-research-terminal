@@ -1,9 +1,12 @@
 # Discovery: early-stage research, scored for translation and commercial relevance
 
-Status, 2026-11-13: sources verified and the feasibility backtest run
-(`RESULTS_STEP1.md`). A day-one score matches iCite for clinical translation and has only
-weak signal for company formation, so the watchlist is the thing to build, not a
-commercial score. No app code yet.
+Status, 2026-11-13: sources verified and the feasibility backtest run twice
+(`RESULTS_STEP1.md`), the second time with SEC Form D and UK Companies House as company
+outcomes. A day-one score matches iCite for clinical translation. For company activity
+the authors' record carries the signal (42% of papers by a prior Form D officer lead to
+another filing, against 5%), and first-time founders stay hard to rank. So the thing to
+build is a ranked feed plus a watchlist of people and labs, not a commercial score. No
+app code yet.
 
 ## What it is
 
@@ -55,11 +58,14 @@ Gene Therapy Catapult, Crossref, PatentsView.
 ## Open decisions
 
 1. **Patent label.** Reliance on Science is non-commercial. The clean route is inventor
-   and author matching on USPTO data, which is public domain but needs a free USPTO key.
-2. **OpenAlex and Semantic Scholar keys.** Both free; OpenAlex's needs an email click.
-   The backtest does not need either: Europe PMC carries authors and affiliations, and
-   word-frequency features stand in for embeddings.
-3. **SEC identifier** for Form D, the US company signal.
+   and author matching on USPTO data, which is public domain but needs a free USPTO key
+   (`api.uspto.gov`, sent as `X-Api-Key`). Not set up, so patents are not in the
+   backtest.
+2. **OpenAlex key.** Requested 2026-11-13 and waiting on the activation email. It would
+   replace name matching with author identifiers. Semantic Scholar's is still open.
+3. **SEC identifier** for Form D: agreed 2026-11-13, and the outcome is in the backtest.
+4. **Companies House API key** (free). The bulk files give owners of 25% or more only;
+   the API gives directors, which is where a diluted academic founder shows.
 
 ## Step 1: the feasibility backtest
 
@@ -68,8 +74,10 @@ Gene Therapy Catapult, Crossref, PatentsView.
 - **Outcomes, within three years of publication, each from a free source:**
   - cited by a clinical article (iCite);
   - an SBIR or STTR award whose PI is an author (RePORTER), US;
-  - an Innovate UK or EU company grant naming an author (GtR, CORDIS), UK and Europe;
-  - later: a patent, a Form D, a Companies House spinout.
+  - a biotech Form D naming an author as officer or director (SEC data sets), US;
+  - a new UK research company an author controls (Companies House bulk files), UK;
+  - not done: an Innovate UK or EU company grant naming an author (CORDIS carries no
+    investigator names), and a patent (needs the USPTO key).
 - **Score, from what was knowable on publication day:** rule features (model ladder from
   species tags, CGT terms such as vg/kg, NHP, neutralising antibodies, off-target
   analysis; conflict-of-interest phrases) plus a word-frequency model, trained on 2017
@@ -81,6 +89,9 @@ Gene Therapy Catapult, Crossref, PatentsView.
   are the visible outcomes, not every commercial one.
 
 Stop after the report. The section is built only if the top of the list beats the baseline.
+
+Outcome: it does for company activity and ties for clinical translation. See
+`RESULTS_STEP1.md` for what that supports building and what it does not.
 
 ## Later steps
 
