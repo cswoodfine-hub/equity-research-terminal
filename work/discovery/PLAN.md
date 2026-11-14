@@ -94,9 +94,78 @@ Stop after the report. The section is built only if the top of the list beats th
 Outcome: it does for company activity and ties for clinical translation. See
 `RESULTS_STEP1.md` for what that supports building and what it does not.
 
+## Step 2: the Discovery tab (front end)
+
+Prototype, on real backtest output: https://claude.ai/artifact/Johy1LTTuLw5hirdYdQeVP
+(source in `work/discovery/prototype/`). It shows the section as it would have stood on
+31 December 2020, with what happened in the next three years beside each row.
+
+**Where it sits.** A top-level tab, "Discovery", beside Universe and Themes on the cell
+and gene engine. It is about the sector, not the selected ticker, so it ignores the
+company picker the way Universe does. A module of its own (`frontend/discovery_view.py`),
+drawn with the existing tokens and `theme.py`; no new colour.
+
+**Four views.**
+
+| View | The question it answers | Main parts |
+|---|---|---|
+| Labs (opens first) | Who should I be watching? | Ranked lab heads; what they work on; furthest model reached; interests declared in their papers; company records to date; score. A row opens to a timeline of papers and records, and their papers. |
+| Papers | What came out, and what is closest to patients? | Ranked by translation or company score, or newest; the model ladder (human cells, mouse, large animal, primate, patients); six de-risking flags; the authors' record. |
+| Lit up | What changed for the labs I watch? | A dated feed: a new Form D, award or company naming a watched or top-ranked lab head. Feeds the terminal's What changed too. |
+| How good is it | Can I trust the ranking? | The backtest: what the top 5% held against the base rate and a plain count, and what the sources cannot see. |
+
+**Rules for the copy.**
+
+- Every company record says how it was matched ("by name and state, not verified") and
+  links to its source: the SEC filing, the RePORTER project, the Companies House page.
+- A paper with no US or UK author shows "not scored" for company, never a blank or zero.
+- A score is shown as a rank ("top 2%"), never as a probability or a made-up number.
+- No list is called "first-time founders" until patents and UK directors are in.
+- House style: sentence case, no em dashes, the number or the change first.
+
+**What it needs from the back end.** Five reads, each a plain table behind it.
+
+| Read | Returns |
+|---|---|
+| `/discovery/labs` | ranked lab heads, filtered by modality, country, record, text |
+| `/discovery/labs/{id}` | one lab head: papers, records, timeline |
+| `/discovery/papers` | scored papers, filtered and sorted |
+| `/discovery/events` | new records since a date, for the feed |
+| `/discovery/method` | the backtest figures the fourth view draws |
+
+Tables: `discovery_papers`, `discovery_people`, `discovery_paper_people`,
+`discovery_records` (kind, date, name as filed, source link, how matched),
+`discovery_scores` (with the model version), `discovery_watch` (pinned labs),
+`discovery_record_overrides` (a match marked wrong, the same pattern as
+`trial_asset_map`).
+
+**Order of work.**
+
+1. **F1, read-only on the backtest snapshot.** Load the prototype's data into the
+   tables, add the five reads, build Labs, Papers and How good is it in the app. No
+   fetcher yet. This settles the layout in the real terminal.
+2. **F2, live.** A daily fetcher for new papers and preprints (Europe PMC by date,
+   OpenAlex for authors), a weekly one for records (Form D, RePORTER, Companies House).
+   Snapshots and diffs as every other source, so Lit up is the change feed. "New this
+   week" becomes the opening filter on Papers.
+3. **F3, watchlist.** Pin a lab; pinned labs lead the Labs view and their records reach
+   What changed. Mark a record as the wrong person.
+4. **F4, the VC layer.** For a lab or paper: likely buyers and comparable deals from
+   the terminal's own deal and pipeline tables; the quote behind each flag, read by the
+   model where a key is present and left out where not.
+
+**Decisions to agree before F1.**
+
+1. Labs opens first, not Papers (the backtest says the lab ranking is the stronger one).
+2. The tab shows on the cell and gene engine only, or on every engine.
+3. The opening state of Labs once live: the whole ranking, or labs with something new
+   in the last 30 days.
+4. Whether "what happened next" stays as a backtest toggle in the live section, for
+   showing how the ranking held up, or lives only on How good is it.
+
 ## Later steps
 
-2. Daily feed: ingestion, extraction with quotes, the score, a Discovery tab.
-3. Linkage and alerts: the "lights up" change feed for papers and labs.
-4. The VC layer: likely buyers and comparable deals from the terminal's own tables,
-   white space, lab watchlists, memo stubs.
+5. Patents by inventor (USPTO key) and UK directors (Companies House key), then retest
+   and decide on a first-time founder list.
+6. Europe: a person-level company source for the continent, if a free one is found.
+7. Embeddings in place of word counts.
