@@ -120,6 +120,24 @@ read why it is ranked on the right. One search box, one row of topic chips, thre
 "How reliable is this?" is a link in the top bar that opens the backtest as a side
 sheet. It is read once, so it does not take a tab.
 
+**A fourth view, Patterns (2026-11-14).** Five figures drawn from the whole corpus, not
+the rows on screen (`prototype/figures/`). Each is headed by its finding and ends with
+what to do about it and what it cannot show.
+
+| Figure | What it showed on 2026-11-14 | Keep? |
+|---|---|---|
+| Topics: growth in papers against the share of lab heads with a company record | In vivo CAR-T 4.1 times the papers of two years before, LNP delivery beyond the liver 2.8, CAR-T for autoimmune disease 2.6 | Yes. Topics are keyword rules and want curating. |
+| Read depth: share of future company labs found against share of the list read | Top 5% finds 40%, top 10% 50%, top 20% 62% (paper count: 14%, 21%, 36%) | Yes |
+| Co-authorship among the top 300 lab heads | 119 are linked; 65 form one group around CAR-T and gene editing | Yes, with the warning that a hollow dot is "none seen", not "no company" |
+| First company record by whether a co-author already had one | 3.8% against 1.8% (2020 cohort), 2.2% against 1.4% (2022) | Yes, and it becomes a model feature |
+| Share of lab heads with a company record, by institution | From 27% (Stanford University) to 0% (Children's Hospital of Philadelphia) | Only with its caveats; the low end may be the sources |
+| Fastest-rising phrases in titles | Generic wording | No |
+| Share of papers with patient data, by modality and year | Flat, except LNP and mRNA falling from 21% to 13% | No |
+
+Still to try, each needing data not yet held: time from a lab's first large-animal
+paper to its first company record; patents per lab; who funds whom (Form D names no
+investors, so this needs another source).
+
 **Built as a component, not as Streamlit widgets.** Streamlit reruns the script on every
 widget change, so a click on a row would take a round trip. The list and panel are one
 custom component in `frontend/components/discovery/`, the pattern `compsval` and

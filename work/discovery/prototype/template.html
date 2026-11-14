@@ -187,7 +187,67 @@ button { cursor: pointer; }
 .sheet ul { margin: 0; padding-left: 18px; }
 .sheet li { font-family: var(--prose); font-size: 15.5px; line-height: 1.5; margin-bottom: 6px; max-width: 58ch; }
 
+.fig { margin: 0 0 34px; padding-top: 18px; border-top: 1px solid var(--rule-strong); max-width: 980px; }
+.fig h2 { font-size: 19px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; line-height: 1.25; }
+.fig .how { color: var(--muted); font-size: 14px; margin: 0 0 12px; max-width: 78ch; }
+.fig .so { font-family: var(--prose); font-size: 16px; line-height: 1.5; max-width: 70ch; margin: 12px 0 0; }
+.fig .so b { font-family: var(--ui); font-size: 14px; font-weight: 600; }
+.fig svg { display: block; width: 100%; height: auto; }
+.wide { overflow-x: auto; }
+.wide svg { min-width: 640px; }
+svg .grid { stroke: var(--rule); stroke-width: 1; }
+svg .ref { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+svg .tick { fill: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+svg .axis { fill: var(--muted); font-family: var(--ui); font-size: 12.5px; }
+svg .note { fill: var(--flag); font-family: var(--ui); font-size: 12.5px; }
+svg .lab { fill: var(--text); font-family: var(--ui); font-size: 12.5px; }
+svg .lab.dim { fill: var(--muted); }
+svg .lab.small { font-size: 11px; paint-order: stroke; stroke: var(--ground); stroke-width: 3px; }
+svg .bub { fill: var(--up); fill-opacity: .5; stroke: var(--up); stroke-width: 1.5; cursor: default; transition: fill-opacity var(--motion) var(--ease); }
+svg .bub:hover, svg .bub:focus { fill-opacity: .9; outline: none; }
+svg .line { fill: none; stroke: var(--up); stroke-width: 2.5; stroke-linejoin: round; }
+svg .line.grey { stroke: var(--muted); stroke-width: 2; }
+svg .pt { fill: var(--up); stroke: var(--ground); stroke-width: 2; }
+svg .hit { fill: transparent; }
+svg .hit:hover, svg .hit:focus { fill: var(--text); fill-opacity: .05; outline: none; }
+svg .edge { stroke: var(--rule-strong); }
+svg .node { stroke: var(--ground); stroke-width: 2; cursor: pointer; transition: transform var(--motion) var(--ease); transform-box: fill-box; transform-origin: center; }
+svg .node:hover, svg .node:focus { transform: scale(1.35); outline: none; }
+svg .node.rec { fill: var(--up); }
+svg .node.new { fill: var(--flag); }
+svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; margin-bottom: 8px; align-items: center; }
+.legend .dim { color: var(--muted); }
+.legend .k { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; background: var(--up); }
+.legend .k.new { background: var(--flag); }
+.legend .k.none { background: var(--ground); border: 1.5px solid var(--muted); }
+.bars { display: grid; gap: 3px; }
+.brow { display: grid; grid-template-columns: minmax(0, 300px) minmax(60px, 1fr) 5ch 10ch; gap: 10px; align-items: center; font-size: 13.5px; min-height: 22px; }
+.brow.two { grid-template-columns: minmax(0, 210px) minmax(60px, 1fr) 6ch 11ch; }
+.brow .bl { overflow-wrap: anywhere; }
+.brow .track { height: 10px; background: var(--tint-1); }
+.brow .track i { display: block; height: 100%; background: var(--up); border-radius: 0 2px 2px 0; }
+.brow .bv { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.brow .bn { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 32px; }
+.nums { margin-top: 10px; font-size: 13px; }
+.nums summary { cursor: pointer; color: var(--muted); min-height: 28px; }
+.nums summary:hover { color: var(--text); }
+.tscroll { overflow-x: auto; }
+.nums table { border-collapse: collapse; margin-top: 6px; min-width: 420px; }
+.nums th { font-family: var(--narrow); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 4px 14px 4px 0; border-bottom: 1px solid var(--rule-strong); font-weight: 600; }
+.nums td { padding: 4px 14px 4px 0; border-bottom: 1px solid var(--rule); }
+.nums .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.plainlist { margin: 0; padding-left: 18px; max-width: 78ch; }
+.plainlist li { margin-bottom: 6px; }
+#patterns { margin-top: 6px; }
+#patterns .lede { font-family: var(--prose); font-size: 17px; line-height: 1.5; max-width: 70ch; margin: 14px 0 18px; }
+.tip { position: fixed; z-index: 40; background: var(--text); color: var(--ground); padding: 7px 10px; border-radius: 2px; font-size: 12.5px; line-height: 1.4; max-width: 300px; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
+.tip b { display: block; font-size: 13.5px; }
 @media (max-width: 880px) {
+  .pair { grid-template-columns: minmax(0, 1fr); }
+  .brow, .brow.two { grid-template-columns: minmax(0, 1fr) 5ch 9ch; }
+  .brow .bl { grid-column: 1 / -1; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .detail { position: fixed; inset: 0; z-index: 15; max-height: none; border: 0; transform: translateX(100%); visibility: hidden;
     padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
@@ -219,6 +279,7 @@ button { cursor: pointer; }
     <button class="view" role="tab" data-view="labs" type="button"><span class="t">Labs</span><span class="s">Who to watch</span><span class="n" id="n-labs"></span></button>
     <button class="view" role="tab" data-view="papers" type="button"><span class="t">Papers</span><span class="s">What came out</span><span class="n" id="n-papers"></span></button>
     <button class="view" role="tab" data-view="news" type="button"><span class="t">What's new</span><span class="s">Companies naming these labs</span><span class="n" id="n-news"></span></button>
+    <button class="view" role="tab" data-view="patterns" id="view-patterns" type="button" hidden><span class="t">Patterns</span><span class="s">Across the whole field</span><span class="n">5 figures</span></button>
   </div>
 
   <div class="chips" id="chips"></div>
@@ -232,6 +293,7 @@ button { cursor: pointer; }
     </section>
     <aside class="detail" id="detail" aria-live="polite"></aside>
   </main>
+  <section id="patterns" aria-label="Patterns across the field" hidden></section>
 
   <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
   <div class="foot" id="fresh" hidden></div>
@@ -253,6 +315,7 @@ button { cursor: pointer; }
     <li>The UK register shows only owners of 25% or more of live companies, so UK labs are undercounted.</li>
     <li>Patents are not included yet.</li></ul></div>
 </div></div>
+<div class="tip" id="tip" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="application/json" id="data">__DATA__</script>
@@ -462,7 +525,13 @@ button { cursor: pointer; }
       : (S.extra ? `<label>Kind ${seg('kind', [['', 'All'], ['formd', 'Funding filings'], ['award', 'Research awards'], ['uk', 'UK companies']])}</label>` : '');
     $('extra').hidden = !$('extra').innerHTML;
   }
-  function draw() { drawChrome(); drawList(); drawDetail(); }
+  function draw() {
+    const pat = S.view === 'patterns';
+    $('patterns').hidden = !pat; document.querySelector('.split').hidden = pat; $('chips').hidden = pat; document.querySelector('.keys').hidden = pat;
+    drawChrome();
+    if (pat) { $('extra').hidden = true; drawPatterns(); return; }
+    drawList(); drawDetail();
+  }
 
   /* ---- actions ---- */
   let toastTimer;
@@ -473,9 +542,10 @@ button { cursor: pointer; }
     saveWatch(); draw();
     document.querySelectorAll(`[data-star="${CSS.escape(id)}"]`).forEach((b) => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); });
   }
-  function setView(v) { if (!['labs', 'papers', 'news'].includes(v)) return; S.view = v; fullTimeline = false; if (location.hash.slice(1) !== v) location.hash = v; draw(); }
+  function setView(v) { if (!VIEWS.includes(v)) return; S.view = v; fullTimeline = false; if (location.hash.slice(1) !== v) location.hash = v; draw(); }
   function select(id, open) { S.sel[S.view] = id; fullTimeline = false; drawList(); drawDetail(); if (open && narrow()) $('detail').classList.add('open'); }
   function move(step) {
+    if (S.view === 'patterns') return;
     const all = rows(S.view).slice(0, S.shown[S.view]); if (!all.length) return;
     const i = all.findIndex((r) => r.id === S.sel[S.view]);
     const next = all[Math.max(0, Math.min(all.length - 1, i + step))];
@@ -516,11 +586,115 @@ button { cursor: pointer; }
     if (e.key === '/') { e.preventDefault(); $('q').focus(); $('q').select(); }
     else if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); move(1); }
     else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); move(-1); }
-    else if (e.key === 'w' || e.key === 'W') { const id = S.sel[S.view]; const lab = S.view === 'labs' ? id : S.view === 'news' ? (events.find((x) => x.id === id) || { l: {} }).l.id : (papers.get(id) || {}).lastId; if (lab && labById.has(lab)) toggleWatch(lab); else if (id) toast('This lab head is outside the top 300 shown here'); }
-    else if (e.key === '1') setView('labs'); else if (e.key === '2') setView('papers'); else if (e.key === '3') setView('news');
+    else if ((e.key === 'w' || e.key === 'W') && S.view !== 'patterns') { const id = S.sel[S.view]; const lab = S.view === 'labs' ? id : S.view === 'news' ? (events.find((x) => x.id === id) || { l: {} }).l.id : (papers.get(id) || {}).lastId; if (lab && labById.has(lab)) toggleWatch(lab); else if (id) toast('This lab head is outside the top 300 shown here'); }
+    else if (e.key === '1') setView('labs'); else if (e.key === '2') setView('papers'); else if (e.key === '3') setView('news'); else if (e.key === '4') setView('patterns');
     else if (e.key === 'Enter' && S.sel[S.view] && narrow()) $('detail').classList.add('open');
   });
-  window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['labs', 'papers', 'news'].includes(v) && v !== S.view) { S.view = v; draw(); } });
+  window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) { S.view = v; draw(); } });
+
+  /* ---- patterns: figures across the whole field ---- */
+  const VIEWS = ['labs', 'papers', 'news'].concat(D.figs ? ['patterns'] : []);
+  const pc = (v, d) => (v * 100).toFixed(d == null ? 0 : d) + '%';
+  const tipAttr = (strong, rest) => `data-t1="${esc(strong)}" data-t2="${esc(rest || '')}"`;
+  const table = (head, rows) => `<details class="nums"><summary>See the numbers</summary><div class="tscroll"><table><thead><tr>${head.map((h, i) => `<th class="${i ? 'num' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
+  function figTopics(F) {
+    const T = F.topics, W = 900, H = 440, m = { l: 54, r: 28, t: 18, b: 46 };
+    const x = (g) => m.l + (Math.log(g) - Math.log(1)) / (Math.log(4.6) - Math.log(1)) * (W - m.l - m.r);
+    const y = (s) => H - m.b - s / 0.24 * (H - m.t - m.b);
+    const all = T.reduce((a, t) => a + t.withrec, 0) / T.reduce((a, t) => a + t.heads, 0);
+    const named = new Set(T.filter((t) => t.growth >= 1.58 || t.share >= 0.15 || t.share <= 0.075).map((t) => t.topic));
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Topics by growth in papers and share of lab heads with a company record">`;
+    for (const v of [0, 0.05, 0.10, 0.15, 0.20]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${m.l - 8}" y="${y(v) + 4}" class="tick" text-anchor="end">${pc(v)}</text>`;
+    for (const v of [1, 1.5, 2, 3, 4]) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${H - m.b}" class="grid"/><text x="${x(v)}" y="${H - m.b + 18}" class="tick" text-anchor="middle">${v}×</text>`;
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(all)}" y2="${y(all)}" class="ref"/><text x="${W - m.r}" y="${y(all) - 6}" class="tick" text-anchor="end">all topics, ${pc(all)}</text>`;
+    s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 6}" class="axis" text-anchor="middle">Papers in the last two years, against the two years before</text>`;
+    s += `<text x="14" y="${m.t - 4}" class="axis">Lab heads with a company record</text>`;
+    s += `<text x="${W - m.r - 6}" y="${H - m.b - 10}" class="note" text-anchor="end">growing fast, few companies yet ↘</text>`;
+    for (const t of T.slice().sort((a, b) => b.heads - a.heads)) {
+      const r = Math.sqrt(t.heads) * 1.05 + 2;
+      s += `<circle cx="${x(t.growth).toFixed(1)}" cy="${y(t.share).toFixed(1)}" r="${r.toFixed(1)}" class="bub" tabindex="0" ${tipAttr(t.topic, `${t.growth.toFixed(1)}× the papers (${n(t.now)} against ${n(t.then)}) | ${t.withrec} of ${t.heads} lab heads have a company record (${pc(t.share)})`)}/>`;
+    }
+    const under = new Set(['CAR-T, solid tumours', 'Allogeneic cells']);          // a label beside these would sit on a neighbour
+    for (const t of T) if (named.has(t.topic)) { const r = Math.sqrt(t.heads) * 1.05 + 2, right = x(t.growth) < W - 190;
+      s += under.has(t.topic) ? `<text x="${x(t.growth).toFixed(1)}" y="${(y(t.share) + r + 15).toFixed(1)}" class="lab" text-anchor="middle">${esc(t.topic)}</text>`
+        : `<text x="${(x(t.growth) + (right ? r + 5 : -r - 5)).toFixed(1)}" y="${(y(t.share) + 4).toFixed(1)}" class="lab" text-anchor="${right ? 'start' : 'end'}">${esc(t.topic)}</text>`; }
+    return s + '</svg>' + table(['Topic', 'Papers, last 2 years', '2 years before', 'Growth', 'Lab heads', 'With a company record'], T.map((t) => [t.topic, n(t.now), n(t.then), t.growth.toFixed(2) + '×', n(t.heads), pc(t.share)]));
+  }
+  function figGains(F) {
+    const G = [{ read: 0, found: 0, floor: 0 }].concat(F.gains), W = 900, H = 380, m = { l: 54, r: 150, t: 34, b: 46 };
+    const x = (v) => m.l + v / 100 * (W - m.l - m.r), y = (v) => H - m.b - v * (H - m.t - m.b);
+    const path = (k) => G.map((g, i) => (i ? 'L' : 'M') + x(g.read).toFixed(1) + ' ' + y(g[k]).toFixed(1)).join(' ');
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of future company labs found against share of the list read">`;
+    for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${m.l - 8}" y="${y(v) + 4}" class="tick" text-anchor="end">${pc(v)}</text>`;
+    for (const v of [0, 10, 20, 40, 60, 80, 100]) s += `<text x="${x(v)}" y="${H - m.b + 18}" class="tick" text-anchor="middle">${v}%</text>`;
+    s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 6}" class="axis" text-anchor="middle">How far down the ranked list you read</text><text x="14" y="14" class="axis">Labs that went on to a company record, found</text>`;
+    s += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(100)}" y2="${y(1)}" class="ref"/><path d="${path('floor')}" class="line grey"/><path d="${path('found')}" class="line"/>`;
+    s += `<text x="${x(100) + 8}" y="${y(1) + 4}" class="lab">This ranking</text><text x="${x(60) + 10}" y="${y(G.find((g) => g.read === 60).floor) + 16}" class="lab dim">By paper count</text><text x="${x(40) + 8}" y="${y(0.4) + 22}" class="tick">no ranking</text>`;
+    for (const g of G) if ([5, 10, 20].includes(g.read)) s += `<circle cx="${x(g.read)}" cy="${y(g.found)}" r="4.5" class="pt"/><text x="${x(g.read) - 8}" y="${y(g.found) - 9}" class="lab" text-anchor="end">${pc(g.found)}</text>`;
+    G.forEach((g, i) => { if (!i) return; const x0 = x((G[i - 1].read + g.read) / 2), x1 = i === G.length - 1 ? x(100) : x((g.read + G[i + 1].read) / 2); s += `<rect x="${x0}" y="${m.t}" width="${x1 - x0}" height="${H - m.t - m.b}" class="hit" tabindex="0" ${tipAttr(`Read the top ${g.read}%: ${pc(g.found)} found`, `By paper count: ${pc(g.floor)} | With no ranking: ${g.read}%`)}/>`; });
+    return s + '</svg>' + table(['List read', 'Found by this ranking', 'Found by paper count'], F.gains.map((g) => [g.read + '%', pc(g.found), pc(g.floor)]));
+  }
+  function figNet(F) {
+    const N = F.net, by = new Map(N.nodes.map((v) => [v.id, v]));
+    let s = `<svg viewBox="0 0 ${N.w} ${N.h}" role="img" aria-label="Co-authorship among the top-ranked lab heads">`;
+    for (const e of N.edges) { const a = by.get(e.s), b = by.get(e.t); if (a && b) s += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="edge" stroke-width="${Math.min(3, 0.8 + e.w * 0.4)}"/>`; }
+    for (const v of N.nodes) { const r = 3.5 + Math.sqrt(v.deg) * 1.6;
+      s += `<circle cx="${v.x}" cy="${v.y}" r="${r.toFixed(1)}" class="node ${v.new ? 'new' : v.rec ? 'rec' : 'none'}" tabindex="0" data-lab="${esc(v.id)}" ${tipAttr(v.name, `${v.inst || ''} | Ranked ${v.rank} · ${v.deg} top-300 co-author${v.deg === 1 ? '' : 's'} | ${v.rec ? plural(v.rec, 'company record') + (v.new ? ', ' + v.new + ' new this year' : '') : 'No company record seen'} | Click to open`)}/>`; }
+    const placed = [];
+    for (const v of N.nodes.filter((d) => d.label).sort((a, b) => b.deg - a.deg || a.rank - b.rank)) {
+      const ly = v.y - 5 - Math.sqrt(v.deg) * 1.6;
+      if (placed.some((p) => Math.abs(p[0] - v.x) < 52 && Math.abs(p[1] - ly) < 14)) continue;      // a name that would sit on another is left to the hover
+      placed.push([v.x, ly]);
+      s += `<text x="${v.x}" y="${ly.toFixed(1)}" class="lab small" text-anchor="middle">${esc(v.name.split(' ').slice(-1)[0])}</text>`;
+    }
+    s += '</svg>';
+    const hubs = N.nodes.slice().sort((a, b) => b.deg - a.deg).slice(0, 15);
+    return `<div class="legend"><span><i class="k rec"></i>Has a company record</span><span><i class="k new"></i>New record this year</span><span><i class="k none"></i>None seen</span><span class="dim">Bigger dot, more co-authors among the top 300</span></div><div class="wide">${s}</div>` + table(['Lab head', 'Institution', 'Top-300 co-authors', 'Rank'], hubs.map((v) => [v.name, v.inst || '', v.deg, v.rank]));
+  }
+  function figInst(F) {
+    const max = Math.max(...F.inst.map((r) => r.share));
+    return `<div class="bars">${F.inst.map((r) => `<div class="brow"><span class="bl">${esc(r.inst)}</span><span class="track"><i style="width:${(r.share / max * 100).toFixed(1)}%"></i></span><span class="bv">${pc(r.share)}</span><span class="bn">${r.rec} of ${r.heads}</span></div>`).join('')}</div>`;
+  }
+  function figFounder(F) {
+    return `<div class="pair">${F.founder.map((c) => { const max = 0.045, row = (label, g) => `<div class="brow two"><span class="bl">${label}</span><span class="track"><i style="width:${(g.rate / max * 100).toFixed(1)}%"></i></span><span class="bv">${pc(g.rate, 1)}</span><span class="bn">${g.events} of ${n(g.n)}</span></div>`;
+      return `<div><div class="label" style="margin-bottom:6px">Lab heads with no company record at the end of ${c.cohort}</div>${row('No co-author with a company', c.none)}${row('At least one', c.some)}</div>`; }).join('')}</div>`
+      + table(['Cohort', 'Co-authors with a company', 'Lab heads', 'First record within 3 years', 'Rate'], F.founder.flatMap((c) => [['0', c.none], ['1', c.one], ['2 or more', c.more]].map(([g, v]) => [c.cohort, g, n(v.n), v.events, pc(v.rate, 1)])));
+  }
+  let patternsDrawn = false;
+  function drawPatterns() {
+    if (patternsDrawn) return; patternsDrawn = true;
+    const F = D.figs, g = (r) => F.gains.find((x) => x.read === r), T = F.topics, fast = T.slice().sort((a, b) => b.growth - a.growth);
+    const big = F.net.nodes.length, f20 = F.founder[0], f22 = F.founder[1];
+    const fig = (h, how, body, so) => `<figure class="fig"><h2>${h}</h2><p class="how">${how}</p>${body}<p class="so"><b>What to do with it.</b> ${so}</p></figure>`;
+    $('patterns').innerHTML = `<p class="lede">Five pictures drawn from all ${n(F.papers)} papers and ${n(D.labsTotal)} lab heads, not just the rows you can see. Hover or tab to a mark for its numbers.</p>`
+      + fig('Where the science is speeding up, and how commercial its labs already are', 'Each circle is a topic, sized by its number of lab heads. Further right is faster growth in papers. Lower is fewer of its lab heads with a company record.', `<div class="wide">${figTopics(F)}</div>`,
+          `${esc(fast[0].topic)} has grown ${fast[0].growth.toFixed(1)}× in two years, ${esc(fast[1].topic.toLowerCase().replace('lnp', 'LNP'))} ${fast[1].growth.toFixed(1)}× and ${esc(fast[2].topic)} ${fast[2].growth.toFixed(1)}×. The lower right is where to look first. Topics are keyword rules, and small ones have few lab heads, so their shares are rough.`)
+      + fig(`Reading the top ${10}% of the list finds ${pc(g(10).found)} of the labs that go on to a company`, `Trained on lab heads as of 2020, scored on ${n(F.gainsN)} lab heads as of 2022, of whom ${F.gainsE} went on to a company record within three years.`, `<div class="wide">${figGains(F)}</div>`,
+          `The curve flattens after the top 20%, which holds ${pc(g(20).found)}. Reading past that costs a lot of names for each extra hit.`)
+      + fig('The top labs sit in a few schools', `${big} of the top ${F.net.of} lab heads have written a paper with another of them in the last four years. A line is a shared paper.`, figNet(F),
+          'A hollow dot inside a cluster is a lab with no company record seen that publishes with founders, so a founder in the same cluster can make the introduction. Hollow means none in three sources: Carl June and Jennifer Doudna are hollow here and both have founded companies, so check before treating a hollow dot as untapped.')
+      + fig('Publishing with a founder goes with a higher chance of a first company', 'Lab heads with no company record, split by whether any co-author already had one. The bar is the share who got a first record within three years.', figFounder(F),
+          `The rate is ${(f20.some.rate / f20.none.rate).toFixed(1)}× higher in the 2020 cohort and ${(f22.some.rate / f22.none.rate).toFixed(1)}× in 2022, on ${f20.some.events} and ${f22.some.events} events. It is not in the ranking yet and should be added. Having two or more such co-authors helped in 2020 and not in 2022, so only "at least one" is safe to use.`)
+      + fig('How commercial each institution\'s labs are', `Institutions with 40 or more active lab heads. The bar is the share of them with any company record.`, figInst(F),
+          'A low bar at a large institution can mean untapped labs or a source that cannot see them, and this chart cannot tell which. NIH staff are restricted from holding these roles. Hospitals sit low, and whether that is real has not been checked. OpenAlex lists some institutions under two names (Stanford appears twice), and the counts are small.')
+      + `<figure class="fig"><h2>Tried and left out</h2><p class="how">Two more ideas were run on the same data and did not earn a figure.</p><ul class="plainlist"><li><b>Fastest-rising phrases in titles.</b> Mostly generic wording ("signaling axis", "enables efficient"). The topic chart above says the same thing more cleanly.</li><li><b>Share of papers with patient data, by modality and year.</b> Nearly flat since 2017 for AAV, CAR-T and gene editing. The one move is LNP and mRNA, down from 21% to 13% as the field filled with earlier work.</li></ul></figure>`;
+  }
+  const tip = $('tip');
+  function showTip(el, ev) {
+    tip.textContent = ''; const b = document.createElement('b'); b.textContent = el.dataset.t1; tip.appendChild(b);
+    for (const line of (el.dataset.t2 || '').split(' | ').filter(Boolean)) { const d = document.createElement('div'); d.textContent = line; tip.appendChild(d); }
+    tip.hidden = false; const r = el.getBoundingClientRect(), px = ev && ev.clientX != null ? ev.clientX : r.left + r.width / 2, py = ev && ev.clientY != null ? ev.clientY : r.top;
+    const w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, px + 14)) + 'px'; tip.style.top = Math.max(8, py - h - 12 < 8 ? py + 18 : py - h - 12) + 'px';
+  }
+  $('patterns').addEventListener('pointermove', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el, e); else tip.hidden = true; });
+  $('patterns').addEventListener('pointerleave', () => { tip.hidden = true; });
+  $('patterns').addEventListener('focusin', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el); });
+  $('patterns').addEventListener('focusout', () => { tip.hidden = true; });
+  function openLab(id) { if (!labById.has(id)) return; tip.hidden = true; S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.country = ''; S.f.rec = ''; S.view = 'labs'; S.sel.labs = id; S.shown.labs = Math.max(40, D.labs.findIndex((l) => l.id === id) + 5); location.hash = 'labs'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); window.scrollTo({ top: 0 }); }
+  $('patterns').addEventListener('click', (e) => { const v = e.target.closest('[data-lab]'); if (v) openLab(v.dataset.lab); });
+  $('patterns').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.closest('[data-lab]'); if (v) openLab(v.dataset.lab); } });
+
+  if (D.figs) $('view-patterns').hidden = false;
 
   /* the reliability sheet */
   const SHOW = [['lab', 'Lab heads: appeared in a company record', 'paper count (floor)', 'Paper count'], ['comp', 'Papers: an author appeared in a company record', 'author count (floor)', 'Author count'], ['clin', 'Papers: cited by a clinical article', 'iCite apt (baseline)', 'NIH iCite']];
@@ -540,7 +714,7 @@ button { cursor: pointer; }
     if (D.check) { $('check').hidden = false; $('check').textContent = `Checked again on a later period: trained on lab heads as of 2020 and scored on those of 2022, the top 5% held ${Math.round(D.check.top5 * 100)}% who went on to a company record, against ${Math.round(D.check.floor5 * 100)}% by paper count and ${Math.round(D.check.base * 100)}% of everyone.`; }
   }
   const first = location.hash.slice(1);
-  if (['labs', 'papers', 'news'].includes(first)) S.view = first;
+  if (VIEWS.includes(first)) S.view = first;
   draw();
 })();
 </script>
