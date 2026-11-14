@@ -1,0 +1,53 @@
+# A readout research has read and found to decide nothing the book values (read by
+# backend/settled_readouts.py).
+#
+# in_the_base says the trial's patients are already inside the revenue the forecast grows
+# from, so no pool can be built for them without counting the same people twice. That is
+# true of 60 readouts and right for most of them, but the row said the same thing whether
+# an analyst had read the study or nobody had looked. Those are different states and the
+# queue cannot be worked while they share a word.
+#
+# Every row here was read against the current FDA label and the registry's own eligibility
+# and primary-outcome text on 2026-11-11, and the working is in docs/in_base_triage.md.
+# kind is one of the keys in settled_readouts.KINDS and basis is the evidence.
+#
+# This is reversible and it is meant to be: delete a row and the readout returns to the
+# queue. The opposite judgement lives in data/catalyst_scenarios.csv, which prices a
+# readout inside the base from a named case. A study must not appear in both files, and a
+# test enforces it, because a readout settled at nil and priced at a delta is one of the
+# two judgements being wrong.
+#
+# What is deliberately NOT here: the 8 readouts the same triage found enrol a population
+# the label does not cover (they want a sub-population row and a pool), the 21 it found
+# would move the claim, the guideline or the payer position (they want a scenario), and
+# one it could not settle, SNY Wayrilz NCT07007962, where the registry states no ITP
+# duration and the label covers persistent or chronic disease only.
+ticker,asset,nct_id,kind,basis
+AMGN,Otezla,NCT04804553,in_label,Otezla label now covers pediatric PsA 6+; PEAPOD population is in-label (only the 5-to-<6y sliver is outside).
+ARGX,Vyvgart,NCT04280718,open_label_extension,Open-label extension of ADHERE; primary endpoint is TEAEs.
+AZN,Tezspire,NCT06706817,evidence_generation,Single-arm Phase 3b symptom-description study in the approved CRSwNP indication.
+AZN,Tezspire,NCT07363642,evidence_generation,"TAPER is single-arm descriptive step-down; no control, cannot establish the claim ARRIVAL is testing."
+AZN,Tezspire,NCT07520162,regional_registration,BIFANG is a single-arm China descriptive study in the approved CRSwNP indication.
+BNTX,Comirnaty,NCT07798648,lot_consistency,Routine annual variant-adapted strain-change immunogenicity/safety study in the already-narrowed COVID label population.
+GSK,Arexvy,NCT07092865,lot_consistency,"Phase 2b open-label extension, descriptive GMTs in transplant recipients already covered by the 18-59 at-increased-risk indication."
+GSK,Boostrix,NCT07596199,regional_registration,Japan immunogenicity bridging study; Boostrix already carries the third-trimester pregnancy indication.
+IONS,Dawnzera (Autoinjector),NCT05392114,open_label_extension,Open-label long-term safety extension; primary endpoint is TEAEs.
+IONS,Tryngolza (Autoinjector),NCT05130450,open_label_extension,"Open-label extension in FCS, the core approved indication."
+IONS,Tryngolza (Autoinjector),NCT05185843,open_label_extension,"Open-label safety study in FCS, the core approved indication; lab-abnormality primaries."
+IONS,Tryngolza (Autoinjector),NCT05681351,open_label_extension,Tryngolza label now includes sHTG (TG>=500 mg/dL); this is an in-label open-label extension.
+JNJ,IMBRUVICA,NCT05963074,evidence_generation,Imbruvica's CLL/SLL indication is unqualified by regimen; TAILOR is a Phase 2 ORR study with no comparator.
+JNJ,Rybrevant / Lazcluze,NCT05498428,evidence_generation,"SC amivantamab and Q4W dosing are both already approved (Rybrevant Faspro, eff. 2026-11-05); remaining cohorts sit inside existing indications."
+LLY,Foundayo,NCT06948422,allocation_only,Master-protocol shell; primary endpoint is 'Number of Participants Allocated to Each ISA' - produces no interpretable efficacy readout.
+MRK,Belsomra,NCT06655883,in_label,Belsomra's insomnia indication is unqualified by comorbidity; OUD patients with DSM-5 insomnia are squarely inside it.
+MRK,Gardasil / Gardasil 9,NCT03998254,regional_registration,China post-approval confirmatory efficacy study; Gardasil 9 is already approved for females in this age range.
+MRK,Lipfendra,NCT06492291,open_label_extension,Open-label extension; primaries are AEs and discontinuations.
+MRK,Lipfendra,NCT07821944,regional_registration,India regional registration study in the approved hypercholesterolaemia indication.
+PFE,Abrysvo,NCT07653100,regional_registration,India descriptive safety/immunogenicity study in the approved adult indication.
+PFE,Abrysvo,NCT07819097,regional_registration,China/US descriptive safety and immunogenicity in the approved 60+ indication.
+PFE,Prevnar / Prevenar family,NCT06524414,lot_consistency,"Phase 2 dose/formulation-selection study; also an asset-mapping defect - PG4 is a new investigational PCV, not Prevnar 20."
+PFE,Prevnar / Prevenar family,NCT07660198,lot_consistency,"Catch-up-regimen supportive cohort for PG4; same asset-mapping defect, and no claim change for the marketed Prevnar line."
+PFE,Prevnar / Prevenar family,NCT07794748,lot_consistency,"Three-lot consistency study - a CMC enabler that cannot move claim, guideline or payer. Same PG4 asset-mapping defect."
+RARE,Fayuvi,NCT04360265,long_term_follow_up,Long-term follow-up of prior ABO-102/UX111 gene-therapy trials; safety/durability registry.
+ROG,Alecensa,NCT03178552,evidence_generation,Multi-cohort blood-first platform; alectinib Cohort A sits inside the metastatic ALK+ indication and has already read out.
+ROG,Xofluza,NCT07827599,regional_registration,China registration study; post-exposure prophylaxis is already in the Xofluza label for patients 5+.
+SNY,Wayrilz,NCT07216079,open_label_extension,Open-label extension for 3 Japanese patients completing LUNA 3 LTE.

@@ -30,6 +30,7 @@ import launch_timing
 import other_claims
 import loe_link
 import pos_granular
+import settled_readouts
 
 _log = logging.getLogger(__name__)
 
@@ -741,7 +742,7 @@ STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
                  "same_gate_later", "already_approved", "needs_layer", "in_the_base",
-                 "no_indication_link", "programme_stopped")
+                 "no_indication_link", "programme_stopped", "settled_nil")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -1462,6 +1463,7 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         layers: dict = {}
         pairs: dict = {}
         scenarios = catalyst_scenarios.load(conn)
+        settled = settled_readouts.load(conn)
         # One case is worth its delta once. Tezspire has two asthma readouts and Abrysvo
         # five in RSV; where the analyst has written one case for several of them, the
         # earliest carries it and the rest are the same gate again, exactly as a repeat
@@ -1500,6 +1502,13 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 # still the product's own; what moves is the rate the line it already
                 # sells grows at, and the scenario says by how much and on what basis.
                 nct, _study = _catalyst_trial(conn, row)
+                # Read and found to decide nothing, which is not the same state as
+                # nobody having looked. Both are worth nil and only one is work.
+                read = settled.get((row.get("asset_id"), (nct or "").upper()))
+                if read:
+                    refuse(row, "settled_nil", settled_readouts.why(read), [])
+                    answered.add(row["id"])
+                    continue
                 named = scenarios.get((row.get("asset_id"), (nct or "").upper()))
                 if named and named["scenario"] in cased:
                     refuse(row, "same_gate_later",
