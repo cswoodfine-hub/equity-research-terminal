@@ -2,208 +2,256 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Archivo+Narrow:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap">
 <style>
-/* Layout: the terminal's own chrome. One dark ground, hairline rules, dense tables read
-   down the left edge; a sub-tab bar; detail opens in place under the row. */
+/* Layout: a list on the left and the selected item explained on the right, the way a
+   mail client reads. One search box, one row of filter chips, three views. */
 :root {
   color-scheme: dark;
   --ground: #0C1417; --panel: #131E22; --rule: #1F2E33; --rule-strong: #2E4249;
   --text: #E8EDEA; --muted: #7E9098; --up: #4C9A7A; --down: #C4553B; --flag: #D9B26B;
-  --tint-1: #122122; --tint-2: #1C3A36; --tint-3: #2A5A4E; --tint-4: #3B7A64;
+  --tint-1: #122122; --tint-2: #1C3A36; --tint-4: #3B7A64; --lift: #182529;
   --ui: 'Archivo', -apple-system, 'Segoe UI', system-ui, sans-serif;
   --narrow: 'Archivo Narrow', 'Archivo', 'Arial Narrow', sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   --prose: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --motion: 160ms; --ease: cubic-bezier(.2, .7, .2, 1); --spring: cubic-bezier(.3, 1.6, .5, 1);
+  --hit: 36px;
 }
+@media (pointer: coarse) { :root { --hit: 44px; } }
 html { background: var(--ground); }
-body { background: var(--ground); color: var(--text); font-family: var(--ui); font-size: 14px; line-height: 1.45; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-block: 20px 56px;
+[hidden] { display: none !important; }
+body { background: var(--ground); color: var(--text); font-family: var(--ui); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 16px 40px;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 a { color: var(--text); text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
 a:hover { text-decoration-color: var(--up); }
 button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--flag); outline-offset: 2px; }
+.label { font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 
-.top { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; }
-.top h1 { font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.005em; text-wrap: balance; }
-.top .scope { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.banner { margin-top: 12px; border: 1px solid var(--rule-strong); border-left: 3px solid var(--flag); background: var(--panel);
-  padding: 10px 12px; font-size: 13px; color: var(--text); max-width: 100%; }
-.banner b { color: var(--flag); font-weight: 600; }
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.bar h1 { font-size: 22px; font-weight: 600; margin: 0; }
+.bar .scope { font-size: 13px; color: var(--muted); }
+.search { flex: 1 1 320px; min-width: 0; position: relative; }
+.search input { width: 100%; height: 44px; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0 44px 0 14px; font-size: 15px; color: var(--text); transition: border-color var(--motion) var(--ease), background-color var(--motion) var(--ease); }
+.search input::placeholder { color: var(--muted); }
+.search input:focus { border-color: var(--up); background: var(--lift); outline: none; }
+.search kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 12px; color: var(--muted); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 1px 7px; pointer-events: none; }
+.textbtn { background: none; border: 0; color: var(--muted); padding: 0 4px; min-height: var(--hit); text-decoration: underline; text-decoration-color: var(--rule-strong); text-underline-offset: 3px; }
+.textbtn:hover { color: var(--text); text-decoration-color: var(--up); }
 
-.tabs { display: flex; flex-wrap: wrap; gap: 0 4px; margin-top: 20px; border-bottom: 1px solid var(--rule-strong); }
-.tabs a { padding: 8px 14px 9px; text-decoration: none; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.tabs a[aria-current="page"] { color: var(--text); border-bottom-color: var(--up); }
-.tabs a .n { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: 6px; }
+.note { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: center; border: 1px solid var(--rule); border-left: 3px solid var(--flag); background: var(--panel); padding: 8px 12px; font-size: 13.5px; }
+.note b { color: var(--flag); font-weight: 600; }
+.note label { margin-left: auto; display: flex; gap: 8px; align-items: center; min-height: 28px; cursor: pointer; white-space: nowrap; }
+.note .green { color: var(--up); }
 
-.lede { font-family: var(--prose); font-size: 17px; line-height: 1.5; max-width: 68ch; margin: 18px 0 14px; color: var(--text); }
-.controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin: 12px 0; }
-.controls label { font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-.controls select, .controls input[type="search"] { background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 5px 8px; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--text); min-width: 0; }
-.controls input[type="search"] { width: 200px; max-width: 100%; }
-.controls .check { text-transform: none; letter-spacing: 0; font-family: var(--ui); font-size: 13px; color: var(--text); }
-.count { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-left: auto; }
+/* views */
+.views { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.view { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 150px; flex: 0 1 220px; background: var(--panel); border: 1px solid var(--rule); border-radius: 2px; padding: 9px 14px 10px; text-align: left;
+  transition: background-color var(--motion) var(--ease), border-color var(--motion) var(--ease), transform 90ms var(--ease); }
+.view:hover { background: var(--lift); border-color: var(--rule-strong); }
+.view:active { transform: scale(.98); }
+.view .t { font-weight: 600; font-size: 15px; }
+.view .s { font-size: 12.5px; color: var(--muted); }
+.view .n { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.view[aria-selected="true"] { border-color: var(--up); background: var(--lift); box-shadow: inset 0 -2px 0 var(--up); }
+.view[aria-selected="true"] .n { color: var(--up); }
 
-.scroll { overflow-x: auto; border-top: 1px solid var(--rule-strong); }
-table { border-collapse: collapse; width: 100%; min-width: 1100px; }
-th { font-family: var(--narrow); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
-  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule-strong); white-space: nowrap; vertical-align: bottom; }
-td { padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
-tr.row { cursor: pointer; }
-tr.row:hover td { background: var(--panel); }
-tr.row[aria-expanded="true"] td { background: var(--panel); border-bottom-color: transparent; }
-.rank { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
-.who { font-weight: 600; }
-td.person { min-width: 190px; }
-td.paper { min-width: 320px; }
-td.rec { min-width: 200px; max-width: 280px; }
-.sub { color: var(--muted); font-size: 12.5px; }
-.title { font-weight: 500; max-width: 52ch; }
-.chip { display: inline-block; font-family: var(--narrow); font-size: 11.5px; letter-spacing: 0.03em; padding: 1px 6px; border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--text); margin: 0 4px 4px 0; overflow-wrap: anywhere; }
-.chip.mod { color: var(--muted); }
-.chip.lit { border-color: var(--up); color: var(--up); }
-.chip.said { border-color: var(--flag); color: var(--flag); }
-.none { color: var(--muted); font-size: 12.5px; }
-.score { display: flex; align-items: center; gap: 8px; justify-content: flex-end; white-space: nowrap; }
-.score .bar { width: 56px; height: 6px; background: var(--tint-1); border: 1px solid var(--rule); }
-.score .bar i { display: block; height: 100%; background: var(--up); }
-.score .v { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; min-width: 4.5ch; text-align: right; }
-.ladder { display: flex; gap: 2px; margin-bottom: 3px; }
-.ladder i { width: 10px; height: 10px; background: var(--tint-1); border: 1px solid var(--rule); }
-.ladder i.on { background: var(--tint-4); border-color: var(--tint-4); }
-.ladder i.on.top { background: var(--up); border-color: var(--up); }
-.more { margin: 14px 0; background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 7px 14px; cursor: pointer; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; align-items: center; }
+.chipbtn { min-height: var(--hit); padding: 0 13px; background: transparent; border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--text); font-size: 13.5px;
+  transition: background-color var(--motion) var(--ease), border-color var(--motion) var(--ease), color var(--motion) var(--ease), transform 90ms var(--ease); }
+.chipbtn:hover { background: var(--panel); }
+.chipbtn:active { transform: scale(.96); }
+.chipbtn[aria-pressed="true"] { background: var(--tint-2); border-color: var(--up); color: var(--text); }
+.chipbtn.quiet { border-style: dashed; color: var(--muted); }
+.chipbtn .dot { color: var(--flag); }
+.sep { width: 1px; height: 22px; background: var(--rule-strong); margin: 0 4px; }
+.extra { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-top: 8px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--rule); }
+.extra label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; min-height: var(--hit); }
+.extra select { background: var(--ground); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 6px 8px; min-height: 34px; }
+.seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 2px; overflow: hidden; }
+.seg button { min-height: var(--hit); padding: 0 12px; background: transparent; border: 0; border-right: 1px solid var(--rule-strong); font-size: 13.5px; color: var(--muted); transition: background-color var(--motion) var(--ease), color var(--motion) var(--ease); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--tint-2); color: var(--text); }
+
+/* list and detail */
+.split { display: grid; grid-template-columns: minmax(0, 11fr) minmax(0, 13fr); gap: 20px; margin-top: 14px; align-items: start; }
+.listhead { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; padding: 0 0 6px; border-bottom: 1px solid var(--rule-strong); }
+.listhead .cnt { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.item { position: relative; display: grid; grid-template-columns: 3.2ch minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 11px 10px 11px 12px; min-height: 64px; border-bottom: 1px solid var(--rule); cursor: pointer;
+  transition: background-color var(--motion) var(--ease); }
+.item::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--up); transform: scaleY(0); transition: transform var(--motion) var(--ease); }
+.item:hover { background: var(--panel); }
+.item[aria-selected="true"] { background: var(--lift); }
+.item[aria-selected="true"]::before { transform: scaleY(1); }
+.item .rk { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.item .nm { font-weight: 600; display: block; overflow-wrap: anywhere; }
+.item .in { display: block; font-size: 13px; color: var(--muted); }
+.item .why { display: block; font-size: 13px; margin-top: 2px; }
+.item .why .lit { color: var(--up); }
+.item .side { display: flex; align-items: center; gap: 6px; }
+.item.ev { grid-template-columns: 10.5ch minmax(0, 1fr) auto; }
+.item.ev .rk { text-align: left; font-size: 12px; }
+.pill { font-family: var(--mono); font-size: 12px; padding: 3px 8px; border: 1px solid var(--rule-strong); border-radius: 2px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill.t1 { background: var(--up); border-color: var(--up); color: var(--ground); font-weight: 500; }
+.pill.t5 { border-color: var(--up); color: var(--up); }
+.pill.t10 { border-color: var(--tint-4); color: var(--text); }
+.star { width: var(--hit); height: var(--hit); display: grid; place-items: center; background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; border-radius: 2px; transition: color var(--motion) var(--ease), background-color var(--motion) var(--ease); }
+.star:hover { background: var(--rule); color: var(--text); }
+.star[aria-pressed="true"] { color: var(--flag); }
+.star.pop { animation: pop 340ms var(--spring); }
+@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.45, 1.3); } 65% { transform: scale(.9, 1.05); } 100% { transform: scale(1); } }
+.more { margin: 12px 0; min-height: var(--hit); background: var(--panel); border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0 16px; transition: border-color var(--motion) var(--ease), transform 90ms var(--ease); }
 .more:hover { border-color: var(--up); }
+.more:active { transform: scale(.98); }
+.empty { padding: 28px 12px; color: var(--muted); }
+.empty b { color: var(--text); font-weight: 600; }
 
-tr.detail td { background: var(--panel); padding: 4px 10px 18px; border-bottom: 1px solid var(--rule-strong); }
-.dgrid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; position: sticky; left: 0; width: calc(min(1240px, 100vw) - 56px); max-width: 100%; }
-.dgrid h3 { font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 8px 0 8px; }
+.detail { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: var(--panel); border: 1px solid var(--rule); padding: 18px 20px 22px; scrollbar-width: thin; }
+.detail .inner.swap { animation: swap 200ms var(--ease); }
+@keyframes swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.detail .back { display: none; }
+.dhead { display: flex; gap: 14px; justify-content: space-between; align-items: flex-start; }
+.dhead h2 { font-size: 20px; font-weight: 600; margin: 0 0 2px; text-wrap: balance; line-height: 1.25; }
+.dhead .sub { color: var(--muted); font-size: 13.5px; }
+.watch { flex: none; min-height: 40px; padding: 0 14px; background: transparent; border: 1px solid var(--rule-strong); border-radius: 2px; display: flex; gap: 8px; align-items: center; white-space: nowrap;
+  transition: background-color var(--motion) var(--ease), border-color var(--motion) var(--ease), transform 90ms var(--ease); }
+.watch:hover { border-color: var(--flag); }
+.watch:active { transform: scale(.96); }
+.watch[aria-pressed="true"] { background: var(--tint-1); border-color: var(--flag); color: var(--flag); }
+.block { margin-top: 18px; }
+.block > .label { display: block; margin-bottom: 7px; }
+.reasons { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.reasons li { padding-left: 18px; position: relative; }
+.reasons li::before { content: ""; position: absolute; left: 2px; top: .6em; width: 6px; height: 6px; background: var(--up); }
+.reasons li.soft::before { background: var(--rule-strong); }
+.reasons li.said::before { background: var(--flag); }
+.means { font-family: var(--prose); font-size: 16.5px; line-height: 1.45; max-width: 58ch; }
+.means b { font-family: var(--ui); font-weight: 600; font-size: 15px; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--rule); background: var(--ground); padding: 10px 12px; }
+.tile .big { font-family: var(--mono); font-size: 19px; font-variant-numeric: tabular-nums; }
+.tile .big.up { color: var(--up); }
+.tile p { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.next { border: 1px solid var(--up); background: var(--tint-1); padding: 10px 12px; }
+.next .label { color: var(--up); display: block; margin-bottom: 6px; }
+.next.none { border-color: var(--rule); }
+.next.none .label { color: var(--muted); }
 .tl { list-style: none; margin: 0; padding: 0; }
-.tl li { display: grid; grid-template-columns: 9ch 9ch minmax(0, 1fr); gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--rule); font-size: 13px; }
-.tl .d { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.tl .k { font-family: var(--narrow); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.tl li { display: grid; grid-template-columns: 9.5ch 11ch minmax(0, 1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
+.tl .d { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+.tl .k { font-family: var(--narrow); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
 .tl li.after .k, .tl li.after .d { color: var(--up); }
-.tl li.cut { display: block; border-bottom: 1px dashed var(--flag); color: var(--flag); font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 8px 0 3px; }
-.facts { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; margin-bottom: 6px; }
-.facts b { font-family: var(--mono); font-weight: 500; }
+.tl li.cut { display: block; border-bottom: 1px dashed var(--flag); color: var(--flag); font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 0 3px; }
+.steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.step { border-top: 4px solid var(--rule); padding-top: 5px; font-size: 12.5px; color: var(--muted); }
+.step.on { border-top-color: var(--tint-4); color: var(--text); }
+.step.on.top { border-top-color: var(--up); font-weight: 600; }
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+.checks li { display: flex; gap: 8px; color: var(--muted); }
+.checks li.yes { color: var(--text); }
+.checks li i { font-style: normal; font-family: var(--mono); width: 1.2ch; color: var(--rule-strong); }
+.checks li.yes i { color: var(--up); }
+.tag { display: inline-block; font-size: 12.5px; padding: 2px 8px; border: 1px solid var(--rule-strong); border-radius: 2px; margin: 0 5px 5px 0; }
+.tag.said { border-color: var(--flag); color: var(--flag); }
+.fine { margin-top: 16px; font-size: 12.5px; color: var(--muted); }
+.go { display: inline-flex; align-items: center; min-height: var(--hit); padding: 0 14px; border: 1px solid var(--rule-strong); border-radius: 2px; background: transparent; text-decoration: none; transition: border-color var(--motion) var(--ease), transform 90ms var(--ease); }
+.go:hover { border-color: var(--up); }
+.go:active { transform: scale(.97); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.feed .month { font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule-strong); padding: 16px 0 6px; }
-.feed .ev { display: grid; grid-template-columns: 10ch 12ch minmax(0, 1fr) auto; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
-.feed .ev .d { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.feed .ev .k { font-family: var(--narrow); font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--up); }
-.feed .ev .r { font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.keys { margin-top: 18px; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.keys kbd { font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--rule-strong); border-radius: 2px; padding: 0 5px; color: var(--text); }
+.foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12px; max-width: 95ch; }
 
-.method { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 32px; margin-top: 8px; }
-.study { padding: 14px 0; border-bottom: 1px solid var(--rule); }
-.study h3 { font-size: 14px; font-weight: 600; margin: 0 0 2px; }
-.study .meta { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 8px; }
-.hbar { display: grid; grid-template-columns: 13ch minmax(0, 1fr) 5ch; gap: 10px; align-items: center; font-size: 12.5px; padding: 2px 0; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 24px); opacity: 0; background: var(--text); color: var(--ground); padding: 9px 16px; border-radius: 2px; font-weight: 500; font-size: 14px; pointer-events: none; z-index: 30; max-width: calc(100% - 32px);
+  transition: transform 260ms var(--spring), opacity 160ms linear; }
+.toast.on { transform: translate(-50%, 0); opacity: 1; }
+
+.sheet { position: fixed; inset: 0; z-index: 20; display: flex; justify-content: flex-end; background: rgba(4, 9, 11, .6); opacity: 0; visibility: hidden; transition: opacity var(--motion) linear, visibility 0s linear var(--motion); }
+.sheet.on { opacity: 1; visibility: visible; transition-delay: 0s; }
+.sheet .pane { width: min(620px, 100%); height: 100%; overflow: auto; background: var(--panel); border-left: 1px solid var(--rule-strong); padding: calc(18px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 32px 20px; transform: translateX(28px); transition: transform 240ms var(--ease); box-shadow: -18px 0 40px rgba(0, 0, 0, .35); }
+.sheet.on .pane { transform: none; }
+.sheet h2 { font-size: 20px; margin: 0; font-weight: 600; }
+.sheet .lede { font-family: var(--prose); font-size: 16.5px; line-height: 1.5; margin: 8px 0 6px; }
+.study { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.study h3 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; }
+.hbar { display: grid; grid-template-columns: 12ch minmax(0, 1fr) 5ch; gap: 10px; align-items: center; font-size: 13px; padding: 2px 0; }
 .hbar .track { height: 10px; background: var(--tint-1); border: 1px solid var(--rule); }
 .hbar .track i { display: block; height: 100%; background: var(--rule-strong); }
 .hbar.ours .track i { background: var(--up); }
 .hbar .v { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
 .hbar .l { color: var(--muted); }
 .hbar.ours .l { color: var(--text); }
-.notes h3 { font-family: var(--narrow); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 14px 0 6px; }
-.notes p, .notes li { font-family: var(--prose); font-size: 15.5px; line-height: 1.5; max-width: 60ch; }
-.notes ul { margin: 0; padding-left: 18px; }
-.notes li { margin-bottom: 6px; }
-.foot { margin-top: 36px; padding-top: 12px; border-top: 1px solid var(--rule-strong); color: var(--muted); font-size: 12px; max-width: 90ch; }
+.sheet ul { margin: 0; padding-left: 18px; }
+.sheet li { font-family: var(--prose); font-size: 15.5px; line-height: 1.5; margin-bottom: 6px; max-width: 58ch; }
 
-@media (max-width: 760px) {
-  .dgrid, .method { grid-template-columns: minmax(0, 1fr); }
-  .count { margin-left: 0; width: 100%; }
-  .feed .ev { grid-template-columns: 10ch minmax(0, 1fr); }
-  .feed .ev .k { grid-column: 2; grid-row: 1; }
-  .feed .ev .what { grid-column: 1 / -1; }
-  .feed .ev .r { grid-column: 1 / -1; }
+@media (max-width: 880px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .detail { position: fixed; inset: 0; z-index: 15; max-height: none; border: 0; transform: translateX(100%); visibility: hidden;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+    transition: transform 240ms var(--ease), visibility 0s linear 240ms; }
+  .detail.open { transform: none; visibility: visible; transition-delay: 0s; }
+  .detail .back { display: inline-flex; margin-bottom: 10px; }
+  .keys { display: none; }
+  .view { flex: 1 1 0; min-width: 0; padding: 8px 10px; }
+  .view .s { display: none; }
+  .note label { margin-left: 0; }
+  .tiles { grid-template-columns: minmax(0, 1fr); }
 }
-@media (prefers-reduced-motion: no-preference) { .score .bar i, .hbar .track i { transition: width .2s ease; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 
 <div class="wrap">
-  <div class="top">
-    <h1>Discovery</h1>
-    <div class="scope">cell and gene therapy · US and UK labs · as of 2020-12-31</div>
+  <header class="bar">
+    <div><h1>Discovery</h1><div class="scope">Cell and gene therapy · US and UK labs</div></div>
+    <div class="search"><input type="search" id="q" placeholder="Search a name, institution, company or topic" autocomplete="off" aria-label="Search"><kbd>/</kbd></div>
+    <button class="textbtn" id="open-method" type="button">How reliable is this?</button>
+  </header>
+
+  <div class="note">
+    <span><b>Prototype on real data.</b> Ranked as it stood on 31 Dec 2020. <span class="green">Green</span> is what happened in the three years after.</span>
+    <label><input type="checkbox" id="next" checked> Show what happened next</label>
   </div>
-  <div class="banner"><b>Prototype on backtest data.</b> Every row is real. The ranking is what the score would have shown on 31 December 2020, trained only on earlier years, so the green "what happened next" marks (2021 to 2023) test it. Company records are matched to authors by name and place and are not verified.</div>
 
-  <nav class="tabs" id="tabs" aria-label="Discovery views">
-    <a href="#labs" data-view="labs">Labs<span class="n" id="n-labs"></span></a>
-    <a href="#papers" data-view="papers">Papers<span class="n" id="n-papers"></span></a>
-    <a href="#lit-up" data-view="lit-up">Lit up<span class="n" id="n-lit"></span></a>
-    <a href="#method" data-view="method">How good is it</a>
-  </nav>
+  <div class="views" role="tablist" aria-label="Views" id="views">
+    <button class="view" role="tab" data-view="labs" type="button"><span class="t">Labs</span><span class="s">Who to watch</span><span class="n" id="n-labs"></span></button>
+    <button class="view" role="tab" data-view="papers" type="button"><span class="t">Papers</span><span class="s">What came out</span><span class="n" id="n-papers"></span></button>
+    <button class="view" role="tab" data-view="news" type="button"><span class="t">What's new</span><span class="s">Companies naming these labs</span><span class="n" id="n-news"></span></button>
+  </div>
 
-  <section id="view-labs" hidden>
-    <p class="lede">Lab heads ranked by how likely they are to appear in a company record within three years. Open a row for the papers and filings behind it.</p>
-    <div class="controls">
-      <label>Modality <select id="lab-mod"><option value="">All</option></select></label>
-      <label>Country <select id="lab-country"><option value="">US and UK</option><option value="US">US</option><option value="GB">UK</option></select></label>
-      <label>Record at the date <select id="lab-rec"><option value="">Any</option><option value="none">None seen yet</option><option value="some">Has one</option></select></label>
-      <label>Find <input type="search" id="lab-q" placeholder="name or institution"></label>
-      <label class="check"><input type="checkbox" id="lab-next" checked> Show what happened next</label>
-      <span class="count" id="lab-count"></span>
-    </div>
-    <div class="scroll"><table>
-      <thead><tr><th>#</th><th>Lab head</th><th>Works on</th><th class="num">CGT papers</th><th>Furthest model</th><th>Declared in papers</th><th>Company record at the date</th><th class="num">Score</th><th class="next">What happened next</th></tr></thead>
-      <tbody id="lab-body"></tbody>
-    </table></div>
-    <button class="more" id="lab-more" type="button">Show 50 more</button>
-  </section>
+  <div class="chips" id="chips"></div>
+  <div class="extra" id="extra" hidden></div>
 
-  <section id="view-papers" hidden>
-    <p class="lede">Papers and preprints from 2019 and 2020, each scored on the day it appeared. Translation is the chance of being cited by a clinical article; company is the chance an author appears in a company record.</p>
-    <div class="controls">
-      <label>Rank by <select id="pap-sort"><option value="clin">Translation</option><option value="comp">Company</option><option value="d">Newest</option></select></label>
-      <label>Modality <select id="pap-mod"><option value="">All</option></select></label>
-      <label>Furthest model <select id="pap-stage"><option value="">Any</option><option value="patients">Patients</option><option value="primate">Primate</option><option value="large_animal">Large animal</option><option value="mouse">Mouse</option><option value="human_cells">Human cells</option></select></label>
-      <label class="check"><input type="checkbox" id="pap-pre"> Preprints only</label>
-      <label class="check"><input type="checkbox" id="pap-lab"> Not yet clinical</label>
-      <label>Find <input type="search" id="pap-q" placeholder="title, author, institution"></label>
-      <span class="count" id="pap-count"></span>
-    </div>
-    <div class="scroll"><table>
-      <thead><tr><th>Date</th><th>Paper</th><th>Works on</th><th>Model reached</th><th>De-risking shown</th><th>Authors' record</th><th class="num">Translation</th><th class="num">Company</th><th>What happened next</th></tr></thead>
-      <tbody id="pap-body"></tbody>
-    </table></div>
-    <button class="more" id="pap-more" type="button">Show 50 more</button>
-  </section>
+  <main class="split">
+    <section aria-label="Results">
+      <div class="listhead"><span class="label" id="list-title"></span><span class="cnt" id="list-count"></span></div>
+      <div id="list" role="listbox" aria-label="Results"></div>
+      <button class="more" id="more" type="button">Show more</button>
+    </section>
+    <aside class="detail" id="detail" aria-live="polite"></aside>
+  </main>
 
-  <section id="view-lit-up" hidden>
-    <p class="lede">The change feed for the 300 top-ranked labs: each new award, Form D or UK company that named them in the three years after the date. In the live section this is what arrives day by day.</p>
-    <div class="controls">
-      <label>Kind <select id="lit-kind"><option value="">All</option><option value="formd">Form D</option><option value="award">Small-business award</option><option value="uk">UK company</option></select></label>
-      <label>Ranked in the top <select id="lit-top"><option value="300">300</option><option value="100">100</option><option value="50">50</option></select></label>
-      <span class="count" id="lit-count"></span>
-    </div>
-    <div class="feed" id="lit-body"></div>
-  </section>
-
-  <section id="view-method" hidden>
-    <p class="lede">What the top of each list held, against the base rate and a plain count. Trained on 2017 and 2018, scored on 2019 and 2020.</p>
-    <div class="method">
-      <div id="studies"></div>
-      <div class="notes">
-        <h3>What to trust</h3>
-        <ul>
-          <li>The translation ranking ties NIH iCite's published score, which sees citations this one does not.</li>
-          <li>The labs ranking is the strong one for company activity. The top tenth of lab heads held 46% of those who went on to a company record.</li>
-          <li>The authors' record does most of the work. A paper's own words add little for company activity.</li>
-        </ul>
-        <h3>What not to trust yet</h3>
-        <ul>
-          <li>"None seen yet" means none in three sources. Founders with an advisory seat and under 25% leave no trace in them, so well-known founders sit in that group.</li>
-          <li>Records are matched by name and state or town. Some are the wrong person, and some real ones are dropped.</li>
-          <li>The UK register shows owners of 25% or more of live companies only. The UK ranking is no better than a count.</li>
-          <li>Patents are not in the record. They need a USPTO key.</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <div class="foot">Sources: Europe PMC (papers), OpenAlex (authors and institutions), NIH RePORTER (small-business awards), SEC Form D data sets, Companies House (company and ownership files), NIH iCite (clinical citations), PubMed (conflict-of-interest statements). Scores are a word-frequency and rule model; no language model wrote or scored anything here.</div>
+  <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
+  <div class="foot">Sources: Europe PMC, OpenAlex, NIH RePORTER, SEC Form D data sets, Companies House, NIH iCite, PubMed. Company records are matched to authors by name and state or town, and are not verified. Scores come from a word-frequency and rule model; no language model wrote or scored anything here.</div>
 </div>
+
+<div class="sheet" id="sheet" aria-hidden="true"><div class="pane" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
+  <div class="dhead"><h2 id="sheet-h">How reliable is this?</h2><button class="go" id="close-method" type="button">Close</button></div>
+  <p class="lede">Each bar is the share of the top 5% of a list that had the outcome within three years. The model was trained on 2017 and 2018 and scored on 2019 and 2020.</p>
+  <div id="studies"></div>
+  <div class="block"><span class="label">What to trust</span><ul>
+    <li>The lab ranking is the strong one. The top tenth of lab heads held 46% of those who went on to a company record.</li>
+    <li>"Closest to patients" ties NIH iCite's published score, which sees citations this one does not.</li>
+    <li>A lab's record does most of the work. A paper's own words add little for company activity.</li></ul></div>
+  <div class="block"><span class="label">What not to trust yet</span><ul>
+    <li>"No company record seen" means none in three sources. A founder with an advisory seat and under 25% leaves no trace in them.</li>
+    <li>Records are matched by name and state or town. Some are the wrong person, and some real ones are dropped.</li>
+    <li>The UK register shows only owners of 25% or more of live companies, so UK labs are undercounted.</li>
+    <li>Patents are not included yet.</li></ul></div>
+</div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="application/json" id="data">__DATA__</script>
 <script>
@@ -211,166 +259,274 @@ tr.detail td { background: var(--panel); padding: 4px 10px 18px; border-bottom: 
   const D = JSON.parse(document.getElementById('data').textContent);
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const KIND = { formd: 'Form D', award: 'Award', uk: 'UK company' };
+  const n = (v) => Number(v).toLocaleString('en');
+  const plural = (c, one, many) => `${n(c)} ${c === 1 ? one : (many || one + 's')}`;
+  const KIND = { formd: 'Funding filing', award: 'Research award', uk: 'UK company' };
+  const KIND_SRC = { formd: 'SEC Form D', award: 'NIH small-business award', uk: 'Companies House' };
   const STAGES = ['human_cells', 'mouse', 'large_animal', 'primate', 'patients'];
-  const STAGE_NAME = { human_cells: 'Human cells', mouse: 'Mouse', large_animal: 'Large animal', primate: 'Primate', patients: 'Patients' };
-  const DERISK = { dose: 'Dose', biodistribution: 'Biodistribution', immunogenicity: 'Immunogenicity', off_target: 'Off-target', manufacturing: 'Manufacturing', durability: 'Durability' };
-  const PRIOR = { prior_award: 'Prior award', prior_filing: 'Prior Form D', prior_uk_company: 'Prior UK company' };
-  const tidy = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();   // a key for grouping; names are shown as filed
+  const STAGE_NAME = { human_cells: 'Human cells', mouse: 'Mice', large_animal: 'Large animals', primate: 'Primates', patients: 'Patients' };
+  const DERISK = { dose: 'Dose response', biodistribution: 'Where it goes in the body', immunogenicity: 'Immune reaction', off_target: 'Off-target effects', manufacturing: 'Manufacturing', durability: 'How long it lasts' };
+  const SAID = { founder: 'a founder role', equity: 'equity', patent: 'patents', employee: 'company employment', advisor: 'advisory roles' };
+  const PRIOR = { prior_award: 'An author has led a small-business research award', prior_filing: 'An author has been an officer or director on a biotech funding filing', prior_uk_company: 'An author controls a UK research company' };
+  const MODS = ['AAV', 'CAR-T', 'Gene editing', 'Cell therapy', 'LNP / mRNA', 'Lentiviral'];
+  const ALSO = { 'AAV': 'adeno associated virus gene therapy capsid', 'CAR-T': 'car t cart chimeric antigen receptor', 'Gene editing': 'crispr cas9 base editing prime editing', 'Cell therapy': 'stem cell ipsc', 'LNP / mRNA': 'lipid nanoparticle mrna lnp', 'Lentiviral': 'lentivirus retroviral vector' };
+  const SHORT = { ucsf: 'university of california san francisco', ucla: 'university of california los angeles', ucsd: 'university of california san diego', mit: 'massachusetts institute of technology', unc: 'university of north carolina', upenn: 'university of pennsylvania', penn: 'university of pennsylvania', ucl: 'university college london', jhu: 'johns hopkins', chop: 'children s hospital of philadelphia', mgh: 'massachusetts general', nih: 'national institutes of health', usa: ' us ', uk: ' gb ' };
+  const plain = (s) => (' ' + String(s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ') + ' ');
+  const hay = (parts, mods, inst) => { let h = plain(parts.join(' ')) + (mods || []).map((m) => plain(m) + plain(ALSO[m])).join(''); const i = plain(inst); for (const k in SHORT) if (i.includes(SHORT[k])) h += k + ' '; return h; };
+
   const papers = new Map(D.papers.map((p) => [p.id, p]));
-  D.labs.forEach((l, i) => { l.rank = i + 1; });
-  const mods = ['AAV', 'Lentiviral', 'CAR-T', 'Cell therapy', 'Gene editing', 'LNP / mRNA'];
-  for (const id of ['lab-mod', 'pap-mod']) for (const m of mods) $(id).insertAdjacentHTML('beforeend', `<option>${esc(m)}</option>`);
-
-  const pct = (v) => v == null ? null : 'top ' + (Math.max(0.1, (1 - v) * 100)).toFixed((1 - v) < 0.0995 ? 1 : 0) + '%';
-  const score = (v, why) => v == null
-    ? `<span class="none" title="${esc(why || '')}">not scored</span>`
-    : `<div class="score"><span class="bar"><i style="width:${(v * 100).toFixed(1)}%"></i></span><span class="v">${pct(v)}</span></div>`;
-  const chips = (list, cls) => list.map((x) => `<span class="chip ${cls || ''}">${esc(x)}</span>`).join('');
-  const grouped = (recs) => {
-    const by = new Map();
-    for (const [k, , label] of recs) { const key = k + '|' + tidy(label); const got = by.get(key) || { k, label, n: 0 }; got.n += 1; by.set(key, got); }
-    return [...by.values()].map((g) => `${KIND[g.k]}: ${g.label}${g.n > 1 ? ' ×' + g.n : ''}`);
-  };
-  const ladder = (stages) => {
-    const top = Math.max(-1, ...stages.map((s) => STAGES.indexOf(s)));
-    if (top < 0) return '<span class="none">in vitro or not stated</span>';
-    return `<div class="ladder" aria-hidden="true">${STAGES.map((s, i) => `<i class="${stages.includes(s) ? 'on' + (i === top ? ' top' : '') : ''}"></i>`).join('')}</div><span class="sub">${STAGE_NAME[STAGES[top]]}</span>`;
-  };
-  const link = (p) => p.doi ? 'https://doi.org/' + encodeURI(p.doi) : 'https://europepmc.org/article/' + (p.pre ? 'PPR/' : 'MED/') + encodeURIComponent(p.pmid || p.id);
-
-  /* ---- labs ---- */
-  let labShown = 50, labOpen = null;
-  function labRows() {
-    const m = $('lab-mod').value, c = $('lab-country').value, r = $('lab-rec').value, q = $('lab-q').value.trim().toLowerCase();
-    return D.labs.filter((l) => (!m || l.mods.includes(m)) && (!c || l.country === c)
-      && (!r || (r === 'none' ? !l.before.length : l.before.length))
-      && (!q || (l.name + ' ' + (l.inst || '')).toLowerCase().includes(q)));
-  }
-  function labDetail(l) {
-    const events = [...l.before.map((e) => ({ d: e[1], k: KIND[e[0]], w: e[2], after: false })),
-      ...l.after.map((e) => ({ d: e[1], k: KIND[e[0]], w: e[2], after: true }))];
-    for (const id of l.papers) { const p = papers.get(id); if (p) events.push({ d: p.d, k: p.pre ? 'Preprint' : 'Paper', w: `<a href="${esc(link(p))}" target="_blank" rel="noopener">${esc(p.t)}</a>`, html: true }); }
-    events.sort((a, b) => a.d < b.d ? -1 : 1);
-    let cut = false, rows = '';
-    for (const e of events) {
-      if (!cut && e.d > '2020-12-31') { rows += '<li class="cut">31 Dec 2020 · the ranking date</li>'; cut = true; }
-      rows += `<li class="${e.after ? 'after' : ''}"><span class="d">${e.d}</span><span class="k">${e.k}</span><span>${e.html ? e.w : esc(e.w)}</span></li>`;
-    }
-    const list = l.papers.map((id) => papers.get(id)).filter(Boolean).map((p) =>
-      `<li><span class="d">${p.d}</span><span class="k">${p.clin != null ? pct(p.clin) : ''}</span><span><a href="${esc(link(p))}" target="_blank" rel="noopener">${esc(p.t)}</a> <span class="sub">${esc(p.j || '')}</span></span></li>`).join('');
-    return `<div class="dgrid"><div><h3>Timeline</h3><div class="facts"><span>Works before 2021 <b>${l.works.toLocaleString('en')}</b></span><span>Cited <b>${l.cited.toLocaleString('en')}</b></span><span>OpenAlex <b>${esc(l.id)}</b></span></div><ul class="tl">${rows}</ul></div>
-      <div><h3>Their CGT papers, newest first, with translation score</h3><ul class="tl">${list || '<li class="none">None in the sample shown.</li>'}</ul></div></div>`;
-  }
-  function drawLabs() {
-    const rows = labRows(), next = $('lab-next').checked;
-    document.querySelectorAll('#view-labs .next').forEach((e) => { e.hidden = !next; });
-    $('lab-count').textContent = `${rows.length} of the top 300 · ${D.labsTotal.toLocaleString('en')} lab heads ranked`;
-    $('lab-body').innerHTML = rows.slice(0, labShown).map((l) => {
-      const open = labOpen === l.id;
-      return `<tr class="row" data-id="${esc(l.id)}" tabindex="0" aria-expanded="${open}">
-        <td class="rank">${l.rank}</td>
-        <td class="person"><div class="who">${esc(l.name)}</div><div class="sub">${esc(l.inst || 'institution not given')}${l.country ? ' · ' + (l.country === 'GB' ? 'UK' : l.country) : ''}</div></td>
-        <td>${chips(l.mods, 'mod') || '<span class="none">mixed</span>'}</td>
-        <td class="num">${l.n}</td>
-        <td>${l.stage ? `<span class="sub">${STAGE_NAME[l.stage]}</span>` : '<span class="none">in vitro</span>'}</td>
-        <td>${chips(l.coi.map((c) => c[0].toUpperCase() + c.slice(1)), 'said') || '<span class="none">nothing</span>'}</td>
-        <td class="rec">${chips(grouped(l.before)) || '<span class="none">none seen yet</span>'}</td>
-        <td class="num">${score(l.pct)}</td>
-        ${next ? `<td class="rec">${chips(grouped(l.after), 'lit') || '<span class="none">nothing in three years</span>'}</td>` : ''}
-      </tr>${open ? `<tr class="detail"><td colspan="${next ? 9 : 8}">${labDetail(l)}</td></tr>` : ''}`;
-    }).join('') || `<tr><td colspan="9" class="none">No lab head in the top 300 matches these filters.</td></tr>`;
-    $('lab-more').hidden = rows.length <= labShown;
-  }
-  function toggleLab(tr) { const id = tr.dataset.id; labOpen = labOpen === id ? null : id; drawLabs(); }
-  $('lab-body').addEventListener('click', (e) => { if (e.target.closest('a')) return; const tr = e.target.closest('tr.row'); if (tr) toggleLab(tr); });
-  $('lab-body').addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('tr.row')) toggleLab(e.target); });
-  for (const id of ['lab-mod', 'lab-country', 'lab-rec', 'lab-q', 'lab-next']) $(id).addEventListener('input', () => { labShown = 50; drawLabs(); });
-  $('lab-more').addEventListener('click', () => { labShown += 50; drawLabs(); });
-
-  /* ---- papers ---- */
-  let papShown = 50;
-  function papRows() {
-    const s = $('pap-sort').value, m = $('pap-mod').value, st = $('pap-stage').value, pre = $('pap-pre').checked, lab = $('pap-lab').checked, q = $('pap-q').value.trim().toLowerCase();
-    const top = (p) => Math.max(-1, ...p.stage.map((x) => STAGES.indexOf(x)));
-    return D.papers.filter((p) => (!m || p.mods.includes(m)) && (!st || top(p) === STAGES.indexOf(st)) && (!pre || p.pre) && (!lab || !p.stage.includes('patients'))
-      && (!q || (p.t + ' ' + (p.first || '') + ' ' + (p.last || '') + ' ' + (p.inst || '')).toLowerCase().includes(q)))
-      .sort((a, b) => s === 'd' ? (a.d < b.d ? 1 : -1) : ((b[s] == null ? -1 : b[s]) - (a[s] == null ? -1 : a[s])));
-  }
-  function drawPapers() {
-    const rows = papRows();
-    $('pap-count').textContent = `${rows.length.toLocaleString('en')} shown of ${D.papers.length.toLocaleString('en')} in this sample · ${D.papersTotal.toLocaleString('en')} scored`;
-    $('pap-body').innerHTML = rows.slice(0, papShown).map((p) => {
-      const record = [...p.prior.map((x) => PRIOR[x]), ...(p.co ? ['Company author'] : [])];
-      const said = p.coi.map((c) => 'Declares ' + c);
-      const next = [...(p.cited ? ['Cited by a clinical article'] : []), ...grouped(p.after).slice(0, 3)];
-      return `<tr>
-        <td class="rank">${p.d}</td>
-        <td class="paper"><div class="title"><a href="${esc(link(p))}" target="_blank" rel="noopener">${esc(p.t)}</a></div><div class="sub">${esc(p.last || p.first || '')}${p.inst ? ' · ' + esc(p.inst) : ''} · ${esc(p.j || '')}${p.pre ? ' · preprint' : ''}</div></td>
-        <td>${chips(p.mods, 'mod')}</td>
-        <td>${ladder(p.stage)}</td>
-        <td>${chips(p.derisk.map((x) => DERISK[x])) || '<span class="none">none of six</span>'}</td>
-        <td>${chips(record) + chips(said, 'said') || '<span class="none">none seen</span>'}</td>
-        <td class="num">${score(p.clin)}</td>
-        <td class="num">${score(p.comp, 'No author at a US or UK address, so no company record can be seen')}</td>
-        <td>${chips(next, 'lit') || '<span class="none">nothing in three years</span>'}</td>
-      </tr>`;
-    }).join('') || `<tr><td colspan="9" class="none">No paper in the sample matches these filters.</td></tr>`;
-    $('pap-more').hidden = rows.length <= papShown;
-  }
-  for (const id of ['pap-sort', 'pap-mod', 'pap-stage', 'pap-pre', 'pap-lab', 'pap-q']) $(id).addEventListener('input', () => { papShown = 50; drawPapers(); });
-  $('pap-more').addEventListener('click', () => { papShown += 50; drawPapers(); });
-
-  /* ---- lit up ---- */
+  D.labs.forEach((l, i) => { l.rank = i + 1; l.hay = hay([l.name, l.inst, l.country, ...l.before.map((e) => e[2]), ...l.after.map((e) => e[2])], l.mods, l.inst); });
+  const labById = new Map(D.labs.map((l) => [l.id, l]));
+  D.papers.forEach((p) => { p.hay = hay([p.t, p.first, p.last, p.inst, p.j, p.pre ? 'preprint' : ''], p.mods, p.inst); p.top = Math.max(-1, ...p.stage.map((x) => STAGES.indexOf(x))); });
   const events = [];
-  for (const l of D.labs) for (const [k, d, label] of l.after) events.push({ k, d, label, l });
+  for (const l of D.labs) for (const [k, d, label] of l.after) events.push({ id: l.id + '|' + k + '|' + d + '|' + label, k, d, label, l });
   events.sort((a, b) => a.d < b.d ? -1 : 1);
-  function drawLit() {
-    const k = $('lit-kind').value, top = +$('lit-top').value;
-    const rows = events.filter((e) => (!k || e.k === k) && e.l.rank <= top);
-    $('lit-count').textContent = `${rows.length} records for ${new Set(rows.map((e) => e.l.id)).size} labs`;
-    let month = '', html = '';
-    for (const e of rows) {
-      const m = new Date(e.d + 'T00:00:00Z').toLocaleString('en', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-      if (m !== month) { html += `<div class="month">${m}</div>`; month = m; }
-      html += `<div class="ev"><span class="d">${e.d}</span><span class="k">${KIND[e.k]}</span><span class="what"><b>${esc(e.label)}</b> names ${esc(e.l.name)} <span class="sub">${esc(e.l.inst || '')}</span></span><span class="r">ranked #${e.l.rank}</span></div>`;
+
+  /* what a rank has meant, from the backtest */
+  const STUDY = { lab: 'lab heads: any company record in the next 3 years', clin: 'cited by a clinical article within 3 years, all papers', comp: 'any company record (award, Form D, UK company), US and UK papers' };
+  const at = (key, share) => { const s = D.summary[STUDY[key]]; return s ? Math.round(s.scores['rules + words'].top.find((t) => Math.abs(t.share - share) < 1e-9).precision * 100) : null; };
+  const base = (key) => Math.round(D.summary[STUDY[key]].base * 100);
+  const band = (v) => { const r = 1 - v; return r <= 0.01 ? 1 : r <= 0.05 ? 5 : r <= 0.10 ? 10 : 0; };
+  const topText = (v) => { const r = (1 - v) * 100; return 'Top ' + (r < 1 ? '1' : Math.ceil(r)) + '%'; };
+  const pill = (v) => v == null ? '<span class="pill">Not scored</span>' : `<span class="pill ${band(v) ? 't' + band(v) : ''}">${topText(v)}</span>`;
+  const OUT = { lab: 'appeared in a company record', clin: 'were cited by a clinical article', comp: 'had an author appear in a company record' };
+  const UNIT = { lab: 'labs', clin: 'papers', comp: 'papers' };
+  function means(key, v) {
+    const b = band(v);
+    if (!b) return `Outside the top tenth, where the score says little. Across all ${UNIT[key]}, ${base(key)} in 100 ${OUT[key]} within three years.`;
+    return `In the backtest, <b>${at(key, b / 100)} in 100</b> ${UNIT[key]} in the top ${b}% ${OUT[key]} within three years. Across all ${UNIT[key]} it was ${base(key)} in 100.`;
+  }
+
+  /* watchlist, kept in this browser */
+  let watched = new Set();
+  try { watched = new Set(JSON.parse(localStorage.getItem('discovery-watch') || '[]')); } catch (e) { /* no storage: the list lasts for this visit */ }
+  const saveWatch = () => { try { localStorage.setItem('discovery-watch', JSON.stringify([...watched])); } catch (e) { /* as above */ } };
+
+  const S = { view: 'labs', q: '', mod: '', watching: false, extra: false, sort: 'clin',
+    f: { country: '', rec: '', stage: '', pre: false, lab: false, kind: '' },
+    sel: { labs: null, papers: null, news: null }, shown: { labs: 40, papers: 40, news: 60 } };
+  const narrow = () => window.matchMedia('(max-width: 880px)').matches;
+  const tokens = () => plain(S.q).trim().split(' ').filter(Boolean);
+  const hit = (h) => tokens().every((t) => h.includes(t));
+
+  function rows(view) {
+    if (view === 'labs') return D.labs.filter((l) => hit(l.hay) && (!S.mod || l.mods.includes(S.mod)) && (!S.watching || watched.has(l.id))
+      && (!S.f.country || l.country === S.f.country) && (!S.f.rec || (S.f.rec === 'none' ? !l.before.length : l.before.length)));
+    if (view === 'papers') return D.papers.filter((p) => hit(p.hay) && (!S.mod || p.mods.includes(S.mod)) && (!S.watching || watched.has(p.lastId))
+      && (!S.f.stage || p.top === STAGES.indexOf(S.f.stage)) && (!S.f.pre || p.pre) && (!S.f.lab || !p.stage.includes('patients')))
+      .sort((a, b) => S.sort === 'd' ? (a.d < b.d ? 1 : -1) : ((b[S.sort] == null ? -1 : b[S.sort]) - (a[S.sort] == null ? -1 : a[S.sort])));
+    return events.filter((e) => hit(e.l.hay) && (!S.mod || e.l.mods.includes(S.mod)) && (!S.watching || watched.has(e.l.id)) && (!S.f.kind || e.k === S.f.kind));
+  }
+
+  /* plain-language reasons */
+  const names = (recs, kind) => [...new Map(recs.filter((e) => e[0] === kind).map((e) => [plain(e[2]), e[2]])).values()];
+  const some = (list) => list.slice(0, 2).join(', ') + (list.length > 2 ? ` and ${list.length - 2} more` : '');
+  function labReasons(l) {
+    const out = [], c = (k) => l.before.filter((e) => e[0] === k).length;
+    if (c('formd')) out.push({ t: `Officer or director on ${plural(c('formd'), 'biotech funding filing')}: ${esc(some(names(l.before, 'formd')))}` });
+    if (c('award')) out.push({ t: `Led ${plural(c('award'), 'small-business research award')}: ${esc(some(names(l.before, 'award')))}` });
+    if (c('uk')) out.push({ t: `Controls a UK research company: ${esc(some(names(l.before, 'uk')))}` });
+    if (l.coi.length) out.push({ t: `Declares ${l.coi.map((x) => SAID[x]).join(', ')} in their papers`, c: 'said' });
+    out.push({ t: `${plural(l.n, 'gene and cell therapy paper')} since 2017${l.mods.length ? ', mostly on ' + l.mods.join(' and ') : ''}`, c: 'soft' });
+    if (l.stage) out.push({ t: `The work has reached ${STAGE_NAME[l.stage].toLowerCase()}`, c: 'soft' });
+    out.push({ t: `${n(l.works)} publications in total, cited ${n(l.cited)} times`, c: 'soft' });
+    return out;
+  }
+  function labLine(l) {
+    const f = l.before.filter((e) => e[0] === 'formd').length, a = l.before.filter((e) => e[0] === 'award').length, u = l.before.filter((e) => e[0] === 'uk').length;
+    const rec = [f && plural(f, 'funding filing'), a && plural(a, 'research award'), u && plural(u, 'UK company', 'UK companies')].filter(Boolean).join(', ') || 'No company record seen';
+    const said = l.coi.length ? ' · declares ' + l.coi.slice(0, 2).map((x) => SAID[x]).join(', ') : '';
+    const next = $('next').checked && l.after.length ? ` <span class="lit">· then ${plural(l.after.length, 'new record')}</span>` : '';
+    return esc(rec + said) + next;
+  }
+  const link = (p) => p.doi ? 'https://doi.org/' + encodeURI(p.doi) : 'https://europepmc.org/article/' + (p.pre ? 'PPR/' : 'MED/') + encodeURIComponent(p.pmid || p.id);
+  const star = (id, name) => `<button class="star" type="button" data-star="${esc(id)}" aria-pressed="${watched.has(id)}" aria-label="${watched.has(id) ? 'Stop watching' : 'Watch'} ${esc(name)}" title="${watched.has(id) ? 'Watching' : 'Watch this lab'}">${watched.has(id) ? '★' : '☆'}</button>`;
+
+  /* ---- list ---- */
+  function drawList() {
+    const all = rows(S.view), shown = all.slice(0, S.shown[S.view]);
+    const key = (r) => S.view === 'news' ? r.id : r.id;
+    if (!all.some((r) => key(r) === S.sel[S.view])) S.sel[S.view] = all.length && !narrow() ? key(all[0]) : null;
+    const sel = S.sel[S.view];
+    $('list-title').textContent = S.view === 'labs' ? 'Most likely to form or join a company'
+      : S.view === 'papers' ? (S.sort === 'clin' ? 'Closest to patients first' : S.sort === 'comp' ? 'Most likely to become a company first' : 'Newest first')
+      : 'New company records, oldest first';
+    $('list-count').textContent = S.view === 'labs' ? `${all.length} shown · ${n(D.labsTotal)} ranked`
+      : S.view === 'papers' ? `${n(all.length)} shown · ${n(D.papersTotal)} scored` : `${all.length} records`;
+    let html = '';
+    for (const r of shown) {
+      const on = key(r) === sel;
+      if (S.view === 'labs') html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="rk">${r.rank}</span>
+        <span><span class="nm">${esc(r.name)}</span><span class="in">${esc(r.inst || 'Institution not given')}</span><span class="why">${labLine(r)}</span></span>
+        <span class="side">${pill(r.pct)}${star(r.id, r.name)}</span></div>`;
+      else if (S.view === 'papers') { const v = S.sort === 'comp' ? r.comp : r.clin;
+        html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="rk">${r.d.slice(2, 7)}</span>
+        <span><span class="nm">${esc(r.t)}</span><span class="in">${esc(r.last || r.first || '')}${r.inst ? ' · ' + esc(r.inst) : ''}${r.pre ? ' · preprint' : ''}</span>
+          <span class="why">${r.top >= 0 ? 'Reached ' + STAGE_NAME[STAGES[r.top]].toLowerCase() : 'Lab work only'}${r.derisk.length ? ' · shows ' + r.derisk.slice(0, 2).map((x) => DERISK[x].toLowerCase()).join(', ') : ''}</span></span>
+        <span class="side">${pill(v)}</span></div>`; }
+      else html += `<div class="item ev" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="rk">${r.d}</span>
+        <span><span class="nm">${esc(r.label)}</span><span class="in">${KIND[r.k]} naming ${esc(r.l.name)}</span><span class="why">${esc(r.l.inst || '')}</span></span>
+        <span class="side"><span class="pill">#${r.l.rank}</span>${star(r.l.id, r.l.name)}</span></div>`;
     }
-    $('lit-body').innerHTML = html || '<div class="none" style="padding:16px 0">No record of this kind for these labs.</div>';
-  }
-  for (const id of ['lit-kind', 'lit-top']) $(id).addEventListener('input', drawLit);
-
-  /* ---- method ---- */
-  const STUDIES = [
-    ['lab heads: any company record in the next 3 years', 'Lab heads: any company record in three years', 'paper count (floor)', 'Paper count'],
-    ['any company record (award, Form D, UK company), US and UK papers', 'Papers: an author in a later company record', 'author count (floor)', 'Author count'],
-    ['the same, academic papers only', 'Papers by authors with no record yet: a first one', 'author count (floor)', 'Author count'],
-    ['cited by a clinical article within 3 years, all papers', 'Papers: cited by a clinical article', 'iCite apt (baseline)', 'NIH iCite'],
-    ['lab heads with no company record yet: a first one', 'Lab heads with no record yet: a first one', 'paper count (floor)', 'Paper count'],
-  ];
-  function drawMethod() {
-    const at5 = (s) => s.top.find((t) => Math.abs(t.share - 0.05) < 1e-9).precision;
-    const scale = 0.7;
-    $('studies').innerHTML = STUDIES.map(([key, name, other, otherName]) => {
-      const s = D.summary[key]; if (!s) return '';
-      const bar = (label, v, cls) => `<div class="hbar ${cls}"><span class="l">${label}</span><span class="track"><i style="width:${Math.min(100, v / scale * 100).toFixed(1)}%"></i></span><span class="v">${(v * 100).toFixed(0)}%</span></div>`;
-      return `<div class="study"><h3>${name}</h3><div class="meta">${s.n.toLocaleString('en')} scored · ${s.events} events · share of the top 5% that had the outcome</div>
-        ${bar('This score', at5(s.scores['rules + words']), 'ours')}${s.scores[other] ? bar(otherName, at5(s.scores[other]), '') : ''}${bar('Base rate', s.base, '')}</div>`;
-    }).join('');
+    if (!all.length) {
+      const other = S.view === 'papers' ? 'labs' : 'papers', m = rows(other).length;
+      const what = S.q ? `matches “${esc(S.q)}”` : 'matches these filters';
+      html = `<div class="empty"><b>Nothing here ${what}.</b><br>${S.watching ? 'You are only looking at labs you watch. ' : ''}Try a surname, an institution such as UCSF, or a topic such as CRISPR.${m ? `<div class="row" style="margin-top:12px"><button class="go" type="button" data-goto="${other}">${n(m)} ${other} match. Show them</button></div>` : ''}${(S.mod || S.watching || S.q) ? `<div class="row" style="margin-top:8px"><button class="go" type="button" data-clear="1">Clear search and filters</button></div>` : ''}</div>`;
+    }
+    $('list').innerHTML = html;
+    $('more').hidden = all.length <= shown.length;
+    $('more').textContent = `Show ${Math.min(40, all.length - shown.length)} more`;
   }
 
-  /* ---- routing ---- */
-  $('n-labs').textContent = D.labs.length;
-  $('n-papers').textContent = D.papers.length.toLocaleString('en');
-  $('n-lit').textContent = events.length;
-  const draw = { labs: drawLabs, papers: drawPapers, 'lit-up': drawLit, method: drawMethod };
-  function show() {
-    const view = draw[location.hash.slice(1)] ? location.hash.slice(1) : 'labs';
-    for (const name of Object.keys(draw)) $('view-' + name).hidden = name !== view;
-    document.querySelectorAll('#tabs a').forEach((a) => { if (a.dataset.view === view) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-    draw[view]();
+  /* ---- detail ---- */
+  function timeline(l, limit) {
+    const ev = [...l.before.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), s: KIND_SRC[e[0]] })), ...($('next').checked ? l.after.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), after: true, s: KIND_SRC[e[0]] })) : [])];
+    for (const id of l.papers) { const p = papers.get(id); if (p) ev.push({ d: p.d, k: p.pre ? 'Preprint' : 'Paper', w: `<a href="${esc(link(p))}" target="_blank" rel="noopener">${esc(p.t)}</a>` }); }
+    ev.sort((a, b) => a.d < b.d ? 1 : -1);
+    const cut = ev.findIndex((e) => e.d <= '2020-12-31');
+    const show = limit ? ev.slice(0, limit) : ev;
+    let html = '';
+    show.forEach((e, i) => { if (i === cut && cut > 0) html += '<li class="cut">31 Dec 2020 · the ranking date</li>'; html += `<li class="${e.after ? 'after' : ''}"><span class="d">${e.d}</span><span class="k" title="${esc(e.s || '')}">${e.k}</span><span>${e.w}</span></li>`; });
+    return { html, more: ev.length - show.length };
   }
-  $('tabs').addEventListener('click', (e) => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); location.hash = a.dataset.view; if (location.hash.slice(1) !== a.dataset.view) show(); });
-  window.addEventListener('hashchange', show);
-  show();
+  function nextBox(recs, cited) {
+    if (!$('next').checked) return '';
+    const lines = [...(cited ? ['Cited by a clinical article'] : []), ...recs.map((e) => `${KIND[e[0]]}, ${e[1]}: ${esc(e[2])}${e[3] ? ' <span style="color:var(--muted)">(names ' + esc(e[3]) + ')</span>' : ''}`)];
+    return lines.length ? `<div class="block next"><span class="label">What happened next</span><ul class="reasons">${lines.slice(0, 6).map((x) => `<li>${x}</li>`).join('')}</ul>${lines.length > 6 ? `<div class="fine">and ${lines.length - 6} more</div>` : ''}</div>`
+      : `<div class="block next none"><span class="label">What happened next</span>Nothing in the three years after.</div>`;
+  }
+  let fullTimeline = false;
+  function labDetail(l) {
+    const tl = timeline(l, fullTimeline ? 0 : 7), w = watched.has(l.id);
+    return `<div class="dhead"><div><h2>${esc(l.name)}</h2><div class="sub">${esc(l.inst || 'Institution not given')}${l.country ? ' · ' + (l.country === 'GB' ? 'UK' : l.country) : ''} · ranked ${l.rank} of ${n(D.labsTotal)}</div></div>
+      <button class="watch" type="button" data-star="${esc(l.id)}" aria-pressed="${w}"><span>${w ? '★' : '☆'}</span>${w ? 'Watching' : 'Watch'}</button></div>
+      <div class="block"><span class="label">Why this lab</span><ul class="reasons">${labReasons(l).slice(0, 5).map((r) => `<li class="${r.c || ''}">${r.t}</li>`).join('')}</ul></div>
+      <div class="block"><span class="label">What the rank means</span><div class="means">${means('lab', l.pct)}</div></div>
+      ${nextBox(l.after)}
+      <div class="block"><span class="label">Timeline, newest first</span><ul class="tl">${tl.html}</ul>${tl.more > 0 ? `<button class="more" type="button" data-full="1">Show ${tl.more} earlier</button>` : ''}</div>
+      <div class="fine">Company records are matched by name and state or town and are not verified. Sources: SEC Form D, NIH RePORTER, Companies House.</div>`;
+  }
+  function paperDetail(p) {
+    const lab = labById.get(p.lastId);
+    const record = [...p.prior.map((x) => PRIOR[x]), ...(p.co ? ['A company is among the authors'] : [])];
+    return `<div class="dhead"><div><h2>${esc(p.t)}</h2><div class="sub">${esc(p.last || p.first || '')}${p.nAu > 1 ? ' and ' + (p.nAu - 1) + ' others' : ''}${p.inst ? ' · ' + esc(p.inst) : ''}<br>${esc(p.j || '')} · ${p.d}${p.pre ? ' · preprint, not peer reviewed' : ''}</div></div></div>
+      <div class="block row"><a class="go" href="${esc(link(p))}" target="_blank" rel="noopener">Open the paper ↗</a>${lab ? `<button class="go" type="button" data-lab="${esc(lab.id)}">See ${esc(lab.name)}'s lab, ranked ${lab.rank}</button>` : ''}</div>
+      <div class="block tiles">
+        <div class="tile"><span class="label">Closest to patients</span><div class="big ${band(p.clin) ? 'up' : ''}">${topText(p.clin)}</div><p>${means('clin', p.clin)}</p></div>
+        <div class="tile"><span class="label">Likely to become a company</span>${p.comp == null ? '<div class="big">Not scored</div><p>No author at a US or UK address, and company records are only read for those two countries.</p>' : `<div class="big ${band(p.comp) ? 'up' : ''}">${topText(p.comp)}</div><p>${means('comp', p.comp)}</p>`}</div>
+      </div>
+      <div class="block"><span class="label">How far the work got</span><div class="steps">${STAGES.map((s, i) => `<div class="step ${p.stage.includes(s) ? 'on' + (i === p.top ? ' top' : '') : ''}">${STAGE_NAME[s]}</div>`).join('')}</div></div>
+      <div class="block"><span class="label">What the abstract shows</span><ul class="checks">${Object.keys(DERISK).map((k) => `<li class="${p.derisk.includes(k) ? 'yes' : ''}"><i>${p.derisk.includes(k) ? '✓' : '·'}</i>${DERISK[k]}</li>`).join('')}</ul></div>
+      <div class="block"><span class="label">The authors</span>${record.length || p.coi.length ? `<ul class="reasons">${record.map((x) => `<li>${x}</li>`).join('')}${p.coi.length ? `<li class="said">The paper declares ${p.coi.map((x) => SAID[x]).join(', ')}</li>` : ''}</ul>` : '<span style="color:var(--muted)">No company record or declared interest seen.</span>'}</div>
+      ${nextBox(p.after, p.cited)}
+      <div class="fine">Tagged from the title and abstract by fixed rules: ${p.mods.join(', ') || 'no modality tag'}.</div>`;
+  }
+  let lastDetail = '';
+  function drawDetail() {
+    const id = S.sel[S.view];
+    let html = '', sig = S.view + '|' + id;
+    if (id) {
+      if (S.view === 'labs') html = labDetail(labById.get(id));
+      else if (S.view === 'papers') html = paperDetail(papers.get(id));
+      else { const e = events.find((x) => x.id === id); html = `<div class="block next" style="margin-top:0"><span class="label">${KIND[e.k]} · ${e.d} · ${KIND_SRC[e.k]}</span><b>${esc(e.label)}</b> names ${esc(e.l.name)}.</div><div style="height:14px"></div>` + labDetail(e.l); }
+    } else html = `<div class="empty">Pick a row to see why it is ranked where it is.</div>`;
+    const d = $('detail');
+    d.innerHTML = `<button class="go back" type="button" data-back="1">← Back to the list</button><div class="inner${sig !== lastDetail ? ' swap' : ''}">${html}</div>`;
+    if (sig !== lastDetail) d.scrollTop = 0;
+    lastDetail = sig;
+  }
+
+  /* ---- chrome ---- */
+  function drawChrome() {
+    document.querySelectorAll('.view').forEach((b) => b.setAttribute('aria-selected', b.dataset.view === S.view));
+    $('n-labs').textContent = `${rows('labs').length} labs`;
+    $('n-papers').textContent = `${n(rows('papers').length)} papers`;
+    $('n-news').textContent = `${rows('news').length} records`;
+    const extras = S.view === 'labs' ? (S.f.country ? 1 : 0) + (S.f.rec ? 1 : 0) : S.view === 'papers' ? (S.f.stage ? 1 : 0) + (S.f.pre ? 1 : 0) + (S.f.lab ? 1 : 0) : (S.f.kind ? 1 : 0);
+    $('chips').innerHTML = `<button class="chipbtn" type="button" data-mod="" aria-pressed="${!S.mod}">All topics</button>`
+      + MODS.map((m) => `<button class="chipbtn" type="button" data-mod="${esc(m)}" aria-pressed="${S.mod === m}">${esc(m)}</button>`).join('')
+      + `<span class="sep" aria-hidden="true"></span><button class="chipbtn" type="button" data-watching="1" aria-pressed="${S.watching}"><span class="dot">★</span> Watching ${watched.size || ''}</button>`
+      + `<button class="chipbtn quiet" type="button" data-extra="1" aria-expanded="${S.extra}">${S.extra ? 'Fewer filters' : 'More filters'}${extras ? ' · ' + extras + ' on' : ''}</button>`;
+    const seg = (name, opts) => `<span class="seg" role="group">${opts.map(([v, t]) => `<button type="button" data-f="${name}" data-v="${v}" aria-pressed="${String(name === 'sort' ? S.sort : S.f[name]) === v}">${t}</button>`).join('')}</span>`;
+    $('extra').hidden = !S.extra && S.view !== 'papers';
+    $('extra').innerHTML = S.view === 'labs' ? (S.extra ? `<label>Country ${seg('country', [['', 'Both'], ['US', 'US'], ['GB', 'UK']])}</label><label>Company record ${seg('rec', [['', 'Any'], ['some', 'Has one'], ['none', 'None seen yet']])}</label>` : '')
+      : S.view === 'papers' ? `<label>Rank by ${seg('sort', [['clin', 'Closest to patients'], ['comp', 'Likely a company'], ['d', 'Newest']])}</label>` + (S.extra ? `<label>Got as far as <select id="f-stage"><option value="">Any</option>${STAGES.slice().reverse().map((s) => `<option value="${s}" ${S.f.stage === s ? 'selected' : ''}>${STAGE_NAME[s]}</option>`).join('')}</select></label><label><input type="checkbox" id="f-pre" ${S.f.pre ? 'checked' : ''}> Preprints only</label><label><input type="checkbox" id="f-lab" ${S.f.lab ? 'checked' : ''}> Not yet in patients</label>` : '')
+      : (S.extra ? `<label>Kind ${seg('kind', [['', 'All'], ['formd', 'Funding filings'], ['award', 'Research awards'], ['uk', 'UK companies']])}</label>` : '');
+    $('extra').hidden = !$('extra').innerHTML;
+  }
+  function draw() { drawChrome(); drawList(); drawDetail(); }
+
+  /* ---- actions ---- */
+  let toastTimer;
+  function toast(text) { const t = $('toast'); t.textContent = text; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 1900); }
+  function toggleWatch(id) {
+    const l = labById.get(id); if (!l) return;
+    if (watched.has(id)) { watched.delete(id); toast(`Stopped watching ${l.name}`); } else { watched.add(id); toast(`Watching ${l.name}`); }
+    saveWatch(); draw();
+    document.querySelectorAll(`[data-star="${CSS.escape(id)}"]`).forEach((b) => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); });
+  }
+  function setView(v) { if (!['labs', 'papers', 'news'].includes(v)) return; S.view = v; fullTimeline = false; if (location.hash.slice(1) !== v) location.hash = v; draw(); }
+  function select(id, open) { S.sel[S.view] = id; fullTimeline = false; drawList(); drawDetail(); if (open && narrow()) $('detail').classList.add('open'); }
+  function move(step) {
+    const all = rows(S.view).slice(0, S.shown[S.view]); if (!all.length) return;
+    const i = all.findIndex((r) => r.id === S.sel[S.view]);
+    const next = all[Math.max(0, Math.min(all.length - 1, i + step))];
+    select(next.id); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  const sheet = (on) => { $('sheet').classList.toggle('on', on); $('sheet').setAttribute('aria-hidden', !on); if (on) $('close-method').focus(); };
+
+  $('views').addEventListener('click', (e) => { const b = e.target.closest('.view'); if (b) setView(b.dataset.view); });
+  $('chips').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if ('mod' in b.dataset) S.mod = b.dataset.mod; else if (b.dataset.watching) S.watching = !S.watching; else if (b.dataset.extra) S.extra = !S.extra;
+    S.shown[S.view] = S.view === 'news' ? 60 : 40; draw();
+  });
+  $('extra').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; if (b.dataset.f === 'sort') S.sort = b.dataset.v; else S.f[b.dataset.f] = b.dataset.v; draw(); });
+  $('extra').addEventListener('change', (e) => { if (e.target.id === 'f-stage') S.f.stage = e.target.value; if (e.target.id === 'f-pre') S.f.pre = e.target.checked; if (e.target.id === 'f-lab') S.f.lab = e.target.checked; draw(); });
+  $('list').addEventListener('click', (e) => {
+    const s = e.target.closest('[data-star]'); if (s) { e.stopPropagation(); toggleWatch(s.dataset.star); return; }
+    const g = e.target.closest('[data-goto]'); if (g) { setView(g.dataset.goto); return; }
+    if (e.target.closest('[data-clear]')) { S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f = { country: '', rec: '', stage: '', pre: false, lab: false, kind: '' }; draw(); return; }
+    const it = e.target.closest('.item'); if (it) select(it.dataset.id, true);
+  });
+  $('detail').addEventListener('click', (e) => {
+    const s = e.target.closest('[data-star]'); if (s) { toggleWatch(s.dataset.star); return; }
+    if (e.target.closest('[data-back]')) { $('detail').classList.remove('open'); return; }
+    if (e.target.closest('[data-full]')) { fullTimeline = true; drawDetail(); return; }
+    const l = e.target.closest('[data-lab]'); if (l) { S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.country = ''; S.f.rec = ''; S.view = 'labs'; S.sel.labs = l.dataset.lab; S.shown.labs = Math.max(40, labById.get(l.dataset.lab).rank); location.hash = 'labs'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); }
+  });
+  $('more').addEventListener('click', () => { S.shown[S.view] += 40; drawList(); });
+  $('q').addEventListener('input', (e) => { S.q = e.target.value; S.shown[S.view] = S.view === 'news' ? 60 : 40; draw(); });
+  $('next').addEventListener('change', draw);
+  $('open-method').addEventListener('click', () => sheet(true));
+  $('close-method').addEventListener('click', () => sheet(false));
+  $('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) sheet(false); });
+  document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.target.type !== 'checkbox';
+    if (e.key === 'Escape') { if ($('sheet').classList.contains('on')) sheet(false); else if ($('detail').classList.contains('open')) $('detail').classList.remove('open'); else if (typing) { if (S.q) { S.q = ''; $('q').value = ''; draw(); } e.target.blur(); } return; }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) { if (typing && (e.key === 'ArrowDown' || e.key === 'Enter') && e.target.id === 'q') { e.preventDefault(); e.target.blur(); move(0); } return; }
+    if (e.key === '/') { e.preventDefault(); $('q').focus(); $('q').select(); }
+    else if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); move(1); }
+    else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); move(-1); }
+    else if (e.key === 'w' || e.key === 'W') { const id = S.sel[S.view]; const lab = S.view === 'labs' ? id : S.view === 'news' ? (events.find((x) => x.id === id) || { l: {} }).l.id : (papers.get(id) || {}).lastId; if (lab && labById.has(lab)) toggleWatch(lab); else if (id) toast('This lab head is outside the top 300 shown here'); }
+    else if (e.key === '1') setView('labs'); else if (e.key === '2') setView('papers'); else if (e.key === '3') setView('news');
+    else if (e.key === 'Enter' && S.sel[S.view] && narrow()) $('detail').classList.add('open');
+  });
+  window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['labs', 'papers', 'news'].includes(v) && v !== S.view) { S.view = v; draw(); } });
+
+  /* the reliability sheet */
+  const SHOW = [['lab', 'Lab heads: appeared in a company record', 'paper count (floor)', 'Paper count'], ['comp', 'Papers: an author appeared in a company record', 'author count (floor)', 'Author count'], ['clin', 'Papers: cited by a clinical article', 'iCite apt (baseline)', 'NIH iCite']];
+  $('studies').innerHTML = SHOW.map(([key, name, other, otherName]) => {
+    const s = D.summary[STUDY[key]], p5 = (x) => x.top.find((t) => Math.abs(t.share - 0.05) < 1e-9).precision;
+    const bar = (label, v, cls) => `<div class="hbar ${cls}"><span class="l">${label}</span><span class="track"><i style="width:${Math.min(100, v / 0.7 * 100).toFixed(1)}%"></i></span><span class="v">${(v * 100).toFixed(0)}%</span></div>`;
+    return `<div class="study"><h3>${name}</h3>${bar('This ranking', p5(s.scores['rules + words']), 'ours')}${s.scores[other] ? bar(otherName, p5(s.scores[other]), '') : ''}${bar('Everyone', s.base, '')}</div>`;
+  }).join('');
+
+  const first = location.hash.slice(1);
+  if (['labs', 'papers', 'news'].includes(first)) S.view = first;
+  draw();
 })();
 </script>

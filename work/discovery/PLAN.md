@@ -105,14 +105,47 @@ and gene engine. It is about the sector, not the selected ticker, so it ignores 
 company picker the way Universe does. A module of its own (`frontend/discovery_view.py`),
 drawn with the existing tokens and `theme.py`; no new colour.
 
-**Four views.**
+**Shape, second version (2026-11-14).** The first prototype was four wide tables. The
+second is a list beside a panel, the way a mail client reads: pick a row on the left,
+read why it is ranked on the right. One search box, one row of topic chips, three views.
 
-| View | The question it answers | Main parts |
-|---|---|---|
-| Labs (opens first) | Who should I be watching? | Ranked lab heads; what they work on; furthest model reached; interests declared in their papers; company records to date; score. A row opens to a timeline of papers and records, and their papers. |
-| Papers | What came out, and what is closest to patients? | Ranked by translation or company score, or newest; the model ladder (human cells, mouse, large animal, primate, patients); six de-risking flags; the authors' record. |
-| Lit up | What changed for the labs I watch? | A dated feed: a new Form D, award or company naming a watched or top-ranked lab head. Feeds the terminal's What changed too. |
-| How good is it | Can I trust the ranking? | The backtest: what the top 5% held against the base rate and a plain count, and what the sources cannot see. |
+| View | The question it answers | A row says | The panel says |
+|---|---|---|---|
+| Labs (opens first) | Who should I be watching? | Name, institution, one line of record ("2 funding filings, declares equity"), rank band | Why this lab, in up to five plain sentences; what the rank has meant in the backtest; timeline; Watch |
+| Papers | What came out? | Title, last author, how far the work got, rank band | Two scores with what each has meant; the model ladder; what the abstract shows; the authors' record |
+| What's new | What changed for these labs? | Date, company, who it names | The record, then that lab's panel |
+
+"How reliable is this?" is a link in the top bar that opens the backtest as a side
+sheet. It is read once, so it does not take a tab.
+
+**Built as a component, not as Streamlit widgets.** Streamlit reruns the script on every
+widget change, so a click on a row would take a round trip. The list and panel are one
+custom component in `frontend/components/discovery/`, the pattern `compsval` and
+`clicklist` already use: the page gets its rows once and filters, selects and animates
+in the browser. Only Watch and "wrong person" go back to Python.
+
+**The twenty principles, and what each one does here.**
+
+| Principle | In this tab |
+|---|---|
+| Hick's law | Three views and seven topic chips up front. Country, record, stage and kind sit behind "More filters". |
+| Miller's law | A row carries four things. The panel gives at most five reasons and seven timeline lines before "Show earlier". |
+| Jakob's law | List and detail, a search box at the top, a star to watch, `/` to search, arrows to move: all as in mail and issue trackers. |
+| Fitts's law, bigger hit areas | The whole row is the target. Chips and buttons are 36px high, 44px on touch. Watch sits in the panel's top corner and on every row. |
+| Doherty threshold | Every filter, search and selection answers in the browser, well under 400ms. The server is asked once per view, from saved responses. |
+| Postel's law | Search ignores case, accents and punctuation, takes words in any order, and knows UCSF, MIT, CRISPR, "car t". An empty result offers the other view's matches and a way to clear. |
+| Frequency of use | Search, topic and Watch are always on screen. Rare things (reliability, extra filters, the full timeline) are one click away. Labs you watch get their own chip. |
+| Staging the focus | One selected row, marked on its left edge, and one panel. Green is kept for what happened after the ranking date. |
+| Slow in and slow out, snappy timing | 160ms eased transitions on hover, selection and chips; 200ms for the panel; nothing over 260ms. |
+| Pose to pose | The panel has two states, old and new, and fades up 6px between them. No intermediate layout is drawn. |
+| Anticipation | Hover lifts a row's background before the click; buttons and chips press in by 2 to 4%. |
+| Squash and stretch, follow through, exaggerated feedback | The star overshoots and settles when a lab is watched, and a toast confirms it by name. This is the one loud moment. |
+| Secondary action | Each view's count updates as you type, so you see where the matches are before switching. |
+| Moving in arcs, solid drawing in 3D | Barely used, on purpose. The side sheet and the phone panel slide in on one axis with a shadow for depth. A research tool should not swing. |
+| Overall appeal | The terminal's own tokens and type, so it reads as part of the same product. |
+
+Reduced motion is honoured: with that setting on, every transition is off.
+
 
 **Rules for the copy.**
 
@@ -157,6 +190,7 @@ Tables: `discovery_papers`, `discovery_people`, `discovery_paper_people`,
 **Decisions to agree before F1.**
 
 1. Labs opens first, not Papers (the backtest says the lab ranking is the stronger one).
+   And the tab is built as a custom component, as above.
 2. The tab shows on the cell and gene engine only, or on every engine.
 3. The opening state of Labs once live: the whole ranking, or labs with something new
    in the last 30 days.
