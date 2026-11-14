@@ -274,3 +274,79 @@ def test_no_seed_file_is_silently_unloaded():
     fixed = known - got
     assert not fixed, (f"these now resolve, remove them from "
                        f"data/unloaded_seed_files.txt: {sorted(fixed)}")
+
+
+def test_a_number_written_as_words_is_refused_at_the_seed(tmp_path):
+    """A sourcing refusal written into the value column rather than left out.
+
+    data/assumptions/amgn_tavneos.csv carried
+    `penetration_peak_pct,,,REFUSED - see note` for a day. assumptions.load reads
+    `value if value is not None else text_value`, so the string reached
+    forecast.s_curve as `peak * funnel` and raised "can't multiply sequence by
+    non-int of type 'float'" from inside the build, naming neither the key nor the
+    asset nor the file. Every catalyst on Amgen stopped pricing.
+    """
+    import db as _db
+    path = str(tmp_path / "seeds.db")
+    _db.init(path)
+    conn = _db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Tavneos', 1)")
+    conn.commit()
+    seeds = tmp_path / "seeds"
+    seeds.mkdir()
+    (seeds / "amgn_tavneos.csv").write_text(
+        "ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note\n"
+        "AMGN,Tavneos,,US,base,penetration_peak_pct,,,REFUSED - see note,,src,n\n"
+        "AMGN,Tavneos,,US,base,therapy_mode,,,marketed,,src,n\n"
+        "AMGN,Tavneos,,US,base,base_revenue,,459.0,,mm USD,src,n\n", encoding="utf-8")
+    out = A.load_seeds(conn, seeds)
+    # The two good rows land and the refusal does not.
+    assert out["written"] == 2
+    assert len(out["refused"]) == 1
+    said = out["refused"][0]
+    assert "amgn_tavneos.csv" in said and "penetration_peak_pct" in said
+    assert "'REFUSED - see note'" in said
+    held = conn.execute("SELECT key FROM assumptions WHERE asset_id = 1").fetchall()
+    assert {r["key"] for r in held} == {"therapy_mode", "base_revenue"}
+    conn.close()
+
+
+def test_a_text_key_still_takes_its_text(tmp_path):
+    """The guard is for keys the engine multiplies. therapy_mode is a word and must
+    keep arriving as one."""
+    import db as _db
+    path = str(tmp_path / "seeds2.db")
+    _db.init(path)
+    conn = _db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'AMGN', 'Amgen')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Tavneos', 1)")
+    conn.commit()
+    seeds = tmp_path / "seeds"
+    seeds.mkdir()
+    (seeds / "x.csv").write_text(
+        "ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note\n"
+        "AMGN,Tavneos,,US,base,therapy_mode,,,marketed,,src,n\n", encoding="utf-8")
+    out = A.load_seeds(conn, seeds)
+    assert out["written"] == 1 and out["refused"] == []
+    assert conn.execute("SELECT text_value FROM assumptions WHERE key='therapy_mode'"
+                        ).fetchone()[0] == "marketed"
+    conn.close()
+
+
+def test_the_shipped_seeds_carry_no_number_written_as_words():
+    """The guard over the book itself: no seed file may hold a numeric key with no
+    value."""
+    import csv as _csv
+    import pathlib as _pl
+    bad = []
+    for path in sorted(_pl.Path(A.SEED_DIR).glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            lines = [l for l in handle if not l.lstrip().startswith("#")]
+        for row in _csv.DictReader(lines):
+            key = (row.get("key") or "").strip()
+            if key in A._NUMERIC_KEYS and str(row.get("value") or "").strip() == "":
+                bad.append(f"{path.name}: {key}")
+    assert bad == [], bad

@@ -166,8 +166,20 @@ def build(conn, asset_id: int, indication_id: int, scenario: str = "base") -> di
     try:
         out = forecast.build(layer)
     except forecast.ForecastError as exc:
-        return {"ok": False, "missing": list(getattr(exc, "missing", []) or []),
-                "why": str(exc)}
+        gaps = list(getattr(exc, "missing", []) or [])
+        # The engine refuses a pool it cannot turn into patients a year with "supply
+        # new_patients rows or the pool identity inputs", which names neither key. The
+        # pool identity needs an incidence beside the prevalence, and a sub-population
+        # row written from a prevalence alone fails exactly here. Not in INDICATION_KEYS
+        # above, because a layer can be built from a patient series instead and one on
+        # the book is: Cobenfy's Alzheimer's layer carries no incidence and builds.
+        own = entry.get("scalars") or {}
+        if (any("pool identity" in str(g) for g in gaps)
+                and own.get("prevalence") is not None
+                and own.get("incidence") is None
+                and not (entry.get("series") or {}).get("new_patients")):
+            gaps.append("incidence")
+        return {"ok": False, "missing": gaps, "why": str(exc)}
 
     ceiling = (loaded.get("scalars") or {}).get("revenue_ceiling_musd")
     peak = _peak(out)

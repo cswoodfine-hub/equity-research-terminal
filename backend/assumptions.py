@@ -712,6 +712,29 @@ def unresolved_seed_files(conn, directory=None) -> dict:
     return out
 
 
+# Keys the engine does arithmetic on. A text value on one of these does not fail at
+# the door, it fails deep inside the build: a "REFUSED - see note" string written where
+# penetration_peak_pct belongs reached forecast.s_curve as `peak * funnel` and raised
+# "can't multiply sequence by non-int of type 'float'", which names neither the key nor
+# the asset nor the file. The seed is the right place to refuse it, because a seed is
+# the only way such a row gets in.
+#
+# An analyst who cannot source a number should leave the row out and say why in the
+# file's comments, which is what the refusals already on the book do.
+_NUMERIC_KEYS = frozenset((
+    "prevalence", "incidence", "eligible_pct", "penetration_peak_pct",
+    "ramp_midpoint_year", "ramp_steepness", "base_pool_overlap_pct",
+    "untreated_carryover_pct", "discontinuation_pct", "list_price_per_patient",
+    "net_price_per_patient", "gross_to_net_pct", "cogs_per_patient", "pos",
+    "pos_success", "pos_failure", "base_revenue", "revenue_growth_pct",
+    "terminal_growth_pct", "growth_fade_years", "revenue_ceiling_musd",
+    "forecast_start_year", "forecast_years", "cogs_pct", "sga_pct", "rd_pct",
+    "other_costs_pct", "tax_rate", "wacc", "risk_free", "erp", "beta",
+    "cost_of_debt", "debt_weight", "economics_share", "new_patients",
+    "opening_treated_patients", "net_price_decline_pct", "exus_multiple",
+))
+
+
 def load_seeds(conn, directory=None) -> dict:
     """Load every CSV under data/assumptions/ into the table. Returns counts.
 
@@ -727,6 +750,7 @@ def load_seeds(conn, directory=None) -> dict:
     # One batch for the load: a reseed is one event, however many files it reads.
     batch = assumption_log.new_batch()
     written = skipped = 0
+    refused: list = []
     if not source_dir.exists():
         return {"written": 0, "skipped": 0}
     for path in sorted(source_dir.glob("*.csv")):
@@ -763,6 +787,17 @@ def load_seeds(conn, directory=None) -> dict:
                     continue
                 indication_id = ind["id"]
             value = row.get("value")
+            key = (row.get("key") or "").strip()
+            if key in _NUMERIC_KEYS and str(value or "").strip() == "":
+                # A number the engine will multiply, written as words. Refused here and
+                # named, rather than carried to the arithmetic that cannot do it.
+                refused.append(
+                    f"{path.name}: {key} on "
+                    f"{(row.get('indication') or 'the asset').strip()} has no value"
+                    + (f", only the text {str(row.get('text_value')).strip()!r}"
+                       if (row.get("text_value") or "").strip() else ""))
+                skipped += 1
+                continue
             year = int(row["year"]) if (row.get("year") or "").strip() else None
             exists = conn.execute(
                 """SELECT 1 FROM assumptions WHERE asset_id = ?
@@ -789,7 +824,7 @@ def load_seeds(conn, directory=None) -> dict:
     # in the book at all, and the skipped total hides it among the rows a reseed
     # legitimately passes over because they are already there.
     orphans = unresolved_seed_files(conn, directory)
-    return {"written": written, "skipped": skipped,
+    return {"written": written, "skipped": skipped, "refused": refused,
             "unresolved_files": sorted(orphans), "unresolved_rows": sum(orphans.values())}
 
 

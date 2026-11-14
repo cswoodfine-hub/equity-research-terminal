@@ -1392,6 +1392,27 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         if not rows:
             return priced, unpriced
 
+    # Read and found to decide nothing, which is not the same state as nobody having
+    # looked. Both are worth nil and only one of them is work, and the difference is a
+    # quarter of the queue. Asked here rather than inside any one refusal, because the
+    # judgement is about the study and holds whichever reason the row would otherwise
+    # take: a roll-over extension, a basket and a readout inside the business already
+    # sold to are settled for different reasons and settled all the same. After the
+    # approved pass above, which is a stronger statement and keeps its own wording.
+    settled = settled_readouts.load(conn)
+    if settled:
+        said = []
+        for row in rows:
+            nct, _study = _catalyst_trial(conn, row)
+            read = settled.get((row.get("asset_id"), (nct or "").upper()))
+            if read:
+                refuse(row, "settled_nil", settled_readouts.why(read), [])
+                said.append(row["id"])
+        if said:
+            rows = [r for r in rows if r["id"] not in said]
+            if not rows:
+                return priced, unpriced
+
     if state["stated"] is not None:
         # The analyst's own legs, once, on the event they are tied to: linear in the
         # probability, so one build stands for the two runs whatif would make.
@@ -1463,7 +1484,6 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         layers: dict = {}
         pairs: dict = {}
         scenarios = catalyst_scenarios.load(conn)
-        settled = settled_readouts.load(conn)
         # One case is worth its delta once. Tezspire has two asthma readouts and Abrysvo
         # five in RSV; where the analyst has written one case for several of them, the
         # earliest carries it and the rest are the same gate again, exactly as a repeat
@@ -1502,13 +1522,6 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 # still the product's own; what moves is the rate the line it already
                 # sells grows at, and the scenario says by how much and on what basis.
                 nct, _study = _catalyst_trial(conn, row)
-                # Read and found to decide nothing, which is not the same state as
-                # nobody having looked. Both are worth nil and only one is work.
-                read = settled.get((row.get("asset_id"), (nct or "").upper()))
-                if read:
-                    refuse(row, "settled_nil", settled_readouts.why(read), [])
-                    answered.add(row["id"])
-                    continue
                 named = scenarios.get((row.get("asset_id"), (nct or "").upper()))
                 if named and named["scenario"] in cased:
                     refuse(row, "same_gate_later",

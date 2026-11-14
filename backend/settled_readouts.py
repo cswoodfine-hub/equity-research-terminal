@@ -56,6 +56,23 @@ KINDS = {
     "allocation_only":
         "a master protocol whose primary outcome is which sub-study a participant "
         "joined, which is an allocation record rather than a readout",
+    "roll_over_extension":
+        "a roll-over extension carrying participants from several studies, whose "
+        "primary outcome is adverse events",
+    "basket":
+        "a basket or master protocol, whose diseases are filed separately and read "
+        "out separately",
+    "continued_access":
+        "a continued-access study, whose primary outcome is how many participants "
+        "kept receiving the drug",
+    "comparator_arm":
+        "a study of something else, in which this product is the comparator",
+    "both_arms_treated":
+        "a study in which every arm receives the product, so the result decides how it "
+        "is given rather than whether another patient gets it",
+    "already_read_out":
+        "a study whose result the company has already published, where the date on "
+        "file is the registry's administrative completion rather than the readout",
 }
 
 

@@ -51,3 +51,69 @@ RARE,Fayuvi,NCT04360265,long_term_follow_up,Long-term follow-up of prior ABO-102
 ROG,Alecensa,NCT03178552,evidence_generation,Multi-cohort blood-first platform; alectinib Cohort A sits inside the metastatic ALK+ indication and has already read out.
 ROG,Xofluza,NCT07827599,regional_registration,China registration study; post-exposure prophylaxis is already in the Xofluza label for patients 5+.
 SNY,Wayrilz,NCT07216079,open_label_extension,Open-label extension for 3 Japanese patients completing LUNA 3 LTE.
+
+# Twenty-five more, from the unlinked catalyst queue, read 2026-11-14. These reached
+# settled_nil by a different route: the book could not say which disease they read out in,
+# so they sat as no_indication_link, which reads like work outstanding. They are not. Four
+# shapes, and the registry states each one outright:
+#
+#   a roll-over or long-term extension carrying participants out of several studies, whose
+#   primary outcome is adverse events (AstraZeneca's three ROSY studies file their condition
+#   as "Cancer");
+#
+#   a basket or master protocol, whose diseases are filed separately and read out separately
+#   (KEYNOTE-158 files twenty-five condition strings, which is the named example in
+#   forecast_view._one_population_legs);
+#
+#   a continued-access study, whose primary outcome counts how many participants kept
+#   receiving the drug (Roche's three IMbrella studies);
+#
+#   and a study whose disease the label already covers, where a link would have been
+#   possible and worth nothing.
+#
+# Two of the in_label rows name a real modelling gap rather than a dead end, and their basis
+# says so: Nurtec's chronic-migraine prevention and Columvi's first-line move are large
+# unapproved territory that collapses into an approved disease row, because the book's
+# indication layer is keyed to a disease and these are lines of therapy within one. Those
+# are seeding decisions, not mapping ones.
+ABBV,Botox,NCT07871513,in_label,Two separate conditions; glabellar/upper facial lines already on BOTOX Cosmetic's label (BLA 103000)
+ABBV,Venclexta,NCT03844048,roll_over_extension,"Roll-over extension, six separate conditions, AE-only primary"
+AZN,Datroway,NCT05489211,basket,"TROPION-PanTumor03 master protocol, seven separate conditions, substudy-specific primaries"
+AZN,Fasenra,NCT06512883,in_label,"Two separate conditions, two cohorts, AE+PK primary; EGPA and HES both already on label"
+AZN,Imfinzi,NCT05303532,roll_over_extension,"ROSY-D roll-over, condition is ""Cancer"", SAE-only primary"
+AZN,Lynparza,NCT04421963,roll_over_extension,"ROSY-O roll-over, two separate conditions, ""Safety follow up"" primary"
+AZN,Tagrisso,NCT05629234,roll_over_extension,"ROSY-T roll-over, condition is ""Cancer"", SAE/AESI-only primary"
+BMRN,Galafold,NCT06904261,in_label,"Single condition ""Fabry Disease"" matches held row, but Fabry disease is already on Galafold's label"
+BMRN,Pombiliti,NCT03911505,in_label,"Single condition, but late-onset Pompe disease is the labelled indication; pediatric age expansion only"
+JNJ,IMBRUVICA,NCT01804686,roll_over_extension,"Long-term extension, seven separate conditions, AE-only primary"
+JNJ,Stelara,NCT05092269,roll_over_extension,"Official title says ""Basket, Long-term Extension""; three separate conditions; eight safety primaries"
+LLY,Foundayo,NCT06993792,allocation_only,"Master protocol; primary outcome is ""Number of Participants Allocated to Each Study"""
+MRK,Keytruda,NCT02628067,basket,KEYNOTE-158: twenty-five separate condition strings — the rule's own named example
+NVS,Kymriah,NCT04094311,in_label,Two separate conditions; out-of-specification product study inside the approved label; AE-only primary
+PFE,Hympavzi,NCT05611801,in_label,Two separate conditions; both hemophilia A and B already on label incl. pediatric ≥6 y
+PFE,Nurtec ODT / Vydura,NCT06641466,in_label,"Single condition ""Menstrual Migraine""; the book's only migraine row is already on the label"
+PFE,Nurtec ODT / Vydura,NCT07729462,in_label,"Single condition, but the book's only migraine row is labelled; chronic-migraine prevention needs a new row to be priceable"
+ROG,Columvi,NCT06047080,in_label,"Passes the one-population test, but DLBCL/LBCL is already on Columvi's label; the content is a 1L line extension the book cannot express"
+ROG,Enspryng,NCT05503264,basket,"Official title says ""Basket Study""; two separate conditions with two cohort-specific primaries"
+ROG,Perjeta,NCT02320435,roll_over_extension,"Single-arm extension study; condition is ""Solid Tumors"""
+ROG,Rozlytrek,NCT02568267,basket,"STARTRK-2 basket, sixteen separate conditions, ORR pooled across baskets"
+ROG,Tecentriq,NCT03148418,continued_access,"IMbrella A extension; condition ""Cancer""; primary is continued-access count"
+ROG,Tecentriq,NCT03768063,continued_access,"IMbrella B extension; condition ""Cancer""; primary is continued-access count"
+ROG,Tecentriq,NCT05112965,continued_access,"IMbrella C extension; condition ""Neoplasms""; primary is continued-access count"
+SNY,Yf-Vax,NCT07103148,comparator_arm,"The study tests Sanofi's investigational vYF vaccine and YF-VAX is one of two licensed active controls: every primary outcome is phrased as vYF compared to Stamaril or to YF-VAX. Yellow fever is already YF-VAX's labelled indication, so nothing here decides anything for it. vYF is not on the book, so there is no asset to move the readout to"
+
+# One more, 2026-11-14: a study this session moved onto the right asset, which
+# then had no disease to sit in because it is an umbrella across several.
+MRK,Welireg,NCT04976634,basket,"MK-6482-016, moved onto Welireg on 2026-11-14 because the randomised variable is belzutifan and pembrolizumab is backbone in both arms. It arrived carrying no indication and cannot carry one: the official title is 'Pembrolizumab Plus Lenvatinib in Combination With Belzutifan in Multiple Solid Tumors', the single condition filed is the undifferentiated 'Neoplasm Malignant', and the primary outcomes are arm-scoped safety counts, 'Arm 1: Number of Participants Who Experience at Least One Dose-limiting Toxicity (DLT)' and two more of the same shape. 730 participants across several tumours with a dose-limiting-toxicity primary is a tolerability umbrella, not a readout in a disease"
+
+# A readout that has already happened, 2026-11-14. The registry's primary
+# completion date is when the study ends, not when the answer arrives, and a
+# company can report a primary endpoint years before it.
+NVS,Vanrafia,NCT04573478,already_read_out,"ALIGN has reported. Novartis's own Q1 2026 interim report (6-K 0001114448-26-000010, filed 2026-04-28) states it outright: 'Final results from the Phase III ALIGN study showed a slowing in kidney function decline in IgAN patients treated with Vanrafia, with a positive difference in eGFR change from baseline vs. placebo at Week 136 (4 weeks after the end of study treatment, p = 0.057) and at Week 132 (at the end of treatment, nominal p = 0.039)', and 'Novartis plans to submit these data for traditional approval in H1 2026'. The registry still carries 2028-04-14 as an ESTIMATED primary completion and the study as ACTIVE_NOT_RECRUITING, which is the administrative end of the study rather than the readout, so the book was pricing a 2028 event that happened in April 2026. A result already public carries no forward stake, whatever it was worth on the day"
+
+# Three the layer research confirmed rather than built, 2026-11-14. Each was
+# read against the current label and the trial's own design and each came back
+# the same way: the pool is the product's own business and the row is final.
+ABBV,Rinvoq,NCT03345823,in_label,"The queue read this as a maintenance setting the label does not cover, and both halves of that are wrong. NCT03345823 is protocol M14-430, U-ENDURE, 'A Multicenter, Randomized, Double-Blind, Placebo-Controlled Maintenance and Long-Term Extension Study ... in Subjects With Crohn''s Disease Who Completed the Studies M14-431 or M14-433', which are U-EXCEL and U-EXCEED, the two induction studies. It is the maintenance half of the registrational programme that won the approval, not a setting outside it, and the FDA approved Crohn''s disease as efficacy supplement 15 to NDA 211675 on 2023-05-18. The label reads 'RINVOQ is indicated for the treatment of adults with moderately to severely active Crohn''s disease (CD) who have had an inadequate response or intolerance to one or more TNF blockers' and its dosing is an induction course followed by maintenance (DailyMed setid 2966aec7-2ef0-923c-d8ff-fe1a957bf095, SPL v101, effective 2026-07-15)"
+SNY,ALTUVIIIO,NCT04644575,open_label_extension,"Three facts, each sufficient on its own. The label is limited in none of the ways the row assumed: 'ALTUVIIIO is indicated for use in adults and pediatric patients with hemophilia A (congenital factor VIII deficiency) for: Routine prophylaxis ...; On-demand treatment and control of bleeding episodes; Perioperative management of bleeding' (DailyMed setid 01411972-df40-4ccf-88f0-d3220e5abda9, SPL v11, effective 2026-10-26), so neither age nor setting is outside it. The study enrols inside it: NCT04644575 is 'Long-term Safety and Efficacy of Efanesoctocog Alfa (BIVV001) in Previously Treated Patients With Hemophilia A', n=261, with 'Number of participants with the occurrence of inhibitor development' as its primary, and previously treated patients in an extension are by definition already on the product. And the approval predates the study: BLA 125771, 2023-02-22"
+SNY,"Fluzone, Fluzone Hd Quadrivalent, Fluzone High Dose, Fluzone Intradermal, Fluzone Quadrivalent",NCT07890454,both_arms_treated,"Every participant in both arms is vaccinated against influenza. The control arm is 'IIV-HD and NVXC19 co-administered in opposite deltoid muscles' and the experimental arm is the same two antigens in one injection with a saline placebo in the other arm to preserve blinding, and the primaries are HAI geometric mean titres against the three influenza strains plus a pseudovirus neutralisation titre against SARS-CoV-2, immunobridging at day 28. The readout decides whether two antigens travel in one syringe or two, which is a convenience and a COVID-19 franchise question; the influenza doses sit inside Sanofi''s reported Fluzone revenue either way. Separately and worth fixing: the two sites are in Poland, so this is not a US readout in a US book"
