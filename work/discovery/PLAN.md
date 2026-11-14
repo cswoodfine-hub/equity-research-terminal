@@ -96,9 +96,11 @@ Outcome: it does for company activity and ties for clinical translation. See
 
 ## Step 2: the Discovery tab (front end)
 
-Prototype, on real backtest output: https://claude.ai/artifact/Johy1LTTuLw5hirdYdQeVP
-(source in `work/discovery/prototype/`). It shows the section as it would have stood on
-31 December 2020, with what happened in the next three years beside each row.
+Prototype: https://claude.ai/artifact/Johy1LTTuLw5hirdYdQeVP (source in
+`work/discovery/prototype/`). From 2026-11-14 it shows the live ranking as of that day,
+written by `tools/live.py`; `prototype/export.py` writes the earlier backtest view (the
+section as it would have stood on 31 December 2020, with the next three years beside
+each row). The page reads either file.
 
 **Where it sits.** A top-level tab, "Discovery", beside Universe and Themes on the cell
 and gene engine. It is about the sector, not the selected ticker, so it ignores the
@@ -178,7 +180,9 @@ Tables: `discovery_papers`, `discovery_people`, `discovery_paper_people`,
    tables, add the five reads, build Labs, Papers and How good is it in the app. No
    fetcher yet. This settles the layout in the real terminal.
 2. **F2, live.** A daily fetcher for new papers and preprints (Europe PMC by date,
-   OpenAlex for authors), a weekly one for records (Form D, RePORTER, Companies House).
+   OpenAlex for authors), a weekly one for records (RePORTER, Companies House), and
+   Form D read daily from EDGAR's index, since the SEC's quarterly files run months
+   behind (to 31 March 2026 on 2026-11-14).
    Snapshots and diffs as every other source, so Lit up is the change feed. "New this
    week" becomes the opening filter on Papers.
 3. **F3, watchlist.** Pin a lab; pinned labs lead the Labs view and their records reach

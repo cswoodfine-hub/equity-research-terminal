@@ -205,14 +205,14 @@ button { cursor: pointer; }
 
 <div class="wrap">
   <header class="bar">
-    <div><h1>Discovery</h1><div class="scope">Cell and gene therapy · US and UK labs</div></div>
+    <div><h1>Discovery</h1><div class="scope" id="scope">Cell and gene therapy · US and UK labs</div></div>
     <div class="search"><input type="search" id="q" placeholder="Search a name, institution, company or topic" autocomplete="off" aria-label="Search"><kbd>/</kbd></div>
     <button class="textbtn" id="open-method" type="button">How reliable is this?</button>
   </header>
 
   <div class="note">
-    <span><b>Prototype on real data.</b> Ranked as it stood on 31 Dec 2020. <span class="green">Green</span> is what happened in the three years after.</span>
-    <label><input type="checkbox" id="next" checked> Show what happened next</label>
+    <span id="note-text"><b>Prototype on real data.</b> Ranked as it stood on 31 Dec 2020. <span class="green">Green</span> is what happened in the three years after.</span>
+    <label id="next-label"><input type="checkbox" id="next" checked> Show what happened next</label>
   </div>
 
   <div class="views" role="tablist" aria-label="Views" id="views">
@@ -234,12 +234,14 @@ button { cursor: pointer; }
   </main>
 
   <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
+  <div class="foot" id="fresh" hidden></div>
   <div class="foot">Sources: Europe PMC, OpenAlex, NIH RePORTER, SEC Form D data sets, Companies House, NIH iCite, PubMed. Company records are matched to authors by name and state or town, and are not verified. Scores come from a word-frequency and rule model; no language model wrote or scored anything here.</div>
 </div>
 
 <div class="sheet" id="sheet" aria-hidden="true"><div class="pane" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
   <div class="dhead"><h2 id="sheet-h">How reliable is this?</h2><button class="go" id="close-method" type="button">Close</button></div>
   <p class="lede">Each bar is the share of the top 5% of a list that had the outcome within three years. The model was trained on 2017 and 2018 and scored on 2019 and 2020.</p>
+  <p class="lede" id="check" hidden></p>
   <div id="studies"></div>
   <div class="block"><span class="label">What to trust</span><ul>
     <li>The lab ranking is the strong one. The top tenth of lab heads held 46% of those who went on to a company record.</li>
@@ -258,6 +260,8 @@ button { cursor: pointer; }
 (function () {
   const D = JSON.parse(document.getElementById('data').textContent);
   const $ = (id) => document.getElementById(id);
+  const LIVE = D.mode === 'live';
+  const showNext = () => LIVE || $('next').checked;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const n = (v) => Number(v).toLocaleString('en');
   const plural = (c, one, many) => `${n(c)} ${c === 1 ? one : (many || one + 's')}`;
@@ -275,12 +279,12 @@ button { cursor: pointer; }
   const hay = (parts, mods, inst) => { let h = plain(parts.join(' ')) + (mods || []).map((m) => plain(m) + plain(ALSO[m])).join(''); const i = plain(inst); for (const k in SHORT) if (i.includes(SHORT[k])) h += k + ' '; return h; };
 
   const papers = new Map(D.papers.map((p) => [p.id, p]));
-  D.labs.forEach((l, i) => { l.rank = i + 1; l.hay = hay([l.name, l.inst, l.country, ...l.before.map((e) => e[2]), ...l.after.map((e) => e[2])], l.mods, l.inst); });
+  D.labs.forEach((l, i) => { l.rank = l.rank || i + 1; l.hay = hay([l.name, l.inst, l.country, ...l.before.map((e) => e[2]), ...l.after.map((e) => e[2])], l.mods, l.inst); });
   const labById = new Map(D.labs.map((l) => [l.id, l]));
   D.papers.forEach((p) => { p.hay = hay([p.t, p.first, p.last, p.inst, p.j, p.pre ? 'preprint' : ''], p.mods, p.inst); p.top = Math.max(-1, ...p.stage.map((x) => STAGES.indexOf(x))); });
   const events = [];
   for (const l of D.labs) for (const [k, d, label] of l.after) events.push({ id: l.id + '|' + k + '|' + d + '|' + label, k, d, label, l });
-  events.sort((a, b) => a.d < b.d ? -1 : 1);
+  events.sort((a, b) => (a.d < b.d ? -1 : 1) * (LIVE ? -1 : 1));
 
   /* what a rank has meant, from the backtest */
   const STUDY = { lab: 'lab heads: any company record in the next 3 years', clin: 'cited by a clinical article within 3 years, all papers', comp: 'any company record (award, Form D, UK company), US and UK papers' };
@@ -327,7 +331,7 @@ button { cursor: pointer; }
     if (c('award')) out.push({ t: `Led ${plural(c('award'), 'small-business research award')}: ${esc(some(names(l.before, 'award')))}` });
     if (c('uk')) out.push({ t: `Controls a UK research company: ${esc(some(names(l.before, 'uk')))}` });
     if (l.coi.length) out.push({ t: `Declares ${l.coi.map((x) => SAID[x]).join(', ')} in their papers`, c: 'said' });
-    out.push({ t: `${plural(l.n, 'gene and cell therapy paper')} since 2017${l.mods.length ? ', mostly on ' + l.mods.join(' and ') : ''}`, c: 'soft' });
+    out.push({ t: `${plural(l.n, 'gene and cell therapy paper')} ${LIVE ? 'in the last four years' : 'since 2017'}${l.mods.length ? ', mostly on ' + l.mods.join(' and ') : ''}`, c: 'soft' });
     if (l.stage) out.push({ t: `The work has reached ${STAGE_NAME[l.stage].toLowerCase()}`, c: 'soft' });
     out.push({ t: `${n(l.works)} publications in total, cited ${n(l.cited)} times`, c: 'soft' });
     return out;
@@ -336,7 +340,7 @@ button { cursor: pointer; }
     const f = l.before.filter((e) => e[0] === 'formd').length, a = l.before.filter((e) => e[0] === 'award').length, u = l.before.filter((e) => e[0] === 'uk').length;
     const rec = [f && plural(f, 'funding filing'), a && plural(a, 'research award'), u && plural(u, 'UK company', 'UK companies')].filter(Boolean).join(', ') || 'No company record seen';
     const said = l.coi.length ? ' · declares ' + l.coi.slice(0, 2).map((x) => SAID[x]).join(', ') : '';
-    const next = $('next').checked && l.after.length ? ` <span class="lit">· then ${plural(l.after.length, 'new record')}</span>` : '';
+    const next = showNext() && l.after.length ? ` <span class="lit">· ${LIVE ? '' : 'then '}${plural(l.after.length, 'new record')}${LIVE ? ' this year' : ''}</span>` : '';
     return esc(rec + said) + next;
   }
   const link = (p) => p.doi ? 'https://doi.org/' + encodeURI(p.doi) : 'https://europepmc.org/article/' + (p.pre ? 'PPR/' : 'MED/') + encodeURIComponent(p.pmid || p.id);
@@ -350,7 +354,7 @@ button { cursor: pointer; }
     const sel = S.sel[S.view];
     $('list-title').textContent = S.view === 'labs' ? 'Most likely to form or join a company'
       : S.view === 'papers' ? (S.sort === 'clin' ? 'Closest to patients first' : S.sort === 'comp' ? 'Most likely to become a company first' : 'Newest first')
-      : 'New company records, oldest first';
+      : 'New company records, ' + (LIVE ? 'newest' : 'oldest') + ' first';
     $('list-count').textContent = S.view === 'labs' ? `${all.length} shown · ${n(D.labsTotal)} ranked`
       : S.view === 'papers' ? `${n(all.length)} shown · ${n(D.papersTotal)} scored` : `${all.length} records`;
     let html = '';
@@ -383,20 +387,21 @@ button { cursor: pointer; }
 
   /* ---- detail ---- */
   function timeline(l, limit) {
-    const ev = [...l.before.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), s: KIND_SRC[e[0]] })), ...($('next').checked ? l.after.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), after: true, s: KIND_SRC[e[0]] })) : [])];
+    const ev = [...l.before.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), s: KIND_SRC[e[0]] })), ...(showNext() ? l.after.map((e) => ({ d: e[1], k: KIND[e[0]], w: esc(e[2]), after: true, s: KIND_SRC[e[0]] })) : [])];
     for (const id of l.papers) { const p = papers.get(id); if (p) ev.push({ d: p.d, k: p.pre ? 'Preprint' : 'Paper', w: `<a href="${esc(link(p))}" target="_blank" rel="noopener">${esc(p.t)}</a>` }); }
     ev.sort((a, b) => a.d < b.d ? 1 : -1);
     const cut = ev.findIndex((e) => e.d <= '2020-12-31');
     const show = limit ? ev.slice(0, limit) : ev;
     let html = '';
-    show.forEach((e, i) => { if (i === cut && cut > 0) html += '<li class="cut">31 Dec 2020 · the ranking date</li>'; html += `<li class="${e.after ? 'after' : ''}"><span class="d">${e.d}</span><span class="k" title="${esc(e.s || '')}">${e.k}</span><span>${e.w}</span></li>`; });
+    show.forEach((e, i) => { if (!LIVE && i === cut && cut > 0) html += '<li class="cut">31 Dec 2020 · the ranking date</li>'; html += `<li class="${e.after ? 'after' : ''}"><span class="d">${e.d}</span><span class="k" title="${esc(e.s || '')}">${e.k}</span><span>${e.w}</span></li>`; });
     return { html, more: ev.length - show.length };
   }
   function nextBox(recs, cited) {
-    if (!$('next').checked) return '';
+    if (!showNext() || (LIVE && !recs.length && !cited)) return '';
+    const head = LIVE ? 'New in the last 12 months' : 'What happened next';
     const lines = [...(cited ? ['Cited by a clinical article'] : []), ...recs.map((e) => `${KIND[e[0]]}, ${e[1]}: ${esc(e[2])}${e[3] ? ' <span style="color:var(--muted)">(names ' + esc(e[3]) + ')</span>' : ''}`)];
-    return lines.length ? `<div class="block next"><span class="label">What happened next</span><ul class="reasons">${lines.slice(0, 6).map((x) => `<li>${x}</li>`).join('')}</ul>${lines.length > 6 ? `<div class="fine">and ${lines.length - 6} more</div>` : ''}</div>`
-      : `<div class="block next none"><span class="label">What happened next</span>Nothing in the three years after.</div>`;
+    return lines.length ? `<div class="block next"><span class="label">${head}</span><ul class="reasons">${lines.slice(0, 6).map((x) => `<li>${x}</li>`).join('')}</ul>${lines.length > 6 ? `<div class="fine">and ${lines.length - 6} more</div>` : ''}</div>`
+      : `<div class="block next none"><span class="label">${head}</span>Nothing in the three years after.</div>`;
   }
   let fullTimeline = false;
   function labDetail(l) {
@@ -525,6 +530,15 @@ button { cursor: pointer; }
     return `<div class="study"><h3>${name}</h3>${bar('This ranking', p5(s.scores['rules + words']), 'ours')}${s.scores[other] ? bar(otherName, p5(s.scores[other]), '') : ''}${bar('Everyone', s.base, '')}</div>`;
   }).join('');
 
+  if (LIVE) {
+    const day = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    $('scope').textContent = `Cell and gene therapy · US and UK labs · as of ${day(D.asOf)}`;
+    $('note-text').innerHTML = `<b>Prototype on live data.</b> ${n(D.labsTotal)} lab heads ranked as of ${day(D.asOf)}. <span class="green">Green</span> is a company record from the last 12 months.`;
+    $('next-label').hidden = true;
+    $('fresh').hidden = false;
+    $('fresh').textContent = `How fresh: papers to ${day(D.latest.paper)}. Newest record seen for these labs: funding filing ${D.latest.formd ? day(D.latest.formd) : 'none'} (the SEC's quarterly files run to 31 Mar 2026), research award ${D.latest.award ? day(D.latest.award) : 'none'}, UK company ${D.latest.uk ? day(D.latest.uk) : 'none'}.`;
+    if (D.check) { $('check').hidden = false; $('check').textContent = `Checked again on a later period: trained on lab heads as of 2020 and scored on those of 2022, the top 5% held ${Math.round(D.check.top5 * 100)}% who went on to a company record, against ${Math.round(D.check.floor5 * 100)}% by paper count and ${Math.round(D.check.base * 100)}% of everyone.`; }
+  }
   const first = location.hash.slice(1);
   if (['labs', 'papers', 'news'].includes(first)) S.view = first;
   draw();

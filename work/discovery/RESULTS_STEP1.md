@@ -169,6 +169,30 @@ award, or held 25% of a live UK company. So part of what the first-record score 
 is "senior and prolific", which finds known founders the sources miss as well as new
 ones. For lab heads the score barely clears the paper count on this study.
 
+## Applied to today (2026-11-14)
+
+`tools/live.py` ranks the present with the same model. The corpus was extended with
+58,648 papers and preprints from 2021 to today (74,485 in all), small-business awards
+to fiscal 2026 and Form D filings to the first quarter of 2026.
+
+- **6,345 lab heads** were last or corresponding author on a paper in the last two
+  years. Each is described by their papers of the last four years and ranked by a model
+  trained on the 2020 and 2022 cohorts, whose three years have run.
+- **The lab ranking held on a later period.** Trained on the 2020 cohort alone and
+  scored on 2022 (4,920 lab heads, 124 events, base 2.5%): AUC 0.776, and the top 5%
+  held 20% who went on to a company record, against 7% by paper count. The backtest's
+  figures were 0.777 and 21%.
+- **11,200 papers** from the last twelve months are scored: clinical translation by a
+  model trained on 2017 to 2020, company activity (4,065 with a US or UK author) by
+  one trained on 2017 to 2022.
+- **47 company records in the last twelve months** name 44 ranked lab heads: 28 awards,
+  10 UK companies, 9 Form D filings.
+
+Two limits are specific to the live run. The SEC's quarterly Form D files stop at 31
+March 2026, so a filing since then is not seen; a daily reader of EDGAR's index would
+close that. And a lab head's description uses four years of papers where the 2018
+cohort in the backtest had two, so the live model is trained on 2020 and 2022 only.
+
 ## What went wrong on the way, and the fix
 
 - **Name matching.** The first award outcome matched on first and last name alone. Of 574

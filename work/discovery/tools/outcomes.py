@@ -5,7 +5,7 @@
     python3 work/discovery/tools/outcomes.py coi <corpus folder> <out.ndjson>
     python3 work/discovery/tools/outcomes.py formd <out.ndjson> [first year] [last year]
     python3 work/discovery/tools/outcomes.py uk <work folder> <out.ndjson>
-    python3 work/discovery/tools/outcomes.py openalex <corpus folder> <out folder>
+    python3 work/discovery/tools/outcomes.py openalex <corpus folder> <out folder> [known authors]
 
 - ``sbir``: every NIH small-business award (SBIR and STTR, activity codes R41 to R44, U43,
   U44, SB1) from RePORTER, with its investigators, organisation and start date.
@@ -25,7 +25,8 @@
   of each author (works and citations by year, institutions by year). ``OPENALEX_API_KEY``
   must hold a key; a list call costs $0.0001 and the whole corpus about 13 cents.
   OpenAlex folds a preprint and its published version into one work, so a preprint's
-  authors are those of the published paper where there is one.
+  authors are those of the published paper where there is one. Given an earlier
+  ``authors.ndjson``, the authors already in it are not asked for again.
 """
 
 import csv
@@ -340,7 +341,7 @@ def _short(identifier):
     return (identifier or "").rsplit("/", 1)[-1]
 
 
-def openalex(folder, out):
+def openalex(folder, out, known=None):
     key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
     if not key:
         sys.exit("OPENALEX_API_KEY is empty")
@@ -400,6 +401,8 @@ def openalex(folder, out):
             time.sleep(0.1)
     print("works", found, "of", len(by_pmid) + len(by_doi), "; authors", len(people),
           flush=True)
+    if known:
+        people -= {json.loads(line)["aid"] for line in open(known)}
     people = sorted(p for p in people if p)
     with open(out / "authors.ndjson", "w") as handle:
         for i in range(0, len(people), 100):
@@ -437,4 +440,4 @@ if __name__ == "__main__":
     elif what == "uk":
         uk(sys.argv[2], sys.argv[3])
     elif what == "openalex":
-        openalex(sys.argv[2], sys.argv[3])
+        openalex(*sys.argv[2:5])
