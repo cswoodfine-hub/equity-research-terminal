@@ -193,6 +193,53 @@ March 2026, so a filing since then is not seen; a daily reader of EDGAR's index 
 close that. And a lab head's description uses four years of papers where the 2018
 cohort in the backtest had two, so the live model is trained on 2020 and 2022 only.
 
+## Scoring the paper itself (2026-11-15)
+
+`tools/paper_scores.py`. Two scores that read the title and abstract and nothing else:
+no author, institution, record or declared interest. Trained on 2017 and 2018, scored
+on 2019 and 2020.
+
+- **Feasibility**, trained on a citation by a clinical article within three years.
+- **Commercial pull**, trained on a new outcome: cited at least twice, within three
+  calendar years, by works with an author at a company (OpenAlex, 38,179 papers of 2017
+  to 2022 looked up for 8 cents). It is about the idea, not the people, so it can be
+  high for a lab with no company. 21% of papers meet it.
+
+| Score | Papers | Events, base rate | AUC | Top 1% | Top 5% | Top 10% |
+|---|---|---|---|---|---|---|
+| Feasibility, all papers | 10,611 | 939, 8.8% | 0.841 | 66%, 7.5x | 57%, 6.5x | 43%, 4.9x |
+| iCite `apt`, for comparison | | | 0.854 | 78% | 51% | 44% |
+| Feasibility, not yet in patients | 7,734 | 308, 4.0% | 0.750 | 23%, 5.9x | 17%, 4.3x | 14%, 3.4x |
+| Commercial pull, all papers | 11,458 | 2,445, 21.3% | 0.785 | 78%, 3.7x | 68%, 3.2x | 61%, 2.9x |
+| Commercial pull, no company author | 10,138 | 1,774, 17.5% | 0.772 | 67%, 3.8x | 57%, 3.3x | 51%, 2.9x |
+| Commercial pull, no company author and not yet in patients | 7,600 | 1,274, 16.8% | 0.763 | 67%, 4.0x | 51%, 3.0x | 47%, 2.8x |
+
+Commercial pull is the stronger content signal found so far. The earlier company
+outcome (an author in a company record) gave the words of a paper an AUC near 0.66;
+this one gives 0.76 to 0.79, and holds for academic work that has not reached patients.
+
+**What went wrong, and the fix.** The first commercial model put mRNA vaccine papers at
+the very top. From 2020 to 2022 industry cited almost any vaccine paper, so the model
+had learned the pandemic. Papers about COVID-19 are now left out of its training and
+its test (114 of 11,572 test papers); the figures above are after that and barely
+moved. The top of today's list is now mixed (of the top 1%: 46 LNP or mRNA, 43 CAR-T,
+40 AAV, 31 cell therapy, 21 gene editing, some under two headings), with a lean to
+delivery technology that is real in the outcome.
+
+**Limits.** A paper cited more by everyone is cited more by industry too, and the score
+does not separate the two: total citations within the window were not fetched. OpenAlex
+types an institution as a company or not, and its coverage of small biotechs is
+unknown. The reasons shown beside a score are the model's heaviest words for that
+paper, which are honest and sometimes dull ("car", "trial").
+
+**Areas.** `tools/areas.py` files papers under 25 areas by keyword rule. For each,
+`live.py` writes papers in each trailing twelve months since 2017, as a count and as a
+share of the field; growth; lab heads and how many have a company record; and the share
+of its papers this year in the top tenth of all papers on each score. On 2026-11-15 the
+fastest growing were in vivo CAR-T (4.1 times the papers of two years before), LNP
+delivery beyond the liver (2.8) and CAR-T for autoimmune disease (2.6). In vivo CAR-T
+had 53% of its papers in the top tenth for commercial pull and 11% for feasibility.
+
 ## What went wrong on the way, and the fix
 
 - **Name matching.** The first award outcome matched on first and last name alone. Of 574

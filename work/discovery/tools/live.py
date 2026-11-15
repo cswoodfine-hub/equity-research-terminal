@@ -12,9 +12,13 @@ years later" to look at yet:
   it. The model is trained on the cohorts at the end of 2020 and 2022, whose three years
   have run, and scores the cohort at the as-of date. Before that it is trained on 2020
   alone and checked on 2022, and the check is printed.
-- **Papers** from the last twelve months are scored by models trained on every earlier
-  paper whose three years have run: 2017 to 2020 for a clinical citation, 2017 to 2022
-  for a company record.
+- **Papers** from the last twelve months get three scores, each from a model trained on
+  every earlier paper whose three years have run. Feasibility and commercial pull read
+  the title and abstract alone (``paper_scores.py``): 2017 to 2020 for a clinical
+  citation, 2017 to 2022 for a citation by industry. The team's score is the backtest's
+  company model, which sees the authors' record: 2017 to 2022.
+- **Areas** (``areas.py``) each get their papers over time as a trailing twelve months,
+  their growth, their lab heads and their best papers on each score.
 - **A company record** is "new" when it is dated in the last twelve months.
 """
 
@@ -32,7 +36,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+import areas as A
 import backtest as B
+import paper_scores as P
 
 WINDOW_YEARS = 4          # the papers a lab head is described by
 ACTIVE_YEARS = 2          # a senior-author paper this recently makes someone a lab head
@@ -189,6 +195,8 @@ def main(folder, backtest, out, today=None):
     data = B.load(folder)
     described = {p["id"]: B.describe(p, data) for p in data["papers"]}
     by_id = {p["id"]: p for p in data["papers"]}
+    P.label(described.values(), P.industry(folder))
+    tags = {pid: A.tag(row["text"]) for pid, row in described.items()}
     print(f"{len(by_id):,} papers to {max(p['date'] for p in data['papers'])}", flush=True)
 
     people = seniors(data)
@@ -222,24 +230,66 @@ def main(folder, backtest, out, today=None):
     labs.sort(key=lambda lab: -lab["pct"])
     for place, lab in enumerate(labs, 1):
         lab["rank"] = place
-    # The top of the ranking, and below it every lab head with a record in the last year,
-    # so the feed of new records is whole.
-    top = labs[:300] + [lab for lab in labs[300:] if lab["after"]]
+    ranked = {lab["id"]: lab for lab in labs}
 
-    scored = [r for r in described.values() if by_id[r["id"]]["date"] > recent]
-    clinical = Ranker([r for r in described.values()
-                       if r["year"] <= 2020 and r["clinical"] is not None], "clinical")
+    scored = [r for r in described.values() if recent < by_id[r["id"]]["date"] <= today]
+    feasible = P.ContentModel([r for r in described.values()
+                               if r["year"] <= 2020 and r["clinical"] is not None], "clinical")
+    pulled = P.ContentModel([r for r in described.values()
+                             if r["year"] <= 2022 and r["industry"] is not None], "industry")
     company = Ranker([r for r in described.values()
                       if r["year"] <= 2022 and (r["us"] or r["uk"])], "company")
-    clin = dict(zip((r["id"] for r in scored), _share(clinical.score(scored))))
+    clin = dict(zip((r["id"] for r in scored), _share(feasible.score(scored))))
+    comm = dict(zip((r["id"] for r in scored), _share(pulled.score(scored))))
     local = [r for r in scored if r["us"] or r["uk"]]
     comp = dict(zip((r["id"] for r in local), _share(company.score(local))))
+
+    # Areas: interest over time, growth, who works in them, and their best papers.
+    two, four = today.replace(year=today.year - 2), today.replace(year=today.year - 4)
+    ends = [dt.date(y, m, d) for y in range(2017, today.year + 1)
+            for m, d in ((3, 31), (6, 30), (9, 30), (12, 31)) if dt.date(y, m, d) < today]
+    ends = [e for e in ends if e >= dt.date(2017, 12, 31)] + [today]
+    every = sorted(p["date"] for p in data["papers"])
+    span = lambda dates, end: (np.searchsorted(dates, end, "right")                # noqa: E731
+                               - np.searchsorted(dates, end - dt.timedelta(days=365), "right"))
+    has_record = {row["id"]: any(when <= today for _k, when, _d, _l in row["records"])
+                  for row in now}
+    fresh = {lab["id"]: len(lab["after"]) for lab in labs}
+    fields = []
+    for name in A.AREAS:
+        mine = [p for p in data["papers"] if name in tags[p["id"]]]
+        dates = sorted(p["date"] for p in mine)
+        latest = [p["id"] for p in mine if p["id"] in clin]
+        heads = {aid for aid, theirs in people.items() if aid in ranked and any(
+            two < t[0]["date"] <= today and name in tags[t[0]["id"]] for t in theirs)}
+        recent_n = sum(two < d <= today for d in dates)
+        before_n = sum(four < d <= two for d in dates)
+        fields.append({
+            "id": name, "name": name,
+            "series": [{"d": e.isoformat(), "n": int(span(dates, e)),
+                        "share": float(span(dates, e) / max(1, span(every, e)))} for e in ends],
+            "now": recent_n, "then": before_n, "growth": recent_n / max(1, before_n),
+            "year": len(latest), "heads": len(heads),
+            "withrec": sum(has_record.get(a, False) for a in heads),
+            "newRecs": sum(fresh.get(a, 0) for a in heads),
+            "feasTop": float(np.mean([clin[i] >= 0.9 for i in latest])) if latest else None,
+            "commTop": float(np.mean([comm[i] >= 0.9 for i in latest])) if latest else None,
+            "topFeas": sorted(latest, key=lambda i: -clin[i])[:6],
+            "topComm": sorted(latest, key=lambda i: -comm[i])[:6],
+            "labs": sorted(heads, key=lambda a: ranked[a]["rank"])[:6]})
+
+    # The top of the ranking; below it every lab head with a record in the last year, so
+    # the feed of new records is whole, and each area's leading labs.
+    wanted = {a for field in fields for a in field["labs"]}
+    top = labs[:300] + [lab for lab in labs[300:] if lab["after"] or lab["id"] in wanted]
     keep = set()
-    for places in (clin, comp):
-        keep |= {i for i, _ in sorted(places.items(), key=lambda x: -x[1])[:400]}
+    for places in (clin, comm, comp):
+        keep |= {i for i, _ in sorted(places.items(), key=lambda x: -x[1])[:350]}
     keep |= {i for i in sorted(clin, key=lambda i: by_id[i]["date"], reverse=True)[:200]}
     for lab in top:
         keep |= set(lab["papers"])
+    for field in fields:
+        keep |= set(field["topFeas"]) | set(field["topComm"])
     papers = []
     for pid in keep:
         paper, row = by_id[pid], described[pid]
@@ -258,7 +308,11 @@ def main(folder, backtest, out, today=None):
             "lastId": (last.get("oa") or {}).get("aid") if last else None,
             "nAu": len(authors), "inst": name, "country": country,
             "clin": float(clin[pid]) if pid in clin else None,
+            "comm": float(comm[pid]) if pid in comm else None,
             "comp": float(comp[pid]) if pid in comp else None,
+            "why": {"clin": feasible.reasons(row), "comm": pulled.reasons(row)}
+                   if pid in clin else None,
+            "areas": tags[pid],
             "mods": [m for m, rule in MODALITIES.items() if re.search(rule, row["text"], re.I)],
             "stage": [s for s in STAGE if flags[s]], "derisk": [s for s in DERISK if flags[s]],
             "coi": [c[4:] for c in COI if flags[c]], "co": bool(flags["company_author"]),
@@ -268,12 +322,16 @@ def main(folder, backtest, out, today=None):
     summary = {k: {"n": v["n"], "events": v["events"], "base": v["base"],
                    "scores": v["scores"]}
                for k, v in json.loads(pathlib.Path(backtest).read_text()).items()}
+    print("\nthe paper scores, trained on 2017-18 and scored on 2019-20", flush=True)
+    summary.update(P.run(list(described.values())))
     latest = lambda kind: max((r[1] for lab in labs for r in lab["before"] + lab["after"]  # noqa: E731
                                if r[0] == kind), default=None)
     json.dump({"mode": "live", "asOf": today.isoformat(), "since": recent.isoformat(),
                "labs": top, "labsTotal": len(labs), "papers": papers,
                "papersTotal": len(scored), "compTotal": len(comp), "summary": summary,
-               "check": check,
+               "check": check, "areas": fields,
+               "studies": {"clin": P.STUDIES[0][2], "comm": P.STUDIES[2][2]},
+               "industryCitations": P.INDUSTRY_CITATIONS,
                "latest": {"paper": max(p["d"] for p in papers if p["d"] <= today.isoformat()),
                           "formd": latest("formd"),
                           "award": latest("award"), "uk": latest("uk")}},

@@ -187,6 +187,30 @@ button { cursor: pointer; }
 .sheet ul { margin: 0; padding-left: 18px; }
 .sheet li { font-family: var(--prose); font-size: 15.5px; line-height: 1.5; margin-bottom: 6px; max-width: 58ch; }
 
+.spark { flex: none; }
+.spark polyline { fill: none; stroke: var(--up); stroke-width: 1.5; stroke-linejoin: round; }
+.spark circle { fill: var(--up); }
+.pick { list-style: none; margin: 0; padding: 0; }
+.pick li.none { color: var(--muted); font-size: 13.5px; padding: 6px 0; }
+.pickrow { display: grid; grid-template-columns: 8ch minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 4px; min-height: var(--hit); transition: background-color var(--motion) var(--ease); }
+.pickrow:hover { background: var(--lift); }
+.pickrow .pill { justify-self: start; }
+.pickrow .nm { display: block; font-weight: 500; font-size: 14px; overflow-wrap: anywhere; }
+.pickrow .in { display: block; font-size: 12.5px; color: var(--muted); }
+.pickrow .lit { color: var(--up); }
+.srow { display: grid; grid-template-columns: 9.5ch minmax(0, 1fr); gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.srow:first-child { border-top: 1px solid var(--rule); }
+.srow .sv { font-family: var(--mono); font-size: 18px; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.srow .sv.up { color: var(--up); }
+.srow .sv.off { font-size: 13px; color: var(--muted); }
+.srow b { font-weight: 600; }
+.srow .q { color: var(--muted); font-size: 13.5px; margin-left: 6px; }
+.srow p { margin: 3px 0 0; font-size: 13.5px; color: var(--muted); }
+.srow .sig { margin-top: 7px; font-size: 12.5px; color: var(--muted); }
+.srow .sig .tag { color: var(--text); margin-top: 4px; }
+.tag.quote { font-family: var(--mono); font-size: 12px; }
+button.tag { background: none; cursor: pointer; }
+button.tag:hover { border-color: var(--up); }
 .fig { margin: 0 0 34px; padding-top: 18px; border-top: 1px solid var(--rule-strong); max-width: 980px; }
 .fig h2 { font-size: 19px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; line-height: 1.25; }
 .fig .how { color: var(--muted); font-size: 14px; margin: 0 0 12px; max-width: 78ch; }
@@ -278,6 +302,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   <div class="views" role="tablist" aria-label="Views" id="views">
     <button class="view" role="tab" data-view="labs" type="button"><span class="t">Labs</span><span class="s">Who to watch</span><span class="n" id="n-labs"></span></button>
     <button class="view" role="tab" data-view="papers" type="button"><span class="t">Papers</span><span class="s">What came out</span><span class="n" id="n-papers"></span></button>
+    <button class="view" role="tab" data-view="areas" id="view-areas" type="button" hidden><span class="t">Areas</span><span class="s">Rankings and interest over time</span><span class="n" id="n-areas"></span></button>
     <button class="view" role="tab" data-view="news" type="button"><span class="t">What's new</span><span class="s">Companies naming these labs</span><span class="n" id="n-news"></span></button>
     <button class="view" role="tab" data-view="patterns" id="view-patterns" type="button" hidden><span class="t">Patterns</span><span class="s">Across the whole field</span><span class="n">5 figures</span></button>
   </div>
@@ -295,7 +320,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   </main>
   <section id="patterns" aria-label="Patterns across the field" hidden></section>
 
-  <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
+  <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> to <kbd>5</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
   <div class="foot" id="fresh" hidden></div>
   <div class="foot">Sources: Europe PMC, OpenAlex, NIH RePORTER, SEC Form D data sets, Companies House, NIH iCite, PubMed. Company records are matched to authors by name and state or town, and are not verified. Scores come from a word-frequency and rule model; no language model wrote or scored anything here.</div>
 </div>
@@ -350,14 +375,15 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   events.sort((a, b) => (a.d < b.d ? -1 : 1) * (LIVE ? -1 : 1));
 
   /* what a rank has meant, from the backtest */
-  const STUDY = { lab: 'lab heads: any company record in the next 3 years', clin: 'cited by a clinical article within 3 years, all papers', comp: 'any company record (award, Form D, UK company), US and UK papers' };
+  const STUDY = Object.assign({ lab: 'lab heads: any company record in the next 3 years', clin: 'cited by a clinical article within 3 years, all papers', comp: 'any company record (award, Form D, UK company), US and UK papers' }, D.studies || {});
+  const THREE = D.papers.some((p) => p.comm != null);
   const at = (key, share) => { const s = D.summary[STUDY[key]]; return s ? Math.round(s.scores['rules + words'].top.find((t) => Math.abs(t.share - share) < 1e-9).precision * 100) : null; };
   const base = (key) => Math.round(D.summary[STUDY[key]].base * 100);
   const band = (v) => { const r = 1 - v; return r <= 0.01 ? 1 : r <= 0.05 ? 5 : r <= 0.10 ? 10 : 0; };
   const topText = (v) => { const r = (1 - v) * 100; return 'Top ' + (r < 1 ? '1' : Math.ceil(r)) + '%'; };
   const pill = (v) => v == null ? '<span class="pill">Not scored</span>' : `<span class="pill ${band(v) ? 't' + band(v) : ''}">${topText(v)}</span>`;
-  const OUT = { lab: 'appeared in a company record', clin: 'were cited by a clinical article', comp: 'had an author appear in a company record' };
-  const UNIT = { lab: 'labs', clin: 'papers', comp: 'papers' };
+  const OUT = { lab: 'appeared in a company record', clin: 'were cited by a clinical article', comp: 'had an author appear in a company record', comm: 'were cited at least twice by papers with a company author' };
+  const UNIT = { lab: 'labs', clin: 'papers', comp: 'papers', comm: 'papers' };
   function means(key, v) {
     const b = band(v);
     if (!b) return `Outside the top tenth, where the score says little. Across all ${UNIT[key]}, ${base(key)} in 100 ${OUT[key]} within three years.`;
@@ -369,9 +395,9 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   try { watched = new Set(JSON.parse(localStorage.getItem('discovery-watch') || '[]')); } catch (e) { /* no storage: the list lasts for this visit */ }
   const saveWatch = () => { try { localStorage.setItem('discovery-watch', JSON.stringify([...watched])); } catch (e) { /* as above */ } };
 
-  const S = { view: 'labs', q: '', mod: '', watching: false, extra: false, sort: 'clin',
+  const S = { view: 'labs', q: '', mod: '', watching: false, extra: false, sort: 'clin', asort: 'growth', amode: 'n',
     f: { country: '', rec: '', stage: '', pre: false, lab: false, kind: '' },
-    sel: { labs: null, papers: null, news: null }, shown: { labs: 40, papers: 40, news: 60 } };
+    sel: { labs: null, papers: null, news: null, areas: null }, shown: { labs: 40, papers: 40, news: 60, areas: 60 } };
   const narrow = () => window.matchMedia('(max-width: 880px)').matches;
   const tokens = () => plain(S.q).trim().split(' ').filter(Boolean);
   const hit = (h) => tokens().every((t) => h.includes(t));
@@ -379,6 +405,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   function rows(view) {
     if (view === 'labs') return D.labs.filter((l) => hit(l.hay) && (!S.mod || l.mods.includes(S.mod)) && (!S.watching || watched.has(l.id))
       && (!S.f.country || l.country === S.f.country) && (!S.f.rec || (S.f.rec === 'none' ? !l.before.length : l.before.length)));
+    if (view === 'areas') { const k = S.asort; return (D.areas || []).filter((a) => hit(plain(a.name))).sort((a, b) => (b[k] == null ? -1 : b[k]) - (a[k] == null ? -1 : a[k])); }
     if (view === 'papers') return D.papers.filter((p) => hit(p.hay) && (!S.mod || p.mods.includes(S.mod)) && (!S.watching || watched.has(p.lastId))
       && (!S.f.stage || p.top === STAGES.indexOf(S.f.stage)) && (!S.f.pre || p.pre) && (!S.f.lab || !p.stage.includes('patients')))
       .sort((a, b) => S.sort === 'd' ? (a.d < b.d ? 1 : -1) : ((b[S.sort] == null ? -1 : b[S.sort]) - (a[S.sort] == null ? -1 : a[S.sort])));
@@ -416,18 +443,25 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     if (!all.some((r) => key(r) === S.sel[S.view])) S.sel[S.view] = all.length && !narrow() ? key(all[0]) : null;
     const sel = S.sel[S.view];
     $('list-title').textContent = S.view === 'labs' ? 'Most likely to form or join a company'
-      : S.view === 'papers' ? (S.sort === 'clin' ? 'Closest to patients first' : S.sort === 'comp' ? 'Most likely to become a company first' : 'Newest first')
+      : S.view === 'areas' ? AREA_SORT[S.asort] + ' first'
+      : S.view === 'papers' ? (THREE ? { clin: 'Most feasible first', comm: 'Strongest commercial pull first', comp: 'Strongest team record first', d: 'Newest first' }[S.sort] : S.sort === 'clin' ? 'Closest to patients first' : S.sort === 'comp' ? 'Most likely to become a company first' : 'Newest first')
       : 'New company records, ' + (LIVE ? 'newest' : 'oldest') + ' first';
     $('list-count').textContent = S.view === 'labs' ? `${all.length} shown · ${n(D.labsTotal)} ranked`
+      : S.view === 'areas' ? `${all.length} areas`
       : S.view === 'papers' ? `${n(all.length)} shown · ${n(D.papersTotal)} scored` : `${all.length} records`;
     let html = '';
+    let place = 0;
     for (const r of shown) {
-      const on = key(r) === sel;
+      const on = key(r) === sel; place += 1;
+      if (S.view === 'areas') { html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="rk">${place}</span>
+        <span><span class="nm">${esc(r.name)}</span><span class="in">${n(r.year)} papers this year · ${n(r.heads)} lab heads</span><span class="why">${growthText(r)}</span></span>
+        <span class="side">${spark(r)}${areaPill(r)}</span></div>`; continue; }
       if (S.view === 'labs') html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.rank}</span>
         <span><span class="nm">${esc(r.name)}</span><span class="in">${esc(r.inst || 'Institution not given')}</span><span class="why">${labLine(r)}</span></span>
         <span class="side">${pill(r.pct)}${star(r.id, r.name)}</span></div>`;
-      else if (S.view === 'papers') { const v = S.sort === 'comp' ? r.comp : r.clin;
+      else if (S.view === 'papers') { const v = S.sort === 'd' ? r.clin : r[S.sort];
         html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.d.slice(2, 7)}</span>
         <span><span class="nm">${esc(r.t)}</span><span class="in">${esc(r.last || r.first || '')}${r.inst ? ' · ' + esc(r.inst) : ''}${r.pre ? ' · preprint' : ''}</span>
@@ -439,7 +473,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
         <span class="side"><span class="pill">#${r.l.rank}</span>${star(r.l.id, r.l.name)}</span></div>`;
     }
     if (!all.length) {
-      const other = S.view === 'papers' ? 'labs' : 'papers', m = rows(other).length;
+      const other = S.view === 'papers' ? 'labs' : 'papers', m = S.view === 'areas' ? 0 : rows(other).length;
       const what = S.q ? `matches “${esc(S.q)}”` : 'matches these filters';
       html = `<div class="empty"><b>Nothing here ${what}.</b><br>${S.watching ? 'You are only looking at labs you watch. ' : ''}Try a surname, an institution such as UCSF, or a topic such as CRISPR.${m ? `<div class="row" style="margin-top:12px"><button class="go" type="button" data-goto="${other}">${n(m)} ${other} match. Show them</button></div>` : ''}${(S.mod || S.watching || S.q) ? `<div class="row" style="margin-top:8px"><button class="go" type="button" data-clear="1">Clear search and filters</button></div>` : ''}</div>`;
     }
@@ -477,15 +511,21 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
       <div class="block"><span class="label">Timeline, newest first</span><ul class="tl">${tl.html}</ul>${tl.more > 0 ? `<button class="more" type="button" data-full="1">Show ${tl.more} earlier</button>` : ''}</div>
       <div class="fine">Company records are matched by name and state or town and are not verified. Sources: SEC Form D, NIH RePORTER, Companies House.</div>`;
   }
+  function scoreRow(name, question, key, v, why, none) {
+    const sig = why && (why.flags.length || why.phrases.length) ? `<div class="sig">What raised it: ${why.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join('')}${why.phrases.map((f) => `<span class="tag quote">“${esc(f)}”</span>`).join('')}</div>` : '';
+    return `<div class="srow"><div class="sv ${v == null ? 'off' : band(v) ? 'up' : ''}">${v == null ? 'Not scored' : topText(v)}</div><div><b>${name}</b><span class="q">${question}</span><p>${v == null ? (none || 'Published outside the scored window.') : means(key, v)}</p>${v == null ? '' : sig}</div></div>`;
+  }
   function paperDetail(p) {
     const lab = labById.get(p.lastId);
     const record = [...p.prior.map((x) => PRIOR[x]), ...(p.co ? ['A company is among the authors'] : [])];
     return `<div class="dhead"><div><h2>${esc(p.t)}</h2><div class="sub">${esc(p.last || p.first || '')}${p.nAu > 1 ? ' and ' + (p.nAu - 1) + ' others' : ''}${p.inst ? ' · ' + esc(p.inst) : ''}<br>${esc(p.j || '')} · ${p.d}${p.pre ? ' · preprint, not peer reviewed' : ''}</div></div></div>
       <div class="block row"><a class="go" href="${esc(link(p))}" target="_blank" rel="noopener">Open the paper ↗</a>${lab ? `<button class="go" type="button" data-lab="${esc(lab.id)}">See ${esc(lab.name)}'s lab, ranked ${lab.rank}</button>` : ''}</div>
-      <div class="block tiles">
+      ${THREE ? `<div class="block">${scoreRow('Feasibility', 'Will this reach the clinic?', 'clin', p.clin, p.why && p.why.clin)}${scoreRow('Commercial pull', 'Will industry build on the idea?', 'comm', p.comm, p.why && p.why.comm)}${scoreRow('Team', 'Do the authors have a record of forming companies?', 'comp', p.comp, null, 'No author at a US or UK address, and company records are only read for those two countries.')}
+        <div class="fine">Feasibility and commercial pull read the title and abstract only. They do not know who wrote the paper. The team score does.</div></div>${(p.areas || []).length ? `<div class="block"><span class="label">Areas</span>${p.areas.map((a) => `<button class="tag" type="button" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : ''}`
+      : `<div class="block tiles">
         <div class="tile"><span class="label">Closest to patients</span><div class="big ${band(p.clin) ? 'up' : ''}">${topText(p.clin)}</div><p>${means('clin', p.clin)}</p></div>
         <div class="tile"><span class="label">Likely to become a company</span>${p.comp == null ? '<div class="big">Not scored</div><p>No author at a US or UK address, and company records are only read for those two countries.</p>' : `<div class="big ${band(p.comp) ? 'up' : ''}">${topText(p.comp)}</div><p>${means('comp', p.comp)}</p>`}</div>
-      </div>
+      </div>`}
       <div class="block"><span class="label">How far the work got</span><div class="steps">${STAGES.map((s, i) => `<div class="step ${p.stage.includes(s) ? 'on' + (i === p.top ? ' top' : '') : ''}">${STAGE_NAME[s]}</div>`).join('')}</div></div>
       <div class="block"><span class="label">What the abstract shows</span><ul class="checks">${Object.keys(DERISK).map((k) => `<li class="${p.derisk.includes(k) ? 'yes' : ''}"><i>${p.derisk.includes(k) ? '✓' : '·'}</i>${DERISK[k]}</li>`).join('')}</ul></div>
       <div class="block"><span class="label">The authors</span>${record.length || p.coi.length ? `<ul class="reasons">${record.map((x) => `<li>${x}</li>`).join('')}${p.coi.length ? `<li class="said">The paper declares ${p.coi.map((x) => SAID[x]).join(', ')}</li>` : ''}</ul>` : '<span style="color:var(--muted)">No company record or declared interest seen.</span>'}</div>
@@ -499,6 +539,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     if (id) {
       if (S.view === 'labs') html = labDetail(labById.get(id));
       else if (S.view === 'papers') html = paperDetail(papers.get(id));
+      else if (S.view === 'areas') html = areaDetail(areaById.get(id));
       else { const e = events.find((x) => x.id === id); html = `<div class="block next" style="margin-top:0"><span class="label">${KIND[e.k]} · ${e.d} · ${KIND_SRC[e.k]}</span><b>${esc(e.label)}</b> names ${esc(e.l.name)}.</div><div style="height:14px"></div>` + labDetail(e.l); }
     } else html = `<div class="empty">Pick a row to see why it is ranked where it is.</div>`;
     const d = $('detail');
@@ -513,21 +554,23 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     $('n-labs').textContent = `${rows('labs').length} labs`;
     $('n-papers').textContent = `${n(rows('papers').length)} papers`;
     $('n-news').textContent = `${rows('news').length} records`;
+    if (D.areas) $('n-areas').textContent = `${rows('areas').length} areas`;
     const extras = S.view === 'labs' ? (S.f.country ? 1 : 0) + (S.f.rec ? 1 : 0) : S.view === 'papers' ? (S.f.stage ? 1 : 0) + (S.f.pre ? 1 : 0) + (S.f.lab ? 1 : 0) : (S.f.kind ? 1 : 0);
     $('chips').innerHTML = `<button class="chipbtn" type="button" data-mod="" aria-pressed="${!S.mod}">All topics</button>`
       + MODS.map((m) => `<button class="chipbtn" type="button" data-mod="${esc(m)}" aria-pressed="${S.mod === m}">${esc(m)}</button>`).join('')
       + `<span class="sep" aria-hidden="true"></span><button class="chipbtn" type="button" data-watching="1" aria-pressed="${S.watching}"><span class="dot">★</span> Watching ${watched.size || ''}</button>`
       + `<button class="chipbtn quiet" type="button" data-extra="1" aria-expanded="${S.extra}">${S.extra ? 'Fewer filters' : 'More filters'}${extras ? ' · ' + extras + ' on' : ''}</button>`;
-    const seg = (name, opts) => `<span class="seg" role="group">${opts.map(([v, t]) => `<button type="button" data-f="${name}" data-v="${v}" aria-pressed="${String(name === 'sort' ? S.sort : S.f[name]) === v}">${t}</button>`).join('')}</span>`;
+    const seg = (name, opts) => `<span class="seg" role="group">${opts.map(([v, t]) => `<button type="button" data-f="${name}" data-v="${v}" aria-pressed="${String(name === 'sort' ? S.sort : name === 'asort' ? S.asort : S.f[name]) === v}">${t}</button>`).join('')}</span>`;
     $('extra').hidden = !S.extra && S.view !== 'papers';
     $('extra').innerHTML = S.view === 'labs' ? (S.extra ? `<label>Country ${seg('country', [['', 'Both'], ['US', 'US'], ['GB', 'UK']])}</label><label>Company record ${seg('rec', [['', 'Any'], ['some', 'Has one'], ['none', 'None seen yet']])}</label>` : '')
-      : S.view === 'papers' ? `<label>Rank by ${seg('sort', [['clin', 'Closest to patients'], ['comp', 'Likely a company'], ['d', 'Newest']])}</label>` + (S.extra ? `<label>Got as far as <select id="f-stage"><option value="">Any</option>${STAGES.slice().reverse().map((s) => `<option value="${s}" ${S.f.stage === s ? 'selected' : ''}>${STAGE_NAME[s]}</option>`).join('')}</select></label><label><input type="checkbox" id="f-pre" ${S.f.pre ? 'checked' : ''}> Preprints only</label><label><input type="checkbox" id="f-lab" ${S.f.lab ? 'checked' : ''}> Not yet in patients</label>` : '')
+      : S.view === 'papers' ? `<label>Rank by ${seg('sort', THREE ? [['clin', 'Feasibility'], ['comm', 'Commercial pull'], ['comp', 'Team'], ['d', 'Newest']] : [['clin', 'Closest to patients'], ['comp', 'Likely a company'], ['d', 'Newest']])}</label>` + (S.extra ? `<label>Got as far as <select id="f-stage"><option value="">Any</option>${STAGES.slice().reverse().map((s) => `<option value="${s}" ${S.f.stage === s ? 'selected' : ''}>${STAGE_NAME[s]}</option>`).join('')}</select></label><label><input type="checkbox" id="f-pre" ${S.f.pre ? 'checked' : ''}> Preprints only</label><label><input type="checkbox" id="f-lab" ${S.f.lab ? 'checked' : ''}> Not yet in patients</label>` : '')
+      : S.view === 'areas' ? `<label>Rank by ${seg('asort', Object.entries(AREA_SORT))}</label>`
       : (S.extra ? `<label>Kind ${seg('kind', [['', 'All'], ['formd', 'Funding filings'], ['award', 'Research awards'], ['uk', 'UK companies']])}</label>` : '');
     $('extra').hidden = !$('extra').innerHTML;
   }
   function draw() {
     const pat = S.view === 'patterns';
-    $('patterns').hidden = !pat; document.querySelector('.split').hidden = pat; $('chips').hidden = pat; document.querySelector('.keys').hidden = pat;
+    $('patterns').hidden = !pat; document.querySelector('.split').hidden = pat; $('chips').hidden = pat || S.view === 'areas'; document.querySelector('.keys').hidden = pat;
     drawChrome();
     if (pat) { $('extra').hidden = true; drawPatterns(); return; }
     drawList(); drawDetail();
@@ -559,7 +602,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     if ('mod' in b.dataset) S.mod = b.dataset.mod; else if (b.dataset.watching) S.watching = !S.watching; else if (b.dataset.extra) S.extra = !S.extra;
     S.shown[S.view] = S.view === 'news' ? 60 : 40; draw();
   });
-  $('extra').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; if (b.dataset.f === 'sort') S.sort = b.dataset.v; else S.f[b.dataset.f] = b.dataset.v; draw(); });
+  $('extra').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; if (b.dataset.f === 'sort') { S.sort = b.dataset.v; S.sel.papers = null; S.shown.papers = 40; } else if (b.dataset.f === 'asort') { S.asort = b.dataset.v; S.sel.areas = null; } else S.f[b.dataset.f] = b.dataset.v; draw(); });
   $('extra').addEventListener('change', (e) => { if (e.target.id === 'f-stage') S.f.stage = e.target.value; if (e.target.id === 'f-pre') S.f.pre = e.target.checked; if (e.target.id === 'f-lab') S.f.lab = e.target.checked; draw(); });
   $('list').addEventListener('click', (e) => {
     const s = e.target.closest('[data-star]'); if (s) { e.stopPropagation(); toggleWatch(s.dataset.star); return; }
@@ -571,6 +614,9 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     const s = e.target.closest('[data-star]'); if (s) { toggleWatch(s.dataset.star); return; }
     if (e.target.closest('[data-back]')) { $('detail').classList.remove('open'); return; }
     if (e.target.closest('[data-full]')) { fullTimeline = true; drawDetail(); return; }
+    const pp = e.target.closest('[data-paper]'); if (pp) { openPaper(pp.dataset.paper); return; }
+    const ar = e.target.closest('[data-area]'); if (ar) { openArea(ar.dataset.area); return; }
+    const am = e.target.closest('[data-amode]'); if (am) { S.amode = am.dataset.amode; drawDetail(); return; }
     const l = e.target.closest('[data-lab]'); if (l) { S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.country = ''; S.f.rec = ''; S.view = 'labs'; S.sel.labs = l.dataset.lab; S.shown.labs = Math.max(40, labById.get(l.dataset.lab).rank); location.hash = 'labs'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); }
   });
   $('more').addEventListener('click', () => { S.shown[S.view] += 40; drawList(); });
@@ -586,14 +632,14 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     if (e.key === '/') { e.preventDefault(); $('q').focus(); $('q').select(); }
     else if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); move(1); }
     else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); move(-1); }
-    else if ((e.key === 'w' || e.key === 'W') && S.view !== 'patterns') { const id = S.sel[S.view]; const lab = S.view === 'labs' ? id : S.view === 'news' ? (events.find((x) => x.id === id) || { l: {} }).l.id : (papers.get(id) || {}).lastId; if (lab && labById.has(lab)) toggleWatch(lab); else if (id) toast('This lab head is outside the top 300 shown here'); }
-    else if (e.key === '1') setView('labs'); else if (e.key === '2') setView('papers'); else if (e.key === '3') setView('news'); else if (e.key === '4') setView('patterns');
+    else if ((e.key === 'w' || e.key === 'W') && S.view !== 'patterns' && S.view !== 'areas') { const id = S.sel[S.view]; const lab = S.view === 'labs' ? id : S.view === 'news' ? (events.find((x) => x.id === id) || { l: {} }).l.id : (papers.get(id) || {}).lastId; if (lab && labById.has(lab)) toggleWatch(lab); else if (id) toast('This lab head is outside the top 300 shown here'); }
+    else if ('12345'.includes(e.key) && VIEWS['12345'.indexOf(e.key)]) setView(VIEWS['12345'.indexOf(e.key)]);
     else if (e.key === 'Enter' && S.sel[S.view] && narrow()) $('detail').classList.add('open');
   });
   window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) { S.view = v; draw(); } });
 
   /* ---- patterns: figures across the whole field ---- */
-  const VIEWS = ['labs', 'papers', 'news'].concat(D.figs ? ['patterns'] : []);
+  const VIEWS = ['labs', 'papers'].concat(D.areas ? ['areas'] : [], ['news'], D.figs ? ['patterns'] : []);
   const pc = (v, d) => (v * 100).toFixed(d == null ? 0 : d) + '%';
   const tipAttr = (strong, rest) => `data-t1="${esc(strong)}" data-t2="${esc(rest || '')}"`;
   const table = (head, rows) => `<details class="nums"><summary>See the numbers</summary><div class="tscroll"><table><thead><tr>${head.map((h, i) => `<th class="${i ? 'num' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
@@ -686,18 +732,74 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     tip.hidden = false; const r = el.getBoundingClientRect(), px = ev && ev.clientX != null ? ev.clientX : r.left + r.width / 2, py = ev && ev.clientY != null ? ev.clientY : r.top;
     const w = tip.offsetWidth, h = tip.offsetHeight; tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, px + 14)) + 'px'; tip.style.top = Math.max(8, py - h - 12 < 8 ? py + 18 : py - h - 12) + 'px';
   }
-  $('patterns').addEventListener('pointermove', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el, e); else tip.hidden = true; });
-  $('patterns').addEventListener('pointerleave', () => { tip.hidden = true; });
-  $('patterns').addEventListener('focusin', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el); });
-  $('patterns').addEventListener('focusout', () => { tip.hidden = true; });
+  document.addEventListener('pointermove', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el, e); else tip.hidden = true; });
+  document.addEventListener('pointerleave', () => { tip.hidden = true; });
+  document.addEventListener('focusin', (e) => { const el = e.target.closest('[data-t1]'); if (el) showTip(el); });
+  document.addEventListener('focusout', () => { tip.hidden = true; });
   function openLab(id) { if (!labById.has(id)) return; tip.hidden = true; S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.country = ''; S.f.rec = ''; S.view = 'labs'; S.sel.labs = id; S.shown.labs = Math.max(40, D.labs.findIndex((l) => l.id === id) + 5); location.hash = 'labs'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); window.scrollTo({ top: 0 }); }
   $('patterns').addEventListener('click', (e) => { const v = e.target.closest('[data-lab]'); if (v) openLab(v.dataset.lab); });
   $('patterns').addEventListener('keydown', (e) => { if (e.key === 'Enter') { const v = e.target.closest('[data-lab]'); if (v) openLab(v.dataset.lab); } });
 
+  /* ---- areas: rankings by area, and interest over time ---- */
+  const AREA_SORT = { growth: 'Fastest growing', year: 'Most papers', feasTop: 'Most feasible', commTop: 'Strongest commercial pull' };
+  const areaById = new Map((D.areas || []).map((a) => [a.id, a]));
+  function spark(a) {
+    const v = a.series.map((p) => p.share), max = Math.max(...v) || 1, W = 84, H = 26;
+    const pts = v.map((y, i) => `${(2 + i / (v.length - 1) * (W - 6)).toFixed(1)},${(H - 3 - y / max * (H - 7)).toFixed(1)}`);
+    const last = pts[pts.length - 1].split(',');
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><polyline points="${pts.join(' ')}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.5"/></svg>`;
+  }
+  const growthText = (a) => a.growth >= 1.05 ? `${a.growth.toFixed(1)}× the papers of two years ago` : a.growth <= 0.95 ? `Fewer papers than two years ago (${a.growth.toFixed(1)}×)` : 'About as many papers as two years ago';
+  function areaPill(a) {
+    const k = S.asort, v = a[k];
+    return k === 'growth' ? `<span class="pill ${v >= 2 ? 't1' : v >= 1.5 ? 't5' : ''}">${v.toFixed(1)}×</span>` : k === 'year' ? `<span class="pill">${n(v)}</span>` : `<span class="pill ${v >= 0.2 ? 't1' : v >= 0.13 ? 't5' : ''}">${v == null ? 'none' : pc(v)}</span>`;
+  }
+  function areaChart(a, mode) {
+    const P = a.series, W = 600, H = 230, m = { l: 46, r: 64, t: 14, b: 28 };
+    const t0 = Date.parse(P[0].d), t1 = Date.parse(P[P.length - 1].d), val = (p) => mode === 'share' ? p.share * 100 : p.n;
+    const top = Math.max(...P.map(val)), step = Math.pow(10, Math.floor(Math.log10(top || 1))), nice = Math.ceil(top / (step / 2)) * (step / 2) || 1;
+    const x = (d) => m.l + (Date.parse(d) - t0) / (t1 - t0) * (W - m.l - m.r), y = (v) => H - m.b - v / nice * (H - m.t - m.b);
+    const fmt = (v) => mode === 'share' ? (v < 1 ? v.toFixed(2) : v.toFixed(1)) + '%' : n(Math.round(v));
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(a.name)}: ${mode === 'share' ? 'share of all cell and gene therapy papers' : 'papers in each twelve months'}, 2017 to today">`;
+    for (const f of [0, 0.5, 1]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(nice * f)}" y2="${y(nice * f)}" class="grid"/><text x="${m.l - 7}" y="${y(nice * f) + 4}" class="tick" text-anchor="end">${fmt(nice * f)}</text>`;
+    for (let yr = 2018; yr <= new Date(t1).getUTCFullYear(); yr += 2) s += `<text x="${x(yr + '-01-01')}" y="${H - 8}" class="tick" text-anchor="middle">${yr}</text>`;
+    s += `<path d="${P.map((p, i) => (i ? 'L' : 'M') + x(p.d).toFixed(1) + ' ' + y(val(p)).toFixed(1)).join(' ')}" class="line"/>`;
+    const L = P[P.length - 1];
+    s += `<circle cx="${x(L.d)}" cy="${y(val(L))}" r="4.5" class="pt"/><text x="${x(L.d) + 9}" y="${y(val(L)) + 4}" class="lab">${fmt(val(L))}</text>`;
+    P.forEach((p, i) => { const x0 = i ? (x(P[i - 1].d) + x(p.d)) / 2 : m.l, x1 = i < P.length - 1 ? (x(p.d) + x(P[i + 1].d)) / 2 : W - m.r;
+      s += `<rect x="${x0.toFixed(1)}" y="${m.t}" width="${(x1 - x0).toFixed(1)}" height="${H - m.t - m.b}" class="hit" tabindex="-1" ${tipAttr(`12 months to ${p.d}`, `${n(p.n)} papers | ${(p.share * 100).toFixed(2)}% of all cell and gene therapy papers`)}/>`; });
+    return s + '</svg>';
+  }
+  const pick = (ids, key) => ids.map((id) => papers.get(id)).filter(Boolean).map((p) => `<li><button class="pickrow" type="button" data-paper="${esc(p.id)}">${pill(p[key])}<span><span class="nm">${esc(p.t)}</span><span class="in">${esc(p.last || p.first || '')}${p.inst ? ' · ' + esc(p.inst) : ''}</span></span></button></li>`).join('') || '<li class="none">None this year.</li>';
+  function areaDetail(a) {
+    const labs = a.labs.map((id) => labById.get(id)).filter(Boolean);
+    const tenth = (v, what) => v == null ? 'No papers this year.' : `${pc(v)} of its papers this year are in the top tenth of all papers for ${what}. 10% would be average.`;
+    return `<div class="dhead"><div><h2>${esc(a.name)}</h2><div class="sub">${n(a.year)} papers in the last 12 months · ${n(a.heads)} US and UK lab heads</div></div></div>
+      <div class="block"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><span class="label">Interest over time</span><span class="seg" role="group"><button type="button" data-amode="n" aria-pressed="${S.amode === 'n'}">Papers a year</button><button type="button" data-amode="share" aria-pressed="${S.amode === 'share'}">Share of the field</button></span></div>${areaChart(a, S.amode)}
+        <div class="fine" style="margin-top:4px">${S.amode === 'share' ? 'Its papers as a share of all cell and gene therapy papers, so the field\'s own growth is taken out.' : 'Papers and preprints in each trailing twelve months.'}</div></div>
+      <div class="block tiles">
+        <div class="tile"><span class="label">Growth</span><div class="big ${a.growth >= 1.5 ? 'up' : ''}">${a.growth.toFixed(1)}×</div><p>${n(a.now)} papers in the last two years, ${n(a.then)} in the two before.</p></div>
+        <div class="tile"><span class="label">Labs with a company</span><div class="big">${a.heads ? pc(a.withrec / a.heads) : 'none'}</div><p>${a.withrec} of ${a.heads} lab heads have a company record${a.newRecs ? `, and ${plural(a.newRecs, 'new record')} named them this year` : ''}.</p></div>
+        <div class="tile"><span class="label">Feasibility</span><div class="big ${a.feasTop >= 0.13 ? 'up' : ''}">${a.feasTop == null ? 'none' : pc(a.feasTop)}</div><p>${tenth(a.feasTop, 'feasibility')}</p></div>
+        <div class="tile"><span class="label">Commercial pull</span><div class="big ${a.commTop >= 0.13 ? 'up' : ''}">${a.commTop == null ? 'none' : pc(a.commTop)}</div><p>${tenth(a.commTop, 'commercial pull')}</p></div>
+      </div>
+      <div class="block"><span class="label">Most feasible papers this year</span><ul class="pick">${pick(a.topFeas, 'clin')}</ul></div>
+      <div class="block"><span class="label">Strongest commercial pull this year</span><ul class="pick">${pick(a.topComm, 'comm')}</ul></div>
+      <div class="block"><span class="label">Leading labs</span><ul class="pick">${labs.map((l) => `<li><button class="pickrow" type="button" data-lab="${esc(l.id)}"><span class="pill">#${l.rank}</span><span><span class="nm">${esc(l.name)}</span><span class="in">${esc(l.inst || '')} · ${labLine(l)}</span></span></button></li>`).join('') || '<li class="none">No US or UK lab head published here as senior author in the last two years.</li>'}</ul></div>
+      <div class="fine">An area is a set of keyword rules on the title and abstract. A paper can sit in several areas, and most sit in none.</div>`;
+  }
+  function openPaper(id) {
+    if (!papers.has(id)) return; tip.hidden = true; S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.stage = ''; S.f.pre = false; S.f.lab = false; S.view = 'papers'; S.sel.papers = id;
+    S.shown.papers = Math.max(40, rows('papers').findIndex((p) => p.id === id) + 5); location.hash = 'papers'; draw();
+    const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open');
+  }
+  function openArea(id) { if (!areaById.has(id)) return; S.q = ''; $('q').value = ''; S.view = 'areas'; S.sel.areas = id; location.hash = 'areas'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); }
+
   if (D.figs) $('view-patterns').hidden = false;
+  if (D.areas) $('view-areas').hidden = false;
 
   /* the reliability sheet */
-  const SHOW = [['lab', 'Lab heads: appeared in a company record', 'paper count (floor)', 'Paper count'], ['comp', 'Papers: an author appeared in a company record', 'author count (floor)', 'Author count'], ['clin', 'Papers: cited by a clinical article', 'iCite apt (baseline)', 'NIH iCite']];
+  const SHOW = [['lab', 'Lab heads: appeared in a company record', 'paper count (floor)', 'Paper count'], ['comp', 'Papers: an author appeared in a company record', 'author count (floor)', 'Author count'], ['clin', 'Papers: cited by a clinical article', 'iCite apt (baseline)', 'NIH iCite']].concat(THREE ? [['comm', 'Papers: cited by industry']] : []);
   $('studies').innerHTML = SHOW.map(([key, name, other, otherName]) => {
     const s = D.summary[STUDY[key]], p5 = (x) => x.top.find((t) => Math.abs(t.share - 0.05) < 1e-9).precision;
     const bar = (label, v, cls) => `<div class="hbar ${cls}"><span class="l">${label}</span><span class="track"><i style="width:${Math.min(100, v / 0.7 * 100).toFixed(1)}%"></i></span><span class="v">${(v * 100).toFixed(0)}%</span></div>`;

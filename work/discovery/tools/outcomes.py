@@ -6,6 +6,7 @@
     python3 work/discovery/tools/outcomes.py formd <out.ndjson> [first year] [last year]
     python3 work/discovery/tools/outcomes.py uk <work folder> <out.ndjson>
     python3 work/discovery/tools/outcomes.py openalex <corpus folder> <out folder> [known authors]
+    python3 work/discovery/tools/outcomes.py industry <data folder> <out.ndjson> [first year] [last year]
 
 - ``sbir``: every NIH small-business award (SBIR and STTR, activity codes R41 to R44, U43,
   U44, SB1) from RePORTER, with its investigators, organisation and start date.
@@ -27,6 +28,11 @@
   OpenAlex folds a preprint and its published version into one work, so a preprint's
   authors are those of the published paper where there is one. Given an earlier
   ``authors.ndjson``, the authors already in it are not asked for again.
+- ``industry``: for each paper of the data folder first published in the given years, the
+  works that cite it within three calendar years and have an author at an institution
+  OpenAlex types as a company, by year. Fifty papers a call, attributed by each citing
+  work's reference list. "Industry built on it" is the concept-level outcome: it does
+  not depend on who wrote the paper.
 """
 
 import csv
@@ -427,6 +433,61 @@ def openalex(folder, out, known=None):
                 print("authors", i, "of", len(people), flush=True)
 
 
+def industry(folder, out, first=2017, last=2022):
+    key = (os.environ.get("OPENALEX_API_KEY") or "").strip()
+    if not key:
+        sys.exit("OPENALEX_API_KEY is empty")
+    folder = pathlib.Path(folder)
+    year = {}
+    for path in sorted(folder.glob("corpus/*.ndjson")):
+        for line in path.open():
+            r = json.loads(line)
+            if (r.get("first_date") or "")[:4].isdigit():
+                year[r["id"]] = int(r["first_date"][:4])
+    by_year = {}
+    for line in (folder / "openalex" / "works.ndjson").open():
+        r = json.loads(line)
+        if r.get("work") and first <= year.get(r["id"], 0) <= last:
+            by_year.setdefault(year[r["id"]], {})[r["work"]] = r["id"]
+    with open(out, "w") as handle:
+        for y in sorted(by_year):
+            works = sorted(by_year[y])
+            for i in range(0, len(works), 50):
+                batch = {"https://openalex.org/" + w: by_year[y][w] for w in works[i:i + 50]}
+                cited = {paper: [] for paper in batch.values()}
+                cursor = "*"
+                while cursor:
+                    url = "https://api.openalex.org/works?" + urllib.parse.urlencode({
+                        "filter": "cites:" + "|".join(w.rsplit("/", 1)[-1] for w in batch)
+                                  + ",authorships.institutions.type:company"
+                                  + f",publication_year:{y}-{y + 3}",
+                        "select": "id,publication_year,referenced_works",
+                        "per-page": 200, "cursor": cursor})
+                    page = None
+                    for attempt in range(6):
+                        try:
+                            request = urllib.request.Request(url, headers=dict(
+                                UA, Authorization="Bearer " + key))
+                            with urllib.request.urlopen(request, timeout=180) as resp:
+                                page = json.load(resp)
+                            break
+                        except Exception as exc:               # noqa: BLE001
+                            print("retry", attempt, str(exc)[:100], flush=True)
+                            time.sleep(2 ** (attempt + 1))
+                    if page is None:
+                        raise RuntimeError("no answer from OpenAlex")
+                    for work in page["results"]:
+                        for reference in work.get("referenced_works") or []:
+                            if reference in batch:
+                                cited[batch[reference]].append(work.get("publication_year"))
+                    cursor = page["meta"].get("next_cursor") if page["results"] else None
+                for paper, years in cited.items():
+                    handle.write(json.dumps({"id": paper, "year": y,
+                                             "industry": sorted(years)}) + "\n")
+                time.sleep(0.1)
+            print("industry", y, len(works), flush=True)
+
+
 if __name__ == "__main__":
     what = sys.argv[1]
     if what == "sbir":
@@ -441,3 +502,5 @@ if __name__ == "__main__":
         uk(sys.argv[2], sys.argv[3])
     elif what == "openalex":
         openalex(*sys.argv[2:5])
+    elif what == "industry":
+        industry(sys.argv[2], sys.argv[3], *(int(a) for a in sys.argv[4:6]))

@@ -120,6 +120,23 @@ read why it is ranked on the right. One search box, one row of topic chips, thre
 "How reliable is this?" is a link in the top bar that opens the backtest as a side
 sheet. It is read once, so it does not take a tab.
 
+**Three scores for a paper, and an Areas view (2026-11-15).** A paper's panel now asks
+three questions and answers each with a rank, what that rank has meant in the backtest,
+and what in the abstract raised it:
+
+| Score | Question | Reads | Trained on |
+|---|---|---|---|
+| Feasibility | Will this reach the clinic? | Title and abstract only | Cited by a clinical article within three years |
+| Commercial pull | Will industry build on the idea? | Title and abstract only | Cited twice or more by company-authored work within three years |
+| Team | Do the authors form companies? | The authors' record, and the text | An author in a company record within three years |
+
+Areas is a fifth view in the same list-and-panel shape: 25 areas ranked by growth, size,
+feasibility or commercial pull, each row with a sparkline. The panel draws interest over
+time (papers in each trailing twelve months, or share of the field), four figures for
+the area, its best papers on each score and its leading labs, each of which opens.
+Five views is one more than is comfortable; if one goes, fold What's new into Labs as a
+filter.
+
 **A fourth view, Patterns (2026-11-14).** Five figures drawn from the whole corpus, not
 the rows on screen (`prototype/figures/`). Each is headed by its finding and ends with
 what to do about it and what it cannot show.
