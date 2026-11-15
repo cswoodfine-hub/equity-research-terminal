@@ -284,14 +284,204 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   .note label { margin-left: 0; }
   .tiles { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ================= the look: depth, light and data-ink, on the same tokens ================= */
+:root {
+  --feas: #35A57D; --comm: #CF7C3C; --team: #5290DC;
+  --edge: rgba(232, 237, 234, .075); --edge-hi: rgba(232, 237, 234, .14);
+  --surface: linear-gradient(180deg, #16242A 0%, #111B1F 100%);
+  --shadow: 0 22px 44px -26px rgba(0, 0, 0, .8), 0 1px 0 rgba(255, 255, 255, .03) inset;
+  --glow: 0 0 0 1px rgba(53, 165, 125, .55), 0 0 22px -4px rgba(53, 165, 125, .45);
+}
+html { background: #0A1114; }
+body { background:
+    radial-gradient(1100px 540px at 10% -140px, rgba(53, 165, 125, .17), transparent 64%),
+    radial-gradient(900px 480px at 98% -120px, rgba(82, 144, 220, .11), transparent 62%),
+    linear-gradient(180deg, #0C1417 0%, #0A1114 100%);
+  background-repeat: no-repeat; background-color: #0A1114; }
+.wrap { padding-block: 22px 48px; }
+::selection { background: rgba(53, 165, 125, .35); }
+
+/* hero */
+.hero { position: relative; overflow: hidden; border: 1px solid var(--edge); background: linear-gradient(135deg, rgba(22, 36, 42, .92), rgba(13, 22, 26, .78)); box-shadow: var(--shadow); padding: 14px 22px 18px; }
+.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--feas), var(--team) 45%, transparent 85%); }
+.constellation { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .42; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 18%, #000 62%); mask-image: linear-gradient(90deg, transparent 18%, #000 62%); }
+.constellation line { stroke: var(--feas); stroke-opacity: .32; stroke-width: 1; }
+.constellation circle { fill: var(--feas); fill-opacity: .7; }
+.constellation circle.tw { animation: twinkle 3.6s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { fill-opacity: .25; } 50% { fill-opacity: 1; } }
+.hero > *:not(.constellation) { position: relative; }
+.hero-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.eyebrow { display: flex; align-items: center; gap: 9px; font-family: var(--narrow); font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--feas); box-shadow: 0 0 0 0 rgba(53, 165, 125, .6); animation: beat 2.4s ease-out infinite; }
+@keyframes beat { 0% { box-shadow: 0 0 0 0 rgba(53, 165, 125, .55); } 70%, 100% { box-shadow: 0 0 0 9px rgba(53, 165, 125, 0); } }
+.hero-main { display: flex; flex-wrap: wrap; gap: 14px 40px; align-items: flex-end; justify-content: space-between; margin-top: 6px; }
+.hero h1 { font-size: clamp(28px, 3.6vw, 38px); font-weight: 600; letter-spacing: -.02em; line-height: 1; margin: 0; }
+.tagline { font-family: var(--prose); font-style: italic; font-size: 16.5px; color: #B9C6C2; margin: 5px 0 0; max-width: 60ch; }
+.stats { display: grid; grid-template-columns: repeat(4, auto); gap: 0; margin: 0; }
+.stats div { padding: 2px 22px; border-left: 1px solid var(--edge-hi); }
+.stats div:first-child { padding-left: 0; border-left: 0; }
+.stats dt { font-family: var(--narrow); font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); order: 2; margin-top: 3px; }
+.stats dd { margin: 0; font-family: var(--mono); font-size: clamp(22px, 2.6vw, 30px); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.stats div { display: flex; flex-direction: column; }
+.hero .search { margin-top: 14px; flex: none; }
+.search input { height: 46px; padding-left: 46px; background: rgba(10, 17, 20, .72); border: 1px solid var(--edge-hi); font-size: 15.5px; box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset; }
+.search input:focus { border-color: var(--feas); background: rgba(10, 17, 20, .9); box-shadow: 0 0 0 3px rgba(53, 165, 125, .2); }
+.search::before { content: ""; position: absolute; left: 17px; top: 50%; width: 13px; height: 13px; margin-top: -9px; border: 1.8px solid var(--muted); border-radius: 50%; }
+.search::after { content: ""; position: absolute; left: 30px; top: 50%; width: 7px; height: 1.8px; margin-top: 5px; background: var(--muted); transform: rotate(45deg); transform-origin: left center; }
+.note { margin-top: 10px; background: rgba(19, 30, 34, .6); border: 1px solid var(--edge); border-left: 2px solid var(--flag); font-size: 13px; padding: 7px 12px; }
+
+/* views */
+.views { gap: 10px; margin-top: 14px; }
+.view { flex: 1 1 170px; min-width: 150px; flex-direction: row; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--edge); box-shadow: 0 1px 0 rgba(255, 255, 255, .03) inset; position: relative; overflow: hidden; }
+.view .ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--edge-hi); background: rgba(10, 17, 20, .55); color: var(--muted); transition: color var(--motion) var(--ease), border-color var(--motion) var(--ease), background-color var(--motion) var(--ease); }
+.view .ic svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.view .tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; text-align: left; }
+.view::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: linear-gradient(90deg, var(--feas), var(--team)); transform: scaleX(0); transform-origin: left; transition: transform 260ms var(--ease); }
+.view:hover { background: linear-gradient(180deg, #1A2A31, #131E22); border-color: var(--edge-hi); }
+.view:hover .ic { color: var(--text); }
+.view[aria-selected="true"] { background: linear-gradient(180deg, rgba(53, 165, 125, .16), rgba(19, 30, 34, .9) 70%); border-color: rgba(53, 165, 125, .55); box-shadow: 0 14px 30px -20px rgba(53, 165, 125, .6), 0 1px 0 rgba(255, 255, 255, .04) inset; }
+.view[aria-selected="true"]::after { transform: scaleX(1); }
+.view[aria-selected="true"] .ic { color: var(--ground); background: var(--feas); border-color: var(--feas); }
+.view[aria-selected="true"] .n { color: #7FD3B0; }
+
+/* chips and controls */
+.chipbtn { background: rgba(19, 30, 34, .5); border-color: var(--edge-hi); }
+.chipbtn:hover { background: rgba(26, 42, 49, .9); border-color: var(--rule-strong); }
+.chipbtn[aria-pressed="true"] { background: linear-gradient(180deg, rgba(53, 165, 125, .34), rgba(53, 165, 125, .16)); border-color: rgba(53, 165, 125, .8); box-shadow: 0 0 18px -6px rgba(53, 165, 125, .7); }
+.extra { background: rgba(19, 30, 34, .55); border-color: var(--edge); }
+.seg { border-color: var(--edge-hi); background: rgba(10, 17, 20, .5); }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, rgba(53, 165, 125, .34), rgba(53, 165, 125, .16)); box-shadow: 0 -2px 0 var(--feas) inset; }
+
+/* list */
+.split { gap: 22px; margin-top: 16px; }
+.listpanel { background: linear-gradient(180deg, rgba(19, 30, 34, .72), rgba(15, 24, 28, .4)); border: 1px solid var(--edge); box-shadow: var(--shadow); }
+.listhead { padding: 11px 14px 10px; border-bottom: 1px solid var(--edge-hi); align-items: center; flex-wrap: wrap; }
+.key3 { display: flex; gap: 12px; font-size: 12px; color: var(--muted); width: 100%; margin-top: 6px; }
+.key3 i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -1px; }
+.item { padding: 12px 12px 12px 14px; border-bottom-color: var(--edge); transition: background-color var(--motion) var(--ease), transform var(--motion) var(--ease); }
+.item.lab { grid-template-columns: 3.2ch 36px minmax(0, 1fr) auto; }
+.item::before { width: 3px; box-shadow: 0 0 14px 1px rgba(53, 165, 125, .7); }
+.item:hover { background: rgba(26, 42, 49, .55); }
+.item[aria-selected="true"] { background: linear-gradient(90deg, rgba(53, 165, 125, .2), rgba(53, 165, 125, .04) 62%, transparent); }
+.item .nm { letter-spacing: -.005em; }
+.fresh .item { animation: rise 340ms var(--ease) both; animation-delay: calc(var(--i, 0) * 22ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.mono { position: relative; width: 36px; height: 36px; display: grid; place-items: center; font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: .02em; color: #C9D6D1; background: linear-gradient(135deg, #1E3138, #142127); border: 1px solid var(--edge-hi); }
+.mono.new::after { content: ""; position: absolute; top: -1px; right: -1px; border: 5px solid transparent; border-top-color: var(--flag); border-right-color: var(--flag); }
+.mono.big { width: 54px; height: 54px; font-size: 18px; flex: none; }
+.sig3 { display: flex; align-items: flex-end; gap: 3px; height: 26px; padding: 0 2px; }
+.sig3 i { display: block; width: 5px; border-radius: 1px 1px 0 0; min-height: 3px; }
+.sig3 i.na { height: 3px !important; background: var(--rule-strong) !important; }
+.pill { border-color: var(--edge-hi); background: rgba(10, 17, 20, .5); }
+.pill.t1 { background: linear-gradient(180deg, #46BE92, #2F9872); border-color: #46BE92; color: #06110D; box-shadow: 0 0 16px -4px rgba(53, 165, 125, .85); }
+.pill.t5 { border-color: rgba(53, 165, 125, .8); color: #7FD3B0; background: rgba(53, 165, 125, .1); }
+.pill.t10 { border-color: rgba(53, 165, 125, .4); color: var(--text); }
+.spark { overflow: visible; }
+.spark polyline { stroke: var(--feas); stroke-width: 1.6; }
+.spark path { fill: url(#sparkfill); }
+.more { background: var(--surface); border-color: var(--edge-hi); margin: 12px 14px; }
+
+/* detail */
+.detail { background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow); padding: 22px 24px 26px; }
+.detail::before { content: ""; position: sticky; display: block; top: -22px; margin: -22px -24px 20px; height: 2px; background: linear-gradient(90deg, var(--feas), var(--team) 50%, transparent 92%); }
+.dhead h2 { font-size: 23px; letter-spacing: -.012em; }
+.who { display: flex; gap: 14px; align-items: center; min-width: 0; }
+.watch { background: rgba(10, 17, 20, .5); border-color: var(--edge-hi); }
+.watch[aria-pressed="true"] { background: linear-gradient(180deg, rgba(217, 178, 107, .22), rgba(217, 178, 107, .08)); box-shadow: 0 0 18px -6px rgba(217, 178, 107, .7); }
+.block > .label { color: #8FA2A9; }
+.meter { position: relative; height: 34px; margin-top: 4px; }
+.meter .track { position: absolute; left: 0; right: 0; top: 14px; height: 6px; background: linear-gradient(90deg, #1C3A36, #2A5A4E 55%, var(--feas)); opacity: .9; }
+.meter .mark { position: absolute; top: 5px; width: 2px; height: 24px; background: var(--text); box-shadow: 0 0 10px 1px rgba(232, 237, 234, .7); transform: translateX(-1px); animation: slide 520ms var(--ease) both; }
+@keyframes slide { from { left: 0; opacity: 0; } }
+.meter .ends { position: absolute; left: 0; right: 0; top: 26px; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+.reasons li::before { box-shadow: 0 0 8px rgba(53, 165, 125, .7); }
+.reasons li.soft::before, .reasons li.said::before { box-shadow: none; }
+.next { background: linear-gradient(180deg, rgba(53, 165, 125, .14), rgba(53, 165, 125, .04)); border-color: rgba(53, 165, 125, .6); }
+.tile { background: rgba(10, 17, 20, .5); border-color: var(--edge-hi); position: relative; }
+.tile .big { font-size: 24px; letter-spacing: -.02em; }
+.tile .big.up { color: #7FD3B0; text-shadow: 0 0 18px rgba(53, 165, 125, .55); }
+.tl { position: relative; padding-left: 20px; }
+.tl::before { content: ""; position: absolute; left: 5px; top: 10px; bottom: 10px; width: 1px; background: linear-gradient(180deg, var(--rule-strong), transparent); }
+.tl li { position: relative; border-bottom-color: var(--edge); }
+.tl li:not(.cut)::before { content: ""; position: absolute; left: -19px; top: 11px; width: 9px; height: 9px; border-radius: 50%; background: var(--ground); border: 1.5px solid var(--muted); }
+.tl li.rec::before { background: var(--feas); border-color: var(--feas); }
+.tl li.after::before { background: var(--flag); border-color: var(--flag); box-shadow: 0 0 10px rgba(217, 178, 107, .8); }
+.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.gauge { background: rgba(10, 17, 20, .5); border: 1px solid var(--edge-hi); padding: 12px 8px 10px; text-align: center; }
+.gauge svg { display: block; width: 100%; max-width: 150px; margin: 0 auto; height: auto; }
+.gauge .seg-off { stroke: #223238; }
+.gauge path { fill: none; stroke-width: 9; }
+.gauge path.on { animation: light 420ms var(--ease) both; animation-delay: calc(var(--i) * 90ms + 80ms); }
+@keyframes light { from { opacity: 0; } to { opacity: 1; } }
+.gauge .gv { font-family: var(--mono); font-size: 13.5px; fill: var(--text); }
+.gauge .gv.off { font-size: 11px; fill: var(--muted); }
+.gauge .gl { font-family: var(--narrow); font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin-top: 2px; }
+.srow { grid-template-columns: 4px minmax(0, 1fr); gap: 14px; border-bottom-color: var(--edge); }
+.srow:first-child { border-top: 0; }
+.srow .bar { border-radius: 1px; }
+.tag { border-color: var(--edge-hi); background: rgba(10, 17, 20, .45); }
+.pickrow { border-bottom-color: var(--edge); }
+.pickrow:hover { background: rgba(26, 42, 49, .7); }
+.steps .step { border-top-width: 5px; }
+.steps .step.on.top { border-top-color: var(--feas); box-shadow: 0 -8px 14px -8px rgba(53, 165, 125, .9); }
+
+/* charts */
+svg .line { stroke: var(--feas); filter: drop-shadow(0 0 6px rgba(53, 165, 125, .55)); }
+svg .line.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 900ms var(--ease) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+svg .line.grey { filter: none; }
+svg .area { fill: url(#areafill); stroke: none; animation: light 700ms var(--ease) both; }
+svg .pt { fill: #7FD3B0; filter: drop-shadow(0 0 6px rgba(53, 165, 125, .9)); }
+svg .grid { stroke: rgba(232, 237, 234, .06); }
+svg .bub { fill: url(#bubfill); fill-opacity: .85; stroke: #46BE92; stroke-width: 1.2; }
+svg .bub:hover, svg .bub:focus { fill-opacity: 1; filter: drop-shadow(0 0 10px rgba(53, 165, 125, .7)); }
+svg .edge { stroke: rgba(126, 144, 152, .32); }
+svg .node.rec { fill: var(--feas); }
+svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 107, .9)); animation: pulse 2.6s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+.fig { border-top: 0; padding: 22px 24px 24px; background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow); max-width: 1020px; margin-bottom: 20px; }
+.fig h2 { font-size: 21px; letter-spacing: -.01em; }
+.brow .track { background: rgba(10, 17, 20, .6); }
+.brow .track i { background: linear-gradient(90deg, #2F9872, #46BE92); box-shadow: 0 0 12px -2px rgba(53, 165, 125, .7); }
+.hbar.ours .track i { background: linear-gradient(90deg, #2F9872, #46BE92); }
+.tip, .toast { border: 1px solid rgba(255, 255, 255, .5); }
+.sheet .pane { background: var(--surface); }
+.keys { color: #66777E; }
+.keys kbd { background: rgba(19, 30, 34, .8); border-color: var(--edge-hi); }
+
+@media (max-width: 880px) {
+  .hero { padding: 16px 16px 18px; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 0; width: 100%; }
+  .stats div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .view { flex: 1 1 calc(33% - 10px); min-width: 0; padding: 9px 8px; gap: 8px; }
+  .view .ic { width: 28px; height: 28px; }
+  .detail::before { display: none; }
+  .gauge { padding: 8px 2px 8px; }
+  .item.lab { grid-template-columns: 2.6ch 36px minmax(0, 1fr) auto; gap: 9px; }
+}
+
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 
 <div class="wrap">
-  <header class="bar">
-    <div><h1>Discovery</h1><div class="scope" id="scope">Cell and gene therapy · US and UK labs</div></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="areafill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#35A57D" stop-opacity=".38"/><stop offset="1" stop-color="#35A57D" stop-opacity="0"/></linearGradient>
+    <linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#35A57D" stop-opacity=".34"/><stop offset="1" stop-color="#35A57D" stop-opacity="0"/></linearGradient>
+    <radialGradient id="bubfill" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#7FD3B0" stop-opacity=".85"/><stop offset="1" stop-color="#2F9872" stop-opacity=".45"/></radialGradient>
+  </defs></svg>
+  <header class="hero">
+    <svg class="constellation" id="constellation" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"></svg>
+    <div class="hero-top">
+      <div class="eyebrow"><span class="live-dot"></span><span id="scope">Cell and gene therapy · US and UK labs</span></div>
+      <button class="textbtn" id="open-method" type="button">How reliable is this?</button>
+    </div>
+    <div class="hero-main">
+      <div><h1>Discovery</h1><p class="tagline">Early research in cell and gene therapy, ranked by what tends to happen next.</p></div>
+      <dl class="stats" id="stats"></dl>
+    </div>
     <div class="search"><input type="search" id="q" placeholder="Search a name, institution, company or topic" autocomplete="off" aria-label="Search"><kbd>/</kbd></div>
-    <button class="textbtn" id="open-method" type="button">How reliable is this?</button>
   </header>
 
   <div class="note">
@@ -300,19 +490,19 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   </div>
 
   <div class="views" role="tablist" aria-label="Views" id="views">
-    <button class="view" role="tab" data-view="labs" type="button"><span class="t">Labs</span><span class="s">Who to watch</span><span class="n" id="n-labs"></span></button>
-    <button class="view" role="tab" data-view="papers" type="button"><span class="t">Papers</span><span class="s">What came out</span><span class="n" id="n-papers"></span></button>
-    <button class="view" role="tab" data-view="areas" id="view-areas" type="button" hidden><span class="t">Areas</span><span class="s">Rankings and interest over time</span><span class="n" id="n-areas"></span></button>
-    <button class="view" role="tab" data-view="news" type="button"><span class="t">What's new</span><span class="s">Companies naming these labs</span><span class="n" id="n-news"></span></button>
-    <button class="view" role="tab" data-view="patterns" id="view-patterns" type="button" hidden><span class="t">Patterns</span><span class="s">Across the whole field</span><span class="n">5 figures</span></button>
+    <button class="view" role="tab" data-view="labs" type="button"><span class="ic"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="6" r="2.6"/><circle cx="3.6" cy="14" r="2"/><circle cx="14.4" cy="14" r="2"/><path d="M7.6 8.2 4.6 12.2M10.4 8.2l3 4"/></svg></span><span class="tx"><span class="t">Labs</span><span class="s">Who to watch</span><span class="n" id="n-labs"></span></span></button>
+    <button class="view" role="tab" data-view="papers" type="button"><span class="ic"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 2h7l3 3v11H4z"/><path d="M11 2v3h3M6.5 8.5h5M6.5 11h5M6.5 13.5h3"/></svg></span><span class="tx"><span class="t">Papers</span><span class="s">What came out</span><span class="n" id="n-papers"></span></span></button>
+    <button class="view" role="tab" data-view="areas" id="view-areas" type="button" hidden><span class="ic"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M2 14l4-5 3 3 4-7 3 4"/><path d="M2 16h14"/></svg></span><span class="tx"><span class="t">Areas</span><span class="s">Rankings over time</span><span class="n" id="n-areas"></span></span></button>
+    <button class="view" role="tab" data-view="news" type="button"><span class="ic"><svg viewBox="0 0 18 18" aria-hidden="true"><path d="M10 2 4 10h4l-1 6 6-8H9z"/></svg></span><span class="tx"><span class="t">What's new</span><span class="s">New company records</span><span class="n" id="n-news"></span></span></button>
+    <button class="view" role="tab" data-view="patterns" id="view-patterns" type="button" hidden><span class="ic"><svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="10" cy="6" r="2.6"/><circle cx="14" cy="13" r="1.6"/><path d="M2 16h14"/></svg></span><span class="tx"><span class="t">Patterns</span><span class="s">Across the whole field</span><span class="n">5 figures</span></span></button>
   </div>
 
   <div class="chips" id="chips"></div>
   <div class="extra" id="extra" hidden></div>
 
   <main class="split">
-    <section aria-label="Results">
-      <div class="listhead"><span class="label" id="list-title"></span><span class="cnt" id="list-count"></span></div>
+    <section aria-label="Results" class="listpanel">
+      <div class="listhead"><span class="label" id="list-title"></span><span class="cnt" id="list-count"></span><div class="key3" id="key3" hidden><span><i style="background:var(--feas)"></i>Feasibility</span><span><i style="background:var(--comm)"></i>Commercial pull</span><span><i style="background:var(--team)"></i>Team</span></div></div>
       <div id="list" role="listbox" aria-label="Results"></div>
       <button class="more" id="more" type="button">Show more</button>
     </section>
@@ -437,6 +627,10 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   const star = (id, name) => `<button class="star" type="button" data-star="${esc(id)}" aria-pressed="${watched.has(id)}" aria-label="${watched.has(id) ? 'Stop watching' : 'Watch'} ${esc(name)}" title="${watched.has(id) ? 'Watching' : 'Watch this lab'}">${watched.has(id) ? '★' : '☆'}</button>`;
 
   /* ---- list ---- */
+  const initials = (name) => { const w = String(name || '').replace(/[^\p{L}\s-]/gu, '').trim().split(/\s+/); return ((w[0] || '?')[0] + (w.length > 1 ? w[w.length - 1][0] : '')).toUpperCase(); };
+  const monogram = (l, big) => `<span class="mono${big ? ' big' : ''}${l.after && l.after.length && showNext() ? ' new' : ''}" aria-hidden="true">${esc(initials(l.name))}</span>`;
+  const barH = (v) => (3 + 23 * Math.pow(v, 6)).toFixed(1);          // tall only near the top of the list, where the score says something
+  const sig3 = (p) => `<span class="sig3" title="Feasibility ${p.clin == null ? 'not scored' : topText(p.clin)} · Commercial pull ${p.comm == null ? 'not scored' : topText(p.comm)} · Team ${p.comp == null ? 'not scored' : topText(p.comp)}">${[['clin', 'feas'], ['comm', 'comm'], ['comp', 'team']].map(([k, c]) => p[k] == null ? '<i class="na"></i>' : `<i style="height:${barH(p[k])}px;background:var(--${c})"></i>`).join('')}</span>`;
   function drawList() {
     const all = rows(S.view), shown = all.slice(0, S.shown[S.view]);
     const key = (r) => S.view === 'news' ? r.id : r.id;
@@ -453,21 +647,21 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     let place = 0;
     for (const r of shown) {
       const on = key(r) === sel; place += 1;
-      if (S.view === 'areas') { html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+      if (S.view === 'areas') { html += `<div class="item" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${place}</span>
         <span><span class="nm">${esc(r.name)}</span><span class="in">${n(r.year)} papers this year · ${n(r.heads)} lab heads</span><span class="why">${growthText(r)}</span></span>
         <span class="side">${spark(r)}${areaPill(r)}</span></div>`; continue; }
-      if (S.view === 'labs') html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
-        <span class="rk">${r.rank}</span>
+      if (S.view === 'labs') html += `<div class="item lab" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="rk">${r.rank}</span>${monogram(r)}
         <span><span class="nm">${esc(r.name)}</span><span class="in">${esc(r.inst || 'Institution not given')}</span><span class="why">${labLine(r)}</span></span>
         <span class="side">${pill(r.pct)}${star(r.id, r.name)}</span></div>`;
       else if (S.view === 'papers') { const v = S.sort === 'd' ? r.clin : r[S.sort];
-        html += `<div class="item" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        html += `<div class="item" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.d.slice(2, 7)}</span>
         <span><span class="nm">${esc(r.t)}</span><span class="in">${esc(r.last || r.first || '')}${r.inst ? ' · ' + esc(r.inst) : ''}${r.pre ? ' · preprint' : ''}</span>
           <span class="why">${r.top >= 0 ? 'Reached ' + STAGE_NAME[STAGES[r.top]].toLowerCase() : 'Lab work only'}${r.derisk.length ? ' · shows ' + r.derisk.slice(0, 2).map((x) => DERISK[x].toLowerCase()).join(', ') : ''}</span></span>
-        <span class="side">${pill(v)}</span></div>`; }
-      else html += `<div class="item ev" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
+        <span class="side">${THREE ? sig3(r) : ''}${pill(v)}</span></div>`; }
+      else html += `<div class="item ev" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.d}</span>
         <span><span class="nm">${esc(r.label)}</span><span class="in">${KIND[r.k]} naming ${esc(r.l.name)}</span><span class="why">${esc(r.l.inst || '')}</span></span>
         <span class="side"><span class="pill">#${r.l.rank}</span>${star(r.l.id, r.l.name)}</span></div>`;
@@ -478,6 +672,8 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
       html = `<div class="empty"><b>Nothing here ${what}.</b><br>${S.watching ? 'You are only looking at labs you watch. ' : ''}Try a surname, an institution such as UCSF, or a topic such as CRISPR.${m ? `<div class="row" style="margin-top:12px"><button class="go" type="button" data-goto="${other}">${n(m)} ${other} match. Show them</button></div>` : ''}${(S.mod || S.watching || S.q) ? `<div class="row" style="margin-top:8px"><button class="go" type="button" data-clear="1">Clear search and filters</button></div>` : ''}</div>`;
     }
     $('list').innerHTML = html;
+    $('list').classList.toggle('fresh', S.fresh); S.fresh = false;
+    $('key3').hidden = !(S.view === 'papers' && THREE);
     $('more').hidden = all.length <= shown.length;
     $('more').textContent = `Show ${Math.min(40, all.length - shown.length)} more`;
   }
@@ -490,7 +686,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     const cut = ev.findIndex((e) => e.d <= '2020-12-31');
     const show = limit ? ev.slice(0, limit) : ev;
     let html = '';
-    show.forEach((e, i) => { if (!LIVE && i === cut && cut > 0) html += '<li class="cut">31 Dec 2020 · the ranking date</li>'; html += `<li class="${e.after ? 'after' : ''}"><span class="d">${e.d}</span><span class="k" title="${esc(e.s || '')}">${e.k}</span><span>${e.w}</span></li>`; });
+    show.forEach((e, i) => { if (!LIVE && i === cut && cut > 0) html += '<li class="cut">31 Dec 2020 · the ranking date</li>'; html += `<li class="${e.after ? 'after' : ''} ${e.s ? 'rec' : 'pap'}"><span class="d">${e.d}</span><span class="k" title="${esc(e.s || '')}">${e.k}</span><span>${e.w}</span></li>`; });
     return { html, more: ev.length - show.length };
   }
   function nextBox(recs, cited) {
@@ -503,24 +699,31 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   let fullTimeline = false;
   function labDetail(l) {
     const tl = timeline(l, fullTimeline ? 0 : 7), w = watched.has(l.id);
-    return `<div class="dhead"><div><h2>${esc(l.name)}</h2><div class="sub">${esc(l.inst || 'Institution not given')}${l.country ? ' · ' + (l.country === 'GB' ? 'UK' : l.country) : ''} · ranked ${l.rank} of ${n(D.labsTotal)}</div></div>
+    return `<div class="dhead"><div class="who">${monogram(l, true)}<div><h2>${esc(l.name)}</h2><div class="sub">${esc(l.inst || 'Institution not given')}${l.country ? ' · ' + (l.country === 'GB' ? 'UK' : l.country) : ''}</div></div></div>
       <button class="watch" type="button" data-star="${esc(l.id)}" aria-pressed="${w}"><span>${w ? '★' : '☆'}</span>${w ? 'Watching' : 'Watch'}</button></div>
+      <div class="block"><span class="label">Ranked ${n(l.rank)} of ${n(D.labsTotal)} · ${topText(l.pct).toLowerCase()}</span><div class="meter" role="img" aria-label="Ranked ${l.rank} of ${D.labsTotal}"><div class="track"></div><div class="mark" style="left:${(l.pct * 100).toFixed(2)}%"></div><div class="ends"><span>last</span><span>first</span></div></div></div>
       <div class="block"><span class="label">Why this lab</span><ul class="reasons">${labReasons(l).slice(0, 5).map((r) => `<li class="${r.c || ''}">${r.t}</li>`).join('')}</ul></div>
       <div class="block"><span class="label">What the rank means</span><div class="means">${means('lab', l.pct)}</div></div>
       ${nextBox(l.after)}
       <div class="block"><span class="label">Timeline, newest first</span><ul class="tl">${tl.html}</ul>${tl.more > 0 ? `<button class="more" type="button" data-full="1">Show ${tl.more} earlier</button>` : ''}</div>
       <div class="fine">Company records are matched by name and state or town and are not verified. Sources: SEC Form D, NIH RePORTER, Companies House.</div>`;
   }
+  function gauge(v, hue, name) {
+    const r = v == null ? 1 : 1 - v, lit = v == null ? 0 : r <= 0.01 ? 4 : r <= 0.05 ? 3 : r <= 0.10 ? 2 : r <= 0.5 ? 1 : 0;
+    const seg = (i) => { const a0 = Math.PI * (1 - (i * 0.25 + 0.012)), a1 = Math.PI * (1 - ((i + 1) * 0.25 - 0.012)), R = 44, cx = 60, cy = 56;
+      return `<path d="M${(cx + R * Math.cos(a0)).toFixed(1)} ${(cy - R * Math.sin(a0)).toFixed(1)} A${R} ${R} 0 0 1 ${(cx + R * Math.cos(a1)).toFixed(1)} ${(cy - R * Math.sin(a1)).toFixed(1)}" ${i < lit ? `class="on" style="--i:${i};stroke:var(--${hue})"` : 'class="seg-off"'}/>`; };
+    return `<div class="gauge"><svg viewBox="0 0 120 66" role="img" aria-label="${name}: ${v == null ? 'not scored' : topText(v)}">${[0, 1, 2, 3].map(seg).join('')}<text x="60" y="54" text-anchor="middle" class="gv${v == null ? ' off' : ''}">${v == null ? 'Not scored' : topText(v)}</text></svg><div class="gl">${name}</div></div>`;
+  }
   function scoreRow(name, question, key, v, why, none) {
     const sig = why && (why.flags.length || why.phrases.length) ? `<div class="sig">What raised it: ${why.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join('')}${why.phrases.map((f) => `<span class="tag quote">“${esc(f)}”</span>`).join('')}</div>` : '';
-    return `<div class="srow"><div class="sv ${v == null ? 'off' : band(v) ? 'up' : ''}">${v == null ? 'Not scored' : topText(v)}</div><div><b>${name}</b><span class="q">${question}</span><p>${v == null ? (none || 'Published outside the scored window.') : means(key, v)}</p>${v == null ? '' : sig}</div></div>`;
+    return `<div class="srow"><div class="bar" style="background:var(--${{ clin: 'feas', comm: 'comm', comp: 'team' }[key]})"></div><div><b>${name}</b><span class="q">${question}</span><p>${v == null ? (none || 'Published outside the scored window.') : means(key, v)}</p>${v == null ? '' : sig}</div></div>`;
   }
   function paperDetail(p) {
     const lab = labById.get(p.lastId);
     const record = [...p.prior.map((x) => PRIOR[x]), ...(p.co ? ['A company is among the authors'] : [])];
     return `<div class="dhead"><div><h2>${esc(p.t)}</h2><div class="sub">${esc(p.last || p.first || '')}${p.nAu > 1 ? ' and ' + (p.nAu - 1) + ' others' : ''}${p.inst ? ' · ' + esc(p.inst) : ''}<br>${esc(p.j || '')} · ${p.d}${p.pre ? ' · preprint, not peer reviewed' : ''}</div></div></div>
       <div class="block row"><a class="go" href="${esc(link(p))}" target="_blank" rel="noopener">Open the paper ↗</a>${lab ? `<button class="go" type="button" data-lab="${esc(lab.id)}">See ${esc(lab.name)}'s lab, ranked ${lab.rank}</button>` : ''}</div>
-      ${THREE ? `<div class="block">${scoreRow('Feasibility', 'Will this reach the clinic?', 'clin', p.clin, p.why && p.why.clin)}${scoreRow('Commercial pull', 'Will industry build on the idea?', 'comm', p.comm, p.why && p.why.comm)}${scoreRow('Team', 'Do the authors have a record of forming companies?', 'comp', p.comp, null, 'No author at a US or UK address, and company records are only read for those two countries.')}
+      ${THREE ? `<div class="block gauges">${gauge(p.clin, 'feas', 'Feasibility')}${gauge(p.comm, 'comm', 'Commercial pull')}${gauge(p.comp, 'team', 'Team')}</div><div class="fine" style="margin-top:6px">Each arc lights at the top half, top 10%, top 5% and top 1% of this year's papers.</div><div class="block">${scoreRow('Feasibility', 'Will this reach the clinic?', 'clin', p.clin, p.why && p.why.clin)}${scoreRow('Commercial pull', 'Will industry build on the idea?', 'comm', p.comm, p.why && p.why.comm)}${scoreRow('Team', 'Do the authors have a record of forming companies?', 'comp', p.comp, null, 'No author at a US or UK address, and company records are only read for those two countries.')}
         <div class="fine">Feasibility and commercial pull read the title and abstract only. They do not know who wrote the paper. The team score does.</div></div>${(p.areas || []).length ? `<div class="block"><span class="label">Areas</span>${p.areas.map((a) => `<button class="tag" type="button" data-area="${esc(a)}">${esc(a)}</button>`).join('')}</div>` : ''}`
       : `<div class="block tiles">
         <div class="tile"><span class="label">Closest to patients</span><div class="big ${band(p.clin) ? 'up' : ''}">${topText(p.clin)}</div><p>${means('clin', p.clin)}</p></div>
@@ -585,7 +788,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     saveWatch(); draw();
     document.querySelectorAll(`[data-star="${CSS.escape(id)}"]`).forEach((b) => { b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); });
   }
-  function setView(v) { if (!VIEWS.includes(v)) return; S.view = v; fullTimeline = false; if (location.hash.slice(1) !== v) location.hash = v; draw(); }
+  function setView(v) { if (!VIEWS.includes(v)) return; S.fresh = true; S.view = v; fullTimeline = false; if (location.hash.slice(1) !== v) location.hash = v; draw(); }
   function select(id, open) { S.sel[S.view] = id; fullTimeline = false; drawList(); drawDetail(); if (open && narrow()) $('detail').classList.add('open'); }
   function move(step) {
     if (S.view === 'patterns') return;
@@ -600,7 +803,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   $('chips').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     if ('mod' in b.dataset) S.mod = b.dataset.mod; else if (b.dataset.watching) S.watching = !S.watching; else if (b.dataset.extra) S.extra = !S.extra;
-    S.shown[S.view] = S.view === 'news' ? 60 : 40; draw();
+    S.shown[S.view] = S.view === 'news' ? 60 : 40; S.fresh = true; draw();
   });
   $('extra').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; if (b.dataset.f === 'sort') { S.sort = b.dataset.v; S.sel.papers = null; S.shown.papers = 40; } else if (b.dataset.f === 'asort') { S.asort = b.dataset.v; S.sel.areas = null; } else S.f[b.dataset.f] = b.dataset.v; draw(); });
   $('extra').addEventListener('change', (e) => { if (e.target.id === 'f-stage') S.f.stage = e.target.value; if (e.target.id === 'f-pre') S.f.pre = e.target.checked; if (e.target.id === 'f-lab') S.f.lab = e.target.checked; draw(); });
@@ -620,7 +823,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     const l = e.target.closest('[data-lab]'); if (l) { S.q = ''; $('q').value = ''; S.mod = ''; S.watching = false; S.f.country = ''; S.f.rec = ''; S.view = 'labs'; S.sel.labs = l.dataset.lab; S.shown.labs = Math.max(40, labById.get(l.dataset.lab).rank); location.hash = 'labs'; draw(); const el = $('list').querySelector('[aria-selected="true"]'); if (el) el.scrollIntoView({ block: 'center' }); if (narrow()) $('detail').classList.add('open'); }
   });
   $('more').addEventListener('click', () => { S.shown[S.view] += 40; drawList(); });
-  $('q').addEventListener('input', (e) => { S.q = e.target.value; S.shown[S.view] = S.view === 'news' ? 60 : 40; draw(); });
+  $('q').addEventListener('input', (e) => { S.fresh = true; S.q = e.target.value; S.shown[S.view] = S.view === 'news' ? 60 : 40; draw(); });
   $('next').addEventListener('change', draw);
   $('open-method').addEventListener('click', () => sheet(true));
   $('close-method').addEventListener('click', () => sheet(false));
@@ -648,7 +851,8 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     const x = (g) => m.l + (Math.log(g) - Math.log(1)) / (Math.log(4.6) - Math.log(1)) * (W - m.l - m.r);
     const y = (s) => H - m.b - s / 0.24 * (H - m.t - m.b);
     const all = T.reduce((a, t) => a + t.withrec, 0) / T.reduce((a, t) => a + t.heads, 0);
-    const named = new Set(T.filter((t) => t.growth >= 1.58 || t.share >= 0.15 || t.share <= 0.075).map((t) => t.topic));
+    const crowded = new Set(['CAR-T, solid tumours', 'Allogeneic cells']);          // a name here would sit on a neighbour; the hover carries it
+    const named = new Set(T.filter((t) => (t.growth >= 1.58 || t.share >= 0.15 || t.share <= 0.075) && !crowded.has(t.topic)).map((t) => t.topic));
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Topics by growth in papers and share of lab heads with a company record">`;
     for (const v of [0, 0.05, 0.10, 0.15, 0.20]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${m.l - 8}" y="${y(v) + 4}" class="tick" text-anchor="end">${pc(v)}</text>`;
     for (const v of [1, 1.5, 2, 3, 4]) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${m.t}" y2="${H - m.b}" class="grid"/><text x="${x(v)}" y="${H - m.b + 18}" class="tick" text-anchor="middle">${v}×</text>`;
@@ -674,7 +878,7 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     for (const v of [0, 0.25, 0.5, 0.75, 1]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${m.l - 8}" y="${y(v) + 4}" class="tick" text-anchor="end">${pc(v)}</text>`;
     for (const v of [0, 10, 20, 40, 60, 80, 100]) s += `<text x="${x(v)}" y="${H - m.b + 18}" class="tick" text-anchor="middle">${v}%</text>`;
     s += `<text x="${(m.l + W - m.r) / 2}" y="${H - 6}" class="axis" text-anchor="middle">How far down the ranked list you read</text><text x="14" y="14" class="axis">Labs that went on to a company record, found</text>`;
-    s += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(100)}" y2="${y(1)}" class="ref"/><path d="${path('floor')}" class="line grey"/><path d="${path('found')}" class="line"/>`;
+    s += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(100)}" y2="${y(1)}" class="ref"/><path d="${path('found')} L${x(100)} ${y(0)} L${x(0)} ${y(0)} Z" class="area"/><path d="${path('floor')}" class="line grey"/><path d="${path('found')}" class="line"/>`;
     s += `<text x="${x(100) + 8}" y="${y(1) + 4}" class="lab">This ranking</text><text x="${x(60) + 10}" y="${y(G.find((g) => g.read === 60).floor) + 16}" class="lab dim">By paper count</text><text x="${x(40) + 8}" y="${y(0.4) + 22}" class="tick">no ranking</text>`;
     for (const g of G) if ([5, 10, 20].includes(g.read)) s += `<circle cx="${x(g.read)}" cy="${y(g.found)}" r="4.5" class="pt"/><text x="${x(g.read) - 8}" y="${y(g.found) - 9}" class="lab" text-anchor="end">${pc(g.found)}</text>`;
     G.forEach((g, i) => { if (!i) return; const x0 = x((G[i - 1].read + g.read) / 2), x1 = i === G.length - 1 ? x(100) : x((g.read + G[i + 1].read) / 2); s += `<rect x="${x0}" y="${m.t}" width="${x1 - x0}" height="${H - m.t - m.b}" class="hit" tabindex="0" ${tipAttr(`Read the top ${g.read}%: ${pc(g.found)} found`, `By paper count: ${pc(g.floor)} | With no ranking: ${g.read}%`)}/>`; });
@@ -744,10 +948,10 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
   const AREA_SORT = { growth: 'Fastest growing', year: 'Most papers', feasTop: 'Most feasible', commTop: 'Strongest commercial pull' };
   const areaById = new Map((D.areas || []).map((a) => [a.id, a]));
   function spark(a) {
-    const v = a.series.map((p) => p.share), max = Math.max(...v) || 1, W = 84, H = 26;
-    const pts = v.map((y, i) => `${(2 + i / (v.length - 1) * (W - 6)).toFixed(1)},${(H - 3 - y / max * (H - 7)).toFixed(1)}`);
+    const v = a.series.map((p) => p.share), max = Math.max(...v) || 1, W = 110, H = 32;
+    const pts = v.map((y, i) => `${(2 + i / (v.length - 1) * (W - 7)).toFixed(1)},${(H - 3 - y / max * (H - 8)).toFixed(1)}`);
     const last = pts[pts.length - 1].split(',');
-    return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><polyline points="${pts.join(' ')}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.5"/></svg>`;
+    return `<svg class="spark" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true"><path d="M2 ${H - 1} L${pts.join(' L')} L${last[0]} ${H - 1} Z"/><polyline points="${pts.join(' ')}"/><circle cx="${last[0]}" cy="${last[1]}" r="2.6"/></svg>`;
   }
   const growthText = (a) => a.growth >= 1.05 ? `${a.growth.toFixed(1)}× the papers of two years ago` : a.growth <= 0.95 ? `Fewer papers than two years ago (${a.growth.toFixed(1)}×)` : 'About as many papers as two years ago';
   function areaPill(a) {
@@ -763,7 +967,8 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(a.name)}: ${mode === 'share' ? 'share of all cell and gene therapy papers' : 'papers in each twelve months'}, 2017 to today">`;
     for (const f of [0, 0.5, 1]) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(nice * f)}" y2="${y(nice * f)}" class="grid"/><text x="${m.l - 7}" y="${y(nice * f) + 4}" class="tick" text-anchor="end">${fmt(nice * f)}</text>`;
     for (let yr = 2018; yr <= new Date(t1).getUTCFullYear(); yr += 2) s += `<text x="${x(yr + '-01-01')}" y="${H - 8}" class="tick" text-anchor="middle">${yr}</text>`;
-    s += `<path d="${P.map((p, i) => (i ? 'L' : 'M') + x(p.d).toFixed(1) + ' ' + y(val(p)).toFixed(1)).join(' ')}" class="line"/>`;
+    const d = P.map((p, i) => (i ? 'L' : 'M') + x(p.d).toFixed(1) + ' ' + y(val(p)).toFixed(1)).join(' ');
+    s += `<path d="${d} L${x(P[P.length - 1].d).toFixed(1)} ${y(0)} L${x(P[0].d).toFixed(1)} ${y(0)} Z" class="area"/><path d="${d}" pathLength="1" class="line draw"/>`;
     const L = P[P.length - 1];
     s += `<circle cx="${x(L.d)}" cy="${y(val(L))}" r="4.5" class="pt"/><text x="${x(L.d) + 9}" y="${y(val(L)) + 4}" class="lab">${fmt(val(L))}</text>`;
     P.forEach((p, i) => { const x0 = i ? (x(P[i - 1].d) + x(p.d)) / 2 : m.l, x1 = i < P.length - 1 ? (x(p.d) + x(P[i + 1].d)) / 2 : W - m.r;
@@ -815,6 +1020,22 @@ svg .node.none { fill: var(--ground); stroke: var(--muted); stroke-width: 1.5; }
     $('fresh').textContent = `How fresh: papers to ${day(D.latest.paper)}. Newest record seen for these labs: funding filing ${D.latest.formd ? day(D.latest.formd) : 'none'} (the SEC's quarterly files run to 31 Mar 2026), research award ${D.latest.award ? day(D.latest.award) : 'none'}, UK company ${D.latest.uk ? day(D.latest.uk) : 'none'}.`;
     if (D.check) { $('check').hidden = false; $('check').textContent = `Checked again on a later period: trained on lab heads as of 2020 and scored on those of 2022, the top 5% held ${Math.round(D.check.top5 * 100)}% who went on to a company record, against ${Math.round(D.check.floor5 * 100)}% by paper count and ${Math.round(D.check.base * 100)}% of everyone.`; }
   }
+  /* hero: the field in four numbers, over the real co-authorship map */
+  (function hero() {
+    const stats = [[D.labsTotal, 'Lab heads ranked'], [D.papersTotal, LIVE ? 'Papers scored this year' : 'Papers scored'], [(D.areas || []).length, 'Areas tracked'], [events.length, LIVE ? 'New company records' : 'Company records after']].filter((s) => s[0]);
+    $('stats').innerHTML = stats.map(([v, l]) => `<div><dd data-v="${v}">${n(v)}</dd><dt>${l}</dt></div>`).join('');
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const t0 = performance.now(), els = [...$('stats').querySelectorAll('dd')];
+      const tick = (now) => { const k = Math.min(1, (now - t0) / 900), e = 1 - Math.pow(1 - k, 3); for (const el of els) el.textContent = n(Math.round(+el.dataset.v * e)); if (k < 1) requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+    }
+    const N = D.figs && D.figs.net; if (!N) return;
+    const by = new Map(N.nodes.map((v) => [v.id, v]));
+    $('constellation').setAttribute('viewBox', `0 20 620 520`);
+    $('constellation').innerHTML = N.edges.map((e) => { const a = by.get(e.s), b = by.get(e.t); return a && b && a.x < 620 && b.x < 620 ? `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>` : ''; }).join('')
+      + N.nodes.filter((v) => v.x < 620).map((v, i) => `<circle cx="${v.x}" cy="${v.y}" r="${(1.1 + Math.sqrt(v.deg) * 0.55).toFixed(1)}" ${i % 5 === 0 ? `class="tw" style="animation-delay:${(i % 7) * 0.5}s"` : ''}/>`).join('');
+  })();
+  S.fresh = true;
   const first = location.hash.slice(1);
   if (VIEWS.includes(first)) S.view = first;
   draw();

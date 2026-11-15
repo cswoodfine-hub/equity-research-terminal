@@ -155,6 +155,24 @@ Still to try, each needing data not yet held: time from a lab's first large-anim
 paper to its first company record; patents per lab; who funds whom (Form D names no
 investors, so this needs another source).
 
+**The look (2026-11-15).** Same tokens and type as the terminal, sharp corners kept,
+with depth added: layered surfaces, hairline edges, a soft light behind the header, and
+a glow only on what is selected or top-ranked. Three additions carry information as
+well as looking better:
+
+- A paper's three scores have a colour each (feasibility green `#35A57D`, commercial pull
+  orange `#CF7C3C`, team blue `#5290DC`, checked for colour-blind separation on the panel
+  ground). Each row shows them as three small bars, and the panel as three arc meters
+  that light at the top half, top 10%, top 5% and top 1%.
+- A lab's rank is a marker on a track from last to first, and its timeline is a rail
+  with a dot per paper and per record.
+- The header draws the real co-authorship map of the top labs behind four counts of
+  the field.
+
+These three colours are new to the terminal's palette, where orange and blue already
+mean a small molecule and an FDA event. Inside this tab nothing else uses them, but it
+is a decision to confirm before the tab is built into the app.
+
 **Built as a component, not as Streamlit widgets.** Streamlit reruns the script on every
 widget change, so a click on a row would take a round trip. The list and panel are one
 custom component in `frontend/components/discovery/`, the pattern `compsval` and
