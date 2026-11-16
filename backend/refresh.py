@@ -410,6 +410,12 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # mapping and merging, since a pair is only as good as the asset behind it.
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
+    # Studies go to the brand whose label covers them before the pairs are built, so a
+    # pair is made on the product the study is about. Built first and split after, every
+    # obesity study of semaglutide made its pairs on Ozempic and Wegovy held none, and
+    # its readouts asked for an obesity layer the Wegovy model already carries. The split
+    # runs again below for brands only identified later in the refresh.
+    brand_split.split(db_path)
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # The analyst's corrections to the marketed register: products licensed under a name
     # the maps do not know, and products withdrawn from sale. Before the seeds, so a
@@ -714,6 +720,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # mapping and merging, since a pair is only as good as the asset behind it.
     # Again after the merges, so a row that only exists now is grouped too.
     mapped["molecules"] = molecules.assign(db_path)["groups_with_siblings"]
+    # Studies go to the brand whose label covers them before the pairs are built, so a
+    # pair is made on the product the study is about. Built first and split after, every
+    # obesity study of semaglutide made its pairs on Ozempic and Wegovy held none, and
+    # its readouts asked for an obesity layer the Wegovy model already carries. The split
+    # runs again below for brands only identified later in the refresh.
+    brand_split.split(db_path)
     mapped["asset_indications"] = indication_mapping.build(db_path)["pairs"]
     # The analyst's corrections to the marketed register: products licensed under a name
     # the maps do not know, and products withdrawn from sale. Before the seeds, so a

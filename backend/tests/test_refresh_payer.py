@@ -98,7 +98,10 @@ def test_they_run_after_the_asset_rows_settle_and_before_the_diff(tmp_path, monk
     path, log = _harness(tmp_path, monkeypatch, payer)
     run = refresh.run_refresh_all(path, force=True)
     stages = [entry[0] for entry in log]
-    assert stages == ["brand_split", *names, "deals_news", "diff"]
+    # The split runs twice: once before the indication pairs are built, so a pair lands
+    # on the brand its study is about, and again once late-identified brands exist. The
+    # payer pass follows the second, after every asset row has settled.
+    assert stages == ["brand_split", "brand_split", *names, "deals_news", "diff"]
     # Each ran once, forced, under this run's id, and reported into its detail.
     assert {entry[1:] for entry in log if entry[0] in names} == {(True, run["id"])}
     reported = {s["source"]: s for s in run["detail"]["sources"]}

@@ -6,6 +6,17 @@
 # dates are Amgen's own patent table.
 #
 # Seeds are insert-only. Edit a number in the terminal, not here.
+#
+# NO CEILING, searched 2026-11-16 (docs/research/fixes_2026-11-16/). The one published peak is
+# Horizon's: 'UPLIZNA peak global annual net sales of >$1B', across NMOSD, gMG and IgG4-RD
+# (J.P. Morgan deck, 8-K 0001193125-22-005114, 2022-01-10). It is a floor with no year, and
+# the line has passed it. Amgen has published none: EDGAR full-text search for UPLIZNA with
+# 'peak', 'peak sales', 'sales potential' returns 0 Amgen hits. So the model runs uncapped
+# and peaks near $5.6bn in 2030; nothing filed contradicts that, and a cap would be invented.
+# The growth row is not raised to the latest quarter: Q3 2026 was $451mm against $155mm
+# (10-Q 0000318154-26-000155), nine months $1,048mm, a 2026 near $1,499mm (+129%), which is
+# above the 50% to 100% band the five-year fade was measured on, and at that rate the same
+# fade would carry the line past $10bn. The rate stays at the H1-based 0.934 inside the band.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Uplizna,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Uplizna,,US,base,base_revenue,,655,,mm USD,"AMGN FY2025 10-K (0000318154-26-000010), MD&A other product sales table: UPLIZNA U.S. and ROW sum to 655mm in FY2025, against 379mm in FY2024","the anchor; Amgen reports it inside Other products on the SEC product axis, so the table is read, as data/product_revenue.csv records"

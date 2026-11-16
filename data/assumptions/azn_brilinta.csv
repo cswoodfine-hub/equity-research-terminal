@@ -6,12 +6,12 @@
 # Seeds are insert-only. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AZN,Brilinta,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
-AZN,Brilinta,,US,base,base_revenue,,823.0,,mm USD,"AZN FY2025 reported product revenue, from the 20-F product axis (sec_fsds)",the anchor
-AZN,Brilinta,,US,base,revenue_growth_pct,,-0.382596,,"annual, near term","the same product axis a year earlier: $823mm in FY2025 against $1,333mm in FY2024, both from the SEC financial statement data sets",the last reported year over the one before it
+AZN,Brilinta,,US,base,base_revenue,,336.0,,mm USD,"a 2026 run rate: 9M 2026 product revenue $261mm plus a fourth quarter at Q3's $75mm (AstraZeneca 9M and Q3 2026 results, 6-K 0001654954-26-009256 (filed 2026-10-30), Table: product revenue by region); FY2025 was $823mm","the anchor, moved to 2026 on 2026-11-16 because the US and EU cliffs of 2025 (generic ticagrelor on US sale from 2025-05-01) are already in this revenue: anchored on FY2025, the engine charged the 2025 cliff a second time and put 2026 at $147mm against $261mm already reported for nine months"
+AZN,Brilinta,,US,base,revenue_growth_pct,,-0.48,,"annual, near term","Q3 2026 against Q3 2025 at actual exchange rates, -48% (AstraZeneca 9M and Q3 2026 results, 6-K 0001654954-26-009256 (filed 2026-10-30), Table: product revenue by region; 9M 2026 was -61%)","the latest quarter's year-on-year rate, the decline still running after both cliffs; faded to flat"
 AZN,Brilinta,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 AZN,Brilinta,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
-AZN,Brilinta,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
-AZN,Brilinta,,US,base,forecast_years,,16,,years,set to run past the 2036 loss of exclusivity,
+AZN,Brilinta,,US,base,forecast_start_year,,2027,,year,"the year after the 2026 run rate the anchor stands on",
+AZN,Brilinta,,US,base,forecast_years,,16,,years,"the engine's window; the loss of exclusivity is 2025, the US new molecular entity patent in the 20-F (data/disclosed_loe.csv), and the 2036 Orange Book patent covers only 60 mg after MI or ACS (use codes U-2541, U-2542)",
 AZN,Brilinta,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
 AZN,Brilinta,,US,base,cogs_pct,,0.181,,share of revenue,"AZN FY2025, computed from the filed lines",
 AZN,Brilinta,,US,base,sga_pct,,0.349206,,share of revenue,"AZN FY2025, computed from the filed lines. Restated with selling costs: the SG&A line on file, $19,933mm for FY2025, leaves out the $579mm of selling or distribution costs AZN reports as a line of its own, tagged as DistributionCosts (20-F 0001104659-26-019130, SEC financial statement data sets), so SG&A rises from 33.93% to 34.92% of revenue.",
