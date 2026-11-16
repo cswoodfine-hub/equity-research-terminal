@@ -1,0 +1,39 @@
+LLY asset 3705, 'AAVAnc80-antiVEGF via Akouos Delivery Device': two programmes folded on a capsid name (draft, 2026-11-16)
+
+What the row holds today
+  internal_code AAVANC80; trials NCT05821959 (AK-OTOF-101, Phase 3, otoferlin hearing loss, 48,
+  primary completion 2028-10, catalyst 1198) and NCT06517888 ('Anti-VEGF Gene Therapy Trial for
+  Vestibular Schwannoma', Phase 1/2, primary completion 2029-08). Indications: Hearing Loss,
+  Sensorineural (lead), Hearing Loss, Hearing Loss, Bilateral; vestibular schwannoma is not linked.
+
+Why
+  The derivation made one row per intervention spelling: 'AAVAnc80-hOTOF via Akouos Delivery
+  Device' and 'AAVAnc80-antiVEGF via Akouos Delivery Device'. asset_merge.find_code_duplicates
+  then read AAVANC80 as a development code shared by both and folded them, writing AAVANC80 to
+  the survivor's internal_code. AAVAnc80 is Akouos's capsid ('a proprietary AAVAnc capsid, known
+  as AAVAnc80', Akouos FY2021 10-K 0001558370-22-004606), carried by AK-OTOF and AK-antiVEGF
+  alike. Lilly names them as separate programmes: 'AK-OTOF for hearing loss due to mutations in
+  the otoferlin gene ... and AK-antiVEGF for vestibular schwannoma' (LLY FY2024 10-K
+  0000059478-25-000067). asset_merge._BIOLOGY already refuses AAV and AAVRH for this reason
+  ('AAVrh74 is a capsid serotype'); AAVANC is missing.
+
+Proposed fix (code, not applied)
+  1. backend/asset_merge.py: add "AAVANC" to _BIOLOGY, so development_codes() drops AAVANC80.
+  2. Once, on the live db by whoever owns it: clear internal_code AAVANC80 on asset 3705 and let
+     the next merge and map_trials re-derive. While AAVANC80 stays as an internal_code,
+     match_intervention binds both studies to the row by that word, so step 1 alone does not
+     split it.
+  3. If the re-derivation does not separate them, pin with data/trial_asset_map.csv:
+       LLY,NCT05821959,AAVAnc80-hOTOF via Akouos Delivery Device,"AK-OTOF-101 ..."
+       LLY,NCT06517888,AAVAnc80-antiVEGF via Akouos Delivery Device,"AK-antiVEGF ..."
+     (a pin needs the named asset to exist, so this follows step 2).
+
+Model
+  lly_aavanc80_hotof.csv is keyed to 'AAVAnc80-hOTOF via Akouos Delivery Device', the name the
+  derivation gives the OTOF row (the shorter of NCT05821959's two intervention spellings).
+  AK-antiVEGF is Phase 1/2 with nothing due before 2029-08 and is not modelled.
+
+Scratch test
+  On /private/tmp/claude-502/gaps_b/er_tool.db the split was made by hand: asset 3705 renamed
+  to the hOTOF name with internal_code cleared, a new LLY row for the antiVEGF name, and
+  NCT06517888 moved to it. Results are in the final report.

@@ -1,0 +1,19 @@
+catalyst_id,ticker,asset_id,asset,nct,indication,expected_date,verdict,reason_before,reason_after_scratch,per_share_after_scratch,draft_file,basis
+1203,AMGN,1641,Maridebart Cafraglutide,NCT07866066,"Diabetes Mellitus, Type 2",2028-09-06,LAYER,other_indication,same_gate_later (on 262),,amgn_maridebart_cafraglutide_layers.csv,Phase 3 vs semaglutide; non-obese not-at-goal type 2 slice added to the asset's sum
+624,AMGN,1641,Maridebart Cafraglutide,NCT07226765,"Sleep Apnea, Obstructive",2027-08-30,IN THE BASE,other_indication,same_gate_later (on 262),,amgn_maridebart_cafraglutide_layers.csv,BMI 27 or more plus OSA is the obesity label; overlap 1.0 and no pool
+652,AZN,1743,Elecoglipron,NCT07662213,"Diabetes Mellitus, Type 2",2028-05-23,LAYER,other_indication,same_gate_later (on 1100),,azn_elecoglipron_layers.csv,five Phase 3s share one layer
+678,AZN,1743,Elecoglipron,NCT07664553,"Diabetes Mellitus, Type 2",2028-05-23,LAYER,other_indication,same_gate_later (on 1100),,azn_elecoglipron_layers.csv,
+683,AZN,1743,Elecoglipron,NCT07662109,"Diabetes Mellitus, Type 2",2028-07-05,LAYER,other_indication,same_gate_later (on 1100),,azn_elecoglipron_layers.csv,
+682,AZN,1743,Elecoglipron,NCT07662135,"Diabetes Mellitus, Type 2",2028-07-13,LAYER,other_indication,same_gate_later (on 1100),,azn_elecoglipron_layers.csv,
+679,AZN,1743,Elecoglipron,NCT07662044,"Diabetes Mellitus, Type 2",2028-07-14,LAYER,other_indication,same_gate_later (on 1100),,azn_elecoglipron_layers.csv,
+1599,NVO,2663,Zenagamtide,NCT07931495,"Diabetes Mellitus, Type 2",2028-06-05,LAYER,other_indication,priced (gate),2.649,nvo_zenagamtide_layers.csv,completes one day before the obesity readout 1076 and so takes the gate from it
+1600,NVO,2663,Zenagamtide,NCT07931573,"Diabetes Mellitus, Type 2",2028-07-04,LAYER,other_indication,same_gate_later (on 1599),,nvo_zenagamtide_layers.csv,
+1598,NVO,2663,Zenagamtide,NCT07931599,"Diabetes Mellitus, Type 2",2028-07-24,LAYER,other_indication,same_gate_later (on 1599),,nvo_zenagamtide_layers.csv,
+1145,NVO,2663,Zenagamtide,NCT07797335,"Diabetes Mellitus, Type 2",2028-07-31,LAYER,other_indication,same_gate_later (on 1599),,nvo_zenagamtide_layers.csv,
+1601,NVO,2663,Zenagamtide,NCT07931547,"Diabetes Mellitus, Type 2",2028-07-31,LAYER,other_indication,same_gate_later (on 1599),,nvo_zenagamtide_layers.csv,
+1078,NVO,2665,NNC0662-0419,NCT07415954,"Diabetes Mellitus, Type 2",2027-09-03,LAYER,other_indication,same_gate_later (on 1066),,nvo_nnc0662_0419_layers.csv,Phase 2 of Novo's own diabetes project NN9663; same p2_to_p3 gate
+1074,NVO,2659,UBT251,NCT07668388,"Diabetes Mellitus, Type 2",2027-10-04,LAYER,other_indication,same_gate_later (on 1071),,nvo_ubt251_layers.csv,Phase 2 with a semaglutide arm; same p2_to_p3 gate
+410,LLY,2392,LY3457263,NCT06897475,"Diabetes Mellitus, Type 2",2027-05,IN THE BASE,other_indication,priced (gate),2.009,lly_ly3457263_layers.csv,the seed's obesity pool already stands in for this add-on population; overlap 1.0 lets its only efficacy study decide the gate
+524,ROG,3070,RO7795081,NCT07112872,"Diabetes Mellitus, Type 2",2028-02-05,LAYER,other_indication,priced (gate),0.653,rog_ro7795081_layers.csv,the asset's only open efficacy readout
+1255,PFE,2854,Berobenatide,NCT07881757,"Sleep Apnea, Obstructive",2028-06-01,IN THE BASE,other_indication,same_gate_later (on 874),,pfe_berobenatide_layers.csv,BMI 27 or more plus OSA; seed already holds the population; penetration calibrated to Metsera's whole-pipeline forecast so no pool may be added
+499,REGN,3000,Mibavademab,NCT07220772,"Obesity, Morbid",2027-06-18,REFUSED,other_indication,other_indication (unchanged),,,FILED REFUSAL CONFIRMED: monogenic obesity from biallelic LEP loss of function, n=4; no citable US count; a pool under 'Obesity, Morbid' would also enter the obesity crowding group as a claimant of 107.6 million adults

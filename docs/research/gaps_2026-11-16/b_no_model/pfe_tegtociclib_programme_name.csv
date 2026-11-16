@@ -1,0 +1,14 @@
+# Draft row for data/programme_names.csv, 2026-11-16. Append below the file's header.
+#
+# Asset 2954 is named after an arm label, 'PF-07104091 monotherapy dose expansion (SCLC)', the
+# shortest of the ten intervention spellings in NCT04553133 and NCT05262400. It is Pfizer's
+# CDK2 inhibitor PF-07104091, and the book holds no other row for it: searched assets for
+# PFE on 'PF-07104091', 'tegtociclib', 'tagtociclib' and the code in asset_aliases (none; the
+# CDK4 partner PF-07220060 is the Atirmociclib row, 3534). data/pipeline_sort.csv spells the
+# INN 'tagtociclib'; both SEC filings that name it spell it 'tegtociclib', and EDGAR full-text
+# search finds 'tagtociclib' once, in Iambic's draft registration statement of 2026-07-24
+# (0001193125-26-315779); its final prospectus (424B4 below) spells it 'tegtociclib'.
+# Pfizer's own filings do not name PF-07104091 at all (EDGAR full-text search, 2023-01-01 to
+# 2026-11-16: 13 hits, none Pfizer's).
+ticker,name,inn,source
+PFE,PF-07104091 monotherapy dose expansion (SCLC),tegtociclib,"Rallybio 424B3 (0001193125-26-422924, 2026-10-15): 'Pfizer's CDK2 inhibitor, tegtociclib (PF-07104091), is being evaluated in a Phase 1 dose-escalation study'; Iambic Therapeutics 424B4 (0001193125-26-422865): 'CDK2 inhibitor, tegtociclib / PF-07104091'. The registry files NCT04553133 and NCT05262400 under arm labels only ('PF-07104091 monotherapy dose expansion (SCLC)', 'PF-07104091 + palbociclib + fulvestrant', and eight more), and the derivation kept the shortest"
