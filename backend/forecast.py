@@ -769,8 +769,13 @@ def fcff(revenue: list[float], patients: list[float], scalars: dict,
     rows = []
     previous = opening
     for rev, pats in zip(revenue, patients):
-        if mode == "one_time":
-            cogs = (scalars.get("cogs_per_patient") or 0.0) * pats
+        # A one-time course is costed per patient where the seed says what a course
+        # costs to make. Where it does not, the company's cost of sales as a share of
+        # revenue stands, as it does in every other mode: reading the missing cost as
+        # nil gave thirteen vaccines and one-off therapies (mRNA-1403, Menquadfi,
+        # Fluzone, bepirovirsen among them) a gross margin of 100%.
+        if mode == "one_time" and scalars.get("cogs_per_patient") is not None:
+            cogs = scalars["cogs_per_patient"] * pats
         else:
             cogs = (scalars.get("cogs_pct") or 0.0) * rev
         ebit = rev - cogs - sga * rev - rd * rev - other * rev
