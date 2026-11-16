@@ -13,6 +13,7 @@ Claude Code session reads for itself). Without it the script stops and says so: 
 of the Discovery work runs with no model at all.
 """
 
+import html
 import json
 import os
 import pathlib
@@ -75,12 +76,17 @@ Write plainly. No em dashes. Do not use the words additionally, highlight, under
 pivotal, showcase or testament. Do not praise the work."""
 
 
+def _readable(text):
+    """The text without its markup: Europe PMC leaves tags and entities in titles."""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html.unescape(text or ""))).strip()
+
+
 def _plain(text):
-    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", text or "")).strip().lower()
+    return _readable(text).lower()
 
 
 def card(client, paper):
-    text = f"Title: {paper['title']}\n\nAbstract: {paper['abstract']}"
+    text = f"Title: {_readable(paper['title'])}\n\nAbstract: {_readable(paper['abstract'])}"
     response = client.beta.messages.create(
         model=MODEL, max_tokens=16000, system=SYSTEM,
         output_config={"effort": "medium",
@@ -97,7 +103,7 @@ def card(client, paper):
     stated = lambda quote: bool(quote) and _plain(quote) in source      # noqa: E731
     kept = [f for f in got["facts"] if stated(f["quote"])]
     flags = [f for f in got["red_flags"] if f["quote"] is None or stated(f["quote"])]
-    return {"id": paper["id"], "title": paper["title"], "model": response.model,
+    return {"id": paper["id"], "title": _readable(paper["title"]), "model": response.model,
             "summary": got["summary"], "modality": got["modality"], "facts": kept,
             "red_flags": flags, "open_questions": got["open_questions"][:3],
             "commercial_note": got["commercial_note"],
