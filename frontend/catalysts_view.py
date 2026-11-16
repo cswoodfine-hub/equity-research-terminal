@@ -57,7 +57,8 @@ WHY_SHORT = {"no_gate": "outside the gate model", "other_indication": "indicatio
              "in_the_base": "already in the business sold to",
              "no_indication_link": "tied to no indication",
              "programme_stopped": "a programme written off",
-             "settled_nil": "read, and it decides nothing"}
+             "settled_nil": "read, and it decides nothing",
+             "no_free_data": "read; no free source prices it"}
 REASONS = (
     ("no_gate", "marketed or outside the gate model"),
     ("other_indication", "a study in an indication the forecast does not value"),
@@ -70,12 +71,14 @@ REASONS = (
     ("no_indication_link", "a study tied to no indication the book holds"),
     ("programme_stopped", "a readout in a programme the research has written off"),
     ("settled_nil", "a readout research has read and found to decide nothing"),
+    ("no_free_data", "a readout that would move the value by an amount no free source states"),
 )
 REASON_CLASS = {"no_gate": "u0", "other_indication": "u1", "not_gate_phase": "u2",
                 "past_gate": "u3", "same_gate_later": "u4",
                 "already_approved": "u5", "needs_layer": "u6",
                 "in_the_base": "u7", "no_indication_link": "u8",
-                "programme_stopped": "u9", "settled_nil": "u10"}
+                "programme_stopped": "u9", "settled_nil": "u10",
+                "no_free_data": "u11"}
 EVIDENCE = {"published": "published", "convention": "convention", "implied": "implied",
             "stated": "stated"}
 

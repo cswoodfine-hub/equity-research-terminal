@@ -60,6 +60,7 @@ REASON_SHORT = {
     "no_indication_link": "tied to no indication",
     "programme_stopped": "a programme written off",
     "settled_nil": "read, and it decides nothing",
+    "no_free_data": "read; no free source prices it",
 }
 REASON_LONG = {
     "no_gate_marketed": "A marketed line: the readout is label work, outside the gate model.",
@@ -74,6 +75,7 @@ REASON_LONG = {
     "no_indication_link": "A study the book cannot tie to one of the asset's indications, so there is nothing to value it against.",
     "programme_stopped": "A readout in an indication the research has already written to nil, with the source on its own pos row.",
     "settled_nil": "A readout inside the business already sold to that research has read against the label and the registry record and found cannot move the claim, the guideline or the payer position. Not the same as one nobody has looked at, which reads in_the_base.",
+    "no_free_data": "A readout research has read and found would move the value, but the figure that would price it (a company peak, a pool, a price or a launch date) is in no free source. Worth something, and left unpriced rather than estimated.",
 }
 PANES = ("Legs and odds", "Cost to reach", "Studies and dates", "Market and evidence")
 MORE_TITLES = {"cal": "Calendar, 24 months", "slip": "Date slips", "loe": "Exclusivity",

@@ -4,12 +4,13 @@
 #
 # The book follows the filings' own test of when a deal is done: an 8-K Item 2.01,
 # "Completion of Acquisition or Disposition of Assets". An Item 1.01, "Entry into a Material
-# Definitive Agreement", is a deal agreed, not a deal done, and until the 2.01 is filed the
-# acquirer does not own the asset and has not paid for it. Holding the product in the
-# acquirer's book anyway is a choice the analyst has made on purpose, so the note says so
-# where a reader of the valuation will see it, rather than letting it pass as owned.
+# Definitive Agreement", is a deal agreed, not a deal done. Read the TARGET's filings for the
+# 2.01, not only the acquirer's: on closing the target files Items 2.01, 3.01 and 5.01 and
+# then a Form 25, while a large acquirer often files no 2.01 at all because the deal is
+# below its significance test. Vertex filed none for Crinetics, which closed on 2026-09-01
+# (Crinetics 8-K 0001140361-26-035195), and this register carried Palsonify as open until
+# that was checked.
 #
-# A row comes out when the Item 2.01 is filed. Keyed by the acquirer's ticker and the
-# asset's name in the book.
+# A row comes out when the target files its Item 2.01. Keyed by the acquirer's ticker and
+# the asset's name in the book. Empty is the normal state.
 acquirer,asset,target,announced,terms,basis
-VRTX,Palsonify,Crinetics Pharmaceuticals,2026-07-06,"$85.00 a share in cash, about $10.0bn of equity value and about $8.8bn net of the cash acquired","Vertex's 8-K of 2026-07-07 (0001193125-26-296710) reports Items 1.01, 7.01, 8.01 and 9.01: the merger agreement, not its completion, and Vertex has filed no 8-K with Item 2.01 since. The terms are Crinetics's announcement (0001140361-26-027642, exhibit 99.1): 'Vertex will acquire Crinetics for $85.00 per share in cash, for a total equity value of approximately $10.0 billion, or approximately $8.8 billion net of estimated cash acquired.' Checked against the EDGAR submissions index on 2026-11-16."

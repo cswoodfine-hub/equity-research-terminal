@@ -806,7 +806,9 @@ def test_reason_codes_are_the_contracts(path):
              "in_the_base",
              # A readout in an indication the research has already written to nil, with
              # the filed source on its own pos row.
-             "programme_stopped", "settled_nil"}
+             "programme_stopped", "settled_nil",
+             # Read, and found to move the value by an amount no free source states.
+             "no_free_data"}
     assert set(forecast_view.STAKE_REASONS) <= codes
     seen = set()
     for ticker in ("AZN", "NVO", "CRSP", "BAYN"):

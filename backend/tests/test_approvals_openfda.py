@@ -546,3 +546,10 @@ def test_two_products_on_one_application_are_two():
                    ["PEGINTRON", "SYLATRON"]):
         got = A._products_by_brand([{"brand_name": b} for b in brands])
         assert sorted(got) == sorted(brands)
+
+
+def test_uplizna_is_reached_through_the_sponsor_it_is_still_filed_under():
+    """BLA761142 is filed under Viela Bio, two acquisitions back (Horizon 2021, Amgen 2023),
+    so no Amgen or Horizon query reached it and the book held no Uplizna asset. Viela's
+    whole openFDA portfolio is that one application."""
+    assert "VIELA BIO" in A.AFFILIATE_SPONSORS["AMGN"]

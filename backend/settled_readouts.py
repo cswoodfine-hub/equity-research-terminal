@@ -19,6 +19,13 @@ position. The three kinds that account for almost all of them:
   a lot-consistency or immunogenicity study, which reads out on manufacturing rather
   than on medicine.
 
+A second verdict shares the file because it shares the shape: a study the research has
+read and found WOULD move the value, but whose figure no free source carries. That is not
+nil and must not read as nil, so those kinds take their own reason, ``no_free_data``: the
+row is worth something, the book cannot say how much without inventing it, and the queue
+is not the place for it because no amount of work on the free sources will price it.
+``reason()`` says which of the two a row is.
+
 A row here is a judgement with a citation, not a dismissal, and it is reversible: delete
 the row and the readout returns to the queue. The opposite judgement lives in
 ``data/catalyst_scenarios.csv``, which prices a readout inside the base from a named
@@ -77,6 +84,31 @@ KINDS = {
     "already_read_out":
         "a study whose result the company has already published, where the date on "
         "file is the registry's administrative completion rather than the readout",
+    "outside_the_us":
+        "a study run wholly outside the US for a claim the book does not value there, "
+        "with no US pool or price to build one from",
+    "not_pursued":
+        "a programme the company has said it will continue only with a partner, with none "
+        "announced and its study closed to enrolment",
+    "suspended":
+        "a study suspended with no sponsor to complete it, so the date on file will not "
+        "happen",
+}
+
+# Read, and found to move the value by an amount no free source states. Each takes the
+# reason no_free_data rather than settled_nil.
+NO_FREE_DATA = {
+    "no_citable_figure":
+        "a readout inside the business already sold to, where a win would move share, and "
+        "no company filing or free source states the figure that would price it",
+    "no_free_input":
+        "an expansion whose pool, price or uptake no free source carries, so the layer is "
+        "refused rather than estimated",
+    "no_launch_date":
+        "a product with no filed date to launch from, so no launch year can be cited",
+    "unnamed_candidate":
+        "a candidate the registry names only by arm, which no public source ties to a "
+        "programme the book could value",
 }
 
 
@@ -118,11 +150,22 @@ def load(conn, path=None) -> dict:
     return out
 
 
+def reason(entry: dict) -> str:
+    """settled_nil for a study that moves nothing; no_free_data for one that would move
+    the value by an amount no free source states."""
+    return "no_free_data" if (entry.get("kind") or "") in NO_FREE_DATA else "settled_nil"
+
+
 def why(entry: dict) -> str:
     """The sentence the stake row carries, from the kind and the filed basis."""
-    said = KINDS.get(entry.get("kind") or "", "")
-    lead = ("The research has read this study and it decides nothing the book values"
-            + (f": {said}" if said else "") + ". ")
+    kind = entry.get("kind") or ""
+    if kind in NO_FREE_DATA:
+        lead = ("The research has read this study and it would move the value, but no "
+                f"free source carries the figure: {NO_FREE_DATA[kind]}. ")
+    else:
+        said = KINDS.get(kind, "")
+        lead = ("The research has read this study and it decides nothing the book values"
+                + (f": {said}" if said else "") + ". ")
     basis = (entry.get("basis") or "").strip()
     return lead + (basis if basis.endswith((".", "!", "?")) else basis + ".")
 
@@ -133,7 +176,7 @@ def unresolved(conn, path=None) -> list[str]:
     for row in rows(path):
         if _asset(conn, row["ticker"], row["asset"]) is None:
             out.append(f"{row['ticker']} {row['asset']}: no single asset of that name")
-        elif row["kind"] and row["kind"] not in KINDS:
+        elif row["kind"] and row["kind"] not in KINDS and row["kind"] not in NO_FREE_DATA:
             out.append(f"{row['ticker']} {row['asset']}: unknown kind "
                        f"'{row['kind']}'")
     return out

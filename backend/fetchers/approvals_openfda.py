@@ -94,6 +94,10 @@ AFFILIATE_SPONSORS = {
     "SNY": ["GENZYME"],
     "JNJ": ["JANSSEN PRODS", "CENTOCOR INC"],
     "ABBV": ["APIL", "IMMUNOGEN INC"],
+    # Uplizna (BLA761142) is still filed under Viela Bio, which Horizon bought in 2021
+    # before Amgen bought Horizon in 2023; openFDA holds one application for the sponsor
+    # (checked 2026-11-16), so the whole portfolio is Amgen's.
+    "AMGN": ["VIELA BIO"],
     "LLY": ["IMCLONE"],
     "LNTH": ["PROGENICS PHARMS INC"],
     "INCY": ["MORPHOSYS US INC"],

@@ -56,8 +56,15 @@ def test_a_company_reads_by_its_name_in_a_sentence():
 
 
 def test_the_shipped_register_cites_the_filing_that_proves_the_deal_is_open():
-    entries = P.rows()
-    assert entries, "the register is empty"
-    for e in entries:
+    """Every row says the target has filed no Item 2.01, because the target's closing 8-K
+    is the one that settles it. Empty is allowed: it is the normal state."""
+    for e in P.rows():
         assert "1.01" in e["basis"] and "Item 2.01" in e["basis"], e["asset"]
+        assert e["target"] in e["basis"], e["asset"]
         assert e["terms"] and e["announced"], e["asset"]
+
+
+def test_a_closed_deal_is_not_carried_as_open():
+    """Crinetics filed its closing 8-K with Item 2.01 on 2026-09-01 (0001140361-26-035195).
+    Vertex filed none, which is how Palsonify was once carried here as pending."""
+    assert not P.for_asset("VRTX", "Palsonify")

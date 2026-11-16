@@ -1,0 +1,42 @@
+# Pombiliti (BMRN). BASE MODEL, 2026-11-16. Cipaglucosidase alfa-atga, an enzyme
+# replacement therapy sold only with Opfolda (miglustat) for late-onset Pompe disease,
+# FDA approval 2023-09-28 (BLA 761204).
+#
+# BioMarin's: the Amicus acquisition closed on 2026-04-27 (BioMarin 8-K 0001193125-26-179243,
+# Items 1.01 and 2.01; Amicus 8-K 0001140361-26-016968, Item 2.01; Amicus Form 15 on
+# 2026-05-07). BioMarin books the product only from that date.
+#
+# Marketed, anchored on the last reported full year, FY2025 112.508mm USD, from AMICUS's
+# 10-K, and grown at FY2025 over FY2024, +60.2%, cross-checked at +58.2% on a like-for-like
+# third quarter across the two filers.
+#
+# THE LINE IS THE REGIMEN. Every filer prints 'Pombiliti + Opfolda' as one line, and the
+# label sells Pombiliti only 'in combination with Opfolda'. The whole line is anchored here;
+# Opfolda (asset 3434) must carry no revenue of its own or the regimen is counted twice.
+#
+# Company half: copied verbatim from bmrn_voxzogo.csv. BioMarin's cost ratios are FY2025,
+# before Amicus; the debt weight is post-close (debt at 2026-06-30). No other BMRN seed
+# carries any refusal or route note this file contradicts.
+#
+# No price or discontinuation is seeded. CMS 2024 holds Pombiliti in both Part B ($2.69mm,
+# 13 beneficiaries) and Part D ($5.80mm, 13 beneficiaries), too few to anchor a price on.
+# Seeds are insert-only. Edit a number in the terminal, not here.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+BMRN,Pombiliti,,US,base,therapy_mode,,,marketed,,approved and selling,"no patient funnel is rebuilt for a product that files its own sales. Pombiliti is indicated 'in combination with Opfolda' (label setid d77aa596-910d-516b-e053-2995a90a0839, SPL 8, effective 2026-08-17), and the line anchored below is the regimen's"
+BMRN,Pombiliti,,US,base,base_revenue,,112.508,,mm USD,"Amicus FY2025 10-K (0001178879-26-000005), Note on revenue recognition, net product sales disaggregated by product and geographic area: 'Total Pombiliti + Opfolda sales | $ | 112,508 | $ | 70,241 | $ | 11,579' (in thousands, 2025, 2024, 2023), of which U.S. 48,265 and Ex-U.S. 64,243 in 2025. Amicus was the filer for the last full year; BioMarin reports the line only from the 2026-04-27 close","the anchor, worldwide; ex-US is 57%. Pombiliti and Opfolda together, which is how every filer reports them"
+BMRN,Pombiliti,,US,base,revenue_growth_pct,,0.601743,,"annual, near term","the last reported year over the one before: 112,508 over 70,241 thousand, the same Amicus 10-K table","cross-checked on a like-for-like quarter across the two filers: BioMarin 10-Q for the quarter to 2026-09-30 (0001048477-26-000023), 'POMBILITI + OPFOLDA (1) | 48,585' against Amicus 10-Q for the quarter to 2025-09-30 (0001178879-25-000015), 'Total Pombiliti + Opfolda sales | $ | 30,714', +58.2%. BioMarin's nine-month 78,843 thousand runs from 2026-04-27 only and compares with nothing"
+BMRN,Pombiliti,,US,base,growth_fade_years,,5,,years,"measured from 32 drugs that grew 50% to 100% a year: the median took 5 years of fading growth to reach its peak revenue (quartiles 3 to at least 9), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 18 of them censored because they are still near their best or lost exclusivity at their peak",the bucket the +60.2% rate above falls in
+BMRN,Pombiliti,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year (Amicus FY2025),"no filer reports 2026 whole: Amicus filed no first-quarter 10-Q before deregistering, and BioMarin books from 2026-04-27"
+BMRN,Pombiliti,,US,base,forecast_years,,15,,years,"set to run five years past the 2035-09-28 loss of exclusivity the book holds (loe.for_assets: reference product exclusivity, twelve years from the 2023-09-28 approval of BLA 761204, Purple Book)",2026 to 2040
+BMRN,Pombiliti,,US,base,pos,,1.0,,,"approved: FDA approval 2023-09-28, BLA 761204 (the reference product exclusivity date above counts twelve years from it)","stated, because no development phase applies"
+BMRN,Pombiliti,,US,base,cogs_pct,,0.222721,,share of revenue,"BMRN FY2025, computed from the filed lines: cost of sales $717.4mm on revenue of $3,221.3mm (10-K 0001048477-26-000006)","BioMarin's own, as every BioMarin asset carries"
+BMRN,Pombiliti,,US,base,sga_pct,,0.357941,,share of revenue,"BMRN FY2025, computed from the filed lines: selling, general and administrative expense $1,153.0mm on revenue of $3,221.3mm (10-K 0001048477-26-000006)","BioMarin's own, as every BioMarin asset carries"
+BMRN,Pombiliti,,US,base,rd_pct,,0.286202,,share of revenue,"BMRN FY2025, computed from the filed lines: research and development expense $921.9mm on revenue of $3,221.3mm (10-K 0001048477-26-000006)","BioMarin's own, as every BioMarin asset carries"
+BMRN,Pombiliti,,US,base,other_costs_pct,,0.0,,share of revenue,"derived and found to be nil: BioMarin generated $1,274.9mm of free cash flow over 2023 to 2025 (operating cash flow of $159.3mm, $572.8mm and $828.0mm less capital spending of $96.7mm, $85.4mm and $103.0mm) on revenue of $8,494.4mm, a 15.01% margin. Restated before interest, at replacement capex, without one-off cash and without working capital build, that is a 32.65% pre-tax cash margin against the 13.31% its filed cost lines leave, so the charge solves to -19.34% and is held at nil. A charge below nil credits the book with cash its own costs do not leave, and BioMarin does not state where it books amortisation of acquired intangibles, so no floor below nil applies (charge_floor.py)","amortisation of acquired intangibles above all, then the rest"
+BMRN,Pombiliti,,US,base,tax_rate,,0.22213,,effective rate,"BMRN aggregate effective rate over the three years to 2025, each with positive pre-tax income: tax of $20.9mm, $114.9mm and $133.6mm on pre-tax income of $188.6mm, $541.8mm and $482.5mm","BioMarin's own, as every BioMarin asset carries"
+BMRN,Pombiliti,,US,base,risk_free,,0.0505,,,"10-year Treasury constant maturity (FRED DGS10), 2026-10-28: 5.05%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on",
+BMRN,Pombiliti,,US,base,erp,,0.0414,,,"Damodaran implied US equity risk premium, 2026-09-01: 4.14% on the trailing twelve month with adjusted payout basis, against his own 4.75% US Treasury. The 0.22% US default spread is not added back, since this book discounts at the raw ten-year (pages.stern.nyu.edu/~adamodar/New_Home_Page/home.htm)",
+BMRN,Pombiliti,,US,base,beta,,0.73,,,"computed from 261 weekly returns vs S&P 500, 2021-W43 to 2026-W44, Blume-adjusted (0.59 raw)",
+BMRN,Pombiliti,,US,base,cost_of_debt,,0.0566,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-10-28: 5.66%. Refreshed with the data (fetchers/rates_fred.py)",
+BMRN,Pombiliti,,US,base,debt_weight,,0.269201,,,"filed: $4,186.1mm of total debt at 2026-06-30, over debt plus market capitalisation: 197.7mm diluted shares at the $57.49 close of 2026-10-29",
+BMRN,Pombiliti,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat

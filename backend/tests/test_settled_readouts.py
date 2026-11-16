@@ -120,6 +120,23 @@ def test_settling_a_readout_is_reversible(tmp_path, monkeypatch):
     assert V.catalyst_stakes(path, "AZN")["unpriced"][0]["reason"] == "in_the_base"
 
 
+def test_a_readout_no_free_source_prices_does_not_read_as_nil(tmp_path, monkeypatch):
+    """Worth something and unpriced is not the same as worth nothing, so it takes its own
+    reason and says the value would move."""
+    path = _db(tmp_path)
+    _file(tmp_path, "AZN,Tezspire,NCT07363642,no_citable_figure,"
+          "\"AstraZeneca states no figure for the trial in any filing\"\n", monkeypatch)
+    row = V.catalyst_stakes(path, "AZN")["unpriced"][0]
+    assert row["reason"] == "no_free_data"
+    assert "would move the value" in row["why"]
+    assert "decides nothing" not in row["why"]
+    assert "in any filing." in row["why"]
+
+
+def test_the_two_verdicts_share_no_kind():
+    assert not set(S.KINDS) & set(S.NO_FREE_DATA)
+
+
 # --- the two judgements cannot both be made ---------------------------------
 
 def test_no_study_is_both_settled_at_nil_and_priced_from_a_case():
@@ -139,5 +156,5 @@ def test_no_row_of_the_shipped_file_is_silently_ignored():
 
 def test_every_shipped_row_names_a_kind_and_a_basis_worth_reading():
     for row in S.rows():
-        assert row["kind"] in S.KINDS, row["nct_id"]
+        assert row["kind"] in S.KINDS or row["kind"] in S.NO_FREE_DATA, row["nct_id"]
         assert len(row["basis"]) > 30, row["nct_id"]

@@ -467,8 +467,11 @@
 .cx .u9 { background: color-mix(in oklab, var(--muted) 10%, var(--panel)); }
 /* Settled at nil by research, so it reads quieter than the queue it left. */
 .cx .u10 { background: color-mix(in oklab, var(--muted) 6%, var(--panel)); }
+/* Read, and worth something no free source prices: not settled and not the queue, so it
+   sits between the settled steps and the unlinked gap. */
+.cx .u11 { background: color-mix(in oklab, var(--muted) 32%, var(--panel)); }
 .cx-ub i.u2, .cx-ub i.u4, .cx-ub i.u5, .cx-ub i.u7, .cx-ub i.u9,
-.cx-ub i.u10 { color: var(--text); }
+.cx-ub i.u10, .cx-ub i.u11 { color: var(--text); }
 .cx-uk { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; font-size: 11px;
   color: var(--muted); }
 .cx-uk span { display: inline-flex; align-items: center; gap: 6px; }

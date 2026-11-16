@@ -742,7 +742,7 @@ STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
                  "same_gate_later", "already_approved", "needs_layer", "in_the_base",
-                 "no_indication_link", "programme_stopped", "settled_nil")
+                 "no_indication_link", "programme_stopped", "settled_nil", "no_free_data")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -1406,7 +1406,7 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             nct, _study = _catalyst_trial(conn, row)
             read = settled.get((row.get("asset_id"), (nct or "").upper()))
             if read:
-                refuse(row, "settled_nil", settled_readouts.why(read), [])
+                refuse(row, settled_readouts.reason(read), settled_readouts.why(read), [])
                 said.append(row["id"])
         if said:
             rows = [r for r in rows if r["id"] not in said]

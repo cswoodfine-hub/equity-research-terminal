@@ -17,6 +17,7 @@ import pytest
 import catalyst_scenarios as S
 import db
 import forecast_view as V
+import settled_readouts
 
 _HEADER = "ticker,asset,nct_id,scenario,basis\n"
 
@@ -74,6 +75,15 @@ def _file(tmp_path, body, monkeypatch):
     path.write_text(_HEADER + body, encoding="utf-8")
     monkeypatch.setattr(S, "CURATED", path)
     return path
+
+
+@pytest.fixture(autouse=True)
+def _no_shipped_register(tmp_path, monkeypatch):
+    """The shipped register of read studies files VICTORION-2P as no_free_data, which is
+    the shipped answer, not these tests' question: they ask what a case does."""
+    empty = tmp_path / "settled_readouts.csv"
+    empty.write_text("ticker,asset,nct_id,kind,basis\n", encoding="utf-8")
+    monkeypatch.setattr(settled_readouts, "CURATED", empty)
 
 
 _ROW = ("NVS,Leqvio,NCT05030428,victorion_2p,"

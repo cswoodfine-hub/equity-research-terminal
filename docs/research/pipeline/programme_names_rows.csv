@@ -1,0 +1,11 @@
+# DRAFT rows for data/programme_names.csv, 2026-11-16. Not applied. Same header as that file.
+#
+# APPLY WITH CARE: assumptions.load_seeds resolves a seed's brand against brand_name or
+# generic_name only, never an alias. Renaming a row's generic orphans every seed keyed on
+# the old spelling, silently, on the next rebuild. Each rename below must ship in the same
+# change as a re-key of the seed file named on its row (lly_ly3305677.csv brand column to
+# 'mazdutide'; rgnx_rgx_121_3102.csv brand column to 'clemidsogene lanparvovec'), and any
+# data/pipeline_sort.csv and catalyst_scenarios.csv key on the old name.
+ticker,name,inn,source
+LLY,LY3305677,mazdutide,"Lilly's own registry record joins the two: NCT06124807 (ISA W8M-MC-OXA1 of the CWMM master protocol, Eli Lilly and Company sole sponsor) lists the intervention 'Mazdutide' with other name 'LY3305677', and NCT06817356 (Lilly, Phase 2 in alcohol use disorder) the same (ClinicalTrials.gov API v2, read 2026-11-16). Lilly FY2024 10-K (0000059478-25-000067) development table: 'Mazdutide Obesity Phase 2 Phase 2 trial is ongoing'. Published: 'Mazdutide (also known as IBI362 or LY3305677)', Ji L et al., EClinicalMedicine 2022;54:101691, PMID 36247927. The registry files the master protocol NCT06143956 under 'LY3305677', the spelling the derivation kept"
+RGNX,RGX-121-3102,clemidsogene lanparvovec,"REGENXBIO Q3 2026 10-Q (0001193125-26-448581): 'Additional clinical-stage candidates include RGX-121 (clemidsogene lanparvovec) for the treatment of Mucopolysaccharidosis Type II (MPS II)'. 'RGX-121-3102' is the protocol number of NCT07236606 (its org study id on ClinicalTrials.gov), which the registry also uses as the intervention name; the registrational CAMPSIITE study NCT03566043 already sits on the same asset row (3052)"
