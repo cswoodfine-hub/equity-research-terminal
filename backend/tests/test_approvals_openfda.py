@@ -553,3 +553,9 @@ def test_uplizna_is_reached_through_the_sponsor_it_is_still_filed_under():
     so no Amgen or Horizon query reached it and the book held no Uplizna asset. Viela's
     whole openFDA portfolio is that one application."""
     assert "VIELA BIO" in A.AFFILIATE_SPONSORS["AMGN"]
+
+
+def test_jaypirca_is_reached_through_loxo():
+    """NDA216059 is filed under Loxo Oncology, which holds no other application, and the
+    book held no Jaypirca asset while lly_jaypirca.csv loaded nowhere."""
+    assert "LOXO ONCOL" in A.AFFILIATE_SPONSORS["LLY"]

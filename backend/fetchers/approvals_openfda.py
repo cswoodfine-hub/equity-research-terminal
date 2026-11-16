@@ -28,13 +28,14 @@ import company_names
 import assets_util
 from assets_util import normalize_appl, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "approvals"
 OPENFDA_SOURCE = "openfda"
 TTL_SECONDS = 24 * 60 * 60
 
 DRUGSFDA_URL = "https://api.fda.gov/drug/drugsfda.json"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 _LIMIT = 100
 
@@ -98,7 +99,11 @@ AFFILIATE_SPONSORS = {
     # before Amgen bought Horizon in 2023; openFDA holds one application for the sponsor
     # (checked 2026-11-16), so the whole portfolio is Amgen's.
     "AMGN": ["VIELA BIO"],
-    "LLY": ["IMCLONE"],
+    # Jaypirca (NDA216059) is filed under Loxo Oncology, which Lilly bought in 2019 (FY2025
+    # 10-K 0000059478-26-000013). openFDA holds one application for the sponsor (checked
+    # 2026-11-16), so the whole portfolio is Lilly's; Retevmo is filed under Lilly itself
+    # and Vitrakvi under Bayer, so neither comes through this phrase.
+    "LLY": ["IMCLONE", "LOXO ONCOL"],
     "LNTH": ["PROGENICS PHARMS INC"],
     "INCY": ["MORPHOSYS US INC"],
 }

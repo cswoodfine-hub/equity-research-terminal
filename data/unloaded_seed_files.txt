@@ -33,9 +33,9 @@
 # BMRN #441) each model one company's share of another's product. Which company books
 # it is a judgement, not a rename.
 #
-# No asset anywhere in the book. The rest. Jaypirca is a real marketed
-# product, so it is a gap in the universe fetcher rather than a dead file. Uplizna was the
-# other, filed under Viela Bio, and loads since 2026-11-16 (AFFILIATE_SPONSORS).
+# No asset anywhere in the book. The rest. Uplizna (filed under Viela Bio) and Jaypirca
+# (filed under Loxo Oncology) were real marketed products missing for the same reason, a
+# sponsor name no query reached, and both load since 2026-11-16 (AFFILIATE_SPONSORS).
 #
 # Found and fixed 2026-11-11: nvo_rybelsus.csv, and it was not a name defect at all.
 # Its 18 rows anchor on 22,093mm DKK, Novo's own FY2025 line for oral semaglutide, and
@@ -58,7 +58,6 @@ jnj_abiomed.csv
 jnj_iti_1284.csv
 jnj_surgical.csv
 lly_ixo_vec.csv
-lly_jaypirca.csv
 lly_ly4515100_via_sad.csv
 lly_verve_102.csv
 mrk_cd388_injection.csv
