@@ -1,0 +1,16 @@
+# A study the collaborator pass would take that is not this company's programme, with the
+# reason (read by backend/fetchers/trials_ctgov.not_our_trials).
+#
+# The collaborator pass takes a large late-phase study another organisation leads where
+# one of its interventions names a molecule the company owns. That is the right rule for
+# ORION-4, which tests Novartis's patented inclisiran and which Novartis names among
+# Leqvio's readouts. It is the wrong answer where the matched molecule is a generic the
+# company supplied: owning a product of that name does not make an academic trial of the
+# substance the company's gate. Who sponsors cannot be the test, because Oxford sponsors
+# both; whose programme it is, is.
+#
+# A row here is skipped by the pass and removed from the company's studies on every
+# fetch, so the correction reaches the database the nightly run restores rather than
+# living on one machine. Keyed by ticker and registry id.
+ticker,nct_id,basis
+BAYN,NCT00135226,"ASCEND, A Study of Cardiovascular Events iN Diabetes, is the University of Oxford's: the registry gives its lead sponsor as University of Oxford (class OTHER) and lists nine collaborators, Bayer one of three in industry beside the British Heart Foundation, the Medical Research Council, Abbott and Mylan. Its interventions are aspirin and omega-3 ethyl esters against matching placebos, and it matched Bayer only because Bayer owns a product of aspirin (Measurin). Its primary completion was 2018-03-12, reported in full (PMIDs 31986094, 35393614); the record stays active for long-term follow-up. An academic trial of a generic Bayer supplied, finished eight years ago, is not a Bayer gate (https://clinicaltrials.gov/study/NCT00135226, read 2026-11-16)."

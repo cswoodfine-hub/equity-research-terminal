@@ -39,6 +39,8 @@ REASONS = (
     "correction",            # the number was wrong
     "convention_change",     # a house default moved and the rows that lean on it follow
     "initial_seed",          # the row's first write, from the seed file
+    "seed_correction",       # the seed file that wrote the row was corrected, and nobody
+                             # had touched the row since, so the correction reaches it
     "review",                # an analyst confirmed the grade a rule read off the row
 )
 

@@ -49,6 +49,7 @@ import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
+import pending_acquisitions
 import forecast_history as forecast_history_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
@@ -765,6 +766,7 @@ def company_forecast_verdict(ticker: str) -> dict:
     out = forecast_view_module.company_verdict(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    out = {**out, "pending_acquisitions": pending_acquisitions.lines_for_company(ticker)}
     return {**out, "note": forecast_note.write_company(out)}
 
 
@@ -912,6 +914,8 @@ def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no asset {asset_id} for {ticker}")
+    out = {**out, "pending_acquisitions":
+           pending_acquisitions.lines_for_asset(ticker, out.get("name"))}
     return {**out, "note": forecast_note.write(out)}
 
 

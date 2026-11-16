@@ -159,3 +159,29 @@ def test_a_phase_two_three_study_qualifies_on_its_phase_three_half():
     assert _is_our_collaboration(both, _NOVARTIS, _NVS_ASSETS, set()) is True
     only_two = _study(phases=("PHASE2",), enrollment=2250)
     assert _is_our_collaboration(only_two, _NOVARTIS, _NVS_ASSETS, set()) is False
+
+
+# --- a study that is not the company's programme ------------------------------
+
+def test_a_study_named_not_ours_is_skipped_and_cannot_return(tmp_path):
+    """ASCEND matched Bayer only because Bayer owns a product of aspirin. Oxford leads it,
+    Bayer is one of nine collaborators, and its primary completed in 2018. Who sponsors
+    cannot be the test, because Oxford sponsors ORION-4 too; whose programme it is, is."""
+    from fetchers import trials_ctgov as T
+    f = tmp_path / "not_ours.csv"
+    f.write_text("ticker,nct_id,basis\nBAYN,NCT00135226,an academic trial of a generic\n")
+    assert T.not_our_trials("BAYN", f) == {"NCT00135226"}
+    assert T.not_our_trials("bayn", f) == {"NCT00135226"}
+    assert T.not_our_trials("NVS", f) == set()
+
+
+def test_the_shipped_exclusions_name_a_basis_and_a_registry_record():
+    from fetchers import trials_ctgov as T
+    import csv as _csv
+    with open(T.NOT_OUR_TRIALS_CSV, newline="", encoding="utf-8") as handle:
+        rows = list(_csv.DictReader(l for l in handle if not l.lstrip().startswith("#")))
+    assert rows, "the file is empty"
+    for r in rows:
+        assert r["nct_id"].startswith("NCT"), r
+        assert "clinicaltrials.gov/study/" + r["nct_id"] in r["basis"], r["nct_id"]
+        assert len(r["basis"]) > 80, r["nct_id"]

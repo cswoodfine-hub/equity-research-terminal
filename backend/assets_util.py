@@ -26,6 +26,31 @@ def normalize_appl(appl_type: str, appl_no: str) -> str:
     return f"{prefix}{digits}" if digits else ""
 
 
+def brand_family(name: str | None) -> tuple:
+    """(the first word of a brand, the brand reduced to letters and digits)."""
+    words = re.sub(r"[^a-z0-9 ]+", " ", (name or "").lower()).split()
+    return (words[0] if words else ""), "".join(words)
+
+
+def same_brand_family(a: str | None, b: str | None) -> bool:
+    """Whether two brand strings name one product rather than two.
+
+    A brand string names a presentation as often as a product: ZEPBOUND beside ZEPBOUND
+    KWIKPEN, LANTUS beside LANTUS SOLOSTAR. Two brands are one product if they share a
+    first word or one contains the other, and two products only where neither holds, as
+    with OZEMPIC and RYBELSUS on the one application NDA213051. Measured on the 33
+    applications in the book carrying more than one live brand: 28 are pens, five are
+    two products, and this rule separates them exactly. A missing brand is treated as
+    the same family, because an unbranded row is a programme, not a rival product.
+    """
+    if not (a or "").strip() or not (b or "").strip():
+        return True
+    first_a, flat_a = brand_family(a)
+    first_b, flat_b = brand_family(b)
+    return bool((first_a and first_a == first_b)
+                or (flat_a and flat_b and (flat_a in flat_b or flat_b in flat_a)))
+
+
 def resolve_alias(conn, internal_code):
     """The asset an absorbed application number now belongs to, or None.
 
@@ -61,9 +86,18 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality,
             "   AND LOWER(TRIM(COALESCE(brand_name, ''))) = LOWER(TRIM(?))",
             (internal_code, brand)).fetchone()
         if row is None:
-            # Not the alias either: an alias records which applications make up one
-            # product, and this application makes up two. Resolving through it is what
-            # put Rybelsus inside Ozempic and left its revenue line nowhere.
+            # The alias, but only for its own product. An alias records which
+            # applications make up one product, and this application makes up two:
+            # resolving the second brand through it is what put Rybelsus inside Ozempic
+            # and left its revenue line nowhere. The same family still resolves, so oral
+            # Ozempic lands on Ozempic rather than being created again every night.
+            merged_into = resolve_alias(conn, internal_code)
+            if merged_into is not None:
+                held = conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                                    (merged_into,)).fetchone()
+                if held is not None and same_brand_family(held[0], brand):
+                    row = (merged_into,)
+        if row is None:
             return _insert_asset(conn, company_id, internal_code, brand, generic,
                                  modality)
         conn.execute(

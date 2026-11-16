@@ -350,3 +350,174 @@ def test_the_shipped_seeds_carry_no_number_written_as_words():
             if key in A._NUMERIC_KEYS and str(row.get("value") or "").strip() == "":
                 bad.append(f"{path.name}: {key}")
     assert bad == [], bad
+
+
+# --- a seed file can correct what it wrote, and nothing else -----------------
+
+_SEED_HEADER = ("ticker,brand,indication,region,scenario,key,year,value,text_value,"
+                "unit,source,note\n")
+
+
+def _seed_book(tmp_path):
+    import db as _db
+    path = str(tmp_path / "reconcile.db")
+    _db.init(path)
+    conn = _db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'PFE', 'Pfizer')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, brand_name, is_marketed)"
+                 " VALUES (1, 1, 'Tukysa', 1)")
+    conn.execute("INSERT INTO indications (id, name) VALUES (1, 'Colorectal Neoplasms')")
+    conn.execute("INSERT INTO indications (id, name) VALUES (2, 'First-line HER2-positive"
+                 " metastatic colorectal cancer')")
+    conn.commit()
+    seeds = tmp_path / "seeds"
+    seeds.mkdir()
+    return conn, seeds
+
+
+def _row(conn, key, indication_id=None):
+    return conn.execute(
+        "SELECT value, source FROM assumptions WHERE asset_id = 1 AND key = ?"
+        " AND IFNULL(indication_id, 0) = IFNULL(?, 0)", (key, indication_id)).fetchone()
+
+
+def test_a_value_corrected_in_the_file_reaches_the_row_it_wrote(tmp_path):
+    """The bug. The nightly run restores yesterday's database and reseeds on top, and
+    a loader that only inserts can never carry a correction: Arcturus's cost charge was
+    changed in its file and the published book kept the old figure."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,other_costs_pct,,-0.0017,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,other_costs_pct,,0.0,,,s,n\n")
+    out = A.load_seeds(conn, seeds)
+    assert out["corrected"] == 1
+    assert _row(conn, "other_costs_pct")["value"] == 0.0
+    conn.close()
+
+
+def test_a_pool_moved_to_another_indication_is_held_once(tmp_path):
+    """Tukysa's first-line colorectal pool was moved from the approved disease row onto
+    its sub-population row. Insert-only kept both, which is the same patients twice."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER +
+                 "PFE,Tukysa,Colorectal Neoplasms,US,base,prevalence,,158850,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,First-line HER2-positive metastatic "
+                 "colorectal cancer,US,base,prevalence,,158850,,,s,n\n")
+    out = A.load_seeds(conn, seeds)
+    assert out["retracted"] == 1
+    assert _row(conn, "prevalence", 1) is None
+    assert _row(conn, "prevalence", 2)["value"] == 158850
+    conn.close()
+
+
+def test_an_edit_made_in_the_terminal_survives_a_corrected_file(tmp_path):
+    """The promise that matters most and that this must not break. A row an analyst has
+    edited is the analyst's, whatever the file says afterwards."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,other_costs_pct,,-0.0017,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    A.save(conn, 1, [{"key": "other_costs_pct", "value": -0.05, "source": "analyst"}],
+           reason="correction")
+    conn.commit()
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,other_costs_pct,,0.0,,,s,n\n")
+    out = A.load_seeds(conn, seeds)
+    assert out["corrected"] == 0
+    assert _row(conn, "other_costs_pct")["value"] == -0.05
+    # And taking it out of the file does not either. Another row keeps the asset
+    # covered, or this would pass for the wrong reason (see the test below).
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,therapy_mode,,,marketed,,s,n\n")
+    assert A.load_seeds(conn, seeds)["retracted"] == 0
+    assert _row(conn, "other_costs_pct")["value"] == -0.05
+    conn.close()
+
+
+def test_a_row_changed_outside_the_ledger_is_left_alone(tmp_path):
+    """The rates refresh writes risk_free straight into the table. A row that no longer
+    holds what the seed wrote has been touched by something, and is not the file's."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,risk_free,,0.0501,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    conn.execute("UPDATE assumptions SET value = 0.0505 WHERE key = 'risk_free'")
+    conn.commit()
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,risk_free,,0.0499,,,s,n\n")
+    assert A.load_seeds(conn, seeds)["corrected"] == 0
+    assert _row(conn, "risk_free")["value"] == 0.0505
+    conn.close()
+
+
+def test_a_row_that_arrived_by_a_fold_is_never_the_files(tmp_path):
+    """asset_merge moves a folded asset's rows onto the survivor and leaves their ledger
+    filed under the asset that is gone. Such a row has no entry under its new asset, so
+    the reconcile cannot see it as the seed's and cannot retract it, whatever the
+    survivor's own file says."""
+    conn, seeds = _seed_book(tmp_path)
+    (seeds / "pfe_tukysa.csv").write_text(
+        _SEED_HEADER + "PFE,Tukysa,,US,base,therapy_mode,,,marketed,,s,n\n")
+    A.load_seeds(conn, seeds)
+    # A row moved in from a folded asset: present on the survivor, ledger elsewhere.
+    conn.execute("INSERT INTO assumptions (asset_id, region, scenario, key, value, source)"
+                 " VALUES (1, 'US', 'base', 'base_revenue', 1000.0, 'from the fold')")
+    conn.execute("INSERT INTO assumption_edits (asset_id, region, scenario, key, op,"
+                 " new_value, reason) VALUES (99, 'US', 'base', 'base_revenue', 'create',"
+                 " '1000.0', 'initial_seed')")
+    conn.commit()
+    assert A.load_seeds(conn, seeds)["retracted"] == 0
+    assert _row(conn, "base_revenue")["value"] == 1000.0
+    conn.close()
+
+
+def test_retraction_waits_while_an_indication_does_not_resolve(tmp_path):
+    """Where one of an asset's rows names an indication the book does not hold yet, the
+    file's whole intention for that asset cannot be read, so nothing is taken away."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER +
+                 "PFE,Tukysa,Colorectal Neoplasms,US,base,prevalence,,158850,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    f.write_text(_SEED_HEADER +
+                 "PFE,Tukysa,A disease not yet built,US,base,prevalence,,158850,,,s,n\n")
+    assert A.load_seeds(conn, seeds)["retracted"] == 0
+    assert _row(conn, "prevalence", 1)["value"] == 158850
+    conn.close()
+
+
+def test_every_correction_is_in_the_ledger(tmp_path):
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,therapy_mode,,,marketed,,s,n\n" +
+                 "PFE,Tukysa,,US,base,other_costs_pct,,-0.0017,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,therapy_mode,,,marketed,,s,n\n")
+    assert A.load_seeds(conn, seeds)["retracted"] == 1
+    last = conn.execute("SELECT op, reason FROM assumption_edits WHERE key = "
+                        "'other_costs_pct' ORDER BY id DESC LIMIT 1").fetchone()
+    assert (last["op"], last["reason"]) == ("delete", "seed_correction")
+    conn.close()
+
+
+def test_a_blank_cell_is_the_same_as_no_value():
+    """The CSV hands back "" for a blank note and the table holds NULL. Treating those
+    as different flagged fifteen untouched rows on the first dry run."""
+    assert A._same("", None) and A._same(None, "  ") and A._same(1, 1.0)
+    assert not A._same("x", None) and not A._same(0.0, 0.0017)
+
+
+def test_an_asset_no_file_resolves_to_is_left_whole(tmp_path):
+    """The boundary, chosen on purpose. A file that resolves to nothing for an asset
+    reads the same whether its model was deliberately removed or its brand string simply
+    stopped matching after a rename or a fold, and only one of those should empty the
+    asset. So an asset no file covers keeps its rows, and removing a model is done in
+    the terminal, where it is a decision with a reason."""
+    conn, seeds = _seed_book(tmp_path)
+    f = seeds / "pfe_tukysa.csv"
+    f.write_text(_SEED_HEADER + "PFE,Tukysa,,US,base,other_costs_pct,,-0.0017,,,s,n\n")
+    A.load_seeds(conn, seeds)
+    f.write_text(_SEED_HEADER)
+    assert A.load_seeds(conn, seeds)["retracted"] == 0
+    assert _row(conn, "other_costs_pct")["value"] == -0.0017
+    conn.close()

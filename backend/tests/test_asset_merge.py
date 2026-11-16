@@ -749,3 +749,73 @@ def test_a_single_brand_application_is_looked_up_the_way_it_always_was(tmp_path)
     assert assets_util.upsert_asset(conn, company, "NDA2", "Zithromax", "Azithromycin",
                                     "small molecule", brand_key=False) == keep
     conn.close()
+
+
+# --- an alias folds its own product, never another one on the same application ---
+
+def _semaglutide_book(tmp_path):
+    """The state the nightly run restores: Ozempic on its own NDA, and the merge's alias
+    recording that NDA213051 - oral Ozempic's application - belongs to it."""
+    path, conn = _seed(tmp_path)
+    ozempic = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                     code="NDA209637")
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('NDA213051', ?, 'absorbed by merge')", (ozempic,))
+    conn.commit()
+    return path, conn, ozempic
+
+
+def test_the_alias_does_not_fold_a_second_brand_on_its_application(tmp_path):
+    """The loop that kept Rybelsus out of the published book. NDA213051 carries oral
+    Ozempic and Rybelsus. The fetcher now creates Rybelsus as its own asset, but the
+    alias the merge wrote for oral Ozempic matched Rybelsus's application number and
+    folded it straight back in, every night. Deleting the alias by hand fixed one laptop
+    and not the database the nightly run restores."""
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    rybelsus = _asset(conn, "LLY", brand="Rybelsus", generic="Semaglutide", marketed=1,
+                      code="NDA213051")
+    conn.commit()
+    assert all(loser != rybelsus for loser, _ in asset_merge.find_alias_duplicates(conn))
+    conn.close()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (rybelsus,)).fetchone()[0] == "Rybelsus"
+    conn.close()
+
+
+def test_the_alias_still_folds_its_own_product(tmp_path):
+    """What the alias is for, and what must keep working: a row of the same product
+    carrying the absorbed number folds into it."""
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    oral = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                  code="NDA213051")
+    conn.commit()
+    assert (oral, ozempic) in asset_merge.find_alias_duplicates(conn)
+    conn.close()
+
+
+def test_the_brand_key_resolves_the_alias_only_for_its_own_family(tmp_path):
+    """So oral Ozempic lands on Ozempic instead of being created again each night, and
+    Rybelsus gets a row of its own instead of landing on Ozempic."""
+    import assets_util
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    assert assets_util.upsert_asset(conn, cid, "NDA213051", "Ozempic", "Semaglutide",
+                                    "small molecule", brand_key=True) == ozempic
+    rybelsus = assets_util.upsert_asset(conn, cid, "NDA213051", "Rybelsus",
+                                        "Semaglutide", "small molecule", brand_key=True)
+    assert rybelsus != ozempic
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (ozempic,)).fetchone()[0] == "Ozempic"
+    conn.close()
+
+
+def test_one_brand_family_rule_for_the_fetcher_and_the_merge():
+    """Pens are one product, Ozempic and Rybelsus are two, and an unbranded programme is
+    never a rival brand."""
+    import assets_util
+    same = assets_util.same_brand_family
+    assert same("ZEPBOUND", "ZEPBOUND KWIKPEN") and same("TOUJEO MAX SOLOSTAR", "TOUJEO SOLOSTAR")
+    assert same("ACTIVASE", "CATHFLO ACTIVASE") and same("Ozempic", None)
+    assert not same("OZEMPIC", "RYBELSUS") and not same("PROLIA", "XGEVA")

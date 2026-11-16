@@ -25,6 +25,7 @@ import urllib.request
 import db
 import acquired_sponsors
 import company_names
+import assets_util
 from assets_util import normalize_appl, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
 
@@ -236,13 +237,6 @@ def _iso(raw) -> str | None:
     return f"{raw[0:4]}-{raw[4:6]}-{raw[6:8]}" if raw and len(raw) == 8 else None
 
 
-def _brand_family(name: str) -> tuple:
-    """(the first word of a brand, the brand reduced to letters and digits)."""
-    text = re.sub(r"[^a-z0-9 ]+", " ", (name or "").lower())
-    words = text.split()
-    return (words[0] if words else ""), "".join(words)
-
-
 def _products_by_brand(products: list) -> dict:
     """{brand: [its products]} for one application, one entry per distinct product.
 
@@ -266,11 +260,8 @@ def _products_by_brand(products: list) -> dict:
     out: dict = {}
     for product in products or []:
         brand = (product.get("brand_name") or "").strip().upper()
-        first, flat = _brand_family(brand)
         for held in out:
-            kept_first, kept_flat = _brand_family(held)
-            if (first and first == kept_first) or (flat and kept_flat and (
-                    flat in kept_flat or kept_flat in flat)):
+            if assets_util.same_brand_family(held, brand):
                 out[held].append(product)
                 break
         else:

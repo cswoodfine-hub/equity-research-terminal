@@ -414,7 +414,8 @@ def find_alias_duplicates(conn) -> list[tuple]:
     pairs = []
     for row in conn.execute(
             """SELECT al.internal_code AS name, al.asset_id AS survivor_id,
-                      al.note AS note, a.owner_company_id AS company_id
+                      al.note AS note, a.owner_company_id AS company_id,
+                      a.brand_name AS survivor_brand
                  FROM asset_aliases al JOIN assets a ON a.id = al.asset_id"""):
         # A hand-written alias is matched as written. trial_mapping.aliases includes the
         # canonical spelling, which strips route and device words, and that is right for
@@ -431,6 +432,16 @@ def find_alias_duplicates(conn) -> list[tuple]:
                 "SELECT id, brand_name, generic_name, internal_code FROM assets"
                 " WHERE owner_company_id = ? AND id <> ?",
                 (row["company_id"], row["survivor_id"])):
+            # An absorbed alias is an application number the merge folded into one
+            # product. It says which applications make up THAT product, so it may fold a
+            # pen or a formulation of it, never a differently branded product that shares
+            # the application. NDA213051 carries oral Ozempic and Rybelsus together: the
+            # alias rightly sends oral Ozempic to Ozempic, and without this it also sent
+            # Rybelsus there every night, and Rybelsus's 22,093mm DKK line with it.
+            # A curated alias is an analyst's statement and is not second-guessed.
+            if not exact and not assets_util.same_brand_family(row["survivor_brand"],
+                                                                other["brand_name"]):
+                continue
             names: set = set()
             for field in ("brand_name", "generic_name", "internal_code"):
                 names |= (_exact_aliases(other[field]) if exact

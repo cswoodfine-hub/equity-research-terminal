@@ -243,6 +243,24 @@ _COLLABORATION_PHASES = ("PHASE3", "PHASE4")
 _COLLABORATION_MIN_ENROLMENT = 1000
 
 
+NOT_OUR_TRIALS_CSV = db.BACKEND_DIR.parent / "data" / "not_our_trials.csv"
+
+
+def not_our_trials(ticker: str, path=None) -> set:
+    """{nct_id} the analyst has said are not this company's programme, for one ticker."""
+    import csv as _csv
+    source = path or NOT_OUR_TRIALS_CSV
+    try:
+        with open(source, newline="", encoding="utf-8") as handle:
+            lines = [line for line in handle if not line.lstrip().startswith("#")]
+    except FileNotFoundError:
+        return set()
+    return {(r.get("nct_id") or "").strip().upper()
+            for r in _csv.DictReader(lines)
+            if (r.get("ticker") or "").strip().upper() == ticker.upper()
+            and (r.get("nct_id") or "").strip()}
+
+
 def _is_our_collaboration(study: dict, sponsor_norm: str, names: list, already) -> bool:
     """Whether a study somebody else leads belongs to this company's book.
 
@@ -367,6 +385,8 @@ class TrialsFetcher(BaseFetcher):
         if not names:
             return []
         wanted = trial_mapping.normalise(term)
+        excluded = not_our_trials(self.ticker)
+        already = set(already or ()) | excluded
         kept, page_token = [], None
         while True:
             params = {
@@ -487,6 +507,14 @@ class TrialsFetcher(BaseFetcher):
             company_id = self._company_id(conn)
             if company_id is None:
                 return RefreshResult(self.source, 0, [f"unknown ticker {self.ticker}"], False, 0)
+            # A study the analyst has said is not this company's leaves it on every fetch,
+            # not once, so the correction reaches the database the nightly run restores.
+            for nct_id in not_our_trials(self.ticker):
+                conn.execute("DELETE FROM trial_interventions WHERE nct_id = ?", (nct_id,))
+                conn.execute("DELETE FROM trials WHERE nct_id = ? AND sponsor_company_id = ?",
+                             (nct_id, company_id))
+            rows = [r for r in rows if (r.get("nct_id") or "").upper()
+                    not in not_our_trials(self.ticker)]
             for row in rows:
                 conn.execute(
                     """
