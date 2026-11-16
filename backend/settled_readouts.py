@@ -87,6 +87,9 @@ KINDS = {
     "outside_the_us":
         "a study run wholly outside the US for a claim the book does not value there, "
         "with no US pool or price to build one from",
+    "after_generic_entry":
+        "a study that reads out after generics of the molecule have launched in the US, "
+        "so a new claim earns nothing the forecast values",
     "not_pursued":
         "a programme the company has said it will continue only with a partner, with none "
         "announced and its study closed to enrolment",
