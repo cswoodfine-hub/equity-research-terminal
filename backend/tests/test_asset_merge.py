@@ -819,3 +819,11 @@ def test_one_brand_family_rule_for_the_fetcher_and_the_merge():
     assert same("ZEPBOUND", "ZEPBOUND KWIKPEN") and same("TOUJEO MAX SOLOSTAR", "TOUJEO SOLOSTAR")
     assert same("ACTIVASE", "CATHFLO ACTIVASE") and same("Ozempic", None)
     assert not same("OZEMPIC", "RYBELSUS") and not same("PROLIA", "XGEVA")
+
+
+def test_a_capsid_is_not_a_development_code():
+    """AAVAnc80 is Akouos's capsid, carried by AK-OTOF and AK-antiVEGF alike (Akouos FY2021
+    10-K 0001558370-22-004606), and reading it as a shared code folded the two programmes."""
+    import asset_merge
+    assert "AAVANC80" not in asset_merge.development_codes(
+        "AAVAnc80-hOTOF via Akouos Delivery Device")

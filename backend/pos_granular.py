@@ -697,9 +697,32 @@ def modelled_mesh(conn, asset_id: int, lead_indication: int | None = None) -> li
     if not ids:
         return []
     marks = ",".join("?" * len(ids))
-    return sorted(r[0] for r in conn.execute(
+    found = {r[0] for r in conn.execute(
         f"SELECT DISTINCT mesh_id FROM indications WHERE id IN ({marks})"
-        "   AND mesh_id IS NOT NULL", ids))
+        "   AND mesh_id IS NOT NULL", ids)}
+    # A paediatric row has no MeSH concept of its own where MeSH has none, so a valued
+    # paediatric indication matched no readout at all: QMF149's only valued row is
+    # paediatric asthma and its own study read as another indication. The adult
+    # descriptor data/paediatric_indications.csv records for the row stands in.
+    bare = {r[0] for r in conn.execute(
+        f"SELECT name FROM indications WHERE id IN ({marks}) AND mesh_id IS NULL", ids)}
+    if bare:
+        found |= _adult_mesh(asset_id, bare)
+    return sorted(found)
+
+
+def _adult_mesh(asset_id: int, terms: set) -> set:
+    """adult_mesh_id of the paediatric rows naming this asset under these terms."""
+    path = indication_mapping.PAEDIATRIC_CSV
+    if not pathlib.Path(path).exists():
+        return set()
+    wanted = {t.strip().lower() for t in terms}
+    out = set()
+    with open(path, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(l for l in handle if not l.lstrip().startswith("#")):
+            if (row.get("term") or "").strip().lower() in wanted and (row.get("adult_mesh_id") or "").strip():
+                out.add(row["adult_mesh_id"].strip())
+    return out
 
 
 # The keys of a _gather result that resolve() takes; the rest are for the gate views.

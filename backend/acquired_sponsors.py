@@ -69,6 +69,17 @@ _INDUSTRY_WORDS = {
 _PLACE_WORDS = {
     "massachusetts", "california", "texas", "boston", "cambridge", "london",
     "connecticut",
+    # 'AstraZeneca buys St. Louis vaccine startup Omniose' stored the city as the company
+    # bought, and every St. Louis University study came in under AstraZeneca.
+    "st", "saint", "louis",
+}
+# A headline that reports an offer, talks or a rumour reports no deal. 'AstraZeneca said
+# to offer $10B to acquire Rhythm, analysts whisper of a bidding war' was stored as an
+# acquisition and put Rhythm's own trials under AstraZeneca with no agreement filed.
+_RUMOUR_WORDS = {
+    "said", "offer", "offers", "offered", "bid", "bids", "talks", "considering",
+    "considers", "explores", "exploring", "weighs", "weighing", "whisper", "whispers",
+    "rumour", "rumor", "rumoured", "rumored", "mulls", "eyes", "approach", "approached",
 }
 _GENERIC_ALONE = _INDUSTRY_WORDS | _PLACE_WORDS
 
@@ -157,6 +168,9 @@ def _trusted(row, names) -> bool:
     that names this company as the buyer."""
     if row["accession"] or row["is_curated"]:
         return True
+    said = {w.lower().strip(",.;:'\"()") for w in (row["quote"] or "").split()}
+    if said & _RUMOUR_WORDS:
+        return False
     return names_acquirer(row["quote"], names, row["counterparty"])
 
 

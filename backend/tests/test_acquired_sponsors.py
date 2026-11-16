@@ -162,3 +162,16 @@ def test_a_misfiled_study_goes_to_its_buyer_or_to_no_one(tmp_path):
     assert [r["entity_key"] for r in snaps] == ["GPCR", "JNJ"]
     # Idempotent.
     assert acquired_sponsors.release(path, today=today) == {"moved": 0, "released": 0}
+
+
+
+def test_a_rumour_is_not_an_acquisition():
+    row = {"accession": None, "is_curated": 0, "counterparty": "Rhythm Pharmaceuticals",
+           "quote": "AstraZeneca said to offer $10B to acquire Rhythm, analysts whisper "
+                    "of a bidding war"}
+    assert not acquired_sponsors._trusted(row, {"astrazeneca"})
+
+
+def test_a_city_is_not_the_company_bought():
+    """'AstraZeneca buys St. Louis vaccine startup Omniose' stored 'St. Louis'."""
+    assert not acquired_sponsors._plausible("St. Louis")
