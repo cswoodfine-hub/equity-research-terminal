@@ -1,3 +1,8 @@
-DISCOVERY_ANTHROPIC_API_KEY: not set in this environment
-5. ANTHROPIC_BASE_URL: https://api.anthropic.com
-6. models.list(limit=1): not attempted, no value to send
+the key was refused by the API
+
+DISCOVERY_ANTHROPIC_API_KEY: set
+length: 104
+prefix after stripping whitespace and quotes: none of those
+surrounding whitespace in raw value: no
+newline in raw value: no
+quote characters in raw value: no
