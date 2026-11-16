@@ -235,6 +235,10 @@ def _phase_counts(rows: list[dict]) -> dict:
 # Vincristine, so an academic chemotherapy de-escalation study matches them. The cure is
 # data/not_a_programme.csv, which exists for exactly that and is applied where a study is
 # turned into a programme rather than here.
+# Intersected with the study's phases rather than compared, so a Phase 2/3 study
+# qualifies on the PHASE3 half of its label. That is the book's own reading elsewhere:
+# forecast_view._LAYER_GATE_PHASES already treats "Phase 2/3" as a Phase 3 gate. One
+# study came in this way on the first full fetch, GBM AGILE at 2,250 participants.
 _COLLABORATION_PHASES = ("PHASE3", "PHASE4")
 _COLLABORATION_MIN_ENROLMENT = 1000
 

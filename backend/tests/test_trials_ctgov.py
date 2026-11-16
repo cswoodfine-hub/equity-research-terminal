@@ -148,3 +148,14 @@ def test_a_study_with_no_design_block_is_refused_rather_than_assumed():
     bare = _study()
     del bare["protocolSection"]["designModule"]
     assert _is_our_collaboration(bare, _NOVARTIS, _NVS_ASSETS, set()) is False
+
+
+def test_a_phase_two_three_study_qualifies_on_its_phase_three_half():
+    """The registry files an adaptive late-stage study as both, and the book reads that
+    as a Phase 3 gate elsewhere (forecast_view._LAYER_GATE_PHASES). Recorded because
+    the rule says "Phase 3 or 4" and this is the case where that is not a string
+    comparison."""
+    both = _study(phases=("PHASE2", "PHASE3"), enrollment=2250)
+    assert _is_our_collaboration(both, _NOVARTIS, _NVS_ASSETS, set()) is True
+    only_two = _study(phases=("PHASE2",), enrollment=2250)
+    assert _is_our_collaboration(only_two, _NOVARTIS, _NVS_ASSETS, set()) is False

@@ -464,6 +464,29 @@ def load_overrides(conn, path=None) -> int:
     return written
 
 
+def drugs_before_placebos(norms: list[str]) -> list[str]:
+    """The intervention names to try, with any that mention a placebo tried last.
+
+    A placebo is named after the drug it is matched against, so "Letrozole-matching
+    placebo" reads to the matcher as letrozole. Where the study drug is something else
+    that binds the trial to the wrong asset: NCT07085767 gives palazestrant with
+    ribociclib, lists a letrozole-matching placebo among its five interventions, and
+    landed on Femara rather than Kisqali. Nobody is being given letrozole in it.
+
+    Ordering rather than filtering, because the placebo is sometimes the only name there
+    is and dropping it would lose the trial. AstraZeneca's NCT06307652 writes every one
+    of its three interventions as a compound, "balcinrenone/dapagliflozin 15 mg/10 mg and
+    matching placebo for dapagliflozin 10 mg", which names the study drug and its placebo
+    in one string. Deprioritised, that trial still matches on the same string it always
+    did; filtered, it would match nothing.
+
+    Measured before it was changed: of 3,234 mapped trials two are affected, and the
+    other is the one this is for. Pure, so the rule is testable without a database.
+    """
+    plain = [n for n in norms if "placebo" not in (n or "")]
+    return plain + [n for n in norms if "placebo" in (n or "")]
+
+
 def map_trials(db_path=None) -> dict:
     """Bind every unmapped trial to an asset where its intervention names one.
 
@@ -503,7 +526,8 @@ def map_trials(db_path=None) -> dict:
             names = names_by_company[cid]
             asset_id = next(
                 (a for a in (match_intervention(n, names)
-                             for n in (row["norms"] or "").split("||")) if a), None)
+                             for n in drugs_before_placebos(
+                                 (row["norms"] or "").split("||"))) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
@@ -529,7 +553,8 @@ def map_trials(db_path=None) -> dict:
                 names_by_company[cid] = _asset_names(conn, cid)
             asset_id = next(
                 (a for a in (match_intervention(n, names_by_company[cid])
-                             for n in (row["norms"] or "").split("||")) if a), None)
+                             for n in drugs_before_placebos(
+                                 (row["norms"] or "").split("||"))) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
