@@ -20,12 +20,13 @@ import zipfile
 import db
 import ira
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "cms_mfp"
 ENTITY_KEY = "negotiated_prices"
 TTL_SECONDS = 7 * 24 * 60 * 60
 _TIMEOUT_S = 120
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 URL = ("https://www.cms.gov/files/zip/"
        "selected-drug-list-negotiated-prices-also-known-maximum-fair-prices-statutezip.zip")
 

@@ -14,12 +14,13 @@ import urllib.request
 import db
 import fx
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "fx"
 ENTITY_KEY = "ecb"
 TTL_SECONDS = 12 * 60 * 60          # the daily set changes at most once a day
 ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 
 

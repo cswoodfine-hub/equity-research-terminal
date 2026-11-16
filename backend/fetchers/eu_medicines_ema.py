@@ -22,6 +22,7 @@ import urllib.request
 
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "eu_medicines"
 ENTITY_KEY = "ema_medicines"
@@ -29,7 +30,7 @@ TTL_SECONDS = 7 * 24 * 60 * 60
 
 MEDICINES_URL = ("https://www.ema.europa.eu/en/documents/report/"
                  "medicines-output-medicines_json-report_en.json")
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 120
 
 

@@ -19,6 +19,7 @@ import db
 import dose_route
 from assets_util import normalize_appl, resolve_alias, upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "exclusivities"
 OB_SOURCE = "orange_book"
@@ -26,7 +27,7 @@ ENTITY_KEY = "orange_book"
 TTL_SECONDS = 7 * 24 * 60 * 60
 
 ORANGE_BOOK_URL = "https://www.fda.gov/media/76860/download"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 120
 
 # ticker -> applicant-name substrings (uppercase). Curated to catch subsidiaries

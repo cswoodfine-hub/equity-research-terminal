@@ -38,13 +38,14 @@ import db
 from fetchers.approvals_openfda import (
     MANUFACTURER_MAP, SPONSOR_MAP, _distinctive_words)
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "ndc_marketing"
 TTL_SECONDS = 7 * 24 * 60 * 60          # a marketing register changes slowly
 NDC_URL = "https://api.fda.gov/drug/ndc.json"
 _LIMIT = 100
 _TIMEOUT_S = 40
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 
 # The divisions a drugmaker labels its products under. A vaccine is labelled by the
 # biologics arm, which is a different string from the parent: GSK's vaccines are

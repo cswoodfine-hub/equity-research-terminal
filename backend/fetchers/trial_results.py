@@ -33,6 +33,7 @@ import urllib.request
 import ctgov
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "trial_results"
 TTL_SECONDS = 24 * 60 * 60
@@ -45,7 +46,7 @@ SERIOUS_EVENTS_KEPT = 10
 LATE = ("Phase 2", "Phase 2/3", "Phase 3")
 _TIMEOUT_S = 90
 _POLITE_SLEEP_S = 0.3
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 
 FIELDS = "|".join((
     "protocolSection.identificationModule.nctId",

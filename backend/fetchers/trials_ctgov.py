@@ -35,6 +35,7 @@ import ctgov
 import db
 import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "trials"
 CTGOV_SOURCE = "clinicaltrials_v2"
@@ -78,7 +79,7 @@ FIELDS = [
     "protocolSection.designModule.designInfo",
 ]
 PAGE_SIZE = 1000
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 _TIMEOUT_S = 60
 _PAGE_SLEEP_S = 0.2
 

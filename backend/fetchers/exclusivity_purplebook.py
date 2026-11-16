@@ -18,6 +18,7 @@ import urllib.request
 import db
 from assets_util import upsert_asset
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "exclusivities"
 PB_SOURCE = "purple_book"
@@ -25,7 +26,7 @@ ENTITY_KEY = "purple_book"
 TTL_SECONDS = 7 * 24 * 60 * 60
 
 DOWNLOADS_PAGE = "https://purplebooksearch.fda.gov/downloads"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 90
 # Each file is one month's changes, so merge several recent months for coverage.
 _MONTHS_TO_MERGE = 6

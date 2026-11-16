@@ -18,11 +18,12 @@ import urllib.request
 import db
 import rssfeed
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "regulatory_news"
 ENTITY_KEY = "fda"
 TTL_SECONDS = 12 * 60 * 60
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 
 FEEDS = {

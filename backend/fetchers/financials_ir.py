@@ -37,10 +37,11 @@ import bayer
 import db
 import roche
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "financials_ir"
 TTL_SECONDS = 24 * 60 * 60          # the workbook moves with the results calendar
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 120
 
 # What each company publishes, and the module that reads it. A company absent here has

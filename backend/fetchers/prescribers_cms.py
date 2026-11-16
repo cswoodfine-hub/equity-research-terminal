@@ -47,6 +47,7 @@ import cms
 import cms_catalogue
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "partd_prescribers"
 ENTITY_KEY = "partd_prescribers"
@@ -64,7 +65,7 @@ _SLEEP_S = 0.2
 _TIMEOUT_S = 150
 _ATTEMPTS = 3
 _GIVE_UP_AFTER = 3                      # consecutive failed pulls: the source is down
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _GEOGRAPHY_COLUMNS = ("Brnd_Name,Gnrc_Name,Tot_Prscrbrs,Tot_Clms,Tot_30day_Fills,"
                       "Tot_Drug_Cst,Tot_Benes,GE65_Tot_Benes")
 # The ingredient is read and matched here rather than filtered on: the API answers a

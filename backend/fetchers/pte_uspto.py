@@ -17,11 +17,12 @@ import urllib.request
 import db
 import pte
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "pte"
 ENTITY_KEY = "uspto"
 TTL_SECONDS = 7 * 24 * 60 * 60
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 60
 
 

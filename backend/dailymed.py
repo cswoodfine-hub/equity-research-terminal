@@ -21,11 +21,12 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 import llm
+import contact
 
 _BASE = "https://dailymed.nlm.nih.gov/dailymed/services/v2"
 _HL7 = "urn:hl7-org:v3"
 INDICATIONS_LOINC = "34067-9"          # Indications and usage section
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 
 

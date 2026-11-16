@@ -50,6 +50,7 @@ import urllib.request
 import db
 import press_releases
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "press_ir"
 TTL_SECONDS = 6 * 60 * 60
@@ -68,9 +69,10 @@ STALE_FEED_DAYS = 90
 # seconds and times out with it in. From is where HTTP puts a contact anyway.
 USER_AGENT = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
               " (KHTML, like Gecko) NovatalisResearch/0.1")
-CONTACT = "cswoodfine@icloud.com"
-HEADERS = {"User-Agent": USER_AGENT, "From": CONTACT,
-           "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"}
+CONTACT = contact.address()
+HEADERS = {"User-Agent": USER_AGENT,
+           "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
+           **({"From": CONTACT} if CONTACT else {})}
 
 
 # What a bot-protection interstitial looks like. Cloudflare serves a 403 whose body is

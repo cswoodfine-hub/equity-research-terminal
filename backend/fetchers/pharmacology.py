@@ -35,6 +35,7 @@ import urllib.request
 
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "pharmacology"
 TTL_SECONDS = 7 * 24 * 60 * 60     # mechanisms change on a curator's schedule, not daily
@@ -43,7 +44,7 @@ CHEMBL = "https://www.ebi.ac.uk/chembl/api/data"
 OPENFDA_LABEL = "https://api.fda.gov/drug/label.json"
 _TIMEOUT_S = 60
 _POLITE_SLEEP_S = 0.1
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 
 LATE = ("Phase 2", "Phase 2/3", "Phase 3")
 BOXED_MAX = 1500                   # a boxed warning is read, not archived
