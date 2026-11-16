@@ -3,7 +3,9 @@
 # Its sales sit inside Johnson & Johnson's Other Immunology line and are not broken out,
 # so it is built from patients and solved to GlobalData's 2031 forecast.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 JNJ,Imaavy,,US,base,therapy_mode,,,chronic,,"approved and selling, built from patients","Johnson & Johnson does not report its sales on a line of its own, so there is no revenue to anchor on and the forecast is built from patients"
 JNJ,Imaavy,,US,base,forecast_start_year,,2027,,year,"the first full year after the 2026 run of launches: generalized myasthenia gravis from April 2025, warm autoimmune hemolytic anemia from August 2026","2026, its launch year, is left out, as it is for every launch anchored on a run rate"

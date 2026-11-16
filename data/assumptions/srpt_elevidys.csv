@@ -7,7 +7,9 @@
 # loss Sarepta makes supplying Roche, came to nil in FY2025 and the first half of 2026 and is not modelled.
 # Costs are Sarepta's filed lines for the first half of 2026, cost of sales the residual after the PMO products.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 SRPT,ELEVIDYS,,US,base,therapy_mode,,,marketed,,"approved and selling: traditional approval for ambulatory patients at least four years old; the non-ambulatory indication was removed in November 2025 with a boxed warning for acute liver injury and failure (10-Q 0001193125-26-335003, Note 1)","a one-time infusion, but no patient funnel is rebuilt: the filer prints the revenue and not the patients treated or the net price, so a one_time build would rest on two numbers no source gives"
 SRPT,ELEVIDYS,,US,base,base_revenue,,898.731,,mm USD,"Sarepta FY2025 10-K (10-K 0001193125-26-084144), Note 7 net product revenues: ELEVIDYS, United States, $898,731 thousand, all of it US","Roche sells ELEVIDYS outside the US and pays Sarepta a royalty, which this US product line does not carry"

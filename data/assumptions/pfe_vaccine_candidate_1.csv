@@ -6,7 +6,9 @@
 # base. indication_layer will say so, naming the company keys it lacks, which is
 # the honest state: the epidemiology is done and the model is not.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PFE,Vaccine Candidate #1,"Influenza, Human",US,base,prevalence,,110000000,,patients,"copied verbatim from the pool the book already holds for this descriptor, which mrk_cd388_injection.csv and gsk_mrna_seasonal_flu.csv both carry: about 110 million people in the US at higher risk of influenza complications, about 85 million with high-risk conditions or immunocompromised and about 25 million aged 65 and over without other conditions (Merck's acquisition call, 17 November 2025; Cidara's Q3 2025 10-Q, 0001610618-25-000096)",one disease keeps one number
 PFE,Vaccine Candidate #1,"Influenza, Human",US,base,incidence,,110000000,,patients per year,stated equal to prevalence because the pool is an annual cohort: the same people are eligible again every season. The convention gsk_mrna_seasonal_flu.csv carries,

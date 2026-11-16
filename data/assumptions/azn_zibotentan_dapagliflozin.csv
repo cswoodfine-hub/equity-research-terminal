@@ -29,7 +29,9 @@
 # page gives a phase success benchmark, not a forecast.
 # Company-level rows copied from azn_balcinrenone_dapagliflozin.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AZN,Zibotentan/Dapagliflozin,,US,base,therapy_mode,,,chronic,,"NCT06087835 (ClinicalTrials.gov API v2, last updated 2026-08-19): a daily oral dose of zibotentan/dapagliflozin in fixed-dose combination, dose A or B by eGFR, against dapagliflozin, on change in eGFR at month 24",Daily maintenance therapy for a chronic disease
 AZN,Zibotentan/Dapagliflozin,,US,base,list_price_per_patient,,0.004839,,mm USD per patient-year,"Kerendia (finerenone), CMS Part D 2025, from the quarterly companion 4ff7c618-4e40-483a-b390-c8a58c94fa15, row '2025 (Q1-Q4)', manufacturer Overall: $589,416,424.45 over 121,794 beneficiaries = $4,839.45 a beneficiary (queried 2026-10-12). Not annualised. Kerendia is the closest comparator on disease and setting: the last medicine added on top of RAS and SGLT2 inhibition to slow CKD, bought under Part D, and the price azn_balcinrenone_dapagliflozin.csv and regn_aln_ang3.csv carry for the same prescribing decision","Judgement on the comparator: a comparator, not a price this product has. One brand price, not two, because it prices what zibotentan adds; the dapagliflozin is generic in the book from the 2029 start (see the file header). Case for higher: the sum of Kerendia and Farxiga ($4,727 a Part D beneficiary in 2025), $9,566, which would count the dapagliflozin twice; or an endothelin antagonist's rare-disease price, which Filspari and Vanrafia carry in IgA nephropathy but which a broad CKD label would not support. Kerendia's figure carries half a year of its heart failure label (NDA215341 supplement 9, 2025-07-11)"

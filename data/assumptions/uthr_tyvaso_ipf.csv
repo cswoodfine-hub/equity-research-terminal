@@ -4,7 +4,9 @@
 # registry name is 'Oral Treprostinil'. Uptake is built from patients and solved to a
 # published peak, the way Berobenatide's is.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 UTHR,Oral Treprostinil,,US,base,therapy_mode,,,chronic,,continuing inhaled therapy,"this asset carries United Therapeutics' inhaled treprostinil fibrosis trials (TETON-PPF NCT05943535 and its extension NCT04905693); its name is the trial registry's, and the forecast is nebulized Tyvaso in IPF"
 UTHR,Oral Treprostinil,,US,base,forecast_start_year,,2028,,year,the first full year after approval: the sNDA was accepted and 'United Therapeutics anticipates the agency's review to be complete in late April 2027' (release 2026-09-02),

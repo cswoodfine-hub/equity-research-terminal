@@ -11,7 +11,9 @@
 # and gross-to-net, discontinuation_pct, the forecast window and the growth
 # rows, and pos. Those are facts about this product and need their own sources.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,MK-7262,,US,base,beta,,0.47,,,"computed from 261 weekly returns vs S&P 500, 2021-08 to 2026-08, Blume-adjusted (0.67 raw + 0.33)","five-year weekly is the conventional window; the two-year one puts JNJ at -0.03, which is a real measurement and not a forward input"
 MRK,MK-7262,,US,base,cogs_pct,,0.252,,share of revenue,"MRK FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ

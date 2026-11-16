@@ -8,7 +8,9 @@
 # base. indication_layer will say so, naming the company keys it lacks, which is
 # the honest state: the epidemiology is done and the model is not.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Uplizna,"Lupus Erythematosus, Systemic",US,base,prevalence,,204295,,patients,"data/epidemiology.csv, 'Lupus Erythematosus, Systemic': CDC national lupus registries programme, the five state registries, age-standardised to the US population. Diagnosed, adults, roughly 90% female. The pool abbv_rinvoq.csv, rog_gazyva.csv, nvs_fabhalta.csv and azn_saphnelo.csv all carry",
 AMGN,Uplizna,"Lupus Erythematosus, Systemic",US,base,incidence,,14263,,patients a year,"data/epidemiology.csv, the same row",

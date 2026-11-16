@@ -19,7 +19,9 @@
 # Southampton TANGO patents at 2035 to 2036, before any extension, so the engine's 12-year default (2041 from a 2029
 # start) is kept: it sits inside the filed range. Biogen's remainder is carried in Biogen's book through partner_ticker.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 STOK,zorevunersen,,US,base,therapy_mode,,,chronic,,"Stoke FY2025 10-K (0001193125-26-108362): patients in the open-label extensions SWALLOWTAIL and LONGWING 'receive maintenance dosing of zorevunersen every 4 months (45mg)', after loading doses of 70 mg; EMPEROR (NCT06872125) gives it by lumbar puncture. A repeated intrathecal dose for life, Spinraza's shape",revenue is the treated stock at an annual price; discontinuation_pct carries who stops
 STOK,zorevunersen,,US,base,forecast_start_year,,2029,,year,"convention: the earliest Phase 3 primary completion plus two calendar years. EMPEROR (NCT06872125, n=170 on the registry, primary completion 2027-03, checked 2026-10-12) is the only Phase 3: 2027 + 2 = 2029. Stoke's Q2 2026 10-Q (0001193125-26-330557) guides a readout in the third quarter of 2027, a rolling NDA completed in the second half of 2027 and 'a potential U.S. commercial launch of zorevunersen in early 2028'","the company's own date is a year earlier. A complete NDA in late 2027 under priority review puts a decision in mid-2028, so 2029 is the first full year on sale on either reading"

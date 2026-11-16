@@ -13,7 +13,9 @@
 # rare_crysvita.csv explains; the spend Ultragenyx guides above them for the second half of 2026
 # and for 2027 is a claim in data/other_claims.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note,evidence
 RARE,Fayuvi,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), the shape of rare_genglycos.csv. UX111 is 'administered by a one-time IV infusion' (10-Q 0001193125-26-333233, MD&A)",chosen over one_time because one_time needs a cost of goods per patient and no Ultragenyx filing gives one; cost of sales rides as the comparator's share of revenue,
 RARE,Fayuvi,,US,base,discontinuation_pct,,1.0,,share stopping a year,"Fayuvi is given once: UX111 is 'administered by a one-time IV infusion' (10-Q 0001193125-26-333233, MD&A)",nobody carries into the next year,

@@ -21,7 +21,9 @@
 # alimatravir, so it cannot be split to this asset.
 # Company-level rows are Merck's own, verbatim from mrk_frespaciguat.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,MK-8527,,US,base,therapy_mode,,,chronic,,"NCT07044297 and NCT07071623 (ClinicalTrials.gov API v2, last updated 2026-09-18): 11 mg of MK-8527 once monthly for up to about 2 years. Merck's FY2025 10-K (0000310158-26-000063) describes it as an investigational once-monthly oral pill for HIV-1 pre-exposure prophylaxis","taken for as long as a person is at risk; people who stop leave the stock through discontinuation_pct"
 MRK,MK-8527,,US,base,list_price_per_patient,,0.017401,,mm USD per patient-year,"Descovy (emtricitabine/tenofovir alafenamide), CMS Part D 2025, quarterly companion 4ff7c618-4e40-483a-b390-c8a58c94fa15, row '2025 (Q1-Q4)', manufacturer Overall: $470,384,004.11 over 27,032 beneficiaries = $17,401.01 a beneficiary (queried 2026-10-12). Not annualised. Descovy is the branded oral PrEP tablet, dispensed through pharmacies as a monthly MK-8527 tablet would be","Judgement on the comparator: a comparator, not a price this product has. Descovy's Part D beneficiaries include people taking it as HIV treatment, which is the same tablet at the same price. Case for higher: Apretude, the long-acting PrEP injection, earned about £18,286 a US user (Q4 2025 US sales of £128m, 6-K 0001654954-26-000892, annualised over the 'around 28,000 people' GSK's FY2025 20-F counts in the US, 0001131399-26-000004), because it is bought under the medical benefit with smaller discounts; a monthly pill priced and contracted as a long-acting product could earn twice this. Case for lower: generic emtricitabine/tenofovir disoproxil fumarate is the most used PrEP in the US and costs a fraction of this"

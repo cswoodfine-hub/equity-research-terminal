@@ -17,7 +17,9 @@
 # Engine check on a copy of the book: US revenue $33.5mm in 2030, peak $182.0mm in 2037, about 13 patients in 2030 rising to
 # 59 in 2035; unrisked NPV $211.2mm, rNPV $96.2mm before the Regenxbio royalty.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 RCKT,RP-A501,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time, the method qure_amt_130.csv and ntla_lonvo_z.csv use. Q2 2026 10-Q (0001193125-26-342348): RP-A501 'consists of a recombinant adeno-associated serotype 9 (AAV9) capsid containing a full-length, wild-type version of the human LAMP2B transgene which is administered as a single intravenous (IV) infusion'",chosen over one_time because one_time needs a cost of goods per patient and no Rocket filing gives one
 RCKT,RP-A501,,US,base,discontinuation_pct,,1.0,,share stopping a year,"RP-A501 is given once (Q2 2026 10-Q, 0001193125-26-342348; NCT06092034)",nobody carries into the next year; the Phase 1 patients are followed for up to ten years after one dose

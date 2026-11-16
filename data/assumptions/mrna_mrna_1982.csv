@@ -6,7 +6,9 @@
 # base. indication_layer will say so, naming the company keys it lacks, which is
 # the honest state: the epidemiology is done and the model is not.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRNA,mRNA-1982,Lyme Disease,US,base,prevalence,,80000000,,people,"copied verbatim from the pool the book already holds for this descriptor, which pfe_vla15.csv carries: Valneva's H1 2026 results release (6-K 0001628280-26-056525), more than 80 million people in the United States are estimated to live in areas at elevated risk of Lyme disease","one disease keeps one number. It is an at-risk population, not a diagnosed count"
 MRNA,mRNA-1982,Lyme Disease,US,base,incidence,,487071,,people a year,"the same pool's inflow row, copied verbatim from pfe_vla15.csv: the net annual growth of the US resident population, 331,449,281 at the 2020 census to 340,110,988 on 1 July 2024, 0.609% a year compounded over 4.25 years, applied to the 80 million",
@@ -26,7 +28,9 @@ MRNA,mRNA-1982,Lyme Disease,US,base,ramp_steepness,,1.86,,logistic k,fitted with
 # because Moderna's own FY2025 lines leave a margin below nil). Price pair and erosion rows copied from pfe_vla15.csv,
 # the book's other Lyme vaccine. Built by a script that asserts every numeric key parses as a number.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 MRNA,mRNA-1982,,US,base,therapy_mode,,,chronic,,"a vaccination course billed once, run as chronic with every vaccinee leaving inside the year (discontinuation 1.0 below), which the engine builds exactly as a one-time course: the year's new vaccinees times the course price. The method rgnx_rgx_202.csv uses. NCT07561294 (mRNA-1982-P201, ClinicalTrials.gov API v2, read 2026-11-16) gives mRNA-1982 or placebo by intramuscular injection in a dose-finding phase and a booster phase; Moderna's FY2025 10-K (0001682852-26-000033) reports that its Phase 1/2 gave 'three injections of mRNA-1975/1982'","chosen over one_time because one_time charges cost of goods only through cogs_per_patient, and no Moderna filing gives a cost per course; cost of sales rides as the company share of revenue below. The registry does not state the Phase 2 dose count, so the schedule a label would carry is unknown"
 MRNA,mRNA-1982,,US,base,discontinuation_pct,,1.0,,share of the treated stock stopping per year,"a vaccination course, not a maintenance therapy: NCT07561294 tests a primary series and a booster (registry, read 2026-11-16), and no Moderna filing states a revaccination interval","nobody carries into the next year, so the treated stock is each year's new vaccinees and revenue is starts times the course price. A booster interval, if one is set, adds revenue this leaves out"
 MRNA,mRNA-1982,,US,base,list_price_per_patient,,0.001192,,mm USD per course,"copied verbatim in value from pfe_vla15.csv, the book's other Lyme vaccine, so the two claimants on one Lyme pool carry one price: four doses at TicoVac's CMS Part D 2024 price of $298.05 a claim ($105,806 over 355 claims, drug_demand), $1,192 a course. TicoVac is Pfizer's tick-borne encephalitis vaccine, a protein vaccine given as a multi-dose primary series to people exposed outdoors","a comparator, not a price mRNA-1982 has, priced per course rather than per dose because mRNA-1982's dose count is not public: a second entrant priced at parity with the first course. Case for lower: Moderna's own single-dose mRESVIA cost $306.91 a Part D beneficiary in 2024 (mrna_mrna_1403.csv), so a schedule of fewer than four doses priced per dose would land lower. Paired with the gross-to-net row below, which is the pair pfe_vla15.csv carries; do not pair this list with the mRESVIA discount"

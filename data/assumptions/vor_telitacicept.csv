@@ -13,7 +13,9 @@
 # is a ceiling on that count). Generalized MG is the most crowded rare-disease market in the book (C5, FcRn, cemdisiran, Fabhalta, Rhapsido),
 # and pool crowding scales this layer against them.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VOR,Telitacicept,,US,base,therapy_mode,,,chronic,,registry: NCT06456580 gives telitacicept by subcutaneous injection in a placebo-controlled period with an open-label extension (completion 2029-01); Vor describes it as a weekly subcutaneous fusion protein for B cell-mediated autoimmune disease (Vor Q2 2026 10-Q (0001193125-26-343607)),a repeated injection for as long as it works; discontinuation_pct carries who stops
 VOR,Telitacicept,,US,base,list_price_per_patient,,0.251443,,mm USD per patient-year,"analogue: Vyvgart (efgartigimod), the first FcRn blocker in gMG and the class incumbent, CMS Medicare Part B 2025, quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)', HCPCS J9332: $452,094,139.60 over 1,798 beneficiaries = $251,442.79 a beneficiary, as regn_pozelimab_cemdisiran.csv reads the same row. Not annualised","a comparator, not a price Vor has set. Case for higher: Zilbrysq, the self-injected C5 inhibitor in gMG, reads $317,453.40 a beneficiary (CMS Part D 2025, the pozelimab seed's note), and Ultomiris $354,417.07. Case for far lower: Benlysta, the BLyS antibody given the same way, weekly by subcutaneous injection, cost Medicare Part D $216,806,703.67 over 5,831 beneficiaries in 2024 (drug_demand, 'Benlysta*'), $37,181 each, the price of the mechanism in lupus. A gMG label is priced against the gMG market, so the incumbent is taken"

@@ -17,7 +17,9 @@
 # price is from. Replace with Axsome's own once its SG&A falls below about 60% of revenue, or when the book writes an Axsome
 # company half (held/HELD.md, Sunosi). Beta and debt weight are Axsome's own.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AXSM,AXS-14 (Esreboxetine),,US,base,therapy_mode,,,chronic,,"Axsome FY2025 10-K (0001193125-26-064267): AXS-14 is an oral NRI 'being developed for the management of fibromyalgia', and FORWARD (NCT07398417) randomises responders to continue or withdraw, a design for a medicine taken continuously",a daily oral medicine taken while it works; discontinuation_pct carries who stops
 AXSM,AXS-14 (Esreboxetine),,US,base,list_price_per_patient,,0.003572,,mm USD per patient-year,"analogue: Savella (milnacipran), CMS Medicare Part D 2024 (drug_demand): $59,322,983.07 over 16,606 beneficiaries = $3,572.38 a beneficiary. Savella is the branded medicine approved for fibromyalgia alone and the closest in mechanism, a reuptake inhibitor weighted to norepinephrine. Axsome reports in USD (companies table)","a comparator, not a price Axsome has stated. Axsome's own CNS brands sell above it: Sunosi's Part D 2024 figure is $21,025,661 over 4,007, $5,247 a beneficiary (asset dossier), which is the case for higher"

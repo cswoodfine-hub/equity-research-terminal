@@ -23,7 +23,9 @@
 # the 14-year small-molecule default from launch (2040); the latest substance patent then sets 2042-01-24 with no
 # term extension taken.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 RVMD,Rasonque,,US,base,therapy_mode,,,chronic,,"label (NDA 220910): 'The recommended dosage of RASONQUE is 300 mg orally once daily until disease progression or unacceptable toxicity', and 52% of patients in RASolute 302 were on it 6 months or longer (section 6.1)","a daily pill taken to progression, built from patients because no sales are filed yet. Each patient is billed one course, priced at the measured mean months on drug (the price row), with the whole of the stock stopping each year (the discontinuation row)"
 RVMD,Rasonque,,US,base,discontinuation_pct,,1.0,,share of treated stock stopping per year,"convention, so the price row's course is billed once: the engine carries a treated stock a whole year at a time, stock(t) = stock(t-1) x (1 - discontinuation) + new(t), so every start is billed a full year of the annual price in the year it starts. At the label's own stopping rate, 1 - 0.52^2 = 72.96% a year (section 6.1: 52% exposed for 6 months or longer), that carries each patient for 1 / 0.7296 = 1.37 years against the 9.2 months measured, 79% more revenue per patient than the drug earns. At 1.0 the stock is the year's starts and each is billed the course","the course is billed in the year the patient starts, which pulls about a quarter of each course one year early; the cost rows scale with revenue, so the loss of exclusivity erodes them with it"

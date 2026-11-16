@@ -16,7 +16,7 @@
 # so the engine draws data/curve_defaults.csv's placeholder and labels it. No published peak forecast
 # and no fitted launch exists for this product to anchor either number.
 #
-# Draft, not loaded. Seeds are insert-only.
+# Draft, not loaded.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ARCT,ARCT-810,,US,base,therapy_mode,,,chronic,,Arcturus FY2025 10-K (0001193125-26-088391): the European Phase 2 randomised participants 'to receive six doses of ARCT-810 or placebo administered every 14 days' and in the US study 'each participant is expected to receive five intravenous infusions administered over two months' (NCT06488313),"a repeated infusion for as long as it works, so revenue is the stock on treatment and not the year's starts"
 ARCT,ARCT-810,,US,base,list_price_per_patient,,0.845247,,mm USD per patient-year,"analogue, in disease: Ravicti (glycerol phenylbutyrate), the nitrogen scavenger used in urea cycle disorders, CMS Medicare Part D 2024: $79,453,177.16 over 94 beneficiaries = $845,246.57 a beneficiary-year (the book's drug_demand table, from the CMS Part D Spending by Drug file)","a comparator, not a price Arcturus has set, and a low one: it is the price of managing the symptom. Case for higher: ARCT-810 restores ureagenesis rather than sequestering ammonia (FY2025 10-K), and the gene therapy in the same disease is priced in millions (data/assumptions/rare_dtx301.csv). Case for lower: scavengers would remain the comparator a payer argues from"

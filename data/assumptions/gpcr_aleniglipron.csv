@@ -14,7 +14,9 @@
 # stand in, as nams_obicetrapib.csv carries them, the developer of elecoglipron, the other oral small-molecule GLP-1 in this
 # pool. Beta and capital structure are Structure's own.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GPCR,Aleniglipron,,US,base,therapy_mode,,,chronic,,"Q2 2026 10-Q (0001104659-26-092057): ACCOMPLISH-1 and ACCOMPLISH-2 evaluate 'three maintenance doses of aleniglipron' (45 mg, 90 mg or 180 mg) after a 2.5 mg starting dose, a once-daily oral taken for chronic weight management",continuing therapy; discontinuation_pct carries who stops
 GPCR,Aleniglipron,,US,base,list_price_per_patient,,0.008839,,mm USD per year,"analogue, the price azn_elecoglipron.csv carries for the book's other oral small-molecule GLP-1, verbatim: incretin median in CMS Part D 2025 (Q1-Q4), quarterly file 4ff7c618-4e40-483a-b390-c8a58c94fa15: Ozempic $16,153,040,296.52 / 2,044,798 = $7,899.58, Mounjaro $14,076,460,356.19 / 1,592,517 = $8,839.13, Wegovy $1,026,459,977.45 / 108,843 = $9,430.65 a beneficiary; median Mounjaro. Zepbound is excluded, 2025 being its first Part D year through the sleep apnoea label","a comparator, not a price Structure has stated; every obesity claimant in the book prices on this one 2025 basis, so pool crowding compares like with like"

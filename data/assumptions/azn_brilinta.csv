@@ -3,7 +3,9 @@
 # Marketed, anchored on the reported year and grown against the same product axis a
 # year earlier, both from the SEC data sets.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AZN,Brilinta,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AZN,Brilinta,,US,base,base_revenue,,336.0,,mm USD,"a 2026 run rate: 9M 2026 product revenue $261mm plus a fourth quarter at Q3's $75mm (AstraZeneca 9M and Q3 2026 results, 6-K 0001654954-26-009256 (filed 2026-10-30), Table: product revenue by region); FY2025 was $823mm","the anchor, moved to 2026 on 2026-11-16 because the US and EU cliffs of 2025 (generic ticagrelor on US sale from 2025-05-01) are already in this revenue: anchored on FY2025, the engine charged the 2025 cliff a second time and put 2026 at $147mm against $261mm already reported for nine months"

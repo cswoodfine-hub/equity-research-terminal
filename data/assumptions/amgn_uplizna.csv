@@ -5,7 +5,9 @@
 # is read from its 10-K and 10-Q tables (data/product_revenue.csv). The US and European
 # dates are Amgen's own patent table.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 #
 # NO CEILING, searched 2026-11-16 (docs/research/fixes_2026-11-16/). The one published peak is
 # Horizon's: 'UPLIZNA peak global annual net sales of >$1B', across NMOSD, gMG and IgG4-RD

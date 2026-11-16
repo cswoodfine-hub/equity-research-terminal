@@ -21,7 +21,9 @@
 #
 # Ratios, discount rate and the other-costs charge are GSK's own, from gsk_zejula.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GSK,Exdensur,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 GSK,Exdensur,,US,base,base_revenue,,65.0,,mm GBP,"a 2026 run rate, not a reported year: the first half of 2026 as reported, 29mm GBP, and the second half at the second quarter's pace, 18mm GBP twice (29 + 18 x 2 = 65). GSK's Q2 2026 results (6-K 0001654954-26-006949, filed 2026-07-28), Specialty Medicines turnover table, Exdensur: Q2 2026 18mm GBP, year to date 29mm GBP; the regional table splits the half as US 19mm, Europe 2mm and International 8mm GBP. Q1 2026 was 11mm GBP (6-K 0001654954-26-004051, filed 2026-04-29). GSK reports no full year for this product: it was approved by the FDA in December 2025 and the FY2025 results name no turnover for it","GSK reports in pounds sterling. The figure is as filed, not converted. The second quarter is the pace taken because the first carried channel launch inventories in Japan and Germany, which GSK's Q1 2026 results state; a launch's second half is larger than its second quarter repeated, so this is a conservative anchor"

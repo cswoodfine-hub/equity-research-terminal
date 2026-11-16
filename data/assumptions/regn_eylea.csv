@@ -4,7 +4,9 @@
 # that is the Bayer collaboration line. Carried as a share of the pool it shares with
 # EYLEA HD, since its fall and HD's rise are largely the same patients moving.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 REGN,Eylea,,US,base,therapy_mode,,,franchise,,"EYLEA and EYLEA HD are one aflibercept franchise in the U.S.: patients move from the 2 mg to the 8 mg strength, which Regeneron's filings describe","the 2 mg strength, whose patients move to HD or to biosimilars"
 REGN,Eylea,,US,base,franchise_revenue,,4384.7,,mm USD,"Regeneron 10-K FY2025 (0000872589-26-000008) and 10-Qs: EYLEA HD U.S. net product sales 306.8, 393.2, 430.6 and 506.3 and EYLEA 736.0, 754.3, 680.6 and 576.9 in the four quarters of 2025, $1,636.9mm and $2,747.8mm, the one U.S. aflibercept pool the two strengths share","the pool, not either strength; each takes its share and keeps its own loss of exclusivity"

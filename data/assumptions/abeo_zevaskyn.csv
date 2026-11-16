@@ -35,7 +35,9 @@
 # Abeona's has been negative in every year on file (-76.3mm USD from operations in FY2025),
 # so the reconciliation cannot be struck. Absent, the engine reads it as nil.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ABEO,Zevaskyn,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 ABEO,Zevaskyn,,US,base,base_revenue,,47.082,,mm USD,"a 2026 run rate, not a reported year: the first nine months of 2026 as reported, 33,591 thousand, plus a fourth quarter at the third quarter's pace, 13,491 thousand, is 47,082 thousand (10-Q 0001493152-26-050738, for the quarter to 2026-09-30, filed 2026-11-09, 'Product revenue, net, resulting from the sale of ZEVASKYN, for the nine months ended September 30, 2026 was $33.6 million' and $13.5 million for the three months). The method is the one krys_vyjuvek.csv uses","FY2025 is not usable as the anchor. Zevaskyn was approved 2025-04-28 and Abeona 'recorded our first sale in December of 2025', so FY2025 product revenue was 2.4mm USD on one treatment. The 2026 run rate is also light by one treatment: revenue was not recognised for a third-quarter treatment because the batch failed an identity assay release criterion (8-K exhibit 99.1, 0001493152-26-050609, filed 2026-11-09)"

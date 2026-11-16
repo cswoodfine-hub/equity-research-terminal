@@ -5,7 +5,9 @@
 #
 # Written 2026-10-12 for the Phase 3 readout gates. Company-level rows copied from amgn_aranesp.csv. Method follows amgn_abp_206.csv (price, stopping, gross-to-net, price erosion, ex-US) and amgn_abp_692.csv (an even slice of a measured class path, fitted on the engine's own identity).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,ABP 234,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
 AMGN,ABP 234,,US,base,cogs_pct,,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",

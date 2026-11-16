@@ -1,7 +1,9 @@
 # CT Fluid Delivery (BAYN): injection systems for contrast imaging, mainly the Medrad Stellant family, which Bayer reports among its best-selling Pharmaceuticals products. A device, not a medicine.
 # Bayer is not an SEC registrant; every figure is from its Annual Report 2025 or Half-Year Financial Report 2026,
 # and the costs are the Pharmaceuticals segment's own (note [4], table B 4/2), not the group's, which carry crop science.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BAYN,CT Fluid Delivery,,US,base,therapy_mode,,,marketed,,approved and selling,
 BAYN,CT Fluid Delivery,,US,base,base_revenue,,583.0,,mm EUR,"Bayer Annual Report 2025, table A 2.2.2/5 'Best-selling Pharmaceuticals products' (reports.bayer.com/annual-report-2025): CT Fluid Delivery EUR 583mm in 2025, global sales. The fifteen products in the table sum to its total of 15,185mm, 85% of the Pharmaceuticals segment's 17,829mm",in euro because the engine models a company in its reporting currency and converts at the end

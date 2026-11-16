@@ -18,7 +18,9 @@
 # whether a combination of two licensed antibodies earns its own reference product exclusivity is not settled here).
 # Company half copied verbatim from jnj_tremfya.csv, so every J&J seed carries one company half.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 JNJ,JNJ-78934804,,US,base,therapy_mode,,,chronic,,"NCT07577843 and NCT07577856 (registry, read 2026-10-28): JNJ-78934804 'will be administered subcutaneously' through induction and maintenance to week 48 against guselkumab, in a disease with no end to treatment","maintained until it stops working, which discontinuation_pct carries"
 JNJ,JNJ-78934804,,US,base,list_price_per_patient,,0.057,,mm USD per patient-year,"reused from jnj_tremfya.csv: CMS Medicare Part D 2024 (drug_demand, brand 'Tremfya (2 presentations)'): $619,021,085.80 over 10,860 beneficiaries = $57,000.10 a beneficiary a year. J&J reports in USD (companies table). A JUDGEMENT on the analogue: Tremfya is the product it contains and is tested against","a comparator, not a price this product has. Case for higher: two antibodies in one product; Simponi alone is $50,372 a Part D beneficiary on the same 2024 file. Case for lower: J&J may price it to move Tremfya patients rather than to add a second list price. Replace with J&J's WAC on approval"

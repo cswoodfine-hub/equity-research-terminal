@@ -8,7 +8,9 @@
 # a pending catalyst; it prices nothing. The company half is Gilead's filed lines, as the cemacabtagene draft takes for
 # Allogene; every Caribou seed carries the same rows.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 CRBU,CB-011,,US,base,therapy_mode,,,marketed,,"filed: Caribou 8-K of 2026-10-06 (0001193125-26-415559): on 2026-10-02 the board 'approved a planned discontinuation of further development activities for its two allogeneic CAR-T cell therapy programs, vispa-cel ... and CB-011 for the treatment of r/r multiple myeloma', with costs 'to wind down the ANTLER phase 1 clinical trial and CaMMouflage phase 1 clinical trial' (NCT05722418)","carried at nil, the pattern the setrusumab seed uses for a stopped programme: a marketed build with no revenue, so the asset values at zero rather than refusing to build"
 CRBU,CB-011,,US,base,base_revenue,,0.0,,mm USD,"filed: Caribou 8-K of 2026-10-06 (0001193125-26-415559): on 2026-10-02 the board 'approved a planned discontinuation of further development activities for its two allogeneic CAR-T cell therapy programs, vispa-cel ... and CB-011 for the treatment of r/r multiple myeloma', with costs 'to wind down the ANTLER phase 1 clinical trial and CaMMouflage phase 1 clinical trial' (NCT05722418)",the asset sells nothing and its development is being wound down

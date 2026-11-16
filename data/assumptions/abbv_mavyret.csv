@@ -19,7 +19,9 @@
 # (2035-12-05 with its paediatric extension). RE48923, also flagged drug
 # substance, runs to 2035-05-08, and the product patent 11246866 to 2036-06-24.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ABBV,Mavyret,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 ABBV,Mavyret,,US,base,base_revenue,,1317.0,,mm USD,"AbbVie FY2025 10-K (0001551152-26-000008), MD&A net revenues table: Mavyret United States $635mm, International $682mm, total 1,317mm in FY2025 and 1,311mm in FY2024",the anchor

@@ -18,7 +18,9 @@
 # Merck's share of the islatravir and lenacapavir regimen, which the engine cannot net.
 # Company half copied verbatim from mrk_belsomra.csv, so every Merck seed carries one company half.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,ULO,,US,base,therapy_mode,,,chronic,,"NCT06891066 and NCT07266831 (registry, read 2026-10-28): islatravir 2 mg and ulonivirine 200 mg taken once a week for 96 weeks in place of daily Biktarvy, a complete regimen. Antiretroviral therapy is taken for life",patients who change regimen leave the stock through discontinuation_pct
 MRK,ULO,,US,base,list_price_per_patient,,0.027981,,mm USD per patient-year,"reused from mrk_idvynso.csv: Dovato's $27,981 a Medicare Part D beneficiary in 2024 ($541,076,552.50 over 19,337 beneficiaries, CMS Part D Spending by Drug 2024, dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b), ViiV's once-daily two-drug regimen for the same switch population. Merck reports in USD (companies table)","a comparator, not a price this product has. Taken because it is the price the book already puts on Merck's other two-drug switch regimen, so the two are comparable. Biktarvy, the trials' comparator, is $37,466 on the same file"

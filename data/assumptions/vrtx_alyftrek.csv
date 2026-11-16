@@ -7,7 +7,9 @@
 # ceiling stops the launch rate compounding past the franchise it is taking share of.
 # The open judgement is the share Alyftrek settles at and how fast Trikafta gives it up.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,Alyftrek,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
 VRTX,Alyftrek,,US,base,pos,,1.0,,,approved and selling; the phase ramp does not apply to a Phase 4 product,development risk is retired. Commercial risk lives in the growth rate

@@ -22,7 +22,9 @@
 # The three pools are different people with different diseases, so none is priced twice;
 # penetration in each is a judgement that says what replaces it.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AXSM,Sunosi,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AXSM,Sunosi,,US,base,base_revenue,,120.1,,mm USD,"AXSM FY2025 reported product sales, net, for Sunosi: $120,093 thousand. Axsome FY2025 10-K (0001193125-26-064267, filed 2026-02-23), Note 14 (Revenues) disaggregation table, row 'Sunosi'; the same figure in MD&A, 'SUNOSI net sales were $120.1 million and $90.3 million for the years ended December 31, 2025 and 2024'. Axsome sells Sunosi in the US and Canada and supplies Pharmanovia; the line is all product sales, not US only",the anchor. Excludes the $4.7mm 'Sunosi royalty and milestone revenue' row in the same table

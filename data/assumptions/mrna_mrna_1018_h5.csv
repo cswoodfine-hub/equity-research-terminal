@@ -15,7 +15,9 @@
 # company half. Its source text describes the Merck collaboration on mRNA-4157; it is carried here because Moderna's
 # own FY2025 lines leave a margin below nil (total operating expenses of $5,018mm on revenue of $1,944mm, an
 # operating loss of $3,074mm, 10-K 0001682852-26-000033) and Merck, a vaccine seller, is the comparator the book holds.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRNA,mRNA-1018-H5,,US,base,therapy_mode,,,one_time,,"NCT07496450: two doses of mRNA-1018-H5 or placebo, HAI titre and seroconversion at Day 43, three weeks after the second (registry, read 2026-10-28)",a two-dose course given once
 MRNA,mRNA-1018-H5,,US,base,forecast_start_year,,2029,,year,"the book's convention, the earliest Phase 3 primary completion plus two calendar years: NCT07496450 primary completion 2027-01-28, estimated (registry, read 2026-10-28), gives 2029","the year a licence could first sell, not a year of demand: outside a pandemic an H5 vaccine is bought for stockpiles by contract, and no contract is filed"

@@ -6,7 +6,9 @@
 # Exclusivity: the US composition of matter family, 2036 (data/disclosed_loe.csv), later than the BPCIA exclusivity the 20-F expects to run to December 2033. Outside the US every region follows that date: the same 20-F puts the family at 2037 in Europe and at a 2034 base expiry in many other countries, which bracket it, on 14.9% of FY2025 sales.
 # Adversary check 2026-10-12: only ARGX holds efgartigimod in the book (assets 6643 and 6644), and no branch carries an ARGX seed. Royalties argenx pays sit in cost of sales and Zai Lab's Greater China rights leave argenx's own supply sales in the line, so the whole reported line is argenx's.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ARGX,Vyvgart,,US,base,therapy_mode,,,marketed,,"approved and selling: VYVGART (BLA 761195) and VYVGART Hytrulo (BLA 761304), FY2025 20-F 0001697862-26-000032","no patient funnel is rebuilt for a product that files its own sales. A chronic antibody given in repeated cycles, so the revenue is a treated stock"
 ARGX,Vyvgart,,US,base,base_revenue,,4151.316,,mm USD,"ARGX FY2025 20-F 0001697862-26-000032, Note 16 Segment Reporting, product net sales by country of sales (thousands): United States $3,533,939, Japan 206,835, China 67,920, Rest of the World 342,622, Total product net sales $4,151,316","the anchor. One line for both presentations; China is commercial supply to Zai Lab, which argenx books as product net sales (Note 2.18)"

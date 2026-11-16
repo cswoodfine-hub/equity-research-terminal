@@ -18,6 +18,8 @@
 # it needs Gilead's share of a US co-promotion, which the filings describe but do not quantify for this programme. That
 # is the next build for this asset; this file says only that the lung readout prices nothing.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GILD,Quemliclustat,"Carcinoma, Non-Small-Cell Lung",US,base,pos,,0.0,,probability,"filed: Arcus Q1 2026 results (8-K exhibit 99.1, 0001724521-26-000032): 'In April 2026, Arcus announced the discontinuation of the Phase 3 STAR-121 study ... based on the recommendation from the Independent Data Monitoring Committee following its review of data from a pre-planned futility analysis ... STAR-121, along with the Phase 2 EDGE-Lung study, will be discontinued.' EDGE-Lung is NCT05676931, the readout this row carries (registry primary completion 2027-12, estimated)","programme stopped, not a failed quemliclustat result: every quemliclustat arm of EDGE-Lung pairs it with zimberelimab (arms A3, B1, B3, C1), whose NSCLC registration route ended with STAR-121, and no quemliclustat lung study is registered. Seed no pool. A new NSCLC Phase 3 would reopen it"

@@ -22,7 +22,7 @@
 # have no registrational trial behind them; sales outside the US, where nothing is filed; the MSKCC
 # and CIRM milestones, which the engine has no key for.
 #
-# Draft, not loaded. Seeds are insert-only.
+# Draft, not loaded.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 FATE,FT819,,US,base,therapy_mode,,,one_time,,Fate Q3 2026 10-Q (0001193125-26-448543): FT819 is an off-the-shelf CAR T cell given after conditioning; RECLAIM-LN (NCT07570862) is a single-arm trial whose primary outcome is complete renal response at week 26,"a single CAR T course, billed once; the engine counts each year's new patients as that year's revenue"
 FATE,FT819,,US,base,list_price_per_patient,,0.528239,,mm USD per course,"analogue: Breyanzi (lisocabtagene maraleucel, HCPCS Q2054), CMS Medicare Part B 2025: $134,172,609.84 over 254 beneficiaries = $528,238.62 a beneficiary, about one infusion each. The figure the book's two other autoimmune CAR-T seeds carry (nvs_rapcabtagene_autoleucel.csv, bmy_bms_986353.csv)","JUDGEMENT on the comparator: no autoimmune CAR T is priced yet, and this sits near the CAR-T end of the book's cell and gene therapy table rather than the gene therapy end, which is where an allogeneic cell therapy belongs. Case for less: an off-the-shelf product made in batches should cost less to make than an autologous one, and the addressable population is larger. Case for more: a one-time, potentially drug-free remission against years of biologics. Part B carries only outpatient administrations"

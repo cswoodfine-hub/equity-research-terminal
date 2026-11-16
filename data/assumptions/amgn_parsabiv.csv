@@ -23,7 +23,9 @@
 # would read as finished work. What would settle it: the CMS ASP file for J0606 with the
 # labelled weight-based paediatric dose, and the USRDS paediatric haemodialysis count.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Parsabiv,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Parsabiv,,US,base,base_revenue,,353.0,,mm USD,"Amgen FY2025 10-K (0000318154-26-000010), MD&A, Other products, product sales by geographic region (dollar amounts in millions): Parsabiv U.S. $192mm and Parsabiv ROW $161mm, 353mm in FY2025; $203mm and $153mm, 356mm, in FY2024; $228mm and $134mm, 362mm, in FY2023. The same 353 is the FY2025 Parsabiv row of the product sales table in Amgen's fourth-quarter release (8-K 0000318154-26-000003, exhibit 99.1: U.S. 192, ROW 161, total 353, prior year 356)","the anchor, worldwide, as the Kyprolis and Lumakras seeds take theirs"

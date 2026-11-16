@@ -5,7 +5,9 @@
 # 0.5, so until this file the other half sat in no book at all. Price, pool, uptake and the asset's cost
 # ratios are the collaboration's and are copied from the Merck file; the discount rate is Moderna's own.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRNA,mRNA-4157,,US,base,therapy_mode,,,chronic,,"a single adjuvant course, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine documents as the same revenue build as one_time: the year's new patients times the price of a course","chosen over one_time so cost of sales rides as Merck's filed share of revenue, which is eroded with revenue after LOE. One_time needs a per-patient cost of goods, which is not disclosed, and charges it on patient counts the erosion does not reduce, which turned the terminal value negative in the dry run"
 MRNA,mRNA-4157,,US,base,discontinuation_pct,,1.0,,share stopping a year,"intismeran 1 mg every three weeks for up to nine doses (INTerpath-001, as Merck and Moderna described it on 19 August 2026): the course ends within 24 weeks, so each patient is billed for one course",

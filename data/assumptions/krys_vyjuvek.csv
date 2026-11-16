@@ -7,7 +7,9 @@
 # quarters show rather than on the first half against a half that had no ex-US sales.
 # Krystal holds worldwide rights and pays no royalty, so economics_share is not needed.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 KRYS,Vyjuvek,,US,base,therapy_mode,,,marketed,,approved and selling,"no patient funnel is rebuilt for a product that files its own sales. Topical and redosable, so the revenue is a treated stock rather than one-time infusions: the casgevy one-time convention does not apply"
 KRYS,Vyjuvek,,US,base,base_revenue,,389.13,,mm USD,"KRYS FY2025 10-K (0001711279-26-000016, filed 2026-02-17), Note 13 segment table: Product revenues, net $389,130 thousand, all of it VYJUVEK (Note 3: Following FDA approval in May 2023, the Company began commercial marketing and sales of VYJUVEK)",the anchor. The 10-K prints no split by region for FY2025; the US was the whole of it until the German launch in August 2025

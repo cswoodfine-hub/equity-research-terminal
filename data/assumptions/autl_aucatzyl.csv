@@ -25,7 +25,9 @@
 # Layer, one pending readout: Lupus Nephritis, LUMINA (NCT07053800), 2028-08, Phase 2,
 # built on the book's autoimmune CAR-T conventions and the data/epidemiology.csv pool.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AUTL,Aucatzyl,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AUTL,Aucatzyl,,US,base,base_revenue,,143.8,,mm USD,"a 2026 run rate, not a reported year: the first half of 2026 as reported, $71.9mm, twice. Autolus 10-Q for the quarter to 2026-06-30 (0001730463-26-000123): 'net product revenue of $45.7 million for three months ended June 30, 2026 ... compared to $26.2 million for three months ending March 31, 2026' (Q1 10-Q 0001730463-26-000065). 71.9 x 2 = 143.8","the halves, not the second quarter's pace (Jaypirca's route), because the second quarter twice gives $163.3mm, above Autolus's own raised guidance of '$140 million to $150 million' for FY2026 (8-K 0001730463-26-000112, filed 2026-08-03); $143.8mm sits inside it. FY2025 was $74.3mm (10-K 0001730463-26-000038)"

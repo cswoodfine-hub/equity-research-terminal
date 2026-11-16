@@ -15,7 +15,9 @@
 #
 # Company-level rows copied from vrtx_inaxaplin.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,VX-670,,US,base,therapy_mode,,,chronic,,"GALILEO (NCT06185764) gives VX-670 as an intravenous solution in single and multiple ascending doses, and the open-label extension NCT06926621 studies its long-term use; Vertex's Q2 2026 release (8-K exhibit 99.1, 0000875320-26-000256) calls it an oligonucleotide linked to a cyclic peptide that targets the causal biology of DM1","a repeated infusion for as long as it works, like the oligonucleotides it resembles. The dosing interval is not public"
 VRTX,VX-670,,US,base,list_price_per_patient,,0.37,,mm USD per patient-year,"Skyclarys (omaveloxolone), the closest comparator: Reata set a wholesale acquisition cost of $370,000 a year at its FDA approval (Drug Discovery & Development, 'Reata sets $370,000 annual cost for new nerve disorder drug', 2023-03-03). Skyclarys is the first and only approved therapy for Friedreich ataxia (Biogen FY2025 10-K, 0000875045-26-000013), a rare inherited neuromuscular disease of adults, the position VX-670 would take in DM1, which has no approved treatment (Vertex FY2025 10-K, 0000875320-26-000056)","a comparator, not a price this product has. It is an oral, VX-670 an infusion. Biogen's April 2026 AWP of $40,823.41 per 90 capsules (Vermont disclosure, SKY-US-0202) implies the list has risen since. The uptake anchor below converts Skyclarys revenue to patients at this same net price, so the level cancels: what transfers is Skyclarys's US revenue per eligible patient, $69,022 a year"

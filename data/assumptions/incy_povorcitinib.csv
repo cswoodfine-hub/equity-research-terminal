@@ -18,7 +18,9 @@
 # filings planned for Q1 2027) and prurigo nodularis (Phase 3 data in Q4 2026), which the book carries no indication
 # row for on this asset; both would add value, so the asset is a floor on that count.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 INCY,Povorcitinib,,US,base,therapy_mode,,,chronic,,Q2 2026 10-Q (0000879169-26-000056): povorcitinib is 'an oral small molecule selective JAK1 inhibitor'; STOP-HS1 and STOP-HS2 dose 45 mg or 75 mg once daily,continuing therapy; discontinuation_pct carries who stops
 INCY,Povorcitinib,,US,base,list_price_per_patient,,0.0476726,,mm USD per patient-year,"analogue: Rinvoq (upadacitinib), the oral JAK1 inhibitor in the same dermatology and immunology clinics, verbatim from abbv_rinvoq.csv: CMS Medicare Part D Spending by Drug, 2024 data year (drug_demand, asset 191, part D): $1,385,459,851.40 over 29,062 beneficiaries = $47,672.56 a beneficiary a year. The series rises with price on the same two fields: $39,691 in 2022 and $45,572 in 2023. Scale check against list: AbbVie's own Pharmaceutical Product Wholesaler Acquisition Cost Price List, effective 10/26/2026 (e-abbvie.com), prices RINVOQ 15MG 30 DAY BOTTLE, NDC 00074-2306-30, at $7,090.41, so $236.35 a tablet and, at the label's one tablet once daily, a labelled year of 365 tablets is $86,266.66. The Part D file's own unit price is $218.06 a tablet, 8% under WAC","a comparator, not a price Incyte has stated. A per-beneficiary figure, paired with the stopping rate below measured on the same CMS row"

@@ -15,7 +15,9 @@
 # Engine check on a copy of the book: US revenue $28.3mm in 2031, peak $193.2mm in 2040, about 11 patients in 2031 rising to
 # 44 in 2035; unrisked NPV $187.7mm, rNPV $47.0mm.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 QURE,AMT-191,,US,base,therapy_mode,,,chronic,,"a single intravenous infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time, the method qure_amt_130.csv uses. FY2025 10-K (0001104659-26-021898): 'AMT-191 is comprised of an AAV5 capsid that incorporates the GLA transgene and a proprietary, highly potent, liver-specific promoter', with a patent family on 'the formulation of AMT-191 for intravenous infusion'",chosen over one_time because one_time needs a cost of goods per patient and no uniQure filing gives one
 QURE,AMT-191,,US,base,discontinuation_pct,,1.0,,share stopping a year,"AMT-191 is given once: the Phase I/II (NCT06270316) doses each patient at one of three dose levels and 'All 11 dosed patients were withdrawn from enzyme replacement therapy' (Q2 2026 10-Q, 0001104659-26-087815)","nobody carries into the next year. A patient whose enzyme falls back would return to ERT, which is not this product's revenue"

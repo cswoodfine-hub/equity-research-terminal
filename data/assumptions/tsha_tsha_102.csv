@@ -17,7 +17,9 @@
 # Company-level cost rows are Vertex's filed lines, the comparator qure_amt_130.csv and rckt_rp_a501.csv use;
 # Taysha has no product revenue to read.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 TSHA,TSHA-102,,US,base,cogs_pct,,0.1376,,share of revenue,"comparator: Vertex's FY2025 filed lines (10-K 0000875320-26-000056), the company-level rows vrtx_zimislecel.csv, capr_deramiocel.csv, qure_amt_130.csv and rckt_rp_a501.csv carry for a one-time cell or gene therapy, copied verbatim. Taysha has no product revenue, so no ratio of its own exists to read: revenue was nil in the second quarter of 2026 and there is no provision for income taxes 'because the Company has incurred operating losses ... and maintains a full valuation allowance' (10-Q 0001193125-26-344610)","a comparator, not a measurement. Vertex says Casgevy costs significantly more to make as a share of revenue than its CF medicines (same 10-K); an AAV vector made at scale may cost more than this"
 TSHA,TSHA-102,,US,base,sga_pct,,0.1461,,share of revenue,"comparator: Vertex's FY2025 filed lines (10-K 0000875320-26-000056), the company-level rows vrtx_zimislecel.csv, capr_deramiocel.csv, qure_amt_130.csv and rckt_rp_a501.csv carry for a one-time cell or gene therapy, copied verbatim. Taysha has no product revenue, so no ratio of its own exists to read: revenue was nil in the second quarter of 2026 and there is no provision for income taxes 'because the Company has incurred operating losses ... and maintains a full valuation allowance' (10-Q 0001193125-26-344610)","a comparator, not a measurement. A first launch through a small number of treatment centres carries more selling cost per dollar than Vertex's mature book"

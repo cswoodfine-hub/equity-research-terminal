@@ -13,7 +13,7 @@
 # so the engine draws data/curve_defaults.csv's placeholder and labels it. No published peak forecast
 # and no fitted launch exists for this product to anchor either number.
 #
-# Draft, not loaded. Seeds are insert-only.
+# Draft, not loaded.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ARCT,ARCT-032,,US,base,therapy_mode,,,chronic,,"Arcturus FY2025 10-K (0001193125-26-088391): ARCT-032 is inhaled daily, 'each participant in the Phase 2 CF study (NCT06747858) receiving daily treatments of ARCT-032 over a period of 28 days', and the fourth cohort takes 10 mg once daily over 12 weeks (Q3 2026 10-Q 0001193125-26-449901)","a therapy taken for as long as it works, so revenue is the stock on treatment and not the year's starts"
 ARCT,ARCT-032,,US,base,list_price_per_patient,,0.378786,,mm USD per patient-year,"analogue, in disease: Trikafta's US wholesale acquisition cost, Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0, $29,057.52 per 28-day supply x 365/28, as data/assumptions/vrtx_prices.csv carries it","a comparator, not a price Arcturus has set. Case for higher: ARCT-032's patients are the ones no modulator helps, which is the highest unmet need in the disease (FY2025 10-K). Case for lower: a nebulised daily mRNA has no precedent price and ARCT-032 would be added to, not substituted for, supportive care"

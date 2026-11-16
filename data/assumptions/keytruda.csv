@@ -12,8 +12,9 @@
 # marketed mode turns it into: revenue over price is a patient count to hold against a
 # registry.
 #
-# Seeds are insert-only. Editing a number here after it has loaded does nothing;
-# edit it in the terminal, where it lives.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,Keytruda,,US,base,therapy_mode,,,franchise,,"Keytruda and Keytruda Qlex are one pembrolizumab franchise: Merck reports them as one line in its 10-Q and as two rows in Table 3, and patients move from the intravenous form to the subcutaneous one","was marketed on Keytruda's own revenue, which grew while its patients moved to Keytruda Qlex; the pool keeps the two summing to what Merck reports, and each form keeps its own date"
 MRK,Keytruda,,US,base,franchise_revenue,,31681,,mm USD,"MRK Q1 2026 8-K exhibit Table 3 (0001104659-26-052081): Keytruda $31,641mm and Keytruda Qlex $40mm in FY2025, the one pool the intravenous and subcutaneous forms of pembrolizumab share. The FY2025 10-K MD&A prints $31,680mm for the combined line","the pool, not either form; each form takes its share of it and keeps its own loss of exclusivity"

@@ -37,7 +37,9 @@
 #
 # Readout: Angioedemas, Hereditary, 2026-12, NCT05392114. Overlap 1.0, the approved use.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 IONS,Dawnzera (Autoinjector),,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 IONS,Dawnzera (Autoinjector),,US,base,base_revenue,,95.55,,mm USD,"a 2026 run rate, not a reported year: the first half of 2026 as reported, $42,420 thousand, and the second half at the second quarter's pace, $26,565 thousand twice, $95,550 thousand. Ionis 10-Q for the quarter to 2026-06-30 (0000874015-26-000251), Note 4 Revenues, row 'DAWNZERA sales, net' (three months $26,565, six months $42,420). FY2025 was a four-month launch year, $7.8mm (10-K 0000874015-26-000115, MD&A revenue table), too short to anchor on","the anchor, US only: Otsuka holds Europe and Asia-Pacific and Ionis books no product sales there (10-Q Note on Otsuka). Conservative for a launch whose second quarter was 68% above its first"

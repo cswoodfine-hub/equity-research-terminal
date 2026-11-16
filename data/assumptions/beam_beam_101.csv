@@ -11,7 +11,9 @@
 # are financing. Company cost rows are Vertex's filed lines, the comparator ntla_lonvo_z.csv takes for an editing
 # company with no product revenue; every Beam seed carries the same company half.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BEAM,BEAM-101,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time: the year's new patients times the price. BEACON (NCT05456880) gives one infusion of risto-cel after mobilisation and busulfan conditioning (Q2 2026 10-Q 0001193125-26-331541)","chosen over one_time because one_time needs a cost of goods per patient and no Beam filing gives one; cost of sales rides as the comparator's share of revenue, the method of ntla_lonvo_z.csv"
 BEAM,BEAM-101,,US,base,discontinuation_pct,,1.0,,share stopping a year,risto-cel is given once: BEACON patients receive a single infusion after a median of one stem cell collection cycle (Q2 2026 10-Q 0001193125-26-331541),nobody carries into the next year

@@ -21,7 +21,9 @@
 # Not sourced: no independent Auvelity peak could be opened (fiercepharma.com,
 # biospace.com and globaldata.com refuse from this session).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AXSM,Auvelity,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AXSM,Auvelity,,US,base,base_revenue,,507.093,,mm USD,"AXSM FY2025 reported product sales, net, for Auvelity: $507,093 thousand. Axsome FY2025 10-K (0001193125-26-064267, filed 2026-02-23), revenues note, 'summary of total revenues by product', row 'Auvelity' (2024: $291,378 thousand; 2023: $130,072 thousand); the same figure in MD&A, 'AUVELITY U.S. net sales were $507.1 million and $291.4 million for the years ended December 31, 2025 and 2024'","the anchor. US only, Axsome's own sales; the $0.5mm regulatory milestone recorded for Auvelity in the first quarter of 2026 is not product revenue and is not in it"

@@ -25,7 +25,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Novartis's own, from nvs_fabhalta.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NVS,Rhapsido,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 NVS,Rhapsido,,US,base,base_revenue,,303.0,,mm USD,"a 2026 run rate, not a reported year: the first nine months of 2026 as reported, $202mm, and the fourth quarter at the third quarter's pace, $101mm. Novartis Q3 2026 interim financial report (6-K 0001114448-26-000014, exhibit 99.2 a261027-99_2.htm, filed 2026-10-27), Immunology net sales table: Rhapsido Q3 2026 USD 101m, 9M 2026 USD 202m. Q1 2026 USD 37m (6-K 0001114448-26-000010, exhibit 99.2) and Q2 2026 USD 64m (6-K 0001114448-26-000012, exhibit 99.2). Novartis has reported no full year past FY2025, the launch year, which was USD 19m (20-F 0001114448-26-000004)","the anchor, and a conservative one for a product still climbing, since a launch's fourth quarter is larger than its third repeated. Worldwide net sales; Novartis names no US-only figure"

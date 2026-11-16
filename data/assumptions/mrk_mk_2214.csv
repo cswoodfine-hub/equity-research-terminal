@@ -13,7 +13,9 @@
 # Pool rule as BMS-986446 states it: no untreated_carryover_pct, so the pool grows by the inflow with no exit, as
 # trontinemab's does. Company-level rows are Merck's own, verbatim from mrk_winrevair.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,MK-2214,,US,base,cogs_pct,,0.252,,share of revenue,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"
 MRK,MK-2214,,US,base,sga_pct,,0.1651,,share of revenue,"MRK FY2025 10-K, computed from the filed lines","Merck's own, as every Merck asset carries"

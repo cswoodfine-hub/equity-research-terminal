@@ -2,7 +2,9 @@
 # reported year and held flat on the filed first half. Exclusivity is the US patent on the
 # enzyme, March 2035. Cost rows as rare_dojolvi.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 RARE,Mepsevii,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 RARE,Mepsevii,,US,base,base_revenue,,37.0,,mm USD,"Ultragenyx FY2025 10-K 0001193125-26-057329, Note 6 Revenue: 'Mepsevii 37' (millions)","the anchor, for MPS VII, which affects 'an estimated 200 patients in the developed world' (10-K 0001193125-26-057329, Item 1)"

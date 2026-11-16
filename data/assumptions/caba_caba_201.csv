@@ -12,7 +12,9 @@
 #
 # Company half: Cabaletta has no product revenue, so the cost lines and tax rate are Bristol Myers Squibb's, copied verbatim
 # from bmy_bms_986353.csv, the owner of the price analogue. Beta and debt weight are Cabaletta's own.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 CABA,CABA-201,,US,base,therapy_mode,,,one_time,,"NCT06154252: a single intravenous infusion of CABA-201 after fludarabine and cyclophosphamide preconditioning (registry, read 2026-10-28); Cabaletta describes 'one-time administration' (Q2 2026 10-Q 0001759138-26-000039)","one infusion, not repeated. In one_time mode the engine charges cogs_per_patient per course, so one is supplied below"
 CABA,CABA-201,,US,base,list_price_per_patient,,0.528239,,mm USD per course (one infusion),"Breyanzi (lisocabtagene maraleucel, HCPCS Q2054), CMS Medicare Part B 2025, quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $134,172,609.84 over 254 beneficiaries = $528,238.62 per beneficiary, about one infusion each. The CAR-T price the book carries for its autoimmune CAR-T seeds (BMS-986353, rapcabtagene autoleucel)",JUDGEMENT on the comparator: no autoimmune CAR-T is priced yet. A lower cell dose and an outpatient option argue for less; a drug-free remission after one infusion against years of IVIg argues for more

@@ -6,7 +6,9 @@
 # myeloma as oncology, not as the study's haematology area, which is non-malignant blood
 # disease (data/pos_by_area.csv).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BMY,Mezigdomide,,US,base,therapy_mode,,,launch,,a phase 3 asset with a published peak and no reported revenue,
 BMY,Mezigdomide,,US,base,peak_revenue_musd,,1500.0,,mm USD,"IQVIA, Drugs to Watch 2026: sales of $1.5bn in 2031, reported by pharmaphorum on 10 March 2026","IQVIA forecasts the year rather than the peak, and this reads it as the peak"

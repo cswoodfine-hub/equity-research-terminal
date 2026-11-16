@@ -17,7 +17,9 @@
 # same treatment centres. Beta and debt weight are Allogene's own. Discontinuation is not stated: a one-time course is
 # billed once and the engine does not read it.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ALLO,cemacabtagene ansegedleucel,,US,base,therapy_mode,,,one_time,,"Allogene Q2 2026 10-Q (0001628280-26-056213): ALPHA3 gives cema-cel once after lymphodepletion, against observation, as consolidation after first-line therapy (NCT06500273)","a single CAR T course, billed once; the engine counts each year's new patients as that year's revenue"
 ALLO,cemacabtagene ansegedleucel,,US,base,list_price_per_patient,,0.459206,,mm USD per course,"analogue: Yescarta (axicabtagene ciloleucel), CMS Medicare Part B 2024 (drug_demand): $16,990,614.64 over 37 beneficiaries = $459,205.80 a beneficiary, one infusion each (55 claims). Yescarta is the anti-CD19 CAR T labelled in large B-cell lymphoma. Allogene reports in USD (companies table)","a comparator, not a price Allogene has stated. An off-the-shelf product may be priced below autologous CAR T, and a consolidation use in remission may be harder to price at a relapsed-disease level; 37 beneficiaries is a small sample, as most CAR T stays bill under Part A"

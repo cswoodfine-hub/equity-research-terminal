@@ -15,7 +15,9 @@
 # lines stand in, as bmy_bms_986353.csv carries them: BMS sells Breyanzi, the CD19 CAR-T whose price this file uses,
 # and makes it the way an autologous autoimmune CAR-T would be made. Beta and capital structure are Kyverna's own.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 KYTX,KYV-101,,US,base,therapy_mode,,,one_time,,"KYSA-6 (NCT06193889): a single dose of CD19 CAR T-cells after lymphodepletion; Kyverna's FY2025 10-K (0001193125-26-126242) and its Q2 2026 results describe 'a single dose of miv-cel' (8-K exhibit 99.1, 0001193125-26-344572)","one infusion, not repeated, so one_time, as bmy_bms_986353.csv and nvs_rapcabtagene_autoleucel.csv model it. In one_time mode the engine charges cogs_per_patient per course; one is supplied below"
 KYTX,KYV-101,,US,base,list_price_per_patient,,0.528239,,mm USD per course (one infusion),"analogue, the price the book's autoimmune CAR-T seeds carry, verbatim from bmy_bms_986353.csv: Breyanzi (lisocabtagene maraleucel, HCPCS Q2054), CMS Medicare Part B 2025, from the quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $134,172,609.84 over 254 beneficiaries = $528,238.62 per beneficiary. One HCPCS code, so nothing to sum. Earlier years in drug_demand: $428,726 (2022), $461,201 (2023), $490,898 (2024, 136.2 dosage units over 135 beneficiaries, about one infusion each)","JUDGEMENT on the comparator: no autoimmune CAR-T is priced yet. A lower cell dose and a larger market argue for less; a one-time treatment against years of complement or FcRn inhibitors (Vyvgart, Ultomiris, Imaavy) argues for more. Most CAR-T infusions are inpatient under Part A, which Part B does not carry"

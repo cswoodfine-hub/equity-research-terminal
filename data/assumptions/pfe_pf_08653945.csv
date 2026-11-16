@@ -29,7 +29,9 @@
 # patent portfolio), so the default sits inside what an extension could reach.
 # Company-level rows are Pfizer's own, verbatim from pfe_atirmociclib.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PFE,PF-08653945,,US,base,therapy_mode,,,chronic,,"a subcutaneous injection for chronic weight management: Pfizer lists MET-233i (PF-08653945) for Chronic Weight Management (pipeline, 4 August 2026), and SOLIS-1 (NCT07575932, ClinicalTrials.gov API v2, read 2026-09-28) measures percent change in body weight from week 0 to week 48",a weight-management therapy taken indefinitely
 PFE,PF-08653945,,US,base,list_price_per_patient,,0.008839,,mm USD per year,"Comparator is the book's incretin trio. CMS Part D quarterly dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15, Year '2025 (Q1-Q4)', read from the CMS data API on 2026-09-28: Ozempic $16,153,040,296.52 / 2,044,798 = $7,899.58; Mounjaro $14,076,460,356.19 / 1,592,517 = $8,839.13; Wegovy $1,026,459,977.45 / 108,843 = $9,430.65 a beneficiary. The median is Mounjaro, $8,839.13. Zepbound is excluded, 2025 being its first Part D year through the sleep apnoea label. No amylin analogue is marketed for obesity, so the basis every obesity claimant carries, as abbv_abbv_295.csv carries it for its amylin","Pfizer reports in USD, so no conversion"

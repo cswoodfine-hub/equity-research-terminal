@@ -4,7 +4,9 @@
 # year and grown on Lantheus's own six-month comparison, which is a decline: the product
 # faces competing PSMA agents and lost 5.3% in the first half of 2026.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LNTH,Pylarify,,US,base,therapy_mode,,,marketed,,approved 2021-05-26 (NDA 214793) and selling,no patient funnel is rebuilt for a product that files its own sales
 LNTH,Pylarify,,US,base,base_revenue,,989.116,,mm USD,"filed: Lantheus FY2025 revenue for PYLARIFY, $989,116 thousand, from the 10-K product axis (sec_fsds, 10-K 0001193125-26-073498)",the anchor

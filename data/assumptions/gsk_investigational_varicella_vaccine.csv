@@ -6,7 +6,9 @@
 # Written 2026-09-24 on branch claude/youthful-curie-bux19h. Verified and corrected 2026-09-26 by a reader who reopened every source: uptake re-anchored on Priorix's own segment, course cut from two doses to 1.2, the June 2026 CDC list and a 54% VFC share, cost of goods per course added, vaccine erosion rows added, ex-US removed, first full year moved to the book's rule.
 # Company-level rows copied from gsk_anoro_ellipta.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GSK,Investigational varicella vaccine,,US,base,beta,,0.55,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.33 raw)",
 GSK,Investigational varicella vaccine,,US,base,cogs_pct,,0.276,,share of revenue,"GSK FY2025, from the filed lines",

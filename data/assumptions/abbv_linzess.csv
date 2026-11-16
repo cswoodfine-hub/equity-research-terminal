@@ -30,7 +30,9 @@
 # 2026. The basis is the same: the first half of 2025 is $406mm in both the 2025
 # results exhibit (0001551152-25-000036) and the 2026 10-Q (0001551152-26-000026).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ABBV,Linzess,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 ABBV,Linzess,,US,base,base_revenue,,907.0,,mm USD,"AbbVie FY2025 10-K (0001551152-26-000008), MD&A net revenues table: Linzess/Constella United States $864mm, International $43mm, total 907mm in FY2025 and 954mm in FY2024",the anchor

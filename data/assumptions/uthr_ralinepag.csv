@@ -3,7 +3,9 @@
 # Uptake is built from patients and solved to reach Uptravi's filed U.S. sales, the
 # analogue it follows, since no named forecast has been published since its readout.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 UTHR,Ralinepag,,US,base,therapy_mode,,,chronic,,continuing oral therapy,
 UTHR,Ralinepag,,US,base,forecast_start_year,,2028,,year,"the first full year after the action date: 'The FDA has set a Prescription Drug User Fee Act target action date of June 24, 2027' (release 2026-08-24)",

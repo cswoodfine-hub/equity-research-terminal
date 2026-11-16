@@ -13,7 +13,9 @@
 # Company half: as legn_lb2102.csv, Novartis's cost lines copied verbatim from nvs_rapcabtagene_autoleucel.csv because
 # Legend's own leave a margin below nil; beta and debt weight are Legend's. Least confident: the launch year and the share,
 # both built on a China Phase 1 the filings do not describe.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LEGN,LUCAR-G79D T cells,,US,base,therapy_mode,,,one_time,,"NCT07331272: LUCAR-G79D T cells after cyclophosphamide and fludarabine conditioning, one infusion (registry, read 2026-10-28)","one infusion, not repeated; cogs_per_patient is supplied below"
 LEGN,LUCAR-G79D T cells,,US,base,list_price_per_patient,,0.528239,,mm USD per course (one infusion),"Breyanzi (lisocabtagene maraleucel, HCPCS Q2054), CMS Medicare Part B 2025, quarterly companion bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $134,172,609.84 over 254 beneficiaries = $528,238.62 per beneficiary, about one infusion each. The CAR-T price the book carries for its autoimmune CAR-T seeds (BMS-986353, rapcabtagene autoleucel)","JUDGEMENT on the comparator: no autoimmune CAR-T is priced yet. If LUCAR-G79D is one of the allogeneic candidates the 20-F lists for autoimmune disease, an off-the-shelf product may price lower"

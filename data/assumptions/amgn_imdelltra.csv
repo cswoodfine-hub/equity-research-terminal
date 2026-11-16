@@ -5,7 +5,9 @@
 # is read from its 10-K and 10-Q tables (data/product_revenue.csv). The US and European
 # dates are Amgen's own patent table.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Imdelltra,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Imdelltra,,US,base,base_revenue,,627,,mm USD,"AMGN FY2025 10-K (0000318154-26-000010), MD&A other product sales table: IMDELLTRA/IMDYLLTRA U.S. and ROW sum to 627mm in FY2025, against 115mm in FY2024","the anchor; Amgen reports it inside Other products on the SEC product axis, so the table is read, as data/product_revenue.csv records"

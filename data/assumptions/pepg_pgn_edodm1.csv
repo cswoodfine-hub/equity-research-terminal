@@ -14,7 +14,9 @@
 # launches first (2029) and VX-670 in 2031, so pool_crowding will hand this asset only what they leave of a closed pool. Not modelled: sales
 # outside the US (no partner, no application), milestones, any label beyond adults. Company cost rows are Biogen's, as the DYNE-101 seed carries them.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PEPG,PGN-EDODM1,,US,base,therapy_mode,,,chronic,,registry: NCT06667453 gives PGN-EDODM1 'once every 4 weeks (Q4W)' by intravenous infusion; the FREEDOM-OLE open-label extension continues dosing (PepGen Q2 2026 10-Q (0001193125-26-336754)),a repeated infusion for as long as it works
 PEPG,PGN-EDODM1,,US,base,list_price_per_patient,,0.37,,mm USD per patient-year,"reused through dyn_dyne_101.csv, whose words follow (the DM1 position named there is the one PGN-EDODM1 seeks too): reused from vrtx_vx_670.csv: Skyclarys (omaveloxolone), the closest comparator, a wholesale acquisition cost of $370,000 a year at its FDA approval (Drug Discovery & Development, 'Reata sets $370,000 annual cost for new nerve disorder drug', 2023-03-03). Skyclarys is the first and only approved therapy for Friedreich ataxia (Biogen FY2025 10-K, 0000875045-26-000013), a rare inherited neuromuscular disease of adults, the position z-basivarsen would take in DM1, which has 'no approved disease-modifying treatments' (Dyne 8-K exhibit 99.1, 0001818794-26-000009)","a comparator, not a price this product has, reused through dyn_dyne_101.csv. The uptake anchor converts Skyclarys revenue to patients at this same net, so the level cancels: what transfers is Skyclarys's US revenue per eligible patient"

@@ -5,7 +5,9 @@
 # data/launch_ramp.csv. Probability of success is oncology's own published rate for a
 # phase 3 asset, 43.9% (data/pos_by_area.csv), not the book's old 65%.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BMY,Pumitamig,,US,base,therapy_mode,,,launch,,a phase 3 asset with a published peak and no reported revenue,
 BMY,Pumitamig,,US,base,peak_revenue_musd,,5000.0,,mm USD,"Berenberg (Harry Gillis), whole-asset peak sales of $5bn, reported by ad-hoc-news.de on 17 September 2026",the whole asset's peak; Bristol's half of it is taken through economics_share below

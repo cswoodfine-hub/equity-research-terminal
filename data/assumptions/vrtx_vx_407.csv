@@ -13,7 +13,9 @@
 #
 # Company-level rows copied from vrtx_inaxaplin.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,VX-407,,US,base,therapy_mode,,,chronic,,AGLOW (NCT07161037) gives VX-407 as tablets for oral administration for up to 52 weeks; Vertex's FY2025 10-K (0000875320-26-000056) calls it a small molecule corrector designed to target the underlying cause of ADPKD,"a daily oral for a progressive genetic kidney disease, taken for as long as it works"
 VRTX,VX-407,,US,base,list_price_per_patient,,0.281192,,mm USD per patient-year,"Jynarque (tolvaptan), the only approved therapy for ADPKD and a daily oral: Otsuka's wholesale acquisition cost of $21,570.93 per 4-weekly blister kit (every strength, e.g. NDC 59148008928, 90mg/30mg), effective 2025-01-01 after a $1,411.18 increase (California HCAI, Prescription Drug WAC Increases, Q1-Q4 2025, data.chhs.ca.gov resource 46b78eef-5952-4fff-84c7-1fa758990ce8). One kit is 28 days (Otsuka launch release, 2018-04-24: 'sold in a 28-day treatment pack'), so 21,570.93 x 365/28 = $281,192 a year, the pack-to-year conversion the Kalydeco WAC takes in vrtx_prices.csv. No later Jynarque increase appears in the September 2026 monthly update of the same dataset","a comparator, not a price this product has, and a published list price, which the book ranks above a CMS figure. Not in drug_demand because Otsuka is not in the universe. CMS Part D 2025 spend per beneficiary is $139,479.79 ($100,704,410.97 over 722 beneficiaries, 4,733 claims), about half the list, because 6.6 claims a beneficiary is a part year: generic tolvaptan entered in 2025 and took patients mid-year. The list was $13,041.10 per 28-day pack at the 2018 launch. Vertex prices its own genetic-disease orals higher still (Kalydeco WAC $378,786, vrtx_prices.csv)"

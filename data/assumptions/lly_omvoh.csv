@@ -6,7 +6,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Lilly's own, from lly_verzenio.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Omvoh,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 LLY,Omvoh,,US,base,base_revenue,,386.0,,mm USD,"a 2026 run rate, not a reported year: the first half of 2026 as reported, $182mm, and the second half at the second quarter's pace, $102mm twice. Lilly's second-quarter 2026 results (8-K exhibit 0000059478-26-000077, filed 2026-08-05). Lilly does not report this product for a full year: its 10-K folds it into other revenue, and its 2025 releases name it without a figure","the anchor, and a conservative one for a product still climbing, since a launch's second half is larger than its second quarter repeated"

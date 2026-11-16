@@ -14,7 +14,9 @@
 # The book's asset_indications row says Phase 3 (from MAESTRA-2); the catalyst it carries, MAESTRA-1, is Phase 2, and the
 # probability below is taken from Phase 2 to match the gate it prices.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 INCY,INCB123667,,US,base,therapy_mode,,,chronic,,"Q2 2026 10-Q (0000879169-26-000056): INCB123667 is 'a novel, potent and selective oral small molecule inhibitor' of CDK2; MAESTRA-1 (NCT07023627) gives it as monotherapy, a daily oral continued until progression",continued to progression; discontinuation_pct carries who stops
 INCY,INCB123667,,US,base,list_price_per_patient,,0.123397,,mm USD per year,"analogue, the price every claimant on this pool carries (abbv_imgn151.csv, regn_ubamatamab.csv, lly_sofetabart_mipitecan.csv, gsk_mocertatug_rezetecan.csv), verbatim: Elahere (mirvetuximab soravtansine, HCPCS J9063), CMS Medicare Part B quarterly spending file, dataset bf6a5b3b-31ee-4abb-b1ad-2607a1e7510a, row '2025 (Q1-Q4)': $232,480,864.62 over 1,884 beneficiaries = $123,397.49 a beneficiary. Elahere is the one marketed FRalpha ADC, AbbVie's own, with the same maytansinoid payload class, route and line, and the comparator the sofetabart mipitecan and mocertatug rezetecan seeds price on. Elahere has no Part D presentation, so there is nothing to add","a comparator, not a price Incyte has stated. INCB123667 is an oral and would be billed under Part D, where the comparator is infused under Part B; the pool's one price is kept so the anchor below and the forecast share it"

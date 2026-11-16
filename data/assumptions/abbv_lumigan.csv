@@ -24,7 +24,9 @@
 #
 # The line AbbVie prints is Lumigan/Ganfort, so the base carries Ganfort as well.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ABBV,Lumigan,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 ABBV,Lumigan,,US,base,base_revenue,,410.0,,mm USD,"AbbVie FY2025 10-K (0001551152-26-000008), MD&A net revenues table: Lumigan/Ganfort United States $189mm, International $221mm, total 410mm in FY2025 and 429mm in FY2024",the anchor

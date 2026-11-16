@@ -24,7 +24,9 @@
 # 2027-09-28) is first-line, outside the label, and is what the layer prices.
 # NCT06821542 (2028-05-31) is inside the label and adds nothing.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 INCY,Niktimvo,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 INCY,Niktimvo,,US,base,base_revenue,,151.636,,mm USD,"INCY FY2025 reported 'NIKTIMVO revenues, net': $151,636 thousand. Incyte FY2025 10-K (0000879169-26-000010), revenue table by product, with $151.6mm in MD&A","the anchor, all of it US: Incyte books every Niktimvo sale and shares the US profit with Syndax (economics_share). The first full year, as US launch 'commenced in January 2025' (10-Q 0000879169-26-000056)"

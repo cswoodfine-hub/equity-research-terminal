@@ -4,7 +4,9 @@
 # judgement left was revenue_growth_pct, and it is now derived: Vertex splits its own
 # FY2026 guidance into CF and non-CF, and the non-CF half is this product and Casgevy.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,Journavx,,US,base,base_revenue,,59.6,,mm USD,"VRTX FY2025 reported product revenue, from the 10-K product axis",the anchor. Growth is the judgement on top of it
 VRTX,Journavx,,US,base,therapy_mode,,,marketed,,"already selling, so revenue is reported rather than built",no patient funnel is rebuilt for a drug that files its own sales

@@ -7,7 +7,9 @@
 # Cost of sales is the filed Regeneron purchase price; the other cost rows are BioMarin's filed
 # lines, as rare_crysvita.csv explains.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note,evidence
 RARE,Evkeeza,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales,
 RARE,Evkeeza,,US,base,base_revenue,,59.0,,mm USD,"Ultragenyx FY2025 10-K 0001193125-26-057329, Note 6 Revenue: 'Evkeeza 59' (millions)","the anchor: Ultragenyx's sales outside the US only. It holds 'the rights to develop, commercialize and distribute the product for HoFH in countries outside of the U.S.' (10-K 0001193125-26-057329, Note 8); Regeneron's own US sales are its Evkeeza row in regn_evkeeza.csv, a different asset, so nothing is counted twice",filed

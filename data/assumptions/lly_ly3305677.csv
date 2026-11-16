@@ -6,7 +6,9 @@
 # base. indication_layer will say so, naming the company keys it lacks, which is
 # the honest state: the epidemiology is done and the model is not.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,mazdutide,Obesity,US,base,prevalence,,107592242,,patients,"data/epidemiology.csv, 'Obesity': CDC NHANES August 2021 to August 2023, 40.3% of US adults aged 20 and over have obesity (BMI 30 or above), applied to the 266,978,268 US residents aged 18 and over, Census SCPRC-EST2024-18+POP at 1 July 2024. The pool every obesity claimant in the book shares",backend/pool_crowding.py rations this one pool among its claimants rather than letting each take a share of its own copy
 LLY,mazdutide,Obesity,US,base,incidence,,4478747,,patients a year,"data/epidemiology.csv, the same row: 28.1 new cases per 1,000 person-years on the same denominator",

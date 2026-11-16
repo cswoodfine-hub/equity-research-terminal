@@ -18,7 +18,7 @@
 # The uptake curve is deliberately absent: penetration_peak_pct and ramp_midpoint_year are left out,
 # so the engine draws data/curve_defaults.csv's placeholder and labels it.
 #
-# Draft, not loaded. Seeds are insert-only.
+# Draft, not loaded.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 WVE,WVE-N531,,US,base,therapy_mode,,,chronic,,"Wave FY2025 10-K (0001193125-26-073472): FORWARD-53 participants receive WVE-N531 every two weeks and all elected to continue on monthly dosing, and 'mean WVE-N531 skeletal muscle concentrations of ~41,000 ng/g and a 61-day tissue half-life support monthly dosing'","a repeated infusion for as long as it works, like the exon skippers it would join"
 WVE,WVE-N531,,US,base,list_price_per_patient,,1.002,,mm USD per patient-year,"analogue, in disease and in class: Institute for Clinical and Economic Review, Deflazacort, Eteplirsen, and Golodirsen for Duchenne Muscular Dystrophy: Effectiveness and Value, Final Evidence Report, 2019-08-15, Table ES4 page ES13: eteplirsen at 30 mg/kg a week, $16/mg, $1,002,000 a year for a 40 kg patient (Red Book, AWP less 15%). Reused from data/assumptions/nvs_aoc_1044.csv and dyn_dyne_251.csv","a comparator, not a price Wave has set. The exon skippers already approved in this disease are priced at this level. Case for higher: monthly dosing against weekly and a higher dystrophin level. Case for lower: a 2019 report, and an entrant to a class with three incumbents"

@@ -14,7 +14,9 @@
 # Engine check on a copy of the book: US revenue $134.3mm in 2030, $586.8mm in 2034, peak $809.0mm in 2042 at the default
 # small-molecule exclusivity; unrisked NPV $657.2mm, rNPV $81.1mm.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PRAX,vormatrigine,,US,base,therapy_mode,,,chronic,,"Q2 2026 results (8-K exhibit 99.1, 0001689548-26-000082): vormatrigine is 'being developed as a once-daily oral treatment for adults with focal-onset seizures and generalized epilepsy'; POWER2 (NCT07505004) gives 20, 30 or 40 mg a day",a daily anti-seizure medicine for as long as it works; discontinuation_pct carries who stops
 PRAX,vormatrigine,,US,base,list_price_per_patient,,0.01317624,,mm USD per patient-year,"analogue: Xcopri (cenobamate), the most recent new anti-seizure medicine for adult focal seizures, CMS Medicare Part D Spending by Drug 2024 (data.cms.gov dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b, 'Xcopri', Overall): $164,703,012.87 over 12,500 beneficiaries = $13,176.24 a beneficiary","a comparator, not a price: Praxis has published none. A per-beneficiary figure, so it already counts the part of the year a patient is on drug"

@@ -16,7 +16,9 @@
 # nvs_leqvio.csv carries them: Novartis sells Leqvio, the marketed siRNA lipid-lowering medicine, through the lipid clinics
 # zodasiran needs. Beta and debt weight are Arrowhead's own.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ARWR,Zodasiran,,US,base,therapy_mode,,,chronic,,Arrowhead FY2025 10-K (0000879407-25-000029): zodasiran is a subcutaneous RNAi therapeutic 'designed to reduce production of angiopoietin-like protein 3'; YOSEMITE (NCT07037771) measures LDL-C over 12 months against placebo in a lifelong genetic disease,a continuing therapy for a lifelong disease; discontinuation_pct carries who stops
 ARWR,Zodasiran,,US,base,list_price_per_patient,,0.346737,,mm USD per patient-year,"analogue: Evkeeza (evinacumab-dgnb), CMS Medicare Part B 2024 (drug_demand): $21,844,436.35 over 63 beneficiaries = $346,737.08 a beneficiary. Evkeeza is the approved ANGPTL3 inhibitor in HoFH, the target and disease zodasiran is tested in. Arrowhead reports in USD (companies table)","a comparator, not a price Arrowhead has stated. Not annualised, and matched to the stopping rate below, which is measured on the same beneficiaries. 63 beneficiaries is a small Medicare sample of a disease of the young; Part D carried another 27 at $400,140 each, which is not summed because the two may overlap"

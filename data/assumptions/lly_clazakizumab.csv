@@ -13,7 +13,9 @@
 # for this asset are those risk factors, not labels, and none takes a share of the obesity pool.
 # Company-level rows are Lilly's own, verbatim from lly_eltrekibart.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Clazakizumab,,US,base,beta,,0.69,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.54 raw)",
 LLY,Clazakizumab,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025, from the filed lines",

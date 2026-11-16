@@ -26,7 +26,9 @@
 # course rather than a year of therapy, so a price per patient per year is the wrong unit
 # for it. Its Vermont disclosure is a separate pair of PDFs, on an AWP basis.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VRTX,Kalydeco,,US,base,list_price_per_patient,,0.378786,,mm USD per year,"Vertex WAC Disclosure for Colorado Prescribers, effective July 2026, VXR-US-20-1900562 v27.0: 29,057.52 per 28-day supply x 365/28","WAC is the published catalog price to wholesalers, before any discount, rebate or reduction, in Vertex's own words"
 VRTX,Kalydeco,,US,base,gross_to_net_pct,,0.2777,,share off list,"derived: Kalydeco's CMS Part D 2024 spend per beneficiary of $273,600 against its $378,786 WAC is 72.2% of list","a FLOOR on the discount, not an estimate of it. Part D spending is itself gross of manufacturer rebates, so true net sits below this. The implied patient count says the same: Trikafta at this net gives 37,694 patients against a global franchise whose US CF population alone is about 40,000"
