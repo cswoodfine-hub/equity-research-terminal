@@ -549,3 +549,28 @@ def test_a_placebo_is_deprioritised_and_not_dropped():
 def test_the_order_is_stable_where_nothing_mentions_a_placebo():
     norms = ["inclisiran", "evolocumab", "alirocumab"]
     assert tm.drugs_before_placebos(norms) == norms
+
+
+def test_a_folded_programme_is_split_out_by_a_curated_row(tmp_path):
+    """AK-OTOF and AK-antiVEGF arrived as one row; a pin cannot move a study onto an
+    asset that does not exist, so the split row makes it first."""
+    import db
+    path = str(tmp_path / "split.db"); db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly')")
+    conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                 " VALUES (1, 'AAVAnc80-antiVEGF via Akouos Delivery Device', 0)")
+    splits = tmp_path / "splits.csv"
+    splits.write_text("ticker,asset,basis\nLLY,AK-OTOF,named apart in the 10-K\n")
+    pins = tmp_path / "pins.csv"
+    pins.write_text("ticker,nct_id,asset,note\nLLY,NCT05821959,AK-OTOF,the hOTOF study\n")
+    # Nothing to split until the study is in the book.
+    assert tm.create_split_programmes(conn, splits, pins) == 0
+    conn.execute("INSERT INTO trials (nct_id, title) VALUES ('NCT05821959', 'AK-OTOF-101')")
+    assert tm.create_split_programmes(conn, splits, pins) == 1
+    assert tm.create_split_programmes(conn, splits, pins) == 0      # once
+    assert tm.load_overrides(conn, pins) == 1
+    got = conn.execute("SELECT a.generic_name FROM trial_asset_map m JOIN assets a"
+                       " ON a.id = m.asset_id WHERE m.nct_id = 'NCT05821959'").fetchone()
+    assert got[0] == "AK-OTOF"
+    conn.close()

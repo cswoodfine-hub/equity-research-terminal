@@ -59,6 +59,7 @@ import pathlib
 import re
 
 import engines
+import epidemiology
 import fx
 import indication_mapping
 import productivity
@@ -764,6 +765,16 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
     # The indication the forecast is built on. A filing for any other disease must not
     # lift this line.
     lead = _lead_indication(conn, asset_id)
+    # Where the asset writes no prevalence of its own, the forecast takes the disease's
+    # from data/epidemiology.csv, and so does this cut. Read only from the asset's rows,
+    # the same obesity drug took "Chronic high prevalence" or not depending on which file
+    # its pool sat in: a fact about the disease decided by where a row was written.
+    if prevalence is None and lead is not None:
+        name = conn.execute("SELECT name FROM indications WHERE id = ?",
+                            (lead["indication_id"],)).fetchone()
+        shared = epidemiology.for_indication(name[0]) if name else None
+        if shared and shared.get("prevalence"):
+            prevalence = {"value": shared["prevalence"]}
     mesh = modelled_mesh(conn, asset_id, lead["indication_id"] if lead else None)
     return {"area": area, "phase": phase, "names": names, "also_known": also_known,
             "company_id": asset["owner_company_id"],

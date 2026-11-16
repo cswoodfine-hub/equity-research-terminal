@@ -906,6 +906,32 @@ def _filing_in_model(conn, row: dict, gathered: dict) -> tuple:
     return False, f"the filing is for {name}, which the forecast does not value"
 
 
+def _curated_unvalued(conn, row: dict, gathered: dict) -> str | None:
+    """The name of the curated sub-population the catalyst is linked to, where the
+    forecast carries no base rows for it; else None."""
+    link = row.get("asset_indication_id")
+    if link is None or link == gathered.get("lead_indication_id"):
+        return None
+    pair = conn.execute(
+        "SELECT ai.indication_id, i.name FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id WHERE ai.id = ?",
+        (link,)).fetchone()
+    if pair is None:
+        return None
+    # The general file only. A paediatric row is often valued on its parent row (PCV21's
+    # infants, GSK's varicella vaccine), so a link to it says nothing about value.
+    curated = {term for (asset_id, term) in indication_mapping.curated_subpopulations(
+                   conn, [indication_mapping.SUBPOPULATION_CSV])
+               if asset_id == row.get("asset_id")}
+    if pair["name"] not in curated:
+        return None
+    valued = conn.execute(
+        "SELECT 1 FROM assumptions WHERE asset_id = ? AND indication_id = ?"
+        "   AND scenario = 'base' LIMIT 1",
+        (row.get("asset_id"), pair["indication_id"])).fetchone()
+    return None if valued else pair["name"]
+
+
 def _gate_reason(conn, row: dict, state: dict) -> tuple:
     """(reason, why, nct, trial) for one catalyst on an asset with derived legs; the
     reason is None where the catalyst is the gate event."""
@@ -950,6 +976,15 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                     "Phase 3 readout is ahead of the gate the model prices.", nct, trial)
         return ("not_gate_phase", f"A {phase} readout does not decide the asset's "
                 f"{label.lower()}.", nct, trial)
+    # A study an analyst has filed as a sub-population the forecast does not value is in
+    # that sub-population, whatever broader descriptor the registry also gives it: the
+    # chronic low back pain study of LY4065967 files 'Chronic Pain' too, and priced the
+    # gate of the neuropathic pain the seed models.
+    outside = _curated_unvalued(conn, row, gathered)
+    if outside:
+        return ("other_indication", f"The study is filed as {outside}, a sub-population "
+                f"the forecast does not value, so its result does not decide the modelled "
+                f"value.", nct, trial)
     modelled, indications = pos_granular.in_modelled(conn, nct, gathered["modelled_mesh"])
     if not modelled:
         blind = pos_granular.unread(indications, pos_granular.mesh_on_file(conn, nct))

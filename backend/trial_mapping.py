@@ -431,6 +431,62 @@ TRIAL_ASSET_CSV = (pathlib.Path(__file__).resolve().parent.parent
                    / "data" / "trial_asset_map.csv")
 
 
+PROGRAMME_SPLITS_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                        / "data" / "programme_splits.csv")
+
+
+def _pinned_to(ticker: str, name: str, pins=None) -> list:
+    """The studies data/trial_asset_map.csv pins to this company's asset of this name."""
+    source = pathlib.Path(pins) if pins else TRIAL_ASSET_CSV
+    if not source.exists():
+        return []
+    with source.open(newline="", encoding="utf-8") as handle:
+        return [(r.get("nct_id") or "").strip() for r in csv.DictReader(
+                    line for line in handle if not line.lstrip().startswith("#"))
+                if (r.get("ticker") or "").strip().upper() == ticker
+                and (r.get("asset") or "").strip().lower() == name.lower()]
+
+
+def create_split_programmes(conn, path=None, pins=None) -> int:
+    """Make the programmes ``data/programme_splits.csv`` names, unmarketed, where the
+    company holds no asset of that name. The derivation makes a row per study's
+    intervention name and the merge folds rows sharing a code, so two programmes the
+    filings keep apart can arrive as one row, and a pin in trial_asset_map.csv cannot
+    move a study onto an asset that does not exist. Returns the rows created."""
+    source = pathlib.Path(path) if path else PROGRAMME_SPLITS_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    made = 0
+    for row in rows:
+        ticker = (row.get("ticker") or "").strip().upper()
+        name = (row.get("asset") or "").strip()
+        company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (ticker,)).fetchone()
+        if company is None or not name:
+            continue
+        held = conn.execute(
+            """SELECT 1 FROM assets WHERE owner_company_id = ?
+                 AND ? IN (LOWER(TRIM(COALESCE(brand_name, ''))),
+                           LOWER(TRIM(COALESCE(generic_name, ''))),
+                           LOWER(TRIM(COALESCE(internal_code, ''))))""",
+            (company["id"], name.lower())).fetchone()
+        if held:
+            continue
+        # Only where a study pinned to it is in the book: a programme with nothing to
+        # carry would be an empty row, and in a book without the study there is nothing
+        # to split.
+        if not any(conn.execute("SELECT 1 FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+                   for nct in _pinned_to(ticker, name, pins)):
+            continue
+        conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                     " VALUES (?, ?, 0)", (company["id"], name))
+        made += 1
+    return made
+
+
 def load_overrides(conn, path=None) -> int:
     """Write ``data/trial_asset_map.csv`` into ``trial_asset_map``: a study the names cannot
     place, pinned to its asset by ticker and the asset's name, since ids are rebuilt with
@@ -439,6 +495,8 @@ def load_overrides(conn, path=None) -> int:
     source = pathlib.Path(path) if path else TRIAL_ASSET_CSV
     if not source.exists():
         return 0
+    if path is None:
+        create_split_programmes(conn)
     with source.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(
             line for line in handle if not line.lstrip().startswith("#")))

@@ -1137,3 +1137,22 @@ def test_a_name_with_no_stem_is_read_through_the_assets_other_names(tmp_path):
     assert "modality" not in {c["cut"] for c in without["cuts"]}
     assert ("modality", "Peptide") in {(c["cut"], c["group"]) for c in with_alias["cuts"]}
     assert "modality" not in {c["cut"] for c in brand_only["cuts"]}
+
+
+def test_the_prevalence_cut_reads_the_shared_pool_where_the_asset_writes_none(tmp_path,
+                                                                             monkeypatch):
+    """The same obesity drug took 'Chronic high prevalence' or not depending on whether its
+    pool sat in its own seed or in data/epidemiology.csv. The disease decides now."""
+    import epidemiology
+    monkeypatch.setattr(epidemiology, "for_indication",
+                        lambda name, path=None: ({"prevalence": 50_000_000}
+                                                 if name == "Multiple myeloma" else None))
+    conn = _seed(tmp_path)
+    got = PG._gather(conn, 7, area="Oncology", phase="Phase 3", big=True)
+    assert got["prevalence_us"] == 50_000_000
+    conn.close()
+    # An asset's own row still wins, as it does for the forecast.
+    conn = _seed(tmp_path / "own", prevalence=36_110) if (tmp_path / "own").mkdir() is None else None
+    got = PG._gather(conn, 7, area="Oncology", phase="Phase 3", big=True)
+    assert got["prevalence_us"] == 36_110
+    conn.close()
