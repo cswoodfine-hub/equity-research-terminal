@@ -5,6 +5,21 @@ Uses query.lead (not query.spons, which also matches collaborator trials) and a
 per-ticker sponsor-name map, because CTGov's lead-sponsor names differ from the
 companies' legal names (Merck is "Merck Sharp & Dohme LLC", Roche is
 "Hoffmann-La Roche", J&J's pharma is "Janssen Research & Development, LLC").
+
+And then one pass more, because the lead-sponsor rule is blind to a shape that
+matters. A company funds an outcomes trial and an academic group runs it, so the
+registry files it under the university and the book holds none of it. ORION-4
+(NCT03705234) is 16,124 patients of inclisiran with major adverse cardiovascular
+events as its primary endpoint, due to report while this was written, and its lead
+sponsor is the University of Oxford with Novartis a collaborator. The book had no
+row for it at all, while pricing a smaller Novartis-led study in the same setting
+as Leqvio's gate.
+
+query.spons on its own is not the fix: it matches every study a company is named
+on, including other people's medicines it merely supplied or part-funded. The
+discriminator is the molecule. A collaborator study is kept only where one of its
+interventions names an asset this company owns, which is the same rule
+trial_mapping uses to place a study on an asset in the first place.
 """
 
 from __future__ import annotations
@@ -54,6 +69,9 @@ FIELDS = [
     "derivedSection.conditionBrowseModule",
     "protocolSection.armsInterventionsModule.interventions",
     "protocolSection.sponsorCollaboratorsModule.leadSponsor.name",
+    # Who else is on it. The collaborator pass needs this to confirm the company is
+    # actually named, since query.spons matches loosely.
+    "protocolSection.sponsorCollaboratorsModule.collaborators",
     # What it measures and how it is built. Watched for change, not shown: an endpoint
     # rewritten mid-trial is the signal, and it cannot be seen without the last value.
     "protocolSection.outcomesModule.primaryOutcomes",
@@ -198,6 +216,76 @@ def _phase_counts(rows: list[dict]) -> dict:
     return counts
 
 
+# What a collaborator study has to be before the book takes it. Measured, not guessed:
+# the molecule test alone returns 1,659 studies the book does not hold, and they are
+# overwhelmingly investigator-initiated oncology work using an approved drug. The
+# interventions say so plainly - 225 of them name pembrolizumab, 113 nivolumab, 81
+# durvalumab. Those are academics running their own trial with a company's marketed
+# medicine, not the company's programme, and admitting them would bury the gate model.
+#
+# Scale is what separates the one shape the book must not miss. A Phase 3 or 4 study of
+# a thousand people or more that somebody else leads is a registrational or pragmatic
+# outcomes trial, and that is ORION-4's shape: 16,124 participants, major adverse
+# cardiovascular events, the University of Oxford leading. At this threshold the sweep
+# keeps 31 rather than 1,659, and reading them they are what they should be: ORION-4,
+# oral semaglutide at Oxford, adjuvant palbociclib, finerenone, Shingrix and a COVID
+# vaccine in the Danish pragmatic trials.
+#
+# What still gets through is a generic. Two companies own rows called Doxorubicin and
+# Vincristine, so an academic chemotherapy de-escalation study matches them. The cure is
+# data/not_a_programme.csv, which exists for exactly that and is applied where a study is
+# turned into a programme rather than here.
+_COLLABORATION_PHASES = ("PHASE3", "PHASE4")
+_COLLABORATION_MIN_ENROLMENT = 1000
+
+
+def _is_our_collaboration(study: dict, sponsor_norm: str, names: list, already) -> bool:
+    """Whether a study somebody else leads belongs to this company's book.
+
+    Four tests, and all four have to hold.
+
+    It must not already be in hand, because the lead-sponsor query runs first and a
+    company is sometimes listed as its own collaborator.
+
+    The company must actually be named as a collaborator. query.spons matches the
+    sponsor fields loosely, and a loose match on a common word would otherwise sweep in
+    studies the company has nothing to do with.
+
+    It must be at the scale the book models. See _COLLABORATION_MIN_ENROLMENT above:
+    without this the rule returns 1,659 studies, almost all of them investigator-initiated
+    work with an approved drug.
+
+    And an intervention must name one of the company's own assets. Oxford's ORION-4 lists
+    "Inclisiran" and binds; a university study of somebody else's drug that a company
+    part-funded lists nothing of the company's and does not. Pure, so the rule is testable
+    without a database or a network call.
+    """
+    protocol = study.get("protocolSection") or {}
+    nct = (protocol.get("identificationModule") or {}).get("nctId")
+    if not nct or nct in (already or set()):
+        return False
+    sponsors = protocol.get("sponsorCollaboratorsModule") or {}
+    lead = trial_mapping.normalise((sponsors.get("leadSponsor") or {}).get("name") or "")
+    if lead == sponsor_norm:
+        return False                        # the lead-sponsor pass owns this one
+    named = {trial_mapping.normalise(c.get("name") or "")
+             for c in (sponsors.get("collaborators") or [])}
+    if sponsor_norm not in named:
+        return False
+    design = protocol.get("designModule") or {}
+    if not set(design.get("phases") or []) & set(_COLLABORATION_PHASES):
+        return False
+    if ((design.get("enrollmentInfo") or {}).get("count") or 0) \
+            < _COLLABORATION_MIN_ENROLMENT:
+        return False
+    for intervention in ((protocol.get("armsInterventionsModule") or {})
+                         .get("interventions") or []):
+        got = trial_mapping.normalise(intervention.get("name") or "")
+        if trial_mapping.match_intervention(got, names) is not None:
+            return True
+    return False
+
+
 class TrialsFetcher(BaseFetcher):
     source = SOURCE
     ttl_seconds = TTL_SECONDS
@@ -237,7 +325,66 @@ class TrialsFetcher(BaseFetcher):
                 # An acquired name is read off a headline and can be unusable as a
                 # query. Losing it costs that one company's studies, not the run.
                 errors.append(f"{sponsor}: {exc}")
-        return {"studies": studies, "sponsor_errors": errors}
+        # Then the studies somebody else leads that test this company's own molecule.
+        # Appended rather than merged: a study found both ways is the same payload, and
+        # parse_studies is keyed on nct_id, so the duplicate settles itself.
+        collaborated = []
+        try:
+            collaborated = self._collaborator_studies(term, {st.get("protocolSection", {})
+                                                             .get("identificationModule", {})
+                                                             .get("nctId")
+                                                             for st in studies})
+        except Exception as exc:                                   # noqa: BLE001
+            # A pass that finds extra studies must not be able to lose the ordinary
+            # ones. The lead-sponsor query above is the contract.
+            errors.append(f"collaborator pass: {exc}")
+        studies.extend(collaborated)
+        return {"studies": studies, "sponsor_errors": errors,
+                "collaborated": len(collaborated)}
+
+    def _collaborator_studies(self, term: str, already: set) -> list:
+        """Active studies another organisation leads that test this company's molecule.
+
+        Kept only where an intervention names an asset the company owns, by the same
+        rule that places a study on an asset (trial_mapping.match_intervention). Without
+        that test this would pull in every study a company is named on, including other
+        people's medicines it supplied or part-funded.
+
+        Returns nothing rather than raising where the company has no assets yet, which
+        is the state a brand-new ticker is in on its first refresh.
+        """
+        conn = db.get_connection(self.db_path)
+        try:
+            company_id = self._company_id(conn)
+            names = (trial_mapping._asset_names(conn, company_id)
+                     if company_id is not None else [])
+        finally:
+            conn.close()
+        if not names:
+            return []
+        wanted = trial_mapping.normalise(term)
+        kept, page_token = [], None
+        while True:
+            params = {
+                "query.spons": term,
+                "filter.overallStatus": "|".join(ACTIVE_STATUSES),
+                "fields": ",".join(FIELDS),
+                "pageSize": PAGE_SIZE,
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            url = f"{STUDIES_URL}?{urllib.parse.urlencode(params)}"
+            request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+            with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            for study in data.get("studies", []):
+                if _is_our_collaboration(study, wanted, names, already):
+                    kept.append(study)
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+            time.sleep(_PAGE_SLEEP_S)
+        return kept
 
     def _studies_for(self, term: str, verify_against) -> list:
         """One sponsor's active studies. ``verify_against`` is the acquired-name list

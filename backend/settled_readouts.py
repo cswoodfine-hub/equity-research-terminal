@@ -70,6 +70,10 @@ KINDS = {
     "both_arms_treated":
         "a study in which every arm receives the product, so the result decides how it "
         "is given rather than whether another patient gets it",
+    "confirmatory_conversion":
+        "a confirmatory trial for an accelerated approval the product already holds, "
+        "so the question is whether the approval converts or is withdrawn rather than "
+        "whether it is granted",
     "already_read_out":
         "a study whose result the company has already published, where the date on "
         "file is the registry's administrative completion rather than the readout",
