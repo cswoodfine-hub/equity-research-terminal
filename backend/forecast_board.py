@@ -244,11 +244,12 @@ def carry(part: dict, through: int) -> None:
     last, final = years[len(rows) - 1], rows[-1]
     later = list(range(last + 1, through + 1))
     path = {y: 0.0 for y in later}
-    for share, loe, in_base in tail.get("parts") or []:
+    for share, loe, in_base, *falling in tail.get("parts") or []:
         for y, factor in forecast.terminal_path(
                 tail.get("growth") or 0.0, last, loe, in_base, tail.get("year1_pct"),
                 tail.get("decay_pct"), tail.get("late_decay_pct"),
-                tail.get("late_from_year"), later).items():
+                tail.get("late_from_year"), later,
+                tail=falling[0] if falling else None).items():
             path[y] += share * factor
     del years[len(rows):]
     for y in later:

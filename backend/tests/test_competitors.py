@@ -152,7 +152,10 @@ def test_the_curated_launches_each_cite_a_filing_and_quote_it():
     assert len(C._rows(C.LAUNCHES)) >= 40
 
 
-def test_the_record_is_a_view_beside_the_value():
-    for name in ("forecast", "assumptions", "forecast_view", "company_score", "breakpoints",
-                 "fair_value", "loe"):
+def test_the_engine_itself_does_not_read_the_registers():
+    """The valuation is told one thing, by the code that assembles its inputs: whether a
+    competitor is selling. The engine that does the arithmetic imports no register."""
+    for name in ("forecast", "forecast_view", "company_score", "breakpoints", "fair_value",
+                 "loe"):
         assert "import competitors" not in (BACKEND / f"{name}.py").read_text(), name
+    assert "competitors.selling(" in (BACKEND / "assumptions.py").read_text()

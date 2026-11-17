@@ -30,13 +30,17 @@ The record keeps them apart. ``status`` is the strongest thing the evidence supp
                                    which is silence and not proof: the list starts in
                                    2004 and records Paragraph IV launches only
 
-A view beside the valuation. Nothing on the value path reads it; a test holds that.
+The valuation reads one thing from it, ``selling``: whether a competitor is on the US
+market against a product whose loss of exclusivity is already behind it. Such a product
+goes on falling (forecast.build, data/erosion_defaults.csv tail_decay_pct); one with
+nothing copying it holds. Everything else here is a view.
 """
 
 from __future__ import annotations
 
 import csv
 import datetime as dt
+import functools
 import pathlib
 import re
 
@@ -69,8 +73,15 @@ def _rows(path) -> list[dict]:
     path = pathlib.Path(path)
     if not path.exists():
         return []
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(l for l in handle if not l.lstrip().startswith("#")))
+    return [dict(r) for r in _read(str(path), path.stat().st_mtime_ns)]
+
+
+@functools.lru_cache(maxsize=8)
+def _read(path: str, _stamp: int) -> tuple:
+    """A curated file, read once for as long as it does not change: the valuation asks
+    for every asset it builds."""
+    with open(path, newline="", encoding="utf-8") as handle:
+        return tuple(csv.DictReader(l for l in handle if not l.lstrip().startswith("#")))
 
 
 def _words(name: str | None) -> list[str]:
@@ -241,3 +252,28 @@ def record(conn, ticker: str | None = None, launches=None, disclosed=None,
         row["ticker"] = asset["ticker"]
         out.append(row)
     return out
+
+
+def selling(conn, asset_id: int, launches=None, disclosed=None,
+            today: dt.date | None = None) -> dict | None:
+    """{kind, since, basis} where a generic or biosimilar is on the US market against
+    this product, else None. What the valuation reads. ``basis`` is the register that
+    says so, in words a note can print."""
+    try:
+        asset = conn.execute(
+            "SELECT a.id, a.brand_name, a.generic_name, a.modality, a.internal_code,"
+            "       c.ticker FROM assets a JOIN companies c ON c.id = a.owner_company_id"
+            " WHERE a.id = ?", (asset_id,)).fetchone()
+    except Exception:                       # noqa: BLE001 - a book with no such tables
+        return None
+    if asset is None:
+        return None
+    asset = dict(asset)
+    said = stated(launches, disclosed, today)
+    mine = [s for (t, brand), group in said.items() if t == asset["ticker"]
+            and is_reference(asset["brand_name"], " ".join(brand)) for s in group]
+    row = for_asset(asset, loe.generic_launches(conn).get(asset_id), biosimilars(conn), mine)
+    if row["status"] != ON_MARKET:
+        return None
+    return {"kind": row["kind"], "since": row["since"],
+            "basis": "; ".join(f"{e['register']}: {e['says']}" for e in row["evidence"])[:400]}

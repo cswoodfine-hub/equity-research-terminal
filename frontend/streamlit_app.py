@@ -4049,6 +4049,21 @@ def _identity(data: dict, result: dict) -> str:
         chips.append(f'<span class="hot" title="{html_escape(region.get("loe_basis") or "")}">'
                      f'{html_escape(_REGION_WORD.get(region.get("region"), region.get("region") or ""))} '
                      f'{region.get("share", 0):.0%} {when}</span>')
+    # A cliff behind the product with a competitor selling: the US share goes on falling,
+    # and the chip says at what rate and on whose word. Where the split is not on file
+    # the rule could not be applied, and that is said too.
+    falling = result.get("competitor_tail")
+    unsplit = result.get("competitor_unsplit")
+    if falling:
+        since = f' since {str(falling["since"])[:4]}' if falling.get("since") else ""
+        chips.append(f'<span class="warn" title="{html_escape(falling.get("basis") or "")}">'
+                     f'{html_escape(falling.get("kind") or "competitor")} on the US market'
+                     f'{since} · US falls {falling["rate"]:.0%} a year</span>')
+    elif unsplit:
+        chips.append('<span class="warn" title="A competitor is on the US market. The '
+                     'product&#39;s US share of revenue is not on file, so the line is '
+                     f'held as reported.">{html_escape(unsplit.get("kind") or "competitor")}'
+                     ' on the US market · US share not on file</span>')
     years = result.get("dcf_years") or result.get("years") or []
     if years:
         chips.append(f'<span>{years[0]}–{years[-1]}</span>')

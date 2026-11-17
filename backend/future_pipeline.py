@@ -565,12 +565,12 @@ def book_revenue(parts: list, years: list, erosion_year1: float,
             if not tail:
                 continue                  # no terminal value, so nothing past the horizon
             path = {y: 0.0 for y in later}
-            for share, loe, in_base in tail.get("parts") or []:
+            for share, loe, in_base, *falling in tail.get("parts") or []:
                 for y, f in forecast.terminal_path(
                         tail.get("growth") or 0.0, last, loe, in_base,
                         tail.get("year1_pct"), tail.get("decay_pct"),
                         tail.get("late_decay_pct"), tail.get("late_from_year"),
-                        later).items():
+                        later, tail=falling[0] if falling else None).items():
                     path[y] += share * f
             for y in later:
                 out[y] += final * path[y]

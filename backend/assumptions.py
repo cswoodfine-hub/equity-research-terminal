@@ -134,7 +134,7 @@ def _defaults(path, key_field):
     for row in csv.DictReader(rows):
         entry = dict(row)
         for field in ("pos", "year1_pct", "decay_pct", "late_decay_pct",
-                      "late_from_year"):
+                      "late_from_year", "tail_decay_pct"):
             # An empty cell is an absent figure, not a zero and not a string: a modality
             # with no late decay rate has to reach the engine as None.
             entry[field] = (float(entry[field])
@@ -491,6 +491,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
+        # Whether a generic or biosimilar is selling against it in the United States,
+        # and since when: a cliff behind a product with a competitor on the market goes
+        # on falling, where one with nothing copying it holds (competitors.selling).
+        "competitor": _competitor(conn, asset_id) if asset else None,
         # Each region the product reports sales in, with its own exclusivity date, so a
         # market that opens early or late is eroded when it does (regional_loe).
         "regions": regional_loe.for_asset(conn, asset_id) if asset else [],
@@ -530,6 +534,11 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),
     }
+
+
+def _competitor(conn, asset_id: int):
+    import competitors
+    return competitors.selling(conn, asset_id)
 
 
 # --- writing -----------------------------------------------------------------

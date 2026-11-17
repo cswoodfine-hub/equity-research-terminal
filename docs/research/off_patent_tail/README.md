@@ -1,7 +1,8 @@
 # What happens to revenue after exclusivity ends, and what the model assumes
 
-Researched 2026-11-17. The competitor record is built; the valuation rule is not, and
-nothing here changes a value. Beside this file: `observations.csv`, the 75 products the
+Researched 2026-11-17. The competitor record is built, and so is the rule it was built
+for: what it does and what it moved is the last section. The sections before it are the
+research as it stood when the rule was chosen. Beside this file: `observations.csv`, the 75 products the
 question touches with their reported revenue, their competitor status and what a rule
 would move; and `launch_evidence.csv`, the filers' statements the record's launches rest
 on, including the ones that settled nothing.
@@ -161,3 +162,41 @@ Two things to settle before building it:
    elsewhere, and the engine's regional split could decline those shares too. The
    evidence there is thinner and mixed (an off-patent brand often holds in emerging
    markets), so the first version should decline the US share alone.
+
+## What was built, 2026-11-17
+
+The rule, as recommended, with the biologic rate at 8%. In `forecast.build`: a product
+whose loss of exclusivity is in the base, with a competitor on the US market
+(`competitors.selling`), has the US share of its revenue go on falling. Each year it
+changes by what the reported trend gives or by the tail rate, whichever is the lower, so
+a steep first fall runs its course and the tail takes over from it and stays. The
+terminal value of that share is the falling stream. The rate is the late rate of the
+product's own erosion shape (23% a year for an oral small molecule, 10% for a non-oral
+one), and `tail_decay_pct` in `data/erosion_defaults.csv` for a biologic: 0.08. A biologic
+cliff still ahead keeps its one rate; the tail is only for a cliff already past.
+
+What it moved:
+
+| Company | Value a share | Change | Of which products | Of which assumed launches |
+|---|---|---|---|---|
+| Roche | 29.95 to 29.09 | -2.9% | -0.52 | -0.27 |
+| AstraZeneca | 176.17 to 172.74 | -1.9% | -2.24 | -1.10 |
+| AbbVie | 218.96 to 217.77 | -0.5% | -0.89 | -0.23 |
+| Johnson & Johnson | 219.87 to 218.85 | -0.5% | -0.72 | -0.25 |
+| Biogen | 248.07 to 247.09 | -0.4% | -1.06 | +0.10 |
+| BMS | 110.94 to 110.77 | -0.2% | -0.13 | -0.04 |
+| Sanofi | 69.93 to 69.86 | -0.1% | -0.05 | -0.01 |
+| Novo Nordisk | 47.94 to 47.93 | 0.0% | 0.00 | 0.00 |
+
+The other 38 companies with a value did not move. Symbicort went from $7.47 to $5.52 a
+share, Tecfidera from $7.29 to $6.23, Humira from $3.60 to $2.71, Stelara from $3.03 to
+$2.34. The launches the model assumes fell with the products and did not give anything
+back, as the research expected they might: a smaller book spends less on R&D, and the
+launches are bought with R&D.
+
+Four products have a competitor on the US market and were not made to fall, because no
+regional split is on file for them and the rule is for the US share: Remicade (J&J),
+Lantus Solostar (Sanofi), Kuvan (BioMarin) and Yaz (Bayer). Taking the whole of each as
+American cut Yaz by 88% and Remicade by 68%; Yaz is sold round the world and grew 6% last
+year. Each says so on its card, and each will fall once its split is on file
+(`data/region_revenue.csv`).

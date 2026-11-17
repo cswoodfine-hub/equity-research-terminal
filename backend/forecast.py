@@ -829,9 +829,30 @@ def terminal_value(last_fcff: float, growth: float, rate: float,
     return tv, tv / (1.0 + rate) ** periods
 
 
+def continue_decline(path: list[float], opening, tail: float) -> list[float]:
+    """A line that goes on falling: each year changes by what ``path`` changes by, or by
+    the tail rate where the path falls slower than that or rises.
+
+    For a product whose cliff is behind it with a competitor on the market. The path is
+    the reported trend fading to nil, which carries a steep fall for its first years and
+    then stops; a brand with a generic against it does not stop. ``opening`` is what the
+    line sold in the year before the path starts; with none, the first year stands as the
+    path has it and the tail takes hold from the second.
+    """
+    out, before, level = [], opening, opening
+    for value in path:
+        if before:
+            level = level * (1.0 + min(value / before - 1.0, -tail))
+        else:
+            level = value
+        out.append(level)
+        before = value
+    return out
+
+
 def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
                       in_base: bool = True, year1_pct=None, decay_pct=None,
-                      late_decay_pct=None, late_from_year=None) -> float:
+                      late_decay_pct=None, late_from_year=None, tail=None) -> float:
     """What one unit of the final year's cash flow is worth at the end of that year, once
     the product's own loss of exclusivity is carried past the horizon.
 
@@ -844,6 +865,10 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
     then decays. A product with no LOE, a cliff in the base, or no erosion shape keeps
     the perpetuity.
     """
+    if tail:
+        # A cliff behind the product with a competitor selling: the stream falls at the
+        # tail rate for ever, from the final year.
+        return (1.0 - tail) / (rate + tail)
     if rate - growth <= 0:
         return 0.0
     flat = (1.0 + growth) / (rate - growth)
@@ -874,7 +899,7 @@ def terminal_multiple(growth: float, rate: float, last_year: int, loe_year=None,
 
 def terminal_path(growth: float, last_year: int, loe_year=None, in_base: bool = True,
                   year1_pct=None, decay_pct=None, late_decay_pct=None,
-                  late_from_year=None, years=None) -> dict:
+                  late_from_year=None, years=None, tail=None) -> dict:
     """{year: revenue as a share of the final year's} for each year after ``last_year``:
     the stream ``terminal_multiple`` discounts, year by year. A product with no cliff
     ahead runs on at its growth; one the horizon ends inside keeps decaying, on the early
@@ -885,6 +910,8 @@ def terminal_path(growth: float, last_year: int, loe_year=None, in_base: bool = 
     out = {}
     years = [y for y in (years or []) if y > int(last_year)]
     g = growth or 0.0
+    if tail:
+        return {y: (1.0 - tail) ** (y - int(last_year)) for y in years}
     if loe_year is None or in_base or year1_pct is None:
         return {y: (1.0 + g) ** (y - int(last_year)) for y in years}
     decay = decay_pct or 0.0
@@ -1384,7 +1411,43 @@ def build(inputs: dict) -> dict:
                       for year, value in zip(years, us_revenue)]
         notes.append(f"from {int(step['from_year'])} the US line is cut by "
                      f"{float(step['factor']):.1%} ({step.get('basis') or 'a price step'})")
-    if in_base:
+    # A cliff behind the product is one of two things. Nothing copies it, and its revenue
+    # holds: three or more years on, such products are flat. Or a generic or biosimilar is
+    # selling, and it goes on falling: a median 8% a year in this book, and 6% to 11% a
+    # year for a decade in the long filed histories (docs/research/off_patent_tail). The
+    # second kind used to fade to nil with the first and sit flat for ever.
+    competitor = inputs.get("competitor") if in_base else None
+    tail = None
+    # The record is of the United States market, so the rule is for the US share, and a
+    # line with no regional split on file has no US share to apply it to. Taking the
+    # whole of it as American cut Bayer's Yaz by 88% and J&J's Remicade by 68%: Yaz is
+    # sold round the world and grew 6% last year. Such a line is held as before, and
+    # says so, until its split is on file.
+    unsplit = bool(competitor) and not regions
+    if unsplit:
+        notes.append(f"a {competitor.get('kind') or 'competitor'} is on the US market"
+                     + (f" since {competitor['since']}" if competitor.get("since") else "")
+                     + ", but the product's US share of revenue is not on file, so the "
+                     "line is not made to fall: it is held as the reported trend has it")
+    if competitor and not unsplit:
+        tail = scalars.get("erosion_tail_decay_pct")
+        if tail is None:
+            default, _which = erosion_default(inputs)
+            if default:
+                tail = default.get("tail_decay_pct")
+                if tail is None and default.get("late_decay_pct") is not None:
+                    tail = late_rate(default.get("decay_pct"), default.get("late_decay_pct"))
+        tail = float(tail) if tail else None
+    if in_base and tail:
+        base_revenue = scalars.get("base_revenue") if mode == "marketed" else None
+        eroded = continue_decline(us_revenue, base_revenue * us_share if base_revenue
+                                  else None, tail)
+        notes.append(f"LOE {loe_year or 'already past'} ({loe_basis}) is in the base, and a "
+                     f"{competitor.get('kind') or 'competitor'} has been on the US market"
+                     + (f" since {competitor['since']}" if competitor.get("since") else "")
+                     + f": the US line goes on falling, never slower than {tail:.0%} a year "
+                     f"({competitor.get('basis') or 'competitor record'})")
+    elif in_base:
         eroded = list(us_revenue)
         notes.append(f"LOE {loe_year or 'already past'} ({loe_basis}) is in the base: the reported "
                      "revenue already reflects it and the growth rate carries the "
@@ -1485,18 +1548,21 @@ def build(inputs: dict) -> dict:
         # weighted by what that part earned in the final year.
         end = window_years[-1] if window_years else None
         final = eroded[window[-1]] if window else 0.0
+        # The US part of a line still falling to a competitor carries its tail rate; no
+        # other part has one.
         parts = [(final - sum(r["revenue_after_loe"][window[-1]] for r in regional),
-                  loe_year, in_base)]
-        parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"])
+                  loe_year, in_base, tail if in_base else None)]
+        parts += [(r["revenue_after_loe"][window[-1]], r["loe_year"], r["in_base"], None)
                   for r in regional]
         if end is not None and final > 0 and rate - growth > 0:
             terminal_tail = {"end": end, "growth": growth, "year1_pct": year1,
                              "decay_pct": decay, "late_decay_pct": late_decay,
                              "late_from_year": late_from,
-                             "parts": [[w / final, y, b] for w, y, b in parts if w]}
+                             "parts": [[w / final, y, b] + ([t] if t else [])
+                                       for w, y, b, t in parts if w]}
             multiple = sum(w / final * terminal_multiple(growth, rate, end, y, b, year1,
-                                                         decay, late_decay, late_from)
-                           for w, y, b in parts)
+                                                         decay, late_decay, late_from, t)
+                           for w, y, b, t in parts)
             flat = (1.0 + growth) / (rate - growth)
             if abs(multiple - flat) > 1e-9:
                 tv = flows[-1] * multiple
@@ -1577,6 +1643,14 @@ def build(inputs: dict) -> dict:
         "curve_basis": curve_basis,
         "loe_year": loe_year, "loe_basis": loe_basis, "erosion_basis": erosion_basis,
         "loe_in_base": in_base,
+        # Set where the US line goes on falling to a competitor already on the market.
+        "competitor_tail": ({"rate": tail, "kind": competitor.get("kind"),
+                             "since": competitor.get("since"),
+                             "basis": competitor.get("basis")} if (in_base and tail)
+                            else None),
+        # A competitor is selling and the rule could not be applied for want of a split.
+        "competitor_unsplit": ({"kind": competitor.get("kind"),
+                                "since": competitor.get("since")} if unsplit else None),
         # The US line's share and each region split off it, with its own date. Empty
         # regions and a US share of one where no regional split is on file.
         "us_share": us_share, "regions": regional,
