@@ -80,7 +80,7 @@ def _digest(clean: dict) -> str:
 # a running server does not re-import a module that sits under a dot-directory, as a
 # worktree does, so a script newer than the wrapper in memory reloads the wrapper rather
 # than call it with arguments it does not take.
-REVISION = 4
+REVISION = 5
 
 MODES = ("full", "bridge")
 # Per mode: the component key and the first frame height. The full view is fitted to

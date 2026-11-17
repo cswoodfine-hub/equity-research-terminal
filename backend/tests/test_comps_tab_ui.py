@@ -499,7 +499,7 @@ def test_the_score_map_is_drawn_by_the_shared_routine_unchanged():
 
 def test_the_wrapper_passes_the_chart_and_strips_the_bridge(monkeypatch):
     compsval = _wrapper()
-    assert compsval.REVISION == 4
+    assert compsval.REVISION == 5
     captured = {}
     monkeypatch.setattr(compsval, "_component", lambda **kw: captured.update(kw))
     payload = {"companies": [{"ticker": "AZN", "detail": {"x": 1}}], "scorecard": {"schema": 2}}

@@ -59,7 +59,7 @@ from components import tokens as TK
 # skips those. So the script can be newer than the wrapper held in memory, and would
 # call it with arguments it does not take. A wrapper behind the revision this script
 # is written against is reloaded once, here.
-if getattr(compsval, "REVISION", 0) < 4:
+if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)

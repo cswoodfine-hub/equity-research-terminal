@@ -1,6 +1,7 @@
 # Comps, Companies: the table as figures
 
-Drafted 2026-11-17. Not built. This is the plan to agree before any code.
+Drafted 2026-11-17 and built the same day: what was built, and where it departs from the
+plan, is the last section.
 
 ## What the table is asked
 
@@ -144,3 +145,47 @@ The tab works after every step.
 3. **The other table.** The Scorecard view has a ranked table of its own beside the
    company map. This plan is for the Table view. If the Scorecard's table is the one
    meant, the answer is different and shorter.
+
+## What was built, 2026-11-17
+
+Decision 1 was taken as "Figures, with the table a press further". The switch on Comps,
+Companies now reads Scorecard, Figures, Table. The tab still opens on the Scorecard, as it
+did; Figures is the first of the two comparables views and the table is the press after it.
+
+- **`frontend/components/compsval/figures.js` and `figures.css`.** One module, mounted in
+  the table's place. It reads `view.table` and nothing else: the columns of the preset,
+  each cell's value, status, percentile and distance from the median, and the summary
+  rows. The model of each figure is a pure function (`profileRows`, `rankedBars`,
+  `gridModel`), tested against the table's own cells.
+- **Figure 1, where the company sits.** One row a measure. Peers are ticks, the middle
+  half a band, the median a rule, the company a dot; beside it the figure, the distance
+  from the median and the rank. Green and red only on a measure with a better end. A
+  measure with no figure says why in its row and draws no dot.
+- **Figure 2, the peers on one measure.** A press on a row of figure 1 ranks the peers on
+  it. Bars run from nil, so a negative reads as one; the median is a solid rule and the
+  quartiles dotted. A peer out of the statistics is hatched. Companies with no figure are
+  named under the bars with the reason.
+- **Figure 3, the whole set.** The table's rows and columns, each cell shaded by its
+  percentile among the peers: green and red where a measure has a better end, grey by
+  size where it has none.
+- **One company across all three.** Resting on a tick, a bar or a grid row marks that
+  company on every figure. A press opens its panel, as a table row does. The bars and the
+  grid rows are keyboard stops (Tab, then Enter or Space); the ticks are not, since every
+  company they draw is also a bar and a row.
+- **The measures control** is the table's preset, by the same action, so the two views
+  never disagree about which columns are on the page.
+- **Shared with the table:** the scope line, the peer drawer, the footer and the
+  methodology drawer. The command palette has "Show the comparables as figures".
+
+Where it departs from the plan:
+
+- **The Peer position plot stays.** Step 4 had it leave the chart strip. The strip is not
+  shown in the Figures view at all, so the page loses the block there, and the Table view
+  keeps the strip as it was. Nothing was removed.
+- **Figure 3 does not sort on a press of a column head.** It keeps the table's order, so
+  a sort made in the Table view carries over. Figure 2 is the sorted reading of a column.
+- **Arrows along a strip** were not built, for the reason given above.
+
+Checked: the eight tests of `frontend/tests/compsval/figures.test.js` (every number equals
+the table's cell or summary row, for every preset; a cell with no figure is never drawn),
+the shell's test of the third view, and by eye on AstraZeneca at 1440 and 820 wide.

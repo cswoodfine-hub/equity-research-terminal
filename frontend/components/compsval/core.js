@@ -2380,6 +2380,7 @@ export const COMMANDS = [
   cmd("sources.open", "Sources and method", [], "General"),
   // Revision 4 (company-scorecard.md 5.2): the view switch and Compare.
   cmd("view.scorecard", "Show the scorecard", [], "General"),
+  cmd("view.figures", "Show the comparables as figures", [], "General"),
   cmd("view.table", "Show the comparables table", [], "General"),
   cmd("compare.open", "Compare the ticked companies", [], "General"),
   cmd("singlekeys.toggle", "Turn single-key shortcuts on or off", [], "General"),
@@ -3108,9 +3109,10 @@ export function reduce(state, action, payload = null) {
     // Revision 4 (company-scorecard.md 6.3): the view switch and Compare.
     case "SET_VIEW": {
       if (!VIEWS.includes(a.value) || (state.ui || {}).view === a.value) return state;
-      // The peer drawer belongs to the Table view; Compare to the Scorecard view.
-      return patchUi(state, {view: a.value, peers: a.value === "table" ? (state.ui || {}).peers : false,
-        peersSearch: a.value === "table" ? (state.ui || {}).peersSearch : false,
+      // The peer drawer belongs to the comparables (Figures and Table); Compare to the Scorecard view.
+      const comps = COMPS_VIEWS.includes(a.value);
+      return patchUi(state, {view: a.value, peers: comps ? (state.ui || {}).peers : false,
+        peersSearch: comps ? (state.ui || {}).peersSearch : false,
         compareOpen: a.value === "scorecard" ? !!(state.ui || {}).compareOpen : false});
     }
     case "TOGGLE_COMPARE": {
@@ -3845,7 +3847,8 @@ function buildMethod(A) {
   const cohort = rec && sc.cohorts ? sc.cohorts[rec.cohort] : null;
   const lines = cohort && Array.isArray(cohort.method_text) ? cohort.method_text : (get(sc, "method.text.method") || []);
   const scoreSec = lines.length ? {id: "scorecard", title: stripStop(lines[0]), body: lines.slice(1)} : null;
-  const view_ = A.state.ui && A.state.ui.view === "table" ? "table" : "scorecard";
+  // The comparables (Figures and Table) share one methodology: the figures are the table's cells.
+  const view_ = A.state.ui && COMPS_VIEWS.includes(A.state.ui.view) ? "table" : "scorecard";
   return {sections: view_ === "scorecard" ? (scoreSec ? [scoreSec] : []) : sections.concat(scoreSec ? [scoreSec] : []),
     open: A.state.ui ? A.state.ui.method : null};
 }
@@ -3975,7 +3978,11 @@ function buildStates(A, view) {
 // so Python and the frame print the same numbers and the same sentences (decision 2).
 // ---------------------------------------------------------------------------------------------
 
-export const VIEWS = ["scorecard", "table"];
+/** The views of the frame, in the order the switch shows them: the cohort on one chart, the
+ * comparables as figures (comps-figures.md), and the comparables as the table they are drawn from. */
+export const VIEWS = ["scorecard", "figures", "table"];
+/** The views that are the comparables: they share the scope line, the peer drawer and the footer. */
+export const COMPS_VIEWS = ["figures", "table"];
 export const COMPARE_MAX = 3;
 const SC_DOT = "·";
 const EN_DASH = "–";
@@ -3983,7 +3990,7 @@ const BUSINESS_ORDER = ["growth", "profitability", "balance_sheet", "pipeline", 
 const PRICE_PILLARS = ["value", "momentum"];
 /** Fixed copy of section 8.1 for the frame's own words; every generated line is the server's. */
 export const SCORECARD_COPY = {
-  views: {scorecard: "Scorecard", table: "Table"},
+  views: {scorecard: "Scorecard", figures: "Figures", table: "Table"},
   compare: "Compare {k}",
   compareTip: "Tick two or three companies",
   compareFull: "Compare takes up to three. Untick one first.",

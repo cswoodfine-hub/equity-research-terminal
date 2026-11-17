@@ -1,0 +1,103 @@
+/* figures.css: the Figures view of the Comps tab's Companies view (figures.js, .fg-).
+   Tokens only. Three figures on one stack: the strips and the ranked bars side by side,
+   the grid under them. */
+
+.fg { display: flex; flex-direction: column; gap: var(--sp-12, 12px);
+  padding: var(--sp-12, 12px) var(--sp-16, 16px) var(--sp-16, 16px); }
+.fg-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-bottom: 2px; }
+.fg-ctl { display: inline-flex; align-items: center; gap: 8px; }
+.fg-k { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.fg-preset { min-width: 190px; }
+.fg-hint { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+
+.fg-cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+[data-layout="narrow"] .fg-cols { grid-template-columns: minmax(0, 1fr); }
+
+.fg-sec { min-width: 0; }
+.fg-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 4px; margin-bottom: 4px; }
+.fg-title { margin: 0; font-size: 12.5px; font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase; color: var(--text); }
+.fg-sub { font-size: 11px; color: var(--muted); }
+.fg-note { margin: 6px 0 0; font-size: 11px; line-height: 1.45; color: var(--muted); }
+
+/* --- 1 where the company sits ------------------------------------------------------------- */
+.fg-group { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); padding: 8px 6px 2px; }
+.fg-row { display: grid; grid-template-columns: minmax(120px, 1.05fr) minmax(120px, 2.2fr) 64px 70px 52px; gap: 10px;
+  align-items: center; width: 100%; padding: 5px 6px; border: 0; border-bottom: 1px solid var(--rule);
+  border-left: 2px solid transparent; background: transparent; color: var(--text); text-align: left; cursor: pointer;
+  font: inherit; }
+.fg-row:hover { background: var(--panel); }
+.fg-row:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: -2px; }
+.fg-row.is-active { border-left-color: var(--active); background: var(--active-wash, var(--panel)); }
+.fg-name { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.fg-label { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.fg-primary { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--active); border: 1px solid var(--active); border-radius: 2px; padding: 0 4px; }
+.fg-unit { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0; }
+.fg-value { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; text-align: right; white-space: nowrap; }
+.fg-value.is-null { color: var(--muted); font-weight: 400; }
+.fg-dist { font-family: var(--font-mono); font-size: 11px; text-align: right; white-space: nowrap; color: var(--muted); }
+.fg-dist.fg-up { color: var(--up); }
+.fg-dist.fg-down { color: var(--down); }
+.fg-rank { font-family: var(--font-mono); font-size: 10.5px; text-align: right; color: var(--muted); white-space: nowrap; }
+
+.fg-strip { position: relative; height: 22px; min-width: 0; border-bottom: 1px solid var(--rule); }
+.fg-strip > i { position: absolute; display: block; }
+.fg-band { top: 5px; height: 12px; background: var(--rule-strong); border-radius: 1px; }
+.fg-median { top: 1px; bottom: 1px; width: 1px; margin-left: -0.5px; background: var(--text); opacity: 0.75; }
+.fg-tick { top: 6px; width: 3px; height: 10px; margin-left: -1.5px; background: var(--muted); border-radius: 1px;
+  cursor: pointer; }
+.fg-tick.is-out { background: transparent; border: 1px dashed var(--muted); }
+.fg-tick:hover, .fg-tick.is-hot { background: var(--flag); height: 16px; top: 3px; width: 4px; margin-left: -2px; z-index: 2; }
+.fg-focal { top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--active);
+  border: 1.5px solid var(--text); z-index: 3; pointer-events: none; }
+.fg-focal.fg-down { background: var(--down); }
+.fg-focal.fg-none { background: var(--active); }
+
+/* --- 2 the peers on one measure ----------------------------------------------------------- */
+.fg-barrow { display: grid; grid-template-columns: 46px minmax(0, 1fr) 62px; gap: 8px; align-items: center;
+  padding: 2px 4px; border-left: 2px solid transparent; cursor: pointer; }
+.fg-barrow:hover, .fg-barrow.is-hot { background: var(--panel); }
+.fg-barrow.is-focal { border-left-color: var(--active); }
+.fg-barrow:focus-visible, .fg-table tbody tr:focus-visible { outline: 2px solid var(--focus, var(--text)); outline-offset: -2px; }
+.fg-tk { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--text); }
+.fg-barrow.is-focal .fg-tk, .fg-barrow.is-focal .fg-bv { color: var(--active); }
+.fg-bv { font-family: var(--font-mono); font-size: 11px; text-align: right; white-space: nowrap; }
+.fg-track { position: relative; height: 14px; }
+.fg-track > i { position: absolute; display: block; }
+.fg-bar { top: 3px; height: 8px; background: var(--muted); border-radius: 1px; }
+.fg-bar.is-focal { background: var(--active); }
+.fg-bar.is-out { background: var(--hatch); border: 1px solid var(--muted); }
+.fg-barrow.is-hot .fg-bar:not(.is-focal) { background: var(--flag); }
+.fg-zero { top: 0; bottom: 0; width: 1px; background: var(--rule-strong); }
+.fg-track .fg-median { top: -2px; bottom: -2px; }
+.fg-quartile { top: -2px; bottom: -2px; width: 0; border-left: 1px dotted var(--muted); }
+
+/* --- 3 the whole set ---------------------------------------------------------------------- */
+.fg-gridwrap { overflow-x: auto; }
+.fg-table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.fg-table th { font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); text-align: right; padding: 4px 8px; white-space: nowrap;
+  border-bottom: 1px solid var(--rule-strong); }
+.fg-table th.is-primary { color: var(--active); }
+.fg-table th.fg-gco { text-align: left; }
+.fg-table tbody th { text-transform: none; letter-spacing: 0; font-family: inherit; font-size: 11.5px; color: var(--text);
+  border-bottom: 1px solid var(--rule); display: flex; gap: 8px; align-items: baseline; }
+.fg-gname { color: var(--muted); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.fg-table tbody tr { cursor: pointer; }
+.fg-table tbody tr.is-focal th .fg-tk { color: var(--active); }
+.fg-table tbody tr.is-focal td { font-weight: 700; }
+.fg-table tbody tr.is-out td, .fg-table tbody tr.is-out th { opacity: 0.55; }
+.fg-table tbody tr:hover td, .fg-table tbody tr.is-hot td { outline: 1px solid var(--rule-strong); outline-offset: -1px; }
+.fg-cell { font-family: var(--font-mono); text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--ground);
+  border-right: 1px solid var(--ground); color: var(--text); white-space: nowrap; }
+.fg-cell.fg-size { background: color-mix(in oklab, var(--muted) calc(var(--fg-a, 0%) * 0.42), transparent); }
+.fg-cell.fg-up { background: color-mix(in oklab, var(--up) calc(var(--fg-a, 0%) * 0.5), transparent); }
+.fg-cell.fg-down { background: color-mix(in oklab, var(--down) calc(var(--fg-a, 0%) * 0.5), transparent); }
+.fg-cell.is-null { color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .fg-tick, .fg-bar { transition: background-color 0.12s; }
+}

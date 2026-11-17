@@ -4256,6 +4256,25 @@ registry readout through its study's asset, as this payload does.)
   mounted.
 - **Bridge frame height.** The frame takes the height of `#app` plus 4 px, floored at 200.
 
+## 13. Revision 5: the Figures view
+
+2026-11-17. The plan and what was built are in `docs/design/comps-figures.md`; this section
+records what changed in the contract.
+
+- **Views.** `core.VIEWS` is `["scorecard", "figures", "table"]`, the order of the switch.
+  `core.COMPS_VIEWS` is `["figures", "table"]`: the two views that are the comparables.
+  They share the scope line, the peer drawer, the footer and the methodology sections.
+  `SET_VIEW` keeps the peer drawer open across the two and closes it for the Scorecard.
+- **Slots.** `shell.slotsFor("figures")` is `scope, figures, detail, peers, method`. The
+  chart strip is the Table view's alone.
+- **Module.** `figures.js` exports `mountFigures(root, ctx)` and loads by dynamic import as
+  the other mounted modules do, so a failure costs its slot and not the page. It derives
+  nothing: every number it draws is a cell or a summary row of `view.table`.
+- **Command.** `view.figures`, "Show the comparables as figures", no key.
+- **State.** `ui.view` may be `"figures"` and persists as the other views do. The measure
+  chosen for the ranked bars is the module's own and is not persisted.
+- **Wrapper.** `compsval.REVISION` is 5.
+
 ---
 
 ## Appendix A. Resolved review points
