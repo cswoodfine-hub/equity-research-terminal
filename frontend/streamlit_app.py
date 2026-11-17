@@ -61,7 +61,7 @@ from components import tokens as TK
 # is written against is reloaded once, here.
 if getattr(compsval, "REVISION", 0) < 4:
     compsval = importlib.reload(compsval)
-if getattr(FB, "REVISION", 0) < 6:
+if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.

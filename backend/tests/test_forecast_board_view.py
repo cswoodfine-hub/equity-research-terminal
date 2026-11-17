@@ -340,6 +340,16 @@ def test_the_cursor_over_a_year_reads_every_band_and_its_share():
     svg, _ = F.company_chart(board)
     assert svg.count('class="fb-hit"') == len(fig["labels"])
     assert svg.rindex('class="fb-hit"') > svg.rindex('class="fb-bar')
+    # The card opens on the column and nowhere else: its target is the column's own
+    # rectangle, not the year's strip of the plot, and no rule is drawn down the plot.
+    import re
+    bar_w = re.search(r'class="fb-bar b\d+" x="[\d.]+" y="[\d.]+" width="([\d.]+)"', svg)
+    hits = re.findall(r'class="fb-hit"><rect x="[\d.]+" y="([\d.]+)" width="([\d.]+)"'
+                      r' height="([\d.]+)"', svg)
+    assert {w for _, w, _ in hits} == {bar_w.group(1)}
+    assert len({h for _, _, h in hits}) > 1                # as tall as each column is
+    assert "<line" not in svg[svg.index('class="fb-tip"'):svg.index("</g></g>",
+                                                                    svg.index('class="fb-tip"'))]
     card = svg[svg.rindex('class="fb-hit"', 0, svg.index(">2027  USD mm<")):]
     card = card[:card.index("</g></g>")]
     company = board["weighted"]["company"]["revenue"][2027]

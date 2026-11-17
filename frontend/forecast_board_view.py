@@ -19,7 +19,7 @@ import math
 from components import charts as CH
 from components import tokens as TK
 
-REVISION = 6
+REVISION = 7
 
 # ----------------------------------------------------------------------- the choices
 MEASURES = {"revenue": "Revenue", "operating_profit": "Operating profit",
@@ -158,21 +158,20 @@ def _legend(entries: list, width: float, pad_l: float, pad_r: float, hid: str) -
 
 
 def _readout(cx: float, top: float, floor: float, left: float, right: float, title: str,
-             rows: list, foot: str = "") -> str:
-    """The card a column shows while the cursor is over it: the year, then a line a band
+             rows: list, foot: str = "", gap: float = 10.0) -> str:
+    """The card a column shows while the cursor is on it: the year, then a line a band
     with its figure and its share, and a foot for what else is true of the year. Set to
-    the side of the cursor with the room, so it never covers the column it reads."""
+    the side of the column with the room, so it never covers the column it reads. No
+    rule is drawn down the plot: the column under the cursor is the mark."""
     names = max([len(r["name"]) for r in rows] + [len(title), 8])
     figures = max([len(r["figure"]) + len(r.get("share") or "") for r in rows] + [4])
     w = min(max(54 + names * 5.6 + figures * 6.2, 150), 300)
     foot_lines = [foot[i:i + 46] for i in range(0, len(foot), 46)] if foot else []
     h = 24 + 14 * len(rows) + (6 + 12 * len(foot_lines) if foot_lines else 0)
-    x0 = cx + 10 if cx + 10 + w <= right else cx - 10 - w
+    x0 = cx + gap if cx + gap + w <= right else cx - gap - w
     x0 = min(max(x0, left), right - w)
     y0 = top + 2
-    out = [f'<line x1="{cx:.1f}" y1="{top}" x2="{cx:.1f}" y2="{floor}" stroke="{TK.TEXT}"'
-           ' stroke-width="0.8" opacity="0.55"/>',
-           f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h}" rx="2"'
+    out = [f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h}" rx="2"'
            f' fill="{TK.PANEL}" stroke="{TK.RULE_STRONG}"/>',
            CH._text(x0 + 9, y0 + 15, title, 10.5, TK.TEXT, family=CH.MONO, weight="700")]
     for k, r in enumerate(rows):
@@ -214,8 +213,10 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
     dot a year over the columns, for the figure the stack is read against. ``unit`` is
     printed once, at the head of the axis.
 
-    The cursor over a year shows that year's card: each band's figure and its share of
-    the total, the net, the reference and the products that lose exclusivity in it.
+    The cursor on a column shows that year's card: each band's figure and its share of
+    the total, the net, the reference and the products that lose exclusivity in it. Only
+    on the column: the space above a short one is not it, so a card never opens for a
+    year the cursor is merely passing over.
     """
     fmt = fmt or (lambda v: f"{v:,.0f}")
     bands = [b for b in bands if any(v is not None for v in b["values"])]
@@ -320,12 +321,16 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
                          "figure": fmt(ref), "share": "" if shares else None})
         ends = (notes or {}).get(i) or []
         foot = ("exclusivity ends: " + ", ".join(p["name"] for p in ends)) if ends else ""
+        if not read:
+            continue                   # a reference alone is a dot, not a column to rest on
+        hy0, hy1 = y(up), y(down)      # the column itself, top of the stack to its foot
         cards.append(
-            f'<g class="fb-hit"><rect x="{pad_l + slot * i:.1f}" y="{top}"'
-            f' width="{slot:.1f}" height="{floor - top + 16}" fill="transparent"/>'
+            f'<g class="fb-hit"><rect x="{cx - col_w / 2:.1f}" y="{hy0:.1f}"'
+            f' width="{col_w:.1f}" height="{max(hy1 - hy0, 4.0):.1f}" fill="transparent"/>'
             f'<g class="fb-tip">'
             + _readout(cx, top, floor, pad_l, width - pad_r,
-                       f"{lab}" + (f"  {unit}" if unit else ""), rows, foot)
+                       f"{lab}" + (f"  {unit}" if unit else ""), rows, foot,
+                       gap=col_w / 2 + 6)
             + "</g></g>")
     if reference:
         xs = lambda i: pad_l + slot * i + slot / 2          # noqa: E731
@@ -372,7 +377,9 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
     ahead of or behind its model shows as a ring off the line's start. ``dash_from`` is
     the index of a series' last modelled year: the line is dashed after it. Each line is
     named at its end, the names pushed apart where two end together. The cursor over a
-    year shows every line's figure for it, largest first."""
+    year marks each line at that year and shows every line's figure for it, largest
+    first; a line has no bar to rest on, so the year's own strip of the plot is the
+    target."""
     fmt = fmt or (lambda v: f"{v:,.0f}")
     series = [s for s in series if any(v is not None for v in s["values"])
               or any(v is not None for v in s.get("dots") or [])]
