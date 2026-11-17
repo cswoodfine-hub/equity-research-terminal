@@ -68,6 +68,7 @@ import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
 import launch_timing
+import cash_profile
 import development
 import disease_areas
 import call_log
@@ -925,6 +926,17 @@ def forecast_development(ticker: str, asset_id: int) -> dict:
     ladder to approval after later trial costs. A refusal comes back as {ok: false,
     reason, why}. A view beside the value: it moves no rNPV, sum of the parts or rating."""
     out = development.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
+    return out
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/cash-profile")
+def forecast_cash_profile(ticker: str, asset_id: int, scenario: str = "base") -> dict:
+    """The asset's cash flows by calendar year beside the cost still to reach the market:
+    the cumulative curve, the internal rate of return and the payback year, if it
+    succeeds and weighted by its chances. A view beside the value: it moves no rNPV."""
+    out = cash_profile.for_asset(None, ticker, asset_id, scenario)
     if out is None:
         raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
     return out

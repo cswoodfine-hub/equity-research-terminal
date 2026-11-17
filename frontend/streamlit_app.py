@@ -5455,6 +5455,103 @@ def _render_patient_chart(result, years, x_labels, volume_scale, patients_span):
              "rate, and it can be argued against the hand series above it")
 
 
+def _cash_profile_section(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
+    """The asset's cash by calendar year: what is still to be spent reaching the market,
+    what comes back, the cumulative curve, the return and the year it is paid back.
+
+    Two cases, drawn together: if it succeeds, and weighted by its chances. A marketed
+    product has no outlay ahead, so its curve is the inflows alone and no return is
+    stated; the reason is printed rather than a nil."""
+    try:
+        prof = api_get(api_base, f"/companies/{ticker}/forecast/{asset_id}/cash-profile"
+                                 f"?scenario={scenario}")
+    except Exception as exc:                                # noqa: BLE001 - soft failure
+        section("Cash profile")
+        state("Cash profile unavailable", f"the API did not answer: {exc}", error=True)
+        return
+    if not prof or not prof.get("ok"):
+        section("Cash profile")
+        note((prof or {}).get("why") or "no cash profile for this product.")
+        return
+    years, ok, wt = prof["years"], prof["success"], prof.get("weighted")
+    has_outlay = prof.get("outlay") is not None
+    section("Cash profile",
+            basis=f"mm {_BOOK_UNIT['currency']} · by calendar year · undiscounted"
+                  + (" · after tax" if prof.get("after_tax") else ""))
+
+    # A marketed product has nothing left to spend, which is an answer; any other asset
+    # with no outlay is one the cost view could not read, which is not.
+    blank = "not applicable" if prof.get("outlay_reason") == "marketed" else "not read"
+
+    def rate(case):
+        if not has_outlay:
+            return blank
+        if not case:
+            return "—"
+        if case.get("irr") is not None:
+            return T.pct(case["irr"] * 100, 0)
+        if case.get("irr_above"):
+            return f"above {T.pct(prof['irr_ceiling'] * 100, 0)}"
+        return "—"
+
+    no_outlay = (("no outlay ahead of a marketed product" if blank == "not applicable"
+                  else "the cost to reach the market is not read") if not has_outlay else "")
+    st.markdown(metric_tiles([
+        ("return if it succeeds", rate(ok), " a year" if ok.get("irr") is not None else "",
+         None, "", no_outlay or "on the spend still ahead; what is spent is sunk"),
+        ("return weighted by its chances", rate(wt),
+         " a year" if (wt or {}).get("irr") is not None else "", None, "",
+         no_outlay or (f"cash flows at {T.pct(prof['pos'] * 100, 0)}, each stage's cost "
+                       f"at the chance it is reached" if prof.get("pos") is not None else "")),
+        ("paid back", (blank if not has_outlay else
+                       str(ok["payback_year"]) if ok.get("payback_year") else "—"), "", None, "",
+         no_outlay or ("the year the cumulative cash turns positive, if it succeeds"
+                       if ok.get("payback_year") else "not inside the forecast window")),
+        ("still to spend", (T.num(prof["outlay_total"]) if has_outlay else
+                            "none" if blank == "not applicable" else blank),
+         _mm() if has_outlay else "", None, "",
+         no_outlay or (f"deepest {T.num(ok['deepest'])} in {ok['deepest_year']}"
+                       if ok.get("deepest") is not None else "to reach the market")),
+    ], one_row=True), unsafe_allow_html=True)
+
+    # Short names: the chart prints each at the line's end, in the right margin.
+    series = [{"name": "succeeds", "values": ok["cumulative"], "colour": TK.UP}]
+    if wt:
+        series.append({"name": "weighted", "values": wt["cumulative"], "colour": TK.FLAG})
+    marks = []
+    if has_outlay and prof["launch_year"] in years:
+        marks.append({"index": years.index(prof["launch_year"]), "label": "first sales"})
+    if ok.get("payback_year") in years:
+        marks.append({"index": years.index(ok["payback_year"]), "label": "paid back"})
+    if prof.get("loe_year") in years:
+        marks.append({"index": years.index(prof["loe_year"]), "label": "exclusivity ends"})
+    R.show(CH.line_chart(series, [str(y) for y in years], 620, 240,
+                         y_fmt=lambda v: f"{v:,.0f}", markers=marks),
+           css_class="chart-mount")
+    if not has_outlay:
+        note(f"cumulative cash from the forecast alone, if it succeeds and weighted by its chances. {prof.get('outlay_why') or ''} "
+             "A return needs an outlay, so none is stated.")
+    else:
+        stages = " · ".join(
+            f"{s_['label']} {T.num(s_['amount'])}"
+            + (f" (reached {T.pct(s_['p_enter'] * 100, 0)} of the time)" if s_["p_enter"] < 1 else "")
+            for s_ in prof.get("outlay_stages") or [])
+        note(f"cumulative cash if it succeeds and weighted by its chances. Still to spend: {stages}. Costs are published per-patient and per-programme "
+             "figures (Sertkaya 2024), only the spend still ahead. " + " ".join(prof["notes"]))
+    with st.expander("Cash by year"):
+        table = pd.DataFrame([{
+            "year": y,
+            "outlay": (-prof["outlay"][i] if has_outlay else None),
+            "cash flow": prof["cash"][i], "net": ok["net"][i],
+            "cumulative": ok["cumulative"][i],
+            "cumulative, weighted": (wt["cumulative"][i] if wt else None),
+        } for i, y in enumerate(years)])
+        st.dataframe(table.style.format({c: "{:,.0f}" for c in
+                                         ("outlay", "cash flow", "net", "cumulative",
+                                          "cumulative, weighted")}, na_rep="—"),
+                     width="stretch", hide_index=True, height=min(60 + 36 * len(years), 420))
+
+
 def _pnl_section(result: dict, varied) -> None:
     """The P&L that produces the FCFF, which the engine computed and nothing showed.
 
@@ -6154,6 +6251,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
                     _share_shaper(api_base, ticker, sel, scenario, result)
 
         with panels["P&L"]:
+            _cash_profile_section(api_base, ticker, sel, scenario)
             _pnl_section(result, varied)
 
         with panels["Sensitivity"]:

@@ -593,6 +593,31 @@ def _money(stage: dict, *, rate: float, anchor: dt.date, to_ccy: float, keep: fl
     return usd * to_ccy * keep
 
 
+def spend_by_year(stages_: list, *, to_ccy: float, keep: float) -> list | None:
+    """Each stage's remaining spend by calendar year, as the valuation counts money (the
+    reporting currency, after tax where the deduction can be used, at the company's share)
+    but undiscounted, with the chance the stage is entered at all: the first stage is
+    being run, and each later one is reached only if every gate before it passes. None
+    where any stage's cost cannot be read, since a profile with a hole in it would read
+    as a cheaper programme."""
+    if any(s.get("unread") for s in stages_):
+        return None
+    out, p_enter = [], 1.0
+    for stage in stages_:
+        years: dict = {}
+        for amount, start, end in stage["spend"]:
+            for year in range(start.year, end.year + 1):
+                part = within(amount, start, end, dt.date(year, 1, 1), dt.date(year + 1, 1, 1))
+                if end <= start:
+                    part = amount if year == start.year else 0.0
+                if part:
+                    years[year] = years.get(year, 0.0) + part * to_ccy * keep
+        out.append({"gate": stage["gate"], "label": stage["label"], "p_enter": p_enter,
+                    "years": years})
+        p_enter *= stage["p"]
+    return out
+
+
 def ladder(stages_: list, success_leg: float, costs: list) -> dict:
     """Backward induction from approval, every later stage's cost taken off.
 
@@ -819,6 +844,7 @@ def _for_asset(conn, company, asset, today, *, peers=None, table=None) -> dict:
                    "high": {"rows": lad_high["rows"], "risked_cost": lad_high["risked_cost"],
                             "value_today": lad_high["value_today"], "label": HIGH_LABEL}},
         "stages": [{k: v for k, v in s.items() if k != "spend"} for s in stages_],
+        "spend_by_year": spend_by_year(stages_, to_ccy=to_ccy, keep=keep),
         "outside": {"studies": outside,
                     "cost_usd_mm": sum(s["ahead_usd_mm"] for s in outside
                                        if s["ahead_usd_mm"] is not None),
