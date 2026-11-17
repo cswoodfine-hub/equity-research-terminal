@@ -103,6 +103,9 @@ def app():
     # against a format function keyed on asset ids. Session state holds what the app
     # itself holds, which is the id.
     test.session_state["fc_pick_VRTX"] = _asset_id("Casgevy")
+    # The workbench is the asset's card, opened from a row of the page; the session key a
+    # click sets is set here.
+    test.session_state["fc_open_VRTX"] = {"asset": _asset_id("Casgevy")}
     test.run()
     return test
 
@@ -202,6 +205,7 @@ def franchise_app():
     test.query_params["ticker"] = "VRTX"
     test.run()
     test.session_state["fc_pick_VRTX"] = _asset_id("Alyftrek")
+    test.session_state["fc_open_VRTX"] = {"asset": _asset_id("Alyftrek")}
     test.run()
     return test
 
@@ -231,3 +235,66 @@ def test_the_first_year_does_not_move_with_the_plateau(franchise_app):
 
 def test_a_product_that_is_not_in_a_franchise_has_no_such_slider(app):
     assert not [s for s in app.slider if s.key == f"share_plateau_VRTX_{_asset_id('Casgevy')}"]
+
+
+# --- The page ---------------------------------------------------------------
+#
+# Two parts, the company and its assets, as charts the reader changes. The workbench is
+# not on the page until a row is clicked.
+
+
+@pytest.fixture(scope="module")
+def page():
+    from streamlit.testing.v1 import AppTest
+
+    _patch_button_group_serialisation()
+    if str(FRONTEND) not in sys.path:
+        sys.path.insert(0, str(FRONTEND))
+    test = AppTest.from_file(str(APP), default_timeout=120)
+    test.query_params["ticker"] = "VRTX"
+    test.run()
+    return test
+
+
+def _sections(app) -> list:
+    import re
+    body = " ".join(str(m.value) for m in app.markdown)
+    return re.findall(r'class="sec-label">([^<]+)<', body)
+
+
+def test_the_page_is_the_company_then_its_assets_and_no_workbench(page):
+    assert not page.exception
+    labels = _sections(page)
+    for want in ("VRTX · company forecast", "The company over time",
+                 "What the value is made of", "What it depends on", "Asset forecasts",
+                 "Assets compared", "Assets over time"):
+        assert want in labels, (want, labels)
+    assert labels.index("VRTX · company forecast") < labels.index("Asset forecasts")
+    assert not [s for s in page.slider if (s.key or "").startswith("fc_wi_")]
+    assert "Levers" not in labels
+
+
+def test_a_choice_redraws_the_company_chart(page):
+    def chart():
+        return next(str(m.value) for m in page.markdown
+                    if "the company over time" in str(m.value))
+
+    before = chart()
+    assert "Products on sale" in before and "Launches the model assumes" in before
+    control = next(c for c in page.button_group if c.key == "fcb_measure_VRTX")
+    control.set_value("capex").run()
+    assert not page.exception
+    after = chart()
+    assert after != before and "Plant upkeep" in after
+    control = next(c for c in page.button_group if c.key == "fcb_measure_VRTX")
+    control.set_value("revenue").run()
+
+
+def test_a_block_that_left_the_page_opens_as_a_card(page):
+    button = next(b for b in page.button if b.key == "fcb_more_range_VRTX")
+    button.click().run()
+    assert not page.exception
+    assert "Fair value range" in _sections(page)
+    page.session_state["fc_open_VRTX"] = None
+    page.run()
+    assert "Fair value range" not in _sections(page)

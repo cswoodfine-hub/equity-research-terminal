@@ -70,6 +70,7 @@ import labels as labels_module
 import launch_timing
 import cash_profile
 import development
+import forecast_board
 import disease_areas
 import call_log
 import my_portfolio
@@ -769,6 +770,23 @@ def company_forecast_verdict(ticker: str) -> dict:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
     out = {**out, "pending_acquisitions": pending_acquisitions.lines_for_company(ticker)}
     return {**out, "note": forecast_note.write_company(out)}
+
+
+# Not /forecast/board, for the same reason as /forecast-verdict: /forecast/{asset_id} would
+# match first and fail to cast "board" to an int.
+@app.get("/companies/{ticker}/forecast-board")
+def company_forecast_board(ticker: str) -> dict:
+    """The company and its assets as yearly series the Forecast tab switches between:
+    revenue, profit, cash flow, each cost line and capex, reported years joined to the
+    forecast. Adds up what the verdict already holds; it values nothing."""
+    verdict = forecast_view_module.company_verdict(None, ticker)
+    if verdict is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    conn = db.get_connection()
+    try:
+        return forecast_board.build(conn, None, ticker, verdict)
+    finally:
+        conn.close()
 
 
 @app.get("/companies/{ticker}/launch-timing")

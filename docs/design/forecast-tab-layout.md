@@ -1,6 +1,7 @@
 # Forecast tab: one page, two parts, led by figures
 
-Drafted 2026-11-17, second version. Not built. This is the plan to agree before any code.
+Drafted 2026-11-17, second version. Built the same day; what shipped and where it differs
+from the plan is in the last section.
 
 ## What the page is for
 
@@ -224,3 +225,40 @@ The tab works after every step.
 3. **The measures list.** Is anything missing that you want to pick: net income, earnings
    a share, dividends and buybacks (all reported, none forecast today)?
 4. **How an asset's detail opens.** A card over the page (the plan), or in place.
+
+## What was built, 2026-11-17
+
+The page as planned: the number strip, the company over time with its four choices, what
+the value is made of, what it depends on, the More row, assets compared (ranked rows that
+open the asset's card, and two measures against each other), assets over time, and the
+table. Amgen went from 3.8 screens, about 1,400 words and 28 charts to 1.45 screens,
+about 230 words and five figures, with no slider on the page.
+
+Decisions taken while building:
+
+- **Forecast capex is drawn, from the valuation's own rule.** The engine has no capex
+  line but charges plant twice, and both charges are measured from filings: upkeep at the
+  company's plant depreciation over its revenue, and new plant at the pooled capex above
+  depreciation per dollar of revenue added. The chart stacks the two, so the line
+  reconciles with the free cash flow beside it. A separate rule (a five-year share of
+  revenue) would not. A filer with no plant lines on file gets no forecast and the reason.
+- **The launches the model assumes are a group of their own** in every company chart,
+  hatched. They are 42% of Amgen's value, and a path that left them out fell away from
+  2030 while the value did not.
+- **The asset card** is today's workbench, reordered: the figures (worth, size, odds,
+  life, then the rate), one chart switched between revenue, free cash flow, cumulative
+  cash, costs and patients with the value bridge beside it, the levers under the chart,
+  then the layers. The picker inside moves between assets without closing the card.
+- **A choice redraws through the server**, not in the browser: the tab is one fragment
+  and the board is cached, so a press is a redraw of that tab alone.
+
+Not in this version:
+
+- **By region** as a split. The verdict carries each product's regional shares, not a
+  path per region after each region's own loss of exclusivity.
+- **Return** as a measure in assets compared. It is one cash-profile read per asset, too
+  slow for the page; it is on the asset's card.
+- **Patients** in assets over time, for the same reason; it is on the card.
+- **The guidance diamond** on the company chart. Guidance is read for one year by the
+  fair value view and is not on the board.
+- **Choices in the address bar**, and a headline figure on each More button.

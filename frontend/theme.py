@@ -1403,6 +1403,21 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .chart-mount a.slice:hover path {{ stroke: var(--text); stroke-width: 1.6; }}
 .chart-mount a.slice:hover text {{ fill: var(--text); }}
 
+/* The forecast page. A caption is one line under its chart: the unit, the basis and what
+   the figure is built on. The More row is the company blocks that left the page, each a
+   button that opens its block as a card. */
+.fc-cap {{ margin-top: 0.15rem; line-height: 1.4; }}
+.fc-more-k {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+             letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }}
+[class*="st-key-fcb_more_"] {{ align-items: center; gap: 0.4rem; flex-wrap: wrap;
+  border-top: 1px solid var(--rule); padding-top: 0.45rem; margin-top: 0.3rem; }}
+[class*="st-key-fcb_more_"] button {{ min-height: 0; padding: 2px 10px; font-size: 11.5px; }}
+/* Seven figures on one line need the page's width. On a narrow screen they wrap, since
+   a row that does not fit prints one figure over the next. */
+@media (max-width: 900px) {{
+  [class*="st-key-fcb_strip_"] .tiles.tiles-row {{
+    grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }}
+}}
 /* The forecast workbench. A rule above the picker separates the product from the book
    over it, since both are the same kind of block and the eye needs to be told where one
    company ends and one product begins. */

@@ -99,6 +99,17 @@ def biotech_app():
     return _open(BIOTECH)
 
 
+@pytest.fixture(scope="module")
+def peers_app():
+    """The pharma page with the Forecast tab's Peer multiples card open. The bridge left
+    the page for a card when the tab became two parts led by charts; the session key a
+    press of the button sets is set here."""
+    test = _open("LLY")
+    test.session_state["fc_open_LLY"] = {"more": "peers"}
+    test.run()
+    return test
+
+
 def _direct_tabs(block) -> list:
     """The labels of the tabs directly under ``block``: its own st.tabs, not the tabs
     nested inside those (the indication landscape has views of its own)."""
@@ -328,8 +339,10 @@ def test_the_wrapper_passes_the_contract_args(monkeypatch):
 
 
 @needs_api
-def test_the_forecast_tab_draws_the_bridge_alone(pharma_app):
-    by_mode = _args_by_mode(pharma_app)
+def test_the_forecast_tab_draws_the_bridge_alone(pharma_app, peers_app):
+    assert set(_args_by_mode(pharma_app)) == {"full"}     # not on the page until asked
+    assert not peers_app.exception
+    by_mode = _args_by_mode(peers_app)
     assert set(by_mode) == {"full", "bridge"}
     bridge = by_mode["bridge"]
     assert bridge["focal"] == by_mode["full"]["focal"]
@@ -338,7 +351,7 @@ def test_the_forecast_tab_draws_the_bridge_alone(pharma_app):
 
 
 @needs_api
-def test_the_full_view_carries_the_scorecard_and_the_company_map(pharma_app):
+def test_the_full_view_carries_the_scorecard_and_the_company_map(pharma_app, peers_app):
     """Revision 4 (6.2): the payload carries the scorecard, the frame gets the company map
     Python drew for the focal company's cohort, and no catalyst context, since Drivers and
     risks moved to the Catalysts tab."""
@@ -355,7 +368,7 @@ def test_the_full_view_carries_the_scorecard_and_the_company_map(pharma_app):
     assert svg.count('class="cm-pt"') == len(charted)
     assert f'data-ticker="{args["focal"]}"' in svg
     assert re.fullmatch(r"[0-9a-f]{12}", args["chart_digest"])
-    bridge = _args_by_mode(pharma_app)["bridge"]
+    bridge = _args_by_mode(peers_app)["bridge"]
     assert "scorecard" not in bridge["payload"] and "chart_svg" not in bridge
 
 
