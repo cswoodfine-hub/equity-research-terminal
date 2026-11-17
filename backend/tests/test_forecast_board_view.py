@@ -111,7 +111,8 @@ def test_every_choice_of_the_company_chart_draws():
                                                          F.BASES):
         svg, caption = F.company_chart(board, measure, split, view, basis)
         assert svg.startswith("<svg") and svg.endswith("</svg>"), (measure, split, view)
-        assert caption.startswith("USD "), caption
+        assert caption.split(" · ")[0] in ("weighted by chances", "if all succeed"), caption
+        assert ">USD mm</text>" in svg                 # the unit, once, on the axis
 
 
 @pytest.mark.parametrize("measure", ["revenue", "operating_profit", "free_cash_flow", "rd"])
@@ -222,8 +223,10 @@ def test_forecast_capex_is_upkeep_and_new_plant_and_states_its_rule():
 def test_a_name_under_a_year_is_a_product_losing_exclusivity_in_the_forecast():
     fig = F.company_figure(_board(), "revenue", "group", "year", "weighted")
     i = fig["labels"].index("2027")
-    assert fig["notes"][i] == "Onsale"
-    assert "loses exclusivity" in fig["caption"]
+    assert fig["notes"] == {i: [{"name": "Onsale", "share": 0.3}]}
+    assert "losing exclusivity" in fig["caption"]
+    svg, _ = F.company_chart(_board())
+    assert svg.count('class="fb-loe"') == 1 and "Onsale: exclusivity ends 2027" in svg
 
 
 def test_the_value_split_is_a_bridge_that_ends_on_the_value():
@@ -327,6 +330,61 @@ def test_the_asset_view_opens_on_five_figures_about_the_assets():
     assert by["next gate"][1] == "2027-03-01" and "Pipe" in by["next gate"][5]
     empty = F.asset_strip_items({"assets": []})
     assert empty[1][1] is None and empty[3][1] is None        # no free data, not nil
+
+
+def test_the_cursor_over_a_year_reads_every_band_and_its_share():
+    """One card a year, drawn last so it sits over the columns: each band's figure and
+    its share of the total, the total, and what loses exclusivity that year."""
+    board = _board()
+    fig = F.company_figure(board, "revenue", "group", "year", "weighted")
+    svg, _ = F.company_chart(board)
+    assert svg.count('class="fb-hit"') == len(fig["labels"])
+    assert svg.rindex('class="fb-hit"') > svg.rindex('class="fb-bar')
+    card = svg[svg.rindex('class="fb-hit"', 0, svg.index(">2027  USD mm<")):]
+    card = card[:card.index("</g></g>")]
+    company = board["weighted"]["company"]["revenue"][2027]
+    onsale = board["weighted"]["groups"]["marketed"]["revenue"][2027]
+    assert f">{company:,.0f}</text>" in card and ">Total</text>" in card
+    assert f">{onsale / company:.0%}</text>" in card
+    assert "exclusivity ends: Onsale" in card
+    # a year with a charge under it has a net and no shares
+    cash = F.company_chart(board, "free_cash_flow")[0]
+    assert ">Net</text>" in cash
+    # and the asset lines read the same way
+    lines, _ = F.asset_lines(board, "revenue")
+    assert lines.count('class="fb-hit"') >= 3 and "Onsale, reported" in lines
+
+
+def test_a_chart_drawn_twice_is_the_same_markup_so_it_does_not_replay():
+    """The columns rise from the axis when a choice changes. A rerun that changed
+    nothing must not replay them, so nothing in the markup may differ between draws."""
+    board = _board()
+    assert F.company_chart(board) == F.company_chart(board)
+    assert F.value_chart(board) == F.value_chart(board)
+    svg = F.company_chart(board)[0]
+    assert 'class="fb-col"' in svg and "fbgrow" in svg
+    assert "prefers-reduced-motion" in F.CHART_CSS
+    assert ".fb-lg.l0:hover" in F.CHART_CSS and 'class="fb-lg l0"' in svg
+
+
+def test_the_bridge_joins_each_step_to_the_next():
+    source, _ = F.value_chart(_board(), "source")
+    steps = len(_board()["value"]["source"])
+    assert source.count('class="fb-join"') == steps
+    assert 'class="fb-join"' not in F.value_chart(_board(), "area")[0]
+
+
+def test_every_asset_row_carries_its_revenue_path_and_its_cliff():
+    board = _board()
+    onsale, pipe = board["assets"][0], board["assets"][2]
+    line = F.spark(onsale, YEARS_F)
+    assert "<polyline" in line and 'fill="var(--flag)"' in line     # loses it in 2027
+    assert "exclusivity ends 2027" in line
+    assert 'fill="var(--flag)"' not in F.spark(pipe, YEARS_F)        # no date on file
+    empty = F.spark({"years": [2026], "series": {"revenue": [5.0]}, "pos": 1.0}, YEARS_F)
+    assert "<polyline" not in empty and empty.startswith("<svg")     # a cell, not a guess
+    rows = F.asset_rows(board)
+    assert all('class="ab-s"' in r["html"] for r in rows if r["id"] is not None)
 
 
 def test_axis_ticks_cover_the_tallest_column():

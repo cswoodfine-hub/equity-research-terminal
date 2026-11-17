@@ -61,7 +61,7 @@ from components import tokens as TK
 # is written against is reloaded once, here.
 if getattr(compsval, "REVISION", 0) < 4:
     compsval = importlib.reload(compsval)
-if getattr(FB, "REVISION", 0) < 4:
+if getattr(FB, "REVISION", 0) < 6:
     FB = importlib.reload(FB)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -6292,7 +6292,7 @@ def _card_cash(name: str, result: dict, varied, plot: str, scenario: str) -> Non
     labels = [str(y) for y in years]
     notes = {}
     if result.get("loe_year") in years:
-        notes[years.index(result["loe_year"])] = "ends"
+        notes[years.index(result["loe_year"])] = [{"name": name, "share": None}]
     if plot == "costs":
         keys = (("cogs", "cost_of_goods"), ("sga", "sga"), ("rd", "rd"),
                 ("other", "other_costs"), ("tax", "tax"))
@@ -6306,7 +6306,7 @@ def _card_cash(name: str, result: dict, varied, plot: str, scenario: str) -> Non
     section(f"{name} {title}", basis=f"{_mm()} · {scenario}" + (" · varied" if moved else "")
             + f" · {basis}")
     R.show(FB.columns(labels, bands, width=780, height=262, fmt=lambda v: f"{v:,.0f}",
-                      notes=notes, notes_label="exclusivity"),
+                      notes=notes, notes_label="exclusivity ends", unit=_mm()),
            css_class="chart-mount stretch")
 
 

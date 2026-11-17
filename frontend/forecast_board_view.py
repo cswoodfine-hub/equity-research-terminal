@@ -12,13 +12,14 @@ missing value is never drawn as nil.
 
 from __future__ import annotations
 
+import hashlib
 import html
 import math
 
 from components import charts as CH
 from components import tokens as TK
 
-REVISION = 4
+REVISION = 6
 
 # ----------------------------------------------------------------------- the choices
 MEASURES = {"revenue": "Revenue", "operating_profit": "Operating profit",
@@ -112,9 +113,33 @@ def _ticks(lo: float, hi: float, count: int = 4) -> list:
         v += step
 
 
+# What makes a chart answer the hand: a readout that follows the cursor, columns that
+# rise from the axis when the choice changes, and a legend entry that dims the bands it
+# does not name. All of it CSS inside the drawing, so it works wherever the SVG is put.
+# The rise holds no transform once it has run, and the card is opaque: a column left on
+# a layer of its own under a translucent card was painted dim for the card's whole width.
+SLOTS = 14
+CHART_CSS = (
+    ".fb-hit .fb-tip{display:none;pointer-events:none}"
+    ".fb-hit:hover .fb-tip{display:block}"
+    ".fb-col{animation:fbgrow .22s ease-out}"
+    "@keyframes fbgrow{from{transform:scaleY(0)}to{transform:scaleY(1)}}"
+    ".fb-bar{transition:opacity .12s}.fb-lg{cursor:default}"
+    + "".join(f"svg:has(.fb-lg.l{i}:hover) .fb-bar:not(.b{i}){{opacity:.2}}"
+              for i in range(SLOTS))
+    + "@media (prefers-reduced-motion:reduce){.fb-col{animation:none}}")
+
+
+def _key(*parts) -> str:
+    """An id for a drawing's own patterns, from what it draws. The same chart drawn twice
+    is the same markup, so a rerun that changed nothing does not replay its columns."""
+    return "fb" + hashlib.md5(repr(parts).encode("utf-8")).hexdigest()[:8]
+
+
 def _legend(entries: list, width: float, pad_l: float, pad_r: float, hid: str) -> tuple:
     """A wrapping legend: (markup, height). Laid out first, since the plot starts under
-    it and nine bands need two rows at half a page."""
+    it and nine bands need two rows at half a page. Each entry is a group of its own, so
+    resting on one dims every band it does not name."""
     out, lx, row = [], pad_l, 0
     for e in entries:
         w = 16 + 6.3 * len(str(e["name"])) + 14
@@ -122,39 +147,83 @@ def _legend(entries: list, width: float, pad_l: float, pad_r: float, hid: str) -
             lx, row = pad_l, row + 1
         ly = 12 + 16 * row
         fill = f"url(#{hid}{e['slot']})" if e.get("hatched") else e["colour"]
-        out.append(f'<rect x="{lx:.1f}" y="{ly - 9}" width="10" height="10" fill="{fill}"'
+        out.append(f'<g class="fb-lg l{e["slot"]}"><rect x="{lx - 2:.1f}" y="{ly - 11}"'
+                   f' width="{w - 8:.1f}" height="14" fill="transparent"/>'
+                   f'<rect x="{lx:.1f}" y="{ly - 9}" width="10" height="10" fill="{fill}"'
                    + (f' stroke="{e["colour"]}" stroke-width="0.8"' if e.get("hatched")
-                      else "") + "/>")
-        out.append(CH._text(lx + 14, ly, e["name"], 10, TK.TEXT, family=CH.UI))
+                      else "") + "/>"
+                   + CH._text(lx + 14, ly, e["name"], 10, TK.TEXT, family=CH.UI) + "</g>")
         lx += w
     return "".join(out), 20 + 16 * row
+
+
+def _readout(cx: float, top: float, floor: float, left: float, right: float, title: str,
+             rows: list, foot: str = "") -> str:
+    """The card a column shows while the cursor is over it: the year, then a line a band
+    with its figure and its share, and a foot for what else is true of the year. Set to
+    the side of the cursor with the room, so it never covers the column it reads."""
+    names = max([len(r["name"]) for r in rows] + [len(title), 8])
+    figures = max([len(r["figure"]) + len(r.get("share") or "") for r in rows] + [4])
+    w = min(max(54 + names * 5.6 + figures * 6.2, 150), 300)
+    foot_lines = [foot[i:i + 46] for i in range(0, len(foot), 46)] if foot else []
+    h = 24 + 14 * len(rows) + (6 + 12 * len(foot_lines) if foot_lines else 0)
+    x0 = cx + 10 if cx + 10 + w <= right else cx - 10 - w
+    x0 = min(max(x0, left), right - w)
+    y0 = top + 2
+    out = [f'<line x1="{cx:.1f}" y1="{top}" x2="{cx:.1f}" y2="{floor}" stroke="{TK.TEXT}"'
+           ' stroke-width="0.8" opacity="0.55"/>',
+           f'<rect x="{x0:.1f}" y="{y0:.1f}" width="{w:.1f}" height="{h}" rx="2"'
+           f' fill="{TK.PANEL}" stroke="{TK.RULE_STRONG}"/>',
+           CH._text(x0 + 9, y0 + 15, title, 10.5, TK.TEXT, family=CH.MONO, weight="700")]
+    for k, r in enumerate(rows):
+        ry = y0 + 30 + 14 * k
+        if r.get("colour"):
+            out.append(f'<rect x="{x0 + 9:.1f}" y="{ry - 8}" width="8" height="8"'
+                       f' fill="{r["colour"]}"' + (' fill-opacity="0.35" stroke="'
+                                                  + r["colour"] + '" stroke-width="0.8"'
+                                                  if r.get("hatched") else "") + "/>")
+        strong = "700" if r.get("strong") else ""
+        out.append(CH._text(x0 + 22, ry, r["name"], 9.5, TK.TEXT, family=CH.UI,
+                            weight=strong))
+        out.append(CH._text(x0 + w - (40 if r.get("share") is not None else 9), ry,
+                            r["figure"], 9.5, TK.TEXT, "end", CH.MONO, strong))
+        if r.get("share"):
+            out.append(CH._text(x0 + w - 9, ry, r["share"], 9, TK.MUTED, "end", CH.MONO))
+    for k, line in enumerate(foot_lines):
+        out.append(CH._text(x0 + 9, y0 + 34 + 14 * len(rows) + 12 * k, line, 9, TK.FLAG,
+                            family=CH.UI))
+    return "".join(out)
 
 
 # ---------------------------------------------------------------------- chart builders
 def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
             fmt=None, split_at: int | None = None, notes: dict | None = None,
             notes_label: str = "", label: str = "columns", rule_at: tuple | None = None,
-            reference: dict | None = None) -> str:
-    """Stacked columns by year. Each band is {name, colour, values, hatched?, faded?}.
+            reference: dict | None = None, unit: str = "") -> str:
+    """Stacked columns by year. Each band is {name, colour, values, hatched?}.
 
     A positive value stacks up from nil and a negative one down, so a charge is seen
     under the cash it comes off, and where a column carries both the net is marked on it
     and printed above it. A None is a gap in its band, never a nil. ``split_at`` is the
     index of the first forecast year: a rule is drawn before it and the years on either
     side are named, because a filed figure and a modelled one are two kinds of number.
-    ``notes`` is {index: text}, a row of words under the years (which products lose
-    exclusivity that year), set on two lines where two years in a row carry one.
-    ``rule_at`` is (index, words): a second rule before that column, for the year the
-    figures change kind again. ``reference`` is {name, values, colour}, a line with a dot
-    a year over the columns, for the figure the stack is read against.
+    ``notes`` is {index: [{name, share}]}, the products that lose exclusivity in a year:
+    a strip under the axis with a tick a product, its height the product's share of the
+    value. ``rule_at`` is (index, words): a second rule before that column, for the year
+    the figures change kind again. ``reference`` is {name, values, colour}, a line with a
+    dot a year over the columns, for the figure the stack is read against. ``unit`` is
+    printed once, at the head of the axis.
+
+    The cursor over a year shows that year's card: each band's figure and its share of
+    the total, the net, the reference and the products that lose exclusivity in it.
     """
     fmt = fmt or (lambda v: f"{v:,.0f}")
     bands = [b for b in bands if any(v is not None for v in b["values"])]
     n = len(x_labels)
     if not bands or not n:
         return ""
-    pad_l, pad_r, bottom = 50, 12, 24 + (28 if notes else 0)
-    hid = CH._uid("fbh")
+    pad_l, pad_r, bottom = 50, 12, 24 + (26 if notes else 0)
+    hid = _key(x_labels, [b["name"] for b in bands], width)
     entries = [{**b, "slot": i} for i, b in enumerate(bands)]
     ref_vals = list((reference or {}).get("values") or [])
     legend, legend_h = _legend(
@@ -170,9 +239,11 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
     y = CH._scale((lo, hi), (floor, top))
     slot = (width - pad_l - pad_r) / n
     col_w = min(slot * 0.68, 40)
-    out = [CH._svg_open(width, height, label),
+    out = [CH._svg_open(width, height, label), f"<style>{CHART_CSS}</style>",
            "<defs>" + "".join(CH._hatch(f"{hid}{e['slot']}", e["colour"])
                               for e in entries if e.get("hatched")) + "</defs>", legend]
+    if unit:
+        out.append(CH._text(pad_l - 6, top - 10, unit, 8.5, TK.MUTED, "end", CH.MONO))
     for t in ticks:
         out.append(f'<line x1="{pad_l}" y1="{y(t):.1f}" x2="{width - pad_r}" y2="{y(t):.1f}"'
                    f' stroke="{TK.RULE_STRONG if t == 0 else TK.RULE}"'
@@ -193,14 +264,12 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
     every = max(1, math.ceil(widest / slot))
     # the figure over a column needs more room than its year does
     figures = max(1, math.ceil(31 / slot))
-    low_row = set()                        # notes pushed to a second line
-    noted = sorted(i for i in (notes or {}) if isinstance(i, int))
-    for a, b in zip(noted, noted[1:]):
-        if b - a == 1 and a not in low_row and slot < 62:
-            low_row.add(b)
+    zero = y(0)
+    cards = []
     for i, lab in enumerate(x_labels):
         cx = pad_l + slot * i + slot / 2
         up = down = 0.0
+        drawn, read = [], []
         for e in entries:
             v = e["values"][i]
             if v is None or v == 0:
@@ -212,49 +281,98 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
                 y0, y1 = y(down), y(down + v)
                 down += v
             fill = f"url(#{hid}{e['slot']})" if e.get("hatched") else e["colour"]
-            out.append(f'<rect x="{cx - col_w / 2:.1f}" y="{min(y0, y1):.1f}"'
-                       f' width="{col_w:.1f}" height="{max(abs(y0 - y1), 0.6):.1f}"'
-                       f' fill="{fill}"'
-                       + (f' stroke="{e["colour"]}" stroke-width="0.8"'
-                          if e.get("hatched") else "")
-                       + (' opacity="0.6"' if e.get("faded") else "")
-                       + f'><title>{_esc(lab)} {_esc(e["name"])} {_esc(fmt(v))}</title></rect>')
+            drawn.append(f'<rect class="fb-bar b{e["slot"]}" x="{cx - col_w / 2:.1f}"'
+                         f' y="{min(y0, y1):.1f}" width="{col_w:.1f}"'
+                         f' height="{max(abs(y0 - y1), 0.6):.1f}" fill="{fill}"'
+                         + (f' stroke="{e["colour"]}" stroke-width="0.8"'
+                            if e.get("hatched") else "")
+                         + f'><title>{_esc(lab)} {_esc(e["name"])} {_esc(fmt(v))}</title>'
+                           '</rect>')
+            read.append({"name": e["name"], "colour": e["colour"], "value": v,
+                         "hatched": e.get("hatched")})
+        if drawn:
+            # one group a column, so the column rises from the axis as a whole
+            out.append(f'<g class="fb-col" style="transform-origin:0 {zero:.1f}px">'
+                       + "".join(drawn) + "</g>")
         net = up + down
         if down < 0 and up > 0 and not reference:
             out.append(f'<line x1="{cx - col_w / 2 - 2:.1f}" y1="{y(net):.1f}"'
                        f' x2="{cx + col_w / 2 + 2:.1f}" y2="{y(net):.1f}" stroke="{TK.TEXT}"'
-                       f' stroke-width="1.6"><title>{_esc(lab)} net {_esc(fmt(net))}'
-                       '</title></line>')
+                       f' stroke-width="1.6"/>')
         if (up or down) and i % figures == 0 and not reference:
             out.append(CH._text(cx, y(up) - 4 if up else y(0) - 4, fmt(net), 8.5, TK.TEXT,
                                 "middle", CH.MONO))
         if i % every == 0:
             out.append(CH._text(cx, floor + 14, lab, 9.5, TK.MUTED, "middle", CH.MONO))
-        if notes and notes.get(i):
-            out.append(CH._text(cx, floor + (38 if i in low_row else 27), notes[i], 8.5,
-                                TK.FLAG, "middle", CH.NARROW)
-                       .replace("</text>", f"<title>{_esc(notes_label)} {_esc(lab)}: "
-                                           f"{_esc(notes.get(('full', i)) or notes[i])}"
-                                           "</title></text>"))
+        ref = ref_vals[i] if i < len(ref_vals) else None
+        if not read and ref is None:
+            continue
+        shares = down == 0 and up > 0 and len(read) > 1
+        rows = [{"name": r["name"], "colour": r["colour"], "hatched": r["hatched"],
+                 "figure": fmt(r["value"]),
+                 "share": f"{r['value'] / up:.0%}" if shares else None}
+                for r in reversed(read)]              # top of the stack first
+        if len(read) > 1:
+            rows.append({"name": "Net" if down < 0 else "Total", "figure": fmt(net),
+                         "strong": True, "share": "" if shares else None})
+        if ref is not None:
+            rows.append({"name": reference["name"], "colour": reference["colour"],
+                         "figure": fmt(ref), "share": "" if shares else None})
+        ends = (notes or {}).get(i) or []
+        foot = ("exclusivity ends: " + ", ".join(p["name"] for p in ends)) if ends else ""
+        cards.append(
+            f'<g class="fb-hit"><rect x="{pad_l + slot * i:.1f}" y="{top}"'
+            f' width="{slot:.1f}" height="{floor - top + 16}" fill="transparent"/>'
+            f'<g class="fb-tip">'
+            + _readout(cx, top, floor, pad_l, width - pad_r,
+                       f"{lab}" + (f"  {unit}" if unit else ""), rows, foot)
+            + "</g></g>")
     if reference:
         xs = lambda i: pad_l + slot * i + slot / 2          # noqa: E731
         CH._polyline_runs(out, ref_vals, xs, y, reference["colour"], 1.6)
         for i, v in enumerate(ref_vals):
             if v is not None:
                 out.append(f'<circle cx="{xs(i):.1f}" cy="{y(v):.1f}" r="2.6"'
-                           f' fill="{reference["colour"]}"><title>{_esc(x_labels[i])} '
-                           f'{_esc(reference["name"])} {_esc(fmt(v))}</title></circle>')
+                           f' fill="{reference["colour"]}"/>')
+    if notes:
+        # The exclusivity strip: a track under the forecast years and a tick a product,
+        # as tall as the product is large, in the year its exclusivity ends.
+        ty = floor + 44
+        first = min(notes)
+        out.append(f'<line x1="{pad_l + slot * first:.1f}" y1="{ty}" x2="{width - pad_r}"'
+                   f' y2="{ty}" stroke="{TK.RULE_STRONG}" stroke-width="1"/>')
+        if slot * first >= len(notes_label) * 5.2 + 8:     # only where it has the room
+            out.append(CH._text(pad_l + slot * first - 6, ty - 2, notes_label, 8.5,
+                                TK.FLAG, "end", CH.MONO))
+        biggest = max((p.get("share") or 0.0 for ps in notes.values() for p in ps),
+                      default=0.0) or 1.0
+        for i, products in notes.items():
+            cx = pad_l + slot * i + slot / 2
+            step = min(6.0, (slot - 4) / max(len(products), 1))
+            x0 = cx - step * (len(products) - 1) / 2
+            for k, p in enumerate(products):
+                tall = 4.0 + 13.0 * math.sqrt(max(p.get("share") or 0.0, 0.0) / biggest)
+                out.append(f'<rect class="fb-loe" x="{x0 + step * k - 1.6:.1f}"'
+                           f' y="{ty - tall:.1f}" width="3.2" height="{tall:.1f}" rx="1"'
+                           f' fill="{TK.FLAG}"><title>{_esc(p["name"])}: exclusivity ends '
+                           f'{_esc(x_labels[i])}'
+                           + (f", {p['share']:.0%} of the named value"
+                              if p.get("share") is not None else "")
+                           + "</title></rect>")
+    out += cards                      # last, so a card is over every column it crosses
     out.append("</svg>")
     return "".join(out)
 
 
 def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
-          fmt=None, split_at: int | None = None, label: str = "lines") -> str:
+          fmt=None, split_at: int | None = None, label: str = "lines",
+          unit: str = "") -> str:
     """One line a series, {name, colour, values, dots?}. ``values`` is the forecast and
     ``dots`` the reported years, drawn as rings and not joined to it: a product running
     ahead of or behind its model shows as a ring off the line's start. ``dash_from`` is
     the index of a series' last modelled year: the line is dashed after it. Each line is
-    named at its end, the names pushed apart where two end together."""
+    named at its end, the names pushed apart where two end together. The cursor over a
+    year shows every line's figure for it, largest first."""
     fmt = fmt or (lambda v: f"{v:,.0f}")
     series = [s for s in series if any(v is not None for v in s["values"])
               or any(v is not None for v in s.get("dots") or [])]
@@ -269,7 +387,9 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
     ticks = _ticks(min(values + [0.0]), max(values + [0.0]) or 1.0)
     y = CH._scale((ticks[0], ticks[-1]), (floor, top))
     x = CH._scale((0, n - 1), (pad_l + 8, width - pad_r))
-    out = [CH._svg_open(width, height, label)]
+    out = [CH._svg_open(width, height, label), f"<style>{CHART_CSS}</style>"]
+    if unit:
+        out.append(CH._text(pad_l - 6, top - 9, unit, 8.5, TK.MUTED, "end", CH.MONO))
     for t in ticks:
         out.append(f'<line x1="{pad_l}" y1="{y(t):.1f}" x2="{width - pad_r}" y2="{y(t):.1f}"'
                    f' stroke="{TK.RULE_STRONG if t == 0 else TK.RULE}"'
@@ -296,17 +416,10 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
                 pts = " ".join(f"{px:.1f},{py:.1f}" for px, py in tail)
                 out.append(f'<polyline points="{pts}" fill="none" stroke="{s["colour"]}"'
                            ' stroke-width="1.5" stroke-dasharray="4,3" class="carried"/>')
-        for i, v in enumerate(s["values"]):
-            if v is not None:
-                out.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="5" fill="transparent">'
-                           f'<title>{_esc(x_labels[i])} {_esc(s["name"])} {_esc(fmt(v))}'
-                           '</title></circle>')
         for i, v in enumerate(s.get("dots") or []):
             if v is not None:
                 out.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="2.8" fill="{TK.GROUND}"'
-                           f' stroke="{s["colour"]}" stroke-width="1.4" class="reported">'
-                           f'<title>{_esc(x_labels[i])} {_esc(s["name"])} reported '
-                           f'{_esc(fmt(v))}</title></circle>')
+                           f' stroke="{s["colour"]}" stroke-width="1.4" class="reported"/>')
         last = next(((i, v) for i, v in reversed(list(enumerate(s["values"])))
                      if v is not None), None)
         if last:
@@ -322,21 +435,47 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
     for ly, lx, name, colour in ends:
         out.append(CH._text(lx + 6, ly + 3, name, 9.5, colour, family=CH.UI,
                             weight="600"))
-    every = max(1, math.ceil(30 / ((width - pad_l - pad_r) / max(n - 1, 1))))
+    step = (width - pad_l - pad_r - 8) / max(n - 1, 1)
+    every = max(1, math.ceil(30 / step))
     for i, lab in enumerate(x_labels):
         if i % every == 0:
             out.append(CH._text(x(i), height - 8, lab, 9.5, TK.MUTED, "middle", CH.MONO))
+    for i, lab in enumerate(x_labels):
+        read = []
+        for s in series:
+            v = s["values"][i]
+            dot = (s.get("dots") or [None] * n)[i]
+            if v is None and dot is None:
+                continue
+            read.append({"name": s["name"] + (", reported" if v is None else ""),
+                         "colour": s["colour"], "value": v if v is not None else dot})
+        if not read:
+            continue
+        read.sort(key=lambda r: -r["value"])
+        marks = "".join(f'<circle cx="{x(i):.1f}" cy="{y(r["value"]):.1f}" r="3"'
+                        f' fill="{r["colour"]}"/>' for r in read)
+        out.append(
+            f'<g class="fb-hit"><rect x="{x(i) - step / 2:.1f}" y="{top}"'
+            f' width="{step:.1f}" height="{floor - top + 16}" fill="transparent"/>'
+            '<g class="fb-tip">'
+            + _readout(x(i), top, floor, pad_l, width - pad_r,
+                       f"{lab}" + (f"  {unit}" if unit else ""),
+                       [{"name": r["name"], "colour": r["colour"],
+                         "figure": fmt(r["value"])} for r in read])
+            + marks + "</g></g>")
     out.append("</svg>")
     return "".join(out)
 
 
 def hbars(rows: list, *, width: int = 520, fmt=None, label_w: int = 190,
           reference: dict | None = None, row_h: int = 23, label: str = "bars",
-          num_w: int = 118) -> str:
+          num_w: int = 118, connect: bool = False) -> str:
     """Horizontal bars, one a row: {label, value, start?, colour, hatched?, note?, tip?,
     strong?}. ``start`` floats a bar off the running total, which makes the rows a bridge
     read top to bottom. ``reference`` is {value, label}, a dashed rule down the plot (the
-    price a value is read against). A None value prints "no free data" and draws nothing."""
+    price a value is read against). connect joins the end of each floated bar to the
+    row under it with a hairline, so the eye carries the running total down the bridge.
+    A None value prints "no free data" and draws nothing."""
     fmt = fmt or (lambda v: f"{v:,.2f}")
     if not rows:
         return ""
@@ -352,7 +491,7 @@ def hbars(rows: list, *, width: int = 520, fmt=None, label_w: int = 190,
     if hi == lo:
         hi = lo + 1.0
     x = CH._scale((lo, hi), (label_w, width - num_w))
-    hid = CH._uid("fbb")
+    hid = _key([r["label"] for r in rows], width, label)
     out = [CH._svg_open(width, height, label),
            "<defs>" + "".join(CH._hatch(f"{hid}{i}", r.get("colour") or TK.MUTED)
                               for i, r in enumerate(rows) if r.get("hatched")) + "</defs>"]
@@ -393,6 +532,12 @@ def hbars(rows: list, *, width: int = 520, fmt=None, label_w: int = 190,
         if r.get("note"):
             out.append(CH._text(width - 2, cy + 3.5, r["note"], 9, TK.MUTED, "end",
                                 CH.MONO))
+        if (connect and "start" in r and i + 1 < len(rows)
+                and rows[i + 1].get("value") is not None):
+            ex = x(start + value)
+            out.append(f'<line class="fb-join" x1="{ex:.1f}" y1="{cy + 5:.1f}" x2="{ex:.1f}"'
+                       f' y2="{cy + row_h - 5:.1f}" stroke="{TK.MUTED}" stroke-width="0.8"'
+                       ' stroke-dasharray="2,2"/>')
     out.append("</svg>")
     return "".join(out)
 
@@ -458,20 +603,18 @@ def _asset_year(asset: dict, measure: str, year, basis: str):
 
 
 def exclusivity_notes(board: dict, years: list) -> dict:
-    """{index: names} for the years a counted product on sale loses exclusivity, the
-    largest by value first, so the falls on the chart have their cause under them."""
+    """{index: [{name, share}]} for the forecast years a counted product on sale loses
+    exclusivity, the largest by value first, so the falls on the chart have their cause
+    under them."""
     out: dict = {}
     for a in board.get("assets") or []:
         if (a.get("kind") != "marketed" or not a.get("counted")
                 or a.get("loe_year") not in years or (a.get("share_of_value") or 0) < 0.01
                 or a["loe_year"] not in ((board.get("years") or {}).get("forecast") or [])):
             continue
-        out.setdefault(years.index(a["loe_year"]), []).append(a["name"])
-    notes = {}
-    for i, names in out.items():
-        notes[i] = names[0][:11] + (f" +{len(names) - 1}" if len(names) > 1 else "")
-        notes[("full", i)] = ", ".join(names)
-    return notes
+        out.setdefault(years.index(a["loe_year"]), []).append(
+            {"name": a["name"], "share": a.get("share_of_value")})
+    return out
 
 
 def _plant(board: dict, company: dict, years: list) -> tuple:
@@ -628,7 +771,7 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
             band["values"] = out
     divisor, unit, fmt = scale([v for b in bands for v in b["values"]])
     currency = board.get("currency") or "USD"
-    head = (f"{currency} {unit} · {BASES.get(basis, basis).lower()}"
+    head = (BASES.get(basis, basis).lower()
             + (" · added up from " + str(years_f[0]) if view == "cum" and years_f else ""))
     notes = exclusivity_notes(board, years) if view != "cum" else {}
     carried = (board.get("years") or {}).get("carried_from")
@@ -636,8 +779,8 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
     return {"labels": [str(y) for y in years], "bands": bands,
             "split_at": len(years_r) or None, "fmt": fmt, "unit": f"{currency} {unit}",
             "notes": notes, "rule_at": rule_at, "reference": reference,
-            "caption": head + (" · a name under a year loses exclusivity in it" if notes
-                               else "")
+            "caption": head + (" · a tick under a year is a product losing exclusivity, "
+                               "as tall as it is large" if notes else "")
             + (" · past the dotted rule a product runs on the path its terminal value "
                "takes" if rule_at else "") + (" · " + why if why else "")}
 
@@ -649,7 +792,7 @@ def company_chart(board: dict, measure: str = "revenue", split: str = "group",
     fig = company_figure(board, measure, split, view, basis)
     svg = columns(fig["labels"], fig["bands"], width=width, height=height, fmt=fig["fmt"],
                   split_at=fig["split_at"], notes=fig["notes"], rule_at=fig["rule_at"],
-                  reference=fig["reference"],
+                  reference=fig["reference"], unit=fig["unit"],
                   notes_label="exclusivity ends", label="the company over time")
     return svg, fig["caption"]
 
@@ -726,7 +869,7 @@ def value_chart(board: dict, view: str = "source", width: int = 520) -> tuple:
     ref = ({"value": price, "label": f"price {price:,.2f}"}
            if (view == "source" and price is not None) else None)
     svg = hbars(rows, width=width, reference=ref, label="what the value is made of",
-                label_w=178, row_h=27)
+                label_w=178, row_h=27, connect=view == "source")
     caption = {
         "source": "$ a share · each bar starts where the one above ends",
         "area": "$ a share · named assets by therapy area; lines and assumed launches "
@@ -797,12 +940,16 @@ def depends_chart(breaks: dict, this_year: int, show, width: int = 520) -> tuple
 
 # ---------------------------------------------------------------------- 4 assets compared
 ASSET_CSS = """
-.ab { display: grid; grid-template-columns: minmax(0, 1fr) minmax(70px, 34%) 62px 78px;
+.ab { display: grid;
+      grid-template-columns: minmax(0, 1fr) 62px minmax(56px, 28%) 62px 78px;
       gap: 0.55rem; align-items: center; font-size: 11.5px; line-height: 1.25;
       padding: 3.5px 6px 3.5px 8px; border-bottom: 1px solid var(--rule);
       border-left: 2px solid transparent; }
 .ab:hover { background: var(--panel-hi); border-left-color: var(--up); }
 .ab-n { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-s { display: block; color: var(--muted); overflow: visible; }
+.ab:hover .ab-s, .ab.pipe .ab-s { color: var(--text); }
+.ab.off .ab-s { opacity: 0.45; }
 .ab-bar { height: 8px; background: var(--rule); position: relative; }
 .ab-bar i { display: block; height: 100%; background: var(--up); }
 .ab.pipe .ab-bar i { background: var(--purple-book); }
@@ -875,6 +1022,34 @@ def _qualifier(asset: dict, measure: str) -> str:
     return f"to {asset['loe_year']}" if asset.get("loe_year") else "no date on file"
 
 
+def spark(asset: dict, years: list, basis: str = "weighted", width: int = 62,
+          height: int = 16) -> str:
+    """One asset's revenue by year as a line with no axes, on its own scale: the shape,
+    which is whether it is growing or running off, with a dot in the year its exclusivity
+    ends. An asset with fewer than two years to draw gets an empty cell of the same size,
+    so the columns of the list stay in line."""
+    values = [_asset_year(asset, "revenue", y, basis) for y in years]
+    known = [(i, v) for i, v in enumerate(values) if v is not None]
+    box = (f'<svg class="ab-s" viewBox="0 0 {width} {height}" width="{width}"'
+           f' height="{height}" aria-hidden="true">')
+    top = max((v for _, v in known), default=0.0)
+    if len(known) < 2 or top <= 0:
+        return box + "</svg>"
+    x = CH._scale((0, max(len(years) - 1, 1)), (1.5, width - 1.5))
+    y = CH._scale((0.0, top), (height - 2.0, 2.0))
+    pts = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in known)
+    out = [box, f'<polyline points="{pts}" fill="none" stroke="currentColor"'
+                ' stroke-width="1.2"/>']
+    loe = asset.get("loe_year")
+    if loe in years and values[years.index(loe)] is not None:
+        i = years.index(loe)
+        out.append(f'<circle cx="{x(i):.1f}" cy="{y(values[i]):.1f}" r="2.1"'
+                   ' fill="var(--flag)"/>')
+    out.append(f"<title>revenue {years[known[0][0]]} to {years[known[-1][0]]}"
+               + (f", exclusivity ends {loe}" if loe else "") + "</title></svg>")
+    return "".join(out)
+
+
 def asset_rows(board: dict, measure: str = "value", show: str = "all",
                basis: str = "weighted", year=None, this_year=None) -> list:
     """Every asset as a clickable row for the click list: name, a bar in proportion to
@@ -886,6 +1061,7 @@ def asset_rows(board: dict, measure: str = "value", show: str = "all",
     known = [v for v in figures.values() if v is not None]
     fmt = asset_format(measure, known)
     top = max((abs(v) for v in known), default=0.0) or 1.0
+    years = list((board.get("years") or {}).get("forecast") or [])
 
     def row(a: dict) -> str:
         v = figures[a["asset_id"]]
@@ -897,6 +1073,7 @@ def asset_rows(board: dict, measure: str = "value", show: str = "all",
                   else '<span class="ab-v none">none</span>')
         return (f'<div class="{classes}" data-id="{a["asset_id"]}">'
                 f'<span class="ab-n">{_esc(a.get("name"))}</span>'
+                f'{spark(a, years, basis)}'
                 f'<span class="ab-bar"><i style="width:{width:.0f}%"></i></span>'
                 f'{figure}<span class="ab-m">{_esc(_qualifier(a, measure))}</span></div>')
 
@@ -982,10 +1159,11 @@ def asset_lines(board: dict, measure: str = "revenue", show: str = "all",
                        "dots": [at(a.get("reported"), y) for y in years_r]
                                + [None] * len(years_f)})
     _, unit, fmt = scale([v for s in series for v in s["values"] + s["dots"]])
-    svg = lines([str(y) for y in years], series, width=width, height=height, fmt=fmt,
-                split_at=len(years_r) or None, label="assets over time")
     currency = board.get("currency") or "USD"
-    caption = (f"{currency} {unit} · the {len(series)} largest by value · "
+    svg = lines([str(y) for y in years], series, width=width, height=height, fmt=fmt,
+                split_at=len(years_r) or None, label="assets over time",
+                unit=f"{currency} {unit}")
+    caption = (f"the {len(series)} largest by value · "
                f"{BASES.get(basis, basis).lower()}"
                + (" · rings are reported years" if years_r else "")
                + (" · dashed past the modelled years, on the terminal path"
