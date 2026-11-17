@@ -285,3 +285,18 @@ Not in this version:
 - **A fix.** The board paired each asset's P&L rows with its model's years. Where a model
   opens before the valuation year (Casgevy), that drew its cash flow two years early and
   opened Vertex's forecast in 2024. The rows are paired with the valuation window.
+
+## One view at a time
+
+The two parts no longer share a page. A pair of buttons at the head of the tab chooses
+the company forecast or the asset forecasts, and each has the whole screen: both fit a
+1400 by 1000 screen without scrolling. What changed with it:
+
+- The asset view opens on five figures of its own (assets valued, what the products on
+  sale and the pipeline each add up to, the largest, the next gate), keeps the ranked
+  rows on screen as the way into an asset's card, and switches the chart beside them
+  between the largest assets over time and two measures against each other.
+- Every row of choices names what it changes (show, split, years, basis, rank by,
+  chart), and the rows of one chart sit together above it, not spread across the width.
+- The charts are taller, the two columns end near one line, and under 1000 pixels wide
+  the columns stack.

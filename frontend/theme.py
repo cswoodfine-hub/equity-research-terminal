@@ -1403,20 +1403,69 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .chart-mount a.slice:hover path {{ stroke: var(--text); stroke-width: 1.6; }}
 .chart-mount a.slice:hover text {{ fill: var(--text); }}
 
-/* The forecast page. A caption is one line under its chart: the unit, the basis and what
-   the figure is built on. The More row is the company blocks that left the page, each a
-   button that opens its block as a card. */
-.fc-cap {{ margin-top: 0.15rem; line-height: 1.4; }}
-.fc-more-k {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
-             letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }}
-[class*="st-key-fcb_more_"] {{ align-items: center; gap: 0.4rem; flex-wrap: wrap;
-  border-top: 1px solid var(--rule); padding-top: 0.45rem; margin-top: 0.3rem; }}
-[class*="st-key-fcb_more_"] button {{ min-height: 0; padding: 2px 10px; font-size: 11.5px; }}
+/* The forecast page. One view at a time, chosen by the pair of buttons at its head, so
+   each view has the whole screen and neither is scrolled past to reach the other. A
+   caption is one line under its chart: the unit, the basis and what the figure is built
+   on. The More row is the company blocks that left the page, each a button that opens
+   its block as a card. */
+.fc-cap {{ margin-top: 0.1rem; line-height: 1.4; max-width: 110ch; }}
+.fc-ctl-k, .fc-head-k {{ font-family: var(--font-mono); font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; }}
+/* The page's own rhythm. The terminal spaces a button row as a statement selector, with
+   most of a line above it; here a chart has two or three rows of choices, and at that
+   spacing they stood further from each other than from the chart they change. Rows of
+   choices sit close together, a section sits further from the one before it, and a
+   chart sits directly under its choices. */
+[class*="st-key-fcb_page_"] [data-testid="stVerticalBlock"] {{ gap: 0.45rem; }}
+[data-baseweb="tab-panel"]:has(.no-rail) [class*="st-key-fcb_page_"]
+  [data-testid="stElementContainer"]:has([data-testid="stButtonGroup"]),
+[class*="st-key-fcb_page_"] [data-testid="stLayoutWrapper"]:has([data-testid="stButtonGroup"]) {{
+  margin-top: 0; margin-bottom: 0;
+}}
+[data-baseweb="tab-panel"]:has(.no-rail) [class*="st-key-fcb_page_"]
+  [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.55rem; }}
+[class*="st-key-fcb_page_"] [data-testid="stColumn"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"]:first-child:has(.sec) {{ margin-top: 0 !important; }}
+[class*="st-key-fcb_page_"] .chart-mount {{ margin: 0.15rem 0 0; }}
+/* A row of choices clears the rule of the heading above it, and the figures at the head
+   of a view clear the charts under them. */
+[class*="st-key-fcb_page_"] [class*="st-key-fcb_ctl_"] {{ margin-top: 0.3rem; }}
+[class*="st-key-fcb_page_"] [class*="st-key-fcb_strip_"] {{ margin-bottom: 0.75rem; }}
+/* A row of choices: each named in small caps, the buttons after the name, the next
+   choice a little further off, and the row wrapping where the column is narrow. */
+[class*="st-key-fcb_ctl_"], [class*="st-key-fcb_morerow_"], [class*="st-key-fcb_head_"] {{
+  align-items: center; gap: 0.3rem 0.5rem; flex-wrap: wrap; }}
+[class*="st-key-fcb_ctl_"] [data-testid="stElementContainer"]:has(.fc-ctl-k):not(:first-child) {{
+  margin-left: 0.7rem; }}
+[class*="st-key-fcb_ctl_"] [data-testid="stSelectbox"] > div > div {{ min-height: 28px; }}
+/* The head: the two views as the page's own tabs, a size up from a chart's choices, with
+   what the figures cover said once, at the far end of the row. */
+[class*="st-key-fcb_head_"] {{ border-bottom: 1px solid var(--rule-strong);
+  padding: 0.35rem 0 0.5rem; margin-bottom: 0.1rem; }}
+[class*="st-key-fcb_head_"] [data-testid="stButtonGroup"] button {{
+  font-size: 13px; font-weight: 600; padding: 5px 16px; }}
+[class*="st-key-fcb_head_"] [data-testid="stElementContainer"]:has(.fc-head-k) {{
+  margin-left: auto; }}
+[class*="st-key-fcb_morerow_"] {{ border-top: 1px solid var(--rule); padding-top: 0.55rem;
+  margin-top: 0.4rem; }}
+[class*="st-key-fcb_morerow_"] button {{ min-height: 0; padding: 2px 10px; font-size: 11.5px; }}
 /* Seven figures on one line need the page's width. On a narrow screen they wrap, since
    a row that does not fit prints one figure over the next. */
+/* Two charts side by side need a wide screen. Under it they stack, each at full width,
+   since half of a narrow screen fits neither the columns nor their headings. */
+@media (max-width: 1000px) {{
+  [class*="st-key-fcb_page_"] [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; }}
+  [class*="st-key-fcb_page_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+    min-width: 100%; flex: 1 1 100%; }}
+  [class*="st-key-fcb_page_"] [data-testid="stHorizontalBlock"]
+    > [data-testid="stColumn"] + [data-testid="stColumn"] {{ margin-top: 1rem; }}
+}}
 @media (max-width: 900px) {{
   [class*="st-key-fcb_strip_"] .tiles.tiles-row {{
     grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); }}
+  [class*="st-key-fcb_head_"] [data-testid="stElementContainer"]:has(.fc-head-k) {{
+    margin-left: 0; }}
 }}
 /* The forecast workbench. A rule above the picker separates the product from the book
    over it, since both are the same kind of block and the eye needs to be told where one

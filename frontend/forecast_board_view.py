@@ -18,7 +18,7 @@ import math
 from components import charts as CH
 from components import tokens as TK
 
-REVISION = 2
+REVISION = 4
 
 # ----------------------------------------------------------------------- the choices
 MEASURES = {"revenue": "Revenue", "operating_profit": "Operating profit",
@@ -32,7 +32,7 @@ ASSET_MEASURES = {"value": "Value a share", "peak": "Peak revenue",
                   "revenue_year": "Revenue in a year", "fcf_year": "Cash flow in a year",
                   "chance": "Chance", "exclusivity": "Exclusivity left"}
 ASSET_SHOWS = {"all": "All", "marketed": "On sale", "pipeline": "Pipeline"}
-ASSET_VIEWS = {"ranked": "Ranked", "pair": "Two measures"}
+ASSET_VIEWS = {"time": "Over time", "pair": "Two measures"}
 TIME_MEASURES = {"revenue": "Revenue", "free_cash_flow": "Free cash flow",
                  "cum_cash": "Cumulative cash"}
 TOP_PRODUCTS = 8
@@ -726,7 +726,7 @@ def value_chart(board: dict, view: str = "source", width: int = 520) -> tuple:
     ref = ({"value": price, "label": f"price {price:,.2f}"}
            if (view == "source" and price is not None) else None)
     svg = hbars(rows, width=width, reference=ref, label="what the value is made of",
-                label_w=178)
+                label_w=178, row_h=27)
     caption = {
         "source": "$ a share · each bar starts where the one above ends",
         "area": "$ a share · named assets by therapy area; lines and assumed launches "
@@ -788,7 +788,7 @@ def depends_chart(breaks: dict, this_year: int, show, width: int = 520) -> tuple
                      "tip": f"{r['label']}: the model has {show(lever)}; "
                             f"{lever.get('evidence') or 'ungraded'}"})
     svg = hbars(bars, width=width, fmt=lambda v: f"{v:,.1f}%", label_w=178, num_w=196,
-                label="what it depends on")
+                label="what it depends on", row_h=27)
     word = "fall" if (breaks or {}).get("direction") != "up" else "rise"
     caption = (f"how far each can {word} before the value meets the price, alone, as a "
                "share of where it stands · green filed, amber analogue, red judgement")
@@ -1055,4 +1055,35 @@ def strip_items(board: dict, rating: str | None = None) -> list:
          "of the named assets' value"),
         ("next catalyst", nxt.get("expected_date"), "", None, "",
          (nxt.get("title") or nxt.get("catalyst_type") or "")[:40]),
+    ]
+
+
+def asset_strip_items(board: dict) -> list:
+    """The asset view's figures: how many are valued and what each kind adds up to, the
+    largest and its share of the named value, and the next dated event among them."""
+    assets = [a for a in board.get("assets") or [] if a.get("counted")]
+    off = len(board.get("assets") or []) - len(assets)
+
+    def group(kind: str) -> tuple:
+        members = [a for a in assets if a.get("kind") == kind]
+        if not members:
+            return None, "none in the book"
+        return (f"${sum(a.get('per_share') or 0.0 for a in members):,.2f}",
+                f"{len(members)} {'asset' if len(members) == 1 else 'assets'}, a share")
+
+    sale, sale_note = group("marketed")
+    pipe, pipe_note = group("pipeline")
+    top = max(assets, key=lambda a: a.get("per_share") or 0.0, default=None)
+    dated = sorted((a for a in assets if a.get("next_date")), key=lambda a: a["next_date"])
+    nxt = dated[0] if dated else None
+    return [
+        ("assets valued", str(len(assets)), "", None, "",
+         f"{off} more on a placeholder" if off else "each on its own evidence"),
+        ("on sale", sale, "", None, "", sale_note),
+        ("pipeline", pipe, "", None, "", pipe_note + (", after its chances" if pipe else "")),
+        ("largest", top["name"][:22] if top else None, "", None, "",
+         (f"{top['share_of_value']:.0%} of the named value"
+          if top and top.get("share_of_value") is not None else "")),
+        ("next gate", nxt["next_date"] if nxt else None, "", None, "",
+         (f"{nxt['name'][:20]} · {nxt.get('next_label') or ''}"[:44] if nxt else "")),
     ]

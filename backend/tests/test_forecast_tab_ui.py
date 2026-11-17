@@ -262,16 +262,36 @@ def _sections(app) -> list:
     return re.findall(r'class="sec-label">([^<]+)<', body)
 
 
-def test_the_page_is_the_company_then_its_assets_and_no_workbench(page):
+def test_the_page_shows_one_view_at_a_time_and_no_workbench(page):
+    """The company or its assets, chosen at the head of the page, and neither scrolled
+    past to reach the other. The workbench is on neither until a row is clicked."""
     assert not page.exception
     labels = _sections(page)
-    for want in ("VRTX · company forecast", "The company over time",
-                 "What the value is made of", "What it depends on", "Asset forecasts",
-                 "Assets compared", "Assets over time"):
+    for want in ("The company over time", "What the value is made of",
+                 "What it depends on"):
         assert want in labels, (want, labels)
-    assert labels.index("VRTX · company forecast") < labels.index("Asset forecasts")
+    assert "Assets compared" not in labels and "Assets over time" not in labels
     assert not [s for s in page.slider if (s.key or "").startswith("fc_wi_")]
     assert "Levers" not in labels
+
+    part = next(c for c in page.button_group if c.key == "fcb_part_VRTX")
+    part.set_value("assets").run()
+    assert not page.exception
+    labels = _sections(page)
+    assert "Assets compared" in labels and "Assets over time" in labels
+    assert "The company over time" not in labels
+    assert not [s for s in page.slider if (s.key or "").startswith("fc_wi_")]
+    body = " ".join(str(m.value) for m in page.markdown)
+    assert "assets valued" in body and "next gate" in body
+
+    # the chart beside the ranked rows switches to two measures against each other
+    chart = next(c for c in page.button_group if c.key == "fcb_aview_VRTX")
+    chart.set_value("pair").run()
+    assert not page.exception
+    assert any("against" in label for label in _sections(page))
+    next(c for c in page.button_group if c.key == "fcb_aview_VRTX").set_value("time").run()
+    next(c for c in page.button_group if c.key == "fcb_part_VRTX").set_value("company").run()
+    assert "The company over time" in _sections(page)
 
 
 def test_a_choice_redraws_the_company_chart(page):

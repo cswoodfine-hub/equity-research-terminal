@@ -317,6 +317,18 @@ def test_the_strip_is_seven_figures_and_a_missing_one_is_none():
     assert F.strip_items(board)[3][1] is None
 
 
+def test_the_asset_view_opens_on_five_figures_about_the_assets():
+    items = F.asset_strip_items(_board())
+    by = {i[0]: i for i in items}
+    assert list(by) == ["assets valued", "on sale", "pipeline", "largest", "next gate"]
+    assert by["assets valued"][1] == "3" and "1 more on a placeholder" in by["assets valued"][5]
+    assert by["on sale"][1] == "$9.00" and by["pipeline"][1] == "$2.00"
+    assert by["largest"][1] == "Onsale"
+    assert by["next gate"][1] == "2027-03-01" and "Pipe" in by["next gate"][5]
+    empty = F.asset_strip_items({"assets": []})
+    assert empty[1][1] is None and empty[3][1] is None        # no free data, not nil
+
+
 def test_axis_ticks_cover_the_tallest_column():
     for lo, hi in ((0.0, 53.4), (-2.7, 18.3), (0.0, 0.9), (-10.0, 0.0), (0.0, 2666.0)):
         ticks = F._ticks(lo, hi)

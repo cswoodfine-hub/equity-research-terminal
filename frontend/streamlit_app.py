@@ -61,7 +61,7 @@ from components import tokens as TK
 # is written against is reloaded once, here.
 if getattr(compsval, "REVISION", 0) < 4:
     compsval = importlib.reload(compsval)
-if getattr(FB, "REVISION", 0) < 2:
+if getattr(FB, "REVISION", 0) < 4:
     FB = importlib.reload(FB)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -6015,34 +6015,40 @@ def _lever_span(lever: dict) -> str:
             f"{_lever_value(kind, lever.get('break'), key)}")
 
 
+def _fc_label(text: str) -> None:
+    """The name of a choice, set small beside its buttons, so a row of three controls
+    says what each one changes."""
+    st.markdown(f'<span class="fc-ctl-k">{html_escape(text)}</span>',
+                unsafe_allow_html=True, width="content")
+
+
 def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None:
-    """Part one. Is it worth more than the price and can the number be trusted (the
-    strip); where is it going and when does it fall (chart 1); what is the value made of
-    (chart 2); what does it depend on (chart 3)."""
+    """The company. Is it worth more than the price and can the number be trusted (the
+    strip); where is it going and when does it fall (the chart, which takes most of the
+    width); what is the value made of and what does it depend on (beside it)."""
     try:
         rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
     except (urllib.error.URLError, OSError):
         rated = {}
-    counted = [a for a in board.get("assets") or [] if a.get("counted")]
-    section(f"{ticker} · company forecast",
-            basis=f"{len(counted)} assets counted · close {board['strip'].get('close_date') or ''}")
     with st.container(key=f"fcb_strip_{ticker}"):
         st.markdown(metric_tiles(FB.strip_items(board, rated.get("rating")
                                                 if rated.get("ok") else None),
                                  one_row=True), unsafe_allow_html=True)
-    over_time, value_col = st.columns([1.6, 1], gap="medium")
+    over_time, value_col = st.columns([1.7, 1], gap="large")
     with over_time:
         section("The company over time", basis="reported, then forecast")
-        measure = _fc_choice("Measure", FB.MEASURES, f"fcb_measure_{ticker}")
+        with st.container(horizontal=True, key=f"fcb_ctl_a_{ticker}"):
+            _fc_label("Show")
+            measure = _fc_choice("Measure", FB.MEASURES, f"fcb_measure_{ticker}")
         fixed = measure in ("costs", "capex", "cash_uses")
-        a, b, c = st.columns([1.25, 1, 1.45], gap="small")
-        with a:
+        with st.container(horizontal=True, key=f"fcb_ctl_b_{ticker}"):
+            _fc_label("Split")
             split = _fc_choice("Split", FB.SPLITS, f"fcb_split_{ticker}", disabled=fixed)
-        with b:
+            _fc_label("Years")
             view = _fc_choice("View", FB.VIEWS, f"fcb_view_{ticker}")
-        with c:
+            _fc_label("Basis")
             basis = _fc_choice("Basis", FB.BASES, f"fcb_basis_{ticker}")
-        svg, caption = FB.company_chart(board, measure, split, view, basis)
+        svg, caption = FB.company_chart(board, measure, split, view, basis, height=410)
         if svg:
             R.show(svg, css_class="chart-mount stretch")
         else:
@@ -6051,7 +6057,9 @@ def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None
         _fc_caption(caption)
     with value_col:
         section("What the value is made of", basis="$ a share")
-        made = _fc_choice("Value", FB.VALUE_VIEWS, f"fcb_value_{ticker}")
+        with st.container(horizontal=True, key=f"fcb_ctl_c_{ticker}"):
+            _fc_label("Split")
+            made = _fc_choice("Value", FB.VALUE_VIEWS, f"fcb_value_{ticker}")
         svg, caption = FB.value_chart(board, made)
         R.show(svg, css_class="chart-mount stretch")
         _fc_caption(caption)
@@ -6063,9 +6071,8 @@ def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None
             _fc_caption(caption)
         else:
             _fc_caption("no single assumption, moved alone, brings the value to the price.")
-    with st.container(horizontal=True, key=f"fcb_more_{ticker}"):
-        st.markdown('<span class="fc-more-k">More</span>', unsafe_allow_html=True,
-                    width="content")
+    with st.container(horizontal=True, key=f"fcb_morerow_{ticker}"):
+        _fc_label("More")
         for key, label in _FC_MORE.items():
             if st.button(label, key=f"fcb_more_{key}_{ticker}"):
                 st.session_state[_fc_open_key(ticker)] = {"more": key}
@@ -6073,79 +6080,85 @@ def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None
 
 def _fc_assets(api_base: str, ticker: str, board: dict, ids: list, labels: dict,
                pick_key: str, this_year: int) -> None:
-    """Part two. Which assets matter and how they compare (chart 4, whose rows open an
-    asset's card); whether each is growing or running off, and on track (chart 5)."""
+    """The assets. Which matter and how they compare (the ranked rows, which stay on
+    screen because a row is how an asset's card opens); beside them, one chart the reader
+    switches between the largest assets by year and two measures against each other."""
     assets = board.get("assets") or []
-    off = sum(1 for a in assets if not a.get("counted"))
-    section("Asset forecasts",
-            basis=f"{len(assets) - off} valued"
-                  + (f" · {off} on a placeholder, not counted" if off else ""))
-    basis = _fc_choice("Asset basis", FB.BASES, f"fcb_abasis_{ticker}")
     years = list((board.get("years") or {}).get("forecast") or [])
-    compared, over_time = st.columns([1, 1.15], gap="medium")
+    with st.container(key=f"fcb_strip_{ticker}"):
+        st.markdown(metric_tiles(FB.asset_strip_items(board), one_row=True),
+                    unsafe_allow_html=True)
+    compared, charted = st.columns([1, 1.45], gap="large")
     with compared:
         section("Assets compared", basis="click a row for the asset's card")
-        measure = _fc_choice("Asset measure", FB.ASSET_MEASURES, f"fcb_ameasure_{ticker}")
-        a, b = st.columns([1.2, 1], gap="small")
-        with a:
+        with st.container(horizontal=True, key=f"fcb_ctl_d_{ticker}"):
+            _fc_label("Rank by")
+            measure = st.selectbox("Rank by", list(FB.ASSET_MEASURES),
+                                   format_func=FB.ASSET_MEASURES.get,
+                                   key=f"fcb_ameasure_{ticker}", width=178,
+                                   label_visibility="collapsed")
+            year = None
+            if years and measure in ("revenue_year", "fcf_year"):
+                year = st.selectbox("Year", years, index=min(4, len(years) - 1),
+                                    key=f"fcb_year_{ticker}", width=92,
+                                    label_visibility="collapsed")
             show = _fc_choice("Show", FB.ASSET_SHOWS, f"fcb_show_{ticker}")
-        with b:
-            view = _fc_choice("Asset view", FB.ASSET_VIEWS, f"fcb_aview_{ticker}")
-        other = None
-        if view == "pair":
-            rest = {k: v for k, v in FB.ASSET_MEASURES.items() if k != measure}
-            other = st.selectbox("Against", list(rest), format_func=rest.get,
-                                 key=f"fcb_against_{ticker}",
-                                 index=list(rest).index("chance") if "chance" in rest else 0)
-        year = None
-        if years and {measure, other} & {"revenue_year", "fcf_year"}:
-            year = st.selectbox("Year", years, index=min(4, len(years) - 1),
-                                key=f"fcb_year_{ticker}")
-        if view == "pair":
-            svg = FB.asset_pair_chart(board, other, measure, show, basis, year, this_year)
+        with st.container(horizontal=True, key=f"fcb_ctl_e_{ticker}"):
+            _fc_label("Basis")
+            basis = _fc_choice("Asset basis", FB.BASES, f"fcb_abasis_{ticker}")
+        clicked = clicklist.click_list(
+            FB.asset_rows(board, measure, show, basis, year, this_year),
+            tokens=_BOOK_TOKENS, selected=None, css=FB.ASSET_CSS, key=f"fcb_list_{ticker}")
+        nonce_key = f"_fcb_nonce_{ticker}"
+        if (isinstance(clicked, dict) and clicked.get("id") in ids
+                and clicked.get("nonce") != st.session_state.get(nonce_key)):
+            st.session_state[nonce_key] = clicked.get("nonce")
+            st.session_state[pick_key] = clicked["id"]
+            st.session_state[_fc_open_key(ticker)] = {"asset": clicked["id"]}
+    with charted:
+        head = st.container()
+        with st.container(horizontal=True, key=f"fcb_ctl_f_{ticker}"):
+            _fc_label("Chart")
+            chart = _fc_choice("Asset chart", FB.ASSET_VIEWS, f"fcb_aview_{ticker}")
+            other, pair_year, tmeasure = None, year, None
+            if chart == "pair":
+                rest = {k: v for k, v in FB.ASSET_MEASURES.items() if k != measure}
+                _fc_label("Against")
+                other = st.selectbox("Against", list(rest), format_func=rest.get,
+                                     key=f"fcb_against_{ticker}", width=178,
+                                     index=(list(rest).index("chance") if "chance" in rest
+                                            else 0), label_visibility="collapsed")
+                if years and other in ("revenue_year", "fcf_year") and year is None:
+                    pair_year = st.selectbox("Year", years, index=min(4, len(years) - 1),
+                                             key=f"fcb_pyear_{ticker}", width=92,
+                                             label_visibility="collapsed")
+            else:
+                _fc_label("Show")
+                tmeasure = _fc_choice("Time measure", FB.TIME_MEASURES,
+                                      f"fcb_tmeasure_{ticker}")
+        if chart == "pair":
+            with head:
+                section(f"{FB.ASSET_MEASURES[measure]} against "
+                        f"{FB.ASSET_MEASURES[other].lower()}", basis="a dot an asset")
+            svg = FB.asset_pair_chart(board, other, measure, show, basis, pair_year,
+                                      this_year, width=760, height=450)
             if svg:
                 R.show(svg, css_class="chart-mount stretch")
-                _fc_caption("a dot an asset, its area the value a share; green on sale, "
+                _fc_caption("the dot's area is the asset's value a share; green on sale, "
                             "purple pipeline, dashed a placeholder")
             else:
                 state("Nothing to plot", "no asset carries both measures.")
-            pickable = [a["asset_id"] for a in assets if a["asset_id"] in ids]
-            open_pick = f"fcb_open_pick_{ticker}"
-
-            def _open_picked():
-                # A dot is not a link, so the card opens from a list beside the chart.
-                # The list is cleared as it is read, so the same asset opens twice.
-                chosen = st.session_state.get(open_pick)
-                if chosen in ids:
-                    st.session_state[pick_key] = chosen
-                    st.session_state[_fc_open_key(ticker)] = {"asset": chosen}
-                st.session_state[open_pick] = None
-
-            st.selectbox("Open an asset's card", pickable, index=None,
-                         format_func=lambda i: labels.get(i, str(i)), key=open_pick,
-                         on_change=_open_picked, placeholder="Open an asset's card",
-                         label_visibility="collapsed")
         else:
-            clicked = clicklist.click_list(
-                FB.asset_rows(board, measure, show, basis, year, this_year),
-                tokens=_BOOK_TOKENS, selected=None, css=FB.ASSET_CSS,
-                key=f"fcb_list_{ticker}")
-            nonce_key = f"_fcb_nonce_{ticker}"
-            if (isinstance(clicked, dict) and clicked.get("id") in ids
-                    and clicked.get("nonce") != st.session_state.get(nonce_key)):
-                st.session_state[nonce_key] = clicked.get("nonce")
-                st.session_state[pick_key] = clicked["id"]
-                st.session_state[_fc_open_key(ticker)] = {"asset": clicked["id"]}
-    with over_time:
-        section("Assets over time", basis="the largest by value")
-        tmeasure = _fc_choice("Time measure", FB.TIME_MEASURES, f"fcb_tmeasure_{ticker}")
-        svg, caption = FB.asset_lines(board, tmeasure, show, basis)
-        if svg:
-            R.show(svg, css_class="chart-mount stretch")
-            _fc_caption(caption)
-        else:
-            state("Nothing to draw", "no counted asset of this kind carries a path.")
-    with st.expander("See as a table"):
+            with head:
+                section("Assets over time", basis="the largest by value")
+            svg, caption = FB.asset_lines(board, tmeasure, show, basis, width=760,
+                                          height=450)
+            if svg:
+                R.show(svg, css_class="chart-mount stretch")
+                _fc_caption(caption)
+            else:
+                state("Nothing to draw", "no counted asset of this kind carries a path.")
+    with st.expander("See every asset as a table"):
         st.markdown(FB.asset_table(board, this_year), unsafe_allow_html=True)
 
 
@@ -6222,23 +6235,38 @@ def _fc_more(api_base: str, ticker: str, key: str) -> None:
 
 def _fc_page(api_base: str, ticker: str, board: dict, ids: list, labels: dict,
              pick_key: str) -> None:
-    """The company, then its assets, then whichever card is open."""
+    """One view at a time, chosen at the top: the company, or its assets. Whichever
+    card is open sits over either."""
     _BOOK_UNIT["currency"] = board.get("currency") or "USD"
     this_year = dt.date.today().year
     strip = board.get("strip") or {}
     company = {"close": strip.get("price"), "close_date": strip.get("close_date")}
-    _fc_company(api_base, ticker, board, this_year)
     assets = board.get("assets") or []
     alone = len(assets) == 1 and assets[0]["asset_id"] in ids
-    if alone:
-        # One asset is the company: its forecast stands in place of the comparison.
-        if st.session_state.get(pick_key) not in ids:
-            st.session_state[pick_key] = assets[0]["asset_id"]
-        section("Asset forecast", basis="the one asset valued")
-        _asset_bench(api_base, ticker, ids, labels, pick_key, st.container(),
-                     st.container(), company)
-    else:
-        _fc_assets(api_base, ticker, board, ids, labels, pick_key, this_year)
+    counted = sum(1 for a in assets if a.get("counted"))
+    off = len(assets) - counted
+    with st.container(key=f"fcb_page_{ticker}"):
+        with st.container(horizontal=True, key=f"fcb_head_{ticker}"):
+            part = _fc_choice("Forecast", {"company": "Company forecast",
+                                           "assets": "Asset forecast" if alone
+                                           else "Asset forecasts"},
+                              f"fcb_part_{ticker}")
+            st.markdown(
+                '<span class="fc-head-k">'
+                + html_escape(f"{counted} {'asset' if counted == 1 else 'assets'} counted"
+                              + (f" · {off} on a placeholder, not counted" if off else "")
+                              + f" · close {strip.get('close_date') or 'not on file'}")
+                + '</span>', unsafe_allow_html=True, width="content")
+        if part == "company":
+            _fc_company(api_base, ticker, board, this_year)
+        elif alone:
+            # One asset is the company: its forecast stands in place of the comparison.
+            if st.session_state.get(pick_key) not in ids:
+                st.session_state[pick_key] = assets[0]["asset_id"]
+            _asset_bench(api_base, ticker, ids, labels, pick_key, st.container(),
+                         st.container(), company)
+        else:
+            _fc_assets(api_base, ticker, board, ids, labels, pick_key, this_year)
     want = st.session_state.get(_fc_open_key(ticker))
     if not isinstance(want, dict):
         return
