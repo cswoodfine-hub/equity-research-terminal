@@ -28,6 +28,7 @@ def _series(revenue):
 
 def _asset(i, name, kind, per_share, revenue, pos=1.0, counted=True, loe=None):
     return {"asset_id": i, "name": name, "kind": kind, "counted": counted, "pos": pos,
+            "modelled_to": 2027,
             "per_share": per_share, "per_share_success": per_share / pos if pos else None,
             "share_of_value": 0.3, "peak_revenue": max(revenue), "peak_year": 2028,
             "loe_year": loe, "area": "Oncology" if i % 2 else None,
@@ -72,12 +73,17 @@ def _board(capex=True):
             "strip": {"value": 12.0, "price": 10.0, "gap": 0.2, "twelve_month": 13.0,
                       "coverage": 0.9, "rests_on_assumption": 0.2, "close_date": "2026-11-16",
                       "next_catalyst": {"expected_date": "2027-03-01", "title": "Readout"}},
-            "years": {"reported": YEARS_R, "forecast": YEARS_F},
+            "years": {"reported": YEARS_R, "forecast": YEARS_F, "carried_from": 2028},
             "reported": {"revenue": {2024: 140.0, 2025: 150.0}, "capex": {2024: 6.0, 2025: 7.0},
                          "operating_profit": {2024: 60.0, 2025: 70.0},
                          "free_cash_flow": {2024: 50.0, 2025: 55.0},
                          "cost_of_goods": {2024: 30.0, 2025: 31.0}, "sga": {2025: 30.0},
-                         "rd": {2024: 15.0, 2025: 16.0}, "tax": {2025: 9.0}},
+                         "rd": {2024: 15.0, 2025: 16.0}, "tax": {2025: 9.0},
+                         "operating_cash_flow": {2024: 56.0, 2025: 62.0},
+                         "dividends": {2024: 20.0, 2025: 22.0},
+                         "buybacks": {2024: 10.0, 2025: 0.0},
+                         "acquisitions": {2024: 0.0, 2025: 40.0},
+                         "financing": {2024: -35.0, 2025: 3.0}},
             "weighted": _case(assets, True, capex), "success": _case(assets, False, capex),
             "assets": assets,
             "lines": [{"name": "Other", "per_share": 1.0, "years": YEARS_F,
@@ -94,7 +100,8 @@ def _board(capex=True):
                             "basis": "plant upkeep at 3.0% of revenue"} if capex
                            else {"upkeep_rate": None, "growth_rate": None,
                                  "reason": "no depreciation line on file"}),
-            "basis": {"free_cash_flow": "reported is operating cash flow less capex"},
+            "basis": {"free_cash_flow": "reported is operating cash flow less capex",
+                      "cash_uses": "reported years are the cash flow statement's own lines"},
             "not_valued": ["Legacy"]}
 
 
@@ -120,7 +127,7 @@ def test_the_bands_add_up_to_the_company(measure, split, basis):
         year = int(label)
         if year not in YEARS_F:
             continue
-        total = sum(b["values"][i] or 0.0 for b in fig["bands"] if b["name"] != "Reported")
+        total = sum(b["values"][i] or 0.0 for b in fig["bands"])
         assert total == pytest.approx(company[year]), (label, split)
 
 
@@ -135,6 +142,58 @@ def test_reported_years_stand_apart_and_cumulative_leaves_them_off():
     forecast = next(b for b in cum["bands"] if b["name"] == "Forecast")
     yearly = board["weighted"]["company"]["revenue"]
     assert forecast["values"][-1] == pytest.approx(sum(yearly.values()))
+
+
+def test_reported_free_cash_flow_is_its_two_filed_lines_so_the_plant_is_seen():
+    fig = F.company_figure(_board(), "free_cash_flow", "group", "year", "weighted")
+    made = next(b for b in fig["bands"] if b["name"] == "Operating cash flow")
+    spent = next(b for b in fig["bands"] if b["name"] == "Capex")
+    assert made["values"][:2] == [56.0, 62.0] and spent["values"][:2] == [-6.0, -7.0]
+    assert made["values"][2:] == [None, None, None]
+    # and the forecast's growth charge is its plant and its working capital apart
+    i = fig["labels"].index("2026")
+    new = next(b for b in fig["bands"] if b["name"] == F.NEW_PLANT)["values"][i]
+    working = next(b for b in fig["bands"] if b["name"] == F.WORKING)["values"][i]
+    assert new == pytest.approx(-1.0) and new + working == pytest.approx(-4.0)
+
+
+def test_where_cash_went_is_the_filed_outlays_then_what_the_model_charges():
+    """Reported years: the cash flow statement's own lines, with what financing took or
+    gave beyond dividends and buybacks. Forecast years: plant and working capital, and
+    what is left over, which the model does not allot. A line not on file is named."""
+    board = _board()
+    fig = F.company_figure(board, "cash_uses", "group", "year", "weighted")
+    by = {b["name"]: b["values"] for b in fig["bands"]}
+    assert by["Capex"][:2] == [6.0, 7.0] and by["Dividends"][:2] == [20.0, 22.0]
+    assert by["Acquisitions"][1] == 40.0 and by["Share buybacks"][0] == 10.0
+    # 2024: financing took 35, of which 30 was dividends and buybacks. 2025: it gave 3
+    # and 22 went out in dividends, so 25 was raised.
+    assert by["Debt and other financing, net"][:2] == [pytest.approx(5.0),
+                                                       pytest.approx(-25.0)]
+    assert by["Intangibles bought"] == [None] * 5
+    assert "not on file: intangibles bought" in fig["caption"]
+    i = fig["labels"].index("2026")
+    company = board["weighted"]["company"]
+    left = by["Left over, use not forecast"][i]
+    assert left == pytest.approx(company["free_cash_flow"][2026])
+    uses = sum(by[n][i] or 0.0 for n in ("Plant upkeep", F.NEW_PLANT, F.WORKING))
+    assert uses == pytest.approx(0.03 * company["revenue"][2026] + 4.0)
+    line = fig["reference"]
+    assert line["name"] == "Cash from operations" and line["values"][:2] == [56.0, 62.0]
+    assert line["values"][i] == pytest.approx(left + uses)
+    svg, _ = F.company_chart(board, "cash_uses")
+    assert "Cash from operations" in svg and svg.startswith("<svg")
+
+
+def test_the_year_a_product_is_carried_on_its_terminal_path_is_ruled_and_said():
+    board = _board()
+    fig = F.company_figure(board, "revenue", "group", "year", "weighted")
+    assert fig["rule_at"] == (fig["labels"].index("2028"), "terminal path")
+    assert "terminal value" in fig["caption"]
+    svg, caption = F.asset_lines(board, "revenue")
+    assert 'class="carried"' in svg and "dashed past the modelled years" in caption
+    board["years"]["carried_from"] = None
+    assert F.company_figure(board, "revenue")["rule_at"] is None
 
 
 def test_capex_with_no_rule_is_a_gap_with_its_reason_and_never_nil():

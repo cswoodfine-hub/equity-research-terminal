@@ -69,6 +69,9 @@ def test_capex_is_upkeep_on_revenue_plus_new_plant_on_added_revenue():
     assert case["company"]["capex"][2026] == pytest.approx(0.03 * 110.0 + 0.3 * 10.0)
     assert case["company"]["capex"][2027] == pytest.approx(
         0.03 * revenue[2027] + 0.3 * (revenue[2027] - 110.0))
+    # new plant is the capex share of the growth charge the valuation takes
+    assert case["company"]["capex"][2027] - 0.03 * revenue[2027] == pytest.approx(
+        0.3 / 0.5 * case["company"]["growth_investment"][2027])
     # the growth charge comes off the company's cash flow, as it comes off its value
     assert case["company"]["free_cash_flow"][2026] == pytest.approx(44.0 - 0.5 * 10.0)
 
@@ -101,6 +104,60 @@ def test_a_company_with_only_assumed_launches_has_no_board():
     verdict = _with_launches()
     verdict["modelled"], verdict["streams"] = [], []
     assert B.build(None, None, "TEST", verdict)["ok"] is False
+
+
+def test_the_rows_are_paired_with_the_valuation_window_not_the_model_window():
+    """A product launched since the valuation year has a model that opens before it and
+    P&L rows only for the window. Paired with the model's years, Casgevy's cash flow was
+    drawn two years early and Vertex's forecast opened in 2024."""
+    verdict = _verdict()
+    verdict["modelled"][0].update(years=[2024, 2025, 2026, 2027], dcf_years=[2026, 2027])
+    parts = B._parts(verdict)
+    assert parts[0]["years"] == [2026, 2027]
+    assert B.total(parts, "revenue", True)[2026] == 110.0
+    assert 2024 not in B.total(parts, "revenue", True)
+
+
+def _tail(loe, in_base=False):
+    return {"end": 2027, "growth": 0.0, "year1_pct": 0.5, "decay_pct": 0.2,
+            "late_decay_pct": None, "late_from_year": None, "parts": [[1.0, loe, in_base]]}
+
+
+def test_a_part_is_carried_past_its_model_on_the_path_its_terminal_value_takes():
+    """Every line of the final year moves with the revenue, which is the stream the
+    terminal multiple discounts; a part with no terminal value earns nothing past it."""
+    import forecast
+    verdict = _verdict()
+    verdict["modelled"][0]["terminal_tail"] = _tail(2029)
+    parts = B._parts(verdict)
+    onsale, pipeline = parts[0], parts[1]
+    B.carry(onsale, 2032)
+    B.carry(pipeline, 2032)
+    assert onsale["years"] == list(range(2026, 2033)) and onsale["modelled"] == 2
+    path = forecast.terminal_path(0.0, 2027, 2029, False, 0.5, 0.2, None, None,
+                                  list(range(2028, 2033)))
+    for year, row in zip(onsale["years"][2:], onsale["rows"][2:]):
+        assert row["revenue"] == pytest.approx(110.0 * path[year])
+        assert row["fcff"] == pytest.approx(44.0 * path[year])
+    assert onsale["rows"][2]["revenue"] == pytest.approx(110.0)       # flat to its cliff
+    assert onsale["rows"][-1]["revenue"] < 0.5 * 110.0                # and then down it
+    assert pipeline["years"] == [2027]                                # no tail, no carry
+    # the growth charge is laid on the modelled years alone, as the valuation lays it
+    assert B.total(parts, "revenue", True, modelled=True).get(2030) is None
+    assert B.total(parts, "revenue", True)[2030] == pytest.approx(110.0 * path[2030])
+
+
+def test_the_horizon_passes_the_last_cliff_that_matters_and_no_further():
+    verdict = _verdict()
+    parts = B._parts(verdict)
+    assert B.horizon(parts, 2026) == 2035                     # no cliff: ten years
+    verdict["modelled"][0]["loe_year"] = 2039
+    assert B.horizon(B._parts(verdict), 2026) == 2042         # three years past it
+    verdict["modelled"][0]["loe_year"] = 2070
+    assert B.horizon(B._parts(verdict), 2026) == 2050         # never more than 25 years
+    verdict["modelled"][0].update(loe_year=2030, per_share=600.0)
+    verdict["modelled"][1].update(loe_year=2045, per_share=2.0)   # under 1% of the value
+    assert B.horizon(B._parts(verdict), 2026) == 2035
 
 
 def test_capex_with_no_rule_is_none_not_nil():

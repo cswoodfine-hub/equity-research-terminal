@@ -61,7 +61,7 @@ from components import tokens as TK
 # is written against is reloaded once, here.
 if getattr(compsval, "REVISION", 0) < 4:
     compsval = importlib.reload(compsval)
-if getattr(FB, "REVISION", 0) < 1:
+if getattr(FB, "REVISION", 0) < 2:
     FB = importlib.reload(FB)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -6034,7 +6034,7 @@ def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None
     with over_time:
         section("The company over time", basis="reported, then forecast")
         measure = _fc_choice("Measure", FB.MEASURES, f"fcb_measure_{ticker}")
-        fixed = measure in ("costs", "capex")
+        fixed = measure in ("costs", "capex", "cash_uses")
         a, b, c = st.columns([1.25, 1, 1.45], gap="small")
         with a:
             split = _fc_choice("Split", FB.SPLITS, f"fcb_split_{ticker}", disabled=fixed)

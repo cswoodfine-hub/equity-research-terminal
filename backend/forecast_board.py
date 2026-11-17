@@ -39,11 +39,21 @@ charges are measured from filings:
           (``growth_investment``).
 
 So forecast capex is what the valuation already takes out of the cash flow: the upkeep
-rate on each year's revenue plus the growth rate on each year's added revenue. A filer
+rate on each year's revenue plus the capex share of that year's growth charge. A filer
 whose charge was not restated still carries its full capex in the charge, and takes its
 own capex over revenue with no growth share. Plotting a separate rule (a five-year share
 of revenue, say) would draw a capex line that does not reconcile with the free cash flow
 beside it. Where the filer's lines are not on file the forecast is None with the reason.
+
+PAST THE MODEL. Each product is modelled year by year for ten years or to a few years
+past its own loss of exclusivity, whichever is longer, and valued after that by a terminal
+value. The terminal value is the present value of a path: the product runs on at its
+growth to its exclusivity, takes its year-one drop and decays (``forecast.terminal_path``).
+The board carries each part past its last modelled year on that same path, with every
+line of its P&L in the final year's proportions, which is the stream the terminal value
+discounts. So the company's path can be drawn past the last cliff that matters without a
+product vanishing in the year its model happens to stop. A part with no terminal value
+earns nothing past its model, as in the valuation.
 """
 
 from __future__ import annotations
@@ -51,13 +61,17 @@ from __future__ import annotations
 import datetime as dt
 
 import evidence
+import forecast
 import growth_investment as GI
 import interest_addback as IA
 import product_areas
 import replacement_capex as RC
 
-HISTORY_YEARS = 6          # reported years drawn before the forecast
-HORIZON_YEARS = 10         # forecast years drawn
+HISTORY_YEARS = 10         # reported years drawn before the forecast
+HORIZON_YEARS = 10         # forecast years drawn at the least
+CLIFF_YEARS = 3            # years drawn after the last loss of exclusivity that matters
+MAX_YEARS = 25             # and at the most
+MATTERS = 0.01             # a cliff matters where the asset is this share of the named value
 COST_KEYS = ("cogs", "sga", "rd", "other", "tax")
 # measure -> the key in a forecast P&L row
 ROW_KEY = {"revenue": "revenue", "operating_profit": "ebit", "free_cash_flow": "fcff",
@@ -68,6 +82,11 @@ REPORTED = {"revenue": "Revenues", "operating_profit": "OperatingIncomeLoss",
             "cost_of_goods": "CostOfRevenue", "sga": "SellingGeneralAndAdministrative",
             "rd": "ResearchAndDevelopmentExpense", "tax": "IncomeTaxExpense",
             "capex": "CapitalExpenditure"}
+# where the cash went, as filed in the cash flow statement: outlays, drawn as positive
+USES = {"operating_cash_flow": "CashFlowOperating", "acquisitions": "AcquisitionsNet",
+        "intangibles": "AcquiredIntangibles", "dividends": "DividendsPaid",
+        "buybacks": "ShareRepurchases", "financing": "CashFlowFinancing"}
+SIGNED = ("operating_cash_flow", "financing")      # flows kept with the filer's sign
 BASIS = {
     "operating_profit": "reported as filed, after amortisation and one-off charges; the "
                         "forecast is revenue less the model's cost ratios",
@@ -75,6 +94,9 @@ BASIS = {
                       "is before interest, with plant at the model's own rule",
     "capex": "the forecast is what the valuation already takes out of cash flow: plant "
              "upkeep on each year's revenue and new plant on each year's added revenue",
+    "cash_uses": "reported years are the cash flow statement's own lines; the forecast "
+                 "carries plant and working capital only, and what is left is not "
+                 "allotted to dividends, buybacks or deals",
 }
 
 
@@ -85,15 +107,19 @@ def _mm(value) -> float | None:
 def reported(conn, company_id: int, first: int, last: int) -> dict:
     """{measure: {fiscal year: value in millions}} as filed. Capital spending is a
     positive outlay; free cash flow is operating cash flow less it, for the years both
-    are on file."""
+    are on file. The uses of cash (deals, intangibles bought, dividends, buybacks) are
+    outlays too, and a line the filer does not tag is absent, never nil."""
     out = {}
     for measure, metric in REPORTED.items():
         series = IA.fy_series(conn, company_id, metric, first, last)
         out[measure] = {y: (abs(_mm(r["value"])) if measure == "capex" else _mm(r["value"]))
                         for y, r in series.items()}
-    ocf = IA.fy_series(conn, company_id, "CashFlowOperating", first, last)
-    out["free_cash_flow"] = {y: _mm(ocf[y]["value"]) - out["capex"][y]
-                             for y in ocf if y in out["capex"]}
+    for measure, metric in USES.items():
+        series = IA.fy_series(conn, company_id, metric, first, last)
+        out[measure] = {y: (_mm(r["value"]) if measure in SIGNED
+                            else abs(_mm(r["value"]))) for y, r in series.items()}
+    ocf = out["operating_cash_flow"]
+    out["free_cash_flow"] = {y: ocf[y] - out["capex"][y] for y in ocf if y in out["capex"]}
     return out
 
 
@@ -174,30 +200,78 @@ def _parts(verdict: dict) -> list:
                       "counted": bool(row.get("counted", True)),
                       "kind": "marketed" if row.get("is_marketed") else "pipeline",
                       "pos": row.get("pos") if row.get("pos") is not None else 1.0,
-                      "years": list(row.get("years") or []),
+                      "years": _years(row), "tail": row.get("terminal_tail"),
                       "rows": list(row.get("pnl_share") or []), "row": row})
     for stream in verdict.get("streams") or []:
         parts.append({"id": None, "name": stream.get("line"), "kind": "lines", "pos": 1.0,
                       "counted": True,
-                      "years": list(stream.get("years") or []),
+                      "years": _years(stream), "tail": stream.get("terminal_tail"),
                       "rows": list(stream.get("pnl_share") or []), "row": stream})
     assumed = _assumed(verdict.get("sotp") or {})
     if assumed:
         parts.append(assumed)
+    for part in parts:
+        part["modelled"] = min(len(part["years"]), len(part["rows"]))
     return parts
+
+
+def _years(row: dict) -> list:
+    """The years a part's P&L rows are for: the valuation window. A model that opens
+    before the valuation year (a product launched since) has more ``years`` than rows,
+    and pairing the rows with those drew its cash flow two years early."""
+    return list(row.get("dcf_years") or row.get("years") or [])
+
+
+def horizon(parts: list, first: int) -> int:
+    """The last year drawn: ten years at the least, and past the last loss of
+    exclusivity that matters by enough to see the fall."""
+    named = [p for p in parts if p["id"] is not None and p["counted"]]
+    value = sum(max(p["row"].get("per_share") or 0.0, 0.0) for p in named)
+    cliffs = [p["row"]["loe_year"] for p in named
+              if p["row"].get("loe_year") and value
+              and (p["row"].get("per_share") or 0.0) / value >= MATTERS]
+    end = max([first + HORIZON_YEARS - 1] + [c + CLIFF_YEARS for c in cliffs])
+    return min(end, first + MAX_YEARS - 1)
+
+
+def carry(part: dict, through: int) -> None:
+    """Extend a part's years and rows to ``through`` on the path its terminal value
+    takes. Every line of the final year's P&L moves with its revenue, which is the
+    stream the terminal multiple discounts. No tail, no terminal value, nothing carried."""
+    years, rows, tail = part["years"], part["rows"], part.get("tail")
+    if not years or not rows or not tail or through <= years[-1]:
+        return
+    last, final = years[len(rows) - 1], rows[-1]
+    later = list(range(last + 1, through + 1))
+    path = {y: 0.0 for y in later}
+    for share, loe, in_base in tail.get("parts") or []:
+        for y, factor in forecast.terminal_path(
+                tail.get("growth") or 0.0, last, loe, in_base, tail.get("year1_pct"),
+                tail.get("decay_pct"), tail.get("late_decay_pct"),
+                tail.get("late_from_year"), later).items():
+            path[y] += share * factor
+    del years[len(rows):]
+    for y in later:
+        years.append(y)
+        rows.append({k: (v * path[y] if isinstance(v, (int, float)) else v)
+                     for k, v in final.items()})
 
 
 GROUPS = ("marketed", "lines", "pipeline", "assumed")
 
 
-def total(parts: list, key: str, weighted: bool, kind: str | None = None) -> dict:
-    """{year: the sum of one P&L key over the parts}, at each part's odds when weighted."""
+def total(parts: list, key: str, weighted: bool, kind: str | None = None,
+          modelled: bool = False) -> dict:
+    """{year: the sum of one P&L key over the parts}, at each part's odds when weighted.
+    ``modelled`` leaves out the years a part is carried past its model."""
     out: dict = {}
     for part in parts:
         if not part["counted"] or (kind is not None and part["kind"] != kind):
             continue
         odds = part["pos"] if weighted else 1.0
-        for year, row in zip(part["years"], part["rows"]):
+        rows = part["rows"][:part.get("modelled", len(part["rows"]))] if modelled \
+            else part["rows"]
+        for year, row in zip(part["years"], rows):
             out[year] = out.get(year, 0.0) + (row.get(key) or 0.0) * odds
     return out
 
@@ -210,16 +284,19 @@ def _case(parts: list, weighted: bool, opening, share, rule: dict) -> dict:
     # The book's growth charge is laid on its net growth, not on any one asset, so it
     # comes off the total here as the valuation takes it off the value. The assumed
     # launches carry their own, charged on the growth they add to the book's.
-    grown = added(total(book, "revenue", weighted), opening)
+    # On the modelled years alone, as the valuation charges it: the years a product
+    # is carried are inside its terminal value, which takes no growth charge.
+    grown = added(total(book, "revenue", weighted, modelled=True), opening)
     own = total(parts, "growth_investment", weighted, "assumed")
     company["growth_investment"] = {y: (share or 0.0) * grown.get(y, 0.0) + own.get(y, 0.0)
                                     for y in revenue}
     company["free_cash_flow"] = {y: company["free_cash_flow"].get(y, 0.0)
                                  - company["growth_investment"][y] for y in revenue}
     if rule.get("upkeep_rate") is not None:
-        built = added(revenue, opening)
+        # New plant is the capex share of the growth charge the valuation takes.
+        new = (rule["growth_rate"] / share) if share else 0.0
         company["capex"] = {y: rule["upkeep_rate"] * revenue[y]
-                            + rule["growth_rate"] * built[y] for y in revenue}
+                            + new * company["growth_investment"][y] for y in revenue}
     else:
         company["capex"] = None
     groups = {kind: {m: total(parts, k, weighted, kind)
@@ -275,7 +352,11 @@ def build(conn, db_path, ticker: str, verdict: dict, today: dt.date | None = Non
     last_reported = (sotp.get("last_reported") or {}).get("fiscal_year")
     counted = [p for p in parts if p["counted"] and p["kind"] != "assumed"]
     f_first = min(y for p in counted for y in p["years"])
-    f_last = min(max(y for p in counted for y in p["years"]), f_first + HORIZON_YEARS - 1)
+    f_last = horizon(parts, f_first)
+    ends = [p["years"][p["modelled"] - 1] for p in counted if p["modelled"]]
+    for part in parts:
+        carry(part, f_last)
+    carried_from = (min(ends) + 1) if ends and min(ends) < f_last else None
     r_last = last_reported or (f_first - 1)
     r_first = r_last - HISTORY_YEARS + 1
     rule = capex_rule(conn, ticker)
@@ -312,6 +393,8 @@ def build(conn, db_path, ticker: str, verdict: dict, today: dt.date | None = Non
             "evidence": grades,
             "assumption_share": (grades["assumption"] / n) if n else None,
             "years": part["years"],
+            "modelled_to": (part["years"][part["modelled"] - 1] if part["modelled"]
+                            else None),
             "series": {m: [r.get(k) for r in part["rows"]] for m, k in ROW_KEY.items()},
             "reported": seen.get(part["id"]) or {},
         }
@@ -349,7 +432,9 @@ def build(conn, db_path, ticker: str, verdict: dict, today: dt.date | None = Non
                   "coverage": coverage.get("share"), "rests_on_assumption": rests,
                   "next_catalyst": verdict.get("next_catalyst")},
         "years": {"reported": list(range(r_first, r_last + 1)),
-                  "forecast": list(range(f_first, f_last + 1))},
+                  "forecast": list(range(f_first, f_last + 1)),
+                  # the first year some part is carried on its terminal path
+                  "carried_from": carried_from},
         "reported": reported(conn, company["id"], r_first, r_last) if company else {},
         "weighted": cases["weighted"], "success": cases["success"],
         "assets": asset_rows,

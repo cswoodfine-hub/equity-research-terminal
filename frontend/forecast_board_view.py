@@ -18,12 +18,12 @@ import math
 from components import charts as CH
 from components import tokens as TK
 
-REVISION = 1
+REVISION = 2
 
 # ----------------------------------------------------------------------- the choices
 MEASURES = {"revenue": "Revenue", "operating_profit": "Operating profit",
-            "free_cash_flow": "Free cash flow", "costs": "Costs", "rd": "R&D",
-            "capex": "Capex"}
+            "free_cash_flow": "Free cash flow", "cash_uses": "Where cash went",
+            "costs": "Costs", "rd": "R&D", "capex": "Capex"}
 SPLITS = {"group": "By source", "product": "By product", "none": "Total"}
 VIEWS = {"year": "Each year", "cum": "Cumulative"}
 BASES = {"weighted": "Weighted by chances", "success": "If all succeed"}
@@ -36,12 +36,17 @@ ASSET_VIEWS = {"ranked": "Ranked", "pair": "Two measures"}
 TIME_MEASURES = {"revenue": "Revenue", "free_cash_flow": "Free cash flow",
                  "cum_cash": "Cumulative cash"}
 TOP_PRODUCTS = 8
+USES_YEARS = 10
 TOP_LINES = 5
 
 GROUP_NAME = {"marketed": "Products on sale", "lines": "Other revenue lines",
               "pipeline": "Named pipeline", "assumed": "Launches the model assumes"}
 GROUP_ORDER = ("marketed", "lines", "pipeline", "assumed")
-PLANT = "Plant and working capital for growth"
+NEW_PLANT = "New plant for added revenue"
+WORKING = "Working capital for growth"
+USE_NAME = {"capex": "Capex", "acquisitions": "Acquisitions",
+            "intangibles": "Intangibles bought", "dividends": "Dividends",
+            "buybacks": "Share buybacks"}
 COST_NAME = {"cost_of_goods": "Cost of goods", "sga": "SG&A", "rd": "R&D",
              "other_costs": "Other costs", "tax": "Tax"}
 EVIDENCE_NAME = {"evidence": "Filed or measured", "partial evidence": "Analogue or range",
@@ -62,6 +67,8 @@ GROUP_COLOUR = {"marketed": TK.UP, "lines": GREY, "pipeline": TK.PURPLE_BOOK,
 COST_COLOUR = {"cost_of_goods": TK.ORANGE_BOOK, "sga": TK.PURPLE_BOOK, "rd": TK.UP,
                "other_costs": GREY, "tax": TK.FLAG}
 EVIDENCE_COLOUR = {"evidence": TK.UP, "partial evidence": TK.FLAG, "assumption": TK.DOWN}
+USE_COLOUR = {"capex": TK.ORANGE_BOOK, "acquisitions": TK.PURPLE_BOOK,
+              "intangibles": TK.FDA_BIO, "dividends": TK.UP, "buybacks": TK.FLAG}
 _BASE = [TK.UP, TK.PURPLE_BOOK, TK.FLAG, TK.FDA, TK.DOWN, TK.FDA_BIO,
          TK.PHASE_RAMP["Phase 2"], _mix(TK.UP, TK.TEXT, 0.5)]
 REPORTED_COLOUR = _mix(TK.MUTED, TK.GROUND, 0.15)
@@ -126,7 +133,8 @@ def _legend(entries: list, width: float, pad_l: float, pad_r: float, hid: str) -
 # ---------------------------------------------------------------------- chart builders
 def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
             fmt=None, split_at: int | None = None, notes: dict | None = None,
-            notes_label: str = "", label: str = "columns") -> str:
+            notes_label: str = "", label: str = "columns", rule_at: tuple | None = None,
+            reference: dict | None = None) -> str:
     """Stacked columns by year. Each band is {name, colour, values, hatched?, faded?}.
 
     A positive value stacks up from nil and a negative one down, so a charge is seen
@@ -135,22 +143,29 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
     index of the first forecast year: a rule is drawn before it and the years on either
     side are named, because a filed figure and a modelled one are two kinds of number.
     ``notes`` is {index: text}, a row of words under the years (which products lose
-    exclusivity that year).
+    exclusivity that year), set on two lines where two years in a row carry one.
+    ``rule_at`` is (index, words): a second rule before that column, for the year the
+    figures change kind again. ``reference`` is {name, values, colour}, a line with a dot
+    a year over the columns, for the figure the stack is read against.
     """
     fmt = fmt or (lambda v: f"{v:,.0f}")
     bands = [b for b in bands if any(v is not None for v in b["values"])]
     n = len(x_labels)
     if not bands or not n:
         return ""
-    pad_l, pad_r, bottom = 50, 12, 24 + (26 if notes else 0)
+    pad_l, pad_r, bottom = 50, 12, 24 + (28 if notes else 0)
     hid = CH._uid("fbh")
     entries = [{**b, "slot": i} for i, b in enumerate(bands)]
-    legend, legend_h = _legend(entries, width, pad_l, pad_r, hid)
+    ref_vals = list((reference or {}).get("values") or [])
+    legend, legend_h = _legend(
+        entries + ([{**reference, "slot": "r"}] if reference else []),
+        width, pad_l, pad_r, hid)
     top = legend_h + 16
     floor = height - bottom
     ups = [sum(max(b["values"][i] or 0.0, 0.0) for b in bands) for i in range(n)]
     downs = [sum(min(b["values"][i] or 0.0, 0.0) for b in bands) for i in range(n)]
-    ticks = _ticks(min(downs + [0.0]), max(ups + [0.0]) or 1.0)
+    seen = [v for v in ref_vals if v is not None]
+    ticks = _ticks(min(downs + seen + [0.0]), max(ups + seen + [0.0]) or 1.0)
     lo, hi = ticks[0], ticks[-1]
     y = CH._scale((lo, hi), (floor, top))
     slot = (width - pad_l - pad_r) / n
@@ -169,8 +184,20 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
                    f' stroke="{TK.RULE_STRONG}" stroke-width="1" stroke-dasharray="3,3"/>')
         out.append(CH._text(sx - 5, top - 4, "reported", 8.5, TK.MUTED, "end", CH.MONO))
         out.append(CH._text(sx + 5, top - 4, "forecast", 8.5, TK.MUTED, "start", CH.MONO))
+    if rule_at and 0 < rule_at[0] < n:
+        rx = pad_l + slot * rule_at[0]
+        out.append(f'<line x1="{rx:.1f}" y1="{top - 12}" x2="{rx:.1f}" y2="{floor}"'
+                   f' stroke="{TK.RULE_STRONG}" stroke-width="1" stroke-dasharray="1,3"/>')
+        out.append(CH._text(rx + 5, top - 4, rule_at[1], 8.5, TK.MUTED, "start", CH.MONO))
     widest = max(len(str(lab)) for lab in x_labels) * 5.6 + 4
     every = max(1, math.ceil(widest / slot))
+    # the figure over a column needs more room than its year does
+    figures = max(1, math.ceil(31 / slot))
+    low_row = set()                        # notes pushed to a second line
+    noted = sorted(i for i in (notes or {}) if isinstance(i, int))
+    for a, b in zip(noted, noted[1:]):
+        if b - a == 1 and a not in low_row and slot < 62:
+            low_row.add(b)
     for i, lab in enumerate(x_labels):
         cx = pad_l + slot * i + slot / 2
         up = down = 0.0
@@ -193,21 +220,30 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
                        + (' opacity="0.6"' if e.get("faded") else "")
                        + f'><title>{_esc(lab)} {_esc(e["name"])} {_esc(fmt(v))}</title></rect>')
         net = up + down
-        if down < 0 and up > 0:
+        if down < 0 and up > 0 and not reference:
             out.append(f'<line x1="{cx - col_w / 2 - 2:.1f}" y1="{y(net):.1f}"'
                        f' x2="{cx + col_w / 2 + 2:.1f}" y2="{y(net):.1f}" stroke="{TK.TEXT}"'
                        f' stroke-width="1.6"><title>{_esc(lab)} net {_esc(fmt(net))}'
                        '</title></line>')
-        if (up or down) and i % every == 0:
+        if (up or down) and i % figures == 0 and not reference:
             out.append(CH._text(cx, y(up) - 4 if up else y(0) - 4, fmt(net), 8.5, TK.TEXT,
                                 "middle", CH.MONO))
         if i % every == 0:
             out.append(CH._text(cx, floor + 14, lab, 9.5, TK.MUTED, "middle", CH.MONO))
         if notes and notes.get(i):
-            out.append(CH._text(cx, floor + 27, notes[i], 8.5, TK.FLAG, "middle", CH.NARROW)
+            out.append(CH._text(cx, floor + (38 if i in low_row else 27), notes[i], 8.5,
+                                TK.FLAG, "middle", CH.NARROW)
                        .replace("</text>", f"<title>{_esc(notes_label)} {_esc(lab)}: "
                                            f"{_esc(notes.get(('full', i)) or notes[i])}"
                                            "</title></text>"))
+    if reference:
+        xs = lambda i: pad_l + slot * i + slot / 2          # noqa: E731
+        CH._polyline_runs(out, ref_vals, xs, y, reference["colour"], 1.6)
+        for i, v in enumerate(ref_vals):
+            if v is not None:
+                out.append(f'<circle cx="{xs(i):.1f}" cy="{y(v):.1f}" r="2.6"'
+                           f' fill="{reference["colour"]}"><title>{_esc(x_labels[i])} '
+                           f'{_esc(reference["name"])} {_esc(fmt(v))}</title></circle>')
     out.append("</svg>")
     return "".join(out)
 
@@ -216,8 +252,9 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
           fmt=None, split_at: int | None = None, label: str = "lines") -> str:
     """One line a series, {name, colour, values, dots?}. ``values`` is the forecast and
     ``dots`` the reported years, drawn as rings and not joined to it: a product running
-    ahead of or behind its model shows as a ring off the line's start. Each line is named
-    at its end, the names pushed apart where two end together."""
+    ahead of or behind its model shows as a ring off the line's start. ``dash_from`` is
+    the index of a series' last modelled year: the line is dashed after it. Each line is
+    named at its end, the names pushed apart where two end together."""
     fmt = fmt or (lambda v: f"{v:,.0f}")
     series = [s for s in series if any(v is not None for v in s["values"])
               or any(v is not None for v in s.get("dots") or [])]
@@ -246,7 +283,19 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
         out.append(CH._text(sx + 5, top - 3, "forecast", 8.5, TK.MUTED, "start", CH.MONO))
     ends = []
     for s in series:
-        CH._polyline_runs(out, s["values"], x, y, s["colour"], 1.7)
+        cut = s.get("dash_from")
+        if cut is None or cut >= n - 1:
+            CH._polyline_runs(out, s["values"], x, y, s["colour"], 1.7)
+        else:
+            # Solid through the last modelled year, dashed where the terminal path runs.
+            head = list(s["values"][:cut + 1]) + [None] * (n - cut - 1)
+            CH._polyline_runs(out, head, x, y, s["colour"], 1.7)
+            tail = [(x(i), y(v)) for i, v in enumerate(s["values"])
+                    if i >= cut and v is not None]
+            if len(tail) > 1:
+                pts = " ".join(f"{px:.1f},{py:.1f}" for px, py in tail)
+                out.append(f'<polyline points="{pts}" fill="none" stroke="{s["colour"]}"'
+                           ' stroke-width="1.5" stroke-dasharray="4,3" class="carried"/>')
         for i, v in enumerate(s["values"]):
             if v is not None:
                 out.append(f'<circle cx="{x(i):.1f}" cy="{y(v):.1f}" r="5" fill="transparent">'
@@ -266,8 +315,12 @@ def lines(x_labels: list, series: list, *, width: int = 640, height: int = 330,
     for i in range(1, len(ends)):
         if ends[i][0] - ends[i - 1][0] < 11:
             ends[i][0] = ends[i - 1][0] + 11
+    limit = floor                          # names pushed below the axis come back up
+    for end in reversed(ends):
+        end[0] = min(end[0], limit)
+        limit = end[0] - 11
     for ly, lx, name, colour in ends:
-        out.append(CH._text(lx + 6, min(ly, floor) + 3, name, 9.5, colour, family=CH.UI,
+        out.append(CH._text(lx + 6, ly + 3, name, 9.5, colour, family=CH.UI,
                             weight="600"))
     every = max(1, math.ceil(30 / ((width - pad_l - pad_r) / max(n - 1, 1))))
     for i, lab in enumerate(x_labels):
@@ -421,6 +474,19 @@ def exclusivity_notes(board: dict, years: list) -> dict:
     return notes
 
 
+def _plant(board: dict, company: dict, years: list) -> tuple:
+    """(upkeep, new plant, working capital) by year, as the valuation charges them. New
+    plant is the capex share of the growth charge and working capital the rest of it;
+    upkeep is None where the filer's plant lines are not on file."""
+    rule = board.get("capex_rule") or {}
+    charge = {y: at(company.get("growth_investment"), y) or 0.0 for y in years}
+    if company.get("capex") is None or rule.get("upkeep_rate") is None:
+        return None, {y: 0.0 for y in years}, charge
+    upkeep = {y: rule["upkeep_rate"] * (at(company.get("revenue"), y) or 0.0) for y in years}
+    new = {y: max((at(company["capex"], y) or 0.0) - upkeep[y], 0.0) for y in years}
+    return upkeep, new, {y: charge[y] - new[y] for y in years}
+
+
 def company_figure(board: dict, measure: str = "revenue", split: str = "group",
                    view: str = "year", basis: str = "weighted") -> dict:
     """The company over time as {labels, bands, split_at, notes, unit, fmt, caption}.
@@ -430,6 +496,10 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
     case = board.get(basis) or board.get("weighted") or {}
     company, groups = case.get("company") or {}, case.get("groups") or {}
     years_f = list((board.get("years") or {}).get("forecast") or [])
+    if measure == "cash_uses":
+        # The forecast says only what plant takes, so ten years of it is enough and the
+        # width goes to the reported years, where the statement says where cash went.
+        years_f = years_f[:USES_YEARS]
     years_r = [] if view == "cum" else list((board.get("years") or {}).get("reported") or [])
     years = years_r + years_f
     pad_r, pad_f = [None] * len(years_r), [None] * len(years_f)
@@ -442,8 +512,45 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
     def rp(key):
         return [at(reported.get(key), y) for y in years_r] + pad_f
 
-    bands = []
-    if measure == "costs":
+    bands, reference = [], None
+    upkeep, new_plant, working = _plant(board, company, years_f)
+    if measure == "cash_uses":
+        # Reported: the cash flow statement's own outlays. Forecast: the plant and the
+        # working capital the valuation charges, and what is left, which the model does
+        # not allot. The line over both is the cash the business made.
+        missing = []
+        for key in USE_NAME:
+            filed = rp(key)
+            if not any(v is not None for v in filed):
+                missing.append(USE_NAME[key].lower())
+            bands.append({"name": USE_NAME[key], "colour": USE_COLOUR[key], "values": filed})
+        # What financing took or gave beyond dividends and buybacks: the statement's own
+        # financing total less the two lines above. Above nil is cash paid out, mostly
+        # debt repaid; below nil is cash raised, which is how a deal year is funded.
+        other = []
+        for y in years_r:
+            total = at(reported.get("financing"), y)
+            other.append(None if total is None else
+                         -total - (at(reported.get("dividends"), y) or 0.0)
+                         - (at(reported.get("buybacks"), y) or 0.0))
+        bands.append({"name": "Debt and other financing, net", "colour": TK.FDA,
+                      "values": other + pad_f})
+        if upkeep is not None:
+            bands.append({"name": "Plant upkeep", "colour": GREY, "values": fc(upkeep)})
+            bands.append({"name": NEW_PLANT, "colour": _mix(TK.ORANGE_BOOK, TK.TEXT, 0.35),
+                          "values": fc(new_plant)})
+        bands.append({"name": WORKING, "colour": TK.DOWN, "values": fc(working)})
+        left = {y: at(company.get("free_cash_flow"), y) for y in years_f}
+        bands.append({"name": "Left over, use not forecast", "colour": TK.MUTED,
+                      "hatched": True, "values": fc(left)})
+        made = {y: (left[y] or 0.0) + (at(company.get("growth_investment"), y) or 0.0)
+                + ((upkeep or {}).get(y) or 0.0) for y in years_f}
+        reference = {"name": "Cash from operations", "colour": TK.TEXT,
+                     "values": [at(reported.get("operating_cash_flow"), y)
+                                for y in years_r] + [made[y] for y in years_f]}
+        why = ((board.get("basis") or {}).get("cash_uses") or "") + (
+            "; not on file: " + ", ".join(missing) if missing and years_r else "")
+    elif measure == "costs":
         for key in ("cost_of_goods", "sga", "rd", "other_costs", "tax"):
             filed = rp(key) if key != "other_costs" else pad_r + pad_f
             modelled = fc(company.get(key))
@@ -458,17 +565,23 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
             why = ("no forecast: " + (rule.get("reason")
                                       or "the plant lines are not on file for this company"))
         else:
-            upkeep = {y: rule["upkeep_rate"] * (at(company.get("revenue"), y) or 0.0)
-                      for y in years_f}
-            new = {y: (at(company["capex"], y) or 0.0) - upkeep[y] for y in years_f}
             bands.append({"name": "Plant upkeep", "colour": GREY, "values": fc(upkeep)})
-            bands.append({"name": "New plant for added revenue", "colour": TK.ORANGE_BOOK,
-                          "values": fc(new)})
+            bands.append({"name": NEW_PLANT, "colour": TK.ORANGE_BOOK,
+                          "values": fc(new_plant)})
             why = rule.get("basis") or ""
     else:
         key = measure
-        bands.append({"name": "Reported", "colour": REPORTED_COLOUR, "values": rp(key)})
         plant = (key == "free_cash_flow")
+        made, spent = rp("operating_cash_flow"), rp("capex")
+        both = [m is not None and c is not None for m, c in zip(made, spent)]
+        if plant and any(both):
+            # Reported free cash flow as its two filed lines, so the plant is seen.
+            bands.append({"name": "Operating cash flow", "colour": REPORTED_COLOUR,
+                          "values": [m if ok else None for m, ok in zip(made, both)]})
+            bands.append({"name": "Capex", "colour": USE_COLOUR["capex"],
+                          "values": [-c if ok else None for c, ok in zip(spent, both)]})
+        else:
+            bands.append({"name": "Reported", "colour": REPORTED_COLOUR, "values": rp(key)})
         if split == "none":
             bands.append({"name": "Forecast", "colour": TK.UP, "values": fc(company.get(key))})
             plant = False                      # the company's line is already net of it
@@ -498,15 +611,16 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
                               "hatched": g == "assumed",
                               "values": fc((groups.get(g) or {}).get(key))})
         if plant:
-            charge = {y: -(at(company.get("growth_investment"), y) or 0.0) for y in years_f}
-            if any(charge.values()):
-                bands.append({"name": PLANT, "colour": TK.DOWN, "values": fc(charge)})
+            bands.append({"name": NEW_PLANT, "colour": _mix(TK.ORANGE_BOOK, TK.TEXT, 0.35),
+                          "values": fc({y: -v for y, v in new_plant.items()})})
+            bands.append({"name": WORKING, "colour": TK.DOWN,
+                          "values": fc({y: -v for y, v in working.items()})})
         why = (board.get("basis") or {}).get(key) or ""
     for band in bands:                         # a band of nothing but nils is not a band
         if all(v in (None, 0, 0.0) for v in band["values"]):
             band["values"] = [None] * len(years)
     if view == "cum":
-        for band in bands:
+        for band in bands + ([reference] if reference else []):
             run, out = 0.0, []
             for v in band["values"]:
                 run += v or 0.0
@@ -517,11 +631,15 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
     head = (f"{currency} {unit} · {BASES.get(basis, basis).lower()}"
             + (" · added up from " + str(years_f[0]) if view == "cum" and years_f else ""))
     notes = exclusivity_notes(board, years) if view != "cum" else {}
+    carried = (board.get("years") or {}).get("carried_from")
+    rule_at = (years.index(carried), "terminal path") if carried in years else None
     return {"labels": [str(y) for y in years], "bands": bands,
             "split_at": len(years_r) or None, "fmt": fmt, "unit": f"{currency} {unit}",
-            "notes": notes,
+            "notes": notes, "rule_at": rule_at, "reference": reference,
             "caption": head + (" · a name under a year loses exclusivity in it" if notes
-                               else "") + (" · " + why if why else "")}
+                               else "")
+            + (" · past the dotted rule a product runs on the path its terminal value "
+               "takes" if rule_at else "") + (" · " + why if why else "")}
 
 
 def company_chart(board: dict, measure: str = "revenue", split: str = "group",
@@ -530,7 +648,8 @@ def company_chart(board: dict, measure: str = "revenue", split: str = "group",
     """(svg, caption) for chart 1."""
     fig = company_figure(board, measure, split, view, basis)
     svg = columns(fig["labels"], fig["bands"], width=width, height=height, fmt=fig["fmt"],
-                  split_at=fig["split_at"], notes=fig["notes"],
+                  split_at=fig["split_at"], notes=fig["notes"], rule_at=fig["rule_at"],
+                  reference=fig["reference"],
                   notes_label="exclusivity ends", label="the company over time")
     return svg, fig["caption"]
 
@@ -856,7 +975,9 @@ def asset_lines(board: dict, measure: str = "revenue", show: str = "all",
                 run += v or 0.0
                 out.append(run if any(x is not None for x in values) else None)
             values = out
+        to = a.get("modelled_to")
         series.append({"name": a["name"][:20], "colour": _BASE[i % len(_BASE)],
+                       "dash_from": years.index(to) if to in years else None,
                        "values": [None] * len(years_r) + values,
                        "dots": [at(a.get("reported"), y) for y in years_r]
                                + [None] * len(years_f)})
@@ -867,6 +988,9 @@ def asset_lines(board: dict, measure: str = "revenue", show: str = "all",
     caption = (f"{currency} {unit} · the {len(series)} largest by value · "
                f"{BASES.get(basis, basis).lower()}"
                + (" · rings are reported years" if years_r else "")
+               + (" · dashed past the modelled years, on the terminal path"
+                  if any(s["dash_from"] is not None and s["dash_from"] < len(years) - 1
+                         for s in series) else "")
                + (" · each asset charged the company's cost ratios"
                   if measure != "revenue" else ""))
     return svg, caption

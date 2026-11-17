@@ -262,3 +262,26 @@ Not in this version:
 - **The guidance diamond** on the company chart. Guidance is read for one year by the
   fair value view and is not on the board.
 - **Choices in the address bar**, and a headline figure on each More button.
+
+## Later the same day
+
+- **Past the cliffs.** The charts ran ten years, to 2035, and most of the book's
+  exclusivity ends after that (Mounjaro 2036, MariTide 2039, Alyftrek 2039). They now run
+  to three years past the last loss of exclusivity that matters (an asset worth 1% of the
+  named value or more), 25 years at most. A product's model stops a few years after its
+  own cliff, so past its last modelled year each product is carried on the path its
+  terminal value takes (`forecast.terminal_path`), every line of its P&L in the final
+  year's proportions: the stream the terminal value is the present value of. A dotted
+  rule marks the first such year on the company chart, and an asset's line is dashed
+  from its own.
+- **Where cash went.** A seventh measure. Reported years are the cash flow statement's
+  own outlays: capex, acquisitions, intangibles bought, dividends, buybacks, and what
+  financing took or gave beyond those two (its total less them), under a line for the
+  cash the business made. Forecast years are what the valuation charges, plant upkeep,
+  new plant and working capital, and what is left, which the model does not allot. Free
+  cash flow's reported years are drawn as operating cash flow with capex under it, and
+  its growth charge as new plant and working capital apart.
+- **Ten reported years**, where six were drawn.
+- **A fix.** The board paired each asset's P&L rows with its model's years. Where a model
+  opens before the valuation year (Casgevy), that drew its cash flow two years early and
+  opened Vertex's forecast in 2024. The rows are paired with the valuation window.
