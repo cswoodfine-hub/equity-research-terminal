@@ -4,6 +4,11 @@ Only a monthly *changes* CSV is downloadable, so this covers biologics that were
 approved / added / updated in the latest release, not the full biologic universe. It is
 labelled partial in the UI. Each matched BLA becomes a marketed biologic asset with its
 reference-product / orphan / interchangeable exclusivity expiries.
+
+The file is titled a changes report and carries the whole register under it: 2,270
+presentations in October 2026, 261 of them licensed under section 351(k). Those are the
+biosimilars, each naming the reference product it copies, and they are read into
+``biosimilar_licences`` (``parse_biosimilars``).
 """
 
 from __future__ import annotations
@@ -324,6 +329,71 @@ def parse_licensures(csv_text: str) -> list[dict]:
     return sorted(found.values(), key=lambda r: (r["brand"].upper(), r["application_number"]))
 
 
+def parse_biosimilars(csv_text: str) -> list[dict]:
+    """Every biosimilar the file licenses, one row a brand and BLA, with the reference
+    product it copies.
+
+    A 351(k) licence is the FDA's finding that the product is biosimilar to, or
+    interchangeable with, a named reference product. The file prints one row a
+    presentation, so they are reduced: the earliest approval, the widest licence type
+    (interchangeable over biosimilar) and "Rx" where any presentation is still listed.
+    "Disc" on every presentation is how the file shows a licence nobody sells, which is
+    every etanercept biosimilar in October 2026. "Rx" is not a launch: it is a licence
+    not discontinued.
+    """
+    rows = list(csv.reader(io.StringIO(csv_text)))
+    header_idx = next((i for i, r in enumerate(rows) if "BLA Number" in r), None)
+    if header_idx is None:
+        return []
+    col = {name: i for i, name in enumerate(rows[header_idx])}
+
+    def field(row, name):
+        i = col.get(name)
+        return row[i].strip() if i is not None and i < len(row) else ""
+
+    found: dict[tuple, dict] = {}
+    for row in rows[header_idx + 1:]:
+        licence = field(row, "License Type")
+        reference = _clean(field(row, "Ref. Product Proprietary Name"))
+        brand = _clean(field(row, "Proprietary Name"))
+        digits = re.sub(r"\D", "", field(row, "BLA Number"))
+        if "351(k)" not in licence or not reference or not brand or not digits:
+            continue
+        approved = _pb_date(field(row, "Approval Date"))
+        status = field(row, "Marketing Status").rstrip("*")
+        entry = found.setdefault((digits, brand.upper()), {
+            "bla_number": "BLA" + digits, "proprietary_name": brand,
+            "proper_name": _clean(field(row, "Proper Name")),
+            "applicant": field(row, "Applicant"), "licence_type": licence,
+            "reference_proprietary": reference,
+            "reference_proper": _clean(field(row, "Ref. Product Proper Name")),
+            "approval_date": None, "marketing_status": "Disc"})
+        if approved and (entry["approval_date"] is None
+                         or approved.isoformat() < entry["approval_date"]):
+            entry["approval_date"] = approved.isoformat()
+        if status == "Rx":
+            entry["marketing_status"] = "Rx"
+        if "Interchangeable" in licence:
+            entry["licence_type"] = licence
+    return sorted(found.values(),
+                  key=lambda r: (r["reference_proprietary"].upper(), r["proprietary_name"]))
+
+
+def write_biosimilars(conn, licences: list[dict]) -> int:
+    """Replace the table with this release's licences. The whole register comes in each
+    release, so the table is the release; an empty read leaves what is there alone."""
+    if not licences:
+        return 0
+    conn.execute("DELETE FROM biosimilar_licences")
+    conn.executemany(
+        "INSERT INTO biosimilar_licences (bla_number, proprietary_name, proper_name,"
+        " applicant, licence_type, reference_proprietary, reference_proper, approval_date,"
+        " marketing_status) VALUES (:bla_number, :proprietary_name, :proper_name,"
+        " :applicant, :licence_type, :reference_proprietary, :reference_proper,"
+        " :approval_date, :marketing_status)", licences)
+    return len(licences)
+
+
 def _brand_key(name: str) -> str:
     """A brand reduced to the form both sides can be compared on.
 
@@ -392,6 +462,10 @@ def _licensures_of(rows) -> list:
     return rows.get("licensures", []) if isinstance(rows, dict) else []
 
 
+def _biosimilars_of(rows) -> list:
+    return rows.get("biosimilars", []) if isinstance(rows, dict) else []
+
+
 class PurpleBookFetcher(BaseFetcher):
     source = SOURCE
     ttl_seconds = TTL_SECONDS
@@ -443,7 +517,9 @@ class PurpleBookFetcher(BaseFetcher):
         # whole register, not only that month's changes, so merging months adds nothing
         # here and the newest is the most current.
         licensures = parse_licensures(raw["csvs"][0]) if raw.get("csvs") else []
-        return {"products": list(merged.values()), "licensures": licensures}
+        biosimilars = parse_biosimilars(raw["csvs"][0]) if raw.get("csvs") else []
+        return {"products": list(merged.values()), "licensures": licensures,
+                "biosimilars": biosimilars}
 
     def _write_snapshot(self, conn, payload):
         conn.execute(
@@ -522,6 +598,7 @@ class PurpleBookFetcher(BaseFetcher):
             # just created is already there to match against.
             got = attach_licensures(conn, _licensures_of(rows))
             written += got["written"]
+            written += write_biosimilars(conn, _biosimilars_of(rows))
             conn.commit()
         finally:
             conn.close()

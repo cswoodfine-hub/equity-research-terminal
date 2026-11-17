@@ -70,6 +70,7 @@ import labels as labels_module
 import launch_timing
 import cash_profile
 import development
+import competitors
 import forecast_board
 import disease_areas
 import call_log
@@ -774,6 +775,22 @@ def company_forecast_verdict(ticker: str) -> dict:
 
 # Not /forecast/board, for the same reason as /forecast-verdict: /forecast/{asset_id} would
 # match first and fail to cast "board" to an int.
+@app.get("/companies/{ticker}/competitors")
+def company_competitors(ticker: str) -> dict:
+    """Whether a generic or biosimilar is on the market against each marketed product:
+    what the FDA's registers and the filers' own reports support, kept apart. A view
+    beside the valuation."""
+    conn = db.get_connection()
+    try:
+        row = conn.execute("SELECT 1 FROM companies WHERE ticker = ?",
+                           (ticker.upper(),)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        return {"ticker": ticker.upper(), "products": competitors.record(conn, ticker)}
+    finally:
+        conn.close()
+
+
 @app.get("/companies/{ticker}/forecast-board")
 def company_forecast_board(ticker: str) -> dict:
     """The company and its assets as yearly series the Forecast tab switches between:

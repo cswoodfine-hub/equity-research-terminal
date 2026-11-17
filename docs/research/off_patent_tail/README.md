@@ -1,8 +1,10 @@
 # What happens to revenue after exclusivity ends, and what the model assumes
 
-Researched 2026-11-17. Nothing is implemented. `observations.csv` beside this file is
-every product the question touches, with its reported revenue, what the model assumes
-for it and what a different rule would do to its value.
+Researched 2026-11-17. The competitor record is built; the valuation rule is not, and
+nothing here changes a value. Beside this file: `observations.csv`, the 75 products the
+question touches with their reported revenue, their competitor status and what a rule
+would move; and `launch_evidence.csv`, the filers' statements the record's launches rest
+on, including the ones that settled nothing.
 
 ## The question
 
@@ -12,56 +14,62 @@ base": its reported revenue is taken to reflect the loss, its last reported grow
 fades to nil over five or ten years, and its terminal value is a flat perpetuity. Is flat
 right?
 
-## The short answer
+## The answer
 
-It depends on whether a competitor is on the market, and the model does not ask.
+It depends on whether a competitor is on the market, and until now the book could not
+say. With the record built, of the 75 products past exclusivity:
 
-- **57 of the 75 products** past exclusivity have no competitor recorded. Their revenue
-  three or more years on is flat: median 0.0% a year. The rule fits them.
-- **18 have a generic or biosimilar on the market.** Their revenue three or more years on
-  is still falling a median 19% a year, and the long filed histories say that goes on for
-  a decade. The model fades their decline to nil in five years. The rule does not fit
-  them.
-
-So the fix is narrower than the one first proposed. A decline applied to every product
-past exclusivity would be wrong for most of them, and they hold most of the value.
-
-## The population
-
-75 marketed products across 15 companies are "in the base". The date they are judged by
-is one of two different things:
-
-| What the date is | Products | Examples |
+| Status in the United States | Products | What the model's "flat" does |
 |---|---|---|
-| A competitor is on the market: a generic launch on the FDA Paragraph IV list, or a filer naming generic or biosimilar entry | 18 | Symbicort, Crestor, Tecfidera, Stelara, Zytiga, Rituxan, Sprycel |
-| Exclusivity has lapsed and no competitor is recorded: the 12-year biologic exclusivity has run out, or nothing live is listed in the Orange Book | 57 | Botox, Nplate, Vectibix, Aranesp, Orencia, Tysabri, the vaccines |
+| A generic or biosimilar is on the market | 23 | overstates: their revenue is still falling |
+| No biosimilar is licensed against it | 26 | fits: their revenue is flat |
+| A small molecule with no generic launch recorded | 21 | fits on the evidence, which is silence |
+| Licensed, and not sold or not confirmed sold | 5 | fits for now |
 
-The second group is mostly biologics and vaccines nobody has copied.
+A decline applied to every product past exclusivity would be wrong for 52 of the 75, and
+they hold most of the value: $41.22 a share of Amgen, $30.76 of AbbVie, $29.58 of Biogen.
+
+## The competitor record
+
+`backend/competitors.py`, read at `GET /companies/{ticker}/competitors`. It keeps three
+registers apart, because each says a different thing:
+
+| Register | What it says | What it cannot say |
+|---|---|---|
+| FDA Paragraph IV list | the date the first generic began selling | anything about a biologic, or a market outside the US |
+| FDA Purple Book (`biosimilar_licences`, 107 licences against 23 reference brands, October 2026) | which biosimilars are licensed against a product, and whether each is still listed | whether one has launched: aflibercept has six listed and most are held off the market by settlement; etanercept has three and none is sold |
+| The filer's own report (`data/competitor_launches.csv`, 53 statements; and the dated rows of `data/disclosed_loe.csv`) | that a competitor is selling, in its words, with the filing | nothing, where the filer is silent |
+
+Across the 1,398 marketed products in the book: 111 have a competitor on the US market,
+354 biologics have no biosimilar licensed, 919 small molecules have no generic launch
+recorded, and 14 are licensed without a confirmed launch.
+
+What it corrected. Humira, Remicade and Lantus were dated by the lapse of the 12-year
+exclusivity and read as uncopied; each owner's filing says biosimilars are selling.
+Brilinta was dated by a patent expiry and Nexium by nothing live in the Orange Book;
+AstraZeneca dates the generic entry of both. Simponi has a biosimilar licensed and
+listed, and J&J says a US entrant is still ahead. Perjeta has one licensed too, and
+Roche's Half-Year Report 2026 does not expect it on the US market before 2028.
+
+One thing the reading turned up that is not the record's to fix: the book dates
+Perjeta's US loss of exclusivity at 2026, from Roche's Finance Report 2025. The newer
+report moves it to 2028 at the earliest, and Europe to 2027.
+
+What it could not settle, and says so: Tysabri (a biosimilar is licensed; Biogen never
+says it launched in the US), Aranesp, Nplate, Vectibix, Botox and Avonex (the owner's
+report is silent, and no biosimilar is licensed against any of them), Xarelto and Saxenda
+(the owner describes litigation, not a launch).
 
 ## What the book's own filings show
 
-Reported product revenue, FY2023 to FY2025, each year against the one before. 46 products
-have two years or more on file; 88 changes in all.
+Reported product revenue, FY2023 to FY2025, each year against the one before, counted
+from the competitor's launch where there is one.
 
-| Group | Years past the date | Changes | Median a year | Revenue-weighted | Share falling |
+| Group | Years after | Changes | Median a year | Revenue-weighted | Share falling |
 |---|---|---|---|---|---|
-| Competitor on the market | 0 to 2 | 9 | -36.7% | -30.3% | 78% |
-| Competitor on the market | 3 or more | 10 (6 products) | -19.1% | -13.5% | 70% |
-| No competitor recorded | 0 to 2 | 5 | -32.6% | -37.2% | 80% |
-| No competitor recorded | 3 or more | 36 (18 products) | 0.0% | -3.2% | 50% |
-
-The three no-competitor products that fall in their first two years are Brilinta,
-Xarelto and Saxenda. Each is dated by a patent expiry, which a generic follows without
-the date saying so, so they are in the wrong group (below).
-
-By market, for the products whose filers print a regional split:
-
-| Group | Market | Changes | Median a year |
-|---|---|---|---|
-| Competitor on the market | US | 14 (7 products) | -29.9% |
-| Competitor on the market | Outside the US | 14 (7 products) | -22.4% |
-| No competitor recorded | US | 33 (17 products) | -4.3% |
-| No competitor recorded | Outside the US | 42 (21 products) | -1.2% |
+| Competitor on the US market | 0 to 2 | 12 (6 products) | -37.0% | -33.8% | 75% |
+| Competitor on the US market | 3 or more | 13 (7 products) | -8.3% | -7.1% | 69% |
+| No competitor on the US market | 3 or more | 35 (18 products) | -0.3% | -3.9% | 51% |
 
 ## What the long histories show
 
@@ -78,86 +86,78 @@ that year:
 
 Ten years after its peak the median product keeps a quarter of its peak revenue
 (interquartile 0.17 to 0.51, 14 products). The decline slows; it does not stop at year
-five.
+five. The two sources agree: about -8% a year three or more years on.
 
-This agrees with what `data/erosion_defaults.csv` already records for a product whose
-cliff is still ahead: US Part D spending four to eight years past a loss of exclusivity
-falls a median 10.4% a year, and that file tested a floor and rejected it. The engine
-already declines for ever after a cliff it forecasts. It stops only for a cliff that has
-already happened.
+`data/erosion_defaults.csv` already records the same for a cliff still ahead: US Part D
+spending four to eight years past a loss of exclusivity falls a median 10.4% a year, and
+that file tested a floor and rejected it. The engine declines for ever after a cliff it
+forecasts and stops only for one that has already happened.
 
-## What the model does today
+## What the model does today with the 23
 
-For the 18 with a competitor, the last reported change fades in a straight line to nil
-over five years (ten where the product is growing), and the terminal value is flat. The
-terminal value is 21% to 59% of each one's value.
+The last reported change fades in a straight line to nil over five years (ten where the
+product is growing), and the terminal value is flat. The terminal value is 21% to 59% of
+each one's value.
 
-| Product | Reported, FY2024 and FY2025 | Model | Terminal share of value |
+| Product | Competitor since | Reported, FY2024 and FY2025 | Model | US share of revenue |
+|---|---|---|---|---|
+| Symbicort | 2023 | +22%, 0% | +0.2% fading to nil | 41% |
+| Tecfidera | 2020 | -4%, -30% | -30% fading to nil over 5 years | 25% |
+| Remicade | 2016 | -13%, +10% | fading to nil | 100% |
+| Crestor | 2016 | +4%, +5% | +5.5% fading to nil | 4% |
+| Humira | 2023 | one year on file | fading to nil | 67% |
+| Stelara | 2025, by Amgen's report of its own launch | -5%, -41% | -41% fading to nil over 5 years | 63% |
+| Nexium | 2015 | -8%, -6% | fading to nil | 8% |
+
+Crestor, Nexium, Plavix and Zytiga earn almost nothing in the US any more. What is left
+of them is outside it, where an off-patent brand holds, and they are not falling.
+
+## What a rule would move
+
+Through the what-if, saving nothing: the long-run rate of the 23 set to a decline in
+place of nil.
+
+| Company | The whole product at -6% | The US share only at -6% | The US share only at -10% |
 |---|---|---|---|
-| Symbicort | +22%, 0% | +0.2% fading to nil over 10 years | 51% |
-| Crestor | +4%, +5% | +5.5% fading to nil over 10 years | 53% |
-| Tecfidera | -4%, -30% | -30% fading to nil over 5 years | 32% |
-| Stelara | -5%, -41% | -41% fading to nil over 5 years | 45% |
-| Zytiga | -29%, -20% | -20% fading to nil over 5 years | 50% |
-| Kuvan | -33%, -18% | -7% fading to nil over 5 years | 50% |
+| BioMarin | -2.1% | -2.1% | -2.6% |
+| Bayer | -1.9% | -1.9% | -2.4% |
+| Roche | -3.3% | -1.6% | -2.0% |
+| Sanofi | -2.4% | -1.4% | -1.7% |
+| Johnson & Johnson | -1.5% (-$3.30) | -1.2% (-$2.61) | -1.5% (-$3.31) |
+| AstraZeneca | -2.7% (-$4.84) | -0.7% (-$1.22) | -0.9% (-$1.57) |
+| AbbVie | -0.6% | -0.4% | -0.5% |
+| Biogen | -1.1% | -0.3% | -0.3% |
+| BMS, Novo Nordisk | under 0.3% | under 0.2% | under 0.2% |
 
-Symbicort and Crestor are the two that are not falling. Symbicort is 59% outside the US
-and Crestor 96%, which is where an off-patent brand holds.
+Each product loses 35% to 50% of its value where the whole of it declines. The figures
+are first-order: a smaller book leaves more room for the launches the model assumes,
+which would give some of it back.
 
-## What a narrow rule would move
+## The recommendation
 
-Asset by asset, through the what-if and without saving anything: the long-run rate set
-to a decline in place of nil, for the 18 with a competitor only.
+Continue the decline for a product with a competitor on the market, on the share of its
+revenue in the market where the competitor is, at the late rate its own erosion shape
+already carries (10% a year for a non-oral small molecule, 23% for an oral one, 25% for a
+biologic). Leave everything else flat.
 
-| Company | At -6% a year | At -10% a year |
-|---|---|---|
-| Roche | -$1.00 a share (-3.3%) | -$1.28 (-4.3%) |
-| AstraZeneca | -$4.07 (-2.3%) | -$5.23 (-3.0%) |
-| BioMarin | -$0.44 (-2.1%) | -$0.56 (-2.6%) |
-| Bayer | -$0.26 (-1.9%) | -$0.32 (-2.4%) |
-| Biogen | -$2.69 (-1.1%) | -$3.45 (-1.4%) |
-| Sanofi | -$0.73 (-1.0%) | -$0.93 (-1.3%) |
-| Johnson & Johnson | -$1.42 (-0.6%) | -$1.80 (-0.8%) |
-| BMS, Novartis, Novo Nordisk | under 0.3% each | under 0.3% each |
+- It adds no new number. The rates are measured and on file, and the engine already
+  applies them to a cliff it forecasts. This makes a cliff behind a product behave like
+  one ahead of it.
+- It is narrow: 23 products, and one to two percent of the value of the six companies it
+  touches most.
+- It follows the evidence both ways. The 52 without a competitor stay flat because they
+  are flat.
+- It moves when the record does. A biosimilar's launch, stated in a filing, moves the
+  product into the declining group on the next refresh.
 
--6% is the median for years 7 to 10 after a cliff and -10% for years 4 to 6. Each product
-loses 35% to 50% of its value. The figures are first-order: they leave out that a
-smaller book leaves more room for the launches the model assumes, which would give some
-of it back.
+Two things to settle before building it:
 
-For scale only, the blanket rule first proposed, -3% a year on the 57 with no competitor:
-AbbVie -4.0%, Biogen -3.1%, Amgen -2.3% ($10.80 a share), J&J -2.0%. The data does not
-support it: those products are flat.
-
-## What stands in the way
-
-1. **The book cannot always tell which group a product is in.** Humira and Remicade
-   sit in the no-competitor group because their date is the lapse of the 12-year
-   exclusivity, while `data/erosion_defaults.csv` records both losing revenue to
-   biosimilars. Brilinta, Xarelto and Saxenda are dated by a patent expiry. A rule keyed
-   on competition needs a record of who has launched against what, which the Purple
-   Book, the Paragraph IV list and the filers' own risk sections carry and the book
-   reads only in part.
-2. **Three years of product revenue.** The book's own product series run FY2023 to
-   FY2025, so each product gives two changes. The long histories carry the weight for
-   anything past year three, and they are on each filer's own basis, mostly worldwide.
-3. **The US and the rest of the world differ.** The engine erodes the US share on a US
-   date and holds the rest. A tail rule should do the same: decline the share where the
-   competitor is, not the whole product.
-
-## Options
-
-1. **Leave it.** Defensible for the 57. Overstates the 18 by about a third to a half
-   each, which is 1% to 3% of five companies' value.
-2. **Continue the decline for products with a competitor on the market.** In place of
-   fading to nil, run the product on the late rate its own erosion shape already carries
-   (10% a year for a non-oral small molecule, 23% for an oral one, 25% for a biologic),
-   on the share of revenue in the market where the competitor is. This uses rates already
-   measured and on file, and makes a cliff behind a product behave like a cliff ahead of
-   it. Needs the biosimilar launch record first.
-3. **A measured tail of its own**: -11% a year in years 4 to 6, -6% in years 7 to 10, -2%
-   after, from the long histories. Closer to the data than one rate, and a new shape to
-   maintain.
-
-Option 2 is the one I would build: it adds no new number, only stops the model treating
-the same event two ways.
+1. **The biologic rate.** 25% a year for ever is the rate of the first years. The one
+   biologic the book can follow that far, Remicade, fell 13% and then rose 10% in years
+   eight and nine. A biologic late rate of about 8%, the figure both sources give for
+   three or more years on, would be the measured choice; it needs one row in
+   `data/erosion_defaults.csv`, and that file held it open for want of evidence.
+2. **Outside the United States.** The record carries what a filer says of Europe and
+   elsewhere, and the engine's regional split could decline those shares too. The
+   evidence there is thinner and mixed (an off-patent brand often holds in emerging
+   markets), so the first version should decline the US share alone.
