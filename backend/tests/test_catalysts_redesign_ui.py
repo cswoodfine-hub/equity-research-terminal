@@ -1123,7 +1123,7 @@ def test_a_company_with_no_priced_stakes_renders_the_page():
     test = _page(tweak)
     md = _md(test)
     assert "rendered True" in [c.value for c in test.caption]
-    assert "no priced gate within 24 months" in md and "no priced gate</span>" in md
+    assert "no priced gate within 24 months" in md and '<span class="cr-np">no priced gate' in md
     assert "ca-bar" not in md
 
 
@@ -1212,3 +1212,80 @@ def test_a_repeat_dates_row_reads_as_the_same_event(payload):
     # And a genuine gap keeps its own words.
     assert CV._why_short({"priced": False, "reason": "needs_layer"}) == \
         "an expansion with no pool on file"
+
+
+# --- what moves the price stands out -----------------------------------------------------
+def _stake(aid, gain, risk, later=False):
+    return {"gate": {"asset_id": aid, "gain": gain, "risk": risk}, "later": later,
+            "sort": (aid,), "drug": f"d{aid}"}
+
+
+def test_a_priced_gate_is_ranked_inside_its_own_company():
+    """A share of the price left Lilly with no major row: its largest move is 1.5% of a
+    $1,354 stock. The rank is by the company's own stakes, so the largest is always major."""
+    # 50, 20, 15, 10, 5 of 100: the first carries half, the next two reach 85%
+    rows = [_stake(1, 50.0, 3.0), _stake(2, 4.0, 20.0), _stake(3, 15.0, None),
+            _stake(4, 10.0, 1.0), _stake(5, 5.0, 5.0)]
+    got = CR.tiers(rows)
+    assert got[1] == ("major", 1, 5)
+    assert got[2] == ("notable", 2, 5) and got[3] == ("notable", 3, 5)   # the larger move decides
+    assert got[4] == ("minor", 4, 5) and got[5] == ("minor", 5, 5)
+    # one priced gate is major whatever its size; an even spread has several majors
+    assert CR.tiers([_stake(1, 0.02, 0.01)])[1][0] == "major"
+    even = CR.tiers([_stake(i, 1.0, 1.0) for i in range(1, 5)])
+    assert [even[i][0] for i in range(1, 5)] == ["major", "major", "notable", "notable"]
+    # a gate later than 24 months, or with no move on file, is not ranked
+    assert CR.tiers([_stake(1, 5.0, 5.0, later=True), _stake(2, None, None)]) == {}
+    assert CR.share_of_price({"gain": 6.0, "risk": 2.0}, 100.0) == 0.06
+    assert CR.share_of_price({"gain": 6.0, "risk": 2.0}, None) is None
+
+
+def test_every_company_with_a_priced_gate_has_a_major_row(payload):
+    rows = CR.readouts(payload)
+    ranked = CR.tiers(rows)
+    markup = CR.page_html(payload)
+    if ranked:
+        assert "major" in {v[0] for v in ranked.values()}
+        assert ' t-major"' in markup or " t-major " in markup
+
+
+def test_the_biggest_moves_lead_the_page_and_each_opens_its_card(payload):
+    rows = CR.readouts(payload)
+    close = CR.totals(rows, payload)["close"]
+    top = CR.top_moves(rows, close)
+    priced = [r for r in rows if r["gate"] is not None and not r["later"]
+              and CR.move_size(r["gate"]) is not None]
+    assert len(top) == min(CR.TOP_MOVES, len(priced))
+    sizes = [CR.move_size(r["gate"]) for r in top]
+    assert sizes == sorted(sizes, reverse=True)
+    if priced:
+        assert sizes[0] == max(CR.move_size(r["gate"]) for r in priced)
+    strip = CR.top_html(rows, close)
+    for r in top:
+        assert f'data-gate="{r["gate"]["asset_id"]}"' in strip
+    assert (strip == "") == (not top)
+
+
+def test_the_list_opens_on_what_moves_the_price(payload):
+    rows = CR.readouts(payload)
+    markup = CR.page_html(payload)
+    n_priced = sum(1 for r in rows if r["gate"] is not None)
+    want = "priced" if n_priced else "all"
+    assert f'class="cx ca-page cr-page" data-view="{want}"' in markup
+    if 0 < n_priced < len(rows):
+        assert f'data-vw="priced"' in markup and f'data-vw="all"' in markup
+        assert f"{len(rows) - n_priced} more read out with no price move" in _visible(markup)
+    # every row is still in the markup: the switch hides, it does not drop
+    assert len(re.findall(r'class="cr-row[ "]', markup)) == len(rows)
+
+
+def test_a_readout_on_no_priced_gate_says_why(payload):
+    rows = CR.readouts(payload)
+    sc = CR.scale(rows)
+    for r in rows:
+        if r["gate"] is None:
+            markup = CR.row_html(r, sc)
+            assert 'class="cr-row np"' in markup
+            why = CR.REASON_SHORT.get(CR._reason_key(r["event"] or {}))
+            if why:
+                assert why in _visible(markup)
