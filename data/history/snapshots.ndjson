@@ -152332,3 +152332,4 @@
 {"captured_at": "2026-11-18 15:51:45", "entity_key": "0001599298-26-000094", "entity_type": "filing", "id": 152332, "payload": "{\"form_type\": \"8-K\", \"filed_date\": \"2026-11-18\", \"ticker\": \"SMMT\"}", "refresh_run_id": 138, "source": "filings"}
 {"captured_at": "2026-11-18 15:51:46", "entity_key": "NDA217369:4", "entity_type": "supplement", "id": 152333, "payload": "{\"approval_date\": \"2026-11-13\", \"ticker\": \"BIIB\"}", "refresh_run_id": 138, "source": "supplements"}
 {"captured_at": "2026-11-18 15:51:46", "entity_key": "BLA125486:44", "entity_type": "supplement", "id": 152334, "payload": "{\"approval_date\": \"2026-11-13\", \"ticker\": \"ROG\"}", "refresh_run_id": 138, "source": "supplements"}
+{"captured_at": "2026-11-18 18:45:07", "entity_key": "daily_pulse", "entity_type": "feed", "id": 152335, "payload": "{\"briefings\": [], \"items\": 0, \"problems\": [], \"fetch_kind\": \"live\"}", "refresh_run_id": null, "source": "pulse"}
