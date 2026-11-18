@@ -36,6 +36,23 @@ PRESS_NAMES = {
 }
 
 
+# Names the trade press uses for a company that are not its own: a subsidiary that runs
+# its own programmes, or a former name. Only the daily pulse's matcher reads these, and
+# each is compared whole, so "Kite" ties an item to Gilead while "Kite Pharma" or any
+# headline merely containing the word does not. Kept off PRESS_NAMES because the news
+# deal search queries Google News by those, and "Celgene" there would find 2019.
+PRESS_ALIASES = {
+    "GILD": ("Kite", "Kite Pharma"), "ROG": ("Genentech",), "JNJ": ("Janssen",),
+    "BMY": ("BMS", "Celgene"), "MRK": ("MSD", "Merck & Co", "Merck & Co."),
+    "AZN": ("Alexion",), "SNY": ("Genzyme",), "PFE": ("Seagen",), "ABBV": ("Allergan",),
+    "GSK": ("GlaxoSmithKline", "ViiV Healthcare"), "NVO": ("Novo",),
+}
+# Names that read like a universe company and are not one. The pulse is told them so it
+# never tags them, and the matcher's whole-name compare already leaves them untied.
+NOT_THESE = {"Merck KGaA": "MRK", "EMD Serono": "MRK", "Novo Holdings": "NVO",
+             "Sandoz": "NVS"}
+
+
 def bare(name: str) -> str:
     """A name less its legal suffixes: "Eli Lilly and Company" is "Eli Lilly"."""
     name = (name or "").strip()

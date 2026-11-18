@@ -1791,6 +1791,8 @@ KIND_COLOUR = {
     # The catalyst focus list's own kinds.
     "binary": "var(--fda)", "mover": "var(--text)", "financing": "var(--purple-book)",
     "street": "var(--muted)", "short": "var(--orange-book)",
+    # The daily pulse's stories (an AI summary of the trade press), ranked by its tier.
+    "pulse": "var(--text)",
 }
 # The grid's rows (backend GRID_KINDS) in the same colours.
 GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--fda)",
@@ -1873,7 +1875,7 @@ def feed_item(p, it):
         elif m.get("type") == "dates" and m.get("a") and m.get("b"):
             mini = dates_mini(m.get("dates") or [], m.get("a"), m.get("b"))
         tickers = it.get("tickers") or []
-        if kind in ("notice", "mover") and tickers:
+        if kind in ("notice", "mover", "pulse") and tickers:
             first = (m.get("ticker") or tickers[0]) if kind == "mover" else tickers[0]
             mini = stock_mini((p.get("closes") or {}).get(first) or [], [it.get("date")])
         elif kind == "binary" and m.get("type") == "countdown":

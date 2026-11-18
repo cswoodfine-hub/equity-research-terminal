@@ -113,23 +113,32 @@ class PulseNewsFetcher(BaseFetcher):
         written = 0
         try:
             index = pulse.universe_index(conn)
+            held_tickers = pulse.ticker_index(conn)
+            assets = pulse.asset_index(conn)
             tickers = {r["id"]: r["ticker"] for r in conn.execute(
                 "SELECT id, ticker FROM companies")}
             for briefing in rows:
                 day = briefing["pulse_date"]
-                for item in briefing["items"]:
-                    companies = pulse.match(item, index)
+                for n, item in enumerate(briefing["items"]):
+                    roles, problems = pulse.match_roles(item, index, held_tickers, assets)
+                    self.problems.extend(f"{day}.json item {n}: {p}" for p in problems)
+                    companies = [c for c, _role in roles]
+                    # Read-across reaches the company's news, marked, and nothing else.
+                    named = [c for c, role in roles if role != "read_across"]
                     held = conn.execute(
                         "SELECT id FROM pulse_items WHERE pulse_date = ? AND url = ?",
                         (day, item["url"])).fetchone()
                     values = (item["tier"], item["kind"], item["headline"], item["detail"],
                               item["published"], json.dumps(item["companies"]),
-                              ",".join(tickers[c] for c in companies) or None)
+                              ",".join(tickers[c] for c in companies) or None,
+                              item["event_key"], item["first_reported"],
+                              1 if item["update"] else 0, item["phase"])
                     if held:
                         item_id = held["id"]
                         conn.execute(
                             "UPDATE pulse_items SET tier = ?, kind = ?, headline = ?,"
                             " detail = ?, published_at = ?, companies = ?, tickers = ?,"
+                            " event_key = ?, first_reported = ?, is_update = ?, phase = ?,"
                             " fetched_at = datetime('now') WHERE id = ?",
                             (*values, item_id))
                         conn.execute("DELETE FROM pulse_item_companies WHERE item_id = ?",
@@ -137,24 +146,31 @@ class PulseNewsFetcher(BaseFetcher):
                     else:
                         item_id = conn.execute(
                             "INSERT INTO pulse_items (pulse_date, tier, kind, headline,"
-                            " detail, published_at, companies, tickers, url)"
-                            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            " detail, published_at, companies, tickers, event_key,"
+                            " first_reported, is_update, phase, url)"
+                            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             (day, *values, item["url"])).lastrowid
                         written += 1
                     conn.executemany(
-                        "INSERT OR IGNORE INTO pulse_item_companies (item_id, company_id)"
-                        " VALUES (?, ?)", [(item_id, c) for c in companies])
+                        "INSERT OR IGNORE INTO pulse_item_companies (item_id, company_id,"
+                        " role) VALUES (?, ?, ?)", [(item_id, c, r) for c, r in roles])
                     # News is keyed on the link, so an article a company's own feed or
                     # the FDA's already carries is not stored twice.
                     dated = item["published"] or day
                     conn.execute(
                         "INSERT INTO news (company_id, source, title, url, published_at)"
                         " VALUES (?, ?, ?, ?, ?) ON CONFLICT(url) DO NOTHING",
-                        (companies[0] if companies else None, SOURCE, item["headline"],
+                        (named[0] if named else None, SOURCE, item["headline"],
                          item["url"], dated))
                     if held or dated < cutoff:
                         continue
-                    for company_id in companies:
+                    # A story the pulse carried on an earlier day is one story: it reaches
+                    # the change feed again only when the pulse says something changed.
+                    if item["event_key"] and not item["update"] and conn.execute(
+                            "SELECT 1 FROM pulse_items WHERE event_key = ? AND pulse_date < ?",
+                            (item["event_key"], day)).fetchone():
+                        continue
+                    for company_id in named:
                         conn.execute(
                             "INSERT INTO changes (entity_type, entity_key, field,"
                             "  old_value, new_value, change_type, significance,"
