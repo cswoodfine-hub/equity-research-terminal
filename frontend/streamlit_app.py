@@ -30,6 +30,7 @@ import streamlit as st
 import areas_view as AV
 import calendar_view
 import catalysts_page
+import discovery_view as DV
 import forecast_board_view as FB
 import price_chart
 import revenue_mix
@@ -1533,7 +1534,7 @@ def _flip_date(value) -> str:
 # What the chip says for a feed item. The feed's own kind is a mechanism word; these are
 # what the thing is.
 _FEED_FIGURE = {"catalyst": "Catalyst", "loe": "Exclusivity", "filing": "Filing",
-                "market": "Rates", "policy": "Policy"}
+                "market": "Rates", "policy": "Policy", "discovery": "Discovery"}
 
 # Shorter than the universe row's limit, because a catalyst headline is a registry trial
 # title, "Phase 3, A Study of Lebrikizumab in Adult Participants With Moderate to Severe
@@ -9809,6 +9810,49 @@ def _pulse_panel(api_base: str) -> None:
          "appear in that company's What changed.")
 
 
+def _render_discovery_tab(api_base: str) -> None:
+    """Discovery: alerts on new cell and gene therapy papers, and the papers themselves
+    (discovery_view.py). The same whichever company is picked: it reads the field, not
+    the company in focus, and nothing on it reaches a company's value or note."""
+    try:
+        got = api_get(api_base, f"/discovery/alerts?days={DV.ALERTS_DAYS}")
+    except Exception:                                               # noqa: BLE001
+        state("Discovery unavailable", "The alerts read did not answer.")
+        return
+    found = got.get("basis") or {}
+    section("Discovery alerts", count=len({a.get("paper_id") for a in got.get("alerts") or []}),
+            basis=DV.basis(got) or got.get("label") or "")
+    markup = DV.alerts_html(got)
+    if markup:
+        st.markdown(markup, unsafe_allow_html=True)
+    elif not found.get("last_read"):
+        state(*DV.NOT_READ_YET)
+    else:
+        title, detail = DV.EMPTY_ALERTS
+        state(title.format(days=DV.ALERTS_DAYS),
+              detail.format(share=found.get("top_paper_share"),
+                            limit=found.get("lab_rank_limit")))
+
+    labels = dict((label, key) for key, label in DV.SORTS)
+    picked = st.segmented_control("Papers ranked by", list(labels), default=DV.SORTS[0][1],
+                                  key="discovery_sort", label_visibility="collapsed")
+    sort = labels.get(picked) or DV.SORTS[0][0]
+    try:
+        listed = api_get(api_base, f"/discovery/papers?days={DV.PAPERS_DAYS}&sort={sort}")
+    except Exception:                                               # noqa: BLE001
+        listed = {}
+    table = DV.papers_html(listed)
+    if table:
+        section("New papers", count=DV.papers_count(listed),
+                basis=f"indexed in the last {DV.PAPERS_DAYS} days, best first")
+        st.markdown(table, unsafe_allow_html=True)
+        held = DV.held_line(listed)
+        if held:
+            st.markdown(f'<div class="byline">{html_escape(held)}</div>',
+                        unsafe_allow_html=True)
+    note(DV.NOTE)
+
+
 def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
     """POST a JSON body. api_post sends none, and this needs one."""
     request = urllib.request.Request(
@@ -10971,6 +11015,10 @@ with main:
     # answered nothing a reader came for.
     if _engine != "pharma":
         _wanted.append(("themes", "Themes"))
+    # Discovery reads early research in cell and gene therapy, so it sits with the engine
+    # that asks about that field and nowhere else.
+    if _engine == "cellgene":
+        _wanted.append(("discovery", "Discovery"))
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
     _wanted += [("comps", "Comps"), ("holdings", "Holdings")]
@@ -10988,6 +11036,7 @@ with main:
     holdings_tab = _panels["holdings"]
     portfolio_tab = _panels.get("portfolio")
     runway_tab = _panels.get("runway")
+    discovery_tab = _panels.get("discovery")
     universe_page.click_pending_tab()
 
     # --- Universe: what moved across coverage since you last looked -------
@@ -12537,6 +12586,10 @@ with main:
 
     # --- Themes: the universe read by modality rather than by ticker ------
     # Absent on big pharma: see the tab list above.
+    if discovery_tab is not None:
+        with discovery_tab:
+            _render_discovery_tab(api_base)
+
     if themes_tab is not None:
         with themes_tab:
             payload = api_get(api_base, "/themes")

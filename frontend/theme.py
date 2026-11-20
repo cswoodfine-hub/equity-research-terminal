@@ -555,6 +555,31 @@ h3 {{ font-size: 0.9rem; }}
 .pulse-tier {{ display: inline-block; min-width: 18px; font-size: 9.5px;
   color: var(--muted); margin-right: 4px; }}
 .pulse-meta {{ font-size: 10.5px; color: var(--muted); padding-left: 22px; }}
+.dsc-day {{ font-size: 10px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.04em; margin: 0.6rem 0 0.15rem; }}
+.dsc-item {{ padding: 6px 0 6px 8px; border-bottom: 1px solid var(--rule);
+  border-left: 2px solid transparent; }}
+.dsc-item.high {{ border-left-color: var(--text); }}
+.dsc-chips {{ margin-bottom: 1px; }}
+.dsc-kind {{ display: inline-block; font-size: 9px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule-strong);
+  border-radius: var(--radius); padding: 0 4px; margin-right: 4px; }}
+.dsc-item.high .dsc-kind {{ color: var(--text); }}
+.dsc-lead {{ font-size: 12px; color: var(--text); }}
+.dsc-title a, table.dsc td.p a {{ font-size: 12.5px; font-weight: 600; color: var(--text);
+  text-decoration: none; }}
+.dsc-title a:hover, table.dsc td.p a:hover {{ text-decoration: underline; }}
+.dsc-title span {{ font-size: 12px; color: var(--text); }}
+.dsc-meta {{ font-size: 10.5px; color: var(--muted); }}
+table.dsc {{ width: 100%; border-collapse: collapse; font-size: 11.5px; }}
+table.dsc th {{ text-align: left; font-size: 9.5px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.03em; padding: 3px 8px 3px 0;
+  border-bottom: 1px solid var(--rule-strong); vertical-align: bottom; }}
+table.dsc td {{ padding: 5px 8px 5px 0; border-bottom: 1px solid var(--rule);
+  vertical-align: top; color: var(--text); }}
+table.dsc th.n, table.dsc td.n {{ text-align: right; font-family: var(--font-mono);
+  white-space: nowrap; }}
+table.dsc td.w {{ color: var(--muted); font-size: 10.5px; max-width: 260px; }}
 details.pt-more {{ margin: 0.15rem 0 0.35rem; }}
 details.pt-more > summary {{ list-style: none; cursor: pointer; font-size: 10px;
   color: var(--muted); padding: 2px 0; }}
