@@ -14,6 +14,10 @@ The rules, as one list:
 - a product revenue restatement over ``REVENUE_RESTATEMENT_PCT`` is material
 - a Part D formulary share (listed, prior authorisation, step therapy) that moves
   ``PAYER_ACCESS_POINTS`` points from where it was last flagged is medium
+- a new research paper ranked in the top ``1 - DISCOVERY_TOP_PCT`` of a year of papers
+  on either Discovery score is medium, and high in the top ``1 - DISCOVERY_HIGH_PCT``
+- a paper from a lab head ranked ``DISCOVERY_LAB_RANK`` or better is medium; that lab's
+  first paper in primates or patients, or with a company among the authors, is high
 """
 
 from __future__ import annotations
@@ -27,6 +31,17 @@ LOE_WINDOW_MONTHS = 24            # exclusivity expiring inside this is in the f
 REVENUE_RESTATEMENT_PCT = 0.05    # a restated product figure beyond this is high
 PAYER_ACCESS_POINTS = 10.0        # a formulary share moving this far is medium
 PAYER_ACCESS_SIGNIFICANCE = "medium"
+
+# Discovery: early research in cell and gene therapy (discovery.py). A score is a rank
+# against a year of papers, so each bar is a share of them.
+DISCOVERY_TOP_PCT = 0.95          # a paper outranking this share on either score is flagged
+DISCOVERY_HIGH_PCT = 0.99         # and is high from here
+DISCOVERY_LAB_RANK = 300          # lab alerts cover the lab heads ranked this well
+DISCOVERY_LATE_STAGES = ("primate", "patients")   # a lab's first paper here is high
+# A paper the book first saw more than this many days after Europe PMC indexed it is
+# stored and raises nothing. The first run reads weeks of papers at once, and without
+# this they would all arrive as today's news.
+DISCOVERY_ALERT_DAYS = 7
 
 
 def _days_between(old_date: Optional[str], new_date: Optional[str]) -> Optional[int]:
@@ -56,6 +71,32 @@ def restatement_is_material(old_value: Optional[float],
     if not old_value or new_value is None:
         return False
     return abs(new_value - old_value) / abs(old_value) > REVENUE_RESTATEMENT_PCT
+
+
+def discovery_paper_significance(feas_pct, comm_pct) -> Optional[str]:
+    """How a paper's better score rates it, or None when neither clears the bar."""
+    best = max((p for p in (feas_pct, comm_pct) if p is not None), default=None)
+    if best is None or best < DISCOVERY_TOP_PCT:
+        return None
+    return "high" if best >= DISCOVERY_HIGH_PCT else "medium"
+
+
+def discovery_is_news(indexed: Optional[str], seen: Optional[str]) -> bool:
+    """True when the book saw a paper within ``DISCOVERY_ALERT_DAYS`` of its indexing."""
+    days = _days_between(indexed, seen)
+    return days is not None and days <= DISCOVERY_ALERT_DAYS
+
+
+def discovery_stage_significance(stage: Optional[str]) -> str:
+    return "high" if stage in DISCOVERY_LATE_STAGES else "medium"
+
+
+_DISCOVERY_REASONS = {
+    "discovery_paper_top": f"Discovery, paper in the top {round((1 - DISCOVERY_TOP_PCT) * 100)}%",
+    "discovery_lab_paper": f"Discovery, lab head ranked in the top {DISCOVERY_LAB_RANK}",
+    "discovery_lab_stage": "Discovery, lab reached a later model",
+    "discovery_lab_company": "Discovery, lab's first company co-author",
+}
 
 
 def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[str]:
@@ -109,4 +150,6 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
     # The daily pulse, an AI-written briefing: the label says so wherever it is printed.
     if change_type.startswith("pulse_"):
         return f"daily pulse (AI summary), {change_type[len('pulse_'):]}"
+    if change_type in _DISCOVERY_REASONS:
+        return _DISCOVERY_REASONS[change_type]
     return None

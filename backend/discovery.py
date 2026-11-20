@@ -175,6 +175,12 @@ def name_key(first, last):
     return f"{first}|{last}" if len(first) >= 3 and len(last) >= 2 else None
 
 
+def paper_url(paper_id):
+    """Where a paper can be read: "MED:123" is europepmc.org/article/MED/123."""
+    source, _, rid = str(paper_id or "").partition(":")
+    return f"https://europepmc.org/article/{source}/{rid}" if source and rid else None
+
+
 def text_sha(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
