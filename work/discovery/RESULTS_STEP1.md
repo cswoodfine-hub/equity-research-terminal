@@ -351,3 +351,39 @@ else in Discovery still runs.
    match (needs the USPTO key) and UK directors (needs a Companies House key). Both
    find founders the present sources miss, which is the gap that list has. Then retest.
 6. **Embeddings** in place of word counts, once a key or a local model is available.
+
+## The daily alert, as built (2026-11-20)
+
+The first slice in the terminal itself. Each daily refresh reads Europe PMC, scores the
+new papers and writes alerts into the change feed and a Discovery tab on the cell and
+gene engine. Code: `backend/discovery.py`, `backend/fetchers/papers_europepmc.py`,
+`diff._diff_discovery`, `backend/discovery_board.py`, `frontend/discovery_view.py`.
+
+What changed from the plan:
+
+- **New means newly indexed, not newly dated.** The plan read a window of publication
+  dates. Of 522 journal records returned on 2026-11-20, 104 had entered Europe PMC before
+  their stated publication date, so the fetch asks by index date (`FIRST_IDATE`) and an
+  alert is suppressed when the book first saw a paper more than seven days after that.
+- **The lab list is loaded by the fetcher as well as by the seed step.** The scheduled
+  refresh never runs `seed.py`.
+- **Alerts about one paper are one row in the tab.** A top paper from a ranked lab is one
+  event.
+
+Checks:
+
+| Check | Result |
+|---|---|
+| Scores refitted on one shared vocabulary of 60,000 terms | AUC 0.841 and 0.785, as documented |
+| The app's numpy scorer against scikit-learn, 25 texts | equal to 1e-9 |
+| Lab matcher against OpenAlex identities, 2026 papers | 2,290 right, 16 wrong, 527 not matched |
+| One real run, 2026-11-20, throwaway database | 793 records in 53 s, 730 scored, 63 held without an abstract, 144 matched to a lab |
+| Alerts from that run, papers indexed in the last 7 days | 31 top papers (9 high), 4 ranked labs published |
+
+The matcher figures are measured on the same papers the lab list was built from, so the
+share not matched will be higher on new papers. The share wrong is the figure that
+matters and it is 0.7%.
+
+Not built yet: alerts on a first declared patent or equity interest, new company
+records naming a lab, a personal watchlist, re-ranking the labs in the daily job, asset
+cards on alerts, and email.

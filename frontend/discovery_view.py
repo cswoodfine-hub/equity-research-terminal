@@ -78,7 +78,11 @@ def _ranks(paper: dict) -> str:
 
 def _raised(paper: dict, score: str) -> str:
     reasons = (paper.get("reasons") or {}).get(score) or {}
-    return ", ".join((reasons.get("flags") or []) + (reasons.get("phrases") or [])[:3])
+    flags = reasons.get("flags") or []
+    said = " ".join(flags).lower().split()
+    # A phrase that only repeats a word of a flag beside it adds nothing.
+    phrases = [p for p in reasons.get("phrases") or [] if p.lower() not in said]
+    return ", ".join(flags + phrases[:3])
 
 
 def basis(got: dict) -> str:

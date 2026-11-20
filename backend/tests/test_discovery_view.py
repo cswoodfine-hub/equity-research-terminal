@@ -19,7 +19,8 @@ PAPER = {"id": "MED:1", "title": "An <i>AAV</i> vector & a result", "published":
          "lab_match": "name and institution", "areas": ["AAV", "Liver"], "stage": "patients",
          "stage_name": "patients", "company_author": True, "feas_pct": 0.995,
          "comm_pct": 0.6, "feas_top": "top 1%", "comm_top": "top 40%",
-         "reasons": {"feas": {"flags": ["in patients"], "phrases": ["dose", "durable"]},
+         "reasons": {"feas": {"flags": ["in patients"],
+                              "phrases": ["patients", "dose", "durable"]},
                      "comm": {"flags": [], "phrases": ["vector"]}},
          "url": "https://europepmc.org/article/MED/1"}
 LAB = {"id": "A1", "name": "Ada Byron", "rank": 12, "institutions": ["Test University"]}

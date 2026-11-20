@@ -35,6 +35,8 @@ ER Tool/
     refresh.py              # orchestrates fetchers, writes refresh_runs
     scheduled_refresh.py    # the whole-universe refresh with no server, for a schedule
     pulse_refresh.py        # reads the daily pulse; opens no refresh_runs row
+    discovery.py            # early research papers: rules, the two scores, lab matching
+    discovery_board.py      # the Discovery tab's payload
     history.py              # export and rebuild data/history/*.ndjson
     diff.py                 # snapshot -> changes engine
     insights.py             # rules layer + note generation
@@ -76,6 +78,7 @@ ER Tool/
       deals_news.py         # business development from headlines
       press_ir.py, press_page.py, news_fda.py
       news_pulse.py         # the daily pulse's briefings, from claude/pulse-feed
+      papers_europepmc.py   # new cell and gene therapy papers, scored and matched to labs
       adcomm_fedreg.py, policy_fedreg.py
       consensus_fmp.py, consensus_nasdaq.py
       codes_rxnav.py        # RxCUIs and NDC product codes per marketed asset
@@ -202,6 +205,30 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   reaches news, the change feed and the Sector news panel only: never a value, a deal
   term or a catalyst. Items outside the universe (private rounds, other biotechs) are
   kept, with no company attached.
+
+### Europe PMC (Discovery: early research papers)
+
+- `https://www.ebi.ac.uk/europepmc/webservices/rest/search`: keyless. `resultType=core`,
+  `cursorMark` paging (the last page carries no `nextCursorMark`), `pageSize` 200. A full
+  page of core records takes tens of seconds, so the timeout is long.
+- Ask by the date a record entered the index (`FIRST_IDATE`), never by publication date.
+  On 2026-11-20 a fifth of the journal records returned had been indexed before their
+  stated publication date, some by months. Read a trailing three weeks every day: a paper
+  often arrives without its abstract, both scores read the abstract, and a paper with
+  none is held unscored and read again.
+- The query is `discovery.QUERY`, the one the scores were trained on. Changing a term, a
+  rule flag or an area means exporting the models again
+  (`work/discovery/tools/export_models.py`, which needs scikit-learn and the research
+  corpus; the app applies the weights with numpy and needs neither).
+- A score is a rank against a year of papers ("top 3%"), from the title and abstract
+  alone. It is never a probability and never reaches a value, a forecast or a company's
+  note. A lab is matched by full name and institution, or by name alone for a preprint
+  with no address when one ranked lab has that name; every view says how.
+- `data/discovery/labs_seed.ndjson` is the ranked lab heads as of its `ranked_as_of`
+  date, insert-only, and holds no company record: those were matched by name and some
+  are the wrong person. The repository is public.
+- An alert is written once (a partial unique index on `changes` for papers and labs).
+  The bars are in `materiality.py`.
 
 ### Catalysts
 
