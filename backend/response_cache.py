@@ -411,7 +411,9 @@ async def handle(request, call_next):
 # The reads a company page makes that cost more than a moment, in the form the page asks
 # for them, so a warmed entry is the one the page hits.
 GLOBAL_READS = ("/screen", "/productivity/scorecard", "/pipeline", "/price-grid?days=90",
-                "/indications", "/areas")
+                "/indications", "/areas",
+                # The Discovery tab's two reads, as the tab asks for them.
+                "/discovery/alerts?days=14", "/discovery/papers?days=30&sort=feas")
 # The last one embeds the company's verdict through ``cached_json`` (comps_context), so it
 # stays last: each company's verdict is warm before its context is built.
 COMPANY_READS = ("/companies/{t}/forecast-verdict", "/companies/{t}/fair-value",

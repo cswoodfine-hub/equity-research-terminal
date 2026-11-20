@@ -44,6 +44,7 @@ import comps_valuation as comps_valuation_module
 import company_score as company_score_module
 import db
 import deals as deals_module
+import discovery_board
 import demand as demand_module
 import demand_split as demand_split_module
 import filing_diff as filing_diff_module
@@ -1756,6 +1757,21 @@ def pulse_feed(days: int = Query(default=14)) -> dict:
     finally:
         conn.close()
     return {"label": "Daily pulse (AI summary)", "reads": reads, "items": items}
+
+
+@app.get("/discovery/alerts")
+def discovery_alerts(days: int = Query(default=14)) -> dict:
+    """Discovery's alerts: new cell and gene therapy papers that rank in the top of
+    either score, and what the ranked lab heads have just done. Ranked by a model from
+    the paper's own text, and labelled so wherever it is shown."""
+    return discovery_board.alerts(days=days)
+
+
+@app.get("/discovery/papers")
+def discovery_papers(days: int = Query(default=30), sort: str = Query(default="feas")) -> dict:
+    """The scored papers of the last ``days`` days, best first on feasibility (feas),
+    commercial pull (comm) or newest (date)."""
+    return discovery_board.papers(days=days, sort=sort)
 
 
 @app.get("/regulatory-news")
