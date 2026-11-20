@@ -59,6 +59,8 @@ import re
 import sys
 import unicodedata
 
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[3] / "backend"))
+
 import numpy as np
 from scipy import sparse
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -102,31 +104,10 @@ UK_ADDRESS = re.compile(r"\bUK\b|United Kingdom|\bU\.K\.|England|Scotland|\bWale
 ACADEMIC_TITLE = re.compile(r"^(dr|prof|professor)\.?$", re.I)
 US_ADDRESS = re.compile(r"\bUSA\b|United States|U\.S\.A|,\s*(" + _STATES + r")\b[\s,.\d-]*$|"
                         r",\s*(" + _STATES + r")\s+\d{5}")
-COMPANY = re.compile(
-    r"\b(inc|llc|ltd|gmbh|corp|corporation|s\.a\.|therapeutics|pharmaceuticals?|"
-    r"biosciences?|biotherapeutics|biotech(nology|nologies)?|pharma|genomics)\b\.?", re.I)
-NOT_COMPANY = re.compile(r"universit|hospital|institut|school|college|center|centre|"
-                         r"academy|department of", re.I)
-RULES = {
-    "mouse": r"\bmice\b|\bmouse\b|\bmurine\b",
-    "large_animal": r"\bpigs?\b|\bporcine\b|\bdogs?\b|\bcanine\b|\bsheep\b|\bovine\b",
-    "primate": r"non-?human primate|\bnhps?\b|macaque|cynomolgus|rhesus",
-    "human_cells": r"patient-derived|primary human|human ipsc|organoid|human donor",
-    "patients": r"\bpatients\b|phase (i|1|ii|2)\b|clinical trial|first-in-human",
-    "in_vivo": r"in vivo",
-    "dose": r"vg/kg|vector genomes?|dose[- ]dependent|dose[- ]response|dose escalation",
-    "biodistribution": r"biodistribution",
-    "immunogenicity": r"neutrali[sz]ing antibod|immunogenic|pre-existing immunity",
-    "off_target": r"off-target|guide-seq|genotoxic|insertional",
-    "manufacturing": r"\bgmp\b|manufactur|scal(e|able) (up|production)|large-scale",
-    "durability": r"long-term|durable|sustained expression|persisten",
-    "safety": r"\btoxicit|\bsafety\b|well tolerated",
-    "efficacy": r"\befficacy\b|therapeutic (effect|benefit)|rescue[ds]?\b|survival",
-    "novel": r"\bnovel\b|first time|new class|engineered",
-    "platform": r"\bplatform\b|versatile|broadly applicable|modular",
-    "capsid": r"capsid|serotype|tropism",
-    "delivery": r"deliver",
-}
+# The rule flags and the test for a company address are the app's own, so the scripts and
+# the daily job read a paper the same way.
+from discovery import COMPANY, NOT_COMPANY, RULES  # noqa: E402
+
 COI_RULES = {
     "coi_founder": r"founder|co-founder|cofounder",
     "coi_equity": r"equity|stock|shares|shareholder|ownership",

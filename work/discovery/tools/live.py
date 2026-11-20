@@ -39,17 +39,10 @@ from sklearn.preprocessing import StandardScaler
 import areas as A
 import backtest as B
 import paper_scores as P
+from discovery import MODALITIES  # noqa: E402  (backtest puts the backend on the path)
 
 WINDOW_YEARS = 4          # the papers a lab head is described by
 ACTIVE_YEARS = 2          # a senior-author paper this recently makes someone a lab head
-MODALITIES = {
-    "AAV": r"\baav\d*\b|adeno-associated", "Lentiviral": r"lentivir|retrovir",
-    "CAR-T": r"car[- ]t\b|chimeric antigen|tcr[- ]t\b|car[- ]nk",
-    "Cell therapy": r"cell therap|ipsc|pluripotent|mesenchymal|stem cell transplant|"
-                    r"adoptive cell",
-    "Gene editing": r"crispr|cas9|cas12|base edit|prime edit|genome edit|gene edit|"
-                    r"talen\b|zinc[- ]finger",
-    "LNP / mRNA": r"lipid nanoparticle|\blnps?\b|\bmrna\b"}
 STAGE = ["patients", "primate", "large_animal", "mouse", "human_cells"]
 DERISK = ["dose", "biodistribution", "immunogenicity", "off_target", "manufacturing",
           "durability"]

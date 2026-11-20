@@ -32,27 +32,14 @@ from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 import backtest as B
+import discovery as D  # noqa: E402  (backtest puts the backend on the path)
 
 CONTENT = sorted(B.RULES) + ["preprint"]
 INDUSTRY_CITATIONS = 2                 # this many company-authored citing works is "built on"
-FLAG_NAMES = {
-    "patients": "tested in patients", "primate": "tested in primates",
-    "large_animal": "tested in large animals", "mouse": "tested in mice",
-    "human_cells": "human cells or tissue", "in_vivo": "in vivo data",
-    "dose": "dose response shown", "biodistribution": "biodistribution shown",
-    "immunogenicity": "immune reaction addressed", "off_target": "off-target effects checked",
-    "manufacturing": "manufacturing addressed", "durability": "durability shown",
-    "safety": "safety reported", "efficacy": "efficacy in a disease model",
-    "novel": "presented as new", "platform": "presented as a platform",
-    "capsid": "capsid work", "delivery": "delivery work", "preprint": "a preprint"}
 PANDEMIC = re.compile(r"covid|sars-cov|coronavirus|pandemic", re.I)
-_JUNK = re.compile(r"<[^>]+>|&[a-z]+;")
-_NOT_A_REASON = {"sup", "sub", "lt", "gt", "amp", "italic", "study", "results", "using",
-                 "used", "showed", "shown", "demonstrated", "demonstrate", "based", "data"}
-
-
-def _clean(text):
-    return _JUNK.sub(" ", text.lower())
+_clean = D.clean
+FLAG_NAMES = D.FLAG_NAMES
+_NOT_A_REASON = D._NOT_A_REASON
 
 
 def industry(folder):
