@@ -8,7 +8,9 @@
 # (the Phase 1 enrols solid tumours), later lines, anything outside the US (no filing).
 #
 # Company half: copied verbatim from incy_incb123667.csv, as every Incyte seed carries it.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 INCY,INCB161734,,US,base,therapy_mode,,,chronic,,"NCT07522073 (DAWN-303): INCB161734 or placebo, an oral tablet, with investigator's choice of mFOLFIRINOX or gemcitabine and nab-paclitaxel (registry, read 2026-10-28); 'a potent, selective and orally bioavailable KRAS G12D inhibitor' (Q2 2026 10-Q 0000879169-26-000056)",a daily pill taken to progression; discontinuation_pct carries who stops
 INCY,INCB161734,,US,base,list_price_per_patient,,0.066903,,mm USD per patient-year,"analogue: Krazati (adagrasib), an oral KRAS mutant-selective inhibitor taken to progression, CMS Medicare Part D 2024 (drug_demand): $69,712,635.09 over 1,042 beneficiaries = $66,902.72 a beneficiary; Lumakras, the other, is $98,285 in the same file","a comparator, not a price INCB161734 has. Scale: BMS lists Krazati at $22,592.24 for 30 days, $274,872 a year (bmy_krazati.csv), and Rasonque (daraxonrasib), the RAS inhibitor approved in pancreatic cancer on 2026-08-26, at $39,800 for 30 days (8-K 0001193125-26-366931, as rvmd_rasonque.csv carries it), which argues for more. The per-beneficiary basis is matched to the stopping rate below"

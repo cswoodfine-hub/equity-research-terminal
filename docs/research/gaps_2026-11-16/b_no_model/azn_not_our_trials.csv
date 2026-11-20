@@ -1,0 +1,42 @@
+# Draft rows for data/not_our_trials.csv, 2026-11-16. Append below the file's header; the
+# header line here is the file's own.
+#
+# Why these ten sit under AstraZeneca. Neither the lead-sponsor pass nor the collaborator
+# pass took them: AstraZeneca is named on none of them, and the collaborator pass needs a
+# Phase 3 or 4 of 1,000 or more. They came in through the acquired-sponsor pass
+# (backend/acquired_sponsors.for_company), which returns ['Rhythm Pharma',
+# 'Rhythm Pharmaceuticals', 'St. Louis'] for AZN off four news rows in the deals table:
+#
+#   deals 288, 296, 301 (2026-11-05): 'AstraZeneca said to offer $10B to acquire Rhythm,
+#   analysts whisper of a bidding war'. A rumour, filed as deal_type 'acquisition'.
+#   names_acquirer() believes it because AstraZeneca is named before Rhythm. Rhythm's own
+#   EDGAR record (CIK 1649904, read 2026-11-16) has no Item 1.01, no SC 14D9 and no
+#   merger proxy: its last filings are the Q3 2026 10-Q and 8-K of 2026-11-03
+#   (0001628280-26-069485, 0001628280-26-069106). No deal is agreed.
+#
+#   deal 300 (2026-11-10): 'AstraZeneca buys St. Louis vaccine startup Omniose'. The
+#   parser took the city as the counterparty. _plausible() passes 'St. Louis' (nine
+#   characters, not in _PLACE_WORDS) and _lead_starts() then accepts every study whose
+#   lead sponsor begins 'St. Louis', which is St. Louis University.
+#
+# So the Rhythm studies are Rhythm's medicines (setmelanotide, bivamelagon, RM-718) and
+# the St. Louis studies are a university's investigator-initiated work with generics
+# (ketorolac, meloxicam, cephalexin, zoledronic acid) and Clarus's Jatenzo. The pass
+# derived six AstraZeneca programmes from them on 2026-11-16 (asset ids 3760, 3761, 3762,
+# 3765, 3767, 3768, 3773; 3770 Morphine has no trial) and two catalysts (1587, 1588).
+#
+# These rows are the data fix the fetch honours today: TrialsFetcher.upsert deletes each
+# listed study from AZN on every fetch. They do not cure the cause, which is in code and
+# is drafted in azn_acquired_sponsor_cause.txt. Remove the five Rhythm rows if Rhythm
+# files an Item 2.01 naming AstraZeneca.
+ticker,nct_id,basis
+AZN,NCT06760546,"A Trial of Setmelanotide in Patients With Congenital Hypothalamic Obesity, Rhythm Pharmaceuticals' Phase 3 of its own setmelanotide (Imcivree, RM-493) against matched placebo, 39 participants; lead sponsor Rhythm Pharmaceuticals, Inc. (class INDUSTRY), no collaborator. It sits under AstraZeneca only because the acquired-sponsor pass searched 'Rhythm Pharmaceuticals' off a news rumour (deals 288, 296, 301: 'AstraZeneca said to offer $10B to acquire Rhythm'); Rhythm has filed no merger agreement (EDGAR CIK 1649904, latest 8-K 0001628280-26-069106 of 2026-11-03, Items 2.02 and 9.01). Not an AstraZeneca gate (https://clinicaltrials.gov/study/NCT06760546, read 2026-11-16)."
+AZN,NCT05774756,"A Trial of Setmelanotide in Acquired Hypothalamic Obesity, Rhythm Pharmaceuticals' Phase 3 of setmelanotide against placebo, 143 participants; lead sponsor Rhythm Pharmaceuticals, Inc., no collaborator. Taken through the same rumour (deals 288, 296, 301); no merger agreement is filed (EDGAR CIK 1649904, read 2026-11-16) (https://clinicaltrials.gov/study/NCT05774756, read 2026-11-16)."
+AZN,NCT06772597,"A Study of Setmelanotide in Patients With Prader-Willi Syndrome, Rhythm Pharmaceuticals' Phase 2, 18 participants; lead sponsor Rhythm Pharmaceuticals, Inc., no collaborator. Taken through the same rumour (deals 288, 296, 301) (https://clinicaltrials.gov/study/NCT06772597, read 2026-11-16)."
+AZN,NCT07156578,"A Long-Term Study of Bivamelagon in Participants With Hypothalamic Obesity, Rhythm Pharmaceuticals' Phase 2 of its own bivamelagon, 25 participants; lead sponsor Rhythm Pharmaceuticals, Inc., no collaborator. Taken through the same rumour (deals 288, 296, 301) (https://clinicaltrials.gov/study/NCT07156578, read 2026-11-16)."
+AZN,NCT06239116,"A Study of RM-718 in Healthy Subjects and Patients With MC4R Pathway Impairment, Rhythm Pharmaceuticals' Phase 1/2 of its own RM-718, 111 participants; lead sponsor Rhythm Pharmaceuticals, Inc., no collaborator. Taken through the same rumour (deals 288, 296, 301) (https://clinicaltrials.gov/study/NCT06239116, read 2026-11-16)."
+AZN,NCT03823534,"Post-Op Pain Control for Prophylactic Intramedullary Nailing, St. Louis University's Phase 3 of IV ketorolac (Toradol) against saline placebo after surgery for bone metastases, 60 participants, primary outcome morphine milligram equivalents over days 1 to 14; lead sponsor St. Louis University (class OTHER), no collaborator. Ketorolac is a generic NSAID. It sits under AstraZeneca because the news parser filed 'AstraZeneca buys St. Louis vaccine startup Omniose' (deal 300) with the city as the counterparty, and the acquired-sponsor pass then took every study whose lead sponsor begins 'St. Louis' (https://clinicaltrials.gov/study/NCT03823534, read 2026-11-16)."
+AZN,NCT07158476,"Efficacy of Methylprednisolone for Pain Control After ACL Repair, St. Louis University's Phase 4 of methylprednisolone, meloxicam, gabapentin and hydrocodone, 90 participants; lead sponsor St. Louis University, no collaborator. Taken through the 'St. Louis' counterparty of deal 300 (https://clinicaltrials.gov/study/NCT07158476, read 2026-11-16)."
+AZN,NCT06055712,"Antibiotic Prophylaxis in Pediatric Open Fractures, St. Louis University's Phase 4 of cefazolin and cephalexin, 800 participants; lead sponsor St. Louis University, no collaborator. Taken through the 'St. Louis' counterparty of deal 300 (https://clinicaltrials.gov/study/NCT06055712, read 2026-11-16)."
+AZN,NCT05249634,"Testosterone Treatment in Men With Chronic Kidney Disease, St. Louis University's Phase 2 of Jatenzo, 20 participants; lead sponsor St. Louis University with Clarus Therapeutics, Inc., Jatenzo's maker, the one collaborator. Taken through the 'St. Louis' counterparty of deal 300 (https://clinicaltrials.gov/study/NCT05249634, read 2026-11-16)."
+AZN,NCT03295981,"Local Bisphosphonate Effect on Recurrence Rate in Extremity Giant Cell Tumor of Bone, St. Louis University's Phase 3 of zoledronic acid, 120 participants; lead sponsor St. Louis University with 17 academic collaborators and no company. Taken through the 'St. Louis' counterparty of deal 300 (https://clinicaltrials.gov/study/NCT03295981, read 2026-11-16)."

@@ -4,7 +4,9 @@
 # comparison: $224.7mm in the first half of 2026 against $199.2mm in the
 # first half of 2025, which is +12.8%.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BMRN,Palynziq,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 BMRN,Palynziq,,US,base,base_revenue,,433.3,,mm USD,"filed: BioMarin FY2025 net product revenue for PALYNZIQ, $433.3mm, from the revenue by product table of the 10-K (0001048477-26-000006)",the anchor

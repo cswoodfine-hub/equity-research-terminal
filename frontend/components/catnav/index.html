@@ -10,7 +10,7 @@
     color: var(--text); font-family: var(--font-ui); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
-  [data-gate], [data-ev], [data-more], .cr-chip { cursor: pointer; }
+  [data-gate], [data-ev], [data-more], .cr-chip, .cr-vw { cursor: pointer; }
   [data-gate]:focus-visible, [data-ev]:focus-visible, [data-more]:focus-visible,
   .cr-chip:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
 </style>
@@ -31,6 +31,7 @@ const Streamlit = {
 
 let wired = false;
 let areaFilter = "*";   // the area the list is filtered to; kept across reruns
+let viewFilter = null;  // "priced" or "all"; null takes the page's own default
 let fontsCopied = false;
 let lastHeight = 0;
 let lastMarkup = null;
@@ -97,21 +98,37 @@ function setFilter(area) {
   // worked out by the page and carried on the heading. Client side: no rerun.
   areaFilter = area || "*";
   const b = document.getElementById("b");
+  const page = b.querySelector(".cr-page");
+  const view = viewFilter || (page && page.getAttribute("data-view")) || "all";
+  b.querySelectorAll(".cr-vw").forEach(function (c) {
+    c.classList.toggle("on", c.getAttribute("data-vw") === view);
+  });
+  if (page) page.setAttribute("data-on", view);
   b.querySelectorAll(".cr-chip").forEach(function (c) {
     c.classList.toggle("on", c.getAttribute("data-af") === areaFilter);
   });
   b.querySelectorAll(".cr-row").forEach(function (r) {
-    r.classList.toggle("off", areaFilter !== "*" && r.getAttribute("data-area") !== areaFilter);
+    const otherArea = areaFilter !== "*" && r.getAttribute("data-area") !== areaFilter;
+    const unpriced = view === "priced" && !r.hasAttribute("data-gate");
+    r.classList.toggle("off", otherArea || unpriced);
   });
   b.querySelectorAll(".cr-gh").forEach(function (h) {
     let st = {};
     try { st = JSON.parse(h.getAttribute("data-st") || "{}"); } catch (e) { st = {}; }
     const s = st[areaFilter];
-    h.classList.toggle("off", !s);
-    if (!s) return;
+    // A heading stands while a row under it does.
+    let shown = 0;
+    for (let n = h.nextElementSibling; n && !n.classList.contains("cr-gh"); n = n.nextElementSibling) {
+      if (n.classList.contains("cr-row") && !n.classList.contains("off")) shown += 1;
+    }
+    h.classList.toggle("off", !s || shown === 0);
+    if (!s || shown === 0) return;
     const sub = h.querySelector(".sub");
     if (h.classList.contains("q") && sub) {
-      sub.textContent = s[0] + (s[0] === 1 ? " readout" : " readouts") + (s[1] ? " · " + s[1] + " priced" : "");
+      const rest = s[0] - s[1];
+      sub.textContent = view === "priced"
+        ? s[1] + " priced" + (rest ? " · " + rest + " more with no price move" : "")
+        : s[0] + (s[0] === 1 ? " readout" : " readouts") + (s[1] ? " · " + s[1] + " priced" : "");
     }
     const sums = h.querySelectorAll(".s b");
     if (sums.length === 2 && !h.classList.contains("later")) {
@@ -123,6 +140,13 @@ function setFilter(area) {
 }
 
 function fire(target, ev) {
+  const vw = target.closest(".cr-vw");
+  if (vw) {
+    if (ev) ev.preventDefault();
+    viewFilter = vw.getAttribute("data-vw");
+    setFilter(areaFilter);
+    return;
+  }
   const chip = target.closest(".cr-chip");
   if (chip) {
     if (ev) ev.preventDefault();
@@ -169,15 +193,14 @@ window.addEventListener("message", function (e) {
     lastMarkup = a.markup;
     document.getElementById("frame").textContent = a.css || "";
     b.innerHTML = a.markup || "";
-    b.querySelectorAll("[data-gate], [data-ev], [data-more], .cr-chip").forEach(function (el) {
+    b.querySelectorAll("[data-gate], [data-ev], [data-more], .cr-chip, .cr-vw").forEach(function (el) {
       el.setAttribute("tabindex", "0");
       el.setAttribute("role", "button");
     });
-    if (areaFilter !== "*") {
-      // A rerun keeps the filter while the area is still on the page.
-      const still = [...b.querySelectorAll(".cr-chip")].some(function (c) { return c.getAttribute("data-af") === areaFilter; });
-      setFilter(still ? areaFilter : "*");
-    }
+    // A rerun keeps the filter while the area is still on the page, and the list opens
+    // on the readouts that move the price.
+    const still = areaFilter === "*" || [...b.querySelectorAll(".cr-chip")].some(function (c) { return c.getAttribute("data-af") === areaFilter; });
+    if (b.querySelector(".cr-rows")) setFilter(still ? areaFilter : "*");
   }
   requestAnimationFrame(fill);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fill);

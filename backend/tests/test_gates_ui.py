@@ -554,6 +554,7 @@ def test_the_forecast_tab_has_a_next_gate_layer_for_a_pipeline_asset_only():
         at = AppTest.from_file(str(APP), default_timeout=600)
         at.query_params["ticker"] = "LLY"
         at.session_state["fc_pick_LLY"] = asset_id
+        at.session_state["fc_open_LLY"] = {"asset": asset_id}    # the asset's card
         at.run()
         assert not at.exception, [str(e.value) for e in at.exception]
         return at

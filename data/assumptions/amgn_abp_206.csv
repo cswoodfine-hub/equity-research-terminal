@@ -6,7 +6,9 @@
 # Written 2026-09-24 on another branch; verified 2026-09-26, when every source was reopened. Corrections then: price moved to the 2025 CMS Part B basis; the pool re-derived on FY2025 revenue at that price; the explicit untreated_carryover_pct 0 removed, because prevalence equal to incidence already gives carryover 0 and the explicit row kept an opening stock that doubled year one; a filed-stage pos added on Amgen's confirmed submission.
 # Company-level rows copied from amgn_aranesp.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,ABP 206,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.41 raw)",
 AMGN,ABP 206,,US,base,cogs_pct,,0.3275,,share of revenue,"AMGN FY2025, computed from the filed lines",

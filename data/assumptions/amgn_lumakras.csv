@@ -30,7 +30,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Amgen's own, from amgn_kyprolis.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AMGN,Lumakras,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AMGN,Lumakras,,US,base,base_revenue,,363.0,,mm USD,"Amgen FY2025 10-K (0000318154-26-000010), MD&A, Other products, product sales by geographic region (dollar amounts in millions): LUMAKRAS U.S. $211mm and LUMYKRAS ROW $152mm, 363mm in FY2025; $214mm and $136mm, 350mm, in FY2024",the anchor

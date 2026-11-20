@@ -15,6 +15,7 @@ import urllib.request
 import db
 import use_codes
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "ob_use_codes"
 ENTITY_KEY = "orange_book"
@@ -22,7 +23,7 @@ TTL_SECONDS = 7 * 24 * 60 * 60
 PAGES_PER_RUN = 120
 PRODUCTS = ("001", "002", "003", "004")
 _PAUSE_S = 1.0
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 60
 
 

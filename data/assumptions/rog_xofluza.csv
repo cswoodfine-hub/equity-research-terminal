@@ -13,7 +13,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Roche's own, from rog_alecensa.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ROG,Xofluza,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product whose sales Roche publishes
 ROG,Xofluza,,US,base,base_revenue,,407.0,,mm CHF,"ROG FY2025 reported global sales of Xofluza, CHF 407mm, from Roche Finance Information Tool, group financial data workbook, FY2025, sheet ""P Sales Regions CHF"", as the book's financials_ir fetcher read it on 2026-10-27 (asset_revenue, asset 57): CHF 57mm United States, CHF 2mm Europe, nil Japan and CHF 348mm International","in francs because Roche reports in francs. 86% of it is International, mainly China, and Shionogi sells baloxavir in Japan and Taiwan itself, so this is the Roche-booked part only"

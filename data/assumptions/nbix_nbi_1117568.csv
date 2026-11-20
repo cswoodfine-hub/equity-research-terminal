@@ -15,7 +15,9 @@
 # Company rows are Neurocrine's own, derived from its 10-K. Not modelled: sales outside the US (no filing), the Nxera
 # milestones, and adjunctive or Alzheimer's psychosis uses.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NBIX,NBI-1117568,,US,base,therapy_mode,,,chronic,,"FY2025 10-K 0000914475-26-000007: direclidine is 'an investigational oral agonist targeting the muscarinic M4 receptor', studied in acute relapse, relapse prevention and long-term safety in schizophrenia, a maintained antipsychotic",continuing therapy; discontinuation_pct carries who stops
 NBIX,NBI-1117568,,US,base,list_price_per_patient,,0.00698606,,mm USD per year,"analogue, the price abbv_emraclidine.csv carries for the book's other M4 agonist, verbatim: Cobenfy (xanomeline and trospium), CMS Medicare Part D Quarterly 2025 (Q1 to Q4), dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15, both presentations summed: Cobenfy $76,264,969.99 over 9,971 beneficiaries and Cobenfy Starter Pack $2,300,204.83 over 1,275, so $78,565,174.82 over 11,246 = $6,986.06 a beneficiary. Not annualised. Cobenfy is the comparator because it is the muscarinic antipsychotic emraclidine would be priced against, in the same label, adults with schizophrenia. 2025 alternatives in the same file: AbbVie's own Vraylar $10,176.39 (128,307 beneficiaries), Caplyta $9,788.05 (35,880)","a comparator, not a price Neurocrine has stated; the uptake anchor below uses the same price, so revenue at a multiple of 1.0 would track Cobenfy's own"

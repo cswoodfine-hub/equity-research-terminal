@@ -21,13 +21,14 @@ import re
 import time
 import urllib.request
 from pathlib import Path
+import contact
 
 CATALOGUE_URL = "https://data.cms.gov/data.json"
 CACHE_DIR = Path(os.getenv("ER_TOOL_CACHE",
                            Path(__file__).resolve().parent / "cache"))
 CACHE_FILE = "cms_data.json"
 MAX_AGE_S = 7 * 24 * 60 * 60
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 180
 _UUID = re.compile(r"/dataset/([0-9a-f-]{36})/")
 

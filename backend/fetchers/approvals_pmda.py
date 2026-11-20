@@ -14,13 +14,14 @@ import urllib.request
 import db
 import jp_approvals
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "jp_approvals"
 ENTITY_KEY = "pmda_approvals"
 TTL_SECONDS = 7 * 24 * 60 * 60
 LIST_URL = ("https://www.pmda.go.jp/english/review-services/reviews/approved-information/"
             "drugs/0002.html")
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 120
 
 

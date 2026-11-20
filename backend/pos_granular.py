@@ -59,6 +59,7 @@ import pathlib
 import re
 
 import engines
+import epidemiology
 import fx
 import indication_mapping
 import productivity
@@ -697,9 +698,32 @@ def modelled_mesh(conn, asset_id: int, lead_indication: int | None = None) -> li
     if not ids:
         return []
     marks = ",".join("?" * len(ids))
-    return sorted(r[0] for r in conn.execute(
+    found = {r[0] for r in conn.execute(
         f"SELECT DISTINCT mesh_id FROM indications WHERE id IN ({marks})"
-        "   AND mesh_id IS NOT NULL", ids))
+        "   AND mesh_id IS NOT NULL", ids)}
+    # A paediatric row has no MeSH concept of its own where MeSH has none, so a valued
+    # paediatric indication matched no readout at all: QMF149's only valued row is
+    # paediatric asthma and its own study read as another indication. The adult
+    # descriptor data/paediatric_indications.csv records for the row stands in.
+    bare = {r[0] for r in conn.execute(
+        f"SELECT name FROM indications WHERE id IN ({marks}) AND mesh_id IS NULL", ids)}
+    if bare:
+        found |= _adult_mesh(asset_id, bare)
+    return sorted(found)
+
+
+def _adult_mesh(asset_id: int, terms: set) -> set:
+    """adult_mesh_id of the paediatric rows naming this asset under these terms."""
+    path = indication_mapping.PAEDIATRIC_CSV
+    if not pathlib.Path(path).exists():
+        return set()
+    wanted = {t.strip().lower() for t in terms}
+    out = set()
+    with open(path, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(l for l in handle if not l.lstrip().startswith("#")):
+            if (row.get("term") or "").strip().lower() in wanted and (row.get("adult_mesh_id") or "").strip():
+                out.add(row["adult_mesh_id"].strip())
+    return out
 
 
 # The keys of a _gather result that resolve() takes; the rest are for the gate views.
@@ -741,6 +765,16 @@ def _gather(conn, asset_id: int, *, area: str | None, phase: str | None,
     # The indication the forecast is built on. A filing for any other disease must not
     # lift this line.
     lead = _lead_indication(conn, asset_id)
+    # Where the asset writes no prevalence of its own, the forecast takes the disease's
+    # from data/epidemiology.csv, and so does this cut. Read only from the asset's rows,
+    # the same obesity drug took "Chronic high prevalence" or not depending on which file
+    # its pool sat in: a fact about the disease decided by where a row was written.
+    if prevalence is None and lead is not None:
+        name = conn.execute("SELECT name FROM indications WHERE id = ?",
+                            (lead["indication_id"],)).fetchone()
+        shared = epidemiology.for_indication(name[0]) if name else None
+        if shared and shared.get("prevalence"):
+            prevalence = {"value": shared["prevalence"]}
     mesh = modelled_mesh(conn, asset_id, lead["indication_id"] if lead else None)
     return {"area": area, "phase": phase, "names": names, "also_known": also_known,
             "company_id": asset["owner_company_id"],

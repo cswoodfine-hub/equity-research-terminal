@@ -3,7 +3,9 @@
 # Marketed, anchored on the reported year and grown against the same product axis a
 # year earlier, both from the SEC financial statement data sets.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 JNJ,Caplyta,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 JNJ,Caplyta,,US,base,base_revenue,,1353,,mm USD,"a 2026 run rate, not a reported year: the first half of 2026 as reported, $631mm, and the second half at the second quarter's pace, $361mm twice. Johnson & Johnson's Q1 and Q2 2026 10-Qs (0000200406-26-000087, 0000200406-26-000153), where Caplyta sold $270mm and $361mm. Its FY2025 figure of $700mm covers only the nine months after the Intra-Cellular acquisition closed on April 2, 2025",the anchor; Caplyta added adjunctive major depressive disorder in November 2025 and schizophrenia relapse prevention in April 2026

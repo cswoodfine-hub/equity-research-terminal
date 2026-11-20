@@ -49,6 +49,7 @@ import demand_split as demand_split_module
 import filing_diff as filing_diff_module
 import consensus as consensus_module
 import forecast_note
+import pending_acquisitions
 import forecast_history as forecast_history_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
@@ -67,7 +68,10 @@ import headlines as headlines_module
 import marketmap as marketmap_module
 import labels as labels_module
 import launch_timing
+import cash_profile
 import development
+import competitors
+import forecast_board
 import disease_areas
 import call_log
 import my_portfolio
@@ -765,7 +769,41 @@ def company_forecast_verdict(ticker: str) -> dict:
     out = forecast_view_module.company_verdict(None, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    out = {**out, "pending_acquisitions": pending_acquisitions.lines_for_company(ticker)}
     return {**out, "note": forecast_note.write_company(out)}
+
+
+# Not /forecast/board, for the same reason as /forecast-verdict: /forecast/{asset_id} would
+# match first and fail to cast "board" to an int.
+@app.get("/companies/{ticker}/competitors")
+def company_competitors(ticker: str) -> dict:
+    """Whether a generic or biosimilar is on the market against each marketed product:
+    what the FDA's registers and the filers' own reports support, kept apart. A view
+    beside the valuation."""
+    conn = db.get_connection()
+    try:
+        row = conn.execute("SELECT 1 FROM companies WHERE ticker = ?",
+                           (ticker.upper(),)).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+        return {"ticker": ticker.upper(), "products": competitors.record(conn, ticker)}
+    finally:
+        conn.close()
+
+
+@app.get("/companies/{ticker}/forecast-board")
+def company_forecast_board(ticker: str) -> dict:
+    """The company and its assets as yearly series the Forecast tab switches between:
+    revenue, profit, cash flow, each cost line and capex, reported years joined to the
+    forecast. Adds up what the verdict already holds; it values nothing."""
+    verdict = forecast_view_module.company_verdict(None, ticker)
+    if verdict is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    conn = db.get_connection()
+    try:
+        return forecast_board.build(conn, None, ticker, verdict)
+    finally:
+        conn.close()
 
 
 @app.get("/companies/{ticker}/launch-timing")
@@ -912,6 +950,8 @@ def forecast_verdict(ticker: str, asset_id: int, scenario: str = "base") -> dict
     if out is None:
         raise HTTPException(status_code=404,
                             detail=f"no asset {asset_id} for {ticker}")
+    out = {**out, "pending_acquisitions":
+           pending_acquisitions.lines_for_asset(ticker, out.get("name"))}
     return {**out, "note": forecast_note.write(out)}
 
 
@@ -921,6 +961,17 @@ def forecast_development(ticker: str, asset_id: int) -> dict:
     ladder to approval after later trial costs. A refusal comes back as {ok: false,
     reason, why}. A view beside the value: it moves no rNPV, sum of the parts or rating."""
     out = development.for_asset(None, ticker, asset_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
+    return out
+
+
+@app.get("/companies/{ticker}/forecast/{asset_id}/cash-profile")
+def forecast_cash_profile(ticker: str, asset_id: int, scenario: str = "base") -> dict:
+    """The asset's cash flows by calendar year beside the cost still to reach the market:
+    the cumulative curve, the internal rate of return and the payback year, if it
+    succeeds and weighted by its chances. A view beside the value: it moves no rNPV."""
+    out = cash_profile.for_asset(None, ticker, asset_id, scenario)
     if out is None:
         raise HTTPException(status_code=404, detail=f"no asset {asset_id} for {ticker}")
     return out

@@ -7,7 +7,9 @@
 #
 # Ratios and discount rate are Sanofi's own, from sny_altuviiio.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 SNY,Aldurazyme,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 SNY,Aldurazyme,,US,base,base_revenue,,305.0,,mm EUR,"Sanofi FY2025 net sales, from the same table (0001628280-26-008403)",the anchor

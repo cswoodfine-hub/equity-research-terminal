@@ -62,13 +62,14 @@ from pathlib import Path
 import db
 import ndc
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "rxnav_codes"
 ENTITY_KEY = "rxnav"
 TTL_SECONDS = 30 * 24 * 60 * 60          # RxNorm publishes monthly
 RUN_BUDGET_S = 900
 HOST = "rxnav.nlm.nih.gov"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 _MIN_INTERVAL_S = 0.1                   # 10 requests a second at most; NLM allows 20
 _ATTEMPTS = 3

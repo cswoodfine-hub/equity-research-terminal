@@ -13,7 +13,9 @@
 # company half. Its source text describes the Merck collaboration on mRNA-4157; it is carried here because Moderna's
 # own FY2025 lines leave a margin below nil (total operating expenses of $5,018mm on revenue of $1,944mm, an
 # operating loss of $3,074mm, 10-K 0001682852-26-000033) and Merck, a vaccine seller, is the comparator the book holds.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRNA,mRNA-1403,,US,base,therapy_mode,,,one_time,,"NCT06592794 (Nova 301): one intramuscular dose of mRNA-1403 or placebo, efficacy against norovirus acute gastroenteritis from Day 15 to 9 months after the last participant is dosed (registry, read 2026-10-28)","a single dose given once; no revaccination schedule is stated, so a person is vaccinated once and leaves the untreated pool"
 MRNA,mRNA-1403,,US,base,list_price_per_patient,,0.00030691,,mm USD per dose,"analogue: mRESVIA, Moderna's own single-dose vaccine for adults 60 and over, CMS Medicare Part D 2024 (drug_demand): $10,255,996.13 over 33,417 beneficiaries = $306.91 a beneficiary, at 33,540 claims, one dose each","a comparator, not a price mRNA-1403 has. The other RSV vaccines sit within 7% in the same file (Arexvy $274.50, Abrysvo $288.43), and the CDC Adult Vaccine Price List effective 2026-10-01 puts mRESVIA (NDC 80777-0345-61) at $319.00 private sector"

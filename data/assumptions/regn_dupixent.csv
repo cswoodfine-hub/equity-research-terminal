@@ -5,7 +5,9 @@
 # line with no loss of exclusivity. It is carried here on Dupixent's own growth and
 # exclusivity, so the collaboration ends where the drug does.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 REGN,Dupixent,,US,base,therapy_mode,,,marketed,,booked collaboration revenue,"Regeneron's share of the Sanofi collaboration, which is Dupixent and Kevzara, modelled on Dupixent's own shape and exclusivity rather than as a line without either"
 REGN,Dupixent,,US,base,base_revenue,,6813.7,,mm USD,"Regeneron FY2025 10-K (0000872589-26-000008), Sanofi collaboration revenue table: 'Regeneron's share of collaboration profits in connection with commercialization of antibodies | 6,171.3' less '(929.7)' reimbursing Sanofi's development expenses, plus 'Reimbursement for manufacturing of commercial supplies(a) | 642.4', so $5,884.0mm as booked and $6,813.7mm before the reimbursement. The development balance was fully repaid on 30 June 2026 (Q2 2026 10-Q, 0000872589-26-000025), so the deduction does not recur","the collaboration revenue Regeneron books, not Dupixent's sales, which are Sanofi's to record"

@@ -30,12 +30,13 @@ import company_names
 import db
 import deals
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "deals_news"
 NEWS_SOURCE = "news"
 TTL_SECONDS = 12 * 60 * 60
 _TIMEOUT_S = 30
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 FEED = "https://news.google.com/rss/search"
 
 # "deal with X", or "deal for X's drug". "Deal for" with no possessive names what is bought

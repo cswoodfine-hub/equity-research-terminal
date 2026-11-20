@@ -1,0 +1,27 @@
+# PF-07252220, Pfizer's mRNA influenza vaccine. Researched 2026-11-16.
+#
+# The book does not hold it: no PFE asset matches influenza, mRNA (other than Comirnaty,
+# asset 710) or PF-0725*. And no existing route can create it:
+#   - trials_ctgov.py fetches active statuses only. The one study naming the code,
+#     NCT05788237, completed in 2023, so it never reaches the trials table.
+#   - pipeline_filing.py reads only the latest stored MD&A. Pfizer last named PF-07252220
+#     in its 10-Qs of 2024 (EDGAR full-text search: four hits, the latest the Q2 2024
+#     10-Q, 0000078003-24-000166, filed 2024-08-05); none of its 2025 or 2026 filings
+#     names it, and the pipeline update is a web PDF, not a filing.
+#   - marketed_additions.csv (curated_register.py) takes marketed products only.
+# So the row below needs a loader: a data/pipeline_additions.csv read by
+# curated_register.py, inserting an unmarketed asset with is_marketed = 0 and the source
+# kept in assets.notes, as pipeline_filing.build does for a filing-only code. Until that
+# exists this is a proposal, not a seed.
+#
+# One conflict with the book's own rule: pipeline_filing never assigns a phase, because "a
+# phase means a registered trial". Pfizer states Phase 2 and no registered Phase 2 names
+# the code. The stage column carries Pfizer's words and says whose they are; the loader
+# should not turn it into a registry phase.
+#
+# Not linked, on purpose: NCT05540522 (Pfizer Phase 3, "modified RNA vaccine against
+# influenza", completed, primary completion 2024-03-12), NCT06436703 (Phase 1/2,
+# completed 2025-02-05) and NCT05052697 (Phase 1/2) never name PF-07252220, so tying them
+# to it would be inference.
+ticker,code,generic,stage,indication,modality,source
+PFE,PF-07252220,quadrivalent modRNA influenza vaccine (qIRV),Phase 2 (Pfizer pipeline; no registered Phase 2 names the code),Influenza (adults),vaccine,"Pfizer pipeline update, snapshot as of November 3, 2026 (cdn.pfizer.com/pfizercom/product-pipeline/Q3%202026%20Pipeline%20Update_vfinal.pdf, page 13, Vaccines), the row reading PF-07252220 | Prophylactic vaccine, mRNA | Influenza (adults) | Phase 2 | New Molecular Entity. The registry's only study naming the code is NCT05788237 (Pfizer, C5401001, Phase 1, completed, primary completion 2023-09-27, results posted 2024-11-22), whose qIRV arm, 'Quadrivalent influenza modRNA vaccine', lists PF-07252220 as its other name (ClinicalTrials.gov API v2, query.intr and query.term, read 2026-11-16). Pfizer's Q2 2024 10-Q (0000078003-24-000166) listed 'PF-07252220 (quadrivalent mRNA-based vaccine)' for 'Immunization to prevent influenza' among new drug candidates in late-stage development"

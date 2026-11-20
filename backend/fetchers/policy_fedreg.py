@@ -33,12 +33,13 @@ import urllib.request
 
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "policy"
 ENTITY_KEY = "fedreg"
 TTL_SECONDS = 24 * 60 * 60
 API_URL = "https://www.federalregister.gov/api/v1/documents.json"
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 30
 
 # Everything the context route shows, and nothing it does not. subtype rather than

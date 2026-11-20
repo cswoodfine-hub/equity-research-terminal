@@ -9,8 +9,9 @@
 # convertible notes are in its note. risk_free and cost_of_debt come from FRED, erp
 # from Damodaran, beta from five years of weekly returns against the S&P 500.
 #
-# Seeds are insert-only. Editing a number here after it has loaded does nothing;
-# edit it in the terminal, where it lives.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 VKTX,VK2735,,US,base,therapy_mode,,,chronic,,dosing schedule of the programme,"continuing therapy, not a one-time treatment"
 VKTX,VK2735,,US,base,forecast_start_year,,2029,,year,"the trials themselves: both subcutaneous Phase 3 studies on the registry complete their primary endpoint on 2027-07-01, estimated (VANQUISH-1 NCT07104500, about 4,500 adults with obesity, and VANQUISH-2 NCT07104383, about 1,100 with obesity and type 2 diabetes; read on ClinicalTrials.gov 2026-10-12), after 78 weeks of treatment. Viking's Q2 2026 results release (8-K 0001193125-26-323652) has VANQUISH-1 fully enrolled by November 2025 and VANQUISH-2 in the first quarter of 2026, which agrees. A filing follows in the second half of 2027 and a first full year of revenue in 2029 at the earliest","the book's convention, the earliest Phase 3 primary completion plus two calendar years. 2027 was the scaffold's placeholder, the year after it was written, and the engine's own launch check flagged it: the earliest approval is February 2028 even on a six-month priority review. The oral formulation's Phase 3 studies complete later and do not set this year: see penetration_peak_pct"

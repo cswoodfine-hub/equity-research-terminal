@@ -1,0 +1,4 @@
+# DRAFT rows for data/trial_asset_map.csv (ticker,nct_id,asset,note). Research of 2026-11-16.
+ticker,nct_id,asset,note
+ROG,NCT06847542,Susvimo,"Sightspire, 'a 36-week Refill Exchange Regimen for the Port Delivery System With Ranibizumab': the single arm is the Port Delivery System, and the interventions list the DEVICE 'Susvimo PDS Implant'. Ranibizumab 0.5 mg intravitreal is only supplemental treatment. The study decides a refill interval for Susvimo, the same shape as Velodrome (NCT04657289), which is already pinned here."
+AZN,NCT06834932,AZD0780,"AZURE-CHINA, 'A Study to Evaluate the Efficacy, Safety, and Pharmacokinetics of AZD0780 in Participants With Dyslipidaemia': every EXPERIMENTAL arm is AZD0780, and rosuvastatin appears only as a run-in and background therapy, given in both the AZD0780 and placebo arms of Part A and Part B Cohort 2. The study landed on Crestor through the 'Rosuvastatin Dose 1' intervention name."

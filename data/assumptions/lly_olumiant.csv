@@ -14,7 +14,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Lilly's own, from lly_trulicity.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Olumiant,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product whose sales Lilly has filed
 LLY,Olumiant,,US,base,base_revenue,,957.4,,mm USD,"LLY FY2024 10-K (0000059478-25-000067, filed 2025-02-19), revenue by product: Olumiant $228.7mm U.S. and $728.7mm outside the U.S., $957.4mm in all, against $922.6mm in 2023. This is the last full year Lilly names: its FY2025 10-K (0000059478-26-000013) folds Olumiant into Other immunology ($631mm U.S., $1,053mm outside the U.S. in 2025), and none of the 2025 or 2026 quarterly results releases read for this file (8-K exhibits 0000059478-25-000129, -000202, -000251, 0000059478-26-000008, -000043, -000077) gives it a figure","the anchor, and a year older than the book's usual one. The worldwide total, as Jaypirca's is. Not the book's asset_revenue rows for Olumiant, which are Incyte's royalty on it"

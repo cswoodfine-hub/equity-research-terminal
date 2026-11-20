@@ -19,7 +19,9 @@
 # inflow with no exit. No independent peak forecast was found for an unnamed Phase 2 molecule.
 # Royalty: none found. Company-level rows are Roche's own, verbatim from rog_trontinemab.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ROG,RO7568282,,US,base,cogs_pct,,0.27058,,share of revenue,"ROG FY2025 from Roche Finance Information Tool, group financial data workbook, FY2025: cost of sales CHF 16,645mm on sales of 61,516mm. The sheet's own six components sum to it exactly","Roche does not file with the SEC, so this comes from the workbook it publishes for investors rather than from EDGAR"
 ROG,RO7568282,,US,base,rd_pct,,0.217049,,share of revenue,"ROG FY2025: research and development CHF 13,352mm on sales of 61,516mm","the IFRS charge, not the CHF 12,832mm core figure below it in the sheet, which adds back amortisation and impairment"

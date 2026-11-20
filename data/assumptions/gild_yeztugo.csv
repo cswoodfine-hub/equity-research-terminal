@@ -23,7 +23,9 @@
 # The book's catalyst title names Sunlenca, but trial_asset_map routes NCT07047716 to
 # Yeztugo (asset 137), which holds the PrEP indication row.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GILD,Yeztugo,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 GILD,Yeztugo,,US,base,base_revenue,,861.0,,mm USD,"a 2026 run rate, not a reported year: the first half of 2026 as reported, $397mm, and the second half at the second quarter's pace, $232mm twice. Gilead 10-Q for the quarter to 2026-06-30 (0000882095-26-000031), Note 2 Revenues, disaggregation table, row 'Yeztugo': three months $223mm US, $9mm rest of world, $232mm total; six months $382mm US, $16mm rest of world, $397mm total. Gilead does not report this product for a full year: its FY2025 10-K (0000882095-26-000006) folds it into 'Other HIV' ('Includes Atripla, Complera/Eviplera, ... Sunlenca, Truvada, Tybost and Yeztugo/Yeytuo')","the anchor, worldwide as Gilead books it; the US is 96% of the half. Conservative for a launch whose second half will be larger than its second quarter repeated"

@@ -459,12 +459,27 @@
 /* A study already inside the business: a decided question, so it sits at the quiet end
    beside the label's own, on the same neutral ramp. */
 .cx .u7 { background: color-mix(in oklab, var(--muted) 18%, var(--panel)); }
-.cx-ub i.u2, .cx-ub i.u4, .cx-ub i.u5, .cx-ub i.u7 { color: var(--text); }
+/* Tied to no indication: a gap in the record rather than a decided question, so it
+   takes the ramp's darkest step and sits apart from the settled reasons. */
+.cx .u8 { background: color-mix(in oklab, var(--muted) 88%, var(--panel)); }
+/* A programme the research has written to nil: the most settled reason of all, since the
+   answer is already on file, so it takes the quietest step of the neutral ramp. */
+.cx .u9 { background: color-mix(in oklab, var(--muted) 10%, var(--panel)); }
+/* Settled at nil by research, so it reads quieter than the queue it left. */
+.cx .u10 { background: color-mix(in oklab, var(--muted) 6%, var(--panel)); }
+/* Read, and worth something no free source prices: not settled and not the queue, so it
+   sits between the settled steps and the unlinked gap. */
+.cx .u11 { background: color-mix(in oklab, var(--muted) 32%, var(--panel)); }
+.cx-ub i.u2, .cx-ub i.u4, .cx-ub i.u5, .cx-ub i.u7, .cx-ub i.u9,
+.cx-ub i.u10, .cx-ub i.u11 { color: var(--text); }
 .cx-uk { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; font-size: 11px;
   color: var(--muted); }
 .cx-uk span { display: inline-flex; align-items: center; gap: 6px; }
 .cx-uk span i { width: 10px; height: 10px; display: inline-block; flex: 0 0 auto; }
 .cx-uk span b { color: var(--text); font-family: var(--font-mono); min-width: 18px; }
+/* The repeat dates: the same events as the priced ones, so the key names them without a
+   swatch, which would read as another reason the book cannot value something. */
+.cx-uk span.cx-rep { color: var(--muted); font-style: italic; }
 .cx-ugs { margin-top: 10px; }
 .cx-ug { display: grid; grid-template-columns: minmax(0, 1fr); padding: 5px 0;
   border-top: 1px solid var(--rule); font-size: 11px; }
@@ -558,6 +573,13 @@ div[role="dialog"]:has(.cx-dlg) h2 { font-family: var(--font-ui); }
   .st-key-cx_side [data-baseweb="tab-panel"] { max-height: none; overflow-y: visible; }
 }
 @media (max-width: 899.98px) {
+  .cx .cr-th, .cx .cr-row { grid-template-columns: 62px minmax(90px, 1fr) 36px 34px 300px; }
+  .cx .cr-th .c-ind, .cx .cr-row .c-ind, .cx .cr-th .c-area, .cx .cr-row .c-area,
+  .cx .cr-th .c-n, .cx .cr-row .c-n { display: none; }
+  .cx .cr-tms { grid-template-columns: minmax(0, 1fr); }
+  .cx .cr-top { flex-direction: column; gap: 6px; }
+  .cx .cr-top .h { width: auto; align-self: flex-start; }
+  .cx .cr-view .nt { display: none; }
   .cx-hd .ki-figs.cx-figs { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 8px; }
   .cx-frame .chart-mount, .cx-frame .cx-rg { overflow-x: auto; }
   .cx-frame .chart-mount > svg.cx-tl, .cx-frame .cx-rg svg.cx-rg-svg { min-width: 860px; }
@@ -620,7 +642,46 @@ div[role="dialog"]:has(.cx-dlg) h2 { font-family: var(--font-ui); }
 .cx .cr-row .c-n .mu { font-family: var(--font-ui); font-size: 10px; }
 .cx .cr-row .c-odds { font-size: 11.5px; text-align: right; white-space: nowrap; }
 .cx .cr-row .c-bar { display: flex; align-items: center; height: 100%; }
-.cx .cr-np { font-size: 11px; color: var(--muted); padding-left: 8px; white-space: nowrap; }
+.cx .cr-np { font-size: 11px; color: var(--muted); padding-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* What moves the price stands; the rest recedes. A readout on no priced gate is a
+   smaller, quieter row; a priced one carries a marker sized by its move as a share of
+   the price, and the two largest sizes print that share beside the drug. */
+.cx .cr-row .c-drug { display: flex; align-items: center; gap: 6px; }
+.cx .cr-row .c-drug b { font-weight: inherit; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cx .cr-row.np { min-height: 21px; font-size: 11px; color: var(--muted); }
+.cx .cr-row.np .c-drug { color: var(--muted); font-weight: 400; }
+.cx .cr-row.np .c-ind, .cx .cr-row.np .c-date, .cx .cr-row.np .c-n { font-size: 10.5px; }
+.cx .cr-row.np .mk-ph { opacity: 0.55; }
+.cx .cr-row.pr { box-shadow: inset 2px 0 0 var(--rule-strong); }
+.cx .cr-row.t-notable { box-shadow: inset 3px 0 0 var(--muted); }
+.cx .cr-row.t-major { box-shadow: inset 4px 0 0 var(--text); background: var(--panel); min-height: 32px; }
+.cx .cr-row.t-major .c-drug { font-size: 13.5px; font-weight: 700; }
+.cx .cr-row.t-notable .c-drug { font-weight: 650; }
+.cx .cr-tg { flex: 0 0 auto; font-style: normal; font-size: 10px; line-height: 15px; padding: 0 5px; border-radius: var(--radius-small); border: 1px solid var(--rule-strong); color: var(--muted); }
+.cx .cr-tg.major { color: var(--ground); background: var(--text); border-color: var(--text); font-weight: 700; }
+.cx .cr-view { display: flex; align-items: center; gap: 6px; padding: 0 6px 8px; }
+.cx .cr-vw { display: inline-flex; align-items: center; gap: 6px; height: 24px; box-sizing: border-box; padding: 0 10px; font-size: 11.5px; color: var(--text); text-decoration: none; border: 1px solid var(--rule-strong); border-radius: var(--radius-small); background: var(--ground); white-space: nowrap; }
+.cx .cr-vw b { font-weight: 500; font-size: 10.5px; color: var(--muted); }
+.cx .cr-vw:hover { border-color: var(--up); }
+.cx .cr-vw.on { background: var(--active-wash); border-color: var(--up); color: var(--up); font-weight: 600; }
+.cx .cr-vw.on b { color: var(--up); }
+.cx .cr-vw:focus-visible { outline: 1px solid var(--focus); outline-offset: -1px; }
+.cx .cr-view .nt { margin-left: auto; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.cx.cr-page[data-on="all"] .cr-view .nt { visibility: hidden; }
+.cx .cr-top { display: flex; align-items: stretch; gap: 12px; padding: 8px 0 2px; border-top: 1px solid var(--rule); margin-top: 8px; }
+.cx .cr-top .h { flex: 0 0 auto; align-self: center; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); width: 62px; line-height: 1.25; }
+.cx .cr-tms { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cx .cr-tm { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; column-gap: 8px; align-items: baseline; padding: 6px 10px; border: 1px solid var(--rule-strong); border-left: 3px solid var(--muted); border-radius: var(--radius-small); background: var(--panel); color: var(--text); text-decoration: none; cursor: pointer; }
+.cx .cr-tm.major { border-left-color: var(--text); }
+.cx .cr-tm:hover { border-color: var(--up); }
+.cx .cr-tm .d { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx .cr-tm .w { font-size: 11px; color: var(--muted); white-space: nowrap; text-align: right; }
+.cx .cr-tm .w i { font-style: normal; font-size: 9.5px; margin-right: 2px; }
+.cx .cr-tm .v { display: inline-flex; gap: 10px; font-size: 12px; white-space: nowrap; }
+.cx .cr-tm .v b { font-weight: 600; }
+.cx .cr-tm .sh { font-size: 10.5px; color: var(--muted); white-space: nowrap; text-align: right; }
+.cx .ca-foot .k-mj { background: var(--text); width: 4px; height: 11px; }
+.cx .ca-foot .k-nt { background: var(--muted); width: 3px; height: 11px; }
 .cx .cr-lt { font-size: 11px; color: var(--muted); padding-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cx .cr-lt b { font-weight: 600; }
 .cx .cr-row.lt { opacity: 0.85; }

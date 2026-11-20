@@ -1247,9 +1247,12 @@ def test_the_sum_of_the_parts_adds_up_and_rolls_forward(tmp_path):
     import forecast_note
     note = forecast_note.write_company(v)
     assert note["headline"].startswith("On the model, TST's equity is worth $")
-    assert ("The single product already on the market supplies 83% of that value and "
+    # The candidate is a one-time course with no cost per patient, so it is costed at the
+    # company's 20% cost of sales: a 30% margin rather than the 50% it had when the
+    # missing cost read as nil, and $0.49 rather than $0.81.
+    assert ("The single product already on the market supplies 85% of that value and "
             "net cash 8%.") in note["headline"]
-    assert ("The single candidate in development adds $0.81 once weighted by its chance "
+    assert ("The single candidate in development adds $0.49 once weighted by its chance "
             "of approval.") in note["headline"]
     body = " ".join(note["body"])
     assert "risk-adjusted value" in body and "cost of equity" in body
@@ -1548,3 +1551,16 @@ def test_the_terminal_path_is_erode_run_on_past_the_horizon(last, loe, late, lat
     path = F.terminal_path(0.0, last, loe, False, 0.6, 0.35, late, late_from, years)
     for y in range(last + 1, last + 30):
         assert path[y] == pytest.approx(flat[years.index(y)] / at_end, rel=1e-12), y
+
+
+def test_a_one_time_course_with_no_cost_per_patient_is_costed_at_cost_of_sales():
+    """Thirteen seeds (mRNA-1403, Menquadfi, Fluzone, bepirovirsen among them) ran one_time
+    with no cogs_per_patient and were costed at nil, a 100% gross margin."""
+    import forecast
+    rows = forecast.fcff([100.0], [10.0], {"cogs_pct": 0.25, "sga_pct": 0.0, "rd_pct": 0.0,
+                                         "tax_rate": 0.0}, "one_time")
+    assert rows[0]["cogs"] == pytest.approx(25.0)
+    rows = forecast.fcff([100.0], [10.0], {"cogs_pct": 0.25, "cogs_per_patient": 0.5,
+                                         "sga_pct": 0.0, "rd_pct": 0.0, "tax_rate": 0.0},
+                        "one_time")
+    assert rows[0]["cogs"] == pytest.approx(5.0)

@@ -7,7 +7,9 @@
 # last product split (FY2023) moved by Medicaid; exclusivity the composition of matter patent RE47,691 to 2028-06-28.
 # Nippon Shinyaku's Viltepso (viltolarsen) sells into the same exon 53 patients and is not in this book.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 SRPT,Vyondys 53,,US,base,therapy_mode,,,marketed,,"approved and selling under accelerated approval (10-Q 0001193125-26-335003, Note 1)","no patient funnel is rebuilt for a product whose sales are filed; a weekly infusion, so revenue is the treated stock"
 SRPT,Vyondys 53,,US,base,base_revenue,,122.277,,mm USD,"derived from the filings and measured: Sarepta has printed only the PMO group since FY2024, $965.565mm in FY2025 (10-K 0001193125-26-084144, Note 7). Its FY2023 annual report (10-K 0000950170-24-022036) last printed each product, VYONDYS 53 $130.189mm. Each product is grown by its own Medicaid reimbursement from 2023 to 2025 (CMS State Drug Utilization Data, national rows, Vyondys 53 (NDC 60923-0465) $60.166mm to $56.031mm, -6.87%; datasets d890d3a9-6b00-43fd-8b31-fcba4c8e2909 and 158a1baa-5506-400a-8ec3-97756f0b0536), which puts the three at $957.4mm, 0.85% under the filed group total, and the three are scaled to it","Medicaid only, before rebates: it gives each product's direction, not its level. Read as shares outright, 2025 Medicaid would give Exondys 51.7%, Amondys 37.0% and Vyondys 11.3% ($499.6mm, $356.9mm, $109.0mm) against 55.3%, 32.1% and 12.7% here; the filed 2023 split is the anchor because Medicaid's payer mix need not be the whole book's. Includes rest-of-world sales (FY2025 $165.2mm across the three, early access programmes and approvals in Israel, Libya, Kuwait and Georgia), which the filer does not split by product"

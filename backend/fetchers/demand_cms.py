@@ -20,11 +20,12 @@ import urllib.request
 import cms
 import db
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "demand"
 ENTITY_KEY = "cms"
 TTL_SECONDS = 7 * 24 * 60 * 60          # CMS publishes yearly; refresh weekly
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 90
 _PAGE = 5000
 

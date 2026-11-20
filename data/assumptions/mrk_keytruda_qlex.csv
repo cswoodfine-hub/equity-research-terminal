@@ -3,7 +3,9 @@
 # and keeps its own US patent to 2043 where Keytruda's compound patent ends in 2028.
 # The share it holds is the Q2 2026 share, a floor: no filing states how far conversion goes.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,Keytruda Qlex,,US,base,cogs_pct,,0.252,,share of revenue,"MRK FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ
 MRK,Keytruda Qlex,,US,base,sga_pct,,0.1651,,share of revenue,"MRK FY2025 10-K, computed from the filed lines",company-level rate; edit where the product's economics differ

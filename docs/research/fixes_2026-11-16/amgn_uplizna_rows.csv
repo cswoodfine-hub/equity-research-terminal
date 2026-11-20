@@ -1,0 +1,24 @@
+# Draft rows for data/assumptions/amgn_uplizna.csv, researched 2026-11-16. Not applied.
+#
+# Not sourced, so left out: revenue_ceiling_musd. The only product-level peak either
+# company ever filed is Horizon's: "Horizon estimate of UPLIZNA peak global annual net
+# sales of >$1B. Assumes three global indications in neuromyelitis optica spectrum
+# disorder (NMOSD), myasthenia gravis (MG) and immunoglobulin G4-related disease
+# (IgG4-RD)" (J.P. Morgan presentation furnished as Exhibit 99.1 to 8-K
+# 0001193125-22-005114, filed 2022-01-10, slides 22 to 23; repeated in the 2022 proxy,
+# DEF 14A 0001193125-22-078281, filed 2022-03-17). It is a floor with no year, it was
+# last restated in 2022 (Horizon's Q2 2022 release, 8-K 0001193125-22-210537, keeps only
+# the three-product aggregate of "greater than $5.5 billion"), and Uplizna has already
+# passed it: 1,048mm in the first nine months of 2026 and 451mm in the third quarter
+# alone. As a ceiling it would sit below the run rate the engine floors to. Amgen has
+# filed no Uplizna peak: EDGAR full-text search of CIK 318154 for UPLIZNA with "peak",
+# "peak sales", "peak annual", "sales potential", "multi-billion" returns nothing, and
+# "$1 billion" hits only the blockbuster count ("annualizing at more than $1 billion").
+# Horizon's merger proxy (DEFM14A 0001193125-23-012549) gives projections for the whole
+# company only. A ceiling needs an independent forecast a reader can open.
+#
+# The growth row below refreshes the run rate to the third quarter. It raises the rate,
+# so with no ceiling the same five-year fade carries the line to roughly $10.3bn in 2030
+# against about $5.6bn today. Apply it only with a ceiling, or with that consequence in view.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+AMGN,Uplizna,,US,base,revenue_growth_pct,,1.288550,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 655mm: the first nine months of 2026 as reported, 1,048mm (U.S. 915, ROW 133), and the fourth quarter at the third quarter's pace, 451mm (U.S. 352, ROW 99), 1,499mm. Amgen 10-Q for the quarter to 2026-09-30 (0000318154-26-000155, filed 2026-11-04), MD&A, UPLIZNA sales by geographic region, 'Total UPLIZNA $ 451 $ 155 * $ 1,048 $ 422'; the same 451mm in the third-quarter release furnished on 8-K 0000318154-26-000153 (filed 2026-11-03). 1,499 / 655 - 1 = 1.288550","replaces 0.934351, struck on the first half (597mm). Amgen puts the third-quarter rise down to volume: 'primarily driven by volume growth' (10-Q). Read the ROW leg with care: 99mm in the third quarter against 34mm across the whole first half, so carrying it forward may overstate. UNCAPPED: no published product peak bounds this rate (see the comment above)"

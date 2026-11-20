@@ -13,7 +13,9 @@
 # and SAR447537 together on that pool. Not modelled: untreated diagnosed patients with liver disease only (Part B),
 # ex-US, and the up to $15.0mm of milestones owed under the 2024 settlement.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BEAM,BEAM-302,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time. BEAM-302 is 'designed to offer a one-time treatment' and the registrational cohort takes the 60 mg single dose (Q2 2026 10-Q 0001193125-26-331541)",chosen over one_time because one_time needs a cost of goods per patient and no Beam filing gives one; the method of ntla_lonvo_z.csv
 BEAM,BEAM-302,,US,base,discontinuation_pct,,1.0,,share stopping a year,BEAM-302 is given once at the selected 60 mg dose (Q2 2026 10-Q 0001193125-26-331541),nobody carries into the next year. The multi-dose cohort (2 x 60 mg) is not the registrational regimen

@@ -17,7 +17,9 @@
 #
 # Company half: Alnylam's own FY2025 filed lines, the year it turned a pre-tax profit; no Alnylam seed exists to copy from.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ALNY,Nucresiran,,US,base,therapy_mode,,,chronic,,"Alnylam FY2025 10-K (0001628280-26-007497): nucresiran is an RNAi therapeutic for ATTR amyloidosis with less frequent dosing than AMVUTTRA, which is given every three months for as long as it works; TRITON-PN (NCT07223203) compares it with vutrisiran",continued therapy for a progressive disease; discontinuation_pct carries who stops
 ALNY,Nucresiran,,US,base,list_price_per_patient,,0.379824,,mm USD per patient-year,"analogue: AMVUTTRA (vutrisiran), CMS Medicare Part B 2024 (drug_demand): $229,033,878.80 over 603 beneficiaries = $379,824.01 a beneficiary. 2024 is the last year AMVUTTRA was labelled for polyneuropathy alone (cardiomyopathy approved March 2025, 10-K 0001628280-26-007497), so the figure is the price in this population. Alnylam reports in USD (companies table)","a comparator, not a price Alnylam has stated for nucresiran. Scale: $4,788 a mg on the same file, and 100 mg a labelled year (25 mg every three months), about $478,800 a labelled year at the CMS rate. Alnylam may price nucresiran at parity to move patients across"

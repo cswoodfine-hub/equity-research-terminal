@@ -16,7 +16,9 @@
 # Ownership: Praxis owns the relutrigine patent families and its filings list no licence on it; the RogCon and Ionis
 # agreements cover antisense oligonucleotides for SCN2A, which is elsunersen (FY2025 10-K, License Agreements).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PRAX,relutrigine,,US,base,therapy_mode,,,chronic,,"Praxis 8-K exhibit 99.2 (0001689548-26-000082), August 2026 corporate presentation, slide 17: relutrigine is a small molecule given by 'Once daily dosing', 'Liquid formulation - oral or G/J tube administration', with 'No titration required'; EMBOLD (NCT05818553) continues it in an open-label extension","a daily anti-seizure medicine for as long as it works. discontinuation_pct carries who stops"
 PRAX,relutrigine,,US,base,list_price_per_patient,,0.37,,mm USD per patient-year,"reused from vrtx_vx_670.csv: Skyclarys (omaveloxolone), a wholesale acquisition cost of $370,000 a year at its FDA approval (Drug Discovery & Development, 'Reata sets $370,000 annual cost for new nerve disorder drug', 2023-03-03), the first and only approved therapy for Friedreich ataxia (Biogen FY2025 10-K, 0000875045-26-000013). Praxis names Skyclarys, Evrysdi and Sephience as the commercial pricing analogues for relutrigine (8-K exhibit 99.2, 0001689548-26-000082, slide 6, 'Pricing for Recent Approvals Reflects Significant Value to Patients')","a comparator, not relutrigine's price, which is not published before approval. The uptake anchor converts Skyclarys revenue to patients at this same net, so the level cancels: what transfers is Skyclarys's US revenue per eligible patient, $69,022 a year"

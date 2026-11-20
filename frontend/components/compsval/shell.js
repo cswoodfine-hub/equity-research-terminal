@@ -76,6 +76,7 @@ const FULL_MOUNTS = [
   {id: "compare", mod: "scorecard", fn: "mountCompare", slot: "compare", section: "Compare"},
   {id: "charts", mod: "charts", fn: "mountCharts", slot: "charts", section: "Peer position"},
   {id: "table", mod: "table", fn: "mountTable", slot: "table", section: "Comparable companies table"},
+  {id: "figures", mod: "figures", fn: "mountFigures", slot: "figures", section: "Comparable companies figures"},
   {id: "peers", mod: "panels", fn: "mountPeerPanel", slot: "peers", section: "Peer selection"},
   {id: "method", mod: "panels", fn: "mountMethod", slot: "method", section: "Methodology"},
   {id: "detail", mod: "panels", fn: "mountDetail", slot: "detail", section: "Side panel"},
@@ -85,12 +86,16 @@ const BRIDGE_MOUNTS = [
   {id: "bridgeChart", mod: "charts", fn: "mountBridgeChart", slot: "bridgeChart", section: "Peer-multiple value chart"},
 ];
 let MOUNTS = FULL_MOUNTS;
-const MODULE_FILES = {table: "./table.js", charts: "./charts.js", panels: "./panels.js", scorecard: "./scorecard.js"};
+const MODULE_FILES = {table: "./table.js", charts: "./charts.js", panels: "./panels.js", scorecard: "./scorecard.js",
+  figures: "./figures.js"};
 /** Revision 4 (5.2): the slots each view shows. The Scorecard view mounts four, the Table view
  * six (its scope line is the shell's own row). */
 export const VIEW_SLOTS = {
   scorecard: ["scorecard", "compare", "detail", "method"],
   table: ["scope", "table", "charts", "detail", "peers", "method"],
+  // The comparables as figures (comps-figures.md): the scope line and the peer drawer of the Table
+  // view, and no chart strip, since its one lane is every row of the first figure.
+  figures: ["scope", "figures", "detail", "peers", "method"],
 };
 export function slotsFor(view) { return (VIEW_SLOTS[view] || VIEW_SLOTS.scorecard).slice(); }
 /** Commands that act on the Table view: run from the Scorecard view, they open it first. */
@@ -706,8 +711,9 @@ function buildSkeleton() {
   slots.compare = h("div", {class: "sh-slot sh-compare"});
   slots.charts = h("div", {class: "sh-slot sh-charts", id: "sh-sec-charts", tabindex: "-1", role: "region", "aria-label": "Peer position"});
   slots.table = h("div", {class: "sh-slot sh-table", id: "sh-sec-table", tabindex: "-1"});
+  slots.figures = h("div", {class: "sh-slot sh-figures", id: "sh-sec-figures", tabindex: "-1", role: "region", "aria-label": "Comparable companies as figures"});
   footEl = h("div", {class: "sh-foot"});
-  analysisEl.append(slots.scorecard, slots.compare, slots.charts, slots.table, footEl);
+  analysisEl.append(slots.scorecard, slots.compare, slots.figures, slots.charts, slots.table, footEl);
   mainEl.append(frameStateEl, analysisEl);
 
   // Right-side surfaces, one open at a time: the company panel, the peer drawer, methodology.
@@ -763,9 +769,9 @@ function render() {
     const v = getView();
     const err = v ? v.error : null;
     // Revision 4: the scope line is the Table view's.
-    scopeRow.hidden = !!err || currentView() !== "table";
+    scopeRow.hidden = !!err || !core.COMPS_VIEWS.includes(currentView());
     renderCtx(v);
-    if (!err && currentView() === "table") renderScope(v);
+    if (!err && core.COMPS_VIEWS.includes(currentView())) renderScope(v);
     renderMain(v);
     renderSelector(v);
     renderPalette(v);
@@ -1202,7 +1208,9 @@ function renderCtx(v) {
       const label = core.SCORECARD_COPY.views[id];
       const b = h("button", {type: "button", "data-key": `view-${id}`, "aria-pressed": String(currentView() === id), text: label});
       b.addEventListener("click", () => setView(id));
-      tip(b, id === "table" ? "The comparable companies table, with its peer set, periods and basis." : "The cohort on one chart, with the ranked table beside it.", descs);
+      tip(b, id === "table" ? "The comparable companies table, with its peer set, periods and basis."
+        : id === "figures" ? "The comparable companies as figures: where the company sits on each measure, the peers ranked on one, and the whole set."
+          : "The cohort on one chart, with the ranked table beside it.", descs);
       viewSeg.append(b);
     }
 
@@ -1570,9 +1578,9 @@ function renderMain(v) {
   slots.detail.hidden = !state.ui.detail;
   slots.peers.hidden = !state.ui.peers || !shown.has("peers");
   slots.method.hidden = !state.ui.method;
-  for (const id of ["scorecard", "compare", "charts", "table"]) slots[id].hidden = !shown.has(id);
+  for (const id of ["scorecard", "compare", "figures", "charts", "table"]) slots[id].hidden = !shown.has(id);
   slots.compare.hidden = !shown.has("compare") || !(state.ui && state.ui.compareOpen);
-  footEl.hidden = currentView() !== "table";
+  footEl.hidden = !core.COMPS_VIEWS.includes(currentView());
   if (!footEl.hidden) renderFooter(v);
   ensureMounts();
   updateMounts(v);
@@ -1592,7 +1600,8 @@ function viewMounts() {
 function setView(value) {
   if (!state || !core.VIEWS.includes(value) || currentView() === value) return;
   dispatch({type: "SET_VIEW", value});
-  announce(value === "table" ? "Table view: the comparable companies." : "Scorecard view: the cohort on one chart.");
+  announce(value === "table" ? "Table view: the comparable companies." : value === "figures"
+    ? "Figures view: the comparable companies, drawn." : "Scorecard view: the cohort on one chart.");
 }
 /** Open the Table view at once, for a command that acts on the table or its charts. */
 function ensureTableView() {
@@ -2394,6 +2403,7 @@ function runCommand(id, opts = {}) {
     case "reload": doReload(); break;
     case "focus": setFocal(opts.ticker); break;
     case "view.scorecard": setView("scorecard"); break;
+    case "view.figures": setView("figures"); break;
     case "view.table": setView("table"); break;
     case "compare.open": openCompare(); break;
     default: break;

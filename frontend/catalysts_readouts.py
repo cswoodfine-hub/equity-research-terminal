@@ -46,6 +46,14 @@ AREA_SHORT = {"Immunology and inflammation": "Immunology", "Infectious disease":
               "Renal and hepatic": "Renal, hepatic"}
 PHASE_TAG = {"p2": "Ph2", "p3": "Ph3", "filed": "FDA"}
 GROUP_OVERDUE, GROUP_LATER = "Overdue", "Later or undated"
+# How much a priced gate matters, ranked inside the company: the gates are taken largest
+# move first, and the ones that together carry the first half of everything at stake are
+# major, the next 30% notable, the rest minor. A share of the price would leave a large
+# company with no major row at all (Lilly's largest move is 1.5% of its price), so the
+# rank is the company's own. Presentation only: it sorts rows into sizes and changes no
+# figure.
+MAJOR_CUM, NOTABLE_CUM = 0.5, 0.8
+TOP_MOVES = 3
 
 REASON_SHORT = {
     "no_gate_marketed": "marketed, label work",
@@ -57,6 +65,10 @@ REASON_SHORT = {
     "already_approved": "the label already covers it",
     "needs_layer": "an expansion with no pool on file",
     "in_the_base": "already in the business sold to",
+    "no_indication_link": "tied to no indication",
+    "programme_stopped": "a programme written off",
+    "settled_nil": "read, and it decides nothing",
+    "no_free_data": "read; no free source prices it",
 }
 REASON_LONG = {
     "no_gate_marketed": "A marketed line: the readout is label work, outside the gate model.",
@@ -68,6 +80,10 @@ REASON_LONG = {
     "already_approved": "The label already covers this indication, so the approval is in the reported revenue.",
     "needs_layer": "An expansion the label does not cover, with no pool on file to value it.",
     "in_the_base": "A study in the pool the product is already sold to: it moves share rather than patients, which only stated legs price.",
+    "no_indication_link": "A study the book cannot tie to one of the asset's indications, so there is nothing to value it against.",
+    "programme_stopped": "A readout in an indication the research has already written to nil, with the source on its own pos row.",
+    "settled_nil": "A readout inside the business already sold to that research has read against the label and the registry record and found cannot move the claim, the guideline or the payer position. Not the same as one nobody has looked at, which reads in_the_base.",
+    "no_free_data": "A readout research has read and found would move the value, but the figure that would price it (a company peak, a pool, a price or a launch date) is in no free source. Worth something, and left unpriced rather than estimated.",
 }
 PANES = ("Legs and odds", "Cost to reach", "Studies and dates", "Market and evidence")
 MORE_TITLES = {"cal": "Calendar, 24 months", "slip": "Date slips", "loe": "Exclusivity",
@@ -386,6 +402,70 @@ def header_html(p, t) -> str:
 
 
 # -------------------------------------------------------------------------- the list
+def move_size(g):
+    """The larger of a gate's two moves, dollars a share, or None where neither is on file."""
+    vals = [v for v in (g.get("gain"), g.get("risk")) if v is not None]
+    return max(vals) if vals else None
+
+
+def _priced_by_size(rows) -> list:
+    """The priced gates within 24 months that have a move on file, largest move first."""
+    priced = [r for r in rows if r["gate"] is not None and not r["later"]
+              and move_size(r["gate"]) is not None]
+    priced.sort(key=lambda r: (-move_size(r["gate"]), r["sort"], r["drug"].lower()))
+    return priced
+
+
+def tiers(rows) -> dict:
+    """{gate's asset id: ("major" | "notable" | "minor", rank, of how many)}, ranked inside
+    the company. A gate is major while the larger moves before it carry less than half of
+    the summed moves, so the largest is always major; notable to 80%."""
+    priced = _priced_by_size(rows)
+    total = sum(move_size(r["gate"]) for r in priced)
+    out, run = {}, 0.0
+    for rank, r in enumerate(priced, 1):
+        name = ("major" if run < MAJOR_CUM * total else
+                "notable" if run < NOTABLE_CUM * total else "minor")
+        out[r["gate"]["asset_id"]] = (name, rank, len(priced))
+        run += move_size(r["gate"])
+    return out
+
+
+def share_of_price(g, close):
+    """The larger of a gate's two moves as a share of the price, or None."""
+    size = move_size(g) if g is not None else None
+    return size / close if size is not None and close else None
+
+
+def top_moves(rows, close, n=TOP_MOVES) -> list:
+    """The priced gates within 24 months with the largest moves, largest first."""
+    return _priced_by_size(rows)[:n]
+
+
+def top_html(rows, close) -> str:
+    """A strip under the header: the few readouts that carry most of the value, each a
+    click to its card."""
+    top = top_moves(rows, close)
+    if not top:
+        return ""
+    cells, ranked = [], tiers(rows)
+    for r in top:
+        g = r["gate"]
+        name = ranked.get(g["asset_id"], (None,))[0]
+        share = share_of_price(g, close)
+        of = f'<span class="sh m">{pct(share, 1)} of price</span>' if share is not None else ""
+        gain = (f'<b class="up-t m">{_sgn_usd(g["gain"])}</b>' if g["gain"] is not None
+                else f'<span class="mu">{NO_DATA}</span>')
+        risk = (f'<b class="dn-t m">{_sgn_usd(-g["risk"])}</b>' if g["risk"] is not None
+                else f'<span class="mu">{NO_DATA}</span>')
+        cells.append(
+            f'<a class="cr-tm {name or ""}" data-gate="{g["asset_id"]}" title="{esc(_gate_tip(g))}">'
+            f'<span class="d" title="{esc(r["drug"])}">{esc(r["drug"])}</span>'
+            f'<span class="w m">{r["when"]}</span><span class="v">{gain}{risk}</span>{of}</a>')
+    return (f'<div class="cr-top"><span class="h">Biggest moves</span>'
+            f'<div class="cr-tms">{"".join(cells)}</div></div>')
+
+
 def _row_tip(r) -> str:
     if r["gate"] is not None:
         return _gate_tip(r["gate"])
@@ -398,7 +478,9 @@ def _status(r, sc) -> tuple:
     """(odds cell, bar cell) of a row."""
     g = r["gate"]
     if g is None:
-        return "", '<span class="cr-np">no priced gate</span>'
+        why = REASON_SHORT.get(_reason_key(r["event"] or {}))
+        tail = f' <span class="w">· {esc(why)}</span>' if why else ""
+        return "", f'<span class="cr-np">no priced gate{tail}</span>'
     odds = CV._num(g.get("p_gate"))
     oc = (f'<span class="m">{pct(odds)}</span>' if odds is not None
           else f'<span class="mu" title="{NO_DATA}">n/a</span>')
@@ -412,7 +494,18 @@ def _status(r, sc) -> tuple:
 def row_html(r, sc) -> str:
     g = r["gate"]
     hit = f'data-gate="{g["asset_id"]}"' if g is not None else f'data-ev="{esc(r["id"])}"'
-    cls = "cr-row" + (" pr" if g is not None and not r["later"] else "") + (" lt" if r["later"] else "")
+    name, rank, of = (sc.get("tiers") or {}).get(g["asset_id"] if g is not None else None,
+                                                 (None, None, None))
+    share = share_of_price(g, sc.get("close"))
+    cls = ("cr-row" + (" pr" if g is not None and not r["later"] else "")
+           + (" lt" if r["later"] else "") + (" np" if g is None else "")
+           + (f" t-{name}" if name and not r["later"] else ""))
+    tag = ""
+    if name in ("major", "notable") and not r["later"]:
+        said = f", {pct(share, 1)} of the share price" if share is not None else ""
+        shown = pct(share, 1) if share is not None else CV.ordinal(rank)
+        tag = (f'<i class="cr-tg {name} m" title="{name.capitalize()}: {CV.ordinal(rank)} largest move '
+               f'of {of} priced readouts{said}">{shown}</i>')
     n = r["n"]
     pts = f'{n:,}' if isinstance(n, (int, float)) and n else f'<span class="mu">{NO_DATA}</span>'
     ind = (f'<span class="c-ind" title="{esc(r["ind"])}">{esc(r["ind"])}</span>' if r["ind"]
@@ -422,7 +515,7 @@ def row_html(r, sc) -> str:
           else f'<span class="mu">{NO_DATA}</span>')
     return (f'<div class="{cls}" {hit} data-area="{esc(r["area"])}" title="{esc(_row_tip(r))}">'
             f'<span class="c-date m" title="{esc(r["when_tip"])}">{r["when"]}</span>'
-            f'<span class="c-drug" title="{esc(r["drug"])}">{esc(r["drug"])}</span>'
+            f'<span class="c-drug" title="{esc(r["drug"])}"><b>{esc(r["drug"])}</b>{tag}</span>'
             f'<span class="c-ph">{ph}</span>{ind}'
             f'<span class="c-area"><em title="{esc(r["area"])}">{esc(area_tag(r["area"]) if r["area"] != NO_AREA else "no area")}</em></span>'
             f'<span class="c-n m">{pts}</span><span class="c-odds">{odds}</span>'
@@ -461,6 +554,19 @@ def _group_head(group, rows) -> str:
             f'{sums}</div>')
 
 
+def view_html(rows, t) -> str:
+    """The switch over the list: the readouts that move the price, or every readout."""
+    n_all = len(rows)
+    n_priced = sum(1 for r in rows if r["gate"] is not None)
+    if not n_priced or n_priced == n_all:
+        return ""
+    return (f'<div class="cr-view"><a class="cr-vw" data-vw="priced" title="Only the readouts '
+            f'that decide a priced gate">Moves the price <b class="m">{n_priced}</b></a>'
+            f'<a class="cr-vw" data-vw="all" title="Every dated readout, priced or not">'
+            f'All readouts <b class="m">{n_all}</b></a>'
+            f'<span class="nt">{n_all - n_priced} more read out with no price move</span></div>')
+
+
 def list_html(rows, sc, t) -> str:
     head = ('<div class="cr-th"><span class="c-date">Date</span><span class="c-drug">Drug</span>'
             '<span class="c-ph">Phase</span><span class="c-ind">Indication</span>'
@@ -481,10 +587,14 @@ def list_html(rows, sc, t) -> str:
     if not rows:
         body.append('<div class="cx-empty cr-none">No dated readout on file for the next 24 months.</div>')
     foot = ('<div class="ca-foot cr-foot"><span class="key"><i class="k-up"></i>a pass adds</span>'
+            f'<span class="key"><i class="k-mj"></i>major, the largest moves, together '
+            f'{pct(MAJOR_CUM)} of what is at stake</span>'
+            f'<span class="key"><i class="k-nt"></i>notable, the next {pct(NOTABLE_CUM - MAJOR_CUM)}</span>'
             '<span class="key"><i class="k-dn"></i>a miss takes</span>'
             '<span class="key"><i class="k-hd"></i>held while other Phase 3s run</span>'
             f'<span class="nt">{esc(footnote(t))}</span></div>')
-    return (f'<div class="cr-list">{head}<div class="cr-rows">{"".join(body)}</div></div>{foot}')
+    return (f'<div class="cr-list">{view_html(rows, t)}{head}'
+            f'<div class="cr-rows">{"".join(body)}</div></div>{foot}')
 
 
 def footnote(t) -> str:
@@ -588,7 +698,11 @@ def page_html(p) -> str:
     rows = readouts(p)
     sc = scale(rows)
     t = totals(rows, p)
-    return (f'<div class="cx ca-page cr-page">{HATCH}{header_html(p, t)}'
+    sc["close"] = t["close"]
+    sc["tiers"] = tiers(rows)
+    view = "priced" if any(r["gate"] is not None for r in rows) else "all"
+    return (f'<div class="cx ca-page cr-page" data-view="{view}">{HATCH}{header_html(p, t)}'
+            f'{top_html(rows, t["close"])}'
             f'<div class="ca-body"><div class="ca-main">{list_html(rows, sc, t)}</div>'
             f'<div class="ca-rail">{chips_html(rows)}{index_html(p, rows)}</div></div></div>')
 

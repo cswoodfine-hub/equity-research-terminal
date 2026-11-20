@@ -1,0 +1,20 @@
+Draft change to AFFILIATE_SPONSORS in backend/fetchers/approvals_openfda.py. Researched 2026-11-16.
+Replace the existing line  "LLY": ["IMCLONE"],  with:
+
+    # Jaypirca (NDA216059) is filed under Loxo Oncology, which Lilly bought in 2019 (FY2025
+    # 10-K, 0000059478-26-000013: "Mr. Van Naarden joined Lilly in 2019 when the company
+    # acquired Loxo Oncology, Inc."). openFDA holds one application for the sponsor,
+    # NDA216059 JAYPIRCA (pirtobrutinib), checked 2026-11-16, so the whole portfolio is
+    # Lilly's. Loxo's other approvals are filed elsewhere: Retevmo under Eli Lilly, and
+    # Vitrakvi under Bayer, which licensed it, so neither is reached through this phrase.
+    "LLY": ["IMCLONE", "LOXO ONCOL"],
+
+Evidence
+- openFDA drugsfda, products.brand_name:"JAYPIRCA": NDA216059, sponsor_name "LOXO ONCOL", ORIG approved 2023-01-27, openfda.manufacturer_name "Eli Lilly and Company". Meta last_updated 2026-11-13.
+- openFDA drugsfda, sponsor_name:"LOXO ONCOL" (and sponsor_name:LOXO*): total 1, NDA216059 JAYPIRCA, active ingredient PIRTOBRUTINIB. Safe by the comment's own test.
+- Retevmo: NDA213246 and NDA218160, sponsor "ELI LILLY AND CO". Vitrakvi: NDA210861 "BAYER HLTHCARE", NDA211710 "BAYER HEALTHCARE".
+- Lilly FY2025 10-K development table: "Pirtobrutinib (Jaypirca) Chronic lymphocytic leukemia Approved"; patent table: Jaypirca compound patent U.S. 2037.
+
+Worth knowing before the change
+- The manufacturer route already returns NDA216059 today: openfda.manufacturer_name:("Eli Lilly and Company" "ELI LILLY") gives 36 applications and NDA216059 is one of them. The book's 36 LLY openFDA approval rows (latest fetched 2026-11-08 13:19) are exactly that set less NDA216059. Why the 2026-11-08 fetch missed it is not established here; the openFDA harmonised block that carries manufacturer_name can be absent on a given release, and the sponsor phrase does not depend on it, so the entry is the durable route either way.
+- The book already holds asset 2448, LLY, generic "Pirtobrutinib", no brand. lly_jaypirca.csv is keyed "Jaypirca", so it loads only once an asset carries that brand. Check after the next approvals run that the marketed Jaypirca row and the derived Pirtobrutinib row fold into one (asset_merge.find_duplicates), not two.

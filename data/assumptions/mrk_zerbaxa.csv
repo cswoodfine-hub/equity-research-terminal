@@ -3,7 +3,9 @@
 # Marketed, so revenue is anchored on what was reported rather than built from
 # patients. Growth is read off Table 3, which prints this line's own quarters.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 MRK,Zerbaxa,,US,base,therapy_mode,,,marketed,,approved and selling; Merck reports it as its own revenue line,no patient funnel is rebuilt for a line that files its own sales
 MRK,Zerbaxa,,US,base,base_revenue,,312.0,,mm USD,"MRK FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor. Its quarters are on file from Table 3 and sum to it

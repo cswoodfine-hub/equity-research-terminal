@@ -1,0 +1,26 @@
+# Zepbound type 1 diabetes readouts, catalysts 1435 (NCT06962280) and 1439 (NCT06914895).
+# Researched 2026-11-16. Verdict: not settled. Link them; a settled_readouts row would be
+# wrong, because the readout decides a claim neither tirzepatide label carries.
+#
+# Why they have no link. Both studies sit on Zepbound (asset 138) and the registry indexes
+# each under three descriptors (Diabetes Mellitus, Type 1; Obesity; Overweight), so the
+# one-population rule places neither. asset_indication_additions.csv row 79 already reads
+# them as type 1 diabetes, but names Mounjaro, and _curated_rows only binds a row whose
+# named trials are mapped to that asset. Neither is on Mounjaro, so row 79 binds nothing.
+#
+# Fix: replace row 79 with the Zepbound row below (delete row 79 in the same change; it is
+# dead). Zepbound is where the mapper put the trials and where trial_asset_map.csv row 34
+# puts tirzepatide studies in adults with obesity and no type 2 diabetes. The alternative,
+# pinning both NCTs to Mounjaro in trial_asset_map.csv so row 79 binds, is defensible on the
+# endpoint (glycaemic control is Mounjaro's claim) but no Lilly source says which brand a
+# type 1 claim would be sold under: the FY2025 10-K (0000059478-26-000013) lists only
+# "Tirzepatide (Mounjaro, Zepbound) ... Type 1 diabetes Phase 3 Phase 3 trials were
+# initiated." Pick one, not both.
+#
+# Why not in_label, as the ulcerative colitis and Crohn's studies were settled (rows 151
+# and 152): those enrol on the Zepbound label's own BMI criteria. These enrol at BMI 25 or
+# more, below the label's overweight threshold of 27 (Zepbound clinical studies section:
+# 'overweight (BMI 27 to <30 kg/m2) and at least one weight-related comorbid condition'),
+# and their one primary outcome is HbA1c, not weight.
+ticker,asset,mesh_id,term,nct_ids,basis
+LLY,Zepbound,D003922,"Diabetes Mellitus, Type 1",NCT06914895 NCT06962280,"SURPASS-T1D-1 (NCT06914895, about 905 adults, four tirzepatide doses against placebo, primary completion estimated 2026-11) and SURPASS-T1D-2 (NCT06962280, about 465 adults, long-term, primary completion estimated 2026-11) are Lilly Phase 3 studies in adults with type 1 diabetes on insulin for at least a year, HbA1c 7.0% to 10.5% and BMI of 25 kg/m2 or more, each with one primary outcome, change from baseline in HbA1c at Week 40 (ClinicalTrials.gov API v2, read 2026-11-16). Obesity is an entry criterion and glycaemic control is what reads out, so the disease is Diabetes Mellitus, Type 1 (D003922). Neither label covers it: Mounjaro is indicated 'to improve glycemic control in adults and pediatric patients 10 years of age and older with type 2 diabetes mellitus' (DailyMed setid 0818426a-53eb-4db7-9609-bbae1e7a3964, effective 2026-07-29), and Zepbound 'to reduce excess body weight and maintain weight reduction long term in adults with obesity or adults with overweight in the presence of at least one weight-related comorbid condition' and to treat OSA in adults with obesity (setid 487cd7e7-434c-4925-99fa-aa80b1cc776b, version 40, effective 2026-08-28), with no glycaemic claim. The studies sit on Zepbound because they enrol adults with overweight or obesity and no type 2 diabetes, as trial_asset_map.csv places SURMOUNT-ADOLESCENTS-2"

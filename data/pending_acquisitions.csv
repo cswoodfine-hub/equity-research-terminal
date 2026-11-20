@@ -1,0 +1,16 @@
+# An acquisition announced and not yet completed, whose target's product the book holds in
+# the acquirer's name (read by backend/pending_acquisitions.py and stated on the asset's and
+# the company's forecast notes).
+#
+# The book follows the filings' own test of when a deal is done: an 8-K Item 2.01,
+# "Completion of Acquisition or Disposition of Assets". An Item 1.01, "Entry into a Material
+# Definitive Agreement", is a deal agreed, not a deal done. Read the TARGET's filings for the
+# 2.01, not only the acquirer's: on closing the target files Items 2.01, 3.01 and 5.01 and
+# then a Form 25, while a large acquirer often files no 2.01 at all because the deal is
+# below its significance test. Vertex filed none for Crinetics, which closed on 2026-09-01
+# (Crinetics 8-K 0001140361-26-035195), and this register carried Palsonify as open until
+# that was checked.
+#
+# A row comes out when the target files its Item 2.01. Keyed by the acquirer's ticker and
+# the asset's name in the book. Empty is the normal state.
+acquirer,asset,target,announced,terms,basis

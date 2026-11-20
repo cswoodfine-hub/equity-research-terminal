@@ -26,7 +26,9 @@
 # to about $4,751mm by 2030. No filing supports or rules that out, so it is the
 # first number to look at.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 #
 # Based on the 2026 run rate and held flat: no filing gives a peak, so the value is a floor.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note

@@ -2,67 +2,116 @@
 
 ## What this is
 
-An equity research terminal for large-cap pharma. One refresh action pulls live and near-live data for a fixed universe of companies, stores a timestamped snapshot, computes what changed since the last snapshot, and renders charts plus a short written note per company. The differentiator is change detection and synthesis over free data sources, not raw data breadth.
+An equity research terminal for biopharma: large-cap pharma, biotech, and cell and gene. One refresh action pulls live and near-live data for a fixed universe of companies (`data/companies_seed.csv`), stores a timestamped snapshot, computes what changed since the last snapshot, and renders charts plus a short written note per company. On top of that sits a valuation: each asset forecast from patients and price to risk-adjusted value (`forecast.py`), from curated assumptions (`data/assumptions/`), and each company read as a range across lenses (`fair_value.py`). The universe is read on three engines: big pharma, biotech, and cell and gene (`engines.py`). The differentiator is change detection and synthesis over free data sources, not raw data breadth.
 
 ## Tech stack
 
-- Backend: Python 3.11+, FastAPI, SQLite via `sqlite3` or SQLAlchemy Core. DuckDB is an acceptable swap for the snapshot and analytical tables; keep SQL portable.
-- Frontend: React + Vite + TypeScript, Recharts for charts, TanStack Query for data fetching.
-- Jobs: plain async functions triggered by the refresh endpoint. No Celery or queue in v1.
-- LLM: the Anthropic API for the generated-notes step only. The app must function without it and degrade to rules-only output when no key is present.
-
-Fast path: if the frontend slows you down, build the whole thing in Streamlit first and port later. The backend, schema, and fetchers stay identical.
+- Backend: Python 3.11+, FastAPI, SQLite via `sqlite3`. Keep SQL portable.
+- Frontend: Streamlit (`frontend/streamlit_app.py`), a thin client over the JSON API. Every chart is hand-built SVG from `frontend/components/charts.py`; there are no native Streamlit or Altair charts. A few views are iframe components under `frontend/components/`; the largest, the Comps frame (`compsval/`), is plain JavaScript with its own `node --test` suite. The React port the first plan allowed for was never made.
+- Jobs: plain functions triggered by the refresh endpoint or by `backend/scheduled_refresh.py`. No Celery or queue. The schedule is a GitHub Actions workflow.
+- LLM: confined to the generated notes (`insights.py`, `brief.py`), to the extractors that read filing, label and press text (`pdufa.py`, `trial_readouts.py`, `press_readouts.py`, `guidance.py`, `biologic_loe.py`, `deals.py`, `dailymed.py`), and to the second read of evidence grades (`grade_review.py`). Never a value, a forecast or a rule. Every call goes through one seam, `backend/llm.py`: Groq, then Gemini, then Anthropic, the first key present wins, and `LLM_PROVIDER` pins one. The notes default to Gemini (`NOTE_LLM_PROVIDER`). The app must function without a key and degrade to rules-only output.
 
 ## Repo structure
 
+A map, not an inventory: the backend has about 190 modules and 40 fetchers. `ls` is the truth.
+
 ```
-equity-research/
+ER Tool/
   CLAUDE.md
   README.md
+  Makefile                  # dev, test, verify, hooks, refresh, history-export, history-rebuild
+  run.sh                    # venv, schema, seed, then the API on 8000 and the UI on 8501
   .env.example
+  streamlit_cloud_app.py    # the API and the UI in one process, for Streamlit Cloud
+  githooks/pre-push         # runs make verify before anything leaves the machine
+  .github/workflows/refresh.yml   # the daily refresh and the weekday pulse pass
+  deploy/                   # a launchd job for a local 06:00 refresh; its paths are absolute
   backend/
     main.py                 # FastAPI app, routes
-    db.py                   # connection, schema init
+    db.py                   # connection, schema init, migrations
     schema.sql
+    migrations/             # numbered, each applied once
+    seed.py                 # load the universe, resolve CIKs
     refresh.py              # orchestrates fetchers, writes refresh_runs
+    scheduled_refresh.py    # the whole-universe refresh with no server, for a schedule
+    pulse_refresh.py        # reads the daily pulse; opens no refresh_runs row
+    history.py              # export and rebuild data/history/*.ndjson
     diff.py                 # snapshot -> changes engine
-    insights.py             # rules layer + Anthropic note generation
+    insights.py             # rules layer + note generation
+    llm.py                  # the one seam in front of the model providers
+    contact.py              # the User-Agent identity, read from .env
     loe.py                  # effective LOE: molecule patent over longest listed
+    regional_loe.py         # LOE by region
+    competitors.py          # who is selling against a product: three registers kept apart
+    assumptions.py          # the curated seeds behind each asset's forecast
+    forecast.py             # patients x price to revenue, revenue to FCFF, FCFF to rNPV
+    fair_value.py           # a company's fair value as a range across lenses
+    engines.py              # three engines over one universe, and which one a company is on
+    future_pipeline.py      # the launches the model assumes beyond the named pipeline
+    company_lines.py        # revenue a company reports that no asset carries
+    forecast_board.py       # the Forecast tab's payload
+    comps_valuation.py      # the Comps tab's payload
+    company_score.py        # the company scorecard
+    landscape_score.py      # the clinical scorecard
     product_areas.py        # a product's disease area, from its label
     asset_merge.py          # fold a derived compound into the product it is
     brand_split.py          # route a study to the brand whose label covers it
     trial_mapping.py        # interventions -> assets, pipeline asset derivation
     payer_access.py         # Part D prescribing, plan coverage, Medicaid: display only
+    companyfacts.py         # the XBRL parser EDGAR and ESEF data share
+    roche.py, bayer.py      # the two non-SEC filers' own workbooks
+    cms_catalogue.py        # the data.cms.gov catalogue, cached on disk
     fetchers/
       base.py               # Fetcher protocol, RefreshResult
-      prices.py
-      financials_edgar.py
-      filings_edgar.py
+      prices.py, benchmarks.py, fx_ecb.py, rates_fred.py
+      financials_edgar.py, financials_esef.py, financials_ir.py
+      filings_edgar.py, filing_text_edgar.py, product_revenue_sec.py
       trials_ctgov.py       # active studies: the pipeline
       trials_completed.py   # completed studies with results: the record
-      approvals_openfda.py
-      exclusivity_orangebook.py
-      catalysts.py          # curated CRUD + auto extraction
+      trial_results.py
+      approvals_openfda.py, approvals_pmda.py, eu_medicines_ema.py
+      labels_dailymed.py, pharmacology.py, ndc_marketing.py, brand_lookup_openfda.py
+      exclusivity_orangebook.py, exclusivity_purplebook.py
+      paragraph_iv_fda.py, pte_uspto.py, use_codes_ob.py
       deals_news.py         # business development from headlines
-      news_rss.py
+      press_ir.py, press_page.py, news_fda.py
       news_pulse.py         # the daily pulse's briefings, from claude/pulse-feed
+      adcomm_fedreg.py, policy_fedreg.py
+      consensus_fmp.py, consensus_nasdaq.py
       codes_rxnav.py        # RxCUIs and NDC product codes per marketed asset
       prescribers_cms.py    # Medicare Part D Prescribers, per brand
-      utilization_medicaid.py  # Medicaid State Drug Utilization Data, national rows
       formulary_cms.py      # Part D formulary, read from the ZIP by HTTP Range
+      demand_cms.py, negotiated_prices_cms.py
+      utilization_medicaid.py  # Medicaid State Drug Utilization Data, national rows
+      broker_t212.py        # the user's own Trading 212 account, read only
+    tools/
     tests/
       fixtures/             # saved sample payloads
       test_*.py
   frontend/
-    src/
-      api/
-      components/
-      views/                # PipelineHeatmap, LoeCliff, CatalystCalendar, Comps, WhatChanged
-      App.tsx
+    streamlit_app.py        # the app: the top bar, the tabs, every page
+    theme.py                # the page's CSS
+    *_view.py               # pure builders for a page's HTML and SVG
+    components/
+      charts.py             # the SVG chart layer
+      tokens.py             # colour, type and spacing, mirrored in assets/tokens.css
+      compsval/             # the Comps frame: core.js, shell.js, table.js, figures.js, ...
+      <name>/               # the smaller iframe components
+    assets/                 # stylesheets, fonts
+    tests/compsval/         # node --test, run by backend/tests/test_comps_js.py
   data/
     companies_seed.csv
+    *.csv                   # curated registers, each row with its source
+    assumptions/            # one seed file an asset or a layer
+    history/                # the snapshot history as NDJSON, committed by the workflow
+    company_lines/, consensus/
   docs/
-    PRD.md
+    design/                 # the contract for each tab, with "as built" notes
+    research/               # dated research notes and the draft rows they produced
+    ROADMAP.md, ACTION_PLAN.md
+    PRD.md                  # the v1 spec, July 2026: history, not a plan
+  work/                     # finished working papers; no code reads it, data files cite it
+  archive/                  # superseded documents, kept for the record
 ```
 
 ## Core concepts (read before writing code)
@@ -156,7 +205,7 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 
 ### Catalysts
 
-- No free PDUFA calendar API exists. Catalysts are a curated table edited in the UI. Supplement with extraction: when a new 8-K or 6-K reports FDA acceptance of a filing, call the Anthropic API to pull the PDUFA date and write a catalyst row with `is_curated = 0` for review.
+- No free PDUFA calendar API exists. Catalysts are a curated table edited in the UI. Supplement with extraction: when a new 8-K or 6-K reports FDA acceptance of a filing, call the model (through `backend/llm.py`) to pull the PDUFA date and write a catalyst row with `is_curated = 0` for review.
 
 ### RxNav (drug codes for the payer files)
 
@@ -243,31 +292,40 @@ class Fetcher(Protocol):
 - One fetcher module per source under `backend/fetchers/`. No cross-imports between fetchers.
 - Every parser has a unit test with a saved sample payload in `tests/fixtures/`. EDGAR and ClinicalTrials payloads are messy and change; tests catch drift.
 - Never fabricate a value. If a source has no data for a field, store null and let the UI show "no free data" rather than an estimate. This rule is absolute.
-- Secrets live in `.env` and are never committed. Core needs none. Optional: `ANTHROPIC_API_KEY`, `FMP_API_KEY`, `OPENFDA_API_KEY`, `SEC_USER_AGENT`.
+- Secrets live in `.env` and are never committed. `SEC_USER_AGENT` is the one the core needs: EDGAR blocks requests without it and `seed.py` uses it to resolve CIKs. Optional: `GROQ_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `FMP_API_KEY`, `OPENFDA_API_KEY`, `CONTACT_EMAIL`, `T212_API_KEY` and `T212_API_SECRET`. `.env.example` lists them.
 - Small commits, one concern each. Conventional commit messages.
 
 ## Running
 
 ```bash
-# backend
+./run.sh                 # or: make dev. Venv, schema, seed, then the API on 8000 and the UI on 8501
+make verify              # the suite, with a real exit code; run it from the repo root
+make hooks               # install the pre-push hook, which runs make verify
+make refresh             # pull every source for the universe (needs the API up)
+make refresh-daily       # the same with no server, logged to logs/
+make history-rebuild     # rebuild the database from data/history/*.ndjson
+```
+
+By hand:
+
+```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -c "import db; db.init()"          # creates SQLite from schema.sql
-uvicorn main:app --reload
-
-# frontend
-cd frontend
-npm install
-npm run dev
-
-# trigger a refresh
-curl -X POST localhost:8000/refresh
+python -c "import db; db.init()"          # schema and migrations, idempotent
+python seed.py                            # the universe, CIKs resolved
+uvicorn main:app --reload                 # API on 8000
+# in another shell, from the repo root:
+streamlit run frontend/streamlit_app.py   # UI on 8501
 ```
+
+- The app tests skip when the API is not on 8000, and the JavaScript tests skip when `node` is not installed. A green run with either missing has not tested that part.
+- Refresh only before 08:00 UTC or after the US close. A refresh while a market is open writes an intraday price into the snapshot history as that day's close (see "Daily pulse" above).
+- `uvicorn --reload` restarts the API on any edit under `backend/`, which empties its caches; the first page after that is slow.
 
 ## Rules for you, Claude Code
 
-- Work one build phase per session (see `docs/PRD.md`). Use plan mode, get the plan agreed, then implement.
+- Work one piece of work per session. Use plan mode, get the plan agreed, then implement. (The build phases this rule was written for are in `docs/PRD.md` and ended in July 2026.)
 - Snapshot before you mutate current-state tables, so a diff is always possible.
 - When a source's real payload differs from these notes, trust the payload, update the fetcher, and update the fixture. Report the discrepancy in your summary.
 - Do not add data sources that need a paid subscription.

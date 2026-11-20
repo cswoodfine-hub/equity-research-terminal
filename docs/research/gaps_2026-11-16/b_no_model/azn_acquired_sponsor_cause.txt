@@ -1,0 +1,38 @@
+AZN setmelanotide and ketorolac: why they sit under AstraZeneca, and the code fix (draft, 2026-11-16)
+
+Neither study names AstraZeneca. Both came in through backend/acquired_sponsors.for_company,
+which on the live db returns ['Rhythm Pharma', 'Rhythm Pharmaceuticals', 'St. Louis'] for AZN.
+Two parser faults, both in news rows of the deals table, and one missing guard each.
+
+1. A rumour taken as an acquisition. Deals 288, 296 and 301 (event 2026-11-05) all quote
+   'AstraZeneca said to offer $10B to acquire Rhythm, analysts whisper of a bidding war'.
+   deal_type is 'acquisition', no accession, not curated. names_acquirer() passes it because
+   AstraZeneca is named before Rhythm. Rhythm's EDGAR record (CIK 1649904, read 2026-11-16)
+   carries no Item 1.01, SC 14D9 or merger proxy; its newest filings are the Q3 10-Q and the
+   8-K of 2026-11-03 (0001628280-26-069485, 0001628280-26-069106). Nothing is agreed, and an
+   agreed deal would still not be a completed one (the pending_acquisitions.csv test).
+   Proposed guard: _HEADLINE_WORDS or a separate rumour set ('said', 'offer', 'offers', 'bid',
+   'talks', 'considering', 'explores', 'weighs', 'whisper', 'rumour', 'rumor') refused in
+   _trusted() for a headline-only row. A row with an accession or is_curated stays trusted.
+
+2. A city taken as the counterparty. Deal 300 (2026-11-10) quotes 'AstraZeneca buys St. Louis
+   vaccine startup Omniose'; the parser stored 'St. Louis'. _plausible() passes it (nine
+   characters; _PLACE_WORDS holds 'boston', 'cambridge', 'london' and others but not
+   'st. louis' or 'louis'), and _lead_starts() then matches St. Louis University.
+   Proposed guard: add 'louis', 'st. louis', 'saint louis' to _PLACE_WORDS, or refuse a
+   counterparty that is a place word followed by nothing but punctuation. The target here is
+   Omniose; whether AstraZeneca bought it is not checked (no filing; a private company).
+
+Once the guards refuse these names, acquired_sponsors.misfiled() lists every study held through
+them and release() lets them go, so the data rows in azn_not_our_trials.csv become belt and
+braces rather than the only fix. Today 10 trials and 9 derived assets ride on the two names:
+  Rhythm: NCT06760546, NCT05774756, NCT06772597 (asset 3760 Setmelanotide), NCT07156578 (3761
+  Bivamelagon), NCT06239116 (3762 'Part C: RM-718').
+  St. Louis University: NCT03823534 (3765 Ketorolac), NCT07158476 (3767 'Meloxicam 15 mg'),
+  NCT06055712 (3768 Cephalexin), NCT05249634 (3773 'Jatenzo Pill'), NCT03295981 (unmapped);
+  3770 Morphine has no trial left.
+Catalysts 1587 (setmelanotide, 2027-03-13) and 1588 (ketorolac, 2026-12-31) are the two on the
+no_forecast list.
+
+Not done here: no code was changed. The guards above are a proposal for whoever owns
+acquired_sponsors.py, with a test from the four quoted headlines.

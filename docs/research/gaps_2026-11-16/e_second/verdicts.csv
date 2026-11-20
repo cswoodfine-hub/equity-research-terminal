@@ -1,0 +1,13 @@
+# Second-indication pass e, 2026-11-16. Seven readouts refused other_indication on clinical-stage assets.
+# Scratch test: /private/tmp/claude-502/gaps_e/test.db (a copy of backend/er_tool.db), every live seed copied with
+# vrtx_inaxaplin.csv replaced by the draft here, data/settled_readouts.csv copied with the six draft rows appended,
+# assumptions.load_seeds over the copied folder (7 rows written, 7 retracted, the VX-147 move and nothing else),
+# then forecast_view.catalyst_stakes. Across all six tickers only these seven rows changed.
+ticker,asset,catalyst_id,nct_id,readout,verdict,draft,before,after,asset_rnpv_before_mm,asset_rnpv_after_mm
+AZN,Volrustomig,664,NCT06079671,2027-11-26,refused: pool needs the share of stage III-IVA treated without pembrolizumab (unmeasured); no measurable uptake; would become the gate and carry NSCLC,settled_readouts_rows.csv,other_indication,no_free_data,445.1,445.1
+BIIB,Felzartamab,323,NCT06685757,2026-12-01,refused: no approved AMR therapy to measure uptake from; would become the gate (six months before PREVAIL) and carry IgAN,settled_readouts_rows.csv,other_indication,no_free_data,107.1,107.1
+LLY,Brenipatide,770,NCT07219966,2028-04,refused: pool citable (27.1mm adults with AUD) but no measurable AUD launch capture (Vivitrol one line across AUD and OUD) and no free MDD overlap split,settled_readouts_rows.csv,other_indication,no_free_data,479.2,479.2
+LLY,Brenipatide,774,NCT07219953,2028-04,refused: as RENEW-ALC-1,settled_readouts_rows.csv,other_indication,no_free_data,479.2,479.2
+REGN,Odronextamab,887,NCT06230224,2028-05-29,refused: no free share of DLBCL that is primary refractory or early relapse and transplant-intended; no measurable second-line capture,settled_readouts_rows.csv,other_indication,no_free_data,347.9,347.9
+VRTX,VX-147,935,NCT05312879,2028-06-02,not a second indication: AMPLITUDE is the modelled study; seed moved from FSGS (a pair the asset does not hold) to Renal Insufficiency Chronic (D051436),vrtx_inaxaplin.csv,other_indication,priced $4.77 a share (Phase 2 gate; success rNPV 1230.4mm; implied gate odds 73.5% vs 35.9% published),904.6,904.6
+NVS,JSB462,1581,NCT06991556,2026-12-03,refused: no MeSH descriptor except the mCRPC parent; one asset discontinuation (51.18% from post-ARPI rPFS) would overcharge mHSPC (LATITUDE rPFS 33.0 months); would become the asset's only gate,settled_readouts_rows.csv,other_indication,no_free_data,43.0,43.0

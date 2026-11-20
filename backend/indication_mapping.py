@@ -361,6 +361,70 @@ ADDITIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
 EXCLUSIONS_CSV = (pathlib.Path(__file__).resolve().parent.parent
                   / "data" / "asset_indication_exclusions.csv")
 
+# The seed for asset_indication_overrides, which build reads but nothing wrote from a
+# file. The table is keyed on asset and indication ids, and this rebuild deletes and
+# remakes every row it points at, so a judgement entered straight into the database
+# survives until the next rebuild and no further: it never travels in git and never
+# reaches the nightly run. The file is the durable form, keyed by ticker, the asset's
+# name and the indication's name, following trial_asset_map.csv for the same reason.
+#
+# This is not the exclusions file above, which is for one shape of registry error and
+# says so. A row here is the answer to the other shape: a condition the registry lists
+# because the protocol mentions it, as a background therapy, an entry criterion or a
+# second MeSH index of the disease already modelled, where the asset has no programme
+# in it at all.
+OVERRIDES_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                 / "data" / "asset_indication_overrides.csv")
+
+
+def load_overrides(conn, path=None) -> int:
+    """Write ``data/asset_indication_overrides.csv`` into ``asset_indication_overrides``.
+
+    Resolves the asset by ticker and name and the indication by name, because both ids
+    are rebuilt with the database and the names are not. A row naming either one the
+    book does not hold yet is left for a later run rather than failing the rebuild.
+    Returns the rows written.
+    """
+    source = pathlib.Path(path) if path else OVERRIDES_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    written = 0
+    for row in rows:
+        name = (row.get("asset") or "").strip()
+        disease = (row.get("indication") or "").strip()
+        note = (row.get("note") or "").strip()
+        # A row asserts nothing without its reason, the same rule the exclusions file
+        # keeps: the book refuses what it cannot attribute.
+        if not (name and disease and note):
+            continue
+        asset = conn.execute(
+            """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE c.ticker = ? AND ? IN (LOWER(TRIM(COALESCE(a.brand_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.generic_name, ''))),
+                                             LOWER(TRIM(COALESCE(a.internal_code, ''))))
+                ORDER BY a.is_marketed DESC, a.id LIMIT 1""",
+            ((row.get("ticker") or "").strip().upper(), name.lower())).fetchone()
+        indication = conn.execute(
+            "SELECT id FROM indications WHERE LOWER(name) = LOWER(?)",
+            (disease,)).fetchone()
+        if asset is None or indication is None:
+            continue
+        exclude = 1 if (row.get("exclude") or "").strip() in ("1", "true", "True") else 0
+        phase = (row.get("phase") or "").strip() or None
+        conn.execute(
+            """INSERT INTO asset_indication_overrides
+                   (asset_id, indication_id, phase, exclude, note)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(asset_id, indication_id) DO UPDATE SET
+                   phase = excluded.phase, exclude = excluded.exclude,
+                   note = excluded.note""",
+            (asset["id"], indication["id"], phase, exclude, note))
+        written += 1
+    return written
+
 
 def _curated_rows(conn, path):
     """(asset_id, row, studies) for each row of a curated pair file whose asset and
@@ -449,6 +513,67 @@ def curated_paediatric(conn, path=None) -> dict:
             "nct_ids": set(), "entry": _blank(term)})
         item["nct_ids"].update((row.get("nct_ids") or "").split())
         _fold(item["entry"], studies)
+    return out
+
+
+# The same mechanism for a sub-population that is not about age. A readout in part of a
+# disease the registry indexes under the whole descriptor has nowhere to land: it decides
+# the asset's approved indication, which the revenue already carries, and the book then
+# reads the one real gate the product has as settled. Children were the first case and
+# got the file above; preclinical Alzheimer's disease is the same shape, where the label
+# covers mild cognitive impairment and mild dementia and the study enrols people with
+# neither.
+#
+# The split matters more on a marketed product than it looks. forecast._indication_layers
+# adds a layer only for an indication the label does not cover, so a pool written on the
+# approved row is never carried by the valuation, while indication_layer.build would
+# price the catalyst off it: the stake would move the model by an amount the model does
+# not contain. A row of its own is what keeps the two agreeing.
+#
+# Age keeps a rule of its own that this file deliberately has no analogue for. A study
+# whose title says children is diverted to a paediatric row even when no file names it
+# (``_is_paediatric``), because the title is reliable evidence there. No such word marks
+# an arbitrary sub-population, so here the file must name the studies, which is the
+# stronger route anyway.
+SUBPOPULATION_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                     / "data" / "subpopulation_indications.csv")
+
+
+def curated_subpopulations(conn, paths=None) -> dict:
+    """(asset_id, term) -> {"mesh_id", "nct_ids", "entry"} over every sub-population file.
+
+    The paediatric file and the general one have the same shape and the same meaning: an
+    asset's own row for part of a disease, named, with the studies that read out in it.
+    Read together so one rule in ``build`` and one in ``attach_catalyst_indications``
+    serves both. ``paths`` overrides the files, for tests.
+    """
+    sources = ([pathlib.Path(p) for p in paths] if paths is not None
+               else [PAEDIATRIC_CSV, SUBPOPULATION_CSV])
+    out: dict = {}
+    for source in sources:
+        for key, item in curated_paediatric(conn, source).items():
+            held = out.get(key)
+            if held is None:
+                out[key] = item
+                continue
+            # The same asset and term in two files is one row, not two. Where the
+            # second names no study the first did not, it is the same row copied, and
+            # folding its studies again would count one trial's enrolment twice; the
+            # row is kept as it stands. Otherwise the studies join and the phase takes
+            # the further of them, rather than the file read second silently winning.
+            held["mesh_id"] = held["mesh_id"] or item["mesh_id"]
+            if item["nct_ids"] <= held["nct_ids"]:
+                continue
+            held["nct_ids"].update(item["nct_ids"])
+            other = item["entry"]
+            held["entry"]["phase"] = higher_phase(held["entry"]["phase"], other["phase"])
+            held["entry"]["statuses"] += other["statuses"]
+            held["entry"]["enrollment"] += other["enrollment"]
+            held["entry"]["trials"] += other["trials"]
+            if other["first_posted"] and (held["entry"]["first_posted"] is None
+                                          or other["first_posted"]
+                                          < held["entry"]["first_posted"]):
+                held["entry"]["first_posted"] = other["first_posted"]
     return out
 
 
@@ -555,9 +680,9 @@ def _upsert_indications(conn, pairs) -> dict:
     return ids
 
 
-def _paediatric_indication(conn, term: str, mesh_id) -> int:
-    """The indications row a paediatric pair points at: the MeSH concept's row where MeSH
-    has one, otherwise the row of that name, created once."""
+def _subpopulation_indication(conn, term: str, mesh_id) -> int:
+    """The indications row a sub-population pair points at: the MeSH concept's row where
+    MeSH has one, otherwise the row of that name, created once."""
     if mesh_id:
         row = conn.execute("SELECT id FROM indications WHERE mesh_id = ?",
                            (mesh_id,)).fetchone()
@@ -642,6 +767,10 @@ def build(db_path=None) -> dict:
         # redundant never becomes a row the layer model can price.
         parents_dropped = drop_parent_of_child(pairs)
         indication_ids = _upsert_indications(conn, pairs)
+        # The file first, so the rebuild reads the judgements as they are written down
+        # rather than whatever last survived in the table. The indications it names have
+        # to exist to be resolved, which is why this follows the upsert above.
+        load_overrides(conn)
         overrides = {(r["asset_id"], r["indication_id"]): dict(r) for r in
                      conn.execute("SELECT * FROM asset_indication_overrides")}
         seen = {(r["asset_id"], r["indication_id"]): r["first_seen_phase"]
@@ -683,9 +812,12 @@ def build(db_path=None) -> dict:
                  1 if lead.get(asset_id, (None, None))[1] == mesh_id else 0,
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
-        paediatric = 0
-        for (asset_id, term), item in sorted(curated_paediatric(conn).items()):
-            indication_id = _paediatric_indication(conn, term, item["mesh_id"])
+        # Read again only to tell the two kinds apart in the summary; the pairs
+        # themselves come from the merged view below.
+        paediatric_terms = set(curated_paediatric(conn))
+        paediatric = subpopulation = 0
+        for (asset_id, term), item in sorted(curated_subpopulations(conn).items()):
+            indication_id = _subpopulation_indication(conn, term, item["mesh_id"])
             if conn.execute("SELECT 1 FROM asset_indications WHERE asset_id = ?"
                             " AND indication_id = ? AND region = 'US'",
                             (asset_id, indication_id)).fetchone():
@@ -704,10 +836,14 @@ def build(db_path=None) -> dict:
                 (asset_id, indication_id, phase, status_for(entry["statuses"]),
                  seen.get((asset_id, indication_id)) or phase))
             written += 1
-            paediatric += 1
+            subpopulation += 1
+            paediatric += 1 if (asset_id, term) in paediatric_terms else 0
         linked = attach_catalyst_indications(conn)
         conn.commit()
         return {"pairs": written, "indications": len(indication_ids),
+                "subpopulation_pairs": subpopulation,
+                # Kept as its own number because the paediatric rows carry a title rule
+                # the others do not, and a change in one should be readable from a run.
                 "paediatric_pairs": paediatric,
                 "assets": len({a for a, _ in pairs}),
                 "parents_dropped": parents_dropped,
@@ -779,7 +915,7 @@ _NARROWS_TO = {
 }
 
 
-def _narrow(names: dict) -> dict:
+def drop_parent_matches(names: dict) -> dict:
     """Drop every match that is the MeSH parent of another match on the same study.
 
     ``names`` maps the asset_indication id to its lowercased indication name. Returns
@@ -874,10 +1010,10 @@ def attach_catalyst_indications(conn) -> dict:
         if words & _PAEDIATRIC_WORDS:
             paediatric.setdefault(row["asset_id"], []).append((row["id"], words))
 
-    # A paediatric row names the studies that read out in it, and those link to it by
+    # A sub-population row names the studies that read out in it, and those link to it by
     # name, whatever MeSH indexed them under or whether it indexed them at all.
     named = {}
-    for (asset_id, term), item in curated_paediatric(conn).items():
+    for (asset_id, term), item in curated_subpopulations(conn).items():
         found = conn.execute(
             "SELECT ai.id FROM asset_indications ai JOIN indications i"
             "    ON i.id = ai.indication_id"
@@ -953,7 +1089,8 @@ def attach_catalyst_indications(conn) -> dict:
             hits = _by_condition_text(row["conditions"], by_asset.get(row["asset_id"]) or [])
             text_matched += 1 if len(hits) == 1 else 0
         if len(hits) > 1:
-            hits = set(_narrow({pid: pair_name.get(pid, "") for pid in hits}))
+            hits = set(drop_parent_matches(
+                {pid: pair_name.get(pid, "") for pid in hits}))
         if len(hits) != 1:
             ambiguous += 1 if hits else 0
             continue

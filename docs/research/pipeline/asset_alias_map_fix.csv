@@ -1,0 +1,12 @@
+# DRAFT correction for data/asset_alias_map.csv, 2026-11-16. Not applied. Same header as that file.
+#
+# The existing PCVX row names its target brand '31 valent pneumococcal conjugate vaccine' (a
+# space). The book's asset 2843 is spelled '31-valent pneumococcal conjugate vaccine' (a
+# hyphen), and so is the brand column of data/assumptions/pcvx_vax_31.csv.
+# programme_alias.load_curated matches LOWER(TRIM(brand)) exactly against brand_name or
+# generic_name and skips the row in silence when nothing matches ('the product is not on
+# file yet; nothing to point at'). That is why 'the alias merge has not taken': read-only
+# check on backend/er_tool.db, 2026-11-16, asset_aliases holds no row for asset 2843 or 2847.
+# The fix is the one character in the brand column; the note is the existing row's, kept.
+ticker,programme_name,brand,note
+PCVX,0.5 mL of the low dose VAX-31,31-valent pneumococcal conjugate vaccine,"the infant Phase 2 study NCT06720038 names its arms by dose (0.5 mL of the low, mid, high and High-PFS dose VAX-31) and every arm is VAX-31, the 31-valent conjugate the adult Phase 3s file as 31 valent pneumococcal conjugate vaccine (NCT07284654, NCT07365826, NCT07425392). Vaxcyte's Q2 2026 10-Q (0001649094-26-000043) describes one product in both populations: 'VAX-31 is a 31-valent, broad-spectrum, carrier-sparing investigational PCV also being developed for the prevention of IPD in children'. One molecule, one row (2026-10-13)."

@@ -17,7 +17,9 @@
 # has no key for it, so this is a gross figure for the regimen and overstates what Gilead adds.
 # Company half copied verbatim from gild_biktarvy.csv, so every Gilead seed carries one company half.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GILD,GS-3242,,US,base,therapy_mode,,,chronic,,"NCT07645287 and NCT07708727 (registry, read 2026-10-28): an oral lead-in of GS-3242 and lenacapavir tablets, then GS-3242 and lenacapavir injected intramuscularly, as a complete regimen replacing Biktarvy. Antiretroviral therapy is taken for life",patients who change regimen leave the stock through discontinuation_pct
 GILD,GS-3242,,US,base,list_price_per_patient,,0.032102,,mm USD per patient-year,"analogue: Cabenuva (cabotegravir and rilpivirine, ViiV), the only approved long-acting injectable complete HIV regimen, CMS Medicare Part D Spending by Drug 2024 (data.cms.gov dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b, Brnd_Name Cabenuva, Overall): $211,613,824.62 over 6,592 beneficiaries = $32,101.61 a beneficiary. Gilead reports in USD (companies table)","a comparator, not a price this product has. Biktarvy, the comparator in both trials, is $37,466 a beneficiary on the same file; Dovato $27,981. Cabenuva is taken because it is the same form: a clinic-given injectable that replaces daily tablets"

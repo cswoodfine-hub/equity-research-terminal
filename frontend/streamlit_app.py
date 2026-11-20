@@ -30,6 +30,7 @@ import streamlit as st
 import areas_view as AV
 import calendar_view
 import catalysts_page
+import forecast_board_view as FB
 import price_chart
 import revenue_mix
 import scorecard_chart
@@ -58,8 +59,10 @@ from components import tokens as TK
 # skips those. So the script can be newer than the wrapper held in memory, and would
 # call it with arguments it does not take. A wrapper behind the revision this script
 # is written against is reloaded once, here.
-if getattr(compsval, "REVISION", 0) < 4:
+if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
+if getattr(FB, "REVISION", 0) < 7:
+    FB = importlib.reload(FB)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
@@ -3840,7 +3843,7 @@ def _what_breaks_it(api_base: str, ticker: str, limit: int = 10) -> None:
          "probability; a payer group or franchise is exposure only")
 
 
-def _pipeline_development(api_base: str, ticker: str) -> None:
+def _pipeline_development(api_base: str, ticker: str, expanded: bool = False) -> None:
     """Every counted pipeline line's next gate against what reaching it costs, folded
     with the further reads: a view beside the value, never in it
     (docs/design/development-cost.md). A failed read says it did not load."""
@@ -3852,7 +3855,7 @@ def _pipeline_development(api_base: str, ticker: str) -> None:
     label = "Pipeline development, next gate" + (
         f" · {failing} {'gate costs' if failing == 1 else 'gates cost'} more to reach "
         f"than {'it is' if failing == 1 else 'they are'} worth risked" if failing else "")
-    with st.expander(label, expanded=False):
+    with st.expander(label, expanded=expanded):
         if problem:
             st.markdown(f'<div class="byline">{html_escape(_GATE_FAILED.format(error=problem))}'
                         '</div>', unsafe_allow_html=True)
@@ -4046,6 +4049,21 @@ def _identity(data: dict, result: dict) -> str:
         chips.append(f'<span class="hot" title="{html_escape(region.get("loe_basis") or "")}">'
                      f'{html_escape(_REGION_WORD.get(region.get("region"), region.get("region") or ""))} '
                      f'{region.get("share", 0):.0%} {when}</span>')
+    # A cliff behind the product with a competitor selling: the US share goes on falling,
+    # and the chip says at what rate and on whose word. Where the split is not on file
+    # the rule could not be applied, and that is said too.
+    falling = result.get("competitor_tail")
+    unsplit = result.get("competitor_unsplit")
+    if falling:
+        since = f' since {str(falling["since"])[:4]}' if falling.get("since") else ""
+        chips.append(f'<span class="warn" title="{html_escape(falling.get("basis") or "")}">'
+                     f'{html_escape(falling.get("kind") or "competitor")} on the US market'
+                     f'{since} · US falls {falling["rate"]:.0%} a year</span>')
+    elif unsplit:
+        chips.append('<span class="warn" title="A competitor is on the US market. The '
+                     'product&#39;s US share of revenue is not on file, so the line is '
+                     f'held as reported.">{html_escape(unsplit.get("kind") or "competitor")}'
+                     ' on the US market · US share not on file</span>')
     years = result.get("dcf_years") or result.get("years") or []
     if years:
         chips.append(f'<span>{years[0]}–{years[-1]}</span>')
@@ -5455,6 +5473,109 @@ def _render_patient_chart(result, years, x_labels, volume_scale, patients_span):
              "rate, and it can be argued against the hand series above it")
 
 
+def _cash_curve(prof: dict, width: int = 620, height: int = 240) -> str:
+    """The cumulative cash curve of a cash profile: if it succeeds and weighted by its
+    chances, with first sales, the year it is paid back and the end of exclusivity marked."""
+    years, ok, wt = prof["years"], prof["success"], prof.get("weighted")
+    # Short names: the chart prints each at the line's end, in the right margin.
+    series = [{"name": "succeeds", "values": ok["cumulative"], "colour": TK.UP}]
+    if wt:
+        series.append({"name": "weighted", "values": wt["cumulative"], "colour": TK.FLAG})
+    marks = []
+    if prof.get("outlay") is not None and prof["launch_year"] in years:
+        marks.append({"index": years.index(prof["launch_year"]), "label": "first sales"})
+    if ok.get("payback_year") in years:
+        marks.append({"index": years.index(ok["payback_year"]), "label": "paid back"})
+    if prof.get("loe_year") in years:
+        marks.append({"index": years.index(prof["loe_year"]), "label": "exclusivity ends"})
+    return CH.line_chart(series, [str(y) for y in years], width, height,
+                         y_fmt=lambda v: f"{v:,.0f}", markers=marks)
+
+
+def _cash_profile_section(api_base: str, ticker: str, asset_id: int, scenario: str) -> None:
+    """The asset's cash by calendar year: what is still to be spent reaching the market,
+    what comes back, the cumulative curve, the return and the year it is paid back.
+
+    Two cases, drawn together: if it succeeds, and weighted by its chances. A marketed
+    product has no outlay ahead, so its curve is the inflows alone and no return is
+    stated; the reason is printed rather than a nil."""
+    try:
+        prof = api_get(api_base, f"/companies/{ticker}/forecast/{asset_id}/cash-profile"
+                                 f"?scenario={scenario}")
+    except Exception as exc:                                # noqa: BLE001 - soft failure
+        section("Cash profile")
+        state("Cash profile unavailable", f"the API did not answer: {exc}", error=True)
+        return
+    if not prof or not prof.get("ok"):
+        section("Cash profile")
+        note((prof or {}).get("why") or "no cash profile for this product.")
+        return
+    years, ok, wt = prof["years"], prof["success"], prof.get("weighted")
+    has_outlay = prof.get("outlay") is not None
+    section("Cash profile",
+            basis=f"mm {_BOOK_UNIT['currency']} · by calendar year · undiscounted"
+                  + (" · after tax" if prof.get("after_tax") else ""))
+
+    # A marketed product has nothing left to spend, which is an answer; any other asset
+    # with no outlay is one the cost view could not read, which is not.
+    blank = "not applicable" if prof.get("outlay_reason") == "marketed" else "not read"
+
+    def rate(case):
+        if not has_outlay:
+            return blank
+        if not case:
+            return "—"
+        if case.get("irr") is not None:
+            return T.pct(case["irr"] * 100, 0)
+        if case.get("irr_above"):
+            return f"above {T.pct(prof['irr_ceiling'] * 100, 0)}"
+        return "—"
+
+    no_outlay = (("no outlay ahead of a marketed product" if blank == "not applicable"
+                  else "the cost to reach the market is not read") if not has_outlay else "")
+    st.markdown(metric_tiles([
+        ("return if it succeeds", rate(ok), " a year" if ok.get("irr") is not None else "",
+         None, "", no_outlay or "on the spend still ahead; what is spent is sunk"),
+        ("return weighted by its chances", rate(wt),
+         " a year" if (wt or {}).get("irr") is not None else "", None, "",
+         no_outlay or (f"cash flows at {T.pct(prof['pos'] * 100, 0)}, each stage's cost "
+                       f"at the chance it is reached" if prof.get("pos") is not None else "")),
+        ("paid back", (blank if not has_outlay else
+                       str(ok["payback_year"]) if ok.get("payback_year") else "—"), "", None, "",
+         no_outlay or ("the year the cumulative cash turns positive, if it succeeds"
+                       if ok.get("payback_year") else "not inside the forecast window")),
+        ("still to spend", (T.num(prof["outlay_total"]) if has_outlay else
+                            "none" if blank == "not applicable" else blank),
+         _mm() if has_outlay else "", None, "",
+         no_outlay or (f"deepest {T.num(ok['deepest'])} in {ok['deepest_year']}"
+                       if ok.get("deepest") is not None else "to reach the market")),
+    ], one_row=True), unsafe_allow_html=True)
+
+    R.show(_cash_curve(prof), css_class="chart-mount")
+    if not has_outlay:
+        note(f"cumulative cash from the forecast alone, if it succeeds and weighted by its chances. {prof.get('outlay_why') or ''} "
+             "A return needs an outlay, so none is stated.")
+    else:
+        stages = " · ".join(
+            f"{s_['label']} {T.num(s_['amount'])}"
+            + (f" (reached {T.pct(s_['p_enter'] * 100, 0)} of the time)" if s_["p_enter"] < 1 else "")
+            for s_ in prof.get("outlay_stages") or [])
+        note(f"cumulative cash if it succeeds and weighted by its chances. Still to spend: {stages}. Costs are published per-patient and per-programme "
+             "figures (Sertkaya 2024), only the spend still ahead. " + " ".join(prof["notes"]))
+    with st.expander("Cash by year"):
+        table = pd.DataFrame([{
+            "year": y,
+            "outlay": (-prof["outlay"][i] if has_outlay else None),
+            "cash flow": prof["cash"][i], "net": ok["net"][i],
+            "cumulative": ok["cumulative"][i],
+            "cumulative, weighted": (wt["cumulative"][i] if wt else None),
+        } for i, y in enumerate(years)])
+        st.dataframe(table.style.format({c: "{:,.0f}" for c in
+                                         ("outlay", "cash flow", "net", "cumulative",
+                                          "cumulative, weighted")}, na_rep="—"),
+                     width="stretch", hide_index=True, height=min(60 + 36 * len(years), 420))
+
+
 def _pnl_section(result: dict, varied) -> None:
     """The P&L that produces the FCFF, which the engine computed and nothing showed.
 
@@ -5851,6 +5972,380 @@ def _medicare_tile_sub(dem) -> str:
     return out
 
 
+# --- the forecast page ----------------------------------------------------------------
+# Two parts on one screen, the company and then its assets, each led by charts the reader
+# changes: what is plotted, how it is split, each year or added up, weighted by the
+# chances or in full. Everything else (the fair value range, the peer multiple, the cost
+# to reach the gates, one asset's whole workbench) is one click away, in a card over the
+# page. The figures come from one read, the board; a choice redraws from it.
+
+_FC_MORE = {"sum": "How the sum is built", "range": "Fair value range",
+            "build": "Revenue by product", "breaks": "What breaks it",
+            "gates": "Cost to reach the gates", "peers": "Peer multiples",
+            "medicare": "Medicare negotiation"}
+_CARD_PLOTS = {"revenue": "Revenue", "cash": "Free cash flow", "cum": "Cumulative cash",
+               "costs": "Costs", "patients": "Patients"}
+
+
+def _forecast_board(api_base: str, ticker: str):
+    try:
+        return api_get(api_base, f"/companies/{ticker}/forecast-board")
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def _fc_choice(label: str, options: dict, key: str, disabled: bool = False):
+    """One row of buttons, one pressed. A press that clears the row falls back to the
+    first, so a chart always has something to draw."""
+    keys = list(options)
+    got = st.segmented_control(label, keys, default=keys[0], format_func=options.get,
+                               key=key, label_visibility="collapsed", disabled=disabled)
+    return got if got in options else keys[0]
+
+
+def _fc_caption(text: str) -> None:
+    if text:
+        st.markdown(f'<div class="byline fc-cap">{html_escape(text)}</div>',
+                    unsafe_allow_html=True)
+
+
+def _fc_open_key(ticker: str) -> str:
+    """The session key holding the open card: {"asset": id} or {"more": key}."""
+    return f"fc_open_{ticker}"
+
+
+def _fc_close(ticker: str) -> None:
+    st.session_state.pop(_fc_open_key(ticker), None)
+
+
+def _lever_span(lever: dict) -> str:
+    """A lever's model value and the value at which the answer breaks, in its own unit."""
+    kind, key = lever.get("kind"), lever.get("key", "")
+    shown = lever.get("shown") or []
+    if kind == "scale" and len(shown) == 1 and shown[0].get("break") is not None:
+        return f"{shown[0]['model']:.2%} to {shown[0]['break']:.2%}"
+    if key == "launch_rate":
+        return f"{lever['model']:.3f} to {lever['break']:.3f} per R&D $"
+    return (f"{_lever_value(kind, lever.get('model'), key)} to "
+            f"{_lever_value(kind, lever.get('break'), key)}")
+
+
+def _fc_label(text: str) -> None:
+    """The name of a choice, set small beside its buttons, so a row of three controls
+    says what each one changes."""
+    st.markdown(f'<span class="fc-ctl-k">{html_escape(text)}</span>',
+                unsafe_allow_html=True, width="content")
+
+
+def _fc_company(api_base: str, ticker: str, board: dict, this_year: int) -> None:
+    """The company. Is it worth more than the price and can the number be trusted (the
+    strip); where is it going and when does it fall (the chart, which takes most of the
+    width); what is the value made of and what does it depend on (beside it)."""
+    try:
+        rated = (api_get(api_base, f"/companies/{ticker}/fair-value") or {}).get("rating") or {}
+    except (urllib.error.URLError, OSError):
+        rated = {}
+    with st.container(key=f"fcb_strip_{ticker}"):
+        st.markdown(metric_tiles(FB.strip_items(board, rated.get("rating")
+                                                if rated.get("ok") else None),
+                                 one_row=True), unsafe_allow_html=True)
+    over_time, value_col = st.columns([1.7, 1], gap="large")
+    with over_time:
+        section("The company over time", basis="reported, then forecast")
+        with st.container(horizontal=True, key=f"fcb_ctl_a_{ticker}"):
+            _fc_label("Show")
+            measure = _fc_choice("Measure", FB.MEASURES, f"fcb_measure_{ticker}")
+        fixed = measure in ("costs", "capex", "cash_uses")
+        with st.container(horizontal=True, key=f"fcb_ctl_b_{ticker}"):
+            _fc_label("Split")
+            split = _fc_choice("Split", FB.SPLITS, f"fcb_split_{ticker}", disabled=fixed)
+            _fc_label("Years")
+            view = _fc_choice("View", FB.VIEWS, f"fcb_view_{ticker}")
+            _fc_label("Basis")
+            basis = _fc_choice("Basis", FB.BASES, f"fcb_basis_{ticker}")
+        svg, caption = FB.company_chart(board, measure, split, view, basis, height=410)
+        if svg:
+            R.show(svg, css_class="chart-mount stretch")
+        else:
+            state(f"No {FB.MEASURES[measure].lower()} on file",
+                  "neither a reported year nor a forecast carries this measure.")
+        _fc_caption(caption)
+    with value_col:
+        section("What the value is made of", basis="$ a share")
+        with st.container(horizontal=True, key=f"fcb_ctl_c_{ticker}"):
+            _fc_label("Split")
+            made = _fc_choice("Value", FB.VALUE_VIEWS, f"fcb_value_{ticker}")
+        svg, caption = FB.value_chart(board, made)
+        R.show(svg, css_class="chart-mount stretch")
+        _fc_caption(caption)
+        section("What it depends on", basis="nearest to breaking first")
+        svg, caption = FB.depends_chart(_breakpoints(api_base, ticker) or {}, this_year,
+                                        _lever_span)
+        if svg:
+            R.show(svg, css_class="chart-mount stretch")
+            _fc_caption(caption)
+        else:
+            _fc_caption("no single assumption, moved alone, brings the value to the price.")
+    with st.container(horizontal=True, key=f"fcb_morerow_{ticker}"):
+        _fc_label("More")
+        for key, label in _FC_MORE.items():
+            if st.button(label, key=f"fcb_more_{key}_{ticker}"):
+                st.session_state[_fc_open_key(ticker)] = {"more": key}
+
+
+def _fc_assets(api_base: str, ticker: str, board: dict, ids: list, labels: dict,
+               pick_key: str, this_year: int) -> None:
+    """The assets. Which matter and how they compare (the ranked rows, which stay on
+    screen because a row is how an asset's card opens); beside them, one chart the reader
+    switches between the largest assets by year and two measures against each other."""
+    assets = board.get("assets") or []
+    years = list((board.get("years") or {}).get("forecast") or [])
+    with st.container(key=f"fcb_strip_{ticker}"):
+        st.markdown(metric_tiles(FB.asset_strip_items(board), one_row=True),
+                    unsafe_allow_html=True)
+    compared, charted = st.columns([1, 1.45], gap="large")
+    with compared:
+        section("Assets compared", basis="click a row for the asset's card")
+        with st.container(horizontal=True, key=f"fcb_ctl_d_{ticker}"):
+            _fc_label("Rank by")
+            measure = st.selectbox("Rank by", list(FB.ASSET_MEASURES),
+                                   format_func=FB.ASSET_MEASURES.get,
+                                   key=f"fcb_ameasure_{ticker}", width=178,
+                                   label_visibility="collapsed")
+            year = None
+            if years and measure in ("revenue_year", "fcf_year"):
+                year = st.selectbox("Year", years, index=min(4, len(years) - 1),
+                                    key=f"fcb_year_{ticker}", width=92,
+                                    label_visibility="collapsed")
+            show = _fc_choice("Show", FB.ASSET_SHOWS, f"fcb_show_{ticker}")
+        with st.container(horizontal=True, key=f"fcb_ctl_e_{ticker}"):
+            _fc_label("Basis")
+            basis = _fc_choice("Asset basis", FB.BASES, f"fcb_abasis_{ticker}")
+        clicked = clicklist.click_list(
+            FB.asset_rows(board, measure, show, basis, year, this_year),
+            tokens=_BOOK_TOKENS, selected=None, css=FB.ASSET_CSS, key=f"fcb_list_{ticker}")
+        nonce_key = f"_fcb_nonce_{ticker}"
+        if (isinstance(clicked, dict) and clicked.get("id") in ids
+                and clicked.get("nonce") != st.session_state.get(nonce_key)):
+            st.session_state[nonce_key] = clicked.get("nonce")
+            st.session_state[pick_key] = clicked["id"]
+            st.session_state[_fc_open_key(ticker)] = {"asset": clicked["id"]}
+    with charted:
+        head = st.container()
+        with st.container(horizontal=True, key=f"fcb_ctl_f_{ticker}"):
+            _fc_label("Chart")
+            chart = _fc_choice("Asset chart", FB.ASSET_VIEWS, f"fcb_aview_{ticker}")
+            other, pair_year, tmeasure = None, year, None
+            if chart == "pair":
+                rest = {k: v for k, v in FB.ASSET_MEASURES.items() if k != measure}
+                _fc_label("Against")
+                other = st.selectbox("Against", list(rest), format_func=rest.get,
+                                     key=f"fcb_against_{ticker}", width=178,
+                                     index=(list(rest).index("chance") if "chance" in rest
+                                            else 0), label_visibility="collapsed")
+                if years and other in ("revenue_year", "fcf_year") and year is None:
+                    pair_year = st.selectbox("Year", years, index=min(4, len(years) - 1),
+                                             key=f"fcb_pyear_{ticker}", width=92,
+                                             label_visibility="collapsed")
+            else:
+                _fc_label("Show")
+                tmeasure = _fc_choice("Time measure", FB.TIME_MEASURES,
+                                      f"fcb_tmeasure_{ticker}")
+        if chart == "pair":
+            with head:
+                section(f"{FB.ASSET_MEASURES[measure]} against "
+                        f"{FB.ASSET_MEASURES[other].lower()}", basis="a dot an asset")
+            svg = FB.asset_pair_chart(board, other, measure, show, basis, pair_year,
+                                      this_year, width=760, height=450)
+            if svg:
+                R.show(svg, css_class="chart-mount stretch")
+                _fc_caption("the dot's area is the asset's value a share; green on sale, "
+                            "purple pipeline, dashed a placeholder")
+            else:
+                state("Nothing to plot", "no asset carries both measures.")
+        else:
+            with head:
+                section("Assets over time", basis="the largest by value")
+            svg, caption = FB.asset_lines(board, tmeasure, show, basis, width=760,
+                                          height=450)
+            if svg:
+                R.show(svg, css_class="chart-mount stretch")
+                _fc_caption(caption)
+            else:
+                state("Nothing to draw", "no counted asset of this kind carries a path.")
+    with st.expander("See every asset as a table"):
+        st.markdown(FB.asset_table(board, this_year), unsafe_allow_html=True)
+
+
+def _fc_card(api_base: str, ticker: str, ids: list, labels: dict, pick_key: str,
+             company: dict) -> None:
+    """One asset's forecast as a card over the page. The picker inside moves between
+    assets without closing it, and a lever moved inside reruns the card alone."""
+    @st.dialog(f"{ticker} · asset forecast", width="large",
+               on_dismiss=lambda: _fc_close(ticker))
+    def _body():
+        _asset_bench(api_base, ticker, ids, labels, pick_key, st.container(),
+                     st.container(), company)
+
+    _body()
+
+
+def _fc_more(api_base: str, ticker: str, key: str) -> None:
+    """A company block that left the page, as a card: the same block, whole."""
+    @st.dialog(f"{ticker} · {_FC_MORE[key].lower()}", width="large",
+               on_dismiss=lambda: _fc_close(ticker))
+    def _body():
+        if key in ("sum", "build"):
+            try:
+                v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
+            except (urllib.error.URLError, OSError) as exc:
+                state("Unavailable", f"the API did not answer: {exc}", error=True)
+                return
+            sotp = v.get("sotp") or {}
+            if key == "build":
+                _revenue_build(v)
+                return
+            headline = (v.get("note") or {}).get("headline")
+            if headline:
+                st.markdown(f'<div class="call-lead">{html_escape(headline)}'
+                            '</div>', unsafe_allow_html=True)
+            if sotp.get("marketed", {}).get("per_share") is not None:
+                _sotp_bridge(sotp)
+                _revenue_split(sotp)
+            bits = list((v.get("note") or {}).get("body") or [])
+            coverage = v.get("coverage") or {}
+            if coverage.get("untagged_revenue"):
+                bits.append(f"{coverage['untagged_revenue'] / 1e6:,.0f}mm of "
+                            f"FY{coverage['fiscal_year']} revenue has neither a product row "
+                            "nor a line and is not drawn: there is no path to draw for it.")
+            if coverage.get("outside_reported_revenue"):
+                names = ", ".join(s["name"] for s in coverage.get("outside_lines") or [])
+                bits.append(f"{coverage['outside_reported_revenue'] / 1e6:,.0f}mm is earned "
+                            f"outside the reported total ({names}), so it is valued and "
+                            "drawn but is not coverage of it.")
+            if bits:
+                st.markdown(f'<div class="byline">{html_escape(" ".join(bits))}</div>',
+                            unsafe_allow_html=True)
+        elif key == "range":
+            _fair_value_range(api_base, ticker)
+        elif key == "breaks":
+            _what_breaks_it(api_base, ticker)
+        elif key == "gates":
+            _pipeline_development(api_base, ticker, expanded=True)
+        elif key == "peers":
+            _peer_value_section(api_base, ticker)
+        elif key == "medicare":
+            try:
+                selected = (api_get(api_base, f"/companies/{ticker}/ira") or {}).get("selected")
+            except Exception:                               # noqa: BLE001 - soft failure
+                selected = None
+            if selected:
+                _ira_strip(api_base, ticker)
+            else:
+                state("Nothing selected", "CMS has selected none of this company's drugs "
+                                          "for Medicare price negotiation.")
+
+    _body()
+
+
+def _fc_page(api_base: str, ticker: str, board: dict, ids: list, labels: dict,
+             pick_key: str) -> None:
+    """One view at a time, chosen at the top: the company, or its assets. Whichever
+    card is open sits over either."""
+    _BOOK_UNIT["currency"] = board.get("currency") or "USD"
+    this_year = dt.date.today().year
+    strip = board.get("strip") or {}
+    company = {"close": strip.get("price"), "close_date": strip.get("close_date")}
+    assets = board.get("assets") or []
+    alone = len(assets) == 1 and assets[0]["asset_id"] in ids
+    counted = sum(1 for a in assets if a.get("counted"))
+    off = len(assets) - counted
+    with st.container(key=f"fcb_page_{ticker}"):
+        with st.container(horizontal=True, key=f"fcb_head_{ticker}"):
+            part = _fc_choice("Forecast", {"company": "Company forecast",
+                                           "assets": "Asset forecast" if alone
+                                           else "Asset forecasts"},
+                              f"fcb_part_{ticker}")
+            st.markdown(
+                '<span class="fc-head-k">'
+                + html_escape(f"{counted} {'asset' if counted == 1 else 'assets'} counted"
+                              + (f" · {off} on a placeholder, not counted" if off else "")
+                              + f" · close {strip.get('close_date') or 'not on file'}")
+                + '</span>', unsafe_allow_html=True, width="content")
+        if part == "company":
+            _fc_company(api_base, ticker, board, this_year)
+        elif alone:
+            # One asset is the company: its forecast stands in place of the comparison.
+            if st.session_state.get(pick_key) not in ids:
+                st.session_state[pick_key] = assets[0]["asset_id"]
+            _asset_bench(api_base, ticker, ids, labels, pick_key, st.container(),
+                         st.container(), company)
+        else:
+            _fc_assets(api_base, ticker, board, ids, labels, pick_key, this_year)
+    want = st.session_state.get(_fc_open_key(ticker))
+    if not isinstance(want, dict):
+        return
+    if want.get("more") in _FC_MORE:
+        _fc_more(api_base, ticker, want["more"])
+    elif want.get("asset") in ids and not alone:
+        if st.session_state.get(pick_key) not in ids:
+            st.session_state[pick_key] = want["asset"]
+        _fc_card(api_base, ticker, ids, labels, pick_key, company)
+
+
+def _card_cash(name: str, result: dict, varied, plot: str, scenario: str) -> None:
+    """The card's chart on cash flow or on costs, from the P&L the engine computed: what
+    the asset earns each year after the company's cost ratios and tax, or those costs as
+    a stack. Before the chance of approval, as the revenue path beside it is."""
+    rows = (varied or {}).get("pnl") if isinstance(varied, dict) else None
+    moved = bool(rows)
+    rows = rows or result.get("pnl") or []
+    years = result.get("years") or []
+    if not rows or not years:
+        state("No P&L", "the engine returned no yearly rows for this product.")
+        return
+    labels = [str(y) for y in years]
+    notes = {}
+    if result.get("loe_year") in years:
+        notes[years.index(result["loe_year"])] = [{"name": name, "share": None}]
+    if plot == "costs":
+        keys = (("cogs", "cost_of_goods"), ("sga", "sga"), ("rd", "rd"),
+                ("other", "other_costs"), ("tax", "tax"))
+        bands = [{"name": FB.COST_NAME[k], "colour": FB.COST_COLOUR[k],
+                  "values": [r.get(row_key) for r in rows]} for row_key, k in keys]
+        title, basis = "costs", "the company's cost ratios on this revenue"
+    else:
+        bands = [{"name": "Free cash flow", "colour": TK.UP,
+                  "values": [r.get("fcff") for r in rows]}]
+        title, basis = "free cash flow", "after tax, before the chance of approval"
+    section(f"{name} {title}", basis=f"{_mm()} · {scenario}" + (" · varied" if moved else "")
+            + f" · {basis}")
+    R.show(FB.columns(labels, bands, width=780, height=262, fmt=lambda v: f"{v:,.0f}",
+                      notes=notes, notes_label="exclusivity ends", unit=_mm()),
+           css_class="chart-mount stretch")
+
+
+def _card_cumulative(api_base: str, ticker: str, asset_id: int, scenario: str, name: str,
+                     varied: bool) -> None:
+    """The card's chart on cumulative cash: the spend still ahead going out and the cash
+    coming back, if it succeeds and weighted by its chances. The return and the year it
+    is paid back sit with the P&L, under the chart."""
+    try:
+        prof = api_get(api_base, f"/companies/{ticker}/forecast/{asset_id}/cash-profile"
+                                 f"?scenario={scenario}")
+    except Exception as exc:                                # noqa: BLE001 - soft failure
+        state("Cash profile unavailable", f"the API did not answer: {exc}", error=True)
+        return
+    if not prof or not prof.get("ok"):
+        section(f"{name} cumulative cash")
+        _fc_caption((prof or {}).get("why") or "no cash profile for this product.")
+        return
+    section(f"{name} cumulative cash",
+            basis=f"{_mm()} · {scenario} · undiscounted"
+                  + (" · at the base levers" if varied else ""))
+    R.show(_cash_curve(prof, 780, 236), css_class="chart-mount stretch")
+
+
 # A fragment: picking a product, a scenario or a lever reruns this tab alone. The page
 # renders every tab on every rerun, so a click here used to redraw all of them and refetch
 # whatever their cache had let go, which is where a product click spent its time. A save
@@ -5896,23 +6391,59 @@ def _render_forecast_tab(api_base: str, ticker: str):
         selected = top if top in ids else ids[0]
         st.session_state[pick_key] = selected
 
-    # The book. A click on a row is a request to read that product: the picker's
-    # value is set before the picker reads its key, and the page reruns onto it.
+    board = _forecast_board(api_base, ticker)
+    if board and board.get("ok"):
+        _fc_page(api_base, ticker, board, ids, labels, pick_key)
+        return
+
+    # No board: nothing is counted yet (no model, or every asset on a placeholder), so
+    # there is no company path to draw. The book says so and the workbench sits under
+    # it, where the first model is started. A click on a row is a request to read that
+    # product: the picker's value is set before the picker reads its key.
     _company, clicked, slots = _book(api_base, ticker, selected)
     if clicked is not None and clicked in ids and clicked != selected:
         st.session_state[pick_key] = clicked
         _rerun_here()
     bench = (slots or {}).get("bench") or st.container()
     below = (slots or {}).get("below") or st.container()
+    _asset_bench(api_base, ticker, ids, labels, pick_key, bench, below, _company)
 
+
+def _asset_bench(api_base: str, ticker: str, ids: list, labels: dict, pick_key: str,
+                 bench, below, _company) -> None:
+    """One asset's forecast, read in the order its questions come.
+
+    What it is and which case (the picker, the scenario, its facts as chips); what it is
+    worth and how sure (the figures); the path that makes the value, as one chart the
+    reader switches between revenue, cash flow, cumulative cash, costs and patients, with
+    the bridge from path to value beside it; the levers under the chart they move; and
+    then the depth, one layer at a time: what it rests on, the next gate, uptake, the
+    P&L, sensitivity, the assumptions and their history. The page opens this as a card
+    over the company; a company with one asset, or none counted, shows it in place.
+    """
     with bench:
         st.markdown('<div class="fc-bench"></div>', unsafe_allow_html=True)
         # Beside the asset list the bench is half the page, so the scenario control gets
         # room for its three choices on one line.
         pick_col, scenario_col, id_col = st.columns([1.2, 1.05, 2.2], gap="small")
         with pick_col:
-            sel = st.selectbox("Product", ids, format_func=lambda aid: labels[aid],
-                               key=pick_key, label_visibility="collapsed")
+            # The chosen asset is plain state and the picker a widget of its own that
+            # opens on it. One key for both let the two drift: a card opened on Repatha
+            # showed the first name in the list over Repatha's figures after any rerun
+            # inside it.
+            current = st.session_state.get(pick_key)
+            if current not in ids:
+                current = st.session_state[pick_key] = ids[0]
+            widget_key = f"{pick_key}_w"
+
+            def _picked():
+                st.session_state[pick_key] = st.session_state[widget_key]
+
+            sel = st.selectbox("Product", ids, index=ids.index(current),
+                               format_func=lambda aid: labels[aid], key=widget_key,
+                               on_change=_picked, label_visibility="collapsed")
+            if sel not in ids:
+                sel = current
         with scenario_col:
             scenario = st.segmented_control(
                 "Scenario", ["base", "bear", "bull"], default="base",
@@ -6025,10 +6556,6 @@ def _render_forecast_tab(api_base: str, ticker: str):
         per_share_base = (owner_base * 1e6 / shares) if shares else None
 
         with head_slot:
-            headline = (verdict.get("note") or {}).get("headline")
-            if headline:
-                st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
-                            unsafe_allow_html=True)
             if varied:
                 delta = shown["rnpv"] - result["rnpv"]
                 change = f"{delta:+,.0f}{_mm()} vs base"
@@ -6072,6 +6599,9 @@ def _render_forecast_tab(api_base: str, ticker: str):
                           else clause(result.get("loe_basis")) if loe_shown
                           else "date not on file" if result.get("loe_in_base")
                           else "protection data missing"))
+            # Worth, then size, then how sure and for how long; the totals and the rate
+            # that turn those into the figure come last.
+            tiles = [tiles[i] for i in (0, 1, 3, 5, 6, 2, 4)]
             st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
             if unsourced:
                 st.markdown(f'<div class="byline">unsourced assumptions: '
@@ -6089,8 +6619,21 @@ def _render_forecast_tab(api_base: str, ticker: str):
         with charts_slot:
             path_col, bridge_col = st.columns([1.6, 1], gap="medium")
             with path_col:
-                _revenue_path(data["name"], result, varied, base_slim,
-                              data.get("actuals") or [], moved, scenario, revenue_span)
+                plots = dict(_CARD_PLOTS)
+                if patients_span is None:
+                    plots.pop("patients")
+                plot = _fc_choice("Chart", plots, f"fc_plot_{ticker}_{sel}")
+                if plot == "revenue":
+                    _revenue_path(data["name"], result, varied, base_slim,
+                                  data.get("actuals") or [], moved, scenario, revenue_span)
+                elif plot == "patients":
+                    _render_patient_chart(result, years, x_labels, volume_scale,
+                                          patients_span)
+                elif plot == "cum":
+                    _card_cumulative(api_base, ticker, sel, scenario, data["name"],
+                                     bool(varied))
+                else:
+                    _card_cash(data["name"], result, varied, plot, scenario)
             with bridge_col:
                 _value_bridge(shown, verdict, bool(varied))
 
@@ -6114,6 +6657,11 @@ def _render_forecast_tab(api_base: str, ticker: str):
         panels = dict(zip(layer_names, st.tabs(layer_names)))
 
         with panels["Drivers"]:
+            # The one sentence that reads the figures above, with what it rests on.
+            headline = (verdict.get("note") or {}).get("headline")
+            if headline:
+                st.markdown(f'<div class="call-lead">{html_escape(headline)}</div>',
+                            unsafe_allow_html=True)
             if verdict:
                 _drivers_layer(verdict, scenario)
             else:
@@ -6154,6 +6702,7 @@ def _render_forecast_tab(api_base: str, ticker: str):
                     _share_shaper(api_base, ticker, sel, scenario, result)
 
         with panels["P&L"]:
+            _cash_profile_section(api_base, ticker, sel, scenario)
             _pnl_section(result, varied)
 
         with panels["Sensitivity"]:

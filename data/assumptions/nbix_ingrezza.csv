@@ -8,7 +8,9 @@
 #
 # The company rows are Neurocrine's own, as nbix_osavampator.csv carries them.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NBIX,Ingrezza,,US,base,therapy_mode,,,marketed,,approved 2017-04-11 (NDA 209241) and selling since May 2017,no patient funnel is rebuilt for a product that files its own sales
 NBIX,Ingrezza,,US,base,base_revenue,,2513.7,,mm USD,"filed: Neurocrine FY2025 net product sales for INGREZZA, $2,513.7mm, from the revenue by product table of the 10-K (0000914475-26-000007)",the anchor

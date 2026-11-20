@@ -26,11 +26,12 @@ import db
 import fedreg
 import paragraph_iv
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "paragraph_iv"
 ENTITY_KEY = "fda"
 TTL_SECONDS = 7 * 24 * 60 * 60          # the list moves about monthly; refresh weekly
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _TIMEOUT_S = 60
 
 

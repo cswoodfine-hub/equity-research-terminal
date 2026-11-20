@@ -431,6 +431,62 @@ TRIAL_ASSET_CSV = (pathlib.Path(__file__).resolve().parent.parent
                    / "data" / "trial_asset_map.csv")
 
 
+PROGRAMME_SPLITS_CSV = (pathlib.Path(__file__).resolve().parent.parent
+                        / "data" / "programme_splits.csv")
+
+
+def _pinned_to(ticker: str, name: str, pins=None) -> list:
+    """The studies data/trial_asset_map.csv pins to this company's asset of this name."""
+    source = pathlib.Path(pins) if pins else TRIAL_ASSET_CSV
+    if not source.exists():
+        return []
+    with source.open(newline="", encoding="utf-8") as handle:
+        return [(r.get("nct_id") or "").strip() for r in csv.DictReader(
+                    line for line in handle if not line.lstrip().startswith("#"))
+                if (r.get("ticker") or "").strip().upper() == ticker
+                and (r.get("asset") or "").strip().lower() == name.lower()]
+
+
+def create_split_programmes(conn, path=None, pins=None) -> int:
+    """Make the programmes ``data/programme_splits.csv`` names, unmarketed, where the
+    company holds no asset of that name. The derivation makes a row per study's
+    intervention name and the merge folds rows sharing a code, so two programmes the
+    filings keep apart can arrive as one row, and a pin in trial_asset_map.csv cannot
+    move a study onto an asset that does not exist. Returns the rows created."""
+    source = pathlib.Path(path) if path else PROGRAMME_SPLITS_CSV
+    if not source.exists():
+        return 0
+    with source.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(
+            line for line in handle if not line.lstrip().startswith("#")))
+    made = 0
+    for row in rows:
+        ticker = (row.get("ticker") or "").strip().upper()
+        name = (row.get("asset") or "").strip()
+        company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
+                               (ticker,)).fetchone()
+        if company is None or not name:
+            continue
+        held = conn.execute(
+            """SELECT 1 FROM assets WHERE owner_company_id = ?
+                 AND ? IN (LOWER(TRIM(COALESCE(brand_name, ''))),
+                           LOWER(TRIM(COALESCE(generic_name, ''))),
+                           LOWER(TRIM(COALESCE(internal_code, ''))))""",
+            (company["id"], name.lower())).fetchone()
+        if held:
+            continue
+        # Only where a study pinned to it is in the book: a programme with nothing to
+        # carry would be an empty row, and in a book without the study there is nothing
+        # to split.
+        if not any(conn.execute("SELECT 1 FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+                   for nct in _pinned_to(ticker, name, pins)):
+            continue
+        conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                     " VALUES (?, ?, 0)", (company["id"], name))
+        made += 1
+    return made
+
+
 def load_overrides(conn, path=None) -> int:
     """Write ``data/trial_asset_map.csv`` into ``trial_asset_map``: a study the names cannot
     place, pinned to its asset by ticker and the asset's name, since ids are rebuilt with
@@ -439,6 +495,8 @@ def load_overrides(conn, path=None) -> int:
     source = pathlib.Path(path) if path else TRIAL_ASSET_CSV
     if not source.exists():
         return 0
+    if path is None:
+        create_split_programmes(conn)
     with source.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(
             line for line in handle if not line.lstrip().startswith("#")))
@@ -462,6 +520,29 @@ def load_overrides(conn, path=None) -> int:
             (nct, asset["id"], f"curated: {(row.get('note') or '').strip()}"))
         written += 1
     return written
+
+
+def drugs_before_placebos(norms: list[str]) -> list[str]:
+    """The intervention names to try, with any that mention a placebo tried last.
+
+    A placebo is named after the drug it is matched against, so "Letrozole-matching
+    placebo" reads to the matcher as letrozole. Where the study drug is something else
+    that binds the trial to the wrong asset: NCT07085767 gives palazestrant with
+    ribociclib, lists a letrozole-matching placebo among its five interventions, and
+    landed on Femara rather than Kisqali. Nobody is being given letrozole in it.
+
+    Ordering rather than filtering, because the placebo is sometimes the only name there
+    is and dropping it would lose the trial. AstraZeneca's NCT06307652 writes every one
+    of its three interventions as a compound, "balcinrenone/dapagliflozin 15 mg/10 mg and
+    matching placebo for dapagliflozin 10 mg", which names the study drug and its placebo
+    in one string. Deprioritised, that trial still matches on the same string it always
+    did; filtered, it would match nothing.
+
+    Measured before it was changed: of 3,234 mapped trials two are affected, and the
+    other is the one this is for. Pure, so the rule is testable without a database.
+    """
+    plain = [n for n in norms if "placebo" not in (n or "")]
+    return plain + [n for n in norms if "placebo" in (n or "")]
 
 
 def map_trials(db_path=None) -> dict:
@@ -503,7 +584,8 @@ def map_trials(db_path=None) -> dict:
             names = names_by_company[cid]
             asset_id = next(
                 (a for a in (match_intervention(n, names)
-                             for n in (row["norms"] or "").split("||")) if a), None)
+                             for n in drugs_before_placebos(
+                                 (row["norms"] or "").split("||"))) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))
@@ -529,7 +611,8 @@ def map_trials(db_path=None) -> dict:
                 names_by_company[cid] = _asset_names(conn, cid)
             asset_id = next(
                 (a for a in (match_intervention(n, names_by_company[cid])
-                             for n in (row["norms"] or "").split("||")) if a), None)
+                             for n in drugs_before_placebos(
+                                 (row["norms"] or "").split("||"))) if a), None)
             if asset_id is not None:
                 conn.execute("UPDATE completed_trials SET asset_id = ? WHERE nct_id = ?",
                              (asset_id, row["nct_id"]))

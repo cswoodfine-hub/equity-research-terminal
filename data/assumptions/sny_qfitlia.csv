@@ -12,7 +12,9 @@
 #
 # Ratios, discount rate and the other-costs charge are Sanofi's own, from sny_cerdelga.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 SNY,Qfitlia,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 SNY,Qfitlia,,US,base,base_revenue,,26.0,,mm EUR,"a 2026 run rate, not a reported year: the first half of 2026 as reported, EUR 12mm, and the second half at the second quarter's pace, EUR 7mm twice: 12 + 7 x 2 = EUR 26mm. Sanofi Q2 2026 results press release (6-K 0001121404-26-000008, filed 2026-07-30), Appendix 1, 'Q2 2026 net sales by medicine/vaccine and geography' and 'H1 2026 net sales by medicine/vaccine and geography', the 'Qfitlia' row, all in the US, and the H1 figure again in the half-year management report (6-K 0001628280-26-050803, filed 2026-07-30). The halves tie: Q1 2026 EUR 5mm (Sanofi Q1 2026 results press release (6-K 0001121404-26-000004, filed 2026-04-23)) plus Q2 EUR 7mm is EUR 12mm. FY2025 was EUR 9mm (Sanofi FY2025 20-F (0001628280-26-008403, filed 2026-02-17), net sales by medicine table), from a March 2025 approval, so not a full year","the anchor, and a small one: Sanofi says Q2 sales were 'most in haemophilia B'. Figures are rounded to the euro million in the filing, so at this size the rounding alone moves the anchor by several per cent"

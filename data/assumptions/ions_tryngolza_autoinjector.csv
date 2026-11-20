@@ -38,7 +38,9 @@
 # Readouts: Hypertriglyceridemia 2027-03 (CORE-OLE, sHTG, approved June 2026) and Familial
 # hyperchylomicronemia syndrome 2027-06 and 2028-02 (approved December 2024). All overlap 1.0.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 IONS,Tryngolza (Autoinjector),,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 IONS,Tryngolza (Autoinjector),,US,base,base_revenue,,107.5,,mm USD,"IONS FY2025 reported product sales, net, for TRYNGOLZA: $107.5mm. Ionis FY2025 10-K (0000874015-26-000115), MD&A, revenue table, 'TRYNGOLZA sales, net $ 107.5' against nil in 2024; the fourth-quarter release rounds it to $108mm (8-K 0001140361-26-006718). All US: Sobi holds the rights outside the US, Canada and China","the anchor. It is a year of familial chylomicronemia syndrome only, at the launch price. In April 2026 Ionis lowered the WAC ahead of the severe hypertriglyceridemia (sHTG) approval of June 2026 (10-Q 0000874015-26-000251, Note 4), and the second quarter fell to $4.6mm, so 2026 is not a year to anchor on"

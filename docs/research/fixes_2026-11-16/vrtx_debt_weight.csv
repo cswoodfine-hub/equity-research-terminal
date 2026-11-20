@@ -1,0 +1,14 @@
+# Draft debt_weight for every VRTX seed, researched 2026-11-16. Not applied.
+#
+# Replaces 0.05 ("Vertex near-zero debt (CASGEVY workbook C35)") in the 14 rows of the 12
+# files that carry it: vrtx_alyftrek (Alyftrek), vrtx_atumelnant (Atumelnant),
+# vrtx_inaxaplin (VX-147), vrtx_journavx (Journavx), vrtx_older_cf (Kalydeco, Orkambi,
+# Symdeko (Copackaged)), vrtx_palsonify (Palsonify), vrtx_povetacicept (Povetacicept),
+# vrtx_trikafta (Trikafta (Copackaged)), vrtx_vx_407 (VX-407), vrtx_vx_670 (VX-670),
+# vrtx_vx_993 (VX-993), vrtx_zimislecel (VX-880). vrtx_journavx_price.csv and
+# vrtx_prices.csv carry none. Brand changes per row; the value, source and note do not.
+#
+# The weight falls, it does not rise: $4.5bn of term loan against a market value near
+# $139bn is 3.1%, below the 5% the seeds carry.
+ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
+VRTX,Alyftrek,,US,base,debt_weight,,0.031369,,,"filed TotalDebt of $4,497mm over debt plus market capitalisation: 253.5mm shares at 2026-10-31 at the $547.65 close of 2026-09-01. Debt is Vertex's 10-Q for the quarter to 2026-09-30 (0000875320-26-000291), balance sheet: 'Short-term debt 999.6' and 'Long-term debt 3,497.0' ($mm), tagged LongTermDebtCurrent and LongTermDebtNoncurrent, the 2026 Term Loan drawn in September 2026 (Note M: '$ 4.5 billion remained outstanding', tranches of $1.0bn due 2027-08-31, $1.0bn due 2028-09-01 and $2.5bn due 2029-08-31). Shares from the same 10-Q's cover: '253,537,674 Outstanding at October 31, 2026'. Close from the Yahoo Finance daily chart, as the book's prices table (yahoo_chart) carries it. 4,496.6 / (4,496.6 + 253.537674 x 547.65) = 0.031369","Vertex's own, as every VRTX asset carries. Replaces the 0.05 workbook figure, which predates the debt. Finance leases are left out, as companyfacts.total_debt_series leaves them out ($112.2mm at 2025-12-31, FinanceLeaseLiability in the FY2025 10-K 0000875320-26-000056; with them, 0.032126). The $500mm 2026 Revolver is undrawn (Note M). At the $538.60 close of 2026-11-13 the weight is 0.031879"

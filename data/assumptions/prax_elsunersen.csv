@@ -16,7 +16,9 @@
 # Engine check on a copy of the book: US revenue $188.8mm in 2028 and $273.8mm at the 2029 peak, then falling as the closed pool is
 # treated and stoppers are not replaced; unrisked NPV $291.5mm, rNPV $134.2mm before the Ionis and RogCon shares.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PRAX,elsunersen,,US,base,therapy_mode,,,chronic,,"FY2025 10-K (0001689548-26-000029), EMBRAVE3: 'Patients will receive 1 mg of elsunersen intrathecally every 4 weeks for 24 weeks', with 1.0 mg and 0.5 mg starting doses every 4 weeks in the under-twos, and 'All patients will have the option to continue into an open-label extension'; EMBRAVE Part A's nine patients all continued into its extension, 'Efficacy was sustained in the OLE for up to one year' (8-K 0001689548-26-000031)",a repeated intrathecal antisense dose for as long as it works; discontinuation_pct carries who stops
 PRAX,elsunersen,,US,base,list_price_per_patient,,0.37,,mm USD per patient-year,"reused from prax_relutrigine.csv, Praxis's other SCN2A medicine on the same pool: Skyclarys (omaveloxolone), a wholesale acquisition cost of $370,000 a year at its FDA approval (Drug Discovery & Development, 'Reata sets $370,000 annual cost for new nerve disorder drug', 2023-03-03), one of the pricing analogues Praxis names for its rare epilepsy medicines (8-K exhibit 99.2, 0001689548-26-000082, slide 6)","a comparator, not elsunersen's price, which is not published. The uptake below is the Skyclarys fit in patients, so the price and the take-up come from one analogue. Case for higher: an intrathecal antisense medicine in a rare disease, as nusinersen is, prices above an oral; case for lower: elsunersen would be the second Praxis medicine for the same children after relutrigine"

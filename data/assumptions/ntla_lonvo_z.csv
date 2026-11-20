@@ -11,7 +11,9 @@
 # book's first-full-year rule. Company-level cost rows are Vertex's filed lines, the comparator capr_deramiocel.csv
 # and vrtx_zimislecel.csv use; Intellia has no product revenue to read.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NTLA,Biological NTLA-2002,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time: the year's new patients times the price. HAELO (NCT06634420) gives one dose, and Intellia's 8-K of 2026-09-08 (0001193125-26-385194) describes 'a one-time 50 milligram dose of lonvo-z'","chosen over one_time because one_time needs a cost of goods per patient and no Intellia filing gives one; cost of sales rides as the comparator's share of revenue, the method of vrtx_zimislecel.csv"
 NTLA,Biological NTLA-2002,,US,base,discontinuation_pct,,1.0,,share stopping a year,"lonvo-z is given once: HAELO's arms are a single 50 mg infusion or placebo (NCT06634420), and as of the 2026-02-10 data cutoff every patient who received it at baseline or in crossover 'remained free from long-term prophylaxis therapy' (8-K 0001193125-26-385194)","nobody carries into the next year. A second dose for a patient whose kallikrein recovers would add revenue this leaves out; no filing describes one"

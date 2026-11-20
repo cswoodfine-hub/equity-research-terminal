@@ -40,6 +40,7 @@ Idempotent: a second run finds nothing to merge.
 
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import re
@@ -66,7 +67,7 @@ _ELEMENTS = {"AC", "AT", "BI", "C", "CU", "F", "GA", "GD", "H", "HO", "I", "IN",
 # what it is: "KYV-101 anti-CD19 CAR-T cell therapy" names one programme, not two. Vectors
 # and cell lines sit here too: AAVrh74 is a capsid serotype and HEK-293 is what the vector
 # is grown in, and neither is a compound anyone is developing.
-_BIOLOGY = {"AAV", "AAVRH", "ACE", "ANG", "APOE", "BCMA", "CAR", "CART", "CD", "COV",
+_BIOLOGY = {"AAV", "AAVRH", "AAVANC", "ACE", "ANG", "APOE", "BCMA", "CAR", "CART", "CD", "COV",
             "COVID", "DUX", "EGFR", "FC", "FGF", "GIP", "GLP", "HBV", "HDL", "HEK", "HER",
             "HIV", "HLA", "HPV", "IGG", "IL", "KRAS", "LDL", "LNP", "LRRC", "MHC", "MMP",
             "NK", "PD", "PDL", "PEG", "PSA", "RH", "RSV", "SARS", "TCR", "TDP", "TNF",
@@ -93,6 +94,129 @@ _ISOTOPE = re.compile(r"\[?(\d{1,3})\s?([A-Z][a-z]?)\]?")
 # Rows a merge could not move because the survivor already held the same key. Reported
 # by merge() so a collapse that loses something says so.
 DROPPED: dict = {}
+
+
+# Two rows of the same molecule where the model landed on one and the readouts on the
+# other. Four were found by accident in one night, every one of them silent: alpelisib's
+# economics on "Piqray Vijoice" and its three pending readouts on "Piqray"; rimegepant's
+# on "Nurtec ODT / Vydura" against two readouts on "Nurtec Odt"; momelotinib marketed as
+# Ojjaara with the readout on a pipeline twin; Summit's two ivonescimab rows, which left
+# a whole company at nil. The merge fixes them once an alias names the pair, so what this
+# finds is the ones nobody has named yet.
+_MOLECULE_NOISE = re.compile(
+    r"\b(injection|infusion|solution|tablets?|capsules?|oral|intravenous|subcutaneous|"
+    r"inhal\w*|dose\s*\d+|\d+\s*mg|\d+\s*mcg|arm\s*\w|part\s*\w|copackaged|"
+    r"autoinjector|prefilled|syringe|pen|vial|sodium|hydrochloride|hcl|dihydrochloride|"
+    r"sulfate|acetate|succinate|tartrate|maleate|mesylate|citrate|phosphate|besylate|"
+    r"fumarate|revenue share)\b", re.I)
+_BIOSIMILAR_TAG = re.compile(r"-[a-z]{4}\b", re.I)
+
+
+def molecule_key(name) -> str:
+    """A name with the registry's formulation, dose and salt words stripped off."""
+    text = re.sub(r"\(.*?\)", " ", (name or "").lower())
+    text = _BIOSIMILAR_TAG.sub(" ", text)
+    text = _MOLECULE_NOISE.sub(" ", text)
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", text).split())
+
+
+# A development code rather than a name: letters, a separator, then digits, which is how
+# a registry row for an unnamed compound is spelled (JNJ-79635322, PF-07868489, RGX-202).
+_DEV_CODE = re.compile(r"^[a-z]{2,6}[\s\-]?\d{3,}[a-z]?$", re.I)
+
+
+def split_models(conn) -> list:
+    """[{ticker, modelled, stranded}] where one row of a molecule carries the assumptions
+    and another carries a pending readout and none.
+
+    Matching is on ANY of an asset's names, not the first: the common case is a marketed
+    row keyed on its brand beside a pipeline row keyed on the generic, which an exact
+    match on one field each never joins. Containment counts too, so "Piqray" is seen
+    inside "Piqray Vijoice".
+
+    What this cannot find, and nothing in the book can. An INN beside its own development
+    code shares no letters, so no name rule joins them: "Ramantamig" and "JNJ-79635322"
+    are one trispecific antibody carrying 21 assumption rows each, and the registry files
+    every trial under one name or the other, so they share no study either. That pair was
+    found by reading J&J's filings. A sweep over the book's own data will not produce it,
+    and a clean run here is not evidence that none exists.
+    """
+    rows = {r["id"]: r for r in conn.execute(
+        """SELECT a.id, a.brand_name, a.generic_name, a.internal_code, a.owner_company_id,
+                  c.ticker,
+                  (SELECT COUNT(*) FROM assumptions s WHERE s.asset_id = a.id) AS rows_
+             FROM assets a JOIN companies c ON c.id = a.owner_company_id""")}
+    pending = collections.Counter()
+    for r in conn.execute(
+            """SELECT COALESCE(t.asset_id, k.asset_id) AS aid FROM catalysts k
+                 LEFT JOIN trials t ON k.source_url LIKE '%' || t.nct_id || '%'
+                WHERE k.status = 'pending' AND k.expected_date >= date('now')"""):
+        if r["aid"]:
+            pending[r["aid"]] += 1
+    names = {i: {n for n in (molecule_key(r["brand_name"]),
+                             molecule_key(r["generic_name"]),
+                             molecule_key(r["internal_code"])) if len(n) >= 5}
+             for i, r in rows.items()}
+    parent = {i: i for i in rows}
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    by_company: dict = collections.defaultdict(list)
+    for i, r in rows.items():
+        by_company[r["owner_company_id"]].append(i)
+    for ids in by_company.values():
+        for x in range(len(ids)):
+            for y in range(x + 1, len(ids)):
+                a, b = ids[x], ids[y]
+                na, nb = names[a], names[b]
+                if not (na and nb):
+                    continue
+                joined = bool(na & nb) or any(
+                    f" {p} " in f" {q} " or f" {q} " in f" {p} " for p in na for q in nb)
+                if joined:
+                    ra, rb = find(a), find(b)
+                    if ra != rb:
+                        parent[rb] = ra
+    groups: dict = collections.defaultdict(list)
+    for i in rows:
+        groups[find(i)].append(i)
+    out = []
+    for members in groups.values():
+        if len(members) < 2:
+            continue
+        modelled = [m for m in members if rows[m]["rows_"] > 0]
+        stranded = [m for m in members if pending[m] and not rows[m]["rows_"]]
+        # A molecule modelled on two rows at once is the worse shape, since it values the
+        # same patients twice: Ramantamig and JNJ-79635322 carry 21 assumption rows each.
+        # It is reported only where one of the pair is a bare development code with no
+        # brand, because name similarity alone cannot tell a duplicate from a brand
+        # family. Ozempic and Wegovy are both semaglutide and are two products with two
+        # labels and two revenue lines; so are Mounjaro and Zepbound. Flagging those was
+        # 23 false positives on a book with two real duplicates in it.
+        coded = [m for m in modelled
+                 if not (rows[m]["brand_name"] or "").strip()
+                 and _DEV_CODE.match((rows[m]["generic_name"] or "").strip())]
+        if len(modelled) > 1 and coded:
+            out.append({
+                "ticker": rows[members[0]]["ticker"], "shape": "modelled twice",
+                "modelled": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "rows": rows[m]["rows_"],
+                              "catalysts": pending[m]} for m in modelled],
+                "stranded": []})
+        elif modelled and stranded:
+            out.append({
+                "ticker": rows[members[0]]["ticker"], "shape": "readout stranded",
+                "modelled": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "rows": rows[m]["rows_"]}
+                             for m in modelled],
+                "stranded": [{"id": m, "name": rows[m]["brand_name"]
+                              or rows[m]["generic_name"], "catalysts": pending[m]}
+                             for m in stranded]})
+    return out
 
 
 def _canonical_names(asset) -> set:
@@ -290,7 +414,8 @@ def find_alias_duplicates(conn) -> list[tuple]:
     pairs = []
     for row in conn.execute(
             """SELECT al.internal_code AS name, al.asset_id AS survivor_id,
-                      al.note AS note, a.owner_company_id AS company_id
+                      al.note AS note, a.owner_company_id AS company_id,
+                      a.brand_name AS survivor_brand
                  FROM asset_aliases al JOIN assets a ON a.id = al.asset_id"""):
         # A hand-written alias is matched as written. trial_mapping.aliases includes the
         # canonical spelling, which strips route and device words, and that is right for
@@ -307,6 +432,16 @@ def find_alias_duplicates(conn) -> list[tuple]:
                 "SELECT id, brand_name, generic_name, internal_code FROM assets"
                 " WHERE owner_company_id = ? AND id <> ?",
                 (row["company_id"], row["survivor_id"])):
+            # An absorbed alias is an application number the merge folded into one
+            # product. It says which applications make up THAT product, so it may fold a
+            # pen or a formulation of it, never a differently branded product that shares
+            # the application. NDA213051 carries oral Ozempic and Rybelsus together: the
+            # alias rightly sends oral Ozempic to Ozempic, and without this it also sent
+            # Rybelsus there every night, and Rybelsus's 22,093mm DKK line with it.
+            # A curated alias is an analyst's statement and is not second-guessed.
+            if not exact and not assets_util.same_brand_family(row["survivor_brand"],
+                                                                other["brand_name"]):
+                continue
             names: set = set()
             for field in ("brand_name", "generic_name", "internal_code"):
                 names |= (_exact_aliases(other[field]) if exact

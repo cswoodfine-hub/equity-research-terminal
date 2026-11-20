@@ -17,7 +17,9 @@
 # lines, net of the Takeda royalty at its lowest reading. Not modelled: sales outside the US (no application), the royalty Neurocrine earns on
 # Takeda's Japan sales, the up to $742.5mm of Takeda milestones (no fixed-payment key, so the value is a ceiling on that count).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NBIX,Osavampator,,US,base,therapy_mode,,,chronic,,"registry: NCT07196501 and the three acute studies give osavampator as an 'Oral tablet' once daily as an adjunct to the patient's antidepressant, and the maintenance study randomises responders to continue or stop (time to relapse, up to about 32 months)",a daily adjunct taken for as long as it works; discontinuation_pct carries who stops
 NBIX,Osavampator,,US,base,list_price_per_patient,,0.00931089,,mm USD per patient-year,"CMS Medicare Part D Quarterly 2025 (Q1 to Q4), dataset 4ff7c618-4e40-483a-b390-c8a58c94fa15, Rexulti (brexpiprazole): $1,127,195,022.03 over 121,062 beneficiaries = $9,310.89 per beneficiary (828,931 claims), the figure jnj_seltorexant.csv and lly_brenipatide.csv carry. Not annualised. Rexulti is the analogue because its MDD label is the one osavampator's Phase 3 seeks: an add-on to an antidepressant after inadequate response (Neurocrine FY2025 10-K 0000914475-26-000007: 'adults with major depressive disorder (MDD) who have inadequate response to oral antidepressant treatment')","a comparator, not a price Neurocrine has set. Against the choice: Rexulti's Medicare beneficiaries include schizophrenia and Alzheimer's agitation patients. 2025 alternatives in the same file, from the seltorexant seed: Vraylar $10,176.39, Caplyta $9,788.05, Auvelity $5,461.14 (the last novel oral mechanism in MDD). Neurocrine prices its own Ingrezza far higher, but in a disease with no generic standard of care"

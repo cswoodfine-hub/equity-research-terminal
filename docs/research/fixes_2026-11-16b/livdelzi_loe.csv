@@ -1,0 +1,12 @@
+# Draft row for data/disclosed_loe.csv (append under the GILD rows). Researched 2026-11-16.
+#
+# Why: loe.for_assets takes the latest drug substance patent, 7709682 to 2027-09-13, and
+# effective() lets a substance patent set the date even where a regulatory exclusivity runs
+# later. On NDA 217899 that puts the cliff two years inside NCE exclusivity (2029-08-14) and
+# four inside orphan exclusivity (2031-08-14). Gilead's own table gives the orphan date.
+#
+# The date departs from the file's "as the filing states it" convention in one way: Gilead's
+# footnote gives the year 2031, which _period_end would read as 2031-12-31, and the Orange
+# Book gives the day. The day is taken because it is the one a primary source states.
+ticker,brand,loe,basis,note
+GILD,Livdelzi,2031-08-14,"Gilead 10-K, U.S. orphan drug exclusivity on the only approved indication","0000882095-26-000006, principal products patent table (primary, typically compound, patents incl. granted extensions): Livdelzi U.S. 2025, EU none, footnote (9): ""FDA Orphan Drug Exclusivity expires in 2031."" The day is the Orange Book's: NDA 217899 product 001 lists exclusivity ODE-486 to 08/14/2031 and NCE to 08/14/2029 (Orange Book patent and exclusivity page, read 2026-11-16). PBC is the label's only indication, so the orphan exclusivity bars every generic until it lapses and leaves no indication to carve out; NCE exclusivity, which ends earlier, is not the date. Drug substance patents 7301050 (2027-08-02) and 7709682 (2027-09-13) are not taken: Gilead's table puts the primary patent at 2025, behind both exclusivities. Extension applications filed 2024-10-11 on all six listed patents are pending (USPTO, the book's patent_term_extensions table) and are not taken"

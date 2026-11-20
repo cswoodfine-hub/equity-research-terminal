@@ -12,7 +12,9 @@
 # Company half: Korro has no product revenue, so the cost lines and tax rate are Amgen's, copied verbatim from
 # amgn_imdelltra.csv, the seller of the price analogue. Beta and debt weight are Korro's own. Least confident: everything
 # downstream of a first-in-human study; this is an order of magnitude for pricing the ANCHOR readout.
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 KRRO,KRRO-121,,US,base,therapy_mode,,,chronic,,"NCT07773246: KRRO-121 by subcutaneous injection, single and multiple ascending doses (registry, read 2026-10-28); a GalNAc-conjugated RNA-editing oligonucleotide that generates a stabilised glutamine synthetase to clear ammonia (Q2 2026 10-Q 0001193125-26-336707). Korro describes KRRO-111, its other GalNAc-conjugated REO, as a 'redosable subcutaneous drug presentation' (8-K 0001193125-26-428306)","chronic, as nitrogen scavengers are taken for life; discontinuation_pct carries who stops"
 KRRO,KRRO-121,,US,base,list_price_per_patient,,0.845247,,mm USD per patient-year,"analogue: Ravicti (glycerol phenylbutyrate), the branded chronic ammonia scavenger for UCD, CMS Medicare Part D Spending by Drug 2024 (data.cms.gov dataset 7e0b4365-fd63-4a29-8f5e-e0ac9f66a81b, Brnd_Name Ravicti, Overall): $79,453,177.16 over 94 beneficiaries = $845,246.57 a beneficiary; $841,183 in 2022 and $844,304 in 2023","a comparator, not a price KRRO-121 has. The uptake anchor below converts Ravicti's filed revenue to patients at this same price, so the level cancels in the anchored patient count"

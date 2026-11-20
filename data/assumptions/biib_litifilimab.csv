@@ -4,7 +4,9 @@
 # measured in data/launch_ramp.csv. Probability of success is the published rate for a
 # phase 3 immunology asset, 61.4% (data/pos_by_area.csv).
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BIIB,Litifilimab,,US,base,therapy_mode,,,launch,,a phase 3 asset with a published peak and no reported revenue,
 BIIB,Litifilimab,,US,base,peak_revenue_musd,,2000.0,,mm USD,"Jefferies (Andrew Tsai), peak sales of $2bn across systemic and cutaneous lupus, reported by BioPharma Dive on 29 June 2026",

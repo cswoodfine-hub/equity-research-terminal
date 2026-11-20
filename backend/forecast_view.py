@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import copy
 import datetime as dt
+import json
 import logging
 import math
 import re
@@ -17,6 +18,7 @@ import re
 import asset_revenue
 import assumption_log
 import assumptions as assumptions_module
+import catalyst_scenarios
 import company_lines
 import db
 import discontinued
@@ -28,6 +30,7 @@ import launch_timing
 import other_claims
 import loe_link
 import pos_granular
+import settled_readouts
 
 _log = logging.getLogger(__name__)
 
@@ -738,7 +741,8 @@ RESOLVE_NOTES = {
 STAKE_REASONS = ("no_forecast", "stated_elsewhere", "nil", "no_gate",
                  "regulatory_not_gate", "not_a_gate", "no_trial_link", "past_gate",
                  "not_gate_phase", "phase_ahead_of_book", "other_indication",
-                 "same_gate_later", "already_approved", "needs_layer", "in_the_base")
+                 "same_gate_later", "already_approved", "needs_layer", "in_the_base",
+                 "no_indication_link", "programme_stopped", "settled_nil", "no_free_data")
 
 
 # Columns a stake row is read with that are not part of the payload.
@@ -902,6 +906,32 @@ def _filing_in_model(conn, row: dict, gathered: dict) -> tuple:
     return False, f"the filing is for {name}, which the forecast does not value"
 
 
+def _curated_unvalued(conn, row: dict, gathered: dict) -> str | None:
+    """The name of the curated sub-population the catalyst is linked to, where the
+    forecast carries no base rows for it; else None."""
+    link = row.get("asset_indication_id")
+    if link is None or link == gathered.get("lead_indication_id"):
+        return None
+    pair = conn.execute(
+        "SELECT ai.indication_id, i.name FROM asset_indications ai"
+        "  JOIN indications i ON i.id = ai.indication_id WHERE ai.id = ?",
+        (link,)).fetchone()
+    if pair is None:
+        return None
+    # The general file only. A paediatric row is often valued on its parent row (PCV21's
+    # infants, GSK's varicella vaccine), so a link to it says nothing about value.
+    curated = {term for (asset_id, term) in indication_mapping.curated_subpopulations(
+                   conn, [indication_mapping.SUBPOPULATION_CSV])
+               if asset_id == row.get("asset_id")}
+    if pair["name"] not in curated:
+        return None
+    valued = conn.execute(
+        "SELECT 1 FROM assumptions WHERE asset_id = ? AND indication_id = ?"
+        "   AND scenario = 'base' LIMIT 1",
+        (row.get("asset_id"), pair["indication_id"])).fetchone()
+    return None if valued else pair["name"]
+
+
 def _gate_reason(conn, row: dict, state: dict) -> tuple:
     """(reason, why, nct, trial) for one catalyst on an asset with derived legs; the
     reason is None where the catalyst is the gate event."""
@@ -946,6 +976,15 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                     "Phase 3 readout is ahead of the gate the model prices.", nct, trial)
         return ("not_gate_phase", f"A {phase} readout does not decide the asset's "
                 f"{label.lower()}.", nct, trial)
+    # A study an analyst has filed as a sub-population the forecast does not value is in
+    # that sub-population, whatever broader descriptor the registry also gives it: the
+    # chronic low back pain study of LY4065967 files 'Chronic Pain' too, and priced the
+    # gate of the neuropathic pain the seed models.
+    outside = _curated_unvalued(conn, row, gathered)
+    if outside:
+        return ("other_indication", f"The study is filed as {outside}, a sub-population "
+                f"the forecast does not value, so its result does not decide the modelled "
+                f"value.", nct, trial)
     modelled, indications = pos_granular.in_modelled(conn, nct, gathered["modelled_mesh"])
     if not modelled:
         blind = pos_granular.unread(indications, pos_granular.mesh_on_file(conn, nct))
@@ -957,6 +996,79 @@ def _gate_reason(conn, row: dict, state: dict) -> tuple:
                 f"the forecast does not value, so its result does not decide the modelled "
                 f"value.", nct, trial)
     return None, None, nct, trial
+
+
+def _programme_stopped(conn, pair_id) -> str | None:
+    """The analyst's own nil on one asset-indication pair, with the source they filed.
+
+    A pair written to ``pos = 0`` is a programme its research has closed, and 46 of them
+    carry one: Trodelvy's lung work after EVOKE-01 missed its overall survival endpoint
+    and Gilead impaired the whole NSCLC intangible, Jemperli's after belrestotug was
+    terminated, Vyvgart's Sjogren's after argenx discontinued UNITY. Their readouts read
+    "needs_layer" before this, which asks the reader for a pool that would be built on a
+    programme its own owner has written off, and counts them as research still to do.
+    Asset-wide stops are a separate thing the view already drops (``retired_programmes``);
+    this is the one indication of a product that still sells.
+    """
+    if not pair_id:
+        return None
+    pair = conn.execute("SELECT asset_id, indication_id FROM asset_indications"
+                        " WHERE id = ?", (pair_id,)).fetchone()
+    if pair is None:
+        return None
+    row = conn.execute("SELECT source FROM assumptions WHERE asset_id = ?"
+                       "   AND indication_id = ? AND key = 'pos' AND value = 0.0",
+                       (pair["asset_id"], pair["indication_id"])).fetchone()
+    return ((row["source"] or "").strip() or None) if row is not None else None
+
+
+def _indication_gap(conn, row: dict) -> str | None:
+    """Why a catalyst carries no indication of the book's, or None where it does.
+
+    Without one there is nothing to value: no layer, no pool, no label test. The row
+    read "marketed or outside the gate model", which says nothing a reader can act on
+    and is untrue of a marketed product. Each case here names what is missing instead.
+    """
+    if row.get("asset_indication_id"):
+        return None
+    # Only where the indication is the binding gap. A pipeline asset outside the gate
+    # model is outside it for its own reasons, which the caller's words already give;
+    # a marketed product's only route is the layer, and the layer needs an indication.
+    marketed = conn.execute("SELECT is_marketed FROM assets WHERE id = ?",
+                            (row.get("asset_id"),)).fetchone() if row.get("asset_id") else None
+    if not (marketed and marketed["is_marketed"]):
+        return None
+    nct, trial = _catalyst_trial(conn, row)
+    if trial is None:
+        # A catalyst with no study of its own is already named by the reasons above: a
+        # marketed asset is outside the gate model whether or not it carries a disease,
+        # and that is the more useful half of the answer.
+        return None
+    study = conn.execute(
+        "SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+    try:
+        terms = indication_mapping.indications_for(
+            study["conditions"],
+            indication_mapping.parse_browse(study["mesh_terms"])) if study else []
+    except Exception:                                      # noqa: BLE001 messy payload
+        terms = []
+    if not terms:
+        return ("The study's conditions name no disease the book holds, so it cannot be "
+                "tied to an indication and nothing can be valued against it.")
+    held = {r["indication_id"] for r in conn.execute(
+        "SELECT indication_id FROM asset_indications WHERE asset_id = ?",
+        (row.get("asset_id"),))} if row.get("asset_id") else set()
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    hits = {by_mesh[t["id"]] for t in terms if t["id"] in by_mesh} & held
+    if len(hits) > 1:
+        return (f"The study spans {len(hits)} of the asset's indications, so it decides "
+                f"no single one and the book has nowhere to put its result.")
+    if not hits:
+        return (f"The asset carries no indication for {terms[0]['term']}, the disease "
+                f"the study is in.")
+    return ("The study names one of the asset's indications but the catalyst was never "
+            "tied to it.")
 
 
 def _no_gate_reason(state: dict) -> tuple:
@@ -992,6 +1104,85 @@ _LAYER_GATE_PHASES = {"Phase 3": "p3_to_nda", "Phase 2/3": "p3_to_nda",
                       "Phase 2": "p2_to_p3"}
 
 
+def _one_population_legs(conn, row: dict) -> list:
+    """The asset's indications a catalyst decides together, or [] where it decides none.
+
+    A readout the registry files under several of an asset's diseases is normally left
+    unlinked, because choosing one of them would be a guess. Sometimes it is not a
+    choice: Saphnelo's NCT06455449 enrols idiopathic inflammatory myopathies, one
+    randomised population with one endpoint, and the book holds dermatomyositis and
+    polymyositis as two seeded layers. The readout decides both and is worth their sum.
+
+    The registry says which it is. A study that treats its diseases as one population
+    files them as one condition string, "Polymyositis, Dermatomyositis"; a basket or a
+    master protocol lists them separately, as KEYNOTE-158 lists twenty-four and
+    orforglipron's lists obesity, overweight and type 2 diabetes. That single entry is
+    the whole test here, and on the book as it stands it admits one study of the
+    fourteen that span: the other thirteen are baskets, master protocols, and roll-over
+    or long-term extension studies, none of which decides anything together.
+
+    Parent and child are collapsed first (``drop_parent_matches``), so a study indexed under both a
+    disease and its own broader term is one leg rather than two counts of the same
+    patients.
+    """
+    if row.get("asset_indication_id") or not row.get("asset_id"):
+        return []
+    nct, trial = _catalyst_trial(conn, row)
+    if trial is None:
+        return []
+    study = conn.execute(
+        "SELECT conditions, mesh_terms FROM trials WHERE nct_id = ?", (nct,)).fetchone()
+    if study is None:
+        return []
+    try:
+        named = json.loads(study["conditions"] or "[]")
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(named, list) or len(named) != 1:
+        return []
+    try:
+        terms = indication_mapping.indications_for(
+            study["conditions"], indication_mapping.parse_browse(study["mesh_terms"]))
+    except Exception:                                      # noqa: BLE001 messy payload
+        return []
+    held = {r["indication_id"]: r["id"] for r in conn.execute(
+        "SELECT id, indication_id FROM asset_indications WHERE asset_id = ?",
+        (row["asset_id"],))}
+    by_mesh = {r["mesh_id"]: r["id"] for r in conn.execute(
+        "SELECT id, mesh_id FROM indications WHERE mesh_id IS NOT NULL")}
+    hits = {held[by_mesh[t["id"]]] for t in terms
+            if t["id"] in by_mesh and by_mesh[t["id"]] in held}
+    if len(hits) < 2:
+        return []
+    names = {pid: (conn.execute(
+        "SELECT i.name FROM asset_indications ai JOIN indications i"
+        "    ON i.id = ai.indication_id WHERE ai.id = ?", (pid,)).fetchone()[0]
+        or "").strip().lower() for pid in hits}
+    kept = sorted(indication_mapping.drop_parent_matches(names))
+    return kept if len(kept) > 1 else []
+
+
+def _published_odds(table: dict, gate: str, area) -> tuple | None:
+    """(the gate's own transition, everything still ahead of it) from the published
+    table, or None where any step of the chain is unpublished for the area.
+
+    The chain is read the way a pipeline asset's is: the gate the study sits at and
+    every transition between it and approval. Shared by the two places that risk a
+    marketed product's expansion, because an indication layer and a scenario are the
+    same bet at the same gate and must not be risked two different ways.
+    """
+    ahead = pos_granular.CHAIN[pos_granular.CHAIN.index(gate):]
+    odds = [(table.get(("area", area, step))
+             or table.get(("area", "All indications", step)) or {}).get("pos")
+            for step in ahead]
+    if any(p is None for p in odds):
+        return None
+    after = 1.0
+    for p in odds[1:]:
+        after *= p
+    return odds[0], after
+
+
 def _layer_gate(conn, rows: list, approved: set) -> list:
     """[(row, priced)] for readouts that decide an unapproved indication on a product
     that already sells something else.
@@ -1010,35 +1201,48 @@ def _layer_gate(conn, rows: list, approved: set) -> list:
     area = None
     priced, seen = [], set()
     for row in sorted(rows, key=lambda r: r.get("expected_date") or ""):
-        pair_id = row.get("asset_indication_id")
-        if not pair_id or pair_id in approved or pair_id in seen:
+        # One pair where the catalyst names a disease, several where one randomised
+        # population covers several of them. Every leg has to clear every test: the
+        # readout is worth the sum only if the sum is actually built.
+        pair_ids = ([row["asset_indication_id"]] if row.get("asset_indication_id")
+                    else _one_population_legs(conn, row))
+        if not pair_ids or any(p in approved or p in seen for p in pair_ids):
             continue
-        pair = conn.execute(
-            "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
-            "  FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
-            " WHERE ai.id = ?", (pair_id,)).fetchone()
-        if pair is None:
+        legs = []
+        for pair_id in pair_ids:
+            pair = conn.execute(
+                "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
+                "  FROM asset_indications ai JOIN indications i ON i.id = ai.indication_id"
+                " WHERE ai.id = ?", (pair_id,)).fetchone()
+            if pair is None:
+                break
+            leg_gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
+            if leg_gate is None:
+                break
+            built = indication_layer.build(conn, pair["asset_id"], pair["indication_id"])
+            if not built or not built.get("ok") or not built.get("npv"):
+                break
+            legs.append((pair, leg_gate, built))
+        if len(legs) != len(pair_ids):
             continue
-        gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
-        if gate is None:
+        # The legs are one event, so they have to be at one gate. Two diseases of the
+        # same asset at different phases are not decided by one readout.
+        gates = {g for _p, g, _b in legs}
+        if len(gates) != 1:
             continue
-        built = indication_layer.build(conn, pair["asset_id"], pair["indication_id"])
-        if not built or not built.get("ok") or not built.get("npv"):
-            continue
+        pair, gate, built = legs[0]
+        npv = sum(b["npv"] for _p, _g, b in legs)
+        peak = sum((b.get("peak_revenue") or 0.0) for _p, _g, b in legs) or None
+        binds = any(b.get("ceiling_binds") for _p, _g, b in legs)
         if area is None:
             area = pair["therapeutic_area"] or _asset_area(conn, pair["asset_id"])
-        ahead = pos_granular.CHAIN[pos_granular.CHAIN.index(gate):]
-        odds = [(table.get(("area", area, step))
-                 or table.get(("area", "All indications", step)) or {}).get("pos")
-                for step in ahead]
-        if any(p is None for p in odds):
+        odds = _published_odds(table, gate, area)
+        if odds is None:
             continue
-        p_gate, after = odds[0], 1.0
-        for p in odds[1:]:
-            after *= p
-        seen.add(pair_id)
+        p_gate, after = odds
+        seen.update(pair_ids)
         priced.append((row, {
-            "npv": built["npv"], "pos_now": p_gate * after,
+            "npv": npv, "pos_now": p_gate * after,
             # The gate passing leaves what is still ahead of it; failing leaves nothing,
             # because an indication that misses its pivotal readout does not launch.
             "pos_success": after, "pos_failure": 0.0,
@@ -1046,11 +1250,16 @@ def _layer_gate(conn, rows: list, approved: set) -> list:
                 "legs_basis": "indication layer",
                 "gate": gate, "gate_label": pos_granular.GATE_LABELS.get(gate),
                 "p_gate": p_gate, "p_gate_published": p_gate, "held": None,
-                "basis": (f"an unapproved indication on a marketed product, valued "
-                          f"bottom-up over its own pool and risked at the published "
-                          f"{area or 'All indications'} transitions"),
-                "layer_peak_revenue": built["peak_revenue"],
-                "layer_ceiling_binds": built["ceiling_binds"],
+                "basis": ((f"{len(legs)} unapproved indications of a marketed product "
+                           f"that one randomised population covers, each valued "
+                           f"bottom-up over its own pool and risked together at the "
+                           f"published {area or 'All indications'} transitions")
+                          if len(legs) > 1 else
+                          (f"an unapproved indication on a marketed product, valued "
+                           f"bottom-up over its own pool and risked at the published "
+                           f"{area or 'All indications'} transitions")),
+                "layer_peak_revenue": peak,
+                "layer_ceiling_binds": binds,
                 "resolvable": False,
                 "resolve_note": ("The layer is derived, so there is no stated "
                                  "probability to step."),
@@ -1065,6 +1274,69 @@ def _asset_area(conn, asset_id: int):
         " WHERE ai.asset_id = ? AND i.therapeutic_area IS NOT NULL LIMIT 1",
         (asset_id,)).fetchone()
     return row["therapeutic_area"] if row else None
+
+
+def _scenario_stake(conn, row: dict, state: dict, named: dict, pair) -> dict | None:
+    """What a readout inside the base is worth: the named case's NPV over base's.
+
+    The layer gate values an expansion by building a pool the marketed line is not
+    already sold to. Where the pool is wholly inside that line there is nothing to build,
+    and the old reading was that the readout decides nothing. It plainly does: Tezspire
+    reading out again in asthma, Abrysvo again in RSV, Keytruda again in bladder each
+    decide how fast a product already selling keeps growing, and the book held all of
+    them at nil.
+
+    What the engine cannot derive it can still carry. ``assumptions.load`` merges a named
+    scenario over base, so an analyst restates the two or three figures a win would move
+    and the engine recomputes everything else itself; the stake is the difference between
+    the two builds. Nothing is estimated here, and a scenario with nothing written against
+    it is refused at the file rather than priced as a zero.
+
+    Risked exactly as a layer is, and deliberately so: the gate the study sits at and the
+    transitions between it and approval, because a case that needs a label change is only
+    worth its delta if the label changes. Failure leaves base, which is nil on the delta
+    rather than nil on the product.
+    """
+    asset_id, base = row.get("asset_id"), state["built"]
+    if asset_id is None or base is None or pair is None:
+        return None
+    gate = _LAYER_GATE_PHASES.get(pair["phase"] or "")
+    if gate is None:
+        # A Phase 4 study has no regulatory gate ahead of it and so no published
+        # transition to risk the case at. The scenario stands; the odds do not.
+        return None
+    area = pair["therapeutic_area"] or _asset_area(conn, asset_id)
+    odds = _published_odds(pos_granular.transitions(), gate, area)
+    if odds is None:
+        return None
+    p_gate, after = odds
+    try:
+        case = forecast.build(assumptions_module.load(conn, asset_id,
+                                                      named["scenario"]))
+    except forecast.ForecastError:
+        return None
+    delta = case["npv"] - base["npv"]
+    if not delta:
+        return None
+    return {
+        "npv": delta, "pos_now": p_gate * after,
+        "pos_success": after, "pos_failure": 0.0,
+        "card": {
+            "legs_basis": "scenario",
+            "gate": gate, "gate_label": pos_granular.GATE_LABELS.get(gate),
+            "p_gate": p_gate, "p_gate_published": p_gate, "held": None,
+            "basis": (f"a readout inside the business the product already sells, worth "
+                      f"the difference between the '{named['scenario']}' case and base "
+                      f"and risked at the published "
+                      f"{area or 'All indications'} transitions"),
+            "scenario": named["scenario"],
+            "scenario_basis": named["basis"],
+            "scenario_npv": case["npv"],
+            "base_npv": base["npv"],
+            "resolvable": False,
+            "resolve_note": ("The case is the analyst's own, so there is no stated "
+                             "probability to step."),
+        }}
 
 
 def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tuple:
@@ -1108,8 +1380,14 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             clean["ignored"] = state["ignored"]
         return clean
 
-    def refuse(row, reason, why, missing_keys=None):
+    def refuse(row, reason, why, missing_keys=None, priced_on=None):
+        # ``priced_on`` names the catalyst that does carry this event's stake. Three of
+        # the reasons are not refusals at all: they are the second and third dates of one
+        # event, 129 rows of the 522 on the book, and counting them as work outstanding
+        # overstated the queue by a quarter. The id lets the tab hang them under the row
+        # they belong to instead of listing them beside genuine gaps.
         unpriced.append({**out(row), "priced": False, "reason": reason, "why": why,
+                         "priced_on": priced_on,
                          "missing": missing(reason) if missing_keys is None
                          else list(missing_keys)})
 
@@ -1149,6 +1427,27 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         if not rows:
             return priced, unpriced
 
+    # Read and found to decide nothing, which is not the same state as nobody having
+    # looked. Both are worth nil and only one of them is work, and the difference is a
+    # quarter of the queue. Asked here rather than inside any one refusal, because the
+    # judgement is about the study and holds whichever reason the row would otherwise
+    # take: a roll-over extension, a basket and a readout inside the business already
+    # sold to are settled for different reasons and settled all the same. After the
+    # approved pass above, which is a stronger statement and keeps its own wording.
+    settled = settled_readouts.load(conn)
+    if settled:
+        said = []
+        for row in rows:
+            nct, _study = _catalyst_trial(conn, row)
+            read = settled.get((row.get("asset_id"), (nct or "").upper()))
+            if read:
+                refuse(row, settled_readouts.reason(read), settled_readouts.why(read), [])
+                said.append(row["id"])
+        if said:
+            rows = [r for r in rows if r["id"] not in said]
+            if not rows:
+                return priced, unpriced
+
     if state["stated"] is not None:
         # The analyst's own legs, once, on the event they are tied to: linear in the
         # probability, so one build stands for the two runs whatif would make.
@@ -1159,7 +1458,7 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                        "so nothing is at stake.")
                 continue
             if row["id"] != lead:
-                refuse(row, "stated_elsewhere", elsewhere[row["id"]])
+                refuse(row, "stated_elsewhere", elsewhere[row["id"]], priced_on=lead)
                 continue
             priced.append({**out(row), "priced": True, "legs_basis": "stated",
                            **money(row, state["stated"]["pos_success"],
@@ -1177,6 +1476,22 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         # business it has and says nothing about the indication it does not. Where the
         # readout is in an indication the label does not cover and the layer can be
         # built, the expansion is priced as the pipeline asset it is.
+        # Before the layer is asked for: the research has already answered some of these
+        # and the answer was nil. A readout left in an indication its analyst wrote to
+        # zero decides nothing the book values, whatever pool could be built for it.
+        stopped = []
+        for row in rows:
+            basis = _programme_stopped(conn, row.get("asset_indication_id"))
+            if basis:
+                # The filed sources are written as notes and none of them ends in a full
+                # stop, so the sentence is closed here rather than in forty-six rows.
+                tail = basis if basis.endswith((".", "!", "?")) else basis + "."
+                refuse(row, "programme_stopped",
+                       "The research has written this indication to nil, so the readout "
+                       "decides nothing the book values. " + tail, [])
+                stopped.append(row["id"])
+        if stopped:
+            rows = [r for r in rows if r["id"] not in stopped]
         layered = _layer_gate(conn, rows, approved)
         if layered:
             for row, got in layered:
@@ -1189,11 +1504,12 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
             # same gate again, not one with no gate: Cobenfy's five Alzheimer's readouts
             # carry one layer, priced on the earliest, and the other four read as having
             # nothing to price, which counted them as work still to do.
-            gated = {r.get("asset_indication_id") for r, _ in layered}
+            gated = {r.get("asset_indication_id"): r["id"] for r, _ in layered}
             for row in [r for r in rows if r.get("asset_indication_id") in gated]:
                 refuse(row, "same_gate_later",
                        "An earlier readout in the same indication carries this layer, so "
-                       "it is priced there once rather than again here.")
+                       "it is priced there once rather than again here.",
+                       priced_on=gated[row["asset_indication_id"]])
             rows = [r for r in rows if r.get("asset_indication_id") not in gated]
         # A readout on an indication the label does not cover is an expansion, and where
         # no pool is on file to value it the row is work waiting rather than an asset
@@ -1201,6 +1517,14 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         # layer that refuses on the evidence instead, because the pool is already inside
         # the business being sold to, is left to the reasons below.
         layers: dict = {}
+        pairs: dict = {}
+        scenarios = catalyst_scenarios.load(conn)
+        # One case is worth its delta once. Tezspire has two asthma readouts and Abrysvo
+        # five in RSV; where the analyst has written one case for several of them, the
+        # earliest carries it and the rest are the same gate again, exactly as a repeat
+        # of a layer is. Two readouts naming two different cases are two bets and both
+        # are priced.
+        cased: dict = {}
         answered = set()
         for row in rows:
             pair_id = row.get("asset_indication_id")
@@ -1208,8 +1532,11 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 continue
             if pair_id not in layers:
                 pair = conn.execute(
-                    "SELECT asset_id, indication_id FROM asset_indications WHERE id = ?",
-                    (pair_id,)).fetchone()
+                    "SELECT ai.asset_id, ai.indication_id, ai.phase, i.therapeutic_area"
+                    "  FROM asset_indications ai"
+                    "  JOIN indications i ON i.id = ai.indication_id"
+                    " WHERE ai.id = ?", (pair_id,)).fetchone()
+                pairs[pair_id] = pair
                 layers[pair_id] = (indication_layer.build(conn, pair["asset_id"],
                                                           pair["indication_id"])
                                    if pair else None)
@@ -1226,25 +1553,58 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
                 # of it. The book has no way to derive how much share an evidence win
                 # takes, so the route is the analyst's stated legs, and the row names
                 # that rather than reading as worth nothing.
+                # Where an analyst has written that case, it is priced. The pool is
+                # still the product's own; what moves is the rate the line it already
+                # sells grows at, and the scenario says by how much and on what basis.
+                nct, _study = _catalyst_trial(conn, row)
+                named = scenarios.get((row.get("asset_id"), (nct or "").upper()))
+                if named and named["scenario"] in cased:
+                    refuse(row, "same_gate_later",
+                           f"An earlier readout carries the '{named['scenario']}' case, "
+                           f"so it is priced there once rather than again here.",
+                           priced_on=cased[named["scenario"]])
+                    answered.add(row["id"])
+                    continue
+                got = (_scenario_stake(conn, row, state, named, pairs.get(pair_id))
+                       if named else None)
+                if got:
+                    cased[named["scenario"]] = row["id"]
+                    priced.append({**out(row), "priced": True, **money(
+                        row, got["pos_success"], got["pos_failure"],
+                        npv=got["npv"], pos_now=got["pos_now"]), **got["card"]})
+                    answered.add(row["id"])
+                    continue
                 refuse(row, "in_the_base", (layer.get("why") or
                        "The research marks this indication the product's own business.")
                        + " A result here moves share rather than pool, which the book "
-                         "prices only from stated success and failure legs.", [])
+                         "prices from a named scenario restating what a win changes, and "
+                         "none is on file for this readout.", [])
                 answered.add(row["id"])
                 continue
             gap = approved_indications.setting_gap(conn, asset_id, row.get("description"))
             lead = (f"The label covers this disease but not the {gap} setting this study "
                     f"is in" if gap else "The label does not cover this indication")
+            # The layer's own why is a clause, not always a sentence: some of them end
+            # in a full stop and the engine's "missing required assumptions: ..." does
+            # not. The book guard reads every reason as prose, so the sentence is closed
+            # here rather than in each of the places that can write one.
+            said = ((layer or {}).get("why")
+                    or "No assumptions are on file for this indication.")
             refuse(row, "needs_layer",
                    f"{lead}, so the readout decides an expansion the book does not value "
-                   f"yet. " + ((layer or {}).get("why")
-                               or "No assumptions are on file for this indication."),
+                   f"yet. " + (said if said.endswith((".", "!", "?")) else said + "."),
                    gaps or ["the indication's own assumptions"])
             answered.add(row["id"])
         if answered:
             rows = [r for r in rows if r["id"] not in answered]
         reason, why = _no_gate_reason(state)
         for row in rows:
+            # Only in place of the generic reason. "nil" and "no forecast" are statements
+            # about the value and say more than a missing indication would.
+            gap = _indication_gap(conn, row) if reason == "no_gate" else None
+            if gap:
+                refuse(row, "no_indication_link", gap, [])
+                continue
             refuse(row, reason, why)
         return priced, unpriced
 
@@ -1258,7 +1618,8 @@ def _price_asset(conn, rows: list, state: dict, company_id: int, shares) -> tupl
         if reason is None and row["id"] != lead:
             refuse(row, "same_gate_later",
                    f"An earlier catalyst ({eligible[0][0]['expected_date']}) decides the "
-                   f"same {legs['label'].lower()}, so this one is not priced twice.")
+                   f"same {legs['label'].lower()}, so this one is not priced twice.",
+                   priced_on=lead)
             continue
         if reason is not None:
             refuse(row, reason, why)

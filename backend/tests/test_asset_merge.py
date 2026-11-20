@@ -1,5 +1,7 @@
 """Folding a derived compound into the marketed product it turns out to be."""
 
+import pytest
+
 import asset_merge
 import db
 from fetchers.approvals_openfda import parse_drugsfda
@@ -643,3 +645,185 @@ def test_a_marketed_row_a_shared_spelling_and_an_existing_inn_are_each_left_alon
         (sold, first, second, holder, arm))} == {
         "LOXO-305", "vormatrogine", "20 mg vormatrogine", "elsunersen", "1mg elsunersen"}
     conn.close()
+
+
+def test_a_split_model_is_named_in_the_alias_map():
+    """A molecule under two rows, the assumptions on one and a pending readout on the
+    other, prices that readout against nothing. Four were found by accident in one night
+    and every one was silent. The merge collapses a pair once an alias names it, so the
+    rule here is not that no split exists, it is that every split has been named: a new
+    one fails until somebody writes the row that joins it.
+
+    Skipped, with the reason, where no built database is on file.
+    """
+    import csv as _csv
+    import pathlib as _pathlib
+    if not db.DB_PATH.exists():
+        pytest.skip(f"no built database at {db.DB_PATH}")
+    conn = db.get_connection()
+    try:
+        splits = asset_merge.split_models(conn)
+    finally:
+        conn.close()
+    named = set()
+    # db.BACKEND_DIR, not a relative path: the pre-push hook runs the suite from
+    # backend/ and a path relative to the repo root is not found there.
+    path = db.BACKEND_DIR.parent / "data" / "asset_alias_map.csv"
+    with path.open(newline="", encoding="utf-8") as handle:
+        for row in _csv.DictReader(line for line in handle
+                                   if not line.lstrip().startswith("#")):
+            named.add(((row.get("ticker") or "").strip().upper(),
+                       asset_merge.molecule_key(row.get("programme_name"))))
+    unnamed = []
+    for group in splits:
+        for stray in group["stranded"]:
+            key = (group["ticker"], asset_merge.molecule_key(stray["name"]))
+            if key not in named:
+                unnamed.append(f"{group['ticker']} {stray['name']} "
+                               f"({stray['catalysts']} pending readouts) belongs with "
+                               f"{group['modelled'][0]['name']}")
+    assert not unnamed, "split models with no alias row: " + "; ".join(unnamed)
+
+
+# --- one application, two products -----------------------------------------
+
+def test_a_second_brand_on_one_application_is_its_own_asset(tmp_path):
+    """NDA213051 holds RYBELSUS at 3, 7 and 14mg and OZEMPIC at 1.5, 4 and 9mg, because
+    Novo added oral Ozempic to oral semaglutide's own application. They are two products
+    with two labels and two reported revenue lines.
+
+    Keyed by the application number alone the second brand resolves onto the first
+    brand's asset, so only one of them is ever created. That is what happened: Rybelsus
+    had no asset, and data/assumptions/nvo_rybelsus.csv, which anchors on the 22,093mm
+    DKK Novo reports for it, never loaded a row.
+    """
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    first = assets_util.upsert_asset(conn, company, "NDA213051", "Ozempic",
+                                     "Semaglutide", "small molecule", brand_key=True)
+    second = assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                                      "Semaglutide", "small molecule", brand_key=True)
+    assert first != second
+    assert sorted(r[0] for r in conn.execute(
+        "SELECT brand_name FROM assets WHERE internal_code = 'NDA213051'")) \
+        == ["Ozempic", "Rybelsus"]
+    # And it is stable: the same brand twice is the same asset, whatever order openFDA
+    # returns the application's products in.
+    assert assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                                    "Semaglutide", "small molecule",
+                                    brand_key=True) == second
+    conn.close()
+
+
+def test_the_second_brand_does_not_rename_the_first(tmp_path):
+    """The failure that would have been worse than the missing asset. upsert_asset writes
+    brand_name = COALESCE(?, brand_name), so an application resolving onto another
+    product's row renames it, and openFDA does not order its products: whichever brand
+    came last would own a 127,089mm DKK revenue line."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    keep = assets_util.upsert_asset(conn, company, "NDA213051", "Ozempic",
+                                    "Semaglutide", "small molecule", brand_key=True)
+    assets_util.upsert_asset(conn, company, "NDA213051", "Rybelsus",
+                             "Semaglutide", "small molecule", brand_key=True)
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (keep,)).fetchone()[0] == "Ozempic"
+    conn.close()
+
+
+def test_a_single_brand_application_is_looked_up_the_way_it_always_was(tmp_path):
+    """The change is confined to the application that needs it. Nearly every one carries
+    one brand across several strengths, and an absorbed number must still resolve to the
+    product that absorbed it or the merge undoes itself on the next refresh."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    keep = _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1,
+                  code="NDA1")
+    _asset(conn, "LLY", brand="Zithromax", generic="Azithromycin", marketed=1, code="NDA2")
+    conn.commit()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    assert assets_util.upsert_asset(conn, company, "NDA2", "Zithromax", "Azithromycin",
+                                    "small molecule", brand_key=False) == keep
+    conn.close()
+
+
+# --- an alias folds its own product, never another one on the same application ---
+
+def _semaglutide_book(tmp_path):
+    """The state the nightly run restores: Ozempic on its own NDA, and the merge's alias
+    recording that NDA213051 - oral Ozempic's application - belongs to it."""
+    path, conn = _seed(tmp_path)
+    ozempic = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                     code="NDA209637")
+    conn.execute("INSERT INTO asset_aliases (internal_code, asset_id, note)"
+                 " VALUES ('NDA213051', ?, 'absorbed by merge')", (ozempic,))
+    conn.commit()
+    return path, conn, ozempic
+
+
+def test_the_alias_does_not_fold_a_second_brand_on_its_application(tmp_path):
+    """The loop that kept Rybelsus out of the published book. NDA213051 carries oral
+    Ozempic and Rybelsus. The fetcher now creates Rybelsus as its own asset, but the
+    alias the merge wrote for oral Ozempic matched Rybelsus's application number and
+    folded it straight back in, every night. Deleting the alias by hand fixed one laptop
+    and not the database the nightly run restores."""
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    rybelsus = _asset(conn, "LLY", brand="Rybelsus", generic="Semaglutide", marketed=1,
+                      code="NDA213051")
+    conn.commit()
+    assert all(loser != rybelsus for loser, _ in asset_merge.find_alias_duplicates(conn))
+    conn.close()
+    asset_merge.merge(path)
+    conn = db.get_connection(path)
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (rybelsus,)).fetchone()[0] == "Rybelsus"
+    conn.close()
+
+
+def test_the_alias_still_folds_its_own_product(tmp_path):
+    """What the alias is for, and what must keep working: a row of the same product
+    carrying the absorbed number folds into it."""
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    oral = _asset(conn, "LLY", brand="Ozempic", generic="Semaglutide", marketed=1,
+                  code="NDA213051")
+    conn.commit()
+    assert (oral, ozempic) in asset_merge.find_alias_duplicates(conn)
+    conn.close()
+
+
+def test_the_brand_key_resolves_the_alias_only_for_its_own_family(tmp_path):
+    """So oral Ozempic lands on Ozempic instead of being created again each night, and
+    Rybelsus gets a row of its own instead of landing on Ozempic."""
+    import assets_util
+    path, conn, ozempic = _semaglutide_book(tmp_path)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    assert assets_util.upsert_asset(conn, cid, "NDA213051", "Ozempic", "Semaglutide",
+                                    "small molecule", brand_key=True) == ozempic
+    rybelsus = assets_util.upsert_asset(conn, cid, "NDA213051", "Rybelsus",
+                                        "Semaglutide", "small molecule", brand_key=True)
+    assert rybelsus != ozempic
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (ozempic,)).fetchone()[0] == "Ozempic"
+    conn.close()
+
+
+def test_one_brand_family_rule_for_the_fetcher_and_the_merge():
+    """Pens are one product, Ozempic and Rybelsus are two, and an unbranded programme is
+    never a rival brand."""
+    import assets_util
+    same = assets_util.same_brand_family
+    assert same("ZEPBOUND", "ZEPBOUND KWIKPEN") and same("TOUJEO MAX SOLOSTAR", "TOUJEO SOLOSTAR")
+    assert same("ACTIVASE", "CATHFLO ACTIVASE") and same("Ozempic", None)
+    assert not same("OZEMPIC", "RYBELSUS") and not same("PROLIA", "XGEVA")
+
+
+def test_a_capsid_is_not_a_development_code():
+    """AAVAnc80 is Akouos's capsid, carried by AK-OTOF and AK-antiVEGF alike (Akouos FY2021
+    10-K 0001558370-22-004606), and reading it as a shared code folded the two programmes."""
+    import asset_merge
+    assert "AAVANC80" not in asset_merge.development_codes(
+        "AAVAnc80-hOTOF via Akouos Delivery Device")

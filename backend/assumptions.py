@@ -134,7 +134,7 @@ def _defaults(path, key_field):
     for row in csv.DictReader(rows):
         entry = dict(row)
         for field in ("pos", "year1_pct", "decay_pct", "late_decay_pct",
-                      "late_from_year"):
+                      "late_from_year", "tail_decay_pct"):
             # An empty cell is an absent figure, not a zero and not a string: a modality
             # with no late decay rate has to reach the engine as None.
             entry[field] = (float(entry[field])
@@ -201,6 +201,44 @@ def launch_ramp(path=None) -> dict:
     # The median years from launch to peak across the same launches, which the file's
     # header states and an asset overrides with years_to_peak where its forecast names one.
     return {"curve": sorted(curve), "products": products, "years_to_peak": 9}
+
+
+_CURATED_MODALITIES: dict = {}
+
+
+def _modality(asset, ticker=None) -> str | None:
+    """The asset's own modality, then the curated file, then the INN stem.
+
+    Three sources in falling order of authority, and each is a fill rather than a
+    correction: the register's own value always wins, because a fetcher read it off a
+    label or an application; data/asset_modalities.csv answers the 241 the stem cannot
+    reach, each row citing the filing that settles it; the stem answers the 92 whose INN
+    carries one. The column decides which statutory term data/loe_defaults.csv hands a
+    product with no patent on file, and the default where nothing is known is the
+    biologic floor of twelve years, so a small molecule left unknown loses the two years
+    35 U.S.C. 156(c)(3) allows it.
+    """
+    if asset is None:
+        return None
+    stated = (asset["modality"] or "").strip()
+    if stated:
+        return stated
+    import modality_costs
+    global _CURATED_MODALITIES
+    if not _CURATED_MODALITIES:
+        _CURATED_MODALITIES = modality_costs.curated_modalities() or {"": ""}
+    names = [asset[k] for k in ("brand_name", "generic_name")
+             if k in asset.keys() and asset[k]]
+    if ticker:
+        for name in names:
+            found = _CURATED_MODALITIES.get((ticker.upper(), name.strip().lower()))
+            if found:
+                return found
+    for name in names:
+        found, _why = modality_costs.infer_modality(name)
+        if found:
+            return found
+    return None
 
 
 def loe_defaults() -> dict:
@@ -326,8 +364,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
             entry["series"].setdefault(key, {})[int(year)] = value
 
     asset = conn.execute(
-        "SELECT modality, brand_name, generic_name, owner_company_id, is_marketed"
-        " FROM assets WHERE id = ?", (asset_id,)).fetchone()
+        "SELECT a.modality, a.brand_name, a.generic_name, a.owner_company_id,"
+        "       a.is_marketed, c.ticker"
+        "  FROM assets a LEFT JOIN companies c ON c.id = a.owner_company_id"
+        " WHERE a.id = ?", (asset_id,)).fetchone()
 
     # Whether the label already covers each indication. The engine is pure and cannot
     # ask, so the answer travels with the input: marketed mode adds a layer for an
@@ -451,6 +491,10 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
                 else {"year": None, "basis": loe.get("basis"), "in_base": True}
                 if loe.get("past") else None),
         "is_marketed": bool(asset["is_marketed"]) if asset else None,
+        # Whether a generic or biosimilar is selling against it in the United States,
+        # and since when: a cliff behind a product with a competitor on the market goes
+        # on falling, where one with nothing copying it holds (competitors.selling).
+        "competitor": _competitor(conn, asset_id) if asset else None,
         # Each region the product reports sales in, with its own exclusivity date, so a
         # market that opens early or late is eroded when it does (regional_loe).
         "regions": regional_loe.for_asset(conn, asset_id) if asset else [],
@@ -462,7 +506,13 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "crowding": crowding,
         # Pool figures taken from the disease rather than from a row on this asset.
         "epidemiology": filled,
-        "modality": asset["modality"] if asset else None,
+        # Stated where the book states one, and otherwise read from the INN stem. The
+        # modality decides which statutory term data/loe_defaults.csv hands a product
+        # with no patent on file, and 339 modelled assets carried none, so every one of
+        # them took the twelve-year biologic floor. A small molecule is entitled to
+        # fourteen. Filling only, never correcting: a stated modality always wins.
+        "modality": _modality(asset, asset["ticker"] if asset is not None
+                              and "ticker" in asset.keys() else None),
         # Oral or not, from the product's RxNorm names: an oral brand erodes faster.
         "route": dose_route.for_asset(conn, asset_id) if asset else None,
         "pos_defaults": pos_defaults(),
@@ -484,6 +534,11 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),
     }
+
+
+def _competitor(conn, asset_id: int):
+    import competitors
+    return competitors.selling(conn, asset_id)
 
 
 # --- writing -----------------------------------------------------------------
@@ -623,6 +678,72 @@ def snapshot(conn, asset_id: int, scenario: str, result: dict) -> None:
 
 # --- the curated seed --------------------------------------------------------
 
+# A seed file naming an asset the book cannot resolve loads nothing, and says nothing.
+# ``load_seeds`` counts an unresolvable row as skipped and moves on, which is right for a
+# file written ahead of an asset arriving, and wrong for a file whose asset is simply
+# spelled differently: a hyphen in "31-valent", a suffix in "Etavopivat A", a
+# parenthetical in "BMS-986489 (Atigotatug+N...)". Twenty-seven files of analyst work with
+# citations sat unloaded on 2026-11-10, 602 rows between them, and the only trace was a
+# skipped count nobody reads. This names them instead.
+def unresolved_seed_files(conn, directory=None) -> dict:
+    """{file name: rows} for every seed file not one of whose rows resolves to an asset.
+
+    A file where some rows load and others do not is left out: that is a file naming
+    several products, one of which is not on file yet, which is the ordinary case the
+    loader is built for. A file where nothing loads is the broken one.
+    """
+    source_dir = pathlib.Path(directory) if directory else SEED_DIR
+    out: dict = {}
+    if not source_dir.exists():
+        return out
+    for path in sorted(source_dir.glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(
+                line for line in handle if not line.lstrip().startswith("#")))
+        if not rows:
+            continue
+        found = 0
+        for row in rows:
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c
+                     ON c.id = a.owner_company_id
+                    WHERE c.ticker = ?
+                      AND (LOWER(TRIM(a.brand_name)) = LOWER(?)
+                           OR LOWER(TRIM(a.generic_name)) = LOWER(?)) LIMIT 1""",
+                ((row.get("ticker") or "").strip().upper(),
+                 (row.get("brand") or "").strip(),
+                 (row.get("brand") or "").strip())).fetchone()
+            if asset:
+                found += 1
+                break
+        if not found:
+            out[path.name] = len(rows)
+    return out
+
+
+# Keys the engine does arithmetic on. A text value on one of these does not fail at
+# the door, it fails deep inside the build: a "REFUSED - see note" string written where
+# penetration_peak_pct belongs reached forecast.s_curve as `peak * funnel` and raised
+# "can't multiply sequence by non-int of type 'float'", which names neither the key nor
+# the asset nor the file. The seed is the right place to refuse it, because a seed is
+# the only way such a row gets in.
+#
+# An analyst who cannot source a number should leave the row out and say why in the
+# file's comments, which is what the refusals already on the book do.
+_NUMERIC_KEYS = frozenset((
+    "prevalence", "incidence", "eligible_pct", "penetration_peak_pct",
+    "ramp_midpoint_year", "ramp_steepness", "base_pool_overlap_pct",
+    "untreated_carryover_pct", "discontinuation_pct", "list_price_per_patient",
+    "net_price_per_patient", "gross_to_net_pct", "cogs_per_patient", "pos",
+    "pos_success", "pos_failure", "base_revenue", "revenue_growth_pct",
+    "terminal_growth_pct", "growth_fade_years", "revenue_ceiling_musd",
+    "forecast_start_year", "forecast_years", "cogs_pct", "sga_pct", "rd_pct",
+    "other_costs_pct", "tax_rate", "wacc", "risk_free", "erp", "beta",
+    "cost_of_debt", "debt_weight", "economics_share", "new_patients",
+    "opening_treated_patients", "net_price_decline_pct", "exus_multiple",
+))
+
+
 def load_seeds(conn, directory=None) -> dict:
     """Load every CSV under data/assumptions/ into the table. Returns counts.
 
@@ -630,14 +751,20 @@ def load_seeds(conn, directory=None) -> dict:
     and an indication by name, so a rebuilt database reseeds itself. Rows only carry what
     an analyst wrote down; a file for a product not on file is skipped, not an error.
 
-    The file bootstraps and never overwrites: a key that already has a row keeps it, so
-    an edit made in the terminal survives every later reseed. Changing a seeded number
-    therefore means editing it where it lives, not editing the file and waiting.
+    An edit made in the terminal survives every later reseed: a key that already has a
+    row is never overwritten on insert. What a file may now do, through reconcile_seeds
+    at the end of the load, is correct a row it wrote itself and nobody has touched
+    since. Until 2026-11-16 the loader only ever inserted, and the database the nightly
+    run publishes is restored from the night before rather than rebuilt, so a correction
+    made in a file - a value changed, a pool moved to another indication, a row taken
+    out - never reached it. Only inserts did. See reconcile_seeds for how ownership is
+    decided and why it cannot reach a row an analyst has edited.
     """
     source_dir = pathlib.Path(directory) if directory else SEED_DIR
     # One batch for the load: a reseed is one event, however many files it reads.
     batch = assumption_log.new_batch()
     written = skipped = 0
+    refused: list = []
     if not source_dir.exists():
         return {"written": 0, "skipped": 0}
     for path in sorted(source_dir.glob("*.csv")):
@@ -674,6 +801,17 @@ def load_seeds(conn, directory=None) -> dict:
                     continue
                 indication_id = ind["id"]
             value = row.get("value")
+            key = (row.get("key") or "").strip()
+            if key in _NUMERIC_KEYS and str(value or "").strip() == "":
+                # A number the engine will multiply, written as words. Refused here and
+                # named, rather than carried to the arithmetic that cannot do it.
+                refused.append(
+                    f"{path.name}: {key} on "
+                    f"{(row.get('indication') or 'the asset').strip()} has no value"
+                    + (f", only the text {str(row.get('text_value')).strip()!r}"
+                       if (row.get("text_value") or "").strip() else ""))
+                skipped += 1
+                continue
             year = int(row["year"]) if (row.get("year") or "").strip() else None
             exists = conn.execute(
                 """SELECT 1 FROM assumptions WHERE asset_id = ?
@@ -696,7 +834,170 @@ def load_seeds(conn, directory=None) -> dict:
                 "evidence": row.get("evidence"),
             }], reason="initial_seed", batch_id=batch)
     conn.commit()
-    return {"written": written, "skipped": skipped}
+    corrected = reconcile_seeds(conn, directory, batch_id=batch)
+    # Named, not just counted: a file none of whose rows resolve is a file that is not
+    # in the book at all, and the skipped total hides it among the rows a reseed
+    # legitimately passes over because they are already there.
+    orphans = unresolved_seed_files(conn, directory)
+    return {"written": written, "skipped": skipped, "refused": refused,
+            "corrected": corrected["corrected"], "retracted": corrected["retracted"],
+            "unresolved_files": sorted(orphans), "unresolved_rows": sum(orphans.values())}
+
+
+_SEED_OWNED = ("initial_seed", "seed_correction")
+_SEED_FIELDS = ("value", "text_value", "unit", "source", "note")
+
+
+def _same(a, b) -> bool:
+    """Two stored values are the same value, whether held as a number or as text.
+
+    An empty cell is the same as no value: the CSV hands back "" for a blank note and
+    the table holds NULL, and treating those as different flagged fifteen rows on the
+    first dry run that nobody had changed.
+    """
+    a = None if isinstance(a, str) and not a.strip() else a
+    b = None if isinstance(b, str) and not b.strip() else b
+    if a is None or b is None:
+        return a is None and b is None
+    try:
+        x, y = float(a), float(b)
+    except (TypeError, ValueError):
+        return str(a).strip() == str(b).strip()
+    return abs(x - y) <= 1e-12 * max(1.0, abs(x), abs(y))
+
+
+def _wanted_from_files(conn, source_dir) -> tuple:
+    """({row key: seed row}, {assets a file resolves to}, {assets with a row that did
+    not resolve}) over every seed file, resolved exactly as load_seeds resolves them."""
+    wanted, covered, partial = {}, set(), set()
+    for path in sorted(source_dir.glob("*.csv")):
+        with path.open(newline="", encoding="utf-8") as handle:
+            lines = [line for line in handle if not line.lstrip().startswith("#")]
+        for row in csv.DictReader(lines):
+            ticker = (row.get("ticker") or "").strip().upper()
+            brand = (row.get("brand") or "").strip()
+            asset = conn.execute(
+                """SELECT a.id FROM assets a JOIN companies c
+                     ON c.id = a.owner_company_id
+                    WHERE c.ticker = ?
+                      AND (LOWER(TRIM(a.brand_name)) = LOWER(?)
+                           OR LOWER(TRIM(a.generic_name)) = LOWER(?))
+                    ORDER BY (LOWER(TRIM(COALESCE(a.brand_name, ''))) = LOWER(?)) DESC,
+                             a.is_marketed DESC, a.id LIMIT 1""",
+                (ticker, brand, brand, brand)).fetchone()
+            if not asset:
+                continue
+            covered.add(asset["id"])
+            indication_id = None
+            if (row.get("indication") or "").strip():
+                ind = conn.execute(
+                    "SELECT id FROM indications WHERE LOWER(name) = LOWER(?)",
+                    (row["indication"].strip(),)).fetchone()
+                if not ind:
+                    partial.add(asset["id"])
+                    continue
+                indication_id = ind["id"]
+            key = (row.get("key") or "").strip()
+            value = row.get("value")
+            if key in _NUMERIC_KEYS and str(value or "").strip() == "":
+                continue                       # refused at the load, so never wanted
+            year = int(row["year"]) if (row.get("year") or "").strip() else None
+            ident = (asset["id"], indication_id, (row.get("region") or "US").strip(),
+                     (row.get("scenario") or "base").strip(), key, year)
+            wanted.setdefault(ident, {
+                "value": float(value) if value not in (None, "") else None,
+                "text_value": (row.get("text_value") or "").strip() or None,
+                "unit": row.get("unit"), "source": row.get("source"),
+                "note": row.get("note"), "as_of": row.get("as_of"),
+                "evidence": row.get("evidence")})
+    return wanted, covered, partial
+
+
+def reconcile_seeds(conn, directory=None, *, batch_id=None, dry_run=False) -> dict:
+    """Bring rows a seed file wrote into line with the file as it reads now.
+
+    load_seeds only inserts, which keeps the one promise that matters: an analyst's
+    edit is never overwritten by a reseed. It also meant a file could never correct
+    itself. The nightly run restores yesterday's published database and reseeds on top,
+    so when a file changed a value, moved a pool to another indication or dropped a row,
+    the published book kept the old one indefinitely. Three corrections made on
+    2026-11-14 existed only on one laptop because of it: Tukysa's first-line colorectal
+    pool moved onto its sub-population row would have been held twice, ARCT-032's cystic
+    fibrosis rows moved the same way would have kept two prevalences for one disease,
+    and an Arcturus cost charge changed in the file would never have arrived.
+
+    A row is the file's to correct only when all of this holds, read off the row's own
+    ledger in assumption_edits:
+      - the latest entry for the row is the seed's (initial_seed or seed_correction);
+      - the row still holds exactly what that entry wrote, so nothing outside the ledger
+        has touched it either (the rates refresh writes directly, and is left alone);
+      - and the ledger entry is filed under the asset the row sits on now.
+
+    That last condition is why a fold cannot be harmed. asset_merge moves every row of
+    a folded asset onto the survivor but leaves the ledger where it was, so a row that
+    arrived by a fold has no entry under its new asset and is never the file's. Rows
+    with no ledger at all, 3,359 of them when this was written, are left alone the same
+    way.
+
+    Then: a row the file still wants with a different value, unit, source or note is
+    updated; a row on an asset the files cover that no file wants any more is retracted.
+    Retraction is held back for an asset where one of its rows names an indication that
+    does not resolve, because the file's full intention for that asset cannot be read.
+    And an asset no file resolves to at all is left whole: that reads the same whether a
+    model was removed on purpose or a brand string stopped matching after a rename, and
+    only one of those should empty an asset. Removing a model is a terminal decision.
+    Every change is written through save() with reason seed_correction, so it is in the
+    ledger like any other.
+    """
+    source_dir = pathlib.Path(directory) if directory else SEED_DIR
+    if not source_dir.exists():
+        return {"corrected": 0, "retracted": 0, "changes": []}
+    wanted, covered, partial = _wanted_from_files(conn, source_dir)
+    changes, corrected, retracted = [], 0, 0
+    for asset_id in sorted(covered):
+        rows = conn.execute(
+            "SELECT * FROM assumptions WHERE asset_id = ?", (asset_id,)).fetchall()
+        for row in rows:
+            ident = (asset_id, row["indication_id"], row["region"], row["scenario"],
+                     row["key"], row["year"])
+            last = conn.execute(
+                """SELECT reason, op, new_value, new_text FROM assumption_edits
+                    WHERE asset_id = ? AND IFNULL(indication_id, 0) = IFNULL(?, 0)
+                      AND region = ? AND scenario = ? AND key = ?
+                      AND IFNULL(year, 0) = IFNULL(?, 0)
+                    ORDER BY id DESC LIMIT 1""", ident).fetchone()
+            if (last is None or last["reason"] not in _SEED_OWNED
+                    or last["op"] not in ("create", "update")
+                    or not _same(row["value"], last["new_value"])
+                    or not _same(row["text_value"], last["new_text"])):
+                continue                           # the analyst's, or nobody's
+            seed = wanted.get(ident)
+            if seed is None:
+                if asset_id in partial:
+                    continue
+                changes.append(("retract", ident))
+                if not dry_run:
+                    save(conn, asset_id, [{
+                        "indication_id": row["indication_id"], "region": row["region"],
+                        "scenario": row["scenario"], "key": row["key"],
+                        "year": row["year"], "value": None, "text_value": None}],
+                         reason="seed_correction", batch_id=batch_id,
+                         rationale="the seed file that wrote this row no longer has it")
+                retracted += 1
+                continue
+            if all(_same(row[f], seed[f]) for f in _SEED_FIELDS):
+                continue
+            changes.append(("correct", ident))
+            if not dry_run:
+                save(conn, asset_id, [{
+                    "indication_id": row["indication_id"], "region": row["region"],
+                    "scenario": row["scenario"], "key": row["key"], "year": row["year"],
+                    **seed}], reason="seed_correction", batch_id=batch_id,
+                     rationale="the seed file that wrote this row was corrected")
+            corrected += 1
+    if not dry_run:
+        conn.commit()
+    return {"corrected": corrected, "retracted": retracted, "changes": changes}
 
 
 # --- the Excel handoff -------------------------------------------------------

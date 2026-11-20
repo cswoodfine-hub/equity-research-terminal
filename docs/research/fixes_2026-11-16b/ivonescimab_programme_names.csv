@@ -1,0 +1,34 @@
+# Ivonescimab (SMMT). Researched 2026-11-16.
+#
+# The book holds one ivonescimab row: asset 3540, generic "Ivonescimab Injection",
+# unmarketed, alias "AK112 Injection" (folded by asset_alias_map.csv row 201). No row is
+# named "Ivonescimab Dose 1" any more, which is why curated_catalysts.load skips the four
+# SMMT rows ("no single asset named Ivonescimab Dose 1"). There is no second row, so this is
+# a rename, not a fold.
+#
+# Rename via data/programme_names.csv (row below). name_programmes' guards hold: the asset
+# is unmarketed (the BLA drew a complete response letter, see below), it is the one SMMT
+# row answering to "Ivonescimab Injection", and no row already carries "ivonescimab".
+# The old spelling stays as a curated alias, so trial mapping still binds it.
+#
+# Re-key in the same change (every match is case-insensitive, so "ivonescimab" works):
+#   data/assumptions/smmt_ivonescimab.csv   33 rows, brand "Ivonescimab Injection"
+#   data/asset_alias_map.csv row 201        brand column "Ivonescimab Injection"
+#   data/curated_catalysts.csv rows 19-22   asset "Ivonescimab Dose 1"   (skipped today)
+#   data/disclosed_loe.csv row 177          brand "Ivonescimab Dose 1"   (silently matches
+#                                           nothing today, so the 2039 date never applies)
+# Seeds keyed "Ivonescimab Dose 1": curated_catalysts.csv rows 19-22 and disclosed_loe.csv
+# row 177. No file in data/assumptions/ is keyed on it (smmt_ivonescimab.csv was repointed
+# on 2026-11-10, per data/unloaded_seed_files.txt).
+#
+# curated_catalysts.csv row 19 is past. The PDUFA of 2026-11-14 resolved as a complete
+# response letter: Summit 8-K filed 2026-11-16 (0001599298-26-000092), Item 8.01: "On
+# November 15, 2026, Summit Therapeutics Inc. issued a press release announcing that the
+# U.S. Food and Drug Administration (the "FDA") has issued a Complete Response Letter
+# ("CRL") regarding the Biologics License Application ("BLA") for ivonescimab", because
+# "substantial evidence of effectiveness is not established in the absence of a
+# statistically significant overall survival ("OS") improvement". Resolve that catalyst as
+# a CRL rather than re-keying it as pending. smmt_ivonescimab.csv's header prices the
+# 2026-11-14 decision as its stake, so its post-TKI line needs revisiting too.
+ticker,name,inn,source
+SMMT,Ivonescimab Injection,ivonescimab,"Summit FY2025 10-K (0001599298-26-000015), notes to the financial statements: 'Ivonescimab, known as AK112 in China and Australia, and also as SMT112 in the United States, Canada, Europe, and Japan'. The registry files Summit's live studies under 'Ivonescimab Injection' (NCT05899608 HARMONi-3, NCT06767514 HARMONi-7, NCT07228832 HARMONi-GI3, the last as 'Drug: Ivonescimab Injection'), HARMONi (NCT06396065) under 'AK112 Injection', and NCT07815665 (Summit, Phase 2/3, ivonescimab with enfortumab vedotin against pembrolizumab with enfortumab vedotin) under the arms 'Ivonescimab Dose 1', 'Ivonescimab Dose 2' and 'Ivonescimab RP3D' (ClinicalTrials.gov API v2, read 2026-11-16). The derived row took the dose arm's spelling first and the injection's since; neither is the INN"

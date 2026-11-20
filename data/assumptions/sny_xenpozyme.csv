@@ -3,7 +3,9 @@
 # Marketed, anchored on the reported year and grown against the same product axis a
 # year earlier, both from the SEC financial statement data sets.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 SNY,Xenpozyme,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 SNY,Xenpozyme,,US,base,base_revenue,,228.0,,mm EUR,"SNY FY2025 reported product revenue, from the annual report product axis (sec_fsds)","Sanofi reports in euro. The figure is as filed, not converted."

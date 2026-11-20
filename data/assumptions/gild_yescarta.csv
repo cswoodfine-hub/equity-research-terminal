@@ -4,7 +4,9 @@
 # both from Gilead's FY2025 10-K revenue table (0000882095-26-000006). It had a revenue row
 # and no model, so its sales were valued at nothing.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GILD,Yescarta,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 GILD,Yescarta,,US,base,base_revenue,,1495.0,,mm USD,"Gilead FY2025 10-K (0000882095-26-000006), Note 2 revenue table: ""Yescarta 595 598 303 1,495 662 666 242 1,570"" (U.S., Europe, Rest of World, total; 2025 then 2024)",the anchor

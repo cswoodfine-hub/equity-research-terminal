@@ -8,7 +8,9 @@
 # and no pool is seeded. The registry's 2026-12 primary completion keeps a catalyst on the book that prices nothing.
 # The company half is Beam's, identical to every other Beam seed.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BEAM,BEAM-201,,US,base,therapy_mode,,,marketed,,"filed: Beam's 8-K of 2023-10-19 (0001193125-23-258963) put BEAM-201 up for partnering ('The Company also intends to explore partnership opportunities for continued development of select programs, including BEAM-201'), NCT05885464 closed at 5 patients enrolled, and the FY2025 10-K (0001193125-26-065194) no longer names BEAM-201 among Beam's programmes","carried at nil, the pattern the setrusumab seed uses for a stopped programme: a marketed build with no revenue, so the asset values at zero rather than refusing to build"
 BEAM,BEAM-201,,US,base,base_revenue,,0.0,,mm USD,"filed: Beam's 8-K of 2023-10-19 (0001193125-23-258963) put BEAM-201 up for partnering ('The Company also intends to explore partnership opportunities for continued development of select programs, including BEAM-201'), NCT05885464 closed at 5 patients enrolled, and the FY2025 10-K (0001193125-26-065194) no longer names BEAM-201 among Beam's programmes",the asset sells nothing and nothing is in development

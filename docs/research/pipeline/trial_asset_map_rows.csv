@@ -1,0 +1,16 @@
+# DRAFT row for data/trial_asset_map.csv, 2026-11-16. Not applied. Same header as that file.
+#
+# Catalyst 781 dates LY3305677 (mazdutide) at 2027-09 off the CWMM master protocol, which
+# is a shell: every intervention-specific appendix is registered as a study of its own, and
+# the master's own primary outcome is 'Number of Participants Allocated to Each ISA'. The
+# 2027-09 date is the only live appendix's, MC01, macupatide and eloralintide, registered as
+# NCT07589608 and already carried on Macupatide as catalyst 784. Mazdutide's own appendix,
+# OXA1, is NCT06124807 and finished in January 2025. Pinning the master to Macupatide stops
+# the derivation from putting a date on mazdutide that is not mazdutide's. Catalyst 781 then
+# duplicates 784 and should be closed by hand.
+#
+# No row is drafted for NCT06124807 itself: map_trials applies trial_asset_map to the trials
+# table only, and NCT06124807 sits in completed_trials (asset_id null), so a pin would do
+# nothing. The programme_names rename to mazdutide is what binds it, by name.
+ticker,nct_id,asset,note
+LLY,NCT06143956,Macupatide,"'A Master Protocol Study (LY900038) of Multiple Intervention-Specific-Appendices (ISAs)': primary outcome 'Number of Participants Allocated to Each ISA', primary completion 2027-09. Each ISA is registered on its own (ClinicalTrials.gov, read 2026-11-16): OXA1 LY3305677 NCT06124807 completed 2025-01-22; LAA1 NCT06230523 completed 2025-05-30; GN01 NCT06683508 completed 2026-01-07; GN02 NCT07030868 terminated 2025-07-29; LAA2 NCT06603571 completed 2026-07-01; MC01 macupatide and eloralintide NCT07589608 recruiting, primary completion 2027-09, the master's date. LY3305677 is listed first only because its ISA was first"

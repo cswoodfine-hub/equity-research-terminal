@@ -3,7 +3,9 @@
 # Marketed, anchored on the reported year and grown against the same product axis a
 # year earlier, both from the SEC data sets.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 AZN,Beyfortus,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 AZN,Beyfortus,,US,base,base_revenue,,703.0,,mm USD,"AZN FY2025 20-F product axis (sec_fsds): $703mm, being $281mm of product sales and the $422mm of alliance revenue the same filing tags separately. AstraZeneca's own footnote defines the medicine that way: its total revenue is the sum of product sales to Sanofi and its share of gross profits and royalties outside the US","was $281mm here, which was the product sales alone. The parser that wrote it read only tags beginning with Revenue and missed AllianceRevenue, so this seed carried 40% of the medicine. Correcting the parser does not correct a seed already written from it"

@@ -7,7 +7,9 @@
 # loader matches a brand and no product is called Nebulized Tyvaso. Under that name the
 # file never loaded, and the asset carried Tyvaso DPI's 1,292.5mm and +25.0% instead.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 UTHR,Tyvaso,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 UTHR,Tyvaso,,US,base,base_revenue,,585.7,,mm USD,"UTHR FY2025 10-K (0001082554-26-000006, filed 2026-02-25), the Nebulized Tyvaso row of the revenue table, tagged NebulizedTyvaso on the product axis (sec_fsds)","the anchor. Tyvaso DPI is its own row, at 1,292.5"

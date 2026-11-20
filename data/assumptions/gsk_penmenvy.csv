@@ -20,7 +20,9 @@
 # Layer, one pending readout: Pediatric meningococcal meningitis, NCT05087056,
 # 2027-03-10, inside the labelled ages: overlap 1.0, no pool.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GSK,PENMENVY,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 GSK,PENMENVY,,US,base,base_revenue,,8.0,,mm GBP,"GSK FY2025 reported turnover for Penmenvy, GBP 8mm: GSK 20-F for 2025 (0001131399-26-000004), vaccines product table, row 'Penmenvy | Meningitis group A, B, C, W and Y | GBP 8m', and 'In 2025 initial sales for Penmenvy, our pentavalent MenABCWY vaccine approved by the US FDA to protect people aged 10 to 25 years, reached GBP 8 million'","GSK reports in pounds sterling; the figure is as filed, not converted. All US. The 2026 halves: GBP 6mm in Q1 and GBP 11mm in Q2, GBP 17mm in the half (Q2 2026 results, 6-K 0001654954-26-006949, Meningitis table)"

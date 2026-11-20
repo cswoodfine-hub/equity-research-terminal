@@ -29,7 +29,9 @@
 # read only where an indication layer is built, and none is. It is seeded because the
 # engine requires it, from the figure the book already holds.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 EXEL,Cabometyx,,US,base,therapy_mode,,,marketed,,approved and selling since 2016-04-25 (NDA 208692),no patient funnel is rebuilt for a product that files its own sales
 EXEL,Cabometyx,,US,base,base_revenue,,2113.4,,mm USD,"filed: Exelixis FY2025 product revenue for Cabometyx, $2,113.4mm, as the book holds it from the SEC financial statement data sets (asset_revenue, fiscal_year 2025, period FY, source sec_fsds). Exelixis reported total revenues of $2,320,126 thousand for the fiscal year ended 2026-01-02 (FY2025 10-K 0000939767-26-000021)","the reported year, not a run rate: Cabometyx is 91.1% of the company's reported total"

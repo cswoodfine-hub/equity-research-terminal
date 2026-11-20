@@ -1,23 +1,18 @@
-# Pharma equity research terminal
+# Equity research terminal
 
-A purpose-built research terminal for 18 large-cap pharma names. One refresh pulls
-live and near-live data from free sources, stores a timestamped snapshot, computes
-what changed since the last snapshot, and renders a dense instrument of charts,
-derived analytics, and a short written note per company. The differentiator is
-change detection and synthesis over free data, not raw breadth. See
-[CLAUDE.md](CLAUDE.md) and [docs/PRD.md](docs/PRD.md) for the product spec, and
-[TERMINAL_OVERVIEW.md](TERMINAL_OVERVIEW.md) for a tour.
+A research terminal for 75 biopharma companies, read on three engines: big pharma,
+biotech, and cell and gene. One refresh pulls live and near-live data from free sources,
+stores a timestamped snapshot, computes what changed since the last snapshot, and renders
+charts, derived analytics and a short written note per company. On top of the data sits a
+valuation: each asset forecast from patients and price to a risk-adjusted value, and each
+company read as a range across lenses.
 
-Every chart renders through a hand-built SVG component layer
-(`frontend/components/charts.py`) inlined into the page, which sidesteps
-Streamlit's hidden-tab measurement defect at the root; there are no native
-Streamlit or Altair charts anywhere. Colour, type and spacing come from one token
-set (`frontend/assets/tokens.css`, mirrored in `frontend/components/tokens.py`),
-and the three type roles ship locally in `frontend/assets/fonts`. The signature
-element is the **time spine**: a continuous vertical axis on the right of every
-tab, three compressed scales stacked without a break (0–90 days at day resolution,
-3–24 months at month, then the cliff by year), ticks at the real catalyst and
-expiry dates.
+The differentiator is change detection and synthesis over free data, not raw breadth. A
+value is what a source reported or it is absent: nothing is estimated to fill a gap.
+
+- [CLAUDE.md](CLAUDE.md): the rules of the project and of each data source.
+- [docs/design/](docs/design): the contract for each tab, with notes on what was built.
+- [docs/ROADMAP.md](docs/ROADMAP.md) and [docs/ACTION_PLAN.md](docs/ACTION_PLAN.md): where it is going.
 
 ## Quick start
 
@@ -26,333 +21,203 @@ expiry dates.
 ```
 
 `run.sh` creates the venv, installs dependencies, builds and seeds the database if
-needed, and starts the API on 8000 and the UI on 8501. Set `SEC_USER_AGENT` in
-`.env` first (a real identifier, e.g. `Your Name your@email`); EDGAR blocks
-requests without it. The app runs fully with no LLM key, degrading the note to its
-rules layer. `ER_THEME=light` switches to the print-oriented light palette.
+needed, and starts the API on 8000 and the UI on 8501. Set `SEC_USER_AGENT` in `.env`
+first (a real identifier, for example `Your Name your@email`): EDGAR blocks requests
+without it. Everything else in `.env.example` is optional. The app runs with no model
+key and the notes fall back to their rules layer.
 
 ```bash
-make test           # the full test suite (~340 tests)
+make verify         # the suite with a real exit code; what the pre-push hook runs
+make hooks          # install that hook
+make test           # the suite plus the ten network tests of test_refresh.py
 make refresh        # pull every source for the universe (needs the API up)
-make refresh-daily  # run the refresh directly, no API needed; logs to logs/
-make tearsheets     # LLY/BMY/MRK tearsheets to exports/
-make tearsheets-all # a tearsheet for every company to exports/
+make refresh-daily  # the same with no server; logs to logs/
+make tearsheets-all # a one-page tearsheet for every company, to exports/
 ```
 
-### Scheduling the daily refresh
-
-The change feed and the slippage series only accumulate as refreshes run, so a
-daily job is what turns them from thin into proprietary. `backend/scheduled_refresh.py`
-runs the whole-universe refresh directly (no server needed), appends a summary to
-`logs/refresh.log`, and holds a lock so an overlapping schedule cannot double-fire.
-It refreshes prices, financials, filings, trials, approvals, the exclusivity books,
-and the change feed, and runs the Gemini extractors (trial readouts, PDUFA dates,
-biologic LOE) only on filings it has not read before, so it spends credits only when
-there is genuinely new filing text. It does not regenerate the morning notes: the
-note stays the on-demand "generate" button in the app, so a daily refresh does not
-burn a note-sized Gemini call per company.
-
-macOS (launchd) is set up in `deploy/com.novatalis.ertool.refresh.plist`, which runs
-`deploy/run_refresh.sh` at 06:00 local against the database the app reads. A 06:00
-missed while the Mac is asleep or off runs on the next wake.
-
-Grant Full Disk Access first. This repo lives under `~/Documents`, a macOS-protected
-folder, and a launchd job has no user session, so it cannot read the repo, the `.env`
-or the database until it is authorised, and it cannot pop a prompt to ask. The job
-runs through a `/bin/bash` wrapper so a single binary needs the grant: open System
-Settings, Privacy & Security, Full Disk Access, click `+`, press `Cmd+Shift+G`, enter
-`/bin/bash`, add it, and turn it on. Without this the run fails with a
-`PermissionError` on `pyvenv.cfg` in `logs/launchd.err.log`.
-
-Install, test, inspect, remove:
-
-```bash
-cp deploy/com.novatalis.ertool.refresh.plist ~/Library/LaunchAgents/
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.novatalis.ertool.refresh.plist
-launchctl kickstart -k gui/$(id -u)/com.novatalis.ertool.refresh   # run once now
-tail -n 5 logs/refresh.log                                         # see the result
-launchctl bootout gui/$(id -u)/com.novatalis.ertool.refresh        # remove
-```
-
-If `logs/refresh.log` stays empty after a kickstart, check `logs/launchd.err.log`; a
-`PermissionError` there means Full Disk Access is not yet granted to `/bin/bash`.
-
-To change the time, edit `StartCalendarInterval` in the plist, copy it to
-`~/Library/LaunchAgents/` again, then `bootout` and `bootstrap` to reload it. The
-paths in the plist are absolute for this machine; edit them if the repo or venv
-moves.
-
-Linux or a server, cron at 06:00 daily:
-
-```cron
-0 6 * * * cd /path/to/equity-research && backend/.venv/bin/python backend/scheduled_refresh.py
-```
-
-### Automated refresh on GitHub Actions, with off-machine backup
-
-`.github/workflows/refresh.yml` runs the refresh daily on a free runner and commits
-the result back to the repo as newline-delimited JSON, so the schedule and the
-backup are one job. The binary database is never committed: it diffs badly and
-bloats a repo. Instead the app-produced history (snapshots, changes, catalysts,
-notes, the run ledger, annotations, FX rates) is exported to `data/history/*.ndjson`,
-which git delta-stores cleanly and keeps a readable log of every detected change.
-
-Setup:
-
-1. Push the repo to GitHub. Public gives unlimited Actions minutes; private on the
-   free plan has 2,000 a month against roughly 300 used here, so either works.
-2. Add a repository secret `SEC_USER_AGENT` (Settings, Secrets and variables,
-   Actions), a real identifier like `Your Name your@email`. EDGAR blocks requests
-   without it. Optionally add `GROQ_API_KEY` and `OPENFDA_API_KEY`.
-3. Seed the committed history once, so the first scheduled run has prior snapshots
-   to diff against:
-
-   ```bash
-   make history-export
-   git add data/history && git commit -m "chore(history): seed" && git push
-   ```
-
-The workflow then rebuilds the database from that NDJSON, seeds the universe, runs
-the refresh (prices from yfinance often fail from runner IPs and fail soft; the
-fundamentals are what need the schedule), exports the updated history, and commits
-it. Scheduled runs can start up to 30 minutes late under load, so nothing here is
-tied to the exact hour, and the daily commit keeps the workflow from being disabled
-for 60 days of inactivity.
-
-Restore on any machine:
-
-```bash
-git pull
-make history-rebuild     # rebuild the database from the committed NDJSON
-```
-
-## The views
-
-Twelve tabs, one company selected in the top bar (shareable via `?ticker=`):
-
-- **Universe** — the landing tab: the ranked cross-company change feed with each
-  item's materiality reason, the 18-company small-multiples price grid on a shared
-  scale, the next 30 days of catalysts, and the 18-month catalyst heatmap with an
-  accept control for uncurated PDUFA cells.
-- **Key insights** — position strip, intraday spark, the AI morning note (rules
-  fallback), inline annotations, and a one-click tearsheet.
-- **Prices, Financials, Pipeline, LOE, Approvals, Catalysts, News** — the
-  per-company detail, rebuilt on the component layer.
-- **Revenue at risk** — the LOE cliff as a waterfall from tagged product revenue,
-  the unpriced band hatched, plus the universe share bar.
-- **Slippage** — a dumbbell of completion-date moves derived from our own snapshot
-  history, the one series here that cannot be bought after the fact.
-- **Comps** — the screen: comparables plus derived columns (revenue per late
-  trial, 5-year LOE share, catalyst count, TTM price change) with an inline
-  sparkline per row.
-
-A sidebar date puts the whole terminal into a clearly marked read-only historical
-mode reconstructed from the snapshot history.
-
-## Manual run
+By hand:
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -c "import db; db.init()"     # schema + migrations, idempotent
-python seed.py                        # load the universe, resolve CIKs
-uvicorn main:app --reload             # API on 8000
-# in another shell:
-cd frontend && streamlit run streamlit_app.py   # UI on 8501
+python -c "import db; db.init()"          # schema and migrations, idempotent
+python seed.py                            # load the universe, resolve CIKs
+uvicorn main:app --reload                 # API on 8000
+# in another shell, from the repo root:
+streamlit run frontend/streamlit_app.py   # UI on 8501
 ```
 
-### Key endpoints
+The database is `backend/er_tool.db`; `ER_TOOL_DB` overrides it. It is never committed.
+
+## The app
+
+A Streamlit client over the JSON API. One company is selected in the top bar and the
+address carries it (`?engine=pharma&ticker=AZN`). Every chart is hand-built SVG from
+`frontend/components/charts.py`; colour, type and spacing come from one token set
+(`frontend/assets/tokens.css`, mirrored in `frontend/components/tokens.py`).
+
+The tabs depend on the engine and on whether the company sells anything:
+
+| Tab | What it holds | Shown for |
+|---|---|---|
+| Universe | The ranked change feed, prices and catalysts across the engine | all |
+| Key insights | The morning note and the company at a glance | all |
+| Prices | The price chart | all |
+| Financials | The three statements at every period the filer tags | all |
+| Pipeline | Trials by asset and indication | all |
+| Portfolio | Revenue mix and loss of exclusivity | big pharma, and biotech once the company markets a product |
+| Catalysts | Dated events ahead and the readouts behind | all |
+| Forecast | The company and its assets year by year, and what the value is made of | all |
+| Themes | Coverage by modality across companies | biotech, cell and gene |
+| Runway | Cash against burn | cell and gene, and companies with nothing on sale |
+| Comps | Companies (scorecard, figures, table) and pipelines; on big pharma also indications and disease areas | all |
+| Holdings | Your own Trading 212 account beside the model. The same whichever company is picked | all |
+
+## Where the data comes from
+
+Every source is one module under `backend/fetchers/`. All are free; one reads a login
+of your own (Trading 212, read only) and one is an optional paid dataset (FMP consensus).
+
+| Source | What it gives |
+|---|---|
+| Yahoo chart data, ECB, FRED | Prices and benchmarks, FX, the rates behind discount rates |
+| SEC EDGAR | Reported financials, filings and their text, product revenue from the Financial Statement Data Sets |
+| The filers' own workbooks, ESEF reports | Financials for the two filers outside the SEC (Roche, Bayer); ESEF is the route for any other EU filer |
+| ClinicalTrials.gov | Active studies, completed studies, posted results |
+| openFDA, DailyMed, EMA, PMDA | Approvals and labels in the US, Europe and Japan |
+| FDA Orange Book and Purple Book, Paragraph IV list, USPTO | Patents, exclusivity, generic challenges, term extensions |
+| CMS and Medicaid | Part D prescribing, formulary coverage, spending, negotiated prices, Medicaid utilisation |
+| RxNav | The drug codes the payer files are keyed on |
+| Company IR feeds and pages, FDA feeds, Federal Register | Press releases, FDA announcements, advisory committees |
+| Google News headlines | Deals the filings never name |
+| Nasdaq analyst pages, FMP | Street consensus |
+| The daily pulse | An AI-written summary of the trade press, labelled as such, for news only |
+
+What no source publishes is curated by hand in `data/*.csv` and `data/assumptions/`,
+each row with its source.
+
+## Refreshing
+
+Each source has its own freshness window, so a refresh inside it is a no-op for that
+source and says so. Snapshots are written on every run regardless.
+
+**Refresh only before 08:00 UTC or after the US close.** A refresh while a market is
+open stores an intraday price as that day's close, and no later run corrects it.
+
+The schedule is `.github/workflows/refresh.yml`:
+
+- 06:00 UTC daily: start from the database the last run published (or rebuild it from
+  the committed history), seed, refresh the universe, export the history to
+  `data/history/*.ndjson`, commit it, and publish the database for the deployed app.
+- 10:00 UTC on weekdays: read the daily pulse and publish. It fetches no source.
+
+The binary database is never committed. The history that no source can hand back
+(snapshots, detected changes, catalysts, notes) is committed as NDJSON, so any machine
+can restore it:
 
 ```bash
-curl localhost:8000/health
-curl -X POST 'localhost:8000/refresh?scope=all'   # whole universe
-curl localhost:8000/changes                        # ranked cross-company feed
-curl localhost:8000/companies/LLY/revenue-at-risk  # cliff as revenue shares
-curl localhost:8000/slippage                       # completion-date moves
-curl localhost:8000/catalyst-grid                  # company x month counts
-curl localhost:8000/screen                          # comps + derived columns
-curl 'localhost:8000/as-of?date=2026-07-01'         # historical reconstruction
-curl -X POST localhost:8000/companies/LLY/tearsheet # one-page export to exports/
-curl localhost:8000/comps                           # the comps table
-curl localhost:8000/pipeline                        # company x phase trial counts
-curl 'localhost:8000/companies/LLY/trials?phase=Phase%203'  # trials behind a cell
-curl localhost:8000/loe                            # company x expiry-year LOE cliff
-curl localhost:8000/companies/LLY/exclusivities    # upcoming LOE products
-curl localhost:8000/companies/LLY/approvals        # approvals, with expiry and revenue
-curl localhost:8000/companies/LLY/exposure         # cliff by year, and its coverage
-curl localhost:8000/companies/LLY/revenue          # curated product revenue
-curl localhost:8000/changes                        # ranked what-changed feed
-curl localhost:8000/companies/LLY/filings          # recent EDGAR filings
-curl localhost:8000/companies/LLY/news             # EDGAR 8-K/6-K news
-curl localhost:8000/catalysts                      # curated catalyst calendar
-curl localhost:8000/companies/LLY/note             # stored morning note
-curl 'localhost:8000/companies/LLY/note?refresh=true'   # generate a new one
+git pull
+make history-rebuild
 ```
+
+The workflow needs a repository secret `SEC_USER_AGENT`. Model and openFDA keys are
+optional.
+
+A local schedule is also possible. `deploy/com.novatalis.ertool.refresh.plist` is a
+launchd job that runs `deploy/run_refresh.sh` at 06:00. Its paths are absolute and were
+written for another machine, so edit them before installing it. A launchd job has no
+user session: if the repo sits in a folder macOS protects (Documents, Desktop, iCloud
+Drive), `/bin/bash` needs Full Disk Access or the run fails with a `PermissionError`.
+
+## Deployment
+
+`streamlit_cloud_app.py` runs the API and the UI in one process for Streamlit Cloud. A
+fresh container has no database, so it looks for the published one first and says which
+it found. An empty universe reads as an empty universe.
 
 ## Generated notes
 
 The what-changed feed has two layers. The rules layer always runs. The note layer
 summarises one company's slice of it into a short paragraph.
 
-The note and the PDUFA extraction run on whichever model provider has a key, behind one
-seam in `llm.py`. **Groq** (`GROQ_API_KEY`, from console.groq.com) and **Google Gemini**
-(`GEMINI_API_KEY`, from aistudio.google.com) both have free tiers and are called over
-REST, so they need no SDK; Gemini's free tier is regional and may be unavailable.
-**Anthropic** (`ANTHROPIC_API_KEY`, paid) keeps its SDK. With several keys set the first
-present wins, in order Groq, Gemini, Anthropic; `LLM_PROVIDER` pins one. The chosen model
-is prompted to use only the supplied feed items and never to invent a number, and `model`
-in the response records which model wrote the note.
+Every model call goes through `backend/llm.py`. Groq (`GROQ_API_KEY`) and Google Gemini
+(`GEMINI_API_KEY`) have free tiers and are called over REST; Anthropic
+(`ANTHROPIC_API_KEY`) uses its SDK. With several keys set the first present wins, in
+that order, and `LLM_PROVIDER` pins one. The notes default to Gemini
+(`NOTE_LLM_PROVIDER`). The model is given only the feed items and told never to invent
+a number; the response records which model wrote the note.
 
-With no key set the note is a deterministic list of the flagged items and `model` reads
-`rules`, so the UI can say which layer produced it. If the model errors, the note falls
-back to the rules layer and reports the error rather than failing the request. A key
-that is out of credit, rejected, or rate limited is caught and reported, not retried per
-filing.
+With no key the note is a deterministic list of the flagged items and its model reads
+`rules`. If the model errors, the note falls back to the rules layer and reports the
+error.
 
-Every note is stored in `insights` with the `changes.id` values it was built from, so
-a note can be traced back to its evidence.
+The model is also used to read stated facts out of filing, label and press text: PDUFA
+dates, trial readouts, guidance, deal terms. Nothing it returns is trusted on its own.
+For a PDUFA date, the date must parse and sit in a plausible review window, the product
+must appear in the filing, and the quote must appear there near-verbatim; a row that
+fails is dropped. The model never sets a value, a forecast or a rule.
 
-The what-changed feed needs at least two refreshes per company to show anything: the
-first establishes that company's snapshot baselines and the next detects diffs against
-them. Baselines are per company, so refreshing one ticker does not affect the others.
-A first-seen filing or approval is also only reported when its own date falls within
-the last 180 days, which keeps back catalogue out of the feed when coverage of a
-company starts late.
+The feed needs two refreshes of a company to show anything: the first sets the
+baseline and the next detects differences. A first-seen filing or approval is reported
+only when its own date is within the last 180 days, which keeps back catalogue out.
 
-Orange/Purple Book and openFDA need no key (openFDA works unauthenticated; set the
-optional `OPENFDA_API_KEY` only to raise the rate limit).
-
-`?scope=all` and financials need `SEC_USER_AGENT` set (EDGAR blocks anonymous
-requests). Foreign names are quoted by their US ADR symbol (ROG uses RHHBY, BAYN
-uses BAYRY), so the bare home ticker never resolves to an unrelated US company.
-
-The database is written to `backend/er_tool.db` by default. Override with the
-`ER_TOOL_DB` environment variable.
-
-A database refreshed before the per-company baseline fix still holds the change rows
-that defect produced, and any note that cites them. `python -m cleanup` reports them
-and `python -m cleanup --apply` deletes them after copying the database file aside. It
-retires a first-seen approval or filing dated more than 180 days before its own
-detection, so genuinely recent items recorded in the same run survive: on the
-development database 9 of the 625 rows were real. Snapshots are left untouched, which
-is what stops the deleted rows coming back on the next refresh.
-
-A refresh inside a source's TTL (prices: 15 minutes) is a no-op for that source and
-says so in the response. Market cap has no free source this phase and is left null
-rather than estimated.
-
-## UI (Streamlit)
-
-The UI is a thin client over the JSON API. Start the API first (above), then in
-another shell:
+## A few endpoints
 
 ```bash
-pip install -r frontend/requirements.txt
-streamlit run frontend/streamlit_app.py
+curl localhost:8000/health
+curl -X POST 'localhost:8000/refresh?scope=all'      # the whole universe
+curl localhost:8000/runs/latest                      # the last refresh
+curl localhost:8000/changes                          # the ranked change feed
+curl localhost:8000/companies                        # the universe
+curl localhost:8000/engines                          # the three engines
+curl localhost:8000/companies/LLY/forecast           # every forecast of one company, summed
+curl localhost:8000/companies/LLY/forecast-board     # the same, laid out by year
+curl localhost:8000/companies/LLY/competitors        # who sells against its products
+curl localhost:8000/comps/valuation                  # the Comps tab's payload
+curl 'localhost:8000/as-of?date=2026-07-01'          # the universe as of a past date
+curl -X POST localhost:8000/companies/LLY/tearsheet  # one page, to exports/
 ```
 
-The UI opens on a **What changed** tab (the ranked feed), then Prices, Financials,
-Pipeline, LOE, Approvals, Comps, a **Catalysts** tab (a 90-day calendar with an add
-form; the table is curated), and a **News** tab (per-company EDGAR 8-K/6-K). The API
-base URL is configurable in the sidebar (default `http://localhost:8000`). Blank comps
-cells are no free data, not zero; pipeline and LOE counts are trials/products, not
-deduplicated or revenue-weighted; the what-changed feed fills in after a second refresh.
+`backend/main.py` holds the rest.
 
-**Financials** carries the three statements at every period a filer tags, quarterly or
-annual, with a snapshot of the latest reported period against the same period a year
-earlier. Coverage is uneven by filer and the tab says so rather than papering over it:
-of the 18 companies, 16 file with the SEC and 2 (Roche, Bayer) do not, and among the 16
-the 20-F filers vary from full interim tagging to annual only. A line the filer does not
-tag is a dash, never a zero. Dotted figures are computed from two reported lines, which
-covers subtotals a filer skips (Lilly never tags gross profit) and fourth quarters,
-which nobody tags and which are the reported year less the reported nine months.
-Per-share lines are excluded from that subtraction, since EPS does not add up across
-quarters. Cash flow columns are cumulative from the year start, as a 10-Q reports them.
+## Reading the numbers
 
-**Approvals** lists each approved product with the latest expiry the Orange or Purple
-Book carries for it, the basis of that date, and its revenue. Protection is per asset,
-so several approvals of one product share it, and a dash means the books hold no entry
-rather than that the product is unprotected.
+- A blank is no free data, not zero. A line a filer does not tag is a dash.
+- Foreign names are quoted by their US ADR (Roche as RHHBY, Bayer as BAYRY), so a bare
+  home ticker never resolves to an unrelated US company.
+- Product revenue comes from the SEC Financial Statement Data Sets. The company-facts
+  API collapses every XBRL dimension and returns the consolidated revenue line alone;
+  the quarterly bulk sets keep the product dimension. A filer that tags no product axis
+  shows none.
+- A primary completion date in the past is usually normal. ClinicalTrials.gov marks each
+  date actual or estimated and the app stores which: an actual date that has passed
+  means the endpoint was reached; an estimated one that has passed is a forecast missed.
+- Part D and Medicaid amounts are gross of rebates. They are volume, never revenue.
+- A deal value is announced consideration, milestones included, never the cash paid.
 
-**Product revenue comes from the SEC Financial Statement Data Sets.** The companyfacts
-API collapses every XBRL dimension and returns the consolidated `Revenues` line alone,
-which is why product revenue looks unavailable from the API. The quarterly bulk data
-sets keep the dimensions in a `segments` column, so `ProductOrService=Zepbound` is right
-there and free. Roughly 80MB a quarter, cached under `backend/cache/` and refreshed
-quarterly, which is as often as the source moves.
-
-A worldwide figure is only taken when the filing states one, or when the geography
-members form a partition the fetcher recognises (US plus non-US, and similar). An
-unrecognised split yields nothing rather than a plausible number, because a filer
-reporting both a total and its parts would otherwise be double counted. Category members
-on the same axis (therapeutic areas, `OtherProductTotal`, gross-before-rebates totals)
-are filtered by name and then by having to match an asset's brand name.
-
-Nothing is entered by hand. A figure is what the company reported or it is absent, so a
-filer that tags no product axis (AbbVie) shows none rather than a number someone typed
-once and never revisited.
-
-Coverage is 13 of the 16 SEC filers, 124 products. AbbVie tags no product axis at all,
-and GSK and Regeneron spread their products across segments in a way that would need
-summing. Novo reports in DKK and Sanofi in EUR; the unit travels with each figure and
-nothing is converted.
-
-**A primary completion date in the past is usually normal.** ClinicalTrials.gov marks
-each date actual or estimated and the app now stores which. An actual date that has
-passed means the primary endpoint was reached; the trial stays active, not recruiting
-while it follows participants for overall survival, which routinely runs years and in
-one Merck study to 2033. An estimated date that has passed is the opposite: a forecast
-missed and never revised. Across the universe 469 dates are actual, all necessarily in
-the past, and 106 of the 2,109 estimated ones are overdue. The trials table says which
-each is.
-
-**PDUFA dates are extracted from the 8-K that announces the acceptance.** No free
-calendar of FDA decision dates exists, so the filing is the source. Candidate 8-K and
-6-K filings are filtered by their item taxonomy, then by whether the text mentions a
-review at all, which on the current database sends 1 filing of 12 to the model rather
-than all of them. The Anthropic API reads the document and returns the date, the product
-and a verbatim quote.
-
-Nothing it returns is trusted on its own. The date must parse, be in the future, and sit
-inside a plausible review window; the product name must appear in the filing; and the
-quote must appear in the filing near-verbatim. A model that supplies a product name from
-its own knowledge, or reasons a date out of "expected within six months", fails those
-checks and the row is dropped. Rows land with `is_curated = 0` and link to the document.
-
-Needs `ANTHROPIC_API_KEY`. Without it the step reports that it did nothing and the
-calendar carries registry readouts alone.
-
-**Exclusivity is United States only, and biologics carry no patent dates.** The Orange
-Book and the Purple Book are FDA publications, so every expiry in this app is a US
-date; a product protected in the US to 2035 can face a generic in Europe or Japan years
-earlier and nothing here knows it. Worse for biologics: the Purple Book publishes
-regulatory exclusivity and no patents at all, so all 109 biologics in the universe show
-an exclusivity date rather than the patent that actually gates a biosimilar. Keytruda's
-only entry is an orphan exclusivity, so it now shows no cliff date rather than a wrong
-one. Small molecule dates come from Orange Book patents and are sound. Orphan
-exclusivity is excluded from the cliff entirely, which takes it from 348 products to
-292.
-
-**Revenue mix** on the Approvals tab draws the largest drivers as their own slices and
-brackets the rest into one. A pie is only readable while the slices are few and
-different in size, so anything past the sixth product, or under 2% of the total, joins
-the bracket. The donut totals to company revenue, not to the tagged products: the gap
-between them is drawn as a hollow wedge, which for Lilly is the 15.1bn of collaboration
-revenue, lines reported only as a total, and products the app holds no asset for.
-
-A full `?scope=all` refresh pulls every source for all 18 companies (Yahoo, EDGAR, and
-paginated ClinicalTrials queries). Companies run in parallel, four at a time. Measured
-cold on 2026-07-18: 68s sequential, 33s parallel. Set `ER_TOOL_REFRESH_WORKERS` to
-change the worker count; raising it much above 4 risks EDGAR's 10 requests/second
-limit. Per-source TTLs mean repeat refreshes skip anything still fresh.
-
-## Test
+## Tests
 
 ```bash
-cd backend
-pytest -q
+make verify
 ```
 
-Tests do not touch the network: the CIK resolver runs against a saved fixture in
-`backend/tests/fixtures/`.
+About 4,750 tests in six to eight minutes (17 November 2026). They do not touch the
+network; only `backend/tests/test_refresh.py` does, and `make verify` leaves it out.
+
+Two parts are skipped quietly when their tool is missing, so a green run has not tested
+them: the app tests need the API on 8000, and the JavaScript tests of the Comps frame
+(`frontend/tests/compsval/`) need `node`.
+
+## Where things are
+
+| Folder | What is in it |
+|---|---|
+| `backend/` | The API, the fetchers, the model, the tests |
+| `frontend/` | The Streamlit app and its components |
+| `data/` | The universe, the curated registers, the assumption seeds, the committed history |
+| `docs/design/` | The contract for each tab |
+| `docs/research/` | Dated research notes and the rows they produced |
+| `docs/PRD.md`, `TERMINAL_OVERVIEW.md` | The July 2026 spec and tour. History: both describe the first build, not this one |
+| `work/` | Finished working papers. No code reads them; data files cite them as sources |
+| `archive/` | Superseded documents |

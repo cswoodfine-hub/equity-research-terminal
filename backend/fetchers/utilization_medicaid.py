@@ -39,6 +39,7 @@ import urllib.request
 import db
 import ndc
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "medicaid_sdud"
 ENTITY_KEY = "sdud"
@@ -59,7 +60,7 @@ _SUMS = (("number_of_prescriptions", "prescriptions"),
 _SLEEP_S = 0.2
 _TIMEOUT_S = 120
 _ATTEMPTS = 3
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _GAP_EXAMPLES = 5
 
 

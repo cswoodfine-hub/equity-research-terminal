@@ -4,7 +4,9 @@
 # year earlier. Both figures come from the SEC financial statement data sets, tagged
 # in the same filing, so the pair needs no reading of a table to establish.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BIIB,Plegridy,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 BIIB,Plegridy,,US,base,base_revenue,,250.1,,mm USD,"BIIB FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor

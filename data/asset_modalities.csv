@@ -1,0 +1,242 @@
+ticker,asset,modality,source
+ABBV,ABBV-1480,biologic,"AbbVie and RemeGen licensing press release: 'RC148 (ABBV-1480), a novel investigational Programmed Cell Death-1 (PD-1)/Vascular Endothelial Growth Factor (VEGF)-targeted bispecific antibody'"
+ABBV,ABBV-295,small molecule,"ClinicalTrials.gov NCT07752979 (AbbVie): 'ABBV-295 is an investigational long-acting amylin analog'; amylin is a 37-residue peptide hormone, so an analogue of it is a peptide, filed under an NDA"
+ABBV,ABBV-706,biologic,"PubMed 42225988: 'ABBV-706, an antibody-drug conjugate with a SEZ6-directed antibody linked to topoisomerase-1 inhibitor'"
+ABBV,ABBV-932,small molecule,ClinicalTrials.gov NCT06846320 (AbbVie): 'Participants will receive oral capsules of ABBV-932 or matching placebo'
+ABBV,ABBV-RGX-314,gene therapy,PubMed 38554726: 'RGX-314 (currently known as ABBV-RGX-314) is an adeno-associated virus serotype 8 vector'
+ABBV,AGN-151607-DP,biologic,ClinicalTrials.gov NCT07226791 official title: 'AGN-151607-DP (USAN: gemibotulinumtoxinA)'; a botulinum toxin is licensed under a BLA
+ABBV,APG777,biologic,PubMed 40739793: 'APG777 is a humanized IgG1 monoclonal antibody'
+ABBV,Armour Thyroid,small molecule,"DailyMed SPL 56b41079-60db-4256-9695-202b3a65d13d: 'Armour Thyroid (thyroid tablets, USP) for oral use ... provide 38 mcg levothyroxine (T4) and 9 mcg liothyronine (T3) per grain'; an oral tablet filed as a drug, not a licensed biologic"
+ABBV,Emraclidine,small molecule,"PubMed 36528376: 'Emraclidine is a novel, brain-penetrant, highly selective M4 receptor positive allosteric modulator', given as 'ascending oral doses'"
+ABBV,Etentamig,biologic,PubMed 42980050: lists etentamig among 'novel anti-BCMA bsAbs [bispecific antibodies] in clinical development'; ClinicalTrials.gov NCT06892522 files it under T cell engaging bi/tri-specific antibodies
+ABBV,Icalcaprant,small molecule,ClinicalTrials.gov NCT07276997 (AbbVie): 'Participants will receive oral capsules of Icalcaprant or matching placebo once daily'
+ABBV,IMGN151,biologic,ClinicalTrials.gov NCT05527184: 'IMGN151 is an antibody-drug conjugate (ADC)'
+ABBV,MEDI0618,biologic,"PubMed 40036725: 'MEDI0618, a fully humanized PAR2 monoclonal antibody'"
+AMGN,ABP 206,biologic,"Amgen pipeline chart (amgenpipeline.com): 'ABP 206 is an investigational biosimilar to OPDIVO (nivolumab), which is a monoclonal antibody'"
+AMGN,ABP 234,biologic,"Amgen pipeline chart (amgenpipeline.com): 'ABP 234 is an investigational biosimilar to KEYTRUDA (pembrolizumab), which is a monoclonal antibody'"
+AMGN,ABP 692,biologic,"Amgen FY2025 10-K (sec.gov, CIK 318154): 'ABP 692, a biosimilar candidate to OCREVUS, is a monoclonal antibody that binds to CD20'"
+AMGN,Dazodalibep,biologic,"PubMed 38839899: 'Dazodalibep (DAZ), a novel nonantibody fusion protein, is a CD40 ligand antagonist'"
+AMGN,Maridebart Cafraglutide,biologic,PubMed 38316982: 'AMG 133 (maridebart cafraglutide) is a bispecific molecule engineered by conjugating a fully human monoclonal anti-human GIPR antagonist antibody to two GLP-1 analogue agonist peptides'
+AMGN,Xgeva,biologic,"Drugs@FDA BLA125320, XGEVA (denosumab)"
+ARGX,Empasiprubart,biologic,PubMed 40819168: 'Empasiprubart is a humanized recycling monoclonal antibody'
+AXSM,AXS-14 (Esreboxetine),small molecule,ClinicalTrials.gov NCT07398417 (Axsome): 'AXS-14 tablets taken once daily'
+AZN,AZD0120,cell therapy,"PubMed 41925575: 'GC012F, now renamed AZD0120, is an autologous BCMA and CD19 dual-targeting chimeric antigen receptor (CAR) T-cell product'"
+AZN,AZD0292,biologic,ClinicalTrials.gov NCT07088926: 'AZD0292 is a bispecific IgG1k mAb'
+AZN,AZD0780,small molecule,"PubMed 40167413: 'AZD0780 is a novel, oral, small molecule inhibitor of proprotein convertase subtilisin/kexin type 9 (PCSK9)'"
+AZN,AZD1163,biologic,"PubMed 41982149: 'AZD1163, a first-in-class anti-PAD2/4 bispecific antibody'"
+AZN,AZD2389,small molecule,"ClinicalTrials.gov NCT07610837: AZD2389 is a 'potent, selective, first-in-class, small molecule oral inhibitor of FAP'"
+AZN,AZD4144,small molecule,ClinicalTrials.gov NCT06925854 (AstraZeneca): 'Oral tablet of AZD4144 will be administered'
+AZN,AZD5148,biologic,PubMed 40810427: 'AZD5148 is a toxin B-neutralizing human monoclonal antibody'
+AZN,AZD5335,biologic,"PubMed 42694955: 'AZD5335, a recent clinically tested FRalpha-targeted antibody-drug conjugate carrying a topoisomerase I inhibitor payload'; ClinicalTrials.gov NCT05797168 lists it as 'IV Antibody-drug conjugate'"
+AZN,AZD6234,small molecule,"AstraZeneca pipeline page (astrazeneca.com/our-therapy-areas/pipeline.html), row 'AZD6234 (lenbelintide)', molecule size 'Small molecule'; WHO proposed INN list 133 gives lenbelintide as a 37-residue lipidated amylin analogue peptide"
+AZN,AZD6793,small molecule,"ClinicalTrials.gov NCT07082738 (AstraZeneca), official title: 'the Efficacy and Safety of AZD6793 Tablets in Adult Participants With Moderate to Very Severe Chronic Obstructive Pulmonary Disease'"
+AZN,AZD7798,biologic,"AstraZeneca pipeline page (astrazeneca.com/our-therapy-areas/pipeline.html), row 'AZD7798', molecule size 'Large molecule', described as a humanised monoclonal antibody targeting a T-cell subset"
+AZN,AZD8965 low dose,small molecule,ClinicalTrials.gov NCT06502379 (AstraZeneca): 'AZD8965 will be administered orally'; NCT07652658 is the phase 2b trial the low dose arm belongs to
+AZN,Balcinrenone/dapagliflozin,small molecule,"PubMed 41218621: 'the novel MRA balcinrenone combined with the SGLT2 inhibitor dapagliflozin', dosed orally as balcinrenone 15 mg plus dapagliflozin 10 mg; dapagliflozin is Drugs@FDA NDA202293 (FARXIGA)"
+AZN,Breztri,small molecule,"Drugs@FDA NDA212122, BREZTRI AEROSPHERE (budesonide, glycopyrronium, formoterol fumarate)"
+AZN,Ceralasertib,small molecule,"AstraZeneca press release (astrazeneca.com, LATIFY update): 'Ceralasertib is an oral, potent and selective inhibitor of the ATR kinase'"
+AZN,Elecoglipron,small molecule,PubMed 42259337: 'Elecoglipron (AZD5004) is an oral small-molecule glucagon-like peptide-1 (GLP-1) receptor agonist'
+AZN,Flumist,biologic,DailyMed SPL b8f34cfb-ee00-4b4a-aff8-643fe6f1d9e1: 'FLUMIST (INFLUENZA VACCINE LIVE INTRANASAL) SPRAY'
+AZN,Puxitatug Samrotecan,biologic,"PubMed 39392424: 'AZD8205, puxitatug samrotecan, a B7-H4-directed cysteine-conjugated ADC'"
+AZN,Rilvegostomig,biologic,"PubMed 41669261: 'rilvegostomig, a bispecific anti-PD-1/anti-TIGIT antibody'"
+AZN,Sonesitatug Vedotin,biologic,PubMed 41560619 (mAbs antibody therapeutics review): lists 'sonesitatug vedotin' among antibody-drug conjugates
+AZN,Surovatamig,biologic,"ClinicalTrials.gov NCT06549595: surovatamig, 'a fully human bispecific monoclonal IgG4 antibody'"
+AZN,Volrustomig,biologic,PubMed 41701940: 'Volrustomig is an IgG1 monovalent bispecific antibody'
+AZN,Zibotentan/Dapagliflozin,small molecule,"PubMed 37931629: 'the ERA zibotentan combined with the SGLT2 inhibitor dapagliflozin', given as daily oral treatment; dapagliflozin is Drugs@FDA NDA202293 (FARXIGA)"
+BAYN,Aspirin Cardio,small molecule,"DailyMed SPL 0058175f-3474-40c3-a046-6cfaec86d84b, OTC monograph M013: an aspirin (acetylsalicylic acid) tablet, not a licensed biologic"
+BAYN,Glucobay,small molecule,"Drugs@FDA NDA020482, PRECOSE (acarbose), Bayer; Glucobay is the same molecule outside the US"
+BAYN,Xarelto,small molecule,"Drugs@FDA NDA022406, XARELTO (rivaroxaban)"
+BEAM,BEAM-101,cell therapy,ClinicalTrials.gov NCT05456880: 'a Single Dose of Autologous CD34+ Base Edited Hematopoietic Stem Cells (BEAM-101)'
+BEAM,BEAM-201,cell therapy,"ClinicalTrials.gov NCT05885464: 'Multiplex Base-Edited, Allogeneic Anti-CD7 CAR-T Cells (BEAM-201)'"
+BEAM,BEAM-301: Single dose of BEAM-301 administered by IV,gene therapy,"Beam Therapeutics FY2025 10-K (sec.gov, CIK 1745999): 'BEAM-301: In Vivo LNP liver-targeting for GSDIa ... a liver-targeting LNP formulation of base editing reagents'"
+BEAM,BEAM-302,gene therapy,"Beam Therapeutics FY2025 10-K (sec.gov, CIK 1745999): 'BEAM-302: In Vivo LNP liver-targeting for AATD ... a liver-targeting lipid nanoparticle, or LNP, formulation of base editing reagents'"
+BIIB,BENEPALI,biologic,"Drugs@FDA BLA103795, ENBREL (etanercept); Benepali is Biogen's etanercept biosimilar"
+BIIB,FLIXABI,biologic,"Drugs@FDA BLA125544 for the reference infliximab product; FLIXABI is Biogen's infliximab biosimilar, PubMed 30263065"
+BIIB,IMRALDI,biologic,"Drugs@FDA BLA125057, HUMIRA (adalimumab); PubMed 30251234: 'SB5 (Imraldi) is a biosimilar of the reference anti-TNF monoclonal antibody adalimumab'"
+BMY,BMS-986278,small molecule,"PubMed 39393084: 'admilparant (BMS-986278), an oral lysophosphatidic acid receptor 1 antagonist'"
+BMY,BMS-986353,cell therapy,"ClinicalTrials.gov NCT05869955: 'CC-97540 (BMS-986353), CD19-Targeted Nex-T Chimeric Antigen Receptor (CAR) T Cells'"
+BMY,BMS-986435,small molecule,"ClinicalTrials.gov NCT07226817 (BMS), official title: 'the Relative Bioavailability of BMS-986435 Tablet Formulations'"
+BMY,BMS-986446,biologic,"ClinicalTrials.gov NCT06268886: 'BMS-986446, an Anti-MTBR Tau Monoclonal Antibody'"
+BMY,BMS-986489 (Atigotatug+Nivolumab),biologic,"PubMed 41759251: 'Atigotatug is a monoclonal antibody acting as a tumor-targeted innate immune inducer'; ClinicalTrials.gov NCT06646276 registers BMS-986489 as an anti-fucosyl-GM1 plus nivolumab fixed dose combination, intervention type Biological"
+BMY,BMS-986511,small molecule,"WHO proposed INN list 125: 'evifacotrep, 4-chloro-5-{4-[4-fluoro-2-(trifluoromethyl)phenoxy]-5,8-dihydropyrido[3,4-d]pyrimidin-7(6H)-yl}pyridazin-3(2H)-one, short transient receptor potential channel 5 (TRPC5) antagonist'; ClinicalTrials.gov NCT07772531 gives BMS-986511 with the other name Evifacotrep"
+BMY,Imzokitug,biologic,"ClinicalTrials.gov NCT07226856 (BMS), intervention Imzokitug, type Biological: 'BMS-986340 is a monoclonal antibody'"
+BMY,Iza-bren,biologic,PubMed 41611210: 'Izalontamab brengitecan (Iza-bren; BL-B01D1) is a first-in-class bispecific antibody-drug conjugate'
+BMY,Mezigdomide,small molecule,PubMed 41163399: 'the cereblon E3 ligase modulator mezigdomide'; PubMed 38096371: 'the novel IKAROS degrader mezigdomide'
+BNTX,BNT113,biologic,PubMed 42899601: 'BioNTech's HPV16 mRNA vaccine BNT113'
+BNTX,BNT166a,biologic,PubMed 42235570: 'Safety and immunogenicity of mRNA-based mpox vaccine candidate BNT166a'
+BNTX,BNT323,biologic,"BioNTech press release filed as SEC exhibit (sec.gov, CIK 1776985): 'Trastuzumab pamirtecan (BNT323/DB-1303) is a third-generation topoisomerase-1 inhibitor-based ADC targeting HER2'"
+CABA,CABA-201,cell therapy,"ClinicalTrials.gov NCT06121297: 'an investigational cell therapy, CABA-201 ... Autologous CD19-specific Chimeric Antigen Receptor T Cells'"
+CRBU,CB-011,cell therapy,"PubMed 38345397: 'CB-011 is a hypoimmunogenic, allogeneic anti-B-cell maturation antigen (BCMA) CAR T cell therapy candidate'"
+CRSP,CTX340,gene therapy,ClinicalTrials.gov NCT07758634: 'CTX340 is an in vivo gene editing therapy designed to utilize CRISPR-Cas9 to target and disrupt human angiotensinogen (AGT) gene in liver'
+DYN,zeleciment basivarsen (DYNE-101),biologic,"Dyne Therapeutics FY2024 10-K (sec.gov, CIK 1818794): the FORCE platform conjugates a Fab antibody fragment to an oligonucleotide payload; PubMed 41560619 (mAbs) counts zeleciment basivarsen among antibody therapeutics"
+DYN,Zeleciment Rostudirsen (DYNE-251),biologic,"Dyne Therapeutics FY2024 10-K (sec.gov, CIK 1818794): DYNE-251 is 'a phosphorodiamidate morpholino oligomer (PMO) conjugated to a fragment antibody (Fab) that binds to the transferrin 1 receptor'; PubMed 41560619 (mAbs) counts zeleciment rostudirsen among antibody therapeutics"
+GILD,Denikitug,biologic,"ClinicalTrials.gov NCT05007782: 'Denikitug (GS-1811), an Afucosylated Anti-CCR8 Monoclonal Antibody'"
+GILD,emvistegrast,small molecule,"ClinicalTrials.gov NCT06290934 (Gilead): intervention emvistegrast, 'Administered orally'"
+GILD,GS-3242,small molecule,"ClinicalTrials.gov NCT07841990 (Gilead): intervention GS-3242, 'Tablet administered orally'"
+GILD,Tilpisertib Fosmecarbil,small molecule,"ClinicalTrials.gov NCT06029972 (Gilead): 'Tilpisertib Fosmecarbil ... Tablets administered orally'; PubMed 42634341 calls it 'an intestinally cleaved prodrug of GS-4875, a potent tumor progression locus 2 (TPL2) inhibitor'"
+GPCR,Aleniglipron,small molecule,"PubMed 42249138: 'Aleniglipron is an oral, small-molecule glucagon-like peptide-1 receptor agonist'"
+GSK,Camlipixant,small molecule,ClinicalTrials.gov NCT05899829 official title: 'a Single Dose of Camlipixant (BLU-5937) 50 mg Tablet in Healthy Participants Under Fasting Conditions'
+GSK,Efimosfermin Alfa,biologic,"WHO proposed INN list 130: 'efimosfermin alfa, Fc fragment of human immunoglobulin G1 fused via peptide linker to human fibroblast growth factor 21 (FGF-21) fragment 33-209 ... produced in Chinese hamster ovary (CHO) cells'"
+GSK,GSK3862995B,biologic,GSK Q3 2026 pipeline assets and clinical trials report (gsk.com): 'GSK3862995 Long-acting anti-IL33 antibody COPD'
+GSK,GSK4532990,small molecule,"Arrowhead 8-K exhibit 99.1 of 2023-08-07 (sec.gov, CIK 879407): 'GSK4532990, formerly called ARO-HSD, an investigational RNAi therapeutic'; an RNAi therapeutic is filed under an NDA"
+GSK,GSK5784283,biologic,"ClinicalTrials.gov NCT06748053 (GSK), official title: 'an Anti-TSLP Antibody (GSK5784283)'"
+GSK,Investigational varicella vaccine,biologic,"ClinicalTrials.gov NCT06693895 (GSK), intervention type Biological: '1 dose of investigational varicella vaccine administered subcutaneously'"
+GSK,Mocertatug rezetecan,biologic,PubMed 42850140: 'the B7 homolog 4 protein-targeted antibody-drug conjugate mocertatug rezetecan'; GSK press release says the same
+GSK,mRNA Seasonal Flu vaccine,biologic,"ClinicalTrials.gov NCT07851246 (GSK), intervention type Biological: 'One dose of the mRNA Flu vaccine received intramuscularly'"
+GSK,Ris-Rez,biologic,"PubMed 42933637: 'risvutatug rezetecan (Ris-Rez), a B7-H3-directed antibody-drug conjugate'; ClinicalTrials.gov NCT07099898 says the same"
+INCY,INCB123667,small molecule,ClinicalTrials.gov NCT05238922 (Incyte): 'INCB0123667 ... 25 mg tablets'; NCT06909162 is titled for INCB123667 'When Administered Orally to Healthy Adult Participants'
+INCY,INCB161734,small molecule,"ClinicalTrials.gov NCT07018635 (Incyte): INCB161734, 'Oral; Tablet'"
+INCY,JAKAVI,small molecule,"Drugs@FDA NDA202192, JAKAFI (ruxolitinib phosphate); Jakavi is the same molecule outside the US"
+INCY,Minjuvi / Monjuvi,biologic,"Drugs@FDA BLA761163, MONJUVI (tafasitamab-cxix)"
+INCY,VGA039,biologic,PubMed 40820726: 'VGA039 is a monoclonal antibody that targets its cofactor protein S'
+JNJ,CONCERTAMethylphenidate,small molecule,"Drugs@FDA NDA021121, CONCERTA (methylphenidate hydrochloride)"
+JNJ,EDURANTrilpivirine,small molecule,"Drugs@FDA NDA202022, EDURANT (rilpivirine hydrochloride)"
+JNJ,Invega Sustenna / Xeplion / Trinza / Trevicta,small molecule,"Drugs@FDA NDA022264, INVEGA SUSTENNA (paliperidone palmitate)"
+JNJ,JNJ-101556143,small molecule,ClinicalTrials.gov NCT05818683 (Janssen): 'JNJ-101556143 will be administered orally'
+JNJ,JNJ-78934804,biologic,"ClinicalTrials.gov NCT05242484 (Janssen), intervention type Biological: 'JNJ-78934804 will be administered subcutaneously'; JNJ-78934804 is the guselkumab plus golimumab combination, two monoclonal antibodies"
+JNJ,JNJ-79635322,biologic,PubMed 41100731: 'Ramantamig (JNJ-79635322) is a trispecific antibody targeting BCMA and GPRC5D'
+JNJ,JNJ-95597528,biologic,"ClinicalTrials.gov NCT07230860 (Janssen) exclusion criteria: 'known hypersensitivity or intolerance to JNJ-95597528 or its excipients or to any biologic medication or known allergies, or clinically significant reactions to murine, chimeric, monoclonal antibodies (mAbs), or antibody fragments'"
+JNJ,Milvexian,small molecule,"PubMed 41791675: 'Milvexian is an oral, small-molecule inhibitor of factor (F)XIa'"
+JNJ,Pasritamig,biologic,"PubMed 40450573: 'pasritamig, a first-in-class, T-cell-engaging bispecific antibody targeting human kallikrein 2'"
+JNJ,Prezista / Prezcobix / Rezolsta / Symtuza,small molecule,"Drugs@FDA NDA021976, PREZISTA (darunavir)"
+JNJ,Ramantamig,biologic,"PubMed 41100731: 'Ramantamig (JNJ-79635322), a novel T-cell-engaging trispecific antibody'"
+JNJ,Rybrevant / Lazcluze,biologic,"Drugs@FDA BLA761210, RYBREVANT (amivantamab-vmjw), the lead product of the pair; ClinicalTrials.gov NCT04077463 calls amivantamab 'a fully human immunoglobulin G1(IgG1)-based bispecific antibody'. The partner Lazcluze (lazertinib) is a small molecule NDA"
+JNJ,Seltorexant,small molecule,"PubMed 40802194: 'the novel selective orexin-2 receptor antagonist seltorexant', given as 'nightly oral-seltorexant'"
+JNJ,Simponi Simponi Aria,biologic,"Drugs@FDA BLA125289 (SIMPONI) and BLA125433 (SIMPONI ARIA), golimumab"
+KRRO,KRRO-121,small molecule,ClinicalTrials.gov NCT07773246: 'KRRO-121 is a GalNAc-conjugated RNA editing oligonucleotide'
+KYTX,KYV-101,cell therapy,PubMed 38554710: 'a fully human CD19 CAR-T cell therapy (KYV-101)'
+LEGN,LB2102,cell therapy,ClinicalTrials.gov NCT05680922: 'DLL3 directed autologous Chimeric Antigen Receptor T-cells'
+LEGN,LUCAR-G79D T cells,cell therapy,"ClinicalTrials.gov NCT07331272: 'LUCAR-G79D, a chimeric antigen receptor (CAR)-T cell therapy'"
+LLY,cleminorexton,small molecule,ClinicalTrials.gov NCT07598708 (Lilly): intervention 'Oral cleminorexton capsule'
+LLY,Eltrekibart,biologic,"PubMed 41061970: 'eltrekibart, a monoclonal antibody targeting the CXC motif chemokine receptors 1 and 2 pathway'"
+LLY,LY3457263,small molecule,"PubMed 42829171: 'Nisotirostide (LY3457263) is a novel, synthetic peptide analog of PYY 3-36 with selective NPY2 receptor agonist activity ... a C-terminally amidated linear polypeptide consisting of 34 amino acids'"
+LLY,LY3537982,small molecule,ClinicalTrials.gov NCT06119581 (Lilly): 'LY3537982 ... Administered orally'; NCT07890714: 'Olomorasib will be administered as oral capsules'
+LLY,LY3938577,biologic,"Lilly pipeline page: 'LY3938577 (Glucose sensing insulin receptor agonist) is a biologic entity being studied for the treatment of diabetes', carried in the large molecule column"
+LLY,LY4005130,biologic,Lilly pipeline page: 'LY4005130 (XCL1/2 Neutralizing Antibody) is a monoclonal antibody that targets XCL1 and XCL2'
+LLY,LY4065967,small molecule,"Lilly pipeline page: 'LY4065967 (AT2R Antagonist) is a chemical entity that acts as an antagonist of the angiotensin II type 2 receptor', carried in the small molecule column; ClinicalTrials.gov NCT07641504: 'Administered orally'"
+LLY,LY4086940,small molecule,"ClinicalTrials.gov NCT07890376 (Lilly): intervention LY4086940, 'Administered orally'"
+LLY,LY4395089,small molecule,"Lilly pipeline page (lilly.com/science/research-development/pipeline): 'LY4395089 ... is a selective, non-bile acid, small molecule that agonizes the farnesoid X receptor (FXR)'; ClinicalTrials.gov NCT07483099 gives it orally"
+LLY,MORF-057,small molecule,ClinicalTrials.gov NCT05291689: 'MORF-057 is a small molecule that is designed to selectively inhibit integrin alpha4beta7 and is administered orally'
+LLY,Remternetug,biologic,PubMed 41985900: lists remternetug among 'amyloid-beta-targeting monoclonal antibodies'
+LLY,Sofetabart Mipitecan,biologic,"PubMed 42849725: 'Sofetabart mipitecan, an antibody drug conjugate targeting folate receptor alpha'"
+LNTH,[18F]PI-2620,small molecule,"PubMed 31264169: 'The lead candidate [18F]PI-2620 (compound 7)' of 'ten fluoropyridine regioisomers attached to the pyrrolo[2,3-b:4,5-c']dipyridine scaffold'"
+MRK,Adempas / Verquvo,small molecule,"Drugs@FDA NDA204819, ADEMPAS (riociguat); the partner Verquvo (vericiguat) is also an oral small molecule"
+MRK,Frespaciguat,small molecule,"PubMed 41688877: 'Frespaciguat, an inhaled sGC stimulator', dosed as 'a single inhaled dose of frespaciguat 240 microgram'; the soluble guanylate cyclase stimulators are small molecules, riociguat (Drugs@FDA NDA204819) among them"
+MRK,Gardasil / Gardasil 9,biologic,"DailyMed SPL a21f4f4b-b891-4f25-b747-cb9ec7d865d6: 'GARDASIL 9 (HUMAN PAPILLOMAVIRUS 9-VALENT VACCINE, RECOMBINANT)'"
+MRK,Intismeran Autogene,biologic,PubMed 42223134: 'Intismeran autogene (intismeran; formerly V940 or mRNA-4157) is an mRNA-based individualized neoantigen therapy'
+MRK,Isentress / Isentress HD,small molecule,"Drugs@FDA NDA022145, ISENTRESS and ISENTRESS HD (raltegravir potassium)"
+MRK,MK-1045,biologic,"Merck 8-K exhibit 99.1 of 2024-10-31 (sec.gov, CIK 310158): 'CN201 (MK-1045), a next-generation CD3xCD19 bispecific antibody'"
+MRK,MK-2214,biologic,PubMed 37405389: lists MK-2214 among 'anti-tau antibodies [that] have entered clinical trials'
+MRK,MK-6916,small molecule,"ClinicalTrials.gov NCT07862595 (Merck): MK-6916, '120 mg or 70 mg oral tablet given every 12 hours'"
+MRK,MK-7262,small molecule,"Merck FY2025 10-K (sec.gov, CIK 310158): 'MK-7262 (HRS-5346), an investigational oral small molecule Lipoprotein(a) inhibitor'"
+MRK,MK-8527,small molecule,"ClinicalTrials.gov NCT07661108 (Merck): intervention MK-8527, 'Oral tablet'; PubMed 40857265: 'MK-8527 is a novel inhibitor of HIV-1 reverse transcriptase translocation', found by nucleoside structure-activity work"
+MRK,MK-8690,biologic,"Merck FY2025 10-K (sec.gov, CIK 310158): 'MK-8690 is an investigational anti-CD30 ligand monoclonal antibody'"
+MRK,MK-8748,biologic,"EyePoint FY2025 10-K (sec.gov, CIK 1314102): 'Merck (EyeBio) is also developing MK-8748, a bispecific antibody which is a TIE-2-agonist and VEGF-antagonist'"
+MRK,ProQuad / M-M-R II / Varivax,biologic,"DailyMed SPL 73eae9fc-507b-4c9c-883d-63eb2e3cc6f6: 'PROQUAD (MEASLES, MUMPS, RUBELLA AND VARICELLA VIRUS VACCINE LIVE)'"
+MRK,R-DXD,biologic,"PubMed 38205802: 'raludotatug deruxtecan (R-DXd; DS-6000), a novel CDH6-targeting antibody-drug conjugate'"
+MRK,Tulisokibart,biologic,PubMed 39321363: 'Tulisokibart is a tumor necrosis factor-like cytokine 1A (TL1A) monoclonal antibody'
+MRK,ULO,small molecule,ClinicalTrials.gov NCT06891066 (Merck): 'ULO 100mg oral tablet will be administered as 200mg (2 tablets) orally'
+MRNA,mRNA-1018-H5,biologic,ClinicalTrials.gov NCT07496450: 'mRNA-1018-H5 Pandemic Influenza Vaccine'
+MRNA,mRNA-1403,biologic,"ClinicalTrials.gov NCT06592794: 'mRNA-1403, a Multivalent Candidate Vaccine to Prevent Norovirus Acute Gastroenteritis'"
+MRNA,mRNA-4157,biologic,"PubMed 38246194: 'mRNA-4157 (V940), a novel mRNA-based individualised neoantigen therapy'"
+NAMS,Obicetrapib,small molecule,"PubMed 38133847: 'obicetrapib, a next-generation, oral, once-daily, low-dose CETP inhibitor'"
+NBIX,NBI-1117568,small molecule,"ClinicalTrials.gov NCT07227818 (Neurocrine): intervention NBI-1117568, 'Oral capsules'"
+NBIX,Osavampator,small molecule,"ClinicalTrials.gov NCT07196501 (Neurocrine): intervention Osavampator, 'Oral tablet'"
+NTLA,Biological NTLA-2002,gene therapy,PubMed 39445704: 'NTLA-2002 is an in vivo gene-editing therapy that is based on clustered regularly interspaced short palindromic repeats (CRISPR)-CRISPR-associated protein 9'
+NTLA,nexiguran ziclumeran,gene therapy,PubMed 41002250: 'Nexiguran ziclumeran (nex-z) is an investigational in vivo therapy based on CRISPR-Cas9'
+NVO,Awigli,biologic,"Drugs@FDA BLA761326, AWIQLI FLEXTOUCH (insulin icodec), Novo Nordisk; an insulin is licensed under a BLA"
+NVO,CagriSema,small molecule,"Novo Nordisk FY2025 20-F (sec.gov, CIK 353278): 'CagriSema, a unique fixed-dose combination of the amylin analogue cagrilintide and semaglutide, brings together two peptide-based mechanisms'; two peptides, each filed under an NDA"
+NVO,CDR132L,small molecule,"PubMed 33245749: 'CDR132L, a specific antisense oligonucleotide, is a first-in-class miR-132 inhibitor'; an antisense oligonucleotide is filed under an NDA"
+NVO,Denecimig,biologic,"PubMed 42731733: 'Denecimig (Mim8) is an activated factor VIII mimetic, fully human, bispecific IgG4 antibody'"
+NVO,Etavopivat,small molecule,"PubMed 35019238: 'Etavopivat (FT-4202) is an orally administered, small-molecule allosteric activator of erythrocyte pyruvate kinase-R'"
+NVO,Fiasp,biologic,"Drugs@FDA BLA208751, FIASP (insulin aspart)"
+NVO,Haemophilia A,biologic,"DailyMed SPL 562f94e8-825f-4d7f-b93c-b783ac3a43bc: 'ESPEROCT (ANTIHEMOPHILIC FACTOR (RECOMBINANT), GLYCOPEGYLATED-EXEI)'; every product on Novo's haemophilia A line is a recombinant factor or an antibody"
+NVO,Haemophilia B,biologic,"DailyMed SPL 0ea37235-35fd-410d-b8c4-40ba15fe1294, BLA125611: REBINYN, recombinant coagulation factor IX"
+NVO,Human Insulin,biologic,"Drugs@FDA BLA019938, NOVOLIN R (insulin recombinant human)"
+NVO,Novo Mix And Novo Log Mix,biologic,"Drugs@FDA BLA021172, NOVOLOG MIX 70/30 (insulin aspart protamine recombinant)"
+NVO,Novo Rapid And Novo Log,biologic,"Drugs@FDA BLA020986, NOVOLOG (insulin aspart recombinant)"
+NVO,Novo Seven,biologic,DailyMed SPL ea65c32f-8518-4383-b621-17056c0eebc0: 'NOVOSEVEN RT (COAGULATION FACTOR VIIA (RECOMBINANT))'
+NVO,Ryzodeg,biologic,"Drugs@FDA BLA203313, RYZODEG 70/30 (insulin degludec and insulin aspart)"
+NVO,UBT251,small molecule,"PubMed 42712041: 'UBT251 is a novel triple agonist peptide targeting the GLP-1, GIP and glucagon receptors'; a peptide is filed under an NDA"
+NVO,Xultophy,biologic,"Drugs@FDA BLA208583, XULTOPHY 100/3.6 (insulin degludec and liraglutide)"
+NVS,AAA817,small molecule,"ClinicalTrials.gov NCT06855277 (Novartis): AAA817 is [225Ac]Ac-PSMA-617, 'a radioligand therapy'; the same PSMA-617 ligand carrying lutetium-177 is filed as a drug, Drugs@FDA NDA215833 (PLUVICTO), not as a biologic"
+NVS,AOC 1020,biologic,PubMed 41994867: 'AOC 1020 is composed of DUX4 mRNA-targeting small interfering RNA ... conjugated to a human transferrin receptor 1 (TfR1)-targeting monoclonal antibody'
+NVS,AOC 1044,biologic,"PubMed 40183632: 'AOC 1044, an antibody-oligonucleotide conjugate (AOC) that combines a PMO-targeting exon 44 with an antibody against the transferrin receptor'"
+NVS,Arumakimig,biologic,"PubMed 39178016: 'MAS825, a bispecific anti-IL1beta and IL-18 monoclonal antibody'; ClinicalTrials.gov NCT07889310 gives the code and the INN together, 'MAS825, Arumakimig'"
+NVS,DDY391,small molecule,"Novartis pipeline page lists DDY391 as a VAV1-directed molecular glue degrader; Monte Rosa (the originator): 'MRT-6160 (DDY391) is a potent, highly selective, and orally bioavailable investigational molecular glue degrader of VAV1'"
+NVS,DII235,small molecule,"Novartis pipeline page: 'DII235 ... siRNA targeting Lp(a) mRNA'; an siRNA is filed under an NDA, so the book's small molecule term applies"
+NVS,EYU688,small molecule,ClinicalTrials.gov NCT06006559 (Novartis): 'EYU688 administered by oral route'
+NVS,GIA632,biologic,"Novartis pipeline page (novartis.com/research-development/novartis-pipeline): 'GIA632 ... IL-15 mAb', phase 2 atopic dermatitis"
+NVS,GXV813,small molecule,ClinicalTrials.gov NCT07467993 (Novartis): 'GXV813 administered orally'
+NVS,Jakavi,small molecule,"Drugs@FDA NDA202192, JAKAFI (ruxolitinib phosphate); Jakavi is the same molecule outside the US"
+NVS,JSB462,small molecule,"Novartis FY2025 20-F (sec.gov, CIK 1114448) pipeline table: 'JSB462 luxdegalutamide | Androgen receptor protein degradation | Prostate cancer | Oncology | Oral'; ClinicalTrials.gov NCT05067140 is titled 'A Study of ARV-766 Given by Mouth'"
+NVS,KAE609,small molecule,PubMed 27291296: 'the spiroindolone antimalarial KAE609 (Cipargamin) is a P-type ATPase inhibitor'; PubMed 25075833 gives 'a once-daily oral dosing regimen'
+NVS,Pelabresib,small molecule,"PubMed 37530627: 'Pelabresib (CPI-0610), an oral, small-molecule BET1,2 inhibitor'"
+NVS,Piqray Vijoice,small molecule,"Drugs@FDA NDA212526, PIQRAY (alpelisib), Novartis; Vijoice is the same molecule"
+NVS,PKN605,small molecule,ClinicalTrials.gov NCT07797322 (Novartis): 'PKN605 orally as a tablet under fasted conditions'
+NVS,QMF149,small molecule,"PubMed 26845343: 'QMF149 is a fixed-dose combination of the long-acting beta2 agonist, indacaterol and the corticosteroid, mometasone furoate'"
+NVS,VHB937,biologic,"WHO proposed INN list 134: 'lifonebart, immunoglobulin G1-kappa, anti-[Homo sapiens TREM2], Homo sapiens monoclonal antibody'; Novartis Q2 2026 investor presentation gives 'VHB937 lifonebart'"
+NVS,Votoplam,small molecule,"PubMed 42057687: 'Votoplam is a novel, orally bioavailable, small molecule HTT gene splicing modifier'"
+NVS,Zigakibart,biologic,PubMed 40482854: 'Zigakibart is a humanized IgG4 monoclonal antibody that binds the cytokine APRIL'
+PCVX,31-valent pneumococcal conjugate vaccine,biologic,"ClinicalTrials.gov NCT06151288 (Vaxcyte), intervention type Biological: '31 valent pneumococcal conjugate vaccine ... VAX-31'"
+PEPG,PGN-EDODM1,small molecule,"PepGen FY2025 10-K (sec.gov, CIK 1835597): 'PGN-EDODM1, an EDO peptide conjugated to a PMO therapeutic cargo'; a peptide-oligonucleotide conjugate carries no antibody and is filed under an NDA"
+PFE,Comirnaty,biologic,"DailyMed SPL 48c86164-de07-4041-b9dc-f2b5744714e5: 'COMIRNATY (COVID-19 VACCINE, MRNA) INJECTION, SUSPENSION'"
+PFE,Dazukibart,biologic,"PubMed 39798982: 'dazukibart, a potent, selective, humanised IgG1 neutralising monoclonal antibody directed against IFNbeta'"
+PFE,Eliquis,small molecule,"Drugs@FDA NDA202155, ELIQUIS (apixaban)"
+PFE,FSME-IMMUN / TicoVac,biologic,DailyMed SPL da102644-62a9-41c2-8a91-6fc19a03e6f1: 'TICOVAC (TICK-BORNE ENCEPHALITIS VACCINE) INJECTION'
+PFE,Inflectra / Remsima,biologic,"Drugs@FDA BLA125544, INFLECTRA (infliximab-dyyb)"
+PFE,Nurtec ODT / Vydura,small molecule,"Drugs@FDA NDA212728, NURTEC ODT (rimegepant); PubMed 32270407 calls it 'a small molecule, highly-selective, calcitonin gene-related peptide antagonist'"
+PFE,Octagam,biologic,DailyMed SPL fb07257b-e5e2-64c8-666c-65009f0aa604: 'OCTAGAM IMMUNE GLOBULIN (HUMAN) (IMMUNE GLOBULIN) SOLUTION'; immune globulin is licensed under a BLA
+PFE,Osivelotor,small molecule,"PubMed 42183775: 'Osivelotor (GBT021601) is an orally bioavailable, small molecule hemoglobin polymerization inhibitor'"
+PFE,PF-06801591,biologic,"PubMed 31145415: 'PF-06801591, a humanized immunoglobulin G4 monoclonal antibody that binds to the programmed cell death (PD-1) receptor'"
+PFE,PF-07248144,small molecule,ClinicalTrials.gov NCT07636018 (Pfizer): 'PF-07248144 administered by mouth as a single dose'
+PFE,PF-07328948,small molecule,"PubMed 39560668: 'Discovery of First Branched-Chain Ketoacid Dehydrogenase Kinase (BDK) Inhibitor Clinical Candidate PF-07328948' (J Med Chem), 'with excellent drug-like properties'"
+PFE,PF-07868489,biologic,Pfizer Q3 2026 pipeline update (cdn.pfizer.com): 'PF-07868489 | anti-BMP9 | Pulmonary Arterial Hypertension (Biologic) | Phase 2 | New Molecular Entity'
+PFE,PF-08046054,biologic,"ClinicalTrials.gov NCT07144280: PF-08046054, 'Antibody Drug Conjugate'"
+PFE,PF-08049820,small molecule,ClinicalTrials.gov NCT07216027 (Pfizer): 'participants will take either PF-08049820 or placebo as tablets by mouth daily for 12 weeks'
+PFE,PF-08634404,biologic,"PubMed 42360585: 'PD-(L)1/VEGF bispecifics under development include PF-08634404, ivonescimab, and BNT327'; ClinicalTrials.gov NCT07227012 (Pfizer) offers PF-08634404 'alone or with another antibody (ipilimumab)'"
+PFE,PF-08653945,small molecule,"Pfizer key ongoing clinical trials document (cdn.pfizer.com): 'PF-08653945: Amylin analog with dual amylin and calcitonin receptor activity'; an amylin analogue is a peptide, filed under an NDA. Pfizer's own pipeline table tags the row Biologic, which is the disagreement noted in NOTES.md"
+PFE,Prevnar / Prevenar family,biologic,"DailyMed SPL d4e2cf51-e6a8-4103-bb1d-6120c6474ff8: 'PREVNAR 20 (PNEUMOCOCCAL 20-VALENT CONJUGATE VACCINE) INJECTION, SUSPENSION'"
+PFE,Sigvotatug Vedotin,biologic,"PubMed 42008777: 'Sigvotatug vedotin (SV), a novel IB6-directed antibody-drug conjugate'"
+PFE,Sulperazon,small molecule,"Drugs@FDA NDA050551 and NDA050613, CEFOBID (cefoperazone), Pfizer: 'a semisynthetic, broad-spectrum cephalosporin antibacterial drug ... molecular weight of 667.65'. Sulperazon is cefoperazone with sulbactam, both chemically defined beta-lactams filed as drugs"
+PFE,Tilrekimig,biologic,Pfizer pipeline page (pfizer.com/science/focus-areas/immunology-inflammation/pipeline): 'tilrekimig (PF-07275315) ... Biologic ... anti-IL-4/IL-13/TSLP'
+PFE,VLA15,biologic,"PubMed 37419127: 'VLA15, a new global Lyme disease vaccine undergoes clinical trials'"
+PFE,Zavicefta,small molecule,"Drugs@FDA NDA206494, AVYCAZ (ceftazidime-avibactam), the US registration of the ceftazidime-avibactam sold as Zavicefta"
+PFE,Zithromax Zmax,small molecule,"Drugs@FDA NDA050710 and NDA050711, ZITHROMAX (azithromycin)"
+PRAX,relutrigine,small molecule,"ClinicalTrials.gov NCT07010471 (Praxis): relutrigine (PRAX-562), 'Once daily orally or gastronomy/jejunostomy'"
+PRAX,ulixacaltamide,small molecule,"ClinicalTrials.gov NCT06087276 (Praxis): intervention '60 mg ulixacaltamide', 'Once daily oral treatment with titration'"
+PRAX,vormatrigine,small molecule,"ClinicalTrials.gov NCT07287163 (Praxis): vormatrigine, 'Once daily oral'"
+QURE,AMT-130,gene therapy,PubMed 41497150: 'AMT-130 is a one-time gene therapy that utilizes an adeno-associated virus serotype 5 (AAV5) vector'
+QURE,AMT-191,gene therapy,ClinicalTrials.gov NCT06270316: 'AMT-191 is an investigational gene therapy that encodes a recombinant serotype 5 based adeno-associated viral vector (rAAV5)'
+QURE,AMT-260,gene therapy,ClinicalTrials.gov NCT06063850: 'AMT-260 is an AAV9 gene therapy product'
+RARE,DTX301,gene therapy,"PubMed 35211641: 'DTX301, a non-replicating, recombinant self-complimentary adeno-associated virus vector serotype 8 (scAAV8)-encoding human ornithine transcarbamylase, is a promising gene therapy'; ClinicalTrials.gov NCT05345171 describes the same 'non-replicating, self-complementary recombinant adeno-associated virus serotype 8 (AAV8) vector'"
+RCKT,RP-A501,gene therapy,ClinicalTrials.gov NCT06092034: 'RP-A501 is a gene therapy product consisting of an rAAV9 capsid containing the human LAMP2B transgene'
+REGN,ALN-ANG3,small molecule,"Regeneron FY2025 10-K (sec.gov, CIK 872589) pipeline table: 'ALN-ANG3 | RNAi therapeutic targeting ANGPTL3'; an RNAi therapeutic is filed under an NDA"
+REGN,REGN13335,biologic,"ClinicalTrials.gov NCT07318597: 'REGN13335, an Anti-PDGF-B Monoclonal Antibody'"
+REGN,REGN7508,biologic,"ClinicalTrials.gov NCT06454630: 'REGN7508, a Factor XI Monoclonal Antibody'"
+ROG,Afimkibart,biologic,"PubMed 40706613: 'afimkibart, a TL1A-directed antibody' (TUSCANY-2 phase 2b report)"
+ROG,Giredestrant,small molecule,PubMed 34251202: 'GDC-9545 (Giredestrant): A Potent and Orally Bioavailable Selective Estrogen Receptor Antagonist and Degrader'
+ROG,NXT007,biologic,"PubMed 40554054: 'NXT007, a next-generation, activated factor VIII-mimetic bispecific antibody'"
+ROG,Pegozafermin,biologic,"89bio FY2024 10-K (sec.gov, CIK 1785173): 'pegozafermin, a specifically engineered glycoPEGylated analog of fibroblast growth factor 21', described in the same filing as 'a novel investigational biologic therapy'"
+ROG,RO7268489,small molecule,"ClinicalTrials.gov NCT07282574 (Roche): RO7268489 'given as capsules every day'; the official title styles it 'RO7268489, a Monoacylglycerol Lipase Inhibitor'"
+ROG,RO7269162,small molecule,"ClinicalTrials.gov NCT06733298 (Roche), official title: 'a Single Oral Dose of [14C]-Labeled RO7269162 in Healthy Male Participants'"
+ROG,RO7568282,small molecule,"ClinicalTrials.gov phase 1 record for RO7568282 (Roche), official title: 'pharmacodynamics of RO7568282 following oral administration in healthy participants and in participants with Parkinson's disease'"
+ROG,RO7795081,small molecule,"ClinicalTrials.gov NCT06982131 (Roche), official title: 'Multiple Doses of Orally Administered RO7795081'"
+SNY,ALTUVIIIO,biologic,"DailyMed SPL 01411972-df40-4ccf-88f0-d3220e5abda9, BLA125771: ALTUVIIIO, 'Antihemophilic Factor VIII (Recombinant, B-Domain Deleted), Fc-VWF-XTEN Fusion Protein'"
+SNY,Brivekimig,biologic,"ClinicalTrials.gov NCT06812988 (Sanofi), official title: 'Brivekimig, a Dual Anti-TNF-alpha and Anti-OX40L NANOBODY Molecule'"
+SNY,Duvakitug,biologic,"PubMed 42462750: 'duvakitug, an anti-TNF-like cytokine 1A (TL1A) monoclonal antibody'"
+SNY,Lunsekimig,biologic,"PubMed 38924698: 'Lunsekimig is a novel, bispecific NANOBODY molecule'"
+SNY,PCV21 vaccine,biologic,"ClinicalTrials.gov NCT06838000 (Sanofi Pasteur), intervention type Biological: 'Investigational pneumococcal conjugate vaccine [PCV21]'"
+SNY,Riliprubart,biologic,"PubMed 39171350: 'riliprubart, an anti-C1s humanized monoclonal antibody'"
+SNY,SAR444336,biologic,"PubMed 38532017: 'SAR444336 (SAR336; formerly known as THOR-809), rhIL-2 pegylated at H16'; a PEGylated recombinant human interleukin-2"
+SNY,SAR445399,biologic,"Sanofi press release of 2025-09-03 (sanofi.com): 'SAR445399, a novel IL1R3 mAb in reducing skin inflammation via the IL1 and IL36 pathways'"
+SNY,SAR447537,biologic,"ClinicalTrials.gov NCT05897424: SAR447537, 'A1PI, Recombinant, Bivalent Fc Fusion Protein'"
+SNY,SAR448851,small molecule,"PubMed 42873892: 'VG-3927/SAR448851, an oral small-molecule TREM2 agonist for Alzheimer's disease'"
+UTHR,Ralinepag,small molecule,"PubMed 38198043: 'Ralinepag is a potent, titratable, orally administered prostacyclin (IP) receptor agonist'"
+VKTX,VK2735,small molecule,"ClinicalTrials.gov NCT07104383: 'VK2735 is a peptide GLP-1 and GIP dual agonist'; a peptide is filed under an NDA, so the book's small molecule term applies"
+VRTX,Atumelnant,small molecule,ClinicalTrials.gov NCT05907291: 'Atumelnant is an orally active nonpeptide melanocortin 2 receptor (MC2R) or adrenocorticotropic hormone (ACTH) antagonist'
+VRTX,VX-147,small molecule,PubMed 37106136: 'an orally administered small molecule compound inaxaplin (VX-147)'
+VRTX,VX-407,small molecule,"ClinicalTrials.gov NCT07161037 (Vertex): intervention VX-407, 'Tablets for oral administration'"
+VRTX,VX-670,small molecule,"Vertex FY2025 10-K (sec.gov, CIK 875320): 'VX-670 is an oligonucleotide connected to a cyclic peptide to promote effective delivery into cells'; neither half is an antibody and both are filed under an NDA"
+VRTX,VX-880,cell therapy,"PubMed 40869447: 'stem cell-derived islet replacements (e.g., VX-880)'; ClinicalTrials.gov lists it as a Biological cell therapy"
+VRTX,VX-993,small molecule,"ClinicalTrials.gov NCT06619860 (Vertex): intervention VX-993, 'Tablets for oral administration'"

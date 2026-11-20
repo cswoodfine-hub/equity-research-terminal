@@ -1,0 +1,5 @@
+# Draft row for data/asset_indication_overrides.csv (append below its header; same columns).
+# Task 2, 2026-11-16. Needed because curated_additions only adds a pair that does not exist;
+# afimkibart's Crohn Disease pair exists from the Phase 2 NCT05910528 and would stay at Phase 2.
+ticker,asset,indication,phase,exclude,note
+ROG,Afimkibart,Crohn Disease,Phase 3,,"SIBERITE-1 (NCT06819878, 600 planned, started 2025-03-17) and SIBERITE-2 (NCT06819891, 425 planned, started 2025-05-12) are recruiting Phase 3s of afimkibart in moderately to severely active Crohn's disease (registry, checked 2026-11-16), named on this pair in data/asset_indication_additions.csv. The registry indexes neither, so the pair is built from the Phase 2 NCT05910528 alone and reads Phase 2"

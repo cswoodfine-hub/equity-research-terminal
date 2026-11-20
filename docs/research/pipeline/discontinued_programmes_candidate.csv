@@ -1,0 +1,10 @@
+# CANDIDATE row for data/discontinued_programmes.csv, 2026-11-16. Not applied. Same header.
+#
+# READ BEFORE APPLYING. That file's rule asks for 'a company statement, a filing or a
+# registry termination saying the programme stopped'. Nothing says ST-503 stopped: the
+# registry says SUSPENDED and Sangamo says it is still soliciting offers for it. What the
+# filings do say is that the company is in Chapter 11 selling its assets, has sold every
+# programme anyone bid for, is delisted, and is down to 13 employees. A human decides
+# whether that is a retirement under the rule or a case for a company-level exclusion.
+ticker,name,stopped_on,basis
+SGMOQ,ST-503,,"Sangamo filed a voluntary Chapter 11 petition on 2026-06-23 (Case No. 26-10989, D. Del.), with the objective of a 'sale of all or substantially all assets to the highest bidder or bidders' (8-K 0001193125-26-278582). ST-503 drew no winning bid at the 2026-08-10 auction: its platforms and ST-506 went to Lilly (closed 2026-09-04, 8-K 0001104659-26-105905) and ST-920 to PTC Therapeutics (closed 2026-09-17, 8-K 0001193125-26-396644), while 'Sangamo continues to solicit and review offers for its other key assets including the clinical-stage programs ST-503 for chronic neuropathic pain' (press release of 2026-08-13, 8-K 0001193125-26-347524, Ex. 99.1). Its only study, NCT06980948, is SUSPENDED: 'Study is suspended while Sangamo seeks a new sponsor for the ST-503-101 study' (ClinicalTrials.gov, last update posted 2026-11-03). The common stock was delisted from Nasdaq effective 2026-10-17 and trades on the OTC Expert Market (8-K 0001193125-26-434171); the September monthly operating report shows 13 full-time employees against 74 at the petition date (same filing, Ex. 99.3)"

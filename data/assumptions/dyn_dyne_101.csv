@@ -5,7 +5,9 @@
 #
 # Company-level rows copied from dyn_dyne_251.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 DYN,zeleciment basivarsen (DYNE-101),,US,base,beta,,1.26,,,"computed from 261 weekly returns vs S&P 500, 2021-W40 to 2026-W41, Blume-adjusted (1.40 raw)","measured on DYN's own price, as forecast_view.measured_beta reads it"
 DYN,zeleciment basivarsen (DYNE-101),,US,base,cogs_pct,,0.2431,,share of revenue,"BIIB FY2025, computed from the filed lines. comparator estimate: Biogen's FY2025 filed lines as biib_spinraza.csv carries them, Biogen being the closest company on file that sells an oligonucleotide for a rare inherited neuromuscular disease in the United States at scale (Spinraza, Qalsody). Dyne has no product revenue (10-Q 0001193125-26-323639), so no ratio of its own exists to read. Sarepta, the exon 51 incumbent, is not taken: it made an operating loss in three of the four years to 2025, $699.8mm on $2,198.2mm of revenue in FY2025 with R&D at 69% of it (FY2025 10-K 0001193125-26-084144), so its ratios charge more than a product earns","a comparator, not a measurement. Every one of these is a line to revisit the moment Dyne files a cost of its own"

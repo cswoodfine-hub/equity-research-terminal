@@ -27,6 +27,7 @@ import db
 import sponsor_attribution
 import trial_mapping
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "trials_completed"
 CTGOV_SOURCE = "clinicaltrials_v2"
@@ -37,7 +38,7 @@ PAGE_SIZE = 500
 MAX_PAGES = 4               # 2000 studies per sponsor, newest first
 _TIMEOUT_S = 60
 _POLITE_SLEEP_S = 0.3
-_USER_AGENT = "NovatalisResearch/0.1 (contact cswoodfine@icloud.com)"
+_USER_AGENT = contact.product_agent()
 
 FIELDS = "|".join((
     "protocolSection.identificationModule.nctId",

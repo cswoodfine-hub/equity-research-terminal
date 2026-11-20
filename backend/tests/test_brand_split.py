@@ -114,3 +114,60 @@ def test_a_curated_mapping_outranks_the_label(tmp_path):
     conn = db.get_connection(path)
     assert conn.execute("SELECT asset_id FROM trials").fetchone()[0] == ids["Zepbound"]
     conn.close()
+
+
+def _pair(conn, asset_id, name):
+    row = conn.execute("SELECT id FROM indications WHERE name = ?", (name,)).fetchone()
+    if row is None:
+        conn.execute("INSERT INTO indications (name) VALUES (?)", (name,))
+        row = conn.execute("SELECT id FROM indications WHERE name = ?", (name,)).fetchone()
+    conn.execute("INSERT INTO asset_indications (asset_id, indication_id, region)"
+                 " VALUES (?, ?, 'US')", (asset_id, row["id"]))
+    return conn.execute("SELECT id FROM asset_indications WHERE asset_id = ?"
+                        "   AND indication_id = ?", (asset_id, row["id"])).fetchone()["id"]
+
+
+def _readout(conn, cid, asset_id, nct, pair):
+    conn.execute("INSERT INTO catalysts (company_id, asset_id, asset_indication_id,"
+                 " catalyst_type, expected_date, title, source_url, status)"
+                 " VALUES (?, ?, ?, 'data readout', '2027-10', 'Phase 3',"
+                 " ?, 'pending')",
+                 (cid, asset_id, pair, "https://clinicaltrials.gov/study/" + nct))
+
+
+def test_a_readout_follows_its_study_to_the_brand_it_moved_to(tmp_path):
+    """SURMOUNT-MMO's readout stayed on Mounjaro's obesity row after its study moved to
+    Zepbound, and the layer test then asked for an obesity model Mounjaro does not have."""
+    path, conn, ids = _seed(tmp_path)
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    wrong = _pair(conn, ids["Mounjaro"], "Obesity")
+    right = _pair(conn, ids["Zepbound"], "Obesity")
+    conn.execute("INSERT INTO trials (nct_id, asset_id, title, conditions)"
+                 " VALUES ('NCT05556512', ?, 'SURMOUNT-MMO', '[\"Obesity\"]')",
+                 (ids["Mounjaro"],))
+    _readout(conn, cid, ids["Zepbound"], "NCT05556512", wrong)
+    conn.commit(); conn.close()
+
+    assert brand_split.split(path)["moved"] == 1
+    conn = db.get_connection(path)
+    got = conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0]
+    conn.close()
+    assert got == right
+
+
+def test_a_readout_whose_disease_the_new_brand_lacks_is_let_go(tmp_path):
+    """Left on the old brand's pair it would be valued against a product the study is not
+    about; unlinked, the linker can try again and the row says it is unlinked."""
+    path, conn, ids = _seed(tmp_path)
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    wrong = _pair(conn, ids["Mounjaro"], "Obesity")
+    conn.execute("INSERT INTO trials (nct_id, asset_id, title, conditions)"
+                 " VALUES ('NCT09', ?, 'A study', '[\"Obesity\"]')", (ids["Mounjaro"],))
+    _readout(conn, cid, ids["Zepbound"], "NCT09", wrong)
+    conn.commit(); conn.close()
+
+    brand_split.split(path)
+    conn = db.get_connection(path)
+    got = conn.execute("SELECT asset_indication_id FROM catalysts").fetchone()[0]
+    conn.close()
+    assert got is None

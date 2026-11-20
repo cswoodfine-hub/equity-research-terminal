@@ -300,4 +300,16 @@ def test_book_guard_every_gate_matches_its_sources(book):
             assert g["launch"]["decision_date"] == floor[g["asset_id"]].get("decision_date")
     n_priced = sum(1 for e in out["events"] if e["priced"])
     assert n_priced == len({s["id"] for s in stakes.get("priced") or []})
-    assert sum(out["unpriced_reasons"].values()) == len(stakes.get("unpriced") or [])
+    # Every unpriced row is accounted for, but in two places rather than one. A row that
+    # names the catalyst its stake sits on is the same event on another date, not an
+    # event the book cannot value, so it is counted as a repeat and left out of the
+    # reasons: 129 of the book's 522 were being read as work outstanding.
+    repeats = out["repeat_dates"]
+    assert repeats == sum(1 for u in stakes.get("unpriced") or [] if u.get("priced_on"))
+    assert sum(out["unpriced_reasons"].values()) + repeats == len(
+        stakes.get("unpriced") or [])
+    # And a repeat always names a catalyst that really is priced.
+    priced_ids = {s_["id"] for s_ in stakes.get("priced") or []}
+    for u in stakes.get("unpriced") or []:
+        if u.get("priced_on"):
+            assert u["priced_on"] in priced_ids, u["id"]

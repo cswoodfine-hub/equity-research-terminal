@@ -114,8 +114,12 @@ def body(v: dict) -> list[str]:
     implied = v.get("implied_patients")
     if implied:
         # A price per course buys a course, not a year of treatment, and the count it
-        # implies has to be named for what it is.
-        unit = "courses" if (v.get("price_basis") or "") == "course" else "patients"
+        # implies has to be named for what it is. The basis is read rather than matched
+        # against a list: "course" was the only one the book had when this was written,
+        # and a diagnostic billed per scan was reported as patients, which is the one
+        # reading that is certainly wrong. Anything stated is pluralised as it stands.
+        basis = (v.get("price_basis") or "").strip().lower()
+        unit = (basis if basis.endswith("s") else f"{basis}s") if basis else "patients"
         out.append(
             f"At the net price on file the first forecast year implies "
             f"{implied:,.0f} {unit}. That is the check the price is for in a mode "
@@ -195,14 +199,20 @@ def body(v: dict) -> list[str]:
     return out
 
 
+def _deals(v: dict) -> list[str]:
+    """A pending acquisition, stated first: it decides whether the asset below is the
+    company's at all, so it comes before anything the model says about its value."""
+    return list((v or {}).get("pending_acquisitions") or [])
+
+
 def write(v: dict) -> dict:
     """The note, or the reason there is not one."""
     if not v or not v.get("ok"):
         missing = ", ".join((v or {}).get("missing") or ["assumptions"])
         return {"ok": False,
                 "headline": f"No forecast for {(v or {}).get('name') or 'this asset'} yet.",
-                "body": [f"Still missing: {missing}."]}
-    return {"ok": True, "headline": headline(v), "body": body(v)}
+                "body": _deals(v) + [f"Still missing: {missing}."]}
+    return {"ok": True, "headline": headline(v), "body": _deals(v) + body(v)}
 
 
 # --- the company ------------------------------------------------------------
@@ -699,5 +709,6 @@ def company_body(v: dict) -> list[str]:
 
 def write_company(v: dict) -> dict:
     if not v or not v.get("ok"):
-        return {"ok": False, "headline": "No company forecast yet.", "body": []}
-    return {"ok": True, "headline": company_headline(v), "body": company_body(v)}
+        return {"ok": False, "headline": "No company forecast yet.", "body": _deals(v)}
+    return {"ok": True, "headline": company_headline(v),
+            "body": _deals(v) + company_body(v)}

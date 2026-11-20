@@ -24,7 +24,9 @@
 # Company half: Exelixis's own, derived here from the FY2025 10-K, because the book has no other Exelixis seed. This is
 # the first; any later EXEL seed copies these rows.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 EXEL,Zanzalintinib,,US,base,therapy_mode,,,chronic,,"Q2 2026 10-Q (0000939767-26-000098): STELLAR-303 gives zanzalintinib with atezolizumab and STELLAR-304 zanzalintinib with nivolumab, a daily oral tablet taken until progression or unacceptable toxicity (NCT05425940, NCT05678673)","a daily tablet continued while it works; discontinuation_pct carries who stops"
 EXEL,Zanzalintinib,,US,base,list_price_per_patient,,0.132512,,mm USD per patient-year,"analogue: Cabometyx (cabozantinib), Exelixis's own oral VEGFR, MET and AXL inhibitor, sold to the same oncologists in RCC: CMS Medicare Part D Spending by Drug 2024 (book drug_demand), $1,216,725,023 over 9,182 beneficiaries = $132,511.98 a beneficiary. Zanzalintinib was designed against the same kinase family and is tested in the same diseases","a comparator, not a price Exelixis has stated. Regorafenib, the STELLAR-303 comparator, ran $55,962 a Part D beneficiary in 2024 ($96,423,433 over 1,723, drug_demand), so a CRC price set against it could be lower; the per-beneficiary basis is matched to the stopping rate below"

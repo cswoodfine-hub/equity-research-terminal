@@ -11,7 +11,9 @@
 # digit percentage royalty' CRISPR owes on its Cas9 licences (FY2025 10-K 0001193125-26-048957), which carries no
 # stated rate.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 CRSP,CTX340,,US,base,therapy_mode,,,chronic,,"a single infusion billed once, run as chronic with every patient stopping inside the year (discontinuation 1.0 below), which the engine builds exactly as one_time. NCT07758634 gives CTX340 'to target and disrupt human angiotensinogen (AGT) gene in liver' in single ascending doses (registry)",chosen over one_time because one_time needs a cost of goods per patient and no CRISPR filing gives one; the method of ntla_lonvo_z.csv
 CRSP,CTX340,,US,base,discontinuation_pct,,1.0,,share stopping a year,CTX340 is given once: NCT07758634 is 'Sequential Single Ascending Dose Escalation' then a parallel placebo-controlled Phase 2 at one dose (registry),nobody carries into the next year

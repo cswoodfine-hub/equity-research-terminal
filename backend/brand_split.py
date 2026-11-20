@@ -115,6 +115,29 @@ def _groups(conn) -> list:
 # completed tirzepatide study belongs to the brand its condition matches exactly as a
 # running one does.
 _TABLES = ("trials", "completed_trials")
+_CTGOV_URL = "https://clinicaltrials.gov/study/"
+
+
+def _follow(conn, nct_id: str, target: int) -> None:
+    """A readout follows its study to the brand it moved to.
+
+    The refresh links each readout to an indication pair of the asset its study sits on,
+    and that happens before this split runs, so a study moved here left its readout on
+    the other brand's pair: SURMOUNT-MMO's outcomes readout sat on Mounjaro's obesity row
+    and OASIS 5's on Ozempic's, where the layer test found no obesity model and asked
+    for one. The readout takes the target's pair for the same disease, or no pair at all
+    where the target has none, so the linker can try again rather than leave it on a
+    product the study is not about."""
+    conn.execute(
+        f"""UPDATE catalysts SET asset_indication_id = (
+               SELECT keep.id FROM asset_indications keep
+                 JOIN asset_indications gone ON gone.id = catalysts.asset_indication_id
+                WHERE keep.asset_id = ? AND keep.indication_id = gone.indication_id
+                ORDER BY keep.id LIMIT 1)
+             WHERE source_url = ?
+               AND asset_indication_id IN (
+                   SELECT id FROM asset_indications WHERE asset_id != ?)""",
+        (target, _CTGOV_URL + nct_id, target))
 
 
 def split(db_path=None) -> dict:
@@ -165,6 +188,8 @@ def split(db_path=None) -> dict:
                         conn.execute(
                             f"UPDATE {table} SET asset_id = ? WHERE nct_id = ?",
                             (target, trial["nct_id"]))
+                        if table == "trials":
+                            _follow(conn, trial["nct_id"], target)
                         moved += 1
         conn.commit()
     finally:

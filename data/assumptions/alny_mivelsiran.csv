@@ -15,7 +15,9 @@
 #
 # Company half: Alnylam's own FY2025 filed lines, as alny_nucresiran.csv carries them.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 ALNY,Mivelsiran,,US,base,therapy_mode,,,chronic,,"Alnylam FY2025 10-K (0001628280-26-007497): mivelsiran is given intrathecally, with Phase 1 multiple dosing cleared 'up to 180 mg given every six months'; cAPPricorn-1 (NCT06393712) has a double-blind treatment period followed by extension",a maintenance therapy for a progressive vascular disease; discontinuation_pct carries who stops
 ALNY,Mivelsiran,,US,base,list_price_per_patient,,0.0265,,mm USD per patient-year,"reused from bmy_bms_986446.csv: Leqembi (lecanemab) published US list, a wholesale acquisition cost of $26,500 a year (Eisai, 'Eisai's approach to U.S. pricing for LEQEMBI', 2023-01-06), corroborated by CMS Part B 2025 at about $25,670 of ASP a year. Alnylam reports in USD (companies table)","judgement on the comparator: no CAA therapy is priced anywhere, and the anti-amyloid antibodies are the medicines priced for elderly patients with amyloid in the brain, which CAA is in the vessel wall. An intrathecal siRNA given twice a year in a rare-to-uncommon disease could price far higher; the price is the level, not the evidence, and a full labelled-year list is paired with a consumption-based stopping rate below, the Leqvio pairing"

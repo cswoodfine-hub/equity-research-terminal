@@ -519,3 +519,58 @@ def test_contrave_does_not_bind_to_troxyca(tmp_path):
     assert tm.match_intervention(contrave, names) != troxyca
     # Its own brand still names it.
     assert tm.match_intervention(tm.normalise("Troxyca ER 40 mg"), names) == troxyca
+
+
+# --- a placebo is named after the drug it is matched against ----------------
+
+def test_a_matching_placebo_is_tried_after_the_real_drugs():
+    """NCT07085767 gives palazestrant with ribociclib and lists a letrozole-matching
+    placebo among its five interventions. The matcher reads that placebo as letrozole,
+    so the trial landed on Femara rather than Kisqali, and nobody in it is being given
+    letrozole."""
+    norms = ["palazestrant", "letrozole matching placebo", "ribociclib",
+             "letrozole", "palazestrant matching placebo"]
+    got = tm.drugs_before_placebos(norms)
+    assert got[:3] == ["palazestrant", "ribociclib", "letrozole"]
+    assert all("placebo" in n for n in got[3:])
+
+
+def test_a_placebo_is_deprioritised_and_not_dropped():
+    """AstraZeneca's NCT06307652 writes all three of its interventions as a compound
+    naming the study drug and its placebo together. Filtering placebos would leave the
+    trial with nothing to match on; ordering leaves it exactly as it was."""
+    norms = ["balcinrenone dapagliflozin 15 mg 10 mg and matching placebo for "
+             "dapagliflozin 10 mg",
+             "dapagliflozin 10 mg and matching placebo for balcinrenone dapagliflozin"]
+    assert sorted(tm.drugs_before_placebos(norms)) == sorted(norms)
+    assert len(tm.drugs_before_placebos(norms)) == len(norms)
+
+
+def test_the_order_is_stable_where_nothing_mentions_a_placebo():
+    norms = ["inclisiran", "evolocumab", "alirocumab"]
+    assert tm.drugs_before_placebos(norms) == norms
+
+
+def test_a_folded_programme_is_split_out_by_a_curated_row(tmp_path):
+    """AK-OTOF and AK-antiVEGF arrived as one row; a pin cannot move a study onto an
+    asset that does not exist, so the split row makes it first."""
+    import db
+    path = str(tmp_path / "split.db"); db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly')")
+    conn.execute("INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
+                 " VALUES (1, 'AAVAnc80-antiVEGF via Akouos Delivery Device', 0)")
+    splits = tmp_path / "splits.csv"
+    splits.write_text("ticker,asset,basis\nLLY,AK-OTOF,named apart in the 10-K\n")
+    pins = tmp_path / "pins.csv"
+    pins.write_text("ticker,nct_id,asset,note\nLLY,NCT05821959,AK-OTOF,the hOTOF study\n")
+    # Nothing to split until the study is in the book.
+    assert tm.create_split_programmes(conn, splits, pins) == 0
+    conn.execute("INSERT INTO trials (nct_id, title) VALUES ('NCT05821959', 'AK-OTOF-101')")
+    assert tm.create_split_programmes(conn, splits, pins) == 1
+    assert tm.create_split_programmes(conn, splits, pins) == 0      # once
+    assert tm.load_overrides(conn, pins) == 1
+    got = conn.execute("SELECT a.generic_name FROM trial_asset_map m JOIN assets a"
+                       " ON a.id = m.asset_id WHERE m.nct_id = 'NCT05821959'").fetchone()
+    assert got[0] == "AK-OTOF"
+    conn.close()

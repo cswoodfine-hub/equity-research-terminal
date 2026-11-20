@@ -54,7 +54,11 @@ WHY_SHORT = {"no_gate": "outside the gate model", "other_indication": "indicatio
              "same_gate_later": "an earlier study decides the gate",
              "already_approved": "the label already covers it",
              "needs_layer": "an expansion with no pool on file",
-             "in_the_base": "already in the business sold to"}
+             "in_the_base": "already in the business sold to",
+             "no_indication_link": "tied to no indication",
+             "programme_stopped": "a programme written off",
+             "settled_nil": "read, and it decides nothing",
+             "no_free_data": "read; no free source prices it"}
 REASONS = (
     ("no_gate", "marketed or outside the gate model"),
     ("other_indication", "a study in an indication the forecast does not value"),
@@ -64,11 +68,17 @@ REASONS = (
     ("already_approved", "an indication the label already covers"),
     ("needs_layer", "an expansion the book has no pool for"),
     ("in_the_base", "a study in the business already sold to"),
+    ("no_indication_link", "a study tied to no indication the book holds"),
+    ("programme_stopped", "a readout in a programme the research has written off"),
+    ("settled_nil", "a readout research has read and found to decide nothing"),
+    ("no_free_data", "a readout that would move the value by an amount no free source states"),
 )
 REASON_CLASS = {"no_gate": "u0", "other_indication": "u1", "not_gate_phase": "u2",
                 "past_gate": "u3", "same_gate_later": "u4",
                 "already_approved": "u5", "needs_layer": "u6",
-                "in_the_base": "u7"}
+                "in_the_base": "u7", "no_indication_link": "u8",
+                "programme_stopped": "u9", "settled_nil": "u10",
+                "no_free_data": "u11"}
 EVIDENCE = {"published": "published", "convention": "convention", "implied": "implied",
             "stated": "stated"}
 
@@ -1382,7 +1392,12 @@ def fork_svg(r, close=None) -> str:
     else:
         v = leg(r["failure"])
         move = None if None in (r["failure"], r["now"]) else r["failure"] - r["now"]
+        # A scenario's legs are the two builds, not a programme and nothing. Failing
+        # leaves the product exactly where the base already has it, so saying a failed
+        # programme is nil would read as the marketed line going to zero.
         basis = ("the stated leg on file" if r.get("legs_basis") == "stated"
+                 else "a miss leaves the base case, so the stake is nil"
+                 if r.get("legs_basis") == "scenario"
                  else "a failed programme is nil, the model convention")
         o.append(f'<text x="144" y="74" class="fv2 dn m">{v}</text>'
                  f'<text x="{after(v):.0f}" y="74" class="fs m">{sgn(move)} · PoS '
@@ -1601,6 +1616,9 @@ def card_html(p, gid, facts_html="", lines=()) -> str:
         chips += f'<span class="u-chip basis" title="{esc(r.get("basis"))}">derived legs</span>'
     elif r.get("legs_basis") == "stated":
         chips += '<span class="u-chip basis">stated legs</span>'
+    elif r.get("legs_basis") == "scenario":
+        chips += (f'<span class="u-chip basis" title="{esc(r.get("scenario_basis"))}">'
+                  f'{esc(r.get("scenario") or "scenario")} case</span>')
     swing_share = (f" · {pct(r['swing'] / close, 1)} of price" if close and r["swing"] is not None
                    else "")
     why = f'<div class="cx-why">{esc(r["why"])}</div>' if r.get("why") else ""
@@ -1641,6 +1659,9 @@ def next_rows(p, n=12) -> list:
 def _why_short(e) -> str:
     if e.get("priced"):
         return f"{usd(e.get('per_share'))} at stake"
+    # Another date for an event that is priced, not an event with no price.
+    if e.get("priced_on"):
+        return "same event, priced earlier"
     if e.get("reason") == "no_gate" and e.get("marketed"):
         return "marketed, label expansion"
     return WHY_SHORT.get(e.get("reason"), "not priced")
@@ -2017,6 +2038,9 @@ def unpriced_html(p) -> str:
     tot = sum(cnt.values())
     events = p.get("events") or []
     priced = sum(1 for e in events if e.get("priced"))
+    # Repeat dates are left out of both the bar and the denominator: they are the same
+    # events as the priced ones, counted once there already.
+    repeats = int(p.get("repeat_dates") or 0)
     head = section_html(f"Why {tot} events carry no price", "stakes, by reason",
                         f"{tot} of {tot + priced}")
     if not tot:
@@ -2042,6 +2066,9 @@ def unpriced_html(p) -> str:
     ex = next((e for e in events if e.get("reason") == "other_indication" and e.get("why")), None)
     example = (f'<div class="rs-n">{esc(ex.get("asset") or "")} {dm(ex.get("date"))}: '
                f'{esc(ex["why"])}</div>' if ex else "")
+    if repeats:
+        keys.append(f'<span class="cx-rep"><b class="m">{repeats}</b> more dates belong '
+                    f'to events already priced</span>')
     return (head + f'<div class="cx-ub">{"".join(segs)}</div><div class="cx-uk">{"".join(keys)}</div>'
             + example + '<div class="cx-ugs">' + "".join(groups) + "</div>")
 

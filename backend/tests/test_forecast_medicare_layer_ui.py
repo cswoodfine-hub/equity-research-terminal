@@ -190,6 +190,7 @@ def test_the_forecast_tab_shows_a_medicare_layer_for_eliquis_only():
         at = AppTest.from_file(str(APP), default_timeout=180)
         at.query_params["ticker"] = "BMY"
         at.session_state["fc_pick_BMY"] = asset_id
+        at.session_state["fc_open_BMY"] = {"asset": asset_id}    # the asset's card
         at.run()
         return [t.label for t in at.tabs]
 

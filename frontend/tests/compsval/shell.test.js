@@ -107,9 +107,27 @@ test("revision 4: the Scorecard view mounts four slots, the Table view six", () 
   assert.deepEqual(shell.slotsFor("nonsense"), shell.slotsFor("scorecard"), "an unknown view is the scorecard");
   // Every mounted slot of either view has a mount; the scope line is the shell's own row.
   const mounts = Array.from(JS.matchAll(/slot: "([a-zA-Z]+)"/g)).map((m) => m[1]);
-  for (const v of ["scorecard", "table"]) {
+  for (const v of ["scorecard", "figures", "table"]) {
     for (const slot of shell.slotsFor(v)) if (slot !== "scope") assert.ok(mounts.includes(slot), `${v}: ${slot}`);
   }
+});
+
+test("comps-figures: the Figures view takes the table's place and keeps the comparables' chrome", () => {
+  assert.deepEqual(shell.slotsFor("figures"), ["scope", "figures", "detail", "peers", "method"]);
+  // The module loads as the others do: a dynamic import, so a failure costs its slot and not the page.
+  assert.ok(JS.includes('fn: "mountFigures"'));
+  assert.ok(JS.includes('"./figures.js"'));
+  assert.ok(!/^import .* from "\.\/figures\.js"/m.test(JS));
+  assert.ok(JS.includes('case "view.figures": setView("figures"); break;'));
+  // The scope line and the footer belong to both comparables views.
+  assert.ok(JS.includes("footEl.hidden = !core.COMPS_VIEWS.includes(currentView());"));
+  const html = fs.readFileSync(new URL("../../components/compsval/index.html", import.meta.url), "utf8");
+  assert.ok(html.includes('href="./figures.css"'));
+  // One class, one job: a name used for two things in one sheet draws the second with the first's box.
+  const css = fs.readFileSync(new URL("../../components/compsval/figures.css", import.meta.url), "utf8");
+  const bare = Array.from(css.matchAll(/^\.(fg-[a-z0-9-]+)\s*\{/gm)).map((m) => m[1]);
+  assert.equal(new Set(bare).size, bare.length, "no bare .fg- rule is written twice");
+  assert.ok(!/#[0-9a-fA-F]{3,8}\b/.test(css.replace(/\/\*[\s\S]*?\*\//g, "")), "tokens only, no literal colour");
 });
 
 test("revision 4: the peer control, period buttons and Basis menu are the Table view's alone", () => {
@@ -122,7 +140,7 @@ test("revision 4: the peer control, period buttons and Basis menu are the Table 
   // The scope line shows in the Table view only. The banner, "Why?" and the KPI strip are gone
   // with their rows (build step 6).
   const r = JS.slice(JS.indexOf("function render() {"), JS.indexOf("function postRender() {"));
-  assert.ok(r.includes('scopeRow.hidden = !!err || currentView() !== "table";'));
+  assert.ok(r.includes("scopeRow.hidden = !!err || !core.COMPS_VIEWS.includes(currentView());"));
   for (const gone of ["bannerRow", "kpiRow", "function renderBanner", "function renderKpis", "function renderWhy",
     "function toggleWhy", "function copySummary", "function takeContext", "function openForecastBridge", "takeGoto"]) {
     assert.ok(!JS.includes(gone), gone);

@@ -13,7 +13,9 @@
 # price basis, a line-of-therapy pool stated as prevalence equal to incidence in place of an explicit zero carryover, the
 # FGFR3 share taken at the measured 281 of 1,416). Company-level rows are Lilly's own, verbatim from lly_kisunla.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Vepugratinib,,US,base,beta,,0.69,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.54 raw)",
 LLY,Vepugratinib,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025, from the filed lines",

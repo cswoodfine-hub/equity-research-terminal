@@ -40,6 +40,7 @@ import cms_catalogue
 import db
 import ndc
 from fetchers.base import BaseFetcher, RefreshResult
+import contact
 
 SOURCE = "partd_formulary"
 ENTITY_KEY = "partd_formulary"
@@ -66,7 +67,7 @@ _COLUMNS = {
 _ZIP_NAME = re.compile(r"/(\d{4})_(\d{8})\.zip$", re.IGNORECASE)
 _MEMBER_DATE = re.compile(r"(\d{8})")
 _TIMEOUT_S = 120
-_USER_AGENT = "Novatalis Research cswoodfine@icloud.com"
+_USER_AGENT = contact.user_agent()
 _NOTE_EXAMPLES = 3
 
 

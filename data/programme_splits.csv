@@ -1,0 +1,6 @@
+# Programmes the derivation folded into another row, which the company's filings keep apart
+# (read by backend/trial_mapping.create_split_programmes). Each row makes an unmarketed
+# asset of that name where the company holds none, so a data/trial_asset_map.csv pin can
+# move its studies onto it. A row needs the filing that names the programmes separately.
+ticker,asset,basis
+LLY,AK-OTOF,"Lilly names AK-OTOF and AK-antiVEGF as separate programmes: 'AK-OTOF for hearing loss due to mutations in the otoferlin gene ... and AK-antiVEGF for vestibular schwannoma' (FY2024 10-K 0000059478-25-000067). Both carry Akouos's AAVAnc80 capsid ('a proprietary AAVAnc capsid, known as AAVAnc80', Akouos FY2021 10-K 0001558370-22-004606), which the merge read as a shared development code and folded the two"

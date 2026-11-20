@@ -15,7 +15,9 @@
 # The closest outcomes trial failed: ziltivekimab's ZEUS missed MACE (HR 0.99) on 2026-07-31.
 # Company-level rows copied verbatim from nvs_ianalumab.csv.
 #
-# Seeds are insert-only. Edit a number in the terminal, not here.
+# A seed row follows this file until someone edits it in the terminal: a corrected or
+# deleted row here reaches the book on the next load (assumptions.reconcile_seeds), and
+# after an edit the terminal's number stands. Edit a number in the terminal, not here.
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 NVS,TOUR006 - 20 MG,,US,base,beta,,0.61,,,"computed from 261 weekly returns vs S&P 500, 2021-W35 to 2026-W36, Blume-adjusted (0.42 raw)",
 NVS,TOUR006 - 20 MG,,US,base,cogs_pct,,0.241706,,share of revenue,"NVS FY2025, computed from the filed lines. Struck on total revenue: Novartis's filed cost lines sit against net sales of USD 54,532mm and other revenues of USD 2,142mm together (FY2025 20-F 0001114448-26-000004, Note 4), and the income statement shows other revenues above cost of goods sold with no cost of their own, so each ratio is scaled by 54,532 over 56,674 and charged on every revenue the model carries. The book's costs are the filed ones either way; this shares them across the revenue that earned them",", restated onto total revenue from the net sales base"
