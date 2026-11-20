@@ -271,7 +271,8 @@ the numbers, not a default to change quietly.
 
 **Limits.** The card sees the abstract only, so "not reported" may be answered in the
 full paper. The quote check proves a fact is in the text, not that the value drawn from
-it is right; the 20 cards read by eye had none wrong, which is a small sample. The key
+it is right. Only three cards have been read closely against their abstracts, with
+nothing wrong found, so the values are not yet audited. The key
 is read from `DISCOVERY_ANTHROPIC_API_KEY`; with none the script stops and everything
 else in Discovery still runs.
 
