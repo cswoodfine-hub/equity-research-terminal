@@ -13,6 +13,7 @@ import re
 import sqlite3
 
 import db
+import discovery
 import edgar_items
 import loe as loe_module
 import materiality
@@ -134,6 +135,13 @@ def _recent_changes(conn, days):
             release = (r["entity_key"] or "").split("|")[-1]
             if re.match(r"^\d{4}-\d{2}-\d{2}$", release):
                 event_dates[date_key] = release
+        elif r["entity_type"] in ("paper", "lab"):
+            # Discovery: a research paper, or a lab head who published one. It belongs
+            # to no company in the universe, so it carries no ticker and a company's
+            # feed and note never see it. The headline is composed where the alert is
+            # raised (diff._diff_discovery) and ``field`` holds the paper it is about.
+            ticker = None
+            headline = r["new_value"]
         elif r["entity_type"] == "trial":
             ticker = nct_ticker.get(r["entity_key"])
             headline = _trial_headline(ticker, r["entity_key"], r["change_type"],
@@ -165,11 +173,13 @@ def _recent_changes(conn, days):
                   "field": r["field"], "anchor_value": r["old_value"]}
                  if r["entity_type"] == "market"
                  else {"entity_key": r["entity_key"]}
-                 if r["entity_type"] == "policy" else {})
+                 if r["entity_type"] == "policy"
+                 else {"entity_key": r["entity_key"], "url": discovery.paper_url(r["field"])}
+                 if r["entity_type"] in ("paper", "lab") else {})
         items.append({
             **extra,
-            "kind": {"market": "market", "policy": "policy"}.get(
-                r["entity_type"], "change"),
+            "kind": {"market": "market", "policy": "policy", "paper": "discovery",
+                     "lab": "discovery"}.get(r["entity_type"], "change"),
             "significance": r["significance"],
             "date": happened or r["detected_at"], "detected_at": r["detected_at"],
             "ticker": ticker, "change_type": r["change_type"], "headline": headline,
@@ -410,5 +420,5 @@ def _rank(item):
     """
     date = (item.get("date") or "")[:10]
     ordinal = int(date.replace("-", "")) if date[:4].isdigit() else 0
-    backwards = item.get("kind") in ("change", "filing", "market")
+    backwards = item.get("kind") in ("change", "filing", "market", "discovery")
     return (_SIG_RANK.get(item.get("significance"), 3), -ordinal if backwards else ordinal)

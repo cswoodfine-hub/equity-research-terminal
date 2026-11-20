@@ -11,9 +11,11 @@ each change once, since the compared snapshot is advanced when a change is recor
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import date, timedelta
 
 import db
+import discovery
 import edgar_items
 import filingtext
 import materiality
@@ -61,6 +63,21 @@ def _write_change(conn, entity_type, entity_key, field, old, new, change_type, s
         """,
         (entity_type, entity_key, field, old, new, change_type, sig, run_id),
     )
+
+
+def _write_change_once(conn, entity_type, entity_key, field, old, new, change_type, sig,
+                       run_id) -> int:
+    """A change that can only ever be written once for its entity, key and type (the
+    partial unique index of migration 108). Returns 1 when it was written."""
+    return conn.execute(
+        """
+        INSERT OR IGNORE INTO changes
+            (entity_type, entity_key, field, old_value, new_value, change_type,
+             significance, refresh_run_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (entity_type, entity_key, field, old, new, change_type, sig, run_id),
+    ).rowcount
 
 
 def _status_significance(status) -> str:
@@ -646,6 +663,108 @@ def _diff_payer_access(conn, run_id) -> int:
     return emitted
 
 
+# --- Discovery: research papers and lab heads ---------------------------------
+
+_DISCOVERY_SOURCE = "europepmc"
+
+
+def _paper_cite(p) -> str:
+    """"Journal, 2026-11-01", or "bioRxiv preprint, 2026-11-01"."""
+    where = p.get("journal") or ""
+    if p.get("preprint"):
+        where = f"{where} preprint".strip()
+    return ", ".join(x for x in (where, p.get("published")) if x)
+
+
+def _paper_headline(p) -> str:
+    """Leads with the ranks, better one first: "Top 2% for feasibility, top 8% for
+    commercial pull: <title> (<senior author>, <institution>; <journal>, <date>)"."""
+    ranks = sorted(((pct, name) for pct, name in ((p.get("feas_pct"), "feasibility"),
+                                                  (p.get("comm_pct"), "commercial pull"))
+                    if pct is not None), reverse=True)
+    lead = ", ".join(f"{discovery.top_share(pct)} for {name}" for pct, name in ranks)
+    who = ", ".join(x for x in (p.get("senior_author"), p.get("institution")) if x)
+    cite = "; ".join(x for x in (who, _paper_cite(p)) if x)
+    return f"{lead[:1].upper()}{lead[1:]}: {p.get('title')} ({cite})"
+
+
+def _lab_lead(lab, total) -> str:
+    return f"{lab['name']}, ranked {lab['rank']} of {total:,} lab heads"
+
+
+def _diff_discovery(conn, run_id) -> int:
+    """Alerts from the papers and lab states this run snapshotted.
+
+    The fetcher (fetchers/papers_europepmc.py) writes a paper's snapshot when it is first
+    read and a lab's only when a paper moves it, so what is new is exactly what this run
+    wrote. A lab's state before is its previous snapshot, or the seed it was ranked with.
+    Each alert is written once: the key says what it is about and the unique index
+    refuses a second, so a re-fetch or a database rebuilt from history repeats nothing.
+
+    Four alerts. On the paper: it ranks in the top of either score. On the lab, for the
+    lab heads ranked well enough: it published, it reached a later model stage than any
+    paper of its before, and its first paper with a company among the authors.
+    """
+    try:
+        labs = {r["id"]: r for r in conn.execute(
+            "SELECT id, name, rank, furthest_stage, company_coauthor FROM discovery_labs")}
+    except sqlite3.OperationalError:          # a database from before Discovery
+        return 0
+    total = len(labs)
+    where = "refresh_run_id IS NULL" if run_id is None else "refresh_run_id = ?"
+    rows = conn.execute(
+        "SELECT id, entity_type, entity_key, payload FROM snapshots"
+        f" WHERE source = ? AND entity_type IN ('paper', 'lab') AND {where} ORDER BY id",
+        (_DISCOVERY_SOURCE,) if run_id is None else (_DISCOVERY_SOURCE, run_id)).fetchall()
+    written = 0
+    for row in rows:
+        key, p = row["entity_key"], json.loads(row["payload"])
+        if not materiality.discovery_is_news(p.get("indexed") or p.get("published"),
+                                             p.get("seen")):
+            continue
+        if row["entity_type"] == "paper":
+            sig = materiality.discovery_paper_significance(p.get("feas_pct"), p.get("comm_pct"))
+            if sig:
+                written += _write_change_once(
+                    conn, "paper", key, key, None, _paper_headline(p),
+                    "discovery_paper_top", sig, run_id)
+            lab = labs.get(p.get("lab_id"))
+            if lab and lab["rank"] <= materiality.DISCOVERY_LAB_RANK:
+                written += _write_change_once(
+                    conn, "lab", f"{lab['id']}|{key}", key, None,
+                    f"{_lab_lead(lab, total)}, published: {p.get('title')}"
+                    f" ({_paper_cite(p)}). Matched by {p.get('lab_match')}.",
+                    "discovery_lab_paper", "medium", run_id)
+            continue
+        lab = labs.get(key)
+        if not lab or lab["rank"] > materiality.DISCOVERY_LAB_RANK:
+            continue
+        before = conn.execute(
+            "SELECT payload FROM snapshots WHERE source = ? AND entity_type = 'lab'"
+            " AND entity_key = ? AND id < ? ORDER BY id DESC LIMIT 1",
+            (_DISCOVERY_SOURCE, key, row["id"])).fetchone()
+        was = json.loads(before["payload"]) if before else {
+            "furthest_stage": lab["furthest_stage"],
+            "company_coauthor": bool(lab["company_coauthor"])}
+        paper = f"{p.get('title')} ({_paper_cite(p)})"
+        stage, earlier = p.get("furthest_stage"), was.get("furthest_stage")
+        if stage in discovery.STAGES and (
+                earlier not in discovery.STAGES
+                or discovery.STAGES.index(stage) > discovery.STAGES.index(earlier)):
+            names = discovery.STAGE_NAMES
+            written += _write_change_once(
+                conn, "lab", f"{key}|{stage}", p.get("paper") or "", names.get(earlier),
+                f"{_lab_lead(lab, total)}: first paper in {names[stage]}, after "
+                f"{names.get(earlier) or 'none naming a model'}. {paper}",
+                "discovery_lab_stage", materiality.discovery_stage_significance(stage), run_id)
+        if p.get("company_coauthor") and not was.get("company_coauthor"):
+            written += _write_change_once(
+                conn, "lab", key, p.get("paper") or "", None,
+                f"{_lab_lead(lab, total)}: first paper with a company among the authors."
+                f" {paper}", "discovery_lab_company", "high", run_id)
+    return written
+
+
 def detect_changes(db_path=None, run_id=None) -> dict:
     conn = db.get_connection(db_path)
     try:
@@ -660,6 +779,7 @@ def detect_changes(db_path=None, run_id=None) -> dict:
             "market_moves": _diff_market(conn, run_id),
             "ira_moves": _diff_ira(conn, run_id),
             "payer_access_moves": _diff_payer_access(conn, run_id),
+            "discovery_alerts": _diff_discovery(conn, run_id),
         }
         conn.commit()
     finally:

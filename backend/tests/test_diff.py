@@ -129,7 +129,8 @@ def test_baseline_then_detect_then_idempotent(tmp_path):
                                             # three years of past selections as news.
                                             "ira_moves": 0,
                                             # Part D coverage anchors on first sight.
-                                            "payer_access_moves": 0}
+                                            "payer_access_moves": 0,
+                                            "discovery_alerts": 0}
     assert _changes(db_file) == []
 
     # Change the trial and add a new filing.
