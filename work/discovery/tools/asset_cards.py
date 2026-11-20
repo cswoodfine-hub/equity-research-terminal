@@ -3,6 +3,9 @@ with the sentence it came from.
 
     python3 work/discovery/tools/asset_cards.py <papers.json> <out.json> [limit]
 
+Four papers are read at a time. A paper whose card is already in the output file is not
+read again, so a run that stops can be started again and costs only what is left.
+
 Claude reads the title and abstract and returns the card as JSON. Two rules keep it
 honest. A fact is kept only if its quote is found in the text, word for word, so nothing
 can be invented; what fails is dropped and counted. And a field the abstract does not
@@ -19,6 +22,7 @@ import os
 import pathlib
 import re
 import sys
+from concurrent.futures import ThreadPoolExecutor
 
 import anthropic
 
@@ -120,23 +124,36 @@ def main(source, out, limit=None):
     key = (os.environ.get("DISCOVERY_ANTHROPIC_API_KEY") or "").strip()
     if not key:
         sys.exit("DISCOVERY_ANTHROPIC_API_KEY is not set, so no card can be written")
-    client = anthropic.Anthropic(api_key=key)
+    client = anthropic.Anthropic(api_key=key, max_retries=5)
     papers = json.loads(pathlib.Path(source).read_text())[:int(limit) if limit else None]
-    cards = []
-    for paper in papers:
+    have = {}
+    if pathlib.Path(out).exists():
+        have = {c["id"]: c for c in json.loads(pathlib.Path(out).read_text())["cards"]
+                if "error" not in c}
+
+    def one(paper):
+        if paper["id"] in have:
+            return have[paper["id"]]
         try:
-            cards.append(card(client, paper))
+            made = card(client, paper)
         except anthropic.AuthenticationError:
-            sys.exit("the key was refused by the API")
+            made = {"id": paper["id"], "error": "the key was refused by the API"}
         except anthropic.RateLimitError as exc:
-            cards.append({"id": paper["id"], "error": f"rate limited: {exc.message}"})
+            made = {"id": paper["id"], "error": f"rate limited: {exc.message}"}
         except anthropic.APIStatusError as exc:
-            cards.append({"id": paper["id"], "error": f"{exc.status_code}: {exc.message}"})
+            made = {"id": paper["id"], "error": f"{exc.status_code}: {exc.message}"}
         except anthropic.APIConnectionError as exc:
-            cards.append({"id": paper["id"], "error": f"no connection: {exc}"})
-        print(cards[-1]["id"], cards[-1].get("error") or
-              f"{len(cards[-1]['facts'])} facts, {cards[-1]['dropped']['facts']} dropped",
-              flush=True)
+            made = {"id": paper["id"], "error": f"no connection: {exc}"}
+        except (ValueError, StopIteration) as exc:      # an answer that is not the JSON asked for
+            made = {"id": paper["id"], "error": f"unreadable answer: {exc}"}
+        print(made["id"], made.get("error") or
+              f"{len(made['facts'])} facts, {made['dropped']['facts']} dropped", flush=True)
+        return made
+
+    with ThreadPoolExecutor(4) as pool:
+        cards = list(pool.map(one, papers))
+    if any(c.get("error") == "the key was refused by the API" for c in cards):
+        print("the key was refused by the API", flush=True)
     done = [c for c in cards if "usage" in c]
     tokens_in, tokens_out = (sum(c["usage"][k] for c in done) for k in ("input", "output"))
     cost = sum(c["usage"]["input"] / 1e6 * PRICES.get(c["model"], PRICES[MODEL])[0]

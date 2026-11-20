@@ -130,6 +130,12 @@ and what in the abstract raised it:
 | Commercial pull | Will industry build on the idea? | Title and abstract only | Cited twice or more by company-authored work within three years |
 | Team | Do the authors form companies? | The authors' record, and the text | An author in a company record within three years |
 
+A paper with an asset card (2026-11-20) shows it under the scores: the summary, each
+stated fact with a link to the sentence it came from, concerns marked as "from the
+paper" or "not reported", questions for the authors and a commercial read. Rows with a
+card are marked, and Papers can be filtered to them. Cards are written by Claude for the
+top-ranked papers only, and the panel says so.
+
 Areas is a fifth view in the same list-and-panel shape: 25 areas ranked by growth, size,
 feasibility or commercial pull, each row with a sparkline. The panel draws interest over
 time (papers in each trailing twelve months, or share of the field), four figures for

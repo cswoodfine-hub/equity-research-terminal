@@ -240,6 +240,41 @@ fastest growing were in vivo CAR-T (4.1 times the papers of two years before), L
 delivery beyond the liver (2.8) and CAR-T for autoimmune disease (2.6). In vivo CAR-T
 had 53% of its papers in the top tenth for commercial pull and 11% for feasibility.
 
+## Asset cards (2026-11-20)
+
+`tools/asset_cards.py`. Claude reads a paper's title and abstract and returns a card: a
+one-sentence summary, the diligence facts the abstract states, concerns, up to three
+questions for the authors and a one-line commercial read. Each fact carries the passage
+it came from, and a fact is kept only when that passage is found in the text word for
+word.
+
+Run on 119 papers: the top 40 of the last twelve months on each of the three scores,
+with the ten first tried (`samples/asset_cards_top.json`).
+
+| Measure | Result |
+|---|---|
+| Cards returned | 119 of 119 |
+| Facts kept | 1,120 |
+| Facts dropped because the quote was not in the text | 2 |
+| Concerns raised | 896, of two kinds: stated by the paper, or not reported by it |
+| Tokens | 234,367 in, 218,642 out |
+| Cost | about $6.13, or 5 cents a paper |
+| Em dashes or banned words in the text returned | none |
+
+**78 of the 119 were written by the fallback model.** The request names
+`claude-opus-5-5`; its safety classifier declined two in three of these cell and gene
+therapy abstracts, and the API handed each to `claude-opus-5` in the same call. The
+cards came back, but the cost above prices each card at the model that wrote it and
+leaves out the declined attempts, so the true figure is somewhat higher. A model that
+does not decline these would be cheaper and steadier; that is a choice to make with
+the numbers, not a default to change quietly.
+
+**Limits.** The card sees the abstract only, so "not reported" may be answered in the
+full paper. The quote check proves a fact is in the text, not that the value drawn from
+it is right; the 20 cards read by eye had none wrong, which is a small sample. The key
+is read from `DISCOVERY_ANTHROPIC_API_KEY`; with none the script stops and everything
+else in Discovery still runs.
+
 ## What went wrong on the way, and the fix
 
 - **Name matching.** The first award outcome matched on first and last name alone. Of 574

@@ -462,6 +462,33 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
   .item.lab { grid-template-columns: 2.6ch 36px minmax(0, 1fr) auto; gap: 9px; }
 }
 
+.card { border: 1px solid var(--edge-hi); background: rgba(10, 17, 20, .45); padding: 16px 18px 18px; position: relative; }
+.card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, var(--comm), var(--feas)); }
+.cardhead { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.cardhead .by { font-size: 12px; color: var(--muted); }
+.card .sum { font-family: var(--prose); font-size: 16.5px; line-height: 1.5; margin: 0 0 4px; }
+.card .mod { font-family: var(--mono); font-size: 12px; color: #7FD3B0; }
+.card h4 { font-family: var(--narrow); font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: #8FA2A9; font-weight: 600; margin: 16px 0 6px; }
+.facts { margin: 0; display: grid; gap: 0; }
+.fact { display: grid; grid-template-columns: 15ch minmax(0, 1fr); gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--edge); font-size: 13.5px; }
+.fact dt { color: var(--muted); font-size: 12.5px; padding-top: 1px; }
+.fact dd { margin: 0; }
+.src { margin-top: 3px; }
+.src summary { cursor: pointer; font-size: 11.5px; color: var(--muted); list-style: none; display: inline-block; border-bottom: 1px dotted var(--rule-strong); }
+.src summary::-webkit-details-marker { display: none; }
+.src summary:hover { color: var(--text); }
+.src q { display: block; margin-top: 5px; padding: 6px 10px; border-left: 2px solid var(--rule-strong); font-family: var(--prose); font-size: 14.5px; font-style: italic; color: #C9D6D1; quotes: "\201C" "\201D"; }
+.concerns { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.concerns li { padding-left: 18px; position: relative; font-size: 13.5px; }
+.concerns li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 7px; height: 7px; background: var(--comm); }
+.concerns li.gap::before { background: transparent; border: 1.5px solid var(--comm); }
+.concerns b { font-weight: 600; }
+.concerns .kind { font-family: var(--narrow); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.card ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 13.5px; }
+.card .read { font-family: var(--prose); font-size: 15.5px; line-height: 1.5; margin: 0; }
+.morec summary { cursor: pointer; font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.hascard { font-family: var(--narrow); font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--comm); border: 1px solid rgba(207, 124, 60, .55); padding: 0 5px; margin-left: 6px; white-space: nowrap; }
+@media (max-width: 880px) { .fact { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 
@@ -512,7 +539,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
 
   <div class="keys"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>/</kbd> search</span><span><kbd>W</kbd> watch or unwatch</span><span><kbd>1</kbd> to <kbd>5</kbd> switch view</span><span><kbd>Esc</kbd> clear or close</span></div>
   <div class="foot" id="fresh" hidden></div>
-  <div class="foot">Sources: Europe PMC, OpenAlex, NIH RePORTER, SEC Form D data sets, Companies House, NIH iCite, PubMed. Company records are matched to authors by name and state or town, and are not verified. Scores come from a word-frequency and rule model; no language model wrote or scored anything here.</div>
+  <div class="foot">Sources: Europe PMC, OpenAlex, NIH RePORTER, SEC Form D data sets, Companies House, NIH iCite, PubMed. Company records are matched to authors by name and state or town, and are not verified. Scores come from a word-frequency and rule model. Asset cards, where shown, are written by Claude from the title and abstract, and a fact is kept only when its quote is found in that text word for word.</div>
 </div>
 
 <div class="sheet" id="sheet" aria-hidden="true"><div class="pane" role="dialog" aria-modal="true" aria-labelledby="sheet-h">
@@ -597,7 +624,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
       && (!S.f.country || l.country === S.f.country) && (!S.f.rec || (S.f.rec === 'none' ? !l.before.length : l.before.length)));
     if (view === 'areas') { const k = S.asort; return (D.areas || []).filter((a) => hit(plain(a.name))).sort((a, b) => (b[k] == null ? -1 : b[k]) - (a[k] == null ? -1 : a[k])); }
     if (view === 'papers') return D.papers.filter((p) => hit(p.hay) && (!S.mod || p.mods.includes(S.mod)) && (!S.watching || watched.has(p.lastId))
-      && (!S.f.stage || p.top === STAGES.indexOf(S.f.stage)) && (!S.f.pre || p.pre) && (!S.f.lab || !p.stage.includes('patients')))
+      && (!S.f.stage || p.top === STAGES.indexOf(S.f.stage)) && (!S.f.pre || p.pre) && (!S.f.lab || !p.stage.includes('patients')) && (!S.f.card || CARDS[p.id]))
       .sort((a, b) => S.sort === 'd' ? (a.d < b.d ? 1 : -1) : ((b[S.sort] == null ? -1 : b[S.sort]) - (a[S.sort] == null ? -1 : a[S.sort])));
     return events.filter((e) => hit(e.l.hay) && (!S.mod || e.l.mods.includes(S.mod)) && (!S.watching || watched.has(e.l.id)) && (!S.f.kind || e.k === S.f.kind));
   }
@@ -659,7 +686,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
         html += `<div class="item" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.d.slice(2, 7)}</span>
         <span><span class="nm">${esc(r.t)}</span><span class="in">${esc(r.last || r.first || '')}${r.inst ? ' · ' + esc(r.inst) : ''}${r.pre ? ' · preprint' : ''}</span>
-          <span class="why">${r.top >= 0 ? 'Reached ' + STAGE_NAME[STAGES[r.top]].toLowerCase() : 'Lab work only'}${r.derisk.length ? ' · shows ' + r.derisk.slice(0, 2).map((x) => DERISK[x].toLowerCase()).join(', ') : ''}</span></span>
+          <span class="why">${r.top >= 0 ? 'Reached ' + STAGE_NAME[STAGES[r.top]].toLowerCase() : 'Lab work only'}${r.derisk.length ? ' · shows ' + r.derisk.slice(0, 2).map((x) => DERISK[x].toLowerCase()).join(', ') : ''}${CARDS[r.id] ? '<span class="hascard">card</span>' : ''}</span></span>
         <span class="side">${THREE ? sig3(r) : ''}${pill(v)}</span></div>`; }
       else html += `<div class="item ev" style="--i:${Math.min(place, 16)}" role="option" tabindex="${on ? 0 : -1}" aria-selected="${on}" data-id="${esc(r.id)}">
         <span class="rk">${r.d}</span>
@@ -718,6 +745,22 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
     const sig = why && (why.flags.length || why.phrases.length) ? `<div class="sig">What raised it: ${why.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join('')}${why.phrases.map((f) => `<span class="tag quote">“${esc(f)}”</span>`).join('')}</div>` : '';
     return `<div class="srow"><div class="bar" style="background:var(--${{ clin: 'feas', comm: 'comm', comp: 'team' }[key]})"></div><div><b>${name}</b><span class="q">${question}</span><p>${v == null ? (none || 'Published outside the scored window.') : means(key, v)}</p>${v == null ? '' : sig}</div></div>`;
   }
+  const FIELD = { vector_or_vehicle: 'Vector or vehicle', payload_or_target: 'Payload or target', indication: 'Indication', target_tissue: 'Target tissue', cell_source: 'Cell source', model_or_species: 'Model', sample_size: 'Sample size', route: 'Route', dose: 'Dose', durability: 'Durability', efficacy: 'Efficacy', safety: 'Safety', manufacturing: 'Manufacturing', comparator: 'Comparator' };
+  const CARDS = D.cards || {};
+  function cardBlock(p) {
+    const c = CARDS[p.id];
+    if (!c) return Object.keys(CARDS).length ? `<div class="block fine">No asset card for this paper. Cards are written for the top-ranked papers on each score.</div>` : '';
+    const src = (q) => q ? `<details class="src"><summary>where it says so</summary><q>${esc(q)}</q></details>` : '';
+    const flag = (f) => `<li class="${f.quote ? '' : 'gap'}"><b>${esc(f.flag)}.</b> ${esc(f.why)}<span class="kind">${f.quote ? 'from the paper' : 'not reported'}</span>${src(f.quote)}</li>`;
+    const first = c.red_flags.slice(0, 5), rest = c.red_flags.slice(5);
+    return `<div class="block card"><div class="cardhead"><span class="label">Asset card</span><span class="by">Written by Claude from the abstract. Every fact is checked against it.</span></div>
+      <p class="sum">${esc(c.summary)}</p>${c.modality ? `<div class="mod">${esc(c.modality)}</div>` : ''}
+      <h4>What the abstract states</h4><dl class="facts">${c.facts.map((f) => `<div class="fact"><dt>${FIELD[f.field] || esc(f.field)}</dt><dd>${esc(f.value)}${src(f.quote)}</dd></div>`).join('')}</dl>
+      ${c.red_flags.length ? `<h4>Concerns · ${c.red_flags.length}</h4><ul class="concerns">${first.map(flag).join('')}</ul>${rest.length ? `<details class="morec"><summary>Show ${rest.length} more</summary><ul class="concerns" style="margin-top:8px">${rest.map(flag).join('')}</ul></details>` : ''}` : ''}
+      ${c.open_questions.length ? `<h4>Questions for the authors</h4><ol>${c.open_questions.map((q) => `<li>${esc(q)}</li>`).join('')}</ol>` : ''}
+      ${c.commercial_note ? `<h4>Commercial read</h4><p class="read">${esc(c.commercial_note)}</p>` : ''}
+      <div class="fine">Read from the title and abstract only, so "not reported" may be answered in the full paper. A filled square is something the paper says. A hollow one is something it leaves out.</div></div>`;
+  }
   function paperDetail(p) {
     const lab = labById.get(p.lastId);
     const record = [...p.prior.map((x) => PRIOR[x]), ...(p.co ? ['A company is among the authors'] : [])];
@@ -729,6 +772,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
         <div class="tile"><span class="label">Closest to patients</span><div class="big ${band(p.clin) ? 'up' : ''}">${topText(p.clin)}</div><p>${means('clin', p.clin)}</p></div>
         <div class="tile"><span class="label">Likely to become a company</span>${p.comp == null ? '<div class="big">Not scored</div><p>No author at a US or UK address, and company records are only read for those two countries.</p>' : `<div class="big ${band(p.comp) ? 'up' : ''}">${topText(p.comp)}</div><p>${means('comp', p.comp)}</p>`}</div>
       </div>`}
+      ${cardBlock(p)}
       <div class="block"><span class="label">How far the work got</span><div class="steps">${STAGES.map((s, i) => `<div class="step ${p.stage.includes(s) ? 'on' + (i === p.top ? ' top' : '') : ''}">${STAGE_NAME[s]}</div>`).join('')}</div></div>
       <div class="block"><span class="label">What the abstract shows</span><ul class="checks">${Object.keys(DERISK).map((k) => `<li class="${p.derisk.includes(k) ? 'yes' : ''}"><i>${p.derisk.includes(k) ? '✓' : '·'}</i>${DERISK[k]}</li>`).join('')}</ul></div>
       <div class="block"><span class="label">The authors</span>${record.length || p.coi.length ? `<ul class="reasons">${record.map((x) => `<li>${x}</li>`).join('')}${p.coi.length ? `<li class="said">The paper declares ${p.coi.map((x) => SAID[x]).join(', ')}</li>` : ''}</ul>` : '<span style="color:var(--muted)">No company record or declared interest seen.</span>'}</div>
@@ -758,7 +802,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
     $('n-papers').textContent = `${n(rows('papers').length)} papers`;
     $('n-news').textContent = `${rows('news').length} records`;
     if (D.areas) $('n-areas').textContent = `${rows('areas').length} areas`;
-    const extras = S.view === 'labs' ? (S.f.country ? 1 : 0) + (S.f.rec ? 1 : 0) : S.view === 'papers' ? (S.f.stage ? 1 : 0) + (S.f.pre ? 1 : 0) + (S.f.lab ? 1 : 0) : (S.f.kind ? 1 : 0);
+    const extras = S.view === 'labs' ? (S.f.country ? 1 : 0) + (S.f.rec ? 1 : 0) : S.view === 'papers' ? (S.f.stage ? 1 : 0) + (S.f.pre ? 1 : 0) + (S.f.lab ? 1 : 0) + (S.f.card ? 1 : 0) : (S.f.kind ? 1 : 0);
     $('chips').innerHTML = `<button class="chipbtn" type="button" data-mod="" aria-pressed="${!S.mod}">All topics</button>`
       + MODS.map((m) => `<button class="chipbtn" type="button" data-mod="${esc(m)}" aria-pressed="${S.mod === m}">${esc(m)}</button>`).join('')
       + `<span class="sep" aria-hidden="true"></span><button class="chipbtn" type="button" data-watching="1" aria-pressed="${S.watching}"><span class="dot">★</span> Watching ${watched.size || ''}</button>`
@@ -766,7 +810,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
     const seg = (name, opts) => `<span class="seg" role="group">${opts.map(([v, t]) => `<button type="button" data-f="${name}" data-v="${v}" aria-pressed="${String(name === 'sort' ? S.sort : name === 'asort' ? S.asort : S.f[name]) === v}">${t}</button>`).join('')}</span>`;
     $('extra').hidden = !S.extra && S.view !== 'papers';
     $('extra').innerHTML = S.view === 'labs' ? (S.extra ? `<label>Country ${seg('country', [['', 'Both'], ['US', 'US'], ['GB', 'UK']])}</label><label>Company record ${seg('rec', [['', 'Any'], ['some', 'Has one'], ['none', 'None seen yet']])}</label>` : '')
-      : S.view === 'papers' ? `<label>Rank by ${seg('sort', THREE ? [['clin', 'Feasibility'], ['comm', 'Commercial pull'], ['comp', 'Team'], ['d', 'Newest']] : [['clin', 'Closest to patients'], ['comp', 'Likely a company'], ['d', 'Newest']])}</label>` + (S.extra ? `<label>Got as far as <select id="f-stage"><option value="">Any</option>${STAGES.slice().reverse().map((s) => `<option value="${s}" ${S.f.stage === s ? 'selected' : ''}>${STAGE_NAME[s]}</option>`).join('')}</select></label><label><input type="checkbox" id="f-pre" ${S.f.pre ? 'checked' : ''}> Preprints only</label><label><input type="checkbox" id="f-lab" ${S.f.lab ? 'checked' : ''}> Not yet in patients</label>` : '')
+      : S.view === 'papers' ? `<label>Rank by ${seg('sort', THREE ? [['clin', 'Feasibility'], ['comm', 'Commercial pull'], ['comp', 'Team'], ['d', 'Newest']] : [['clin', 'Closest to patients'], ['comp', 'Likely a company'], ['d', 'Newest']])}</label>` + (S.extra ? `<label>Got as far as <select id="f-stage"><option value="">Any</option>${STAGES.slice().reverse().map((s) => `<option value="${s}" ${S.f.stage === s ? 'selected' : ''}>${STAGE_NAME[s]}</option>`).join('')}</select></label><label><input type="checkbox" id="f-pre" ${S.f.pre ? 'checked' : ''}> Preprints only</label><label><input type="checkbox" id="f-lab" ${S.f.lab ? 'checked' : ''}> Not yet in patients</label>${Object.keys(CARDS).length ? `<label><input type="checkbox" id="f-card" ${S.f.card ? 'checked' : ''}> With an asset card</label>` : ''}` : '')
       : S.view === 'areas' ? `<label>Rank by ${seg('asort', Object.entries(AREA_SORT))}</label>`
       : (S.extra ? `<label>Kind ${seg('kind', [['', 'All'], ['formd', 'Funding filings'], ['award', 'Research awards'], ['uk', 'UK companies']])}</label>` : '');
     $('extra').hidden = !$('extra').innerHTML;
@@ -806,7 +850,7 @@ svg .node.new { fill: var(--flag); filter: drop-shadow(0 0 6px rgba(217, 178, 10
     S.shown[S.view] = S.view === 'news' ? 60 : 40; S.fresh = true; draw();
   });
   $('extra').addEventListener('click', (e) => { const b = e.target.closest('button[data-f]'); if (!b) return; if (b.dataset.f === 'sort') { S.sort = b.dataset.v; S.sel.papers = null; S.shown.papers = 40; } else if (b.dataset.f === 'asort') { S.asort = b.dataset.v; S.sel.areas = null; } else S.f[b.dataset.f] = b.dataset.v; draw(); });
-  $('extra').addEventListener('change', (e) => { if (e.target.id === 'f-stage') S.f.stage = e.target.value; if (e.target.id === 'f-pre') S.f.pre = e.target.checked; if (e.target.id === 'f-lab') S.f.lab = e.target.checked; draw(); });
+  $('extra').addEventListener('change', (e) => { if (e.target.id === 'f-stage') S.f.stage = e.target.value; if (e.target.id === 'f-pre') S.f.pre = e.target.checked; if (e.target.id === 'f-lab') S.f.lab = e.target.checked; if (e.target.id === 'f-card') S.f.card = e.target.checked; draw(); });
   $('list').addEventListener('click', (e) => {
     const s = e.target.closest('[data-star]'); if (s) { e.stopPropagation(); toggleWatch(s.dataset.star); return; }
     const g = e.target.closest('[data-goto]'); if (g) { setView(g.dataset.goto); return; }
