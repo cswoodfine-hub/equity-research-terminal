@@ -23,9 +23,13 @@ import sys
 import anthropic
 
 MODEL = "claude-opus-5-5"
-# Dollars per million tokens for MODEL, as listed on 2026-11-03. Only used to report what
-# the sample cost; the token counts are the record.
-PRICE_IN, PRICE_OUT = 4.00, 20.00
+# Dollars per million tokens (input, output), as listed on 2026-11-03. Only used to report
+# what a run cost; the token counts are the record. A card is priced at the model that
+# wrote it: when a safety classifier declines a paper on MODEL the API hands it to another
+# model in the same call, and on 2026-11-20 that happened to cell and gene therapy
+# abstracts often enough to matter. The declined attempt's own cost is not in the count.
+PRICES = {"claude-opus-5-5": (4.00, 20.00), "claude-opus-5": (5.00, 25.00),
+          "claude-opus-4-8": (5.00, 25.00)}
 FIELDS = ["vector_or_vehicle", "payload_or_target", "indication", "target_tissue",
           "cell_source", "model_or_species", "sample_size", "route", "dose", "durability",
           "efficacy", "safety", "manufacturing", "comparator"]
@@ -135,15 +139,19 @@ def main(source, out, limit=None):
               flush=True)
     done = [c for c in cards if "usage" in c]
     tokens_in, tokens_out = (sum(c["usage"][k] for c in done) for k in ("input", "output"))
-    cost = tokens_in / 1e6 * PRICE_IN + tokens_out / 1e6 * PRICE_OUT
+    cost = sum(c["usage"]["input"] / 1e6 * PRICES.get(c["model"], PRICES[MODEL])[0]
+               + c["usage"]["output"] / 1e6 * PRICES.get(c["model"], PRICES[MODEL])[1]
+               for c in done)
+    served = {m: sum(c["model"] == m for c in done) for m in sorted({c["model"] for c in done})}
     pathlib.Path(out).write_text(json.dumps({
-        "model": MODEL, "papers": len(papers), "cards": cards,
+        "model": MODEL, "written_by": served, "papers": len(papers), "cards": cards,
         "tokens": {"input": tokens_in, "output": tokens_out},
         "cost_usd": round(cost, 4),
         "cost_per_paper_usd": round(cost / max(1, len(done)), 4),
-        "prices_per_million": {"input": PRICE_IN, "output": PRICE_OUT}}, indent=1))
+        "prices_per_million": PRICES}, indent=1))
     print(f"{len(done)} cards, {tokens_in:,} tokens in, {tokens_out:,} out, "
-          f"${cost:.3f} in all, ${cost / max(1, len(done)):.4f} a paper", flush=True)
+          f"${cost:.3f} in all, ${cost / max(1, len(done)):.4f} a paper; written by {served}",
+          flush=True)
 
 
 if __name__ == "__main__":

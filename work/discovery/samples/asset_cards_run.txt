@@ -1,0 +1,11 @@
+42272981 9 facts, 0 dropped
+42444129 12 facts, 0 dropped
+41651004 11 facts, 0 dropped
+42388231 9 facts, 0 dropped
+40825661 13 facts, 0 dropped
+42149124 12 facts, 0 dropped
+42150080 11 facts, 0 dropped
+42768752 9 facts, 0 dropped
+41931046 12 facts, 0 dropped
+41625963 10 facts, 0 dropped
+10 cards, 21,030 tokens in, 18,643 out, $0.525 in all, $0.0525 a paper; written by {'claude-opus-5': 6, 'claude-opus-5-5': 4}

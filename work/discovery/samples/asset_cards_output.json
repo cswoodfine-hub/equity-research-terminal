@@ -1,0 +1,1195 @@
+{
+ "model": "claude-opus-5-5",
+ "written_by": {
+  "claude-opus-5": 6,
+  "claude-opus-5-5": 4
+ },
+ "papers": 10,
+ "cards": [
+  {
+   "id": "42272981",
+   "title": "Bioinspired oxidized mRNA lipid nanoparticles for ex vivo engineering of chimeric antigen receptor macrophages targeting solid tumors.",
+   "model": "claude-opus-5",
+   "summary": "The authors screened a 24-member library of bioinspired oxidized ionizable lipids, optimized an LNP formulation for mRNA delivery to human macrophages, showed macropinocytosis-driven uptake and spleen tropism in mice, and used the platform to generate HER2-CAR macrophages that killed ovarian cancer cells in ex vivo co-culture.",
+   "modality": "mRNA LNP ex vivo engineering of CAR macrophages",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Bioinspired oxidized lipid nanoparticle carrying mRNA",
+     "quote": "we developed a bioinspired oxidized lipid nanoparticle (LNP) platform for mRNA-based engineering of human CAR-Ms"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "mRNA encoding a HER2-targeted CAR",
+     "quote": "engineer functional primary human HER2-CAR-Ms ex vivo"
+    },
+    {
+     "field": "indication",
+     "value": "Solid tumors, demonstrated with ovarian cancer cells",
+     "quote": "validated in an ex vivo co-culture with ovarian cancer cells"
+    },
+    {
+     "field": "cell_source",
+     "value": "Primary human macrophages",
+     "quote": "engineer functional primary human HER2-CAR-Ms ex vivo"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Human macrophages ex vivo; mice for biodistribution",
+     "quote": "potent extrahepatic spleen tropism upon intravenous administration to mice"
+    },
+    {
+     "field": "route",
+     "value": "Intravenous in the mouse biodistribution work",
+     "quote": "upon intravenous administration to mice"
+    },
+    {
+     "field": "efficacy",
+     "value": "Antigen-specific tumor cell killing in co-culture",
+     "quote": "with potent antigen-specific tumor cell killing"
+    },
+    {
+     "field": "manufacturing",
+     "value": "24 ionizable lipids screened; formulation tuned by orthogonal design of experiments and microfluidic mixing parameters",
+     "quote": "A library of 24 ionizable lipids was synthesized, formulated into LNPs, and screened for delivery to human macrophages."
+    },
+    {
+     "field": "comparator",
+     "value": "Outperformed C12-200 LNP",
+     "quote": "yielding an LNP formulation that significantly outperformed a gold standard C12-200 LNP"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No in vivo antitumor efficacy",
+     "why": "Killing is shown only in ex vivo co-culture; the abstract does not state any tumor-bearing animal study.",
+     "quote": "validated in an ex vivo co-culture with ovarian cancer cells"
+    },
+    {
+     "flag": "No dose reported",
+     "why": "Neither mRNA dose per cell nor in vivo LNP dose is stated.",
+     "quote": null
+    },
+    {
+     "flag": "No durability data",
+     "why": "mRNA-based CAR expression is transient, and the abstract gives no duration of CAR expression or persistence of killing.",
+     "quote": null
+    },
+    {
+     "flag": "No safety or immunogenicity data for the LNP itself",
+     "why": "Viral immunogenicity is the stated rationale, yet no toxicity or immune response data for the oxidized LNP are reported.",
+     "quote": "which is associated with aberrant immunogenicity and toxicity"
+    },
+    {
+     "flag": "Sample sizes and donor numbers unstated",
+     "why": "Primary human macrophage work is donor dependent and the abstract gives no n.",
+     "quote": null
+    },
+    {
+     "flag": "Single tumor model and single antigen",
+     "why": "Only HER2 CAR against ovarian cancer cells is shown despite the claim of broad solid tumor potential.",
+     "quote": "This bioinspired oxidized LNP platform demonstrates potential for engineering a range of human CAR-M immunotherapies to treat various types of solid tumors."
+    },
+    {
+     "flag": "No manufacturing yield or scale data",
+     "why": "Transfection efficiency, cell yield and encapsulation values are not given numerically.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "How long does CAR expression persist in transfected human macrophages, and does tumor killing track that window?",
+    "What transfection efficiency, viability and cell yield are achieved across multiple human donors?",
+    "Does the ex vivo engineered CAR-M control tumor growth in an in vivo solid tumor model, and at what dose?"
+   ],
+   "commercial_note": "A non-viral, mRNA-based route to CAR macrophages could lower manufacturing cost and immunogenicity concerns relative to viral transduction, but the data stop at ex vivo killing with no in vivo efficacy, dosing or durability to support a product claim.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1961,
+    "output": 1520
+   }
+  },
+  {
+   "id": "42444129",
+   "title": "In vivo-directed evolution identifies AAV-WM04 as a next-generation vector for potent and sustained hearing restoration in DFNB9.",
+   "model": "claude-opus-5",
+   "summary": "The authors used in vivo directed evolution in adult mouse cochlea to select an AAV2-derived capsid, AAV-WM04, that transduces inner hair cells efficiently and selectively, and used it in a dual-AAV trans-splicing OTOF construct to restore hearing in a humanized Otof Q829X mouse model of DFNB9.",
+   "modality": "AAV gene therapy (engineered capsid, dual-AAV trans-splicing)",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Novel AAV2-derived capsid AAV-WM04 from a library with 9 amino acid insertions",
+     "quote": "we generated a randomized AAV2 capsid library with 9 amino acid insertions and performed iterative selection in the adult mouse cochlea"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "Full-length OTOF delivered as dual-AAV trans-splicing",
+     "quote": "AAV-WM04 enabled efficient dual-AAV trans-splicing delivery of the large OTOF gene, resulting in uniform full-length otoferlin expression in IHCs"
+    },
+    {
+     "field": "indication",
+     "value": "DFNB9 hereditary hearing loss",
+     "quote": "cross-species applicability for precision gene therapy of hereditary hearing loss"
+    },
+    {
+     "field": "target_tissue",
+     "value": "Cochlear inner hair cells",
+     "quote": "Efficient and cell-specific gene delivery to cochlear inner hair cells (IHCs) remains a major challenge"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Adult mice, humanized OtofQ829X/Q829X mice, and non-human primates",
+     "quote": "In a humanized OtofQ829X/Q829X mouse model, AAV-WM04 restored auditory function"
+    },
+    {
+     "field": "route",
+     "value": "Local delivery to the inner ear (NHP)",
+     "quote": "Selective IHC transduction was observed in non-human primates following local delivery"
+    },
+    {
+     "field": "dose",
+     "value": "Stated only as low or relatively low doses, no numbers",
+     "quote": "restored auditory function across a broad frequency range at relatively low doses"
+    },
+    {
+     "field": "durability",
+     "value": "Described as sustained, no time stated",
+     "quote": "achieved sustained hearing recovery"
+    },
+    {
+     "field": "efficacy",
+     "value": "Near-complete IHC transduction across the cochlear axis in adult mice",
+     "quote": "AAV-WM04 achieved near-complete IHC transduction throughout the cochlear axis in adult mice"
+    },
+    {
+     "field": "safety",
+     "value": "No detectable ototoxicity, minimal off-target expression",
+     "quote": "with minimal off-target expression and no detectable ototoxicity"
+    },
+    {
+     "field": "manufacturing",
+     "value": "Superior packaging efficiency of the variant, no titers given",
+     "quote": "AAV-WM04 exhibited superior packaging efficiency and pronounced IHC tropism"
+    },
+    {
+     "field": "comparator",
+     "value": "Clinically relevant vectors, unnamed",
+     "quote": "outperforming clinically relevant vectors"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No doses given",
+     "why": "Claims of potency at low dose cannot be assessed without vg/ear figures for mouse or NHP.",
+     "quote": "at relatively low doses"
+    },
+    {
+     "flag": "No duration stated",
+     "why": "Sustained hearing recovery is asserted with no follow-up time, so durability is unverifiable.",
+     "quote": "achieved sustained hearing recovery"
+    },
+    {
+     "flag": "No sample sizes",
+     "why": "The abstract does not state the number of animals per group for mouse or NHP work.",
+     "quote": null
+    },
+    {
+     "flag": "No immunogenicity or pre-existing neutralizing antibody data",
+     "why": "An AAV2-derived capsid faces widespread pre-existing immunity; the abstract does not state any anti-capsid or inflammatory assessment.",
+     "quote": null
+    },
+    {
+     "flag": "NHP data limited to transduction",
+     "why": "Only selective transduction is reported in primates, with no safety, biodistribution or functional readout.",
+     "quote": "Selective IHC transduction was observed in non-human primates following local delivery"
+    },
+    {
+     "flag": "Comparator vectors unnamed and unquantified",
+     "why": "Outperformance over clinically relevant vectors is claimed without naming them or giving transduction numbers.",
+     "quote": "outperforming clinically relevant vectors with minimal off-target expression"
+    },
+    {
+     "flag": "Dual-AAV reconstitution efficiency not quantified",
+     "why": "Trans-splicing of large genes often gives partial or truncated product; the abstract gives no percentage of full-length otoferlin or ABR threshold values.",
+     "quote": "resulting in uniform full-length otoferlin expression in IHCs"
+    },
+    {
+     "flag": "No manufacturing yield data",
+     "why": "Packaging efficiency is called superior but no titer, purity or scalability data is stated.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What vector genome doses per cochlea were used in mice and NHPs, and what are the ABR and DPOAE threshold shifts at each dose?",
+    "How long after dosing was hearing measured, and does expression hold beyond several months?",
+    "What anti-AAV2 neutralizing antibody and local inflammatory data exist, given the capsid is AAV2-derived and perilymph is not fully immune privileged?"
+   ],
+   "commercial_note": "A capsid that transduces inner hair cells at low dose in both mouse and non-human primate, paired with a dual-AAV OTOF construct, would be directly relevant to the active OTOF gene therapy race, but with no dose numbers, follow-up duration or immunogenicity data the differentiation claim is not yet supported.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1868,
+    "output": 2181
+   }
+  },
+  {
+   "id": "41651004",
+   "title": "Varnimcabtagene autoleucel for adults with relapsed or refractory B-cell precursor acute lymphoblastic leukaemia in Spain (CART19-BE-02): a multicentre, single-arm, phase 2 trial.",
+   "model": "claude-opus-5-5",
+   "summary": "In a nine-centre Spanish single-arm phase 2 trial, 32 adults with relapsed or refractory B-cell precursor ALL received fractionated CD19 CAR-T (var-cel), and 27 of 32 had a complete response with undetected MRD by day 28, with grade 3 or higher cytokine release syndrome in 12%.",
+   "modality": "Autologous CD19 CAR-T (academic, hospital-produced)",
+   "facts": [
+    {
+     "field": "payload_or_target",
+     "value": "Autologous CD19-directed CAR T cells",
+     "quote": "autologous CD19-directed chimeric antigen receptor (CAR) T-cell therapy"
+    },
+    {
+     "field": "indication",
+     "value": "Relapsed or refractory B-cell precursor acute lymphoblastic leukaemia in adults aged 18-70 years",
+     "quote": "CD19+ B-cell precursor acute lymphoblastic leukaemia in the first relapse or refractory disease"
+    },
+    {
+     "field": "sample_size",
+     "value": "38 enrolled, 37 leukapheresed, 33 lymphodepleted, 32 infused",
+     "quote": "38 were enrolled"
+    },
+    {
+     "field": "route",
+     "value": "Intravenous",
+     "quote": "intravenous fractionated var-cel escalation"
+    },
+    {
+     "field": "dose",
+     "value": "Fractions of 0\u00b71, 0\u00b73, 0\u00b76, and 2\u00b70 \u00d7 106 CAR T cells per kg, at least 24 h apart, each contingent on safety; after fludarabine 30 mg/m2 and cyclophosphamide 300 mg/m2 per day for 3 days",
+     "quote": "(0\u00b71, 0\u00b73, 0\u00b76, and 2\u00b70 \u00d7 106 CAR T cells per kg) separated by at least 24 h"
+    },
+    {
+     "field": "efficacy",
+     "value": "27 of 32 (84\u00b74%, 95% CI 67\u00b72-94\u00b77) had complete response with undetected MRD by day 28",
+     "quote": "27 (84\u00b74% [95% CI 67\u00b72-94\u00b77]) of 32 patients who received at least one dose of var-cel had a complete response with undetected MRD by day 28"
+    },
+    {
+     "field": "durability",
+     "value": "Median follow-up from infusion 8\u00b76 months (IQR 5\u00b71-14\u00b74); no duration of response stated",
+     "quote": "the median follow-up from infusion was 8\u00b76 months (IQR 5\u00b71-14\u00b74)"
+    },
+    {
+     "field": "safety",
+     "value": "Grade 3 or higher: neutropenia 45%, thrombocytopenia 21%, anaemia 15%, CRS 12%; one grade 3 or higher ICANS with cerebral oedema; HLH-like syndrome in two, one fatal",
+     "quote": "cytokine release syndrome in four (12%)"
+    },
+    {
+     "field": "safety",
+     "value": "One death from HLH-like syndrome after infusion during uncontrolled sepsis, a protocol violation",
+     "quote": "one resulted in death after protocol violation due to infusion during uncontrolled sepsis"
+    },
+    {
+     "field": "manufacturing",
+     "value": "Five of 37 leukapheresed patients did not receive product, from progression (3), veno-occlusive disease death (1) and persistent COVID-19 (1)",
+     "quote": "Five patients who underwent leukapheresis did not receive var-cel"
+    },
+    {
+     "field": "comparator",
+     "value": "No comparator arm; single-arm design",
+     "quote": "single-arm, phase 2 trial"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "Short follow-up and no durability endpoints",
+     "why": "The primary endpoint is response at day 28 and median follow-up is 8\u00b76 months. The abstract does not state duration of response, event-free survival or overall survival, which decide value in adult ALL.",
+     "quote": "median follow-up from infusion was 8\u00b76 months"
+    },
+    {
+     "flag": "Efficacy denominator excludes non-infused patients",
+     "why": "The 84\u00b74% is in infused patients only. Intention-to-treat response among the 37 leukapheresed patients is not given in the abstract.",
+     "quote": "assessed in the efficacy population (defined as all patients who received at least one var-cel fraction)"
+    },
+    {
+     "flag": "Small single-arm study",
+     "why": "With 32 infused patients and no control arm, the confidence interval is wide (67\u00b72-94\u00b77) and there is no direct comparison with approved CD19 CAR-T products.",
+     "quote": "27 (84\u00b74% [95% CI 67\u00b72-94\u00b77]) of 32"
+    },
+    {
+     "flag": "Fatal toxicity and HLH-like syndrome",
+     "why": "One treatment-related death and two IEC-HLH cases in 33 patients, plus a protocol violation, raise questions about site execution in a hospital-based model.",
+     "quote": "immune effector cell-associated hemophagocytic lymphohistiocytosis-like syndrome occurred in two (6%"
+    },
+    {
+     "flag": "No manufacturing, vein-to-vein or fractions-received data",
+     "why": "The abstract does not state manufacturing success rate, turnaround time, cost, or how many patients received all four fractions, all of which matter for the access claim.",
+     "quote": null
+    },
+    {
+     "flag": "No CAR-T persistence, CD19-negative relapse or post-treatment HCT data",
+     "why": "The abstract does not state CAR-T expansion or persistence, CD19-negative relapse rates, or how many patients went to consolidative transplant, any of which could affect how the remissions should be read.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What are event-free survival, duration of response and overall survival, and how many responders went on to allogeneic HCT?",
+    "How many patients received all four fractions, and how did response relate to the total dose received?",
+    "What were the manufacturing success rate, vein-to-vein time and cost per patient in the hospital-based process?"
+   ],
+   "commercial_note": "The product is already approved in Spain for patients older than 25 years and is made in an academic, hospital-based setting with public funding, so it may compete on access and price with commercial CD19 CAR-T in Spain, but the abstract gives no cost, scale or durability data to judge wider value.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 2881,
+    "output": 1968
+   }
+  },
+  {
+   "id": "42388231",
+   "title": "Biodegradable lipid nanoparticles for genome editing in the brain via intrathecal administration.",
+   "model": "claude-opus-5",
+   "summary": "The authors screened a 200-member library of biodegradable Passerini-derived ionizable lipids in vivo and identified P3B-LNPs that, given intrathecally, deliver Cas9 mRNA/sgRNA and adenine base editor mRNA to mouse brain, reaching 14.8% on-target correction in LumA reporter mice with better editing and tolerability than MC3.",
+   "modality": "LNP-delivered mRNA genome editing (Cas9 and adenine base editing)",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Biodegradable ionizable lipid nanoparticle, lead lipid P3B from a 200-member library",
+     "quote": "we synthesized a 200-member combinatorial library of structurally diverse, biodegradable ionizable lipids using the Passerini three-component reaction. High-throughput in vivo screening identified P3B"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "Cas9 mRNA plus sgRNA; also adenine base editor mRNA",
+     "quote": "P3B-LNPs encapsulating Cas9 mRNA/sgRNA induced robust and widespread tdTomato expression"
+    },
+    {
+     "field": "indication",
+     "value": "Neurological diseases / CNS genome editing",
+     "quote": "therapeutic genome editing in neurological diseases"
+    },
+    {
+     "field": "target_tissue",
+     "value": "Brain; neurons and astrocytes across multiple regions",
+     "quote": "tdTomato expression in neurons and astrocytes across multiple brain regions"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Ai9 reporter mice and LumA reporter mice",
+     "quote": "In Ai9 reporter mice, P3B-LNPs encapsulating Cas9 mRNA/sgRNA"
+    },
+    {
+     "field": "route",
+     "value": "Intrathecal",
+     "quote": "Intrathecal administration provides a clinically validated route to bypass this barrier"
+    },
+    {
+     "field": "efficacy",
+     "value": "14.8% on-target correction with luciferase restoration in brain; higher editing than MC3",
+     "quote": "restoring luciferase expression throughout the brain with 14.8% on-target correction and minimal off-target activity"
+    },
+    {
+     "field": "safety",
+     "value": "Lower inflammation than MC3, described as supporting repeat dosing",
+     "quote": "enhanced tolerability, with attenuated inflammatory responses and a safety profile supportive of repeated dosing"
+    },
+    {
+     "field": "comparator",
+     "value": "DLin-MC3-DMA (MC3)",
+     "quote": "substantially higher editing efficiency than the clinical benchmark DLin-MC3-DMA (MC3)"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No dose stated",
+     "why": "mRNA dose per intrathecal injection is central to judging potency and translatability, and the abstract gives none.",
+     "quote": null
+    },
+    {
+     "flag": "No durability data",
+     "why": "The abstract reports no time points or persistence of editing or expression after dosing.",
+     "quote": null
+    },
+    {
+     "flag": "Reporter mice only",
+     "why": "Both models are artificial reporters (Ai9 tdTomato, LumA luciferase); no disease model or functional benefit is shown.",
+     "quote": "In LumA reporter mice, P3B-LNPs mediated efficient adenine base editing, restoring luciferase expression throughout the brain"
+    },
+    {
+     "flag": "Modest editing rate",
+     "why": "14.8% on-target correction may be below the threshold needed for many CNS indications, and cell-type distribution of that editing is unstated.",
+     "quote": "14.8% on-target correction"
+    },
+    {
+     "flag": "No sample sizes",
+     "why": "Group sizes for the in vivo screens and efficacy studies are not given.",
+     "quote": null
+    },
+    {
+     "flag": "Safety claims are qualitative",
+     "why": "Tolerability and repeat dosing support are asserted without specific markers, histology, or dosing schedule.",
+     "quote": "a safety profile supportive of repeated dosing"
+    },
+    {
+     "flag": "No large animal data",
+     "why": "Intrathecal volumes and CSF distribution differ greatly between mice and primates, so mouse data may not predict human dosing.",
+     "quote": null
+    },
+    {
+     "flag": "No manufacturing or formulation metrics",
+     "why": "No encapsulation efficiency, particle size, or scale-up or yield data are reported.",
+     "quote": null
+    },
+    {
+     "flag": "Off-target assessment unspecified",
+     "why": "\"Minimal off-target activity\" is stated without naming the method or genome-wide scope.",
+     "quote": "minimal off-target activity"
+    }
+   ],
+   "open_questions": [
+    "What mRNA dose and injection volume were used intrathecally, and how does editing scale with dose?",
+    "How long does editing and luciferase restoration persist, and what does a second dose add?",
+    "What fraction of neurons versus astrocytes in each brain region was edited, and how was off-target editing measured?"
+   ],
+   "commercial_note": "A biodegradable LNP that beats MC3 for intrathecal CNS mRNA editing and tolerates repeat dosing could open redosable nonviral CNS editing, but the data so far are mouse reporter studies with 14.8% correction and no dose, durability, or large animal evidence.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1926,
+    "output": 1689
+   }
+  },
+  {
+   "id": "40825661",
+   "title": "Safety and vision outcomes of subretinal gene supplementation therapy in PDE6A-associated retinitis pigmentosa: a non-randomised controlled trial.",
+   "model": "claude-opus-5-5",
+   "summary": "In an open-label phase I/IIa trial, nine patients with biallelic PDE6A retinitis pigmentosa received a single subretinal injection of AAV8.hPDE6A at one of two doses, and over 1 year visual function did not improve while persistent adverse events included central retinal thinning and visual acuity loss.",
+   "modality": "AAV gene therapy (subretinal gene supplementation)",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "AAV8 vector",
+     "quote": "adeno-associated virus (AAV) vector encoding PDE6A (AAV8.hPDE6A)"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "Human PDE6A gene supplementation",
+     "quote": "AAV8.hPDE6A"
+    },
+    {
+     "field": "indication",
+     "value": "PDE6A-associated retinitis pigmentosa",
+     "quote": "PDE6A-associated retinitis pigmentosa (RP) is a rare inherited retinal disease"
+    },
+    {
+     "field": "target_tissue",
+     "value": "Retina, via subretinal delivery",
+     "quote": "single subretinal injection of AAV8.hPDE6A"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Human patients with biallelic PDE6A variants",
+     "quote": "nine patients with biallelic PDE6A variants"
+    },
+    {
+     "field": "sample_size",
+     "value": "9 patients, 6 at low dose and 3 at high dose",
+     "quote": "Doses were either 1.0\u00d710\u00b9\u2070 (n=6) or 5.0\u00d710\u00b9\u2070 (n=3) total vector genomes"
+    },
+    {
+     "field": "route",
+     "value": "Single subretinal injection",
+     "quote": "received a single subretinal injection"
+    },
+    {
+     "field": "dose",
+     "value": "1.0\u00d710\u00b9\u2070 or 5.0\u00d710\u00b9\u2070 total vector genomes",
+     "quote": "Doses were either 1.0\u00d710\u00b9\u2070 (n=6) or 5.0\u00d710\u00b9\u2070 (n=3) total vector genomes"
+    },
+    {
+     "field": "durability",
+     "value": "Follow-up over 1 year",
+     "quote": "chromatic pupil campimetry over 1 year"
+    },
+    {
+     "field": "efficacy",
+     "value": "No significant change in BCVA, full-field stimulus thresholds or other visual measures; trend toward worse retinal sensitivity in treated eyes",
+     "quote": "showed statistically non-significant changes, with a trend towards worsening of retinal sensitivity in the treated eyes"
+    },
+    {
+     "field": "safety",
+     "value": "No systemic adverse events; most ocular events resolved without treatment",
+     "quote": "No systemic adverse events occurred, and most ocular events resolved without treatment"
+    },
+    {
+     "field": "safety",
+     "value": "Persistent events: peripheral atrophic areas (n=2), disturbed colour discrimination (n=3), cataract (n=1), central retinal thinning (n=5), moderate visual acuity loss (n=2)",
+     "quote": "Persistent adverse events included small peripheral atrophic areas (n=2), disturbed colour discrimination (n=3), cataract (n=1), slight central retinal thinning (n=5) and moderate visual acuity loss (n=2, 1 in each dose group)"
+    },
+    {
+     "field": "comparator",
+     "value": "Non-randomised controlled design; treated eyes compared, implying untreated eyes as control",
+     "quote": "open-label, non-randomised controlled phase I/IIa trial"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No efficacy signal",
+     "why": "Primary visual function measures did not improve and retinal sensitivity trended worse.",
+     "quote": "did not improve visual function over 1 year and posed risks"
+    },
+    {
+     "flag": "Persistent harm to the retina",
+     "why": "Five of nine patients had central retinal thinning and two lost visual acuity, which is a serious concern for a subretinal product.",
+     "quote": "slight central retinal thinning (n=5) and moderate visual acuity loss (n=2, 1 in each dose group)"
+    },
+    {
+     "flag": "Preclinical-to-clinical translation failure",
+     "why": "The authors state the human results contradict the preclinical profile, which questions the predictive value of the models used.",
+     "quote": "This is in contrast to the safety and efficacy profile established in preclinical models."
+    },
+    {
+     "flag": "Very small, open-label, non-randomised study",
+     "why": "Nine patients split unevenly across two doses limits any dose-response or safety conclusions.",
+     "quote": "Doses were either 1.0\u00d710\u00b9\u2070 (n=6) or 5.0\u00d710\u00b9\u2070 (n=3) total vector genomes"
+    },
+    {
+     "flag": "No immunogenicity data",
+     "why": "The abstract does not state anti-AAV8 antibody, T-cell or intraocular inflammation findings, nor whether immunosuppression was used, which could explain the thinning.",
+     "quote": null
+    },
+    {
+     "flag": "No transgene expression or manufacturing data",
+     "why": "The abstract does not state evidence of PDE6A expression or any vector manufacturing or quality data.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What do you think caused the central retinal thinning: surgical detachment, vector toxicity, immune response or PDE6A overexpression, and did it relate to dose?",
+    "Was anti-AAV8 immunity measured and was perioperative corticosteroid immunosuppression given?",
+    "Is there any evidence of PDE6A expression in treated eyes, and how did baseline retinal degeneration stage affect outcomes?"
+   ],
+   "commercial_note": "With no visual benefit at 1 year and persistent retinal thinning and acuity loss, this program as reported offers no commercial basis and raises caution for similar subretinal PDE6 supplementation approaches.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1999,
+    "output": 1839
+   }
+  },
+  {
+   "id": "42149124",
+   "title": "Lipid Nanoparticle-Encapsulated mRNA-2752 Encoding Human OX40L, IL-23, and IL-36\u03b3 plus Durvalumab Induces an Immunostimulatory Effect within the Tumor Microenvironment in Patients with Advanced Solid Tumors.",
+   "model": "claude-opus-5-5",
+   "summary": "In a phase I study of 134 patients with advanced solid tumors, intratumoral LNP mRNA-2752 encoding OX40L, IL-23 and IL-36\u03b3, alone or with durvalumab, did not reach an MTD (expansion dose \u22648 mg selected) and gave a confirmed ORR of 17.9% in 28 patients with CPI-resistant melanoma.",
+   "modality": "LNP mRNA (intratumoral immunomodulator)",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Lipid nanoparticle encapsulated mRNA",
+     "quote": "a lipid nanoparticle\u2012encapsulated, mRNA-based therapeutic"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "mRNA encoding OX40L, IL-36\u03b3 and IL-23",
+     "quote": "encoding OX40L, interleukin 36\u03b3 (IL-36\u03b3), and IL-23"
+    },
+    {
+     "field": "indication",
+     "value": "Advanced solid tumors, with a CPI-resistant melanoma cohort",
+     "quote": "in advanced solid tumors, the primary objectives were safety"
+    },
+    {
+     "field": "route",
+     "value": "Intratumoral",
+     "quote": "intratumoral mRNA-2752 monotherapy (arm A)"
+    },
+    {
+     "field": "comparator",
+     "value": "Combination with durvalumab in arm B; no randomized control",
+     "quote": "mRNA-2752 plus durvalumab (arm B)"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Human patients, phase I (NCT03739931)",
+     "quote": "In this phase I study (NCT03739931)"
+    },
+    {
+     "field": "sample_size",
+     "value": "134 patients: 19 in arm A, 115 in arm B; 28 in CPI-resistant melanoma cohort",
+     "quote": "Among 134 patients (arm A, n = 19 and arm B, n = 115)"
+    },
+    {
+     "field": "dose",
+     "value": "MTD not reached; recommended expansion dose \u22648 mg",
+     "quote": "the MTD was not reached; a recommended dose for expansion of \u22648 mg was selected"
+    },
+    {
+     "field": "safety",
+     "value": "DLTs were two grade II cytokine-release syndrome events in arm B",
+     "quote": "Dose-limiting toxicities included two grade II cytokine-release syndrome events in arm B"
+    },
+    {
+     "field": "safety",
+     "value": "Grade III related AEs in 1 patient (5.3%) in arm A and 29 patients (25.2%) in arm B",
+     "quote": "grade III mRNA-2752-related AEs occurred in 1 patient (5.3%) in arm A and 29 patients (25.2%) in arm B"
+    },
+    {
+     "field": "efficacy",
+     "value": "CPI-resistant melanoma: confirmed ORR 17.9% (95% CI, 6.1%\u201236.9%), DCR 42.9% (95% CI, 24.5%\u201262.8%)",
+     "quote": "the confirmed ORR was 17.9% (95% CI, 6.1%\u201236.9%), and the disease control rate was 42.9% (95% CI, 24.5%\u201262.8%)"
+    },
+    {
+     "field": "efficacy",
+     "value": "Raised peripheral cytokines and sustained TME inflammation, especially in responders",
+     "quote": "Increased peripheral cytokine levels and sustained inflammatory responses in the TME were observed"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "Melanoma ORR pooled across doses with wide CI",
+     "why": "Efficacy is not tied to the selected dose and the interval spans 6.1% to 36.9% in only 28 patients.",
+     "quote": "In the CPI-resistant melanoma cohort (n = 28), across doses"
+    },
+    {
+     "flag": "Combination adds toxicity",
+     "why": "Grade III related AEs were much more frequent in the durvalumab arm (25.2% vs 5.3%), and both DLTs were CRS in that arm.",
+     "quote": "29 patients (25.2%) in arm B"
+    },
+    {
+     "flag": "Cannot separate contribution of mRNA-2752 from durvalumab",
+     "why": "No randomized durvalumab-alone control; ORR is reported only for arm B.",
+     "quote": "in CPI-resistant melanoma (arm B only)"
+    },
+    {
+     "flag": "No response durability reported",
+     "why": "The abstract does not state duration of response, progression-free or overall survival.",
+     "quote": null
+    },
+    {
+     "flag": "No immunogenicity or anti-drug/LNP data",
+     "why": "The abstract does not state antibody responses against the encoded proteins or LNP, relevant for repeat intratumoral dosing.",
+     "quote": null
+    },
+    {
+     "flag": "No monotherapy efficacy figures or other tumor-type results",
+     "why": "The abstract claims activity for monotherapy but gives no response data for arm A or non-melanoma cohorts.",
+     "quote": null
+    },
+    {
+     "flag": "Lesion accessibility and injection schedule not stated",
+     "why": "The abstract does not state dosing frequency or which lesions were injectable, which limits the addressable population.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What was the duration of response and PFS in the CPI-resistant melanoma responders, and what dose did they receive?",
+    "How was CPI resistance defined, and what response would be expected from durvalumab rechallenge alone in this population?",
+    "Were responses seen in non-injected lesions, and were any objective responses seen with monotherapy or in tumor types other than melanoma?"
+   ],
+   "commercial_note": "A 17.9% confirmed ORR in CPI-resistant melanoma with manageable safety gives some basis for an intratumoral mRNA combination in a refractory setting, but the small single-arm cohort, pooled doses and lack of durability data limit how much value can be assigned at this stage.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 2132,
+    "output": 1869
+   }
+  },
+  {
+   "id": "42150080",
+   "title": "A human cardiomyocyte screen identifies optimized lipid nanoparticles for in vivo cardiac gene editing.",
+   "model": "claude-opus-5",
+   "summary": "The authors screened an LNP library on human iPSC-derived cardiomyocytes, identified 18:1 TAP10, mapped its cardiac transfection across four injection routes in Ai14 reporter mice, and used it to deliver adenine base editor components achieving 80% on-target correction in DMD patient hiPSC-CMs and dystrophin-positive cardiomyocytes in a humanized DMD mouse.",
+   "modality": "LNP-delivered mRNA and adenine base editing",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Lead lipid nanoparticle 18:1 TAP10 from a chemically diverse library",
+     "quote": "we identified a lead LNP, 18:1 TAP10, with potent human cardiac transfection capability"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "Cre mRNA for reporter work; adenine base editor components for DMD correction",
+     "quote": "18:1 TAP10 LNP delivery of Cre mRNA in vivo"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "ABE components targeting DMD mutation",
+     "quote": "18:1 TAP10 LNPs were used to deliver adenine base editor (ABE) components to Duchenne muscular dystrophy (DMD) patient-derived hiPSC-CMs"
+    },
+    {
+     "field": "indication",
+     "value": "Duchenne muscular dystrophy, cardiac involvement",
+     "quote": "Duchenne muscular dystrophy (DMD) patient-derived hiPSC-CMs"
+    },
+    {
+     "field": "target_tissue",
+     "value": "Heart, cardiomyocytes and non-CM populations",
+     "quote": "both the spatial distribution and cellular tropism in the heart"
+    },
+    {
+     "field": "cell_source",
+     "value": "Human iPSC-derived cardiomyocytes, including DMD patient-derived",
+     "quote": "human induced pluripotent stem cell-derived cardiomyocytes (hiPSC-CMs)"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Ai14 LoxP-Stop-LoxP-tdTomato reporter mouse and a humanized DMD mouse model",
+     "quote": "Using the Ai14 LoxP-Stop-LoxP-tdTomato reporter mouse model"
+    },
+    {
+     "field": "route",
+     "value": "Four routes compared: IV, intrathoracic, intracoronary, intramyocardial",
+     "quote": "four administration routes (intravenous, intrathoracic, intracoronary, and intramyocardial (IM))"
+    },
+    {
+     "field": "efficacy",
+     "value": "Up to 40% transfection in endothelial cells; IM gave 36% CM transfection at injection site and 13% distally",
+     "quote": "robust transfection across non-CM populations (up to 40% in endothelial cells), IM injection notably enabled substantial CM transfection (36% at injection site, 13% distally)"
+    },
+    {
+     "field": "efficacy",
+     "value": "80% on-target correction and dystrophin restored in DMD hiPSC-CMs",
+     "quote": "resulting in 80% on-target gene correction and restoration of dystrophin expression"
+    },
+    {
+     "field": "efficacy",
+     "value": "Dystrophin-positive cardiomyocytes in injected left ventricle in vivo",
+     "quote": "we observed dystrophin-positive cardiomyocytes in the injected left ventricle following IM administration of LNP-ABE"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No dose reported",
+     "why": "Abstract gives no mRNA or LNP dose for any route, so potency cannot be compared to other cardiac delivery platforms.",
+     "quote": null
+    },
+    {
+     "flag": "In vivo editing reported only qualitatively",
+     "why": "Mouse DMD result is described as dystrophin-positive cells with no editing percentage, protein quantification, or functional readout.",
+     "quote": "we observed dystrophin-positive cardiomyocytes in the injected left ventricle"
+    },
+    {
+     "flag": "Highly invasive route carries the cardiomyocyte signal",
+     "why": "Intramyocardial injection is a surgical procedure and transfection fell from 36% at the site to 13% distally, suggesting limited whole-heart coverage.",
+     "quote": "IM injection notably enabled substantial CM transfection (36% at injection site, 13% distally)"
+    },
+    {
+     "flag": "Off-target editing not addressed",
+     "why": "Base editor work reports on-target correction only, with no mention of genome-wide or bystander off-target analysis.",
+     "quote": null
+    },
+    {
+     "flag": "No safety or immunogenicity data",
+     "why": "Abstract does not state liver or cardiac toxicity, anti-PEG or innate immune responses after LNP dosing.",
+     "quote": null
+    },
+    {
+     "flag": "No durability data",
+     "why": "Abstract gives no time points for persistence of editing or dystrophin expression after dosing.",
+     "quote": null
+    },
+    {
+     "flag": "Sample sizes unstated",
+     "why": "No animal numbers or replicate counts are given for any route or model.",
+     "quote": null
+    },
+    {
+     "flag": "Off-target tissue tropism unquantified",
+     "why": "Reporter data are described for the heart only; liver and spleen uptake, the usual LNP sink, are not reported.",
+     "quote": null
+    },
+    {
+     "flag": "No manufacturing or scale data",
+     "why": "Abstract reports no LNP yield, encapsulation efficiency, or stability information.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What dose, biodistribution to liver and spleen, and tolerability were seen for 18:1 TAP10 at each route?",
+    "What fraction of left ventricular cardiomyocytes were edited and dystrophin-positive in the humanized DMD mouse, and for how long did it persist?",
+    "What is the off-target and bystander editing profile of the ABE cargo in human cardiomyocytes?"
+   ],
+   "commercial_note": "A non-viral, redosable cardiac delivery vehicle with 80% editing in human DMD cardiomyocytes would address a real gap, but the cardiomyocyte benefit depends on intramyocardial injection with sharply lower distal transfection, which limits use to localized rather than whole-heart indications.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1901,
+    "output": 1995
+   }
+  },
+  {
+   "id": "42768752",
+   "title": "LNP-formulated dbDNA vaccines elicit durable humoral and cellular immunity with distinct kinetics to mRNA in non-human primates.",
+   "model": "claude-opus-5",
+   "summary": "A linear closed synthetic DNA (Doggybone, dbDNA) influenza HA vaccine was tested in minipigs, mice and non-human primates, where LNP-formulated dbDNA at 20 ug gave antibody titers that persisted longer than nucleoside-modified mRNA plus stronger CD4+ and CD8+ T cell responses.",
+   "modality": "LNP-formulated synthetic linear DNA (dbDNA) vaccine, compared with mRNA vaccine",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "closed linear synthetic Doggybone DNA, formulated in lipid nanoparticles; also compared with plasmid DNA",
+     "quote": "We evaluated a closed linear synthetic Doggybone DNA vaccine (dbDNA) encoding influenza A/California/07/2009 hemagglutinin across delivery platforms and preclinical models."
+    },
+    {
+     "field": "payload_or_target",
+     "value": "influenza A/California/07/2009 hemagglutinin",
+     "quote": "encoding influenza A/California/07/2009 hemagglutinin"
+    },
+    {
+     "field": "indication",
+     "value": "influenza vaccination / infectious disease",
+     "quote": "Nucleic acid vaccines offer rapid and flexible platforms for addressing infectious diseases"
+    },
+    {
+     "field": "model_or_species",
+     "value": "minipigs, mice and non-human primates",
+     "quote": "across delivery platforms and preclinical models"
+    },
+    {
+     "field": "route",
+     "value": "needle-free intradermal injection or intramuscular electroporation in minipigs",
+     "quote": "when delivered by needle-free intradermal injection or intramuscular electroporation"
+    },
+    {
+     "field": "dose",
+     "value": "20 ug in NHPs",
+     "quote": "both vaccines (delivered as a 20 \u03bcg dose) elicited robust antibody titers"
+    },
+    {
+     "field": "efficacy",
+     "value": "dbDNA matched or beat plasmid DNA in minipigs; mRNA gave higher antibody titers in mice with comparable T cell responses",
+     "quote": "In mice, mRNA vaccines induced higher antibody titers, whereas T cell responses were broadly comparable, though dose-response effects differed."
+    },
+    {
+     "field": "durability",
+     "value": "dbDNA titers persisted while mRNA titers declined shortly after peak in NHPs",
+     "quote": "mRNA responses declined shortly after peak, whereas dbDNA titers persisted"
+    },
+    {
+     "field": "comparator",
+     "value": "plasmid DNA and nucleoside-modified mRNA vaccines",
+     "quote": "Direct comparison of lipid nanoparticle (LNP)-formulated dbDNA with nucleoside-modified mRNA vaccines"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "No challenge or protection data",
+     "why": "Only immunogenicity readouts are reported; the abstract does not state whether animals were protected against influenza infection.",
+     "quote": null
+    },
+    {
+     "flag": "Durability window not quantified",
+     "why": "The claim of durable responses has no stated follow-up time in weeks or months.",
+     "quote": "dbDNA titers persisted"
+    },
+    {
+     "flag": "No group sizes given",
+     "why": "NHP and minipig studies are typically small; the abstract does not state n per group.",
+     "quote": null
+    },
+    {
+     "flag": "No safety or tolerability data",
+     "why": "LNP-DNA can be inflammatory and the only immune safety-relevant mention is a favorable cytokine framing.",
+     "quote": "with an immunostimulatory cytokine profile"
+    },
+    {
+     "flag": "Species-inconsistent results",
+     "why": "mRNA outperformed dbDNA on antibody titers in mice while the opposite ranking is claimed in NHPs, so the benefit may be model dependent.",
+     "quote": "In mice, mRNA vaccines induced higher antibody titers"
+    },
+    {
+     "flag": "No manufacturing or yield data",
+     "why": "Enzymatic dbDNA production scale, purity and cost are central to the platform claim but are not stated.",
+     "quote": null
+    },
+    {
+     "flag": "No data on anti-DNA responses or genomic persistence",
+     "why": "DNA vaccines raise integration and persistence questions that the abstract does not address.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "How many weeks or months after dosing were antibody titers measured, and what was the n per group in the NHP study?",
+    "What safety, reactogenicity and biodistribution or persistence data were collected for LNP-dbDNA?",
+    "Does the durable response translate into protection in a challenge model, and how do HAI or neutralizing titers compare quantitatively?"
+   ],
+   "commercial_note": "If dbDNA truly gives longer-lasting and more functional responses than mRNA at the same 20 ug dose in primates, it could compete as a nucleic acid vaccine backbone, but with no protection, safety or manufacturing data in the abstract the case rests on immunogenicity alone.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 1835,
+    "output": 1587
+   }
+  },
+  {
+   "id": "41931046",
+   "title": "Base Editing of HBG1 and HBG2 Promoters for Sickle Cell Disease.",
+   "model": "claude-opus-5",
+   "summary": "In an unplanned interim analysis of a phase 1-2 trial, 31 patients with sickle cell disease received a single infusion of autologous base-edited CD34+ cells (risto-cel) targeting the HBG1/HBG2 promoters, with mean on-target editing of 67.4%, HbF above 60% of total hemoglobin at 6 months, no reported severe vaso-occlusive crises after day 60 post-transfusion, and one death from idiopathic pneumonia syndrome.",
+   "modality": "Ex vivo base editing of autologous CD34+ hematopoietic stem and progenitor cells",
+   "facts": [
+    {
+     "field": "vector_or_vehicle",
+     "value": "Autologous CD34+ HSPCs base-edited ex vivo",
+     "quote": "Ristoglogene autogetemcel (risto-cel) includes autologous CD34+ hematopoietic stem and progenitor cells that have been base-edited to target the HBG1 and HBG2 promoters"
+    },
+    {
+     "field": "payload_or_target",
+     "value": "HBG1 and HBG2 promoters, blocking BCL11A binding without changing BCL11A expression",
+     "quote": "base-edited to target the HBG1 and HBG2 promoters and inhibit BCL11A binding without altering BCL11A expression"
+    },
+    {
+     "field": "indication",
+     "value": "Sickle cell disease with at least four severe VOCs in prior 2 years, ages 12 to 35",
+     "quote": "we enrolled patients 12 to 35 years of age with sickle cell disease who had had at least four severe vaso-occlusive crises in the 2 years before enrollment"
+    },
+    {
+     "field": "cell_source",
+     "value": "Autologous CD34+ cells, median one collection cycle (range one to five)",
+     "quote": "A median of one cycle (range, one to five) was required for stem-cell collection."
+    },
+    {
+     "field": "model_or_species",
+     "value": "Human phase 1-2 trial",
+     "quote": "In this phase 1-2 study"
+    },
+    {
+     "field": "sample_size",
+     "value": "31 patients dosed; hemoglobin data from 13 patients",
+     "quote": "A total of 31 patients received risto-cel"
+    },
+    {
+     "field": "route",
+     "value": "Single intravenous infusion after myeloablative busulfan conditioning",
+     "quote": "After myeloablative conditioning with pharmacokinetically guided administration of busulfan, patients received a single infusion of risto-cel"
+    },
+    {
+     "field": "dose",
+     "value": "at least 3.0x10^6 viable CD34+ cells per kg",
+     "quote": "at a dose of \u22653.0\u00d7106 viable CD34+ cells per kilogram of body weight"
+    },
+    {
+     "field": "durability",
+     "value": "Mean follow-up 6.6 months (range 0.3 to 20.4); levels maintained throughout follow-up",
+     "quote": "followed for a mean of 6.6 months (range, 0.3 to 20.4)"
+    },
+    {
+     "field": "efficacy",
+     "value": "67.4% mean on-target edited alleles, HbF >60%, HbS <40% at 6 months in 13 patients; no severe VOCs after day 60",
+     "quote": "the mean fraction of on-target edited alleles in peripheral blood was 67.4%, the mean HbF as a fraction of total hemoglobin was more than 60%, and the HbS as a fraction of total hemoglobin was less than 40% (among 13 patients)"
+    },
+    {
+     "field": "safety",
+     "value": "One death from idiopathic pneumonia syndrome; 87% grade 3 or higher AEs; 39% serious AEs",
+     "quote": "One patient died from idiopathic pneumonia syndrome. All 31 patients had at least one adverse event, 27 (87%) had an adverse event of grade 3 or higher, and 12 (39%) had a serious adverse event."
+    },
+    {
+     "field": "manufacturing",
+     "value": "Neutrophil engraftment median 17.5 days, platelet engraftment median 19 days",
+     "quote": "Neutrophil engraftment occurred at a median of 17.5 days, and platelet engraftment at a median of 19 days."
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "Unplanned interim analysis",
+     "why": "Data cut was not prespecified, which weakens the statistical interpretation and invites selective reporting.",
+     "quote": "This interim analysis was unplanned"
+    },
+    {
+     "flag": "Primary endpoint not yet met at this cut",
+     "why": "The 12 consecutive months free of severe VOC endpoint is not reported as achieved; only crisis counts are described.",
+     "quote": "The primary efficacy end point was freedom from severe vaso-occlusive crises for 12 consecutive months"
+    },
+    {
+     "flag": "One treatment-period death",
+     "why": "Idiopathic pneumonia syndrome is a known busulfan conditioning risk and a death in 31 patients is material.",
+     "quote": "One patient died from idiopathic pneumonia syndrome."
+    },
+    {
+     "flag": "Short follow-up relative to a one-time curative claim",
+     "why": "Mean 6.6 months with some patients at 0.3 months does not establish durability of edited stem cell output over years.",
+     "quote": "followed for a mean of 6.6 months (range, 0.3 to 20.4)"
+    },
+    {
+     "flag": "Hemoglobin outcomes from a subset only",
+     "why": "Only 13 of 31 patients contributed the 6 month HbF and HbS data, so the efficacy denominator is small.",
+     "quote": "(among 13 patients)"
+    },
+    {
+     "flag": "No off-target or bystander editing data",
+     "why": "Base editors carry DNA and RNA off-target risk; the abstract states on-target editing only and does not report off-target assessment.",
+     "quote": null
+    },
+    {
+     "flag": "No comparator",
+     "why": "Single-arm design with no control or benchmark against gene therapies or exa-cel; the abstract does not state one.",
+     "quote": null
+    },
+    {
+     "flag": "Myeloablative conditioning burden retained",
+     "why": "Busulfan conditioning drives most toxicity and limits eligible population; no conditioning-sparing approach is described.",
+     "quote": "After myeloablative conditioning with pharmacokinetically guided administration of busulfan"
+    },
+    {
+     "flag": "No manufacturing success rate or product release data",
+     "why": "Drop-out at collection or manufacture affects commercial feasibility and the abstract does not state it beyond collection cycles.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What off-target and bystander editing was detected in the drug product and in engrafted cells, and by what assay?",
+    "How many patients have reached the 12 month VOC-free primary endpoint, and what are hemoglobin and editing levels at 12 and 24 months?",
+    "What fraction of enrolled patients failed mobilization or manufacturing release, and what were the drug product editing rates and CD34+ yields?"
+   ],
+   "commercial_note": "Sponsored by Beam Therapeutics, the data show a single-infusion autologous product with high editing and HbF levels and no reported severe crises after engraftment, but the value depends on durability past 12 months and on the busulfan conditioning toxicity seen here, including one death.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 2201,
+    "output": 2305
+   }
+  },
+  {
+   "id": "41625963",
+   "title": "REGENECYTE cord blood cell therapy in post-COVID syndrome: a phase IIa randomized, placebo-controlled trial.",
+   "model": "claude-opus-5-5",
+   "summary": "In a single-blind, placebo-controlled phase IIa trial, 30 adults with post-COVID syndrome were randomized 2:1 to three intravenous infusions of unmatched allogeneic cord blood hematopoietic progenitor cells (REGENECYTE) or placebo, with few mild adverse events and reported improvement in fatigue scores versus placebo.",
+   "modality": "allogeneic cord blood hematopoietic progenitor cell therapy",
+   "facts": [
+    {
+     "field": "cell_source",
+     "value": "Allogeneic cord blood-derived hematopoietic progenitor cells, different donors, no HLA matching",
+     "quote": "repeated intravenous infusions of REGENECYTE from different donors (without HLA matching)"
+    },
+    {
+     "field": "indication",
+     "value": "Post-COVID syndrome, focus on fatigue",
+     "quote": "in patients with post-COVID syndrome"
+    },
+    {
+     "field": "model_or_species",
+     "value": "Adults aged 18-65 years in the USA with persistent symptoms 6 to 18 months",
+     "quote": "Eligible adults aged 18-65 years had persistent post-COVID symptoms between 6 and 18 months"
+    },
+    {
+     "field": "sample_size",
+     "value": "30 patients enrolled and completed, randomized 2:1",
+     "quote": "30 eligible patients were enrolled and completed the study"
+    },
+    {
+     "field": "route",
+     "value": "Intravenous infusion",
+     "quote": "repeated intravenous infusions of REGENECYTE"
+    },
+    {
+     "field": "dose",
+     "value": "At least 1 \u00d7 107 TNC/kg per dose, three infusions 3 weeks apart, cumulative at least 3 \u00d7 107 TNC/kg",
+     "quote": "Each dose of REGENECYTE contains at least 1 \u00d7 107 total nucleated cells (TNC)/kg, with a cumulative dose of at least 3 \u00d7 107 TNC/kg per patient"
+    },
+    {
+     "field": "durability",
+     "value": "20-week follow-up after the dosing period",
+     "quote": "followed by a 20-week follow-up"
+    },
+    {
+     "field": "safety",
+     "value": "2 patients (10%) in the treatment group had mild treatment-emergent adverse events",
+     "quote": "Only 2 patients (10%) in the REGENECYTE group experienced mild treatment-emergent adverse events (TEAEs)"
+    },
+    {
+     "field": "efficacy",
+     "value": "Improvement in fatigue on CFQ-11 Bimodal and Likert scores versus placebo; p-value truncated in abstract",
+     "quote": "REGENECYTE significantly and sustainably improved fatigue symptoms, as measured by CFQ-11 Bimodal and Likert scores, compared to placebo"
+    },
+    {
+     "field": "comparator",
+     "value": "Placebo",
+     "quote": "Participants were randomized into a 2:1 ratio to receive either REGENECYTE or placebo"
+    }
+   ],
+   "red_flags": [
+    {
+     "flag": "Single-blind design with subjective endpoint",
+     "why": "Fatigue is self-reported via questionnaire; single-blind design leaves room for investigator bias in a placebo-sensitive condition.",
+     "quote": "randomized, single-blind, placebo-controlled, phase IIa trial"
+    },
+    {
+     "flag": "Small sample size",
+     "why": "About 20 treated and 10 placebo patients is too few for firm efficacy or safety conclusions.",
+     "quote": "30 eligible patients were enrolled and completed the study"
+    },
+    {
+     "flag": "Effect size and p-value not reported",
+     "why": "The abstract text is cut off at the p-value and gives no magnitude of change, so clinical meaning cannot be judged.",
+     "quote": "compared to placebo (p InterpretationREGENECYTE"
+    },
+    {
+     "flag": "No immunogenicity or alloimmune data",
+     "why": "Repeat infusions from different HLA-unmatched donors raise questions about alloantibody formation and sensitization; the abstract does not state any immunologic monitoring.",
+     "quote": null
+    },
+    {
+     "flag": "Placebo-arm adverse events not stated",
+     "why": "The abstract does not state the adverse event rate in the placebo group, so the safety comparison is incomplete.",
+     "quote": null
+    },
+    {
+     "flag": "Sponsor-funded",
+     "why": "Funded by the product's company, which warrants independent replication.",
+     "quote": "FundingStemCyte International, Ltd."
+    },
+    {
+     "flag": "No mechanism or manufacturing data",
+     "why": "The abstract does not state a proposed mechanism, cell characterization, potency assay or lot-to-lot consistency.",
+     "quote": null
+    }
+   ],
+   "open_questions": [
+    "What were the actual effect sizes and p-values on CFQ-11, and did exploratory endpoints (frailty, quality of life, cognition) change versus placebo?",
+    "Were donor-specific HLA antibodies or other immune responses measured after repeated unmatched infusions?",
+    "What is the proposed mechanism, and what potency and release criteria define each lot beyond total nucleated cell count?"
+   ],
+   "commercial_note": "Post-COVID fatigue has no approved treatments and affects many people, so a tolerable off-the-shelf allogeneic product could have a market, but a 30-patient single-blind trial with a self-reported endpoint gives a weak basis for value.",
+   "dropped": {
+    "facts": 0,
+    "red_flags": 0
+   },
+   "usage": {
+    "input": 2326,
+    "output": 1690
+   }
+  }
+ ],
+ "tokens": {
+  "input": 21030,
+  "output": 18643
+ },
+ "cost_usd": 0.5251,
+ "cost_per_paper_usd": 0.0525,
+ "prices_per_million": {
+  "claude-opus-5-5": [
+   4.0,
+   20.0
+  ],
+  "claude-opus-5": [
+   5.0,
+   25.0
+  ],
+  "claude-opus-4-8": [
+   5.0,
+   25.0
+  ]
+ }
+}
