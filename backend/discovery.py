@@ -29,6 +29,13 @@ import unicodedata
 MODEL_PATH = pathlib.Path(__file__).resolve().parent / "discovery_models" / "paper_scores.json.gz"
 LABS_SEED = pathlib.Path(__file__).resolve().parents[1] / "data" / "discovery" / "labs_seed.ndjson"
 
+# Which papers are read at all: these terms in the title or abstract, at Europe PMC. The
+# scores were trained on papers chosen this way and the daily fetch chooses the same way.
+TERMS = ("gene therapy", "cell therapy", "CAR-T", "CAR T", "chimeric antigen receptor",
+         "AAV", "adeno-associated", "lentiviral vector", "base editing", "prime editing",
+         "genome editing", "gene editing", "lipid nanoparticle")
+QUERY = "(" + " OR ".join(f'TITLE_ABS:"{t}"' for t in TERMS) + ")"
+
 # What the title and abstract are searched for. The scores were trained with exactly these,
 # so a change here needs the models exported again.
 RULES = {
@@ -172,6 +179,79 @@ def text_sha(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
 
 
+def _plain(text) -> str:
+    """Lower case, accents dropped, anything that is not a letter or digit a space."""
+    text = unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", text.lower()).split())
+
+
+_UNIT = re.compile(r"(?i)^(department|dept|division|section|laboratory|lab|program|"
+                   r"programme|unit|faculty|graduate school|school of|college of)\b")
+_PLACES = (r"universit", r"hospital|institut|college|clinic|academy|foundation|"
+           r"medical cent|cancer cent|school of medicine|medical school")
+
+
+def institution_of(address):
+    """The part of a printed address that names the institution, or None where no part
+    reads as one. "Department of Genetics, Stanford University, Stanford, CA" gives
+    "Stanford University"."""
+    parts = [part.strip(" .") for part in re.split(r"[,;]", str(address or ""))
+             if part.strip(" .")]
+    for wanted in _PLACES:
+        for part in parts:
+            if re.search(wanted, part, re.I) and not _UNIT.search(part):
+                return part[:90]
+    for part in parts:
+        if COMPANY.search(part) and not NOT_COMPANY.search(part):
+            return part[:90]
+    return None
+
+
+class LabIndex:
+    """The seeded lab heads, looked up by a senior author's name and address.
+
+    A name alone is not a person. With an address, a lab is matched only when one lab of
+    that name has an institution the address names; with no address, which is how
+    Europe PMC carries most preprints, only when the name belongs to one lab alone."""
+
+    BY_INSTITUTION = "name and institution"
+    BY_NAME = "name only, one ranked lab of that name"
+
+    def __init__(self, labs):
+        self.labs = {}
+        self._by_key: dict = {}
+        for lab in labs:
+            row = dict(lab)
+            for column in ("name_keys", "institutions", "modalities"):
+                if isinstance(row.get(column), str):
+                    row[column] = json.loads(row[column])
+            row["_places"] = [name for name in map(_plain, row.get("institutions") or [])
+                              if len(name) >= 6]
+            self.labs[row["id"]] = row
+            for key in row.get("name_keys") or []:
+                self._by_key.setdefault(key, []).append(row)
+
+    def __len__(self):
+        return len(self.labs)
+
+    def match(self, first, last, addresses):
+        """(lab id, how it was matched) or (None, None)."""
+        named = self._by_key.get(name_key(first, last) or "", [])
+        if not named:
+            return None, None
+        where = [f" {_plain(a)} " for a in addresses or [] if a and str(a).strip()]
+        if not where:
+            return (named[0]["id"], self.BY_NAME) if len(named) == 1 else (None, None)
+        there = [lab for lab in named
+                 if any(f" {place} " in address for place in lab["_places"]
+                        for address in where)]
+        return (there[0]["id"], self.BY_INSTITUTION) if len(there) == 1 else (None, None)
+
+
+def lab_index(conn) -> LabIndex:
+    return LabIndex(conn.execute("SELECT * FROM discovery_labs").fetchall())
+
+
 class Scorer:
     """The two paper scores, from the exported weights."""
 
@@ -269,7 +349,7 @@ def top_share(pct):
     """0.97 -> "top 3%". Nothing is ever shown as better than the top 1%."""
     if pct is None:
         return None
-    return f"top {max(1, math.ceil((1 - pct) * 100))}%"
+    return f"top {max(1, math.ceil(round((1 - pct) * 100, 6)))}%"
 
 
 def load_labs(conn, path=None) -> int:

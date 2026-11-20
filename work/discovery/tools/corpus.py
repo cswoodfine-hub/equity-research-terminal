@@ -16,10 +16,8 @@ import urllib.parse
 import urllib.request
 
 SEARCH = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-TERMS = ("gene therapy", "cell therapy", "CAR-T", "CAR T", "chimeric antigen receptor",
-         "AAV", "adeno-associated", "lentiviral vector", "base editing", "prime editing",
-         "genome editing", "gene editing", "lipid nanoparticle")
-QUERY = "(" + " OR ".join(f'TITLE_ABS:"{t}"' for t in TERMS) + ")"
+sys.path.append(str(pathlib.Path(__file__).resolve().parents[3] / "backend"))
+from discovery import QUERY  # noqa: E402  the same selection the daily fetch makes
 
 
 def _get(params):
