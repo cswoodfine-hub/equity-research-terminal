@@ -1,0 +1,231 @@
+{
+ "version": "6.9",
+ "hitCount": 2,
+ "nextCursorMark": null,
+ "request": {
+  "queryString": "SRC:PPR AND (TITLE_ABS:\"gene therapy\" OR TITLE_ABS:\"cell therapy\" OR TITLE_ABS:\"CAR-T\" OR TITLE_ABS:\"CAR T\" OR TITLE_ABS:\"chimeric antigen receptor\" OR TITLE_ABS:\"AAV\" OR TITLE_ABS:\"adeno-associated\" OR TITLE_ABS:\"lentiviral vector\" OR TITLE_ABS:\"base editing\" OR TITLE_ABS:\"prime editing\" OR TITLE_ABS:\"genome editing\" OR TITLE_ABS:\"gene editing\" OR TITLE_ABS:\"lipid nanoparticle\") AND FIRST_PDATE:[2026-10-30 TO 2027-12-31]",
+  "resultType": "core",
+  "cursorMark": "*",
+  "pageSize": 1000,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": [
+   {
+    "id": "PPR1355809",
+    "source": "PPR",
+    "doi": "10.64898/2026.10.24.761515",
+    "title": "CD19-CAR T cells reset the EBV  <sup>+</sup>  autoreactive B cell repertoire in autoimmune disease",
+    "authorString": "Courtney Y, Pandit M, van Dam LS, Younis S, Rasouli S, Zhang M, Chaichian Y, Parsafar S, Lanz TV, Arends EJ, van Kooten C, Teng YO, Hagen M, Wirsching A, Müller F, Mackensen A, Bozec A, Grieshaber-Bouyer R, Schett G, Robinson WH.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Courtney Y",
+       "lastName": "Courtney",
+       "firstName": "Ya’el",
+       "initials": "Y"
+      },
+      {
+       "fullName": "Pandit M",
+       "lastName": "Pandit",
+       "firstName": "Mahesh",
+       "initials": "M"
+      },
+      {
+       "fullName": "van Dam LS",
+       "lastName": "van Dam",
+       "firstName": "Laura",
+       "initials": "LS"
+      },
+      {
+       "fullName": "Younis S",
+       "lastName": "Younis",
+       "firstName": "Shady",
+       "initials": "S"
+      },
+      {
+       "fullName": "Rasouli S",
+       "lastName": "Rasouli",
+       "firstName": "Sajede",
+       "initials": "S"
+      },
+      {
+       "fullName": "Zhang M",
+       "lastName": "Zhang",
+       "firstName": "Mengrui",
+       "initials": "M"
+      },
+      {
+       "fullName": "Chaichian Y",
+       "lastName": "Chaichian",
+       "firstName": "Yashaar",
+       "initials": "Y"
+      },
+      {
+       "fullName": "Parsafar S",
+       "lastName": "Parsafar",
+       "firstName": "Shima",
+       "initials": "S"
+      },
+      {
+       "fullName": "Lanz TV",
+       "lastName": "Lanz",
+       "firstName": "Tobias",
+       "initials": "TV"
+      },
+      {
+       "fullName": "Arends EJ",
+       "lastName": "Arends",
+       "firstName": "Eline",
+       "initials": "EJ"
+      },
+      {
+       "fullName": "van Kooten C",
+       "lastName": "van Kooten",
+       "firstName": "Cees",
+       "initials": "C"
+      },
+      {
+       "fullName": "Teng YO",
+       "lastName": "Teng",
+       "firstName": "Y.K. Onno",
+       "initials": "YO"
+      },
+      {
+       "fullName": "Hagen M",
+       "lastName": "Hagen",
+       "firstName": "Melanie",
+       "initials": "M"
+      },
+      {
+       "fullName": "Wirsching A",
+       "lastName": "Wirsching",
+       "firstName": "Andreas",
+       "initials": "A"
+      },
+      {
+       "fullName": "Müller F",
+       "lastName": "Müller",
+       "firstName": "Fabian",
+       "initials": "F"
+      },
+      {
+       "fullName": "Mackensen A",
+       "lastName": "Mackensen",
+       "firstName": "Andreas",
+       "initials": "A"
+      },
+      {
+       "fullName": "Bozec A",
+       "lastName": "Bozec",
+       "firstName": "Aline",
+       "initials": "A"
+      },
+      {
+       "fullName": "Grieshaber-Bouyer R",
+       "lastName": "Grieshaber-Bouyer",
+       "firstName": "Ricardo",
+       "initials": "R"
+      },
+      {
+       "fullName": "Schett G",
+       "lastName": "Schett",
+       "firstName": "Georg",
+       "initials": "G"
+      },
+      {
+       "fullName": "Robinson WH",
+       "lastName": "Robinson",
+       "firstName": "William",
+       "initials": "WH"
+      }
+     ]
+    },
+    "bookOrReportDetails": {
+     "publisher": "bioRxiv",
+     "yearOfPublication": 2026
+    },
+    "pubTypeList": {
+     "pubType": [
+      "Preprint"
+     ]
+    },
+    "abstractText": "Epstein-Barr virus (EBV) reprograms autoreactive B cells into activated antigen-presenting cells that drive pathogenic T- and B-cell responses in autoimmune disease.  1–4 Whether eliminating these cells contributes to durable remission after CD19 chimeric antigen receptor (CAR) T-cell therapy  5–7 is unknown. Here, using EBV B-cell sequencing (EBV-seq)  3 , we profiled EBV  + B cells from patients treated with CD19-CAR T cells (systemic lupus erythematosus, n=6; inflammatory myopathy, n=3; systemic sclerosis, n=3) or rituximab (n=15) and recombinantly expressed their antibodies to define antigen specificity. At baseline, EBV  + B cells were enriched relative to healthy donors, class-switched and hypermutated, expressed the latency III program with heightened antigen-presentation signatures, and encoded autoantibodies. CAR T cells, but not rituximab, depleted EBV  + B cells and shifted the reconstituted repertoire towards IgM  + , minimally mutated, largely non-autoreactive cells, consistent with infection of newly generated B cells. After rituximab, EBV  + B cells retained a class-switched, hypermutated and autoreactive with an activated antigen-presenting phenotype. Sustained drug-free remission occurred in 8/12 CAR T-cell-treated versus 0/15 rituximab-treated patients.  In vitro , EBV  + B cells resisted anti-CD20 and anti-CD19 antibodies but were killed by CAR T cells and a CD19 T-cell engager. Our findings suggest resetting the EBV  + autoreactive B-cell repertoire contributes to sustained drug-free remission.",
+    "firstIndexDate": "2026-11-03",
+    "firstPublicationDate": "2026-11-02",
+    "isOpenAccess": "N",
+    "license": "cc by",
+    "pubYear": "2026"
+   },
+   {
+    "id": "PPR1363655",
+    "source": "PPR",
+    "doi": "10.64898/2026.11.08.762395",
+    "title": "Dual CD40/CD28 co-stimulation reprograms the solid-tumor microenvironment to unleash CAR-T and endogenous anti-tumor immunity",
+    "authorString": "Zi Z, Han C, Yang F, Wang J, Zhu G, Liu X, Zhao Y.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Zi Z",
+       "lastName": "Zi",
+       "firstName": "Zhenguo",
+       "initials": "Z"
+      },
+      {
+       "fullName": "Han C",
+       "lastName": "Han",
+       "firstName": "Cong",
+       "initials": "C"
+      },
+      {
+       "fullName": "Yang F",
+       "lastName": "Yang",
+       "firstName": "Fei",
+       "initials": "F"
+      },
+      {
+       "fullName": "Wang J",
+       "lastName": "Wang",
+       "firstName": "Jie",
+       "initials": "J"
+      },
+      {
+       "fullName": "Zhu G",
+       "lastName": "Zhu",
+       "firstName": "Gengzheng",
+       "initials": "G"
+      },
+      {
+       "fullName": "Liu X",
+       "lastName": "Liu",
+       "firstName": "Xiaojun",
+       "initials": "X"
+      },
+      {
+       "fullName": "Zhao Y",
+       "lastName": "Zhao",
+       "firstName": "Yangbing",
+       "initials": "Y"
+      }
+     ]
+    },
+    "bookOrReportDetails": {
+     "publisher": "bioRxiv",
+     "yearOfPublication": 2026
+    },
+    "pubTypeList": {
+     "pubType": [
+      "Preprint"
+     ]
+    },
+    "abstractText": "Chimeric antigen receptor (CAR) T-cell therapy has shown limited efficacy against solid tumors, owing to poor T-cell persistence, an immunosuppressive tumor microenvironment (TME) and cancer immune evasion. Here we describe LACO-Stim (lymphocytes-APC co-stimulator), a chimeric co-stimulatory molecule composed of an agonistic anti-CD40 single-chain variable fragment (scFv) and the CD28 intracellular signaling domain, such that a single molecule activates CD40-expressing antigen-presenting cells while delivering CD28 co-stimulation to the T cell that bears it. Co-expressed with a 4-1BB-based CAR (LACO-CAR-T), it enhanced anti-tumor activity in vitro and achieved durable tumor regression rather than transient control in xenograft and immunocompetent models. In immunocompetent hosts, LACO-CAR-T activated dendritic cells, reprogrammed tumor macrophages toward M1-like, antigen-presenting states, and induced epitope spreading with endogenous CD8  + T-cell responses against tumor neoantigens. Single-cell transcriptomics and RNA-velocity analysis revealed coordinated immune remodeling: T cells shifted toward a more stem-like, less terminally exhausted state, regulatory T cells declined in frequency and suppressive function, and myeloid cells acquired antigen-presentation programs while excessive inflammatory and suppressive signaling was restrained. LACO-Stim further synergized with anti-PD-1 blockade to control tumor growth. LACO-Stim thus enables CAR-T cells to coordinate intrinsic T-cell reinforcement with extrinsic immune reprogramming, converting an immunosuppressive TME into a de-inflamed (reduced inflammatory signaling), de-suppressed rather than merely armed niche that supports endogenous anti-tumor immunity.",
+    "firstIndexDate": "2026-11-11",
+    "firstPublicationDate": "2026-11-10",
+    "isOpenAccess": "N",
+    "license": "cc by",
+    "pubYear": "2026"
+   }
+  ]
+ }
+}

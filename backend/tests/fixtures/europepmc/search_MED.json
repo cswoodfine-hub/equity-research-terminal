@@ -1,0 +1,1132 @@
+{
+ "version": "6.9",
+ "hitCount": 7,
+ "nextCursorMark": null,
+ "request": {
+  "queryString": "SRC:MED AND (TITLE_ABS:\"gene therapy\" OR TITLE_ABS:\"cell therapy\" OR TITLE_ABS:\"CAR-T\" OR TITLE_ABS:\"CAR T\" OR TITLE_ABS:\"chimeric antigen receptor\" OR TITLE_ABS:\"AAV\" OR TITLE_ABS:\"adeno-associated\" OR TITLE_ABS:\"lentiviral vector\" OR TITLE_ABS:\"base editing\" OR TITLE_ABS:\"prime editing\" OR TITLE_ABS:\"genome editing\" OR TITLE_ABS:\"gene editing\" OR TITLE_ABS:\"lipid nanoparticle\") AND FIRST_PDATE:[2026-10-30 TO 2027-12-31] AND NOT PUB_TYPE:\"Review\"",
+  "resultType": "core",
+  "cursorMark": "*",
+  "pageSize": 1000,
+  "sort": "",
+  "synonym": false
+ },
+ "resultList": {
+  "result": [
+   {
+    "id": "42969556",
+    "source": "MED",
+    "pmid": "42969556",
+    "doi": "10.1093/jvimsj/aalag283",
+    "title": "Bendamustine induces peripheral lymphodepletion in dogs with relapsed lymphoma.",
+    "authorString": "Lenz JA, Upton L, Ma J, Talone MM, Peng B, Jiang L, Ghanian A, Didehvar D, Yang E, Fraietta JA, Atherton MJ.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Lenz JA",
+       "lastName": "Lenz",
+       "firstName": "Jennifer A",
+       "initials": "JA",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Upton L",
+       "lastName": "Upton",
+       "firstName": "Laurel",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Ma J",
+       "lastName": "Ma",
+       "firstName": "Jonathan",
+       "initials": "J",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Talone MM",
+       "lastName": "Talone",
+       "firstName": "Mia M",
+       "initials": "MM",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Peng B",
+       "lastName": "Peng",
+       "firstName": "Brandon",
+       "initials": "B",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Biomedical Sciences, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Jiang L",
+       "lastName": "Jiang",
+       "firstName": "Lang",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Ghanian A",
+       "lastName": "Ghanian",
+       "firstName": "Audrey",
+       "initials": "A",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Didehvar D",
+       "lastName": "Didehvar",
+       "firstName": "Dillon",
+       "initials": "D",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Yang E",
+       "lastName": "Yang",
+       "firstName": "Ester",
+       "initials": "E",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Fraietta JA",
+       "lastName": "Fraietta",
+       "firstName": "Joseph A",
+       "initials": "JA",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Microbiology, Perelman School of Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         },
+         {
+          "affiliation": "Center for Cellular Immunotherapies, Perelman School of Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         },
+         {
+          "affiliation": "Department of Pathology and Laboratory Medicine, Perelman School of Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Atherton MJ",
+       "lastName": "Atherton",
+       "firstName": "Matthew J",
+       "initials": "MJ",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Clinical Sciences and Advanced Medicine, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         },
+         {
+          "affiliation": "Department of Biomedical Sciences, School of Veterinary Medicine, University of Pennsylvania, Philadelphia, PA, United States."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "Journal of veterinary internal medicine"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Journal Article"
+     ]
+    },
+    "abstractText": "<h4>Background</h4>Chimeric antigen receptor (CAR) T-cell therapy has improved outcomes for many human patients with B-cell lymphoma and provides a rational template for analogous canine patients. To date, the expansion, persistence, and activity of CAR T cells in dogs have been limited. Lymphodepletion supports CAR T-cell engraftment and antitumor activity. In human medical oncology, bendamustine has emerged as a well-tolerated lymphodepleting agent. However, prospective use of bendamustine for dogs with lymphoma has not been characterized.<h4>Hypothesis/objectives</h4>To determine the lymphodepleting activity and tolerability of bendamustine in dogs with relapsed lymphoma. Secondary objectives included monitoring serum cytokines and short-term changes in peripheral tumor burden.<h4>Animals</h4>Eleven client-owned dogs with relapsed lymphoma.<h4>Methods</h4>Luminescent assays were used to assess the direct cytotoxic activity of bendamustine against canine lymphoid cell lines. A prospective rapid dose-escalation pilot trial was undertaken in 11 dogs with relapsed lymphoma to evaluate tolerability while tracking peripheral lymphocyte counts, serum cytokine concentrations, and lymph node measurements.<h4>Results</h4>Bendamustine induced concentration-dependent cytotoxicity in all cell lines tested. Two-dose bendamustine regimens up to 90 mg/m2 were generally well tolerated, with no dose-limiting toxicities observed, and resulted in peripheral lymphodepletion (pretreatment median, 880 cells/μL; posttreatment median, 310 cells/μL), an exploratory decrease in circulating interleukin-6 (pretreatment median, 5.32 pg/mL; posttreatment median, 1.33 pg/mL), and a short-term decrease in peripheral nodal burden in 8 of 11 dogs.<h4>Conclusions and clinical importance</h4>Bendamustine was generally well tolerated and induced lymphodepletion in our cohort. These findings support further evaluation of bendamustine as a preconditioning agent before autologous canine CAR T-cell infusion.",
+    "firstIndexDate": "2026-11-03",
+    "firstPublicationDate": "2026-11-01",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "42975285",
+    "source": "MED",
+    "pmid": "42975285",
+    "doi": "10.1021/acsnano.6c11940",
+    "title": "Poly(acrylamido) PEG-Alternative Lipids Rescue mRNA Efficacy during Repeated Dosing and Enhance Immune Cell Delivery.",
+    "authorString": "Fiedler BM, Galley C, Strimaite M, Cheng NM, Mahmoudi N, Feng Z, Kalber TL, Martinez-Bravo MJ, Morris CJ, W Lam JK, Stuckey DJ, Williams GR, Bennett CL, Gurnani P.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Fiedler BM",
+       "lastName": "Fiedler",
+       "firstName": "Benjamin M",
+       "initials": "BM",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Galley C",
+       "lastName": "Galley",
+       "firstName": "Charlotte",
+       "initials": "C",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL Cancer Institute, Department of Haematology, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Strimaite M",
+       "lastName": "Strimaite",
+       "firstName": "Margarita",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         },
+         {
+          "affiliation": "UCL Centre for Advanced Biomedical Imaging, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Cheng NM",
+       "lastName": "Cheng",
+       "firstName": "Nga Man",
+       "initials": "NM",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "School of Pharmacy, University of Nottingham to Division of Molecular Therapeutics and Formulation, Boots Science Building, School of Pharmacy, University of Nottingham, NottinghamNG7 2RD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Mahmoudi N",
+       "lastName": "Mahmoudi",
+       "firstName": "Najet",
+       "initials": "N",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "ISIS Neutron and Muon Source, Rutherford Appleton Laboratory, DidcotOX11 0DE, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Feng Z",
+       "lastName": "Feng",
+       "firstName": "Zhiping",
+       "initials": "Z",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL Centre for Advanced Biomedical Imaging, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Kalber TL",
+       "lastName": "Kalber",
+       "firstName": "Tammy L",
+       "initials": "TL",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL Centre for Advanced Biomedical Imaging, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Martinez-Bravo MJ",
+       "lastName": "Martinez-Bravo",
+       "firstName": "Maria-Jose",
+       "initials": "MJ",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Morris CJ",
+       "lastName": "Morris",
+       "firstName": "Christopher J",
+       "initials": "CJ",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "W Lam JK",
+       "lastName": "W Lam",
+       "firstName": "Jenny K",
+       "initials": "JK",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Stuckey DJ",
+       "lastName": "Stuckey",
+       "firstName": "Daniel J",
+       "initials": "DJ",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL Centre for Advanced Biomedical Imaging, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Williams GR",
+       "lastName": "Williams",
+       "firstName": "Gareth R",
+       "initials": "GR",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Bennett CL",
+       "lastName": "Bennett",
+       "firstName": "Clare L",
+       "initials": "CL",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL Cancer Institute, Department of Haematology, University College London, LondonWC1E 6DD, U.K."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Gurnani P",
+       "lastName": "Gurnani",
+       "firstName": "Pratik",
+       "initials": "P",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "UCL School of Pharmacy, University College London, LondonWC1N 1AX, U.K."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "ACS nano"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Journal Article"
+     ]
+    },
+    "abstractText": "Following the successes of the messenger RNA (mRNA) lipid nanoparticle (LNP) vaccines against COVID-19, mRNA-LNPs are being explored for varied multidose applications including cancer immunotherapies and protein replacement therapies. LNPs rely on poly(ethylene glycol)-lipid (PEG-lipid) coatings for stability, but increasing anti-PEG antibody prevalence threatens repeat-dose efficacy and increases pseudoallergic risk, creating an urgent need for alternatives. Here, we introduce poly(acrylamido) lipids (PAM-lipids), a family of polymer lipids that effectively replace PEG-lipids in mRNA-LNP formulations. Systematic variation of monomer chemistry, molar mass, and end group reveals critical structure-activity relationships determining LNP size, polydispersity, and transfection efficiency. Varying PAM monomer chemistry allows minimization of antipolymer antibody cross-reactivity, with multiple PAM-lipids demonstrating no anti-PEG antibody binding. Several PAM-LNPs exhibit superior mRNA transfection efficacy to PEGylated clinical benchmarks in vitro and in vivo across multiple cell types, organs, routes of administration, and mRNA cargos. In particular, lead PAM-LNPs enhance mRNA delivery to dendritic cells (up to 120-fold in vitro and 3-fold in vivo) and macrophages (4-fold in vivo), with 2.5-fold superior lymph node expression, driven in part by increased cellular association and lymphoid targeting. Crucially, PAM-LNPs evade circulating anti-PEG antibodies to rescue lost mRNA efficacy after repeated dosing, resulting in 300% mRNA expression relative to that of PEG-LNPs. These findings demonstrate PAM-lipids as a chemically varied, immunologically compatible family of PEG alternatives for mRNA-LNP therapeutics.",
+    "firstIndexDate": "2026-11-04",
+    "firstPublicationDate": "2026-11-01",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "42993797",
+    "source": "MED",
+    "pmid": "42993797",
+    "doi": "10.1371/journal.pbio.3004098",
+    "title": "Sperm phospholipase C signaling via PLCζ1 and PLCδ4 is essential for Ca2+ oscillations and fertility in mice.",
+    "authorString": "Gupta N, Zhang L, Akizawa H, Gervasi MG, Tourzani DA, Visconti PE, Romarowski A, Buffone M, Cui W, Fissore RA.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Gupta N",
+       "lastName": "Gupta",
+       "firstName": "Neha",
+       "initials": "N",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         },
+         {
+          "affiliation": "Research and Development, AutoIVF Biotech, Natick, Massachusetts, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Zhang L",
+       "lastName": "Zhang",
+       "firstName": "Lei",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         },
+         {
+          "affiliation": "Jiangsu Agri-Animal Husbandry Vocational College, Taizhou, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Akizawa H",
+       "lastName": "Akizawa",
+       "firstName": "Hiroki",
+       "initials": "H",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         },
+         {
+          "affiliation": "Cell and Developmental Biology, University of Pennsylvania, Philadelphia, Pennsylvania, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Gervasi MG",
+       "lastName": "Gervasi",
+       "firstName": "Maria G",
+       "initials": "MG",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Animal Science, University of Connecticut, Storrs, Connecticut, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Tourzani DA",
+       "lastName": "Tourzani",
+       "firstName": "Darya A",
+       "initials": "DA",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         },
+         {
+          "affiliation": "Research and Development, Colossal Biosciences, Dallas, Texas, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Visconti PE",
+       "lastName": "Visconti",
+       "firstName": "Pablo E",
+       "initials": "PE",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Romarowski A",
+       "lastName": "Romarowski",
+       "firstName": "Ana",
+       "initials": "A",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Instituto de Biología y Medicina Experimental (IBYME), Consejo Nacional de Investigaciones Científicas y Técnicas (CONICET), Buenos Aires, Argentina."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Buffone M",
+       "lastName": "Buffone",
+       "firstName": "Mariano",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Instituto de Biología y Medicina Experimental (IBYME), Consejo Nacional de Investigaciones Científicas y Técnicas (CONICET), Buenos Aires, Argentina."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Cui W",
+       "lastName": "Cui",
+       "firstName": "Wei",
+       "initials": "W",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         },
+         {
+          "affiliation": "Animal Models Core Facility, Institute for Applied Life Sciences (IALS), University of Massachusetts, Amherst, Massachusetts, United States of America."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Fissore RA",
+       "lastName": "Fissore",
+       "firstName": "Rafael A",
+       "initials": "RA",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Veterinary and Animal Sciences, University of Massachusetts, Amherst, Massachusetts, United States of America."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "PLoS biology"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Journal Article"
+     ]
+    },
+    "abstractText": "Fertilization-induced calcium (Ca2+) oscillations are essential for egg activation and embryonic development in mammals. The sperm-specific phospholipase C isoform, PLCζ1, is the primary trigger of these oscillations. Functional and clinical studies have linked mutations or reduced expression of PLCζ1 to male infertility. However, whether PLCζ1 alone accounts for Ca2+ release at fertilization in all mammals remains uncertain. Male mice lacking Plcζ1 exhibit subfertility and reduced litter sizes; their sperm induce delayed, low-frequency Ca2+ oscillations, indicating a compensatory mechanism. Notably, mouse sperm express high levels of PLCδ4, essential for completing the acrosome reaction (AR). In Plcζ1-null sperm, PLCδ4 is upregulated and retained post-AR. These observations suggest a secondary functional role for PLCδ4. Using CRISPR/Cas9 genome editing, we generated Plcδ4 knockout (KO) mice. Plcδ4-null sperm trigger attenuated, delayed Ca2+ oscillations and significantly reduced fertilization rates, indicating that PLCδ4 contributes to but does not independently drive Ca2+ signaling. We therefore generated a Double Knockout (DKO) mouse line lacking both sperm-enriched PLCs. DKO males were sterile, with sperm failing to induce Ca2+ oscillations, and the isolated residual Ca2+ rise was insufficient to activate eggs. These findings reveal that PLCζ1, the primary oscillator, and PLCδ4, a compensatory factor, work cooperatively within a complex, multi-component PLC system that ensures robust fertilization. This work reveals molecular specialization among mammals in initiating the fertilization Ca2+ signals. It has implications for understanding male infertility, improving assisted reproductive technologies, and developing contraceptive strategies.",
+    "firstIndexDate": "2026-11-07",
+    "firstPublicationDate": "2026-11-06",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "43032656",
+    "source": "MED",
+    "pmid": "43032656",
+    "doi": "10.3389/fbioe.2026.1954356",
+    "title": "Assessing AAV stability on affinity resins and the effects of long contact times through extensive washing.",
+    "authorString": "Bongers L, Clemenz L, Martinez JN, Weber M, Hubbuch J, Falkenstein R, Martinez AD.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Bongers L",
+       "lastName": "Bongers",
+       "firstName": "Lukas",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Clemenz L",
+       "lastName": "Clemenz",
+       "firstName": "Leon",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Martinez JN",
+       "lastName": "Martinez",
+       "firstName": "Jorge Navas",
+       "initials": "JN",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Weber M",
+       "lastName": "Weber",
+       "firstName": "Melanie",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Hubbuch J",
+       "lastName": "Hubbuch",
+       "firstName": "Jürgen",
+       "initials": "J",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Biomolecular Separation Engineering, Karlsruhe Institute of Technology, Karlsruhe, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Falkenstein R",
+       "lastName": "Falkenstein",
+       "firstName": "Roberto",
+       "initials": "R",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Martinez AD",
+       "lastName": "Martinez",
+       "firstName": "Andres D",
+       "initials": "AD",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Gene Therapy Technical Research & Development, Roche Diagnostics GmbH, Penzberg, Germany."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 ",
+     "journal": {
+      "title": "Frontiers in bioengineering and biotechnology"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Journal Article"
+     ]
+    },
+    "abstractText": "Affinity chromatography represents the standard platform for the capture of recombinant adeno-associated viral vectors (rAAVs). However, low upstream titers frequently necessitate long processing time exceeding multiple hours, the biophysical and functional consequences of which remain largely uncharacterized. Here, we present an extensive dataset characterizing the effects of long capsid-ligand interaction times on rAAV critical quality attributes. We examined the impact of binding durations (0-24 h) at room temperature <i>versus</i> 10 °C, using three different serotypes (rAAV2, AAV8 wild-type (WT), AAV9WT) and several affinity ligands, all based on single-domain V<sub>H</sub>H-fragments (POROS™ CaptureSelect™ AAVX, POROS™ CaptureSelect™ AAV9, Capto™ AVB). Using CaptureSelect AAVX, extended hold times ( ≥ 8 h) resulted in serotype-specific yield losses correlated with shifts in capsid viral protein (VP)-ratios, alongside enhanced host-cell impurity clearance, without compromising transgene integrity. Washing for 8 h or longer reduced elution yields by 28% for AAV9 and 35% for rAAV2, whereas AAV8 yield remained unaffected. This yield loss coincided with an increased relative abundance of VP3 for rAAV2 (+1.5% at 8 h), while AAV8 exhibited no changes in VP-ratio. Crucially, host-cell protein clearance was substantially improved across all serotypes, with log removal factor increasing from 3.34 to 4.71 for AAV8, 3.34 to 4.87 for rAAV2, and 2.77 to 4.91 for AAV9. LC-MS-based proteomics revealed that DNA-interacting proteins, known to co-elute with rAAVs during affinity chromatography, were cleared more than 10-fold during several hour-long binding times compared to standard processes.",
+    "firstIndexDate": "2026-11-15",
+    "firstPublicationDate": "2026-10-30",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "42961140",
+    "source": "MED",
+    "pmid": "42961140",
+    "doi": "10.1002/cpz1.70503",
+    "title": "An Orthotopic Xenograft Model for Preclinical Evaluation of CAR T Cell Therapy in Glioblastoma.",
+    "authorString": "Hübner J, McFleder R, Ip CW, Alb M, Einsele H, Hudecek M, Nerreter T.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Hübner J",
+       "lastName": "Hübner",
+       "firstName": "Julian",
+       "initials": "J",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Chair of Cellular Immunotherapy, Department of Medicine II, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "McFleder R",
+       "lastName": "McFleder",
+       "firstName": "Rhonda",
+       "initials": "R",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Ip CW",
+       "lastName": "Ip",
+       "firstName": "Chi Wang",
+       "initials": "CW",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Alb M",
+       "lastName": "Alb",
+       "firstName": "Miriam",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Chair of Cellular Immunotherapy, Department of Medicine II, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Einsele H",
+       "lastName": "Einsele",
+       "firstName": "Hermann",
+       "initials": "H",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Medicine II, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Hudecek M",
+       "lastName": "Hudecek",
+       "firstName": "Michael",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Chair of Cellular Immunotherapy, Department of Medicine II, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Nerreter T",
+       "lastName": "Nerreter",
+       "firstName": "Thomas",
+       "initials": "T",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Chair of Cellular Immunotherapy, Department of Medicine II, University Hospital Würzburg, Würzburg, Germany."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "Current protocols"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "methods-article",
+      "Journal Article"
+     ]
+    },
+    "abstractText": "Glioblastoma (GBM) is the most lethal primary brain tumor in adults, and despite intensive research efforts, effective therapeutic breakthroughs remain elusive. Consequently, the standard of care has remained largely unchanged for nearly 30 years, underscoring the need for robust preclinical models to evaluate experimental therapies. One particularly promising approach is chimeric antigen receptor (CAR) T cell therapy, which has demonstrated remarkable success in several hematologic malignancies but has not yet achieved comparable efficacy in solid tumors. This article describes the generation of orthotopic GBM xenografts in NSG mice, including anesthesia, surgical procedures, and postoperative care, followed by locoregional delivery of human CAR T cells into the lateral ventricle and subsequent assessment of therapeutic efficacy. Together, these protocols provide a reliable platform for evaluating GBM-directed CAR T cell therapies in both basic and translational research. © 2026 The Author(s). Current Protocols published by Wiley Periodicals LLC. Basic Protocol 1: Intracranial tumor implantation Basic Protocol 2: Intraventricular CAR T cell administration Support Protocol 1: Bioluminescence imaging of xenografts Support Protocol 2: Endpoint analysis of residual tumor burden by flow cytometry.",
+    "firstIndexDate": "2026-10-31",
+    "firstPublicationDate": "2026-11-01",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "43039921",
+    "source": "MED",
+    "pmid": "43039921",
+    "doi": "10.1038/s41467-026-79730-z",
+    "title": "Author Correction: Adenine base editing-mediated exon skipping restores dystrophin in humanized Duchenne mouse model.",
+    "authorString": "Lin J, Jin M, Yang D, Li Z, Zhang Y, Xiao Q, Wang Y, Yu Y, Zhang X, Shao Z, Shi L, Zhang S, Chen WJ, Wang N, Wu S, Yang H, Xu C, Li G.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Lin J",
+       "lastName": "Lin",
+       "firstName": "Jiajia",
+       "initials": "J",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Affiliated Hospital, Fujian Medical University, Fuzhou, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Jin M",
+       "lastName": "Jin",
+       "firstName": "Ming",
+       "initials": "M",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Affiliated Hospital, Fujian Medical University, Fuzhou, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Yang D",
+       "lastName": "Yang",
+       "firstName": "Dong",
+       "initials": "D",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Li Z",
+       "lastName": "Li",
+       "firstName": "Zhifang",
+       "initials": "Z",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Lingang Laboratory, Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Zhang Y",
+       "lastName": "Zhang",
+       "firstName": "Yu",
+       "initials": "Y",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Xiao Q",
+       "lastName": "Xiao",
+       "firstName": "Qingquan",
+       "initials": "Q",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Wang Y",
+       "lastName": "Wang",
+       "firstName": "Yin",
+       "initials": "Y",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Yu Y",
+       "lastName": "Yu",
+       "firstName": "Yuyang",
+       "initials": "Y",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Zhang X",
+       "lastName": "Zhang",
+       "firstName": "Xiumei",
+       "initials": "X",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Shao Z",
+       "lastName": "Shao",
+       "firstName": "Zhurui",
+       "initials": "Z",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Shi L",
+       "lastName": "Shi",
+       "firstName": "Linyu",
+       "initials": "L",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Zhang S",
+       "lastName": "Zhang",
+       "firstName": "Shu",
+       "initials": "S",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Medical Center of Chinese PLA General Hospital, Beijing, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Chen WJ",
+       "lastName": "Chen",
+       "firstName": "Wan-Jin",
+       "initials": "WJ",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Affiliated Hospital, Fujian Medical University, Fuzhou, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Wang N",
+       "lastName": "Wang",
+       "firstName": "Ning",
+       "initials": "N",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Affiliated Hospital, Fujian Medical University, Fuzhou, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Wu S",
+       "lastName": "Wu",
+       "firstName": "Shiwen",
+       "initials": "S",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Medical Center of Chinese PLA General Hospital, Beijing, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Yang H",
+       "lastName": "Yang",
+       "firstName": "Hui",
+       "initials": "H",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         },
+         {
+          "affiliation": "Shanghai Center for Brain Science and Brain-Inspired Technology, Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Xu C",
+       "lastName": "Xu",
+       "firstName": "Chunlong",
+       "initials": "C",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Lingang Laboratory, Shanghai, China."
+         },
+         {
+          "affiliation": "Shanghai Center for Brain Science and Brain-Inspired Technology, Shanghai, China."
+         }
+        ]
+       }
+      },
+      {
+       "fullName": "Li G",
+       "lastName": "Li",
+       "firstName": "Guoling",
+       "initials": "G",
+       "authorAffiliationDetailsList": {
+        "authorAffiliation": [
+         {
+          "affiliation": "Department of Neurology, First Affiliated Hospital, Fujian Medical University, Fuzhou, China."
+         },
+         {
+          "affiliation": "HuidaGene Therapeutics Inc., Shanghai, China."
+         }
+        ]
+       }
+      }
+     ]
+    },
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "Nature communications"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "Published Erratum",
+      "correction"
+     ]
+    },
+    "firstIndexDate": "2026-11-17",
+    "firstPublicationDate": "2026-11-16",
+    "isOpenAccess": "Y",
+    "license": "cc by",
+    "pubYear": "2026",
+    "language": "eng"
+   },
+   {
+    "id": "42977824",
+    "source": "MED",
+    "pmid": "42977824",
+    "doi": "10.1038/s41588-026-02805-6",
+    "title": "Hematotoxicity: the hidden legacy of CAR T cell therapy.",
+    "journalInfo": {
+     "dateOfPublication": "2026 Nov",
+     "journal": {
+      "title": "Nature genetics"
+     }
+    },
+    "pubTypeList": {
+     "pubType": [
+      "Journal Article"
+     ]
+    },
+    "firstIndexDate": "2026-11-04",
+    "firstPublicationDate": "2026-11-01",
+    "isOpenAccess": "N",
+    "pubYear": "2026",
+    "language": "eng"
+   }
+  ]
+ }
+}
