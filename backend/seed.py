@@ -184,11 +184,28 @@ def resolve_ciks(
     return resolved, unresolved
 
 
+def load_discovery_labs(db_path: str | Path | None = None) -> int:
+    """Insert the ranked lab heads Discovery matches papers to. Insert-only: a lab
+    already in the table keeps the standing it has. Returns how many were added."""
+    import discovery
+
+    conn = db.get_connection(db_path)
+    try:
+        added = discovery.load_labs(conn)
+        conn.commit()
+    finally:
+        conn.close()
+    return added
+
+
 def run(db_path: str | Path | None = None) -> dict:
     """Full seed: init DB, load CSV, resolve CIKs, write them back, print a summary."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     db.init(db_path)
     loaded = load_companies(db_path)
+    labs = load_discovery_labs(db_path)
+    if labs:
+        print(f"Loaded {labs} ranked lab heads for Discovery")
 
     raw = fetch_company_tickers()
     ticker_map = build_ticker_map(raw)
