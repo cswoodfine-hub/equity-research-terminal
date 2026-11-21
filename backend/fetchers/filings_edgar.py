@@ -42,6 +42,7 @@ def parse_submissions(payload: dict, cik: str) -> list[dict]:
     documents = recent.get("primaryDocument") or []
     descriptions = recent.get("primaryDocDescription") or []
     items = recent.get("items") or []
+    accepted = recent.get("acceptanceDateTime") or []
 
     rows = []
     for i, form in enumerate(forms):
@@ -65,6 +66,9 @@ def parse_submissions(payload: dict, cik: str) -> list[dict]:
                 "items": item_codes,
                 "is_material": edgar_items.is_material(item_codes),
                 "url": _doc_url(cik, accession, document),
+                # The moment, not only the day: a results filing accepted after the
+                # close moves the next session, and the date alone cannot say which.
+                "accepted_at": (accepted[i] if i < len(accepted) else None) or None,
             }
         )
         if len(rows) >= MAX_FILINGS:
@@ -162,14 +166,17 @@ class FilingsEdgarFetcher(BaseFetcher):
                 conn.execute(
                     """
                     INSERT INTO filings
-                        (company_id, form_type, filed_date, accession, title, url, source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                        (company_id, form_type, filed_date, accession, title, url, source,
+                         accepted_at, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(accession) DO UPDATE SET
                         form_type=excluded.form_type, filed_date=excluded.filed_date,
-                        title=excluded.title, url=excluded.url, fetched_at=datetime('now')
+                        title=excluded.title, url=excluded.url, fetched_at=datetime('now'),
+                        -- A payload without the moment never clears one already read.
+                        accepted_at=COALESCE(excluded.accepted_at, filings.accepted_at)
                     """,
                     (company_id, row["form_type"], row["filed_date"], row["accession"],
-                     row["title"], row["url"], EDGAR_SOURCE),
+                     row["title"], row["url"], EDGAR_SOURCE, row.get("accepted_at")),
                 )
                 if row["form_type"] in NEWS_FORMS:
                     conn.execute(

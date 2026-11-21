@@ -1,0 +1,11 @@
+-- The moment EDGAR accepted a filing, not only the day.
+--
+-- A results 8-K accepted at half past six in the morning moves that day's close; one
+-- accepted at ten past four in the afternoon moves the next day's. The filing date is
+-- the same for both, so a reaction measured on it is right for the first and a day
+-- early for the second. EDGAR's submissions feed carries acceptanceDateTime on every
+-- filing and the fetcher was not keeping it.
+--
+-- ISO 8601 in UTC, as EDGAR prints it. Null on a row read before this column existed,
+-- until the fetcher next sees that filing.
+ALTER TABLE filings ADD COLUMN accepted_at TEXT;
