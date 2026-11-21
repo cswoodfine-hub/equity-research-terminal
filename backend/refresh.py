@@ -68,6 +68,7 @@ from fetchers.adcomm_fedreg import AdCommFetcher
 from fetchers.approvals_openfda import ApprovalsOpenFdaFetcher
 from fetchers.consensus_fmp import ConsensusFmpFetcher, api_key as fmp_key
 from fetchers.consensus_nasdaq import ConsensusNasdaqFetcher
+from fetchers.earnings_nasdaq import EarningsNasdaqFetcher
 from fetchers.deals_news import DealsNewsFetcher
 from fetchers.demand_cms import DemandCmsFetcher
 from fetchers.filing_text_edgar import FilingTextEdgarFetcher
@@ -162,6 +163,9 @@ def _company_fetchers(company, db_path):
         fetchers.append(ConsensusFmpFetcher(company["ticker"], db_path))
     # The keyless street feed: annual EPS and the price target, for every listed company.
     fetchers.append(ConsensusNasdaqFetcher(company["ticker"], db_path))
+    # How each of the last four quarters landed against the street, from the page beside
+    # that one. Also keyless, and also for every listed company.
+    fetchers.append(EarningsNasdaqFetcher(company["ticker"], db_path))
     # What each drug is and what its trials posted, for the indication landscape. Big
     # pharma only for now, which is where the landscape is read: the results fetch alone
     # is some 4,800 studies there. Both run after the trial fetchers above, whose asset
