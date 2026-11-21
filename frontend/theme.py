@@ -170,8 +170,11 @@ html, body, [class*="css"], .stApp {{
    [class*="css"] selector above was the hook into those containers and matches nothing
    since Streamlit renamed its classes. Scoped under .stApp so it outranks the generated
    class whatever order the two stylesheets load in. Family only: a container inside a
-   panel must keep the panel's ground, and its size is its own. */
-.stApp [data-testid="stMarkdownContainer"] {{ font-family: var(--font-ui); }}
+   panel must keep the panel's ground, and its size is its own.
+   A card opens outside .stApp, at the foot of the body, so it is named as well: without
+   it every card over the page was still set in Streamlit's face. */
+.stApp [data-testid="stMarkdownContainer"],
+[data-testid="stDialog"] [data-testid="stMarkdownContainer"] {{ font-family: var(--font-ui); }}
 
 /* Every figure holds its column when values change on refresh. */
 .stApp, table, td, th, .stMetric, [data-testid="stMetricValue"], .num, .mono {{
