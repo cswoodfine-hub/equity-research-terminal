@@ -1501,6 +1501,9 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 [class*="st-key-fin_ctl_"] [data-testid="stElementContainer"]:has(.fc-ctl-k):not(:first-child) {{
   margin-left: 0.7rem; }}
 [class*="st-key-fcb_ctl_"] [data-testid="stSelectbox"] > div > div {{ min-height: 28px; }}
+[class*="st-key-fin_ctl_"] [data-testid="stSelectbox"] > div > div {{ min-height: 28px; }}
+[class*="st-key-fin_ctl_"] [data-baseweb="select"] > div {{ font-family: var(--font-ui);
+  font-weight: 600; font-size: 12.5px; }}
 /* The head: the two views as the page's own tabs, a size up from a chart's choices, with
    what the figures cover said once, at the far end of the row. */
 [class*="st-key-fcb_head_"] {{ border-bottom: 1px solid var(--rule-strong);
@@ -1592,6 +1595,21 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .rep-g {{ font-size: 11px; color: var(--muted); margin-top: 3px; }}
 .rep-fold {{ margin-top: 0.35rem; }}
 .rep-fold[open] > summary {{ margin-bottom: 0.2rem; }}
+/* The figure from revenue to cash is drawn at the page's width and stands under its own
+   basis control, close as a chart stands under its choices. */
+.trend.biz {{ margin: 0.1rem 0 0; }}
+/* The statements' fold reads as a section that happens to be closed: the rule and the
+   caps label every section on the tab opens with, and Streamlit's box and corners off. */
+[class*="st-key-fin_stmt_"] [data-testid="stExpander"] details {{
+  border: 0; border-top: 1px solid var(--rule-strong); border-radius: var(--radius);
+  background: transparent; }}
+[class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary {{
+  padding: 0.35rem 0; min-height: 0; border-radius: var(--radius); }}
+[class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary:hover {{ color: var(--text); }}
+[class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary p {{
+  font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
+  letter-spacing: 0.055em; text-transform: uppercase; color: var(--text); }}
+[class*="st-key-fin_stmt_"] [data-testid="stExpanderDetails"] {{ padding: 0.2rem 0 0.4rem; }}
 /* A link on a section's rule reads as part of the rule until the pointer is on it. */
 .sec-count a {{ color: inherit; text-decoration: underline;
                text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}

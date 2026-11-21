@@ -36,6 +36,7 @@ import revenue_mix
 import scorecard_chart
 import treemap
 import theme as T
+import business as business_figure
 import trend as trend_module
 import universe_page
 from components import charts as CH
@@ -11726,86 +11727,136 @@ with main:
                   f"which the refresh reads, and {ticker}'s has not loaded yet.")
 
         if snapshot or built["is_sec_filer"]:
-            # Every period the API returns, which is every period on file: forty quarters
-            # or seventeen years. This used to cut the quarterly panel to the last four,
-            # and four points cannot show a cycle, a margin compressing or a cliff
-            # arriving, which is the entire reason to draw a trend rather than print the
-            # latest number twice.
+            # One figure from all three statements, showing one thing at a time: the
+            # reader picks it. It takes the place of two charts that answered half a
+            # question each, growth against margin and where the money went, and of the
+            # statements grid as the thing the eye lands on. The grid is still here,
+            # one press away.
             #
-            # Built as SVG rather than through Altair. A chart made inside a hidden tab
-            # is measured at a few pixels and draws about 160px wide for good (see the
-            # chart helper), and this panel has to hold its width on this tab.
-            panel = trend_module.render(built.get("trend") or [], built["basis"])
-            # The two histories share a row. One is how the business has performed and
-            # the other is what it chose to spend on, both read across the same years,
-            # and stacked they were three hundred pixels between the period figures at
-            # the top of the tab and the statements at the foot of it.
-            _trend_col, _alloc_col = st.columns(2, gap="medium")
-            with _trend_col:
-                if panel:
-                    section("Growth against margin",
-                            f'{len(built["trend"])} periods on file')
-                    st.markdown(f'<div class="trend">{panel}</div>',
+            # Built as SVG, like every chart: one made inside a hidden tab is measured at
+            # a few pixels and draws about 160px wide for good.
+            statements_on_file = built.get("statements") or {}
+            currency = built.get("currency") or ""
+            business = business_figure.prepare(statements_on_file, built.get("trend"))
+            # Whether there is a figure at all is whether the first view draws: revenue
+            # in two periods. Without it the tab falls back to the panels below.
+            figure = business_figure.render(business, currency, "income")
+            if figure:
+                # One figure, and a selector for what it shows. The three views of the
+                # chain come first, then every line of the three statements on its own.
+                # They were drawn stacked, all at once, and read as three charts' worth
+                # of marks; one at a time, each has the height to be read.
+                views = dict(list(business_figure.VIEWS)
+                             + business_figure.line_options(statements_on_file))
+                view_key = f"fin_view_{ticker}"
+                # A line chosen on one basis may not exist on the other. Back to the
+                # first view then, before the widget is built on a value it cannot hold.
+                if st.session_state.get(view_key) not in views:
+                    st.session_state[view_key] = "income"
+                chosen = st.session_state[view_key]
+                # How to read it, on the rule and not under the figure: the tab is one
+                # screen, and a line of text below the figure was a line the fold beneath
+                # it was pushed off by. A quarter's cash is derived, and says so here.
+                reading = ("the line is what came in · the stack is where it went · "
+                           "the gap is what was kept" if chosen in ("income", "cash")
+                           else None)
+                if chosen == "cash" and built["basis"] == "quarterly":
+                    reading = ("each quarter worked out of the year-to-date figures a "
+                               "10-Q prints · " + reading)
+                section("The business, period by period", reading)
+                with st.container(horizontal=True, key=f"fin_ctl_{ticker}"):
+                    _fc_label("Show")
+                    chosen = st.selectbox("Show", list(views), format_func=views.get,
+                                          key=view_key, width=300,
+                                          label_visibility="collapsed")
+                    # The basis is the figure's and the statements' both, so it sits
+                    # here, over the first of them, and not in the fold with the second.
+                    if built["has_interim"]:
+                        _fc_label("Basis")
+                        st.segmented_control(
+                            "Basis", ["Quarterly", "Annual"], default="Quarterly",
+                            label_visibility="collapsed", key=basis_key)
+                drawn = (business_figure.render(business, currency, chosen)
+                         if chosen in dict(business_figure.VIEWS)
+                         else business_figure.render_line(statements_on_file, chosen,
+                                                          currency))
+                if drawn:
+                    st.markdown(f'<div class="trend biz">{drawn}</div>',
                                 unsafe_allow_html=True)
                 else:
-                    # No revenue, so no growth and no margin. What a developer is judged
-                    # on instead is whether the cash lasts, which is the same question
-                    # the Runway tab answers at length and this says in one line.
-                    _cash_panel(built)
-            with _alloc_col:
-                if snapshot:
-                    _allocation_band(api_base, ticker)
+                    state(f"Nothing to draw for {html_escape(views[chosen].lower())}",
+                          "The filer tags too little of it over these periods.")
+            else:
+                # Too little revenue on file to draw the figure: a developer with no
+                # sales, or a filer with one period. What it is judged on instead is
+                # whether the cash lasts, which the Runway tab answers at length and
+                # this says in one panel.
+                _trend_col, _alloc_col = st.columns(2, gap="medium")
+                with _trend_col:
+                    panel = trend_module.render(built.get("trend") or [], built["basis"])
+                    if panel:
+                        section("Growth against margin",
+                                f'{len(built["trend"])} periods on file')
+                        st.markdown(f'<div class="trend">{panel}</div>',
+                                    unsafe_allow_html=True)
+                    else:
+                        _cash_panel(built)
+                with _alloc_col:
+                    if snapshot:
+                        _allocation_band(api_base, ticker)
 
         if snapshot or built["is_sec_filer"]:
-            section("Statements")
-            # Segmented controls rather than radios, the same as the prices tab. Three
-            # horizontal radio groups carry three sets of radio dots and their labels
-            # wrapped at this width, so the row stood at 67px; as segments it is one
-            # line and the statements grid starts that much higher up the page.
-            #
-            # One row, each choice named by a key beside it, the way the forecast tab
-            # sets a chart's choices. Three columns put the groups 130 and 300px apart
-            # with nothing saying what each one changed.
-            with st.container(horizontal=True, key=f"fin_ctl_{ticker}"):
-                # An annual-only filer gets no toggle at all. Offering a control that
-                # can only produce an empty grid is worse than not offering it.
-                if built["has_interim"]:
-                    _fc_label("Basis")
-                    st.segmented_control(
-                        "Basis", ["Quarterly", "Annual"], default="Quarterly",
-                        label_visibility="collapsed", key=basis_key)
-                _labels = [label for _, label in STATEMENT_ORDER]
-                _fc_label("Statement")
-                which = st.segmented_control(
-                    "Statement", _labels, default=_labels[0],
-                    label_visibility="collapsed",
-                    key=f"stmt_{ticker}") or _labels[0]
-                _fc_label("Lens")
-                lens = st.segmented_control(
-                    "Lens", LENSES, default=ABSOLUTE, label_visibility="collapsed",
-                    key=f"lens_{ticker}") or ABSOLUTE
+            # The statements, line by line, behind a fold that starts closed. The figure
+            # above is how the three of them are read; the grid is where one cell is
+            # looked up, and a grid of a hundred and fifty figures open on arrival was
+            # what the page showed first and what was read last.
+            with st.container(key=f"fin_stmt_{ticker}"):
+                fold = st.expander("The statements, line by line", expanded=False)
+            with fold:
+                # One row, each choice named by a key beside it, the way the forecast
+                # tab sets a chart's choices.
+                with st.container(horizontal=True, key=f"fin_ctl_s_{ticker}"):
+                    # Where the figure could not be drawn its basis control is not on
+                    # the page, so it is offered here. An annual-only filer gets no
+                    # toggle at all: a control that can only produce an empty grid is
+                    # worse than none.
+                    if built["has_interim"] and not figure:
+                        _fc_label("Basis")
+                        st.segmented_control(
+                            "Basis", ["Quarterly", "Annual"], default="Quarterly",
+                            label_visibility="collapsed", key=basis_key)
+                    _labels = [label for _, label in STATEMENT_ORDER]
+                    _fc_label("Statement")
+                    which = st.segmented_control(
+                        "Statement", _labels, default=_labels[0],
+                        label_visibility="collapsed",
+                        key=f"stmt_{ticker}") or _labels[0]
+                    _fc_label("Lens")
+                    lens = st.segmented_control(
+                        "Lens", LENSES, default=ABSOLUTE, label_visibility="collapsed",
+                        key=f"lens_{ticker}") or ABSOLUTE
 
-            key = next(k for k, label in STATEMENT_ORDER if label == which)
-            block = built["statements"][key]
-            if not block["periods"]:
-                state(f"No {which.lower()} for this basis",
-                      "The filer tags nothing here for the periods selected.")
-            else:
-                st.markdown(
-                    statement_table(block, built["currency"], lens),
-                    unsafe_allow_html=True)
-                footnotes = []
-                if not built["has_interim"]:
-                    footnotes.append(
-                        f"{ticker} files a 20-F and tags no interim periods, so this "
-                        "is annual only.")
-                if key == "cashflow" and built["basis"] == "quarterly":
-                    footnotes.append(
-                        "Cash flow columns are cumulative from the year start, which "
-                        "is how a 10-Q reports them.")
-                if footnotes:
-                    st.markdown(f'<div class="fin-note">{" ".join(footnotes)}</div>',
-                                unsafe_allow_html=True)
+                key = next(k for k, label in STATEMENT_ORDER if label == which)
+                block = built["statements"][key]
+                if not block["periods"]:
+                    state(f"No {which.lower()} for this basis",
+                          "The filer tags nothing here for the periods selected.")
+                else:
+                    st.markdown(
+                        statement_table(block, built["currency"], lens),
+                        unsafe_allow_html=True)
+                    footnotes = []
+                    if not built["has_interim"]:
+                        footnotes.append(
+                            f"{ticker} files a 20-F and tags no interim periods, so this "
+                            "is annual only.")
+                    if key == "cashflow" and built["basis"] == "quarterly":
+                        footnotes.append(
+                            "Cash flow columns are cumulative from the year start, which "
+                            "is how a 10-Q reports them.")
+                    if footnotes:
+                        st.markdown(f'<div class="fin-note">{" ".join(footnotes)}</div>',
+                                    unsafe_allow_html=True)
 
     # --- Comps -----------------------------------------------------------
     with comps_tab:
