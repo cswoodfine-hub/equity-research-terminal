@@ -1598,18 +1598,63 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 /* The figure from revenue to cash is drawn at the page's width and stands under its own
    basis control, close as a chart stands under its choices. */
 .trend.biz {{ margin: 0.1rem 0 0; }}
+/* The tab is one screen at any size, and the screen's height is shared out, not left at
+   the foot. The gap between the tab's sections grows with the screen, from the
+   terminal's own 24px on a laptop to 40 on a tall monitor; the figure takes what is
+   left once everything else on the tab has its own height. Nothing is measured to do
+   it. Every box between the page and the open Financials panel is made a column that
+   fills its parent, so the panel is as tall as the screen under the top bar, and the
+   figure is the one row in it that grows. A fixed allowance for the bar was tried and
+   was wrong one load in three: the bar is 54px or 64 by what its status line says. An
+   annual filer has a shorter report than a quarterly one and its figure is the deeper
+   for it. The rules hold only while the Financials panel is the one showing, so no
+   other tab is laid out by them. The figure is placed in percentages of its box with
+   its type in pixels, so a taller box is deeper bands and not larger letters. No
+   shallower than its marks need to stay apart, when the tab scrolls instead, and no
+   deeper than reads as one chart. */
+[data-baseweb="tab-panel"]:has(.tiles-t8) {{ --section-gap: clamp(24px, 3.2vh, 40px); }}
+[data-testid="stMainBlockContainer"]:has([data-baseweb="tab-panel"]:not([hidden]) .trend.biz) {{
+  display: flex; flex-direction: column; flex: 1 0 auto; }}
+:is([data-testid="stLayoutWrapper"], [data-testid="stTabs"], [data-testid="stTabs"] > div):has(
+    [data-baseweb="tab-panel"]:not([hidden]) .trend.biz) {{
+  display: flex; flex-direction: column; flex: 1 1 auto; }}
+[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .trend.biz) {{
+  align-items: stretch; }}
+[data-testid="stColumn"]:has([data-baseweb="tab-panel"]:not([hidden]) .trend.biz),
+[data-baseweb="tab-panel"]:not([hidden]):has(.trend.biz) {{
+  display: flex; flex-direction: column; }}
+[data-baseweb="tab-panel"] > [data-testid="stVerticalBlock"]
+  > [data-testid="stElementContainer"]:has(.trend.biz) {{ flex: 1 1 auto; }}
+[data-testid="stElementContainer"]:has(.trend.biz),
+[data-testid="stElementContainer"]:has(.trend.biz) [data-testid="stMarkdown"],
+[data-testid="stElementContainer"]:has(.trend.biz) [data-testid="stMarkdownContainer"],
+.trend.biz {{ display: flex; flex-direction: column; }}
+[data-testid="stElementContainer"]:has(.trend.biz) [data-testid="stMarkdown"],
+[data-testid="stElementContainer"]:has(.trend.biz) [data-testid="stMarkdownContainer"],
+.trend.biz {{ flex: 1 1 auto; }}
+.trend.biz > svg {{ flex: 1 1 0; height: auto; min-height: 270px; max-height: 620px; }}
+/* The fold keeps the height it has closed, and the open statements run on below it and
+   out of the column's reckoning. Counted in, they would take the figure's share and the
+   chart would drop to its floor the moment the table was asked for. The height is the
+   fold's own line (a 1px rule and a 30px label, fixed below) and the 1.3rem Streamlit
+   sets around a container. The table stays in the flow of the fold itself: Streamlit
+   closes a fold by animating its height, and one whose contents are lifted out of it
+   never closes again. */
+[data-testid="stLayoutWrapper"]:has(> [class*="st-key-fin_stmt_"]) {{
+  flex: 0 0 auto; height: calc(31px + 1.3rem); }}
 /* The statements' fold reads as a section that happens to be closed: the rule and the
    caps label every section on the tab opens with, and Streamlit's box and corners off. */
 [class*="st-key-fin_stmt_"] [data-testid="stExpander"] details {{
   border: 0; border-top: 1px solid var(--rule-strong); border-radius: var(--radius);
   background: transparent; }}
 [class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary {{
-  padding: 0.35rem 0; min-height: 0; border-radius: var(--radius); }}
+  padding: 0.35rem 0; min-height: 0; height: 30px; box-sizing: border-box;
+  border-radius: var(--radius); }}
 [class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary:hover {{ color: var(--text); }}
 [class*="st-key-fin_stmt_"] [data-testid="stExpander"] summary p {{
   font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
   letter-spacing: 0.055em; text-transform: uppercase; color: var(--text); }}
-[class*="st-key-fin_stmt_"] [data-testid="stExpanderDetails"] {{ padding: 0.2rem 0 0.4rem; }}
+[class*="st-key-fin_stmt_"] [data-testid="stExpanderDetails"] {{ padding: 0.2rem 0 2rem; }}
 /* A link on a section's rule reads as part of the rule until the pointer is on it. */
 .sec-count a {{ color: inherit; text-decoration: underline;
                text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}
