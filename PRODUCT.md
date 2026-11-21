@@ -54,6 +54,8 @@ logged assumption, and every change in the view traceable to the event that caus
 - A company selector drives every tab. The tab set depends on the company's engine:
   Universe, Key insights, Prices, Financials, Pipeline, Portfolio, Catalysts, Forecast,
   Themes, Runway, Comps, Holdings.
+- Financials is what the company filed. Guidance, street estimates and the book's own
+  figures are the forward view and live on Forecast (confirmed 2026-11-21).
 - The universe is partitioned once into three engines, and each asks only what its
   cohort can answer:
   - Big pharma: where the revenue comes from and when it stops.
