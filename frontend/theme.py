@@ -833,6 +833,15 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   margin-top: var(--section-gap); }}
 [data-baseweb="tab-panel"]:has(.tiles-t8) [class*="st-key-fin_lead_"]
   [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.9rem; }}
+/* The fold under a block of figures holds what they rest on: that EBITDA here is derived,
+   that a line is missing. In the hairline colour it stood at 1.8 to 1 against the page
+   and could not be found; in the label colour it is as quiet as a label and can be
+   read. Here only: on the Universe tab the same fold is one of a dozen on a screen that
+   has to stay still. */
+[data-baseweb="tab-panel"]:has(.tiles-t8) .note-d > summary {{ color: var(--muted); }}
+[data-baseweb="tab-panel"]:has(.tiles-t8) .note-d > summary:hover,
+[data-baseweb="tab-panel"]:has(.tiles-t8) .note-d[open] > summary {{ color: var(--text); }}
+[data-baseweb="tab-panel"]:has(.tiles-t8) .note-d .byline {{ max-width: 74ch; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
             text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
             white-space: nowrap; }}
@@ -1548,6 +1557,30 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .rs .rs-total td {{ color: var(--text); font-weight: 700; border-top: 1px solid var(--rule-strong);
   background: var(--panel); }}
 .rs .rs-total .rs-k {{ color: var(--text); }}
+/* Guidance, the street and the book (the forecast tab's card). A cell is a figure with
+   its unit beside it and, under it, the range it sits in and the day it was read: the
+   sources move on different days, and a figure without its date reads as current. Cells
+   sit at the top of the row, so a figure with a line under it and one without share a
+   baseline. */
+.rs.rs-street td {{ vertical-align: top; }}
+/* Rows only. Streamlit draws a box round every cell of a table in markdown, and six
+   columns of mostly empty cells came out as a grid of boxes with a figure in a few. */
+.rs.rs-street th, .rs.rs-street td {{ border-left: 0; border-right: 0; border-top: 0; }}
+.rs-by {{ max-width: 74ch; }}
+.rs.rs-street .rs-k {{ color: var(--text); }}
+.rs .rs-u {{ margin-left: 4px; font-size: 10px; color: var(--muted); }}
+.rs .rs-n {{ display: block; margin-top: 2px; font-size: 10.5px; color: var(--muted); }}
+/* A gap is a sentence in the cell, one to a line, its direction in the colour and in
+   its own sign. */
+.rs .rs-g {{ display: block; font-size: 11px; color: var(--muted); white-space: nowrap; }}
+.rs .rs-g.up {{ color: var(--up); }}
+.rs .rs-g.down {{ color: var(--down); }}
+/* The sentences the guidance figures were read out of, one to a line at a reading
+   measure, each led by the figure it belongs to. */
+.rs-quotes {{ max-width: 74ch; margin-top: var(--sp-12); }}
+.rs-quotes .lead-q + .lead-q {{ margin-top: var(--sp-8); }}
+.rs-quotes .rs-qk {{ font-style: normal; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--text); }}
 .rs .rs-growth td {{ border-bottom: 1px solid var(--rule-strong); }}
 .rs .rs-ref td {{ color: var(--muted); font-size: 11px; }}
 .rs .rs-ref .rs-v {{ color: var(--muted); }}

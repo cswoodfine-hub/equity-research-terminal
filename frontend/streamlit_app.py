@@ -1659,42 +1659,61 @@ def _times(value, dp=2):
     return f"{value:.{dp}f}x" if value is not None else None
 
 
-def _cash_block(api_base: str, ticker: str) -> None:
+def _cash_block(api_base: str, ticker: str, lead_is_year: bool = False) -> None:
     """The year's cash and what the balance sheet owes, for a company with revenue.
 
     What it kept, not what it earned. Every figure is computed from lines already
     filed; one missing an input is a dash naming the line it wanted, never a zero.
+
+    ``lead_is_year`` says the block beside this one is already a full year (a 20-F filer
+    has no quarters). The year's revenue is then on the page once, so it is not repeated
+    here, and the heading says what this half adds rather than naming the year twice.
     """
     cash = api_get(api_base, f"/companies/{ticker}/cashflow")
-    # No tail: every tile below carries its own unit, and the rail sits close enough at
-    # half a page that a currency here is cut off by it.
-    section("The year",
+    inputs = cash.get("inputs") or {}
+    # No tail: every tile below carries its own unit.
+    section("The year's cash" if lead_is_year else "The year",
             basis=(f'FY{cash["fiscal_year"]}' if cash.get("fiscal_year")
                    else "latest year"))
-    # Ordered as a sentence: what the year earned before the accountants got to it, how
-    # much of that became cash, what share of profit that was, what the company owes
-    # against those earnings, and what it spent buying other people. Net debt is quoted
-    # in turns of EBITDA, so EBITDA has to be on the row before it rather than implied.
-    st.markdown(metric_tiles([
+    # Ordered as a sentence: what the year sold, what it earned before the accountants
+    # got to it, how much of that became cash, and what the company owes against those
+    # earnings. Revenue leads because the three after it are read against it, and a
+    # year's EBITDA beside a quarter's revenue is two bases with nothing to size either.
+    #
+    # Cash conversion is free cash flow's own qualifier, not a tile: it is that figure
+    # over net income and says nothing without it. Where it is undefined, on a loss, the
+    # margin stands in. What the year spent on acquisitions is not here: the band below
+    # draws it for every year on file, and one year of it as a tile was the same fact
+    # twice.
+    conversion = _times(cash.get("cash_conversion"))
+    fcf_note = (f"{conversion} net income" if conversion
+                else T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
+                if cash.get("fcf_margin") is not None else "")
+    # Net debt is a balance, so it has a date of its own, and that date is usually later
+    # than the year the chip names: the latest balance sheet against the last full
+    # year's EBITDA. Unlabelled, a September figure read as the December one.
+    owed = inputs.get("debt_as_of") or inputs.get("balance_sheet_as_of")
+    debt_bits = [(_times(cash.get("net_debt_ebitda")) + " EBITDA"
+                  if cash.get("net_debt_ebitda") is not None else ""),
+                 _month_year(owed)]
+    tiles = [
         ("EBITDA", *_scaled(cash.get("ebitda")), "", "", "before D&A"),
-        ("Free cash flow", *_scaled(cash.get("fcf")), "", "",
-         (T.pct(cash["fcf_margin"] * 100, 1) + " of revenue"
-          if cash.get("fcf_margin") is not None else "")),
-        ("Cash conversion", _times(cash.get("cash_conversion")), "", "", "",
-         "FCF over net income"),
+        ("Free cash flow", *_scaled(cash.get("fcf")), "", "", fcf_note),
         ("Net debt", *_scaled(cash.get("net_debt")), "", "",
-         (_times(cash.get("net_debt_ebitda")) + " EBITDA"
-          if cash.get("net_debt_ebitda") is not None else "")),
-        # Cash paid is not the announced value on the deals, and the two figures are one
-        # click apart, so this one says which it is.
-        ("Acquisitions", *_scaled((cash.get("inputs") or {}).get("acquisitions")),
-         "", "", "cash paid"),
-    ], one_row=True, shared_grid=True), unsafe_allow_html=True)
+         ", ".join(bit for bit in debt_bits if bit)),
+    ]
+    if not lead_is_year:
+        tiles.insert(0, ("Revenue", *_scaled(inputs.get("revenue")), "", "", ""))
+    st.markdown(metric_tiles(tiles, one_row=True, shared_grid=True),
+                unsafe_allow_html=True)
 
-    inputs = cash.get("inputs") or {}
+    # Lines no tile here is built from are not named as missing: an absent acquisitions
+    # tag is the band's business, and it says so itself.
+    unshown = ("cash_lines", "debt_as_of", "balance_sheet_as_of", "debt_basis",
+               "operating_income_basis", "depreciation_amortisation_basis",
+               "acquisitions", "acquisitions_businesses", "acquisitions_assets")
     missing = [name.replace("_", " ") for name, value in inputs.items()
-               if value is None and name not in
-               ("cash_lines", "debt_as_of", "operating_income_basis")]
+               if value is None and name not in unshown]
     derived = str(inputs.get("operating_income_basis") or "")
     notes = "".join((
         ("Operating income is not tagged by this filer, so EBITDA takes the "
@@ -1705,6 +1724,14 @@ def _cash_block(api_base: str, ticker: str) -> None:
     ))
     if notes:
         note(notes)
+
+
+def _month_year(iso) -> str:
+    """'2026-09-30' as 'Sep 26', the way a balance sheet column is headed. '' if unread."""
+    try:
+        return dt.date.fromisoformat(str(iso)[:10]).strftime("%b %y")
+    except (TypeError, ValueError):
+        return ""
 
 
 def _street_figure(metric: str, value, currency: str):
@@ -1719,75 +1746,123 @@ def _street_figure(metric: str, value, currency: str):
     return figure, (f"{currency} " if currency else "") + unit
 
 
-def _street_block(api_base: str, ticker: str) -> None:
-    """What the year ahead is expected to be: management's number, the street's, mine.
+_STREET_ROWS = {"Revenue": "revenue", "RevenueGrowth": "revenue growth",
+                "ProductSales": "product sales", "EPS": "EPS"}
 
-    Only periods carrying an estimate show. A period holding nothing but a reported
-    actual is the block above this one said twice, and a company with no estimates on
-    file gets no heading at all rather than an empty one.
 
-    The three columns are not the same kind of number and the block says so. Guidance is
-    what the company stated, quoted verbatim in the fold. Street is the paid feed or a
-    curated row. Mine is the drug forecast rolled up, which covers only the assets that
-    have one: Vertex's is one product against a company guiding thirteen billion, so the
-    tile names the assets rather than letting the layout imply coverage it does not have.
+def _street_table(api_base: str, ticker: str) -> None:
+    """Reported, guidance, the street and the book, a row a figure and a column a source.
+
+    This was a strip of tiles on the financials tab, one per figure, and it had two
+    faults there. It is the forward view, on the tab that is otherwise what the company
+    filed. And it is a table: each tile named its year, its measure and its source in
+    one label ("FY2026 EPS guidance"), so reading guidance against the street meant
+    finding the two tiles that shared a year and a measure among eight.
+
+    Each cell carries its own range and the date it was read, because the sources move
+    on different days and a guidance figure a quarter old sits beside a street figure
+    from last week. Nothing is computed here but what the consensus layer returns: the
+    book's figure is the sum of the lines it models, not the company, so it is printed
+    beside guidance and never differenced against it.
     """
     try:
         view = api_get(api_base, f"/companies/{ticker}/street")
-    except (urllib.error.URLError, OSError):
+    except (urllib.error.URLError, OSError) as exc:
+        state("Unavailable", f"the API did not answer: {exc}", error=True)
         return
+
+    def held(entry):
+        return isinstance(entry, dict) and entry.get("value") is not None
+
     rows = [row for row in (view.get("rows") or [])
-            if row.get("guidance") or row.get("street")]
+            if held(row.get("reported")) or held(row.get("guidance"))
+            or held(row.get("street")) or row.get("mine") is not None]
     if not rows:
+        state("Nothing on file",
+              "No guidance, street estimate or modelled figure is held for "
+              f"{html_escape(ticker)}.")
         return
     fallback = view.get("reporting_currency") or ""
     covered = view.get("mine_lines") or []
-    section("The year ahead", basis="guidance vs street vs mine")
-    quotes = []
-    # Every period's figures in one row, read left to right in time. A strip per period
-    # stacked them into a column, one tile deep, when a company has only street figures.
-    tiles = []
+    order = list(_STREET_ROWS)
+    # In time, then the top line before what is left of it; the price target is not a
+    # year's figure and closes the table.
+    rows.sort(key=lambda row: (row["metric"] == "PriceTarget", str(row["period"]),
+                               order.index(row["metric"]) if row["metric"] in order
+                               else len(order)))
+
+    def cell(metric, value, currency, under=""):
+        figure, unit = _street_figure(metric, value, currency)
+        if figure is None:
+            return f'<td class="rs-v none">{T.num(None)}</td>'
+        return (f'<td class="rs-v">{figure}<span class="rs-u">{html_escape(unit)}</span>'
+                + (f'<span class="rs-n">{html_escape(under)}</span>' if under else "")
+                + '</td>')
+
+    def sourced(metric, entry):
+        if not held(entry):
+            return cell(metric, None, "")
+        currency = entry.get("currency") or (
+            "" if metric == "RevenueGrowth" else fallback)
+        low, _ = _street_figure(metric, entry.get("low"), "")
+        high, _ = _street_figure(metric, entry.get("high"), "")
+        under = f"{low} to {high}" if low and high and low != high else ""
+        if entry.get("as_of"):
+            under = (under + ", " if under else "") + entry["as_of"]
+        return cell(metric, entry["value"], currency, under)
+
+    body, quotes, mine_shown = [], [], False
     for row in rows:
         metric, period = row["metric"], row["period"]
-        name = "" if metric == "Revenue" else (
-            " growth" if metric == "RevenueGrowth" else
-            " price target" if metric == "PriceTarget" else
-            " product sales" if metric == "ProductSales" else " EPS")
-        for label, entry in (("guidance", row.get("guidance")),
-                             ("street", row.get("street"))):
-            if not entry or entry.get("value") is None:
-                continue
-            currency = entry.get("currency") or (
-                "" if metric == "RevenueGrowth" else fallback)
-            value, unit = _street_figure(metric, entry["value"], currency)
-            low, _ = _street_figure(metric, entry.get("low"), "")
-            high, _ = _street_figure(metric, entry.get("high"), "")
-            detail = f"{low} to {high}" if low and high and low != high else ""
-            if entry.get("as_of"):
-                detail = (detail + ", " if detail else "") + entry["as_of"]
-            delta = row.get(f"{label}_vs_street")
-            tiles.append((f"{period}{name} {label}", value, unit,
-                          (f"{delta * 100:+.0f}% vs street" if delta else ""),
-                          " up" if delta and delta > 0 else
-                          " down" if delta else "", detail))
-            if label == "guidance" and entry.get("note"):
-                quotes.append(f'{period}: "{entry["note"]}"')
+        label = ("12-month price target" if metric == "PriceTarget"
+                 else f"{period} {_STREET_ROWS.get(metric, metric)}")
+        reported = row.get("reported")
+        if held(reported):
+            # The filed figure carries its unit as "USD" or "USD/shares".
+            filed = cell(metric, reported["value"],
+                         str(reported.get("unit") or "").split("/")[0] or fallback)
+        else:
+            filed = cell(metric, None, "")
         if row.get("mine") is not None:
-            value, unit = _street_figure(metric, row["mine"], "USD")
-            delta = row.get("mine_vs_street")
-            tiles.append((f"{period}{name} mine", value, unit,
-                          (f"{delta * 100:+.0f}% vs street" if delta else ""),
-                          " up" if delta and delta > 0 else
-                          " down" if delta else "",
-                          ", ".join(covered) if len(covered) < 3
-                          else f"{len(covered)} assets modelled"))
-    if tiles:
-        st.markdown(metric_tiles(tiles, one_row=True, shared_grid=True),
-                    unsafe_allow_html=True)
+            mine_shown = True
+            mine = cell(metric, row["mine"], "USD",
+                        f"{len(covered)} lines modelled" if covered else "")
+        else:
+            mine = cell(metric, None, "")
+        gaps = []
+        for who, delta in (("guidance", row.get("guidance_vs_street")),
+                           ("mine", row.get("mine_vs_street"))):
+            if delta:
+                sign = "+" if delta > 0 else T.MINUS
+                gaps.append(f'<span class="rs-g {"up" if delta > 0 else "down"}">'
+                            f'{who} {sign}{abs(delta) * 100:.0f}% vs street</span>')
+        body.append(
+            f'<tr><td class="rs-k">{html_escape(label)}</td>{filed}'
+            f'{sourced(metric, row.get("guidance"))}{sourced(metric, row.get("street"))}'
+            f'{mine}<td class="rs-v">{"".join(gaps)}</td></tr>')
+        note_text = (row.get("guidance") or {}).get("note")
+        if note_text:
+            when = (row.get("guidance") or {}).get("as_of") or ""
+            quotes.append(f'<div class="lead-q"><span class="rs-qk">{html_escape(label)}'
+                          f'{", " + html_escape(when) if when else ""}</span> '
+                          f'{_quoted(note_text)}</div>')
+
+    st.markdown(
+        '<table class="rs rs-street"><thead><tr><th></th><th>reported</th>'
+        '<th>guidance</th><th>street</th><th>mine</th><th>gap</th></tr></thead>'
+        f'<tbody>{"".join(body)}</tbody></table>', unsafe_allow_html=True)
+    if mine_shown:
+        st.markdown(
+            '<div class="byline rs-by">Mine is the sum of the lines the book models, not the '
+            'whole company, so it does not read against company guidance like for like. '
+            'Fair value range makes that reading, with the revenue the book carries '
+            'outside those lines counted in.</div>', unsafe_allow_html=True)
     if quotes:
-        # The sentence the figure was read out of, so a guidance number can always be
-        # argued with rather than taken on trust.
-        note(" ".join(_quoted(quote) for quote in quotes))
+        # The sentence each guidance figure was read out of, so it can be argued with
+        # rather than taken on trust. One to a line, with what it is and when it was
+        # said: run together they read as one statement, and two of them disagreed.
+        st.markdown(f'<div class="rs-quotes">{"".join(quotes)}</div>',
+                    unsafe_allow_html=True)
 
 
 def _pre_revenue_blocks(api_base: str, ticker: str, left, right) -> None:
@@ -6011,7 +6086,8 @@ def _medicare_tile_sub(dem) -> str:
 # to reach the gates, one asset's whole workbench) is one click away, in a card over the
 # page. The figures come from one read, the board; a choice redraws from it.
 
-_FC_MORE = {"sum": "How the sum is built", "range": "Fair value range",
+_FC_MORE = {"street": "Guidance and the street",
+            "sum": "How the sum is built", "range": "Fair value range",
             "build": "Revenue by product", "breaks": "What breaks it",
             "gates": "Cost to reach the gates", "peers": "Peer multiples",
             "medicare": "Medicare negotiation"}
@@ -6258,6 +6334,8 @@ def _fc_more(api_base: str, ticker: str, key: str) -> None:
             if bits:
                 st.markdown(f'<div class="byline">{html_escape(" ".join(bits))}</div>',
                             unsafe_allow_html=True)
+        elif key == "street":
+            _street_table(api_base, ticker)
         elif key == "range":
             _fair_value_range(api_base, ticker)
         elif key == "breaks":
@@ -11376,26 +11454,32 @@ with main:
         snapshot = built.get("snapshot")
 
         # --- The two readings, side by side -------------------------------
-        # A quarter's income statement and a year's cash flow are different bases,
-        # and stacking them put 25.3bn of quarterly revenue directly above 19.7bn of
-        # annual free cash flow in the same tiles at the same weight. Two columns
-        # separate them structurally rather than by a label, and the page loses the
-        # height it was spending saying so twice.
-        # Two full-width rows rather than two half-width columns. Each block's figures
-        # then fit on one line: at half a page the period strip wrapped R&D onto a second
-        # row and the cash strip wrapped acquisitions, so a four-figure block stood two
-        # deep and the two blocks disagreed about where their own baseline was.
-        # Keyed so the stylesheet can tell the tab's first section from the rest.
-        left, right = st.container(key=f"fin_lead_{ticker}"), st.container()
-
+        # A quarter's income statement and a year's cash flow are different bases, and
+        # each half says which it is on its own rule. They share one band, four figures
+        # a half, over the two histories below, which split the page at the same line.
+        # They were two full-width rows, since at half a page a five-figure strip
+        # wrapped its last figure; at four a half they fit, and the row they give back
+        # is a hundred pixels the statements start higher by.
+        #
+        # This tab is what the company filed. Guidance, the street and the book's own
+        # figures are the forward view and sit on the forecast tab, behind More.
+        #
+        # Keyed so the stylesheet can tell the tab's first sections from the rest.
         if snapshot:
+            with st.container(key=f"fin_lead_{ticker}"):
+                left, right = st.columns(2, gap="medium")
+            # Named from the period the figures are for, never from the statements'
+            # basis below. Keyed on that, choosing Annual retitled this "The year" over
+            # the same quarter's figures.
+            lead_is_year = snapshot.get("period_type") == "FY"
             with left:
-                section("The quarter" if built["basis"] == "quarterly" else "The year",
+                section("The year" if lead_is_year else "The quarter",
                         snapshot_meta(snapshot), basis=snapshot.get("label") or "")
                 st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
             with right:
-                _cash_block(api_base, ticker)
+                _cash_block(api_base, ticker, lead_is_year=lead_is_year)
         elif built["is_sec_filer"]:
+            left, right = st.container(key=f"fin_lead_{ticker}"), st.container()
             # A company with no revenue is not a company with no financials. Dyne has
             # thirty-one quarters of equity and twenty-three of net loss on file, and
             # this tab told it there were none, because the snapshot leads on revenue
@@ -11408,11 +11492,6 @@ with main:
                   "EDGAR holds no company facts for a company the SEC does not "
                   "register. Roche and Bayer each publish a workbook of their own, "
                   f"which the refresh reads, and {ticker}'s has not loaded yet.")
-
-        # The reported period, then the year it is guiding to. Consensus belongs here
-        # rather than on the forecast tab: this is where the reported number it is being
-        # compared against already sits.
-        _street_block(api_base, ticker)
 
         if snapshot or built["is_sec_filer"]:
             # Every period the API returns, which is every period on file: forty quarters
