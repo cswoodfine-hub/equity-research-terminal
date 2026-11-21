@@ -1567,6 +1567,29 @@ details.prof-summary.long[open] > summary {{ display: none; }}
    columns of mostly empty cells came out as a grid of boxes with a figure in a few. */
 .rs.rs-street th, .rs.rs-street td {{ border-left: 0; border-right: 0; border-top: 0; }}
 .rs-by {{ max-width: 74ch; }}
+/* A table that shares a row with a strip of tiles is as deep as they are: four rows in
+   the height of one figure, its key and its note. */
+.rs.rs-tight {{ margin-top: 0.1rem; font-size: 11.5px; }}
+.rs.rs-tight td {{ padding: 3px 10px; }}
+.rs.rs-tight thead th {{ padding: 4px 10px; background: transparent; }}
+.rs.rs-tight td:first-child, .rs.rs-tight th:first-child {{ padding-left: 0; }}
+.rs.rs-tight .rs-d {{ color: var(--muted); }}
+/* The latest report (the financials tab). A word and a sentence, on one baseline: the
+   word is a chip that draws its own direction, the sentence is at the size of the page's
+   figures and no larger, because it is a reading of them and not a heading over them. */
+.rep-lead {{ display: flex; align-items: baseline; gap: var(--sp-12); flex-wrap: wrap;
+            margin: 0.35rem 0 0.1rem; }}
+.rep-lead .u-chip {{ flex: 0 0 auto; font-weight: 600; color: var(--text);
+                    height: 20px; padding: 0 8px; position: relative; top: -1px; }}
+.rep-lead .u-chip.flag {{ color: var(--flag); }}
+.rep-s {{ font-size: 14px; line-height: 1.45; color: var(--text); max-width: 110ch; }}
+.rep-g {{ font-size: 11px; color: var(--muted); margin-top: 3px; }}
+.rep-fold {{ margin-top: 0.35rem; }}
+.rep-fold[open] > summary {{ margin-bottom: 0.2rem; }}
+/* A link on a section's rule reads as part of the rule until the pointer is on it. */
+.sec-count a {{ color: inherit; text-decoration: underline;
+               text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}
+.sec-count a:hover {{ color: var(--text); text-decoration-color: var(--muted); }}
 .rs.rs-street .rs-k {{ color: var(--text); }}
 .rs .rs-u {{ margin-left: 4px; font-size: 10px; color: var(--muted); }}
 .rs .rs-n {{ display: block; margin-top: 2px; font-size: 10.5px; color: var(--muted); }}

@@ -1659,6 +1659,219 @@ def _times(value, dp=2):
     return f"{value:.{dp}f}x" if value is not None else None
 
 
+def _signed(value, decimals: int = 1, suffix: str = "%") -> str:
+    """A change with its sign said, a true minus for a fall. '' for no figure."""
+    if value is None:
+        return ""
+    return f"{'+' if value >= 0 else T.MINUS}{abs(value):,.{decimals}f}{suffix}"
+
+
+def _tone(value) -> str:
+    return "" if not value else " up" if value > 0 else " down"
+
+
+def _quarter_label(quarter_end) -> str:
+    """'2026-09' as 'Sep 26', the month a fiscal quarter closes in. '' if unread."""
+    return _month_year(f"{quarter_end}-01") if quarter_end else ""
+
+
+def _earnings_report(api_base: str, ticker: str):
+    """The latest report, or None where there is none on file or the API will not say.
+
+    A soft failure: the tab is the filed figures first, and it draws without this.
+    """
+    try:
+        built = api_get(api_base, f"/companies/{ticker}/report")
+    except (urllib.error.URLError, OSError):
+        return None
+    return built if (built or {}).get("report") else None
+
+
+_VERDICT_CHIP = {"up": " up", "down": " down", "mixed": " flag", "flat": ""}
+
+
+def _report_lead(report: dict) -> None:
+    """The report in a word and a sentence, above the figures it is about.
+
+    The word is a chip that draws its own direction, so it is never colour alone. The
+    sentence is one clause a figure, each from a rule in backend/earnings_report.py:
+    nothing in it is written by a model, so every clause can be traced to its number.
+    """
+    call, sentence = report.get("verdict"), " ".join(report.get("sentence") or [])
+    if not call and not sentence:
+        return
+    chip = (f'<span class="u-chip{_VERDICT_CHIP.get(call["tone"], "")}">'
+            f'{html_escape(call["word"])}</span>' if call else "")
+    st.markdown(f'<div class="rep-lead">{chip}<span class="rep-s">'
+                f'{html_escape(sentence)}</span></div>', unsafe_allow_html=True)
+
+
+def _guidance_money(change: dict, value) -> tuple:
+    """A guided figure and its unit, at the scale it reads at."""
+    if value is None:
+        return None, ""
+    if change["metric"] == "RevenueGrowth":
+        return T.num(value, 1), "%"
+    if change["metric"] == "EPS":
+        return T.num(value, 2), ""
+    return _scaled(value)
+
+
+def _report_landed(report: dict) -> None:
+    """How the report landed: against the street, on guidance, in the price, in the book.
+
+    Four readings beside the four filed figures. Each is a fact about a report already
+    made, which is why they are on this tab: the levels they refer to (what the street
+    expects next, where guidance stands) are the forward view and live on the forecast
+    tab.
+    """
+    meta, street = report["report"], report.get("street")
+    filing = meta.get("filing") or {}
+    when = f'reported {meta["reported_on"]}'
+    if not report.get("filed_matches") and meta.get("quarter_end"):
+        # A 20-F filer tags no quarters, so the report is for a period the figures
+        # beside it are not. Said on the rule, where the two halves meet.
+        when = f'{_quarter_label(meta["quarter_end"])} quarter, {when}'
+    if filing.get("url"):
+        when += (f' · <a href="{html_escape(filing["url"])}" target="_blank" '
+                 f'rel="noopener">{html_escape(filing.get("form_type") or "filing")}</a>')
+    day = report.get("day")
+    if day and day.get("timing") and day["timing"] != "time of day not known":
+        when += f', {day["timing"]}'
+    section("How it landed", when)
+
+    tiles = []
+    if street:
+        result = street.get("result")
+        tiles.append(("Vs the street", T.num(street["eps"], 2), "",
+                      _signed(street.get("surprise_pct"), 0),
+                      "" if result == "in line" else _tone(street.get("surprise_pct")),
+                      f'consensus {T.num(street["consensus_eps"], 2)}, street EPS'))
+    else:
+        tiles.append(("Vs the street", None, "", "", "",
+                      "no quarterly consensus on file"))
+
+    changes = report.get("guidance") or []
+    read = [g for g in changes if g["direction"] in ("raised", "cut", "held")]
+    if read:
+        lead = read[0]
+        figure, unit = _guidance_money(lead, lead["value"])
+        was, was_unit = _guidance_money(lead, lead["prior"])
+        moved = ("" if lead["direction"] == "held" else
+                 _signed(lead["change"], 1, " pts") if lead["in_points"]
+                 else _signed(lead["change"] * 100, 1))
+        tiles.append(("Guidance", figure, unit, moved or "held",
+                      "" if lead["direction"] == "held" else _tone(lead["change"]),
+                      f'{lead["label"]}, from {was}{was_unit}'))
+    elif changes:
+        stale = next((g for g in changes if g["direction"] == "not re-read"), changes[0])
+        # Which figure, in a word, and when it was last read: the long name ran the
+        # note to a second line.
+        short = {"Revenue": "revenue", "RevenueGrowth": "growth",
+                 "ProductSales": "sales", "EPS": "EPS"}.get(stale["metric"], "")
+        tiles.append(("Guidance", None, "not re-read", "", "",
+                      f'{short} last read '
+                      f'{stale["prior_as_of"] or stale["as_of"] or ""}'.strip()))
+    else:
+        tiles.append(("Guidance", None, "none on file", "", "", ""))
+
+    if day:
+        # The move beyond the benchmark's, in points. Said short: with the unit spelt
+        # out the figure and its qualifier ran to a second line in a tile this wide.
+        against = (f'{_signed(day["abnormal"] * 100, 1, "")} vs {day["benchmark"]}'
+                   if day.get("abnormal") is not None else "")
+        tiles.append(("The day", _signed(day["move"] * 100, 1), "", against,
+                      _tone(day.get("abnormal")),
+                      f'{T.num(day["previous_close"], 2)} to {T.num(day["close"], 2)}'))
+    else:
+        tiles.append(("The day", None, "no close near it", "", "", ""))
+
+    book = report.get("book") or {}
+    if book.get("change") is not None:
+        tiles.append(("The book", T.num(book["after"]["value"], 2), "a share",
+                      _signed(book["change"] * 100, 1), _tone(book["change"]),
+                      f'from {T.num(book["before"]["value"], 2)}, '
+                      f'{book["before"]["as_of"]}'))
+    else:
+        since = "since" in (book.get("reason") or "")
+        tiles.append(("The book", None,
+                      "not valued since" if since else "no earlier value", "", "",
+                      "none stored since this report" if since
+                      else "none stored before this report"))
+    st.markdown(metric_tiles(tiles, one_row=True, shared_grid=True),
+                unsafe_allow_html=True)
+
+
+def _report_history_table(report: dict) -> str:
+    """The last four reports, a row each: what the street expected, what came, and the
+    first close that could react. '' with none on file."""
+    rows = []
+    for past in report.get("history") or []:
+        surprise, move = past.get("surprise_pct"), past.get("move")
+        rows.append(
+            f'<tr><td class="rs-k">{html_escape(_quarter_label(past["quarter_end"]))}</td>'
+            f'<td class="rs-v rs-d">{html_escape(past.get("reported_on") or T.num(None))}</td>'
+            f'<td class="rs-v">{T.num(past.get("eps"), 2)}</td>'
+            f'<td class="rs-v">{T.num(past.get("consensus_eps"), 2)}</td>'
+            f'<td class="rs-v{_tone(surprise) if past.get("result") != "in line" else ""}">'
+            f'{_signed(surprise, 0) or T.num(None)}</td>'
+            f'<td class="rs-v">{_signed(move * 100, 1) if move is not None else T.num(None)}'
+            '</td></tr>')
+    if not rows:
+        return ""
+    return ('<table class="rs rs-street rs-tight"><thead><tr><th>quarter</th>'
+            '<th>reported</th><th>street EPS</th><th>consensus</th><th>surprise</th>'
+            f'<th>the day</th></tr></thead><tbody>{"".join(rows)}</tbody></table>')
+
+
+def _report_context(report: dict) -> None:
+    """Under the report: what made the quarter, or where no product table is read, the
+    reports before it.
+
+    The products are this quarter's own explanation, so they take the place when the
+    release's table has been read; the record of the last four reports then folds under
+    them. For a company whose release is not read that way, which is most of them, the
+    record is what there is and it stands open.
+    """
+    drivers, history = report.get("drivers") or [], _report_history_table(report)
+    others = [g for g in (report.get("guidance") or [])
+              if g["direction"] in ("raised", "cut", "held")][1:]
+    more = "".join(
+        f'<div class="rep-g">{html_escape(g["label"])} guidance '
+        f'{"held" if g["direction"] == "held" else "raised" if g["direction"] == "raised" else "cut"}'
+        f'{"" if g["direction"] == "held" else " " + (_signed(g["change"], 1, " pts") if g["in_points"] else _signed(g["change"] * 100, 1))}'
+        '</div>' for g in others)
+    if not drivers:
+        if history:
+            section("The last four reports", "EPS as the street counts it")
+            st.markdown(history + more, unsafe_allow_html=True)
+        return
+    label = (report["report"].get("label") or "")
+    section("What drove it", "product revenue, against the same quarter a year before")
+    body = []
+    # The four largest. The row beside this one is a strip of figures a hundred pixels
+    # deep, and a table of every product stood twice that and pushed the statements off
+    # the screen to list lines worth a twentieth of the quarter.
+    for row in drivers[:4]:
+        figure, unit = _scaled(row["value"], 2)
+        was, was_unit = _scaled(row["prior"], 2)
+        body.append(
+            f'<tr><td class="rs-k">{html_escape(row["name"])}</td>'
+            f'<td class="rs-v">{figure}<span class="rs-u">{unit}</span></td>'
+            + (f'<td class="rs-v">{was}<span class="rs-u">{was_unit}</span></td>'
+               if was is not None else f'<td class="rs-v none">{T.num(None)}</td>')
+            + f'<td class="rs-v{_tone(row["change"])}">'
+              f'{_signed(row["change"] * 100, 0) if row["change"] is not None else T.num(None)}'
+              '</td></tr>')
+    st.markdown(
+        f'<table class="rs rs-street rs-tight"><thead><tr><th>product</th>'
+        f'<th>{html_escape(label) or "the quarter"}</th><th>a year before</th>'
+        f'<th>change</th></tr></thead><tbody>{"".join(body)}</tbody></table>'
+        + (f'<details class="note-d rep-fold"><summary>the last four reports</summary>'
+           f'{history}{more}</details>' if history else ""),
+        unsafe_allow_html=True)
+
+
 def _cash_block(api_base: str, ticker: str, lead_is_year: bool = False) -> None:
     """The year's cash and what the balance sheet owes, for a company with revenue.
 
@@ -2135,7 +2348,10 @@ def metric_tiles(items, one_row: bool = False, shared_grid: bool = False) -> str
     out = []
     for (label, value, unit, change, tone, note), span in zip(items, spans):
         missing = value is None or value == T.num(None)
-        figure = ("no free data" if missing
+        # A tile with no figure says so. Where the reason is something other than the
+        # source having none (a figure not re-read, a reading that did not exist yet),
+        # the caller passes it as the unit and it is printed in the figure's place.
+        figure = (html_escape(unit or "no free data") if missing
                   else f'{value}<span class="u">{unit}</span>' if unit
                   else str(value))
         wide = ' class="s2"' if span == 2 else ""
@@ -11466,7 +11682,14 @@ with main:
         #
         # Keyed so the stylesheet can tell the tab's first sections from the rest.
         if snapshot:
+            # The latest report leads the tab where there is one: a word and a sentence
+            # for what it was, then the filed figures beside how they landed. Under it,
+            # what made the quarter beside the year's cash. With no report on file the
+            # tab is as it was, the filed period beside the year.
+            report = _earnings_report(api_base, ticker)
             with st.container(key=f"fin_lead_{ticker}"):
+                if report:
+                    _report_lead(report)
                 left, right = st.columns(2, gap="medium")
             # Named from the period the figures are for, never from the statements'
             # basis below. Keyed on that, choosing Annual retitled this "The year" over
@@ -11476,8 +11699,17 @@ with main:
                 section("The year" if lead_is_year else "The quarter",
                         snapshot_meta(snapshot), basis=snapshot.get("label") or "")
                 st.markdown(snapshot_strip(snapshot), unsafe_allow_html=True)
-            with right:
-                _cash_block(api_base, ticker, lead_is_year=lead_is_year)
+            if report:
+                with right:
+                    _report_landed(report)
+                lower_left, lower_right = st.columns(2, gap="medium")
+                with lower_left:
+                    _report_context(report)
+                with lower_right:
+                    _cash_block(api_base, ticker, lead_is_year=lead_is_year)
+            else:
+                with right:
+                    _cash_block(api_base, ticker, lead_is_year=lead_is_year)
         elif built["is_sec_filer"]:
             left, right = st.container(key=f"fin_lead_{ticker}"), st.container()
             # A company with no revenue is not a company with no financials. Dyne has
