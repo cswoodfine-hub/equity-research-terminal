@@ -1,0 +1,578 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-17T17:09:20Z",
+  "title": "Design System: Novatalis Lens",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Deep Petrol",
+        "canonical": "oklch(18.5% 0.014 223)",
+        "tonalRamp": [
+          "#080C0D",
+          "#202629",
+          "#3B4447",
+          "#596367",
+          "#7A8488",
+          "#9EA7AA",
+          "#C3CBCD",
+          "#EBEFF1"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Raised Petrol",
+        "canonical": "oklch(22.6% 0.017 222)",
+        "tonalRamp": [
+          "#070C0E",
+          "#1E272A",
+          "#394448",
+          "#576468",
+          "#78858A",
+          "#9BA7AC",
+          "#C1CBCF",
+          "#EAEFF1"
+        ]
+      },
+      "rule-faint": {
+        "role": "neutral",
+        "displayName": "Faint Grid",
+        "canonical": "oklch(23.9% 0.017 222)",
+        "tonalRamp": [
+          "#070C0E",
+          "#1E272A",
+          "#394448",
+          "#576468",
+          "#78858A",
+          "#9BA7AC",
+          "#C1CBCF",
+          "#EAEFF1"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(29.0% 0.022 220)",
+        "tonalRamp": [
+          "#060C0E",
+          "#1C272B",
+          "#36454A",
+          "#54646A",
+          "#75868B",
+          "#99A8AD",
+          "#BFCCD0",
+          "#E9F0F2"
+        ]
+      },
+      "rule-strong": {
+        "role": "neutral",
+        "displayName": "Structural Hairline",
+        "canonical": "oklch(36.5% 0.028 222)",
+        "tonalRamp": [
+          "#050D0F",
+          "#19282D",
+          "#33454C",
+          "#50656D",
+          "#71868E",
+          "#95A9B0",
+          "#BDCCD2",
+          "#E8F0F3"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(94.1% 0.007 160)",
+        "tonalRamp": [
+          "#0A0C0B",
+          "#232624",
+          "#3F4341",
+          "#5E6260",
+          "#7F8481",
+          "#A2A6A4",
+          "#C7CAC8",
+          "#EDEFEE"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "canonical": "oklch(64.2% 0.024 226)",
+        "tonalRamp": [
+          "#060C0F",
+          "#1C272C",
+          "#36454B",
+          "#53646C",
+          "#74868D",
+          "#98A8AF",
+          "#BFCCD1",
+          "#E9F0F3"
+        ]
+      },
+      "up": {
+        "role": "primary",
+        "displayName": "Measured Green",
+        "canonical": "oklch(62.7% 0.092 165)",
+        "tonalRamp": [
+          "#000F08",
+          "#012D1E",
+          "#064F37",
+          "#1F7154",
+          "#489374",
+          "#73B598",
+          "#A4D7BF",
+          "#DCF6E9"
+        ]
+      },
+      "down": {
+        "role": "secondary",
+        "displayName": "Cliff Red",
+        "canonical": "oklch(58.7% 0.148 35)",
+        "tonalRamp": [
+          "#1D0200",
+          "#480B00",
+          "#781B03",
+          "#A4381E",
+          "#CA5D43",
+          "#EA856D",
+          "#FEB4A2",
+          "#FEE9E4"
+        ]
+      },
+      "flag": {
+        "role": "secondary",
+        "displayName": "Review Amber",
+        "canonical": "oklch(78.3% 0.100 81)",
+        "tonalRamp": [
+          "#120900",
+          "#322200",
+          "#563D04",
+          "#7E5A05",
+          "#A07C36",
+          "#C1A064",
+          "#E0C597",
+          "#FAEDD5"
+        ]
+      },
+      "phase-preclinical": {
+        "role": "tertiary",
+        "displayName": "Phase: preclinical",
+        "canonical": "oklch(39.0% 0.036 218)",
+        "tonalRamp": [
+          "#030D10",
+          "#14282E",
+          "#2D474E",
+          "#4A676F",
+          "#6B8891",
+          "#90AAB2",
+          "#B8CDD4",
+          "#E6F1F4"
+        ]
+      },
+      "phase-1": {
+        "role": "tertiary",
+        "displayName": "Phase 1",
+        "canonical": "oklch(49.8% 0.051 208)",
+        "tonalRamp": [
+          "#000E11",
+          "#082A2F",
+          "#20494F",
+          "#3D6970",
+          "#5F8B92",
+          "#85ADB4",
+          "#B0D0D5",
+          "#E2F2F5"
+        ]
+      },
+      "phase-2": {
+        "role": "tertiary",
+        "displayName": "Phase 2",
+        "canonical": "oklch(61.4% 0.059 185)",
+        "tonalRamp": [
+          "#000F0D",
+          "#022C28",
+          "#194B46",
+          "#376C66",
+          "#598E87",
+          "#81B0A9",
+          "#ADD2CD",
+          "#E1F3F0"
+        ]
+      },
+      "phase-3": {
+        "role": "tertiary",
+        "displayName": "Phase 3",
+        "canonical": "oklch(71.6% 0.082 130)",
+        "tonalRamp": [
+          "#060E00",
+          "#1B2B05",
+          "#354A1A",
+          "#526A37",
+          "#738C58",
+          "#97AE7F",
+          "#BED1AB",
+          "#E8F3DF"
+        ]
+      },
+      "orange-book": {
+        "role": "tertiary",
+        "displayName": "Orange Book Ochre",
+        "canonical": "oklch(68.4% 0.111 64)",
+        "tonalRamp": [
+          "#150800",
+          "#391E00",
+          "#603703",
+          "#8C5103",
+          "#AF7335",
+          "#D09863",
+          "#ECC097",
+          "#FFEBD9"
+        ]
+      },
+      "purple-book": {
+        "role": "tertiary",
+        "displayName": "Purple Book Violet",
+        "canonical": "oklch(63.6% 0.107 291)",
+        "tonalRamp": [
+          "#0C0620",
+          "#261B49",
+          "#433672",
+          "#625599",
+          "#8277BC",
+          "#A59BDC",
+          "#C8C2F5",
+          "#EEECFF"
+        ]
+      },
+      "engine-biotech": {
+        "role": "tertiary",
+        "displayName": "Burnt Orange",
+        "canonical": "oklch(69.2% 0.128 62)",
+        "tonalRamp": [
+          "#150700",
+          "#391D01",
+          "#623500",
+          "#8C500B",
+          "#B76F24",
+          "#D79458",
+          "#F2BD8F",
+          "#FFEAD9"
+        ]
+      },
+      "fda": {
+        "role": "tertiary",
+        "displayName": "FDA Blue",
+        "canonical": "oklch(67.9% 0.130 254)",
+        "tonalRamp": [
+          "#000B1F",
+          "#01254B",
+          "#05427C",
+          "#2162A8",
+          "#4785CC",
+          "#71A8EA",
+          "#A4CDFF",
+          "#E4F0FF"
+        ]
+      },
+      "fda-bio": {
+        "role": "tertiary",
+        "displayName": "BLA Teal",
+        "canonical": "oklch(71.2% 0.094 206)",
+        "tonalRamp": [
+          "#000E10",
+          "#022B2F",
+          "#024B53",
+          "#106E78",
+          "#2B929D",
+          "#61B4BE",
+          "#98D6DD",
+          "#D7F5F9"
+        ]
+      },
+      "phase-filed": {
+        "role": "tertiary",
+        "displayName": "Phase: filed",
+        "canonical": "oklch(78.3% 0.100 81)",
+        "tonalRamp": [
+          "#120900",
+          "#322200",
+          "#563D04",
+          "#7E5A05",
+          "#A07C36",
+          "#C1A064",
+          "#E0C597",
+          "#FAEDD5"
+        ]
+      },
+      "phase-approved": {
+        "role": "tertiary",
+        "displayName": "Phase: approved",
+        "canonical": "oklch(94.1% 0.007 160)",
+        "tonalRamp": [
+          "#0A0C0B",
+          "#232624",
+          "#3F4341",
+          "#5E6260",
+          "#7F8481",
+          "#A2A6A4",
+          "#C7CAC8",
+          "#EDEFEE"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The one figure a conclusion banner states. Never coloured up or down."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The sentence beside the conclusion figure."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "A section title inside the research tabs."
+      },
+      "section-label": {
+        "displayName": "Section label",
+        "purpose": "The caps label on a section rule across the shell."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "The base size and the rem root."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "KPI, form, chip and tab labels, in Slate."
+      },
+      "micro-label": {
+        "displayName": "Micro label",
+        "purpose": "The caps key above a tile value, a basis tag, a control-group key."
+      },
+      "col-head": {
+        "displayName": "Column head",
+        "purpose": "Dense table headers, in Archivo Narrow."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "KPI and tile values in tabular mono."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Units, timestamps and period lines."
+      },
+      "prose": {
+        "displayName": "Prose",
+        "purpose": "The morning note, capped at 68ch."
+      }
+    },
+    "shadows": [
+      {
+        "name": "focal-rail",
+        "value": "inset 2px 0 0 var(--up)",
+        "purpose": "An inset line, not a shadow: marks the company or row in focus, with the active wash."
+      },
+      {
+        "name": "floating-card",
+        "value": "0 10px 28px color-mix(in oklab, var(--ground) 70%, transparent)",
+        "purpose": "The only cast shadow: a card floating over the Universe board."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion",
+        "value": "100ms linear",
+        "purpose": "Ceiling for state changes in the research primitives (--motion)."
+      },
+      {
+        "name": "shell-hover",
+        "value": "120ms linear, transform 120ms ease-out",
+        "purpose": "A lead box's border and 1 px lift on hover."
+      },
+      {
+        "name": "chevron",
+        "value": "140ms ease-out",
+        "purpose": "A disclosure chevron turning as its box opens."
+      },
+      {
+        "name": "front-door",
+        "value": "300ms linear, letter-spacing 400ms cubic-bezier(.2,.7,.3,1)",
+        "purpose": "The engine picker's caption only."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "shell-tight",
+        "value": "1400px"
+      },
+      {
+        "name": "universe-stack",
+        "value": "1180px"
+      },
+      {
+        "name": "band-collapse",
+        "value": "1100px"
+      },
+      {
+        "name": "narrow",
+        "value": "900px"
+      },
+      {
+        "name": "single-column",
+        "value": "700px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The default action: a bordered panel, never a filled accent.",
+      "html": "<button class=\"ds-btn\">Refresh all</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border:1px solid var(--rule-strong); border-radius:var(--radius-small); background:var(--panel); color:var(--text); font-family:var(--font-ui); font-size:12.5px; font-weight:600; line-height:1; white-space:nowrap; cursor:pointer; transition:background-color 100ms linear; } .ds-btn:hover { background:var(--rule-strong); } .ds-btn:focus-visible { outline:2px solid var(--text); outline-offset:1px; }"
+    },
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "The same button with a Measured Green border. There is no filled primary.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Rewrite note</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; gap:6px; height:26px; padding:0 10px; border:1px solid var(--rule-strong); border-radius:var(--radius-small); background:var(--panel); color:var(--text); font-family:var(--font-ui); font-size:12.5px; font-weight:600; line-height:1; white-space:nowrap; cursor:pointer; transition:background-color 100ms linear; } .ds-btn:hover { background:var(--rule-strong); } .ds-btn:focus-visible { outline:2px solid var(--text); outline-offset:1px; } .ds-btn-primary { border-color:var(--up); }"
+    },
+    {
+      "name": "Segmented control",
+      "kind": "custom",
+      "refersTo": "segmented-item",
+      "description": "Joined buttons for one choice of several; the chosen item takes the green border and the active wash.",
+      "html": "<div class=\"ds-seg\"><button aria-pressed=\"true\">Quarterly</button><button>Annual</button><button>Cumulative</button></div>",
+      "css": ".ds-seg { display:inline-flex; height:26px; } .ds-seg > button { position:relative; margin:0 0 0 -1px; padding:0 8px; border:1px solid var(--rule-strong); border-radius:0; background:var(--panel); color:var(--muted); font-family:var(--font-ui); font-size:12.5px; font-weight:600; cursor:pointer; transition:background-color 100ms linear; } .ds-seg > :first-child { margin-left:0; border-radius:var(--radius-small) 0 0 var(--radius-small); } .ds-seg > :last-child { border-radius:0 var(--radius-small) var(--radius-small) 0; } .ds-seg > :hover { background:var(--rule-strong); color:var(--text); } .ds-seg > [aria-pressed=\"true\"] { z-index:1; border-color:var(--up); background:color-mix(in oklab, var(--panel) 86%, var(--up)); color:var(--text); } .ds-seg > :focus-visible { z-index:2; outline:2px solid var(--text); outline-offset:1px; }"
+    },
+    {
+      "name": "Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Neutral by default; a tone adds a border colour and, for direction, a triangle the chip draws itself.",
+      "html": "<span class=\"ds-chip\">10-K filer</span> <span class=\"ds-chip ds-chip-active\">In focus</span> <span class=\"ds-chip ds-chip-flag\">Needs review</span> <span class=\"ds-chip ds-chip-down\">Slipped</span> <span class=\"ds-chip ds-chip-clinical\">Phase 3</span>",
+      "css": ".ds-chip { display:inline-flex; align-items:center; gap:4px; height:18px; padding:0 6px; border:1px solid var(--rule-strong); border-radius:var(--radius-small); color:var(--muted); font-family:var(--font-ui); font-size:12px; font-weight:500; white-space:nowrap; } .ds-chip-active { border-color:var(--up); color:var(--up); } .ds-chip-flag { border-color:var(--flag); color:var(--flag); } .ds-chip-down { border-color:var(--down); color:var(--text); } .ds-chip-down::before { content:\"\\25BC\"; color:var(--down); font-size:0.8em; } .ds-chip-clinical { border-left:2px solid var(--purple-book); color:var(--text); }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Square field on the ground colour; numeric values in mono, right-aligned.",
+      "html": "<input class=\"ds-input\" placeholder=\"jump to ticker or name\"> <input class=\"ds-input ds-input-num\" value=\"72,000\">",
+      "css": ".ds-input { height:26px; padding:0 8px; border:1px solid var(--rule-strong); border-radius:0; background:var(--ground); color:var(--text); font-family:var(--font-ui); font-size:13px; } .ds-input::placeholder { color:var(--muted); } .ds-input-num { width:96px; font-family:var(--font-mono); text-align:right; font-variant-numeric:tabular-nums lining-nums; } .ds-input:focus-visible { outline:2px solid var(--text); outline-offset:1px; }"
+    },
+    {
+      "name": "Tab strip",
+      "kind": "nav",
+      "refersTo": "tab",
+      "description": "Plain text tabs on a structural hairline; the chosen tab is bold with a 2 px green underline.",
+      "html": "<nav class=\"ds-tabs\"><a href=\"#\" aria-selected=\"true\">Key insights</a><a href=\"#\">Financials</a><a href=\"#\">Pipeline</a><a href=\"#\">Forecast</a></nav>",
+      "css": ".ds-tabs { display:flex; gap:1.1rem; border-bottom:1px solid var(--rule-strong); } .ds-tabs a { padding:0.3rem 0; margin-bottom:-1px; border-bottom:2px solid transparent; color:var(--muted); font-family:var(--font-ui); font-size:12px; font-weight:500; letter-spacing:0.01em; text-decoration:none; } .ds-tabs a:hover { color:var(--text); } .ds-tabs a[aria-selected=\"true\"] { color:var(--text); font-weight:700; border-bottom-color:var(--up); } .ds-tabs a:focus-visible { outline:2px solid var(--text); outline-offset:1px; }"
+    },
+    {
+      "name": "Section rule",
+      "kind": "custom",
+      "refersTo": "section-label",
+      "description": "How every section opens: a hairline, a caps label, a boxed basis tag and a mono count. Never a card.",
+      "html": "<div class=\"ds-sec\"><span class=\"ds-sec-label\">The quarter</span><span class=\"ds-sec-basis\">Q3 26</span><span class=\"ds-sec-count\">to 2026-09-30</span></div>",
+      "css": ".ds-sec { display:flex; align-items:baseline; border-bottom:1px solid var(--rule-strong); padding:0 0 0.2rem; } .ds-sec-label { font-family:var(--font-ui); font-size:12.5px; font-weight:700; letter-spacing:0.055em; text-transform:uppercase; color:var(--text); } .ds-sec-basis { margin-left:0.6rem; padding:1px 6px; border:1px solid var(--rule-strong); border-radius:var(--radius-small); font-family:var(--font-mono); font-size:9.5px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--text); } .ds-sec-count { margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--muted); }"
+    },
+    {
+      "name": "Tiles",
+      "kind": "custom",
+      "refersTo": "figure",
+      "description": "A row of readings divided by hairlines: a caps key, a mono value with its unit, a delta, and a missing value shown as missing.",
+      "html": "<div class=\"ds-tiles\"><div><span class=\"ds-k\">Revenue</span><span class=\"ds-v\">24.4<i>bn</i></span><span class=\"ds-d ds-up\">+38.6% yoy</span></div><div><span class=\"ds-k\">Net income</span><span class=\"ds-v\">6.5<i>bn</i></span><span class=\"ds-d ds-down\">−4.1% yoy</span></div><div><span class=\"ds-k\">Consensus EPS</span><span class=\"ds-v ds-none\">—</span><span class=\"ds-d\">no free data</span></div></div>",
+      "css": ".ds-tiles { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); } .ds-tiles > div { padding:0.5rem 0.6rem 0.55rem 1rem; border-left:1px solid var(--rule); } .ds-tiles > div:first-child { border-left:0; padding-left:2px; } .ds-k { display:block; font-family:var(--font-ui); font-size:9.5px; letter-spacing:0.07em; text-transform:uppercase; color:var(--muted); } .ds-v { font-family:var(--font-mono); font-size:17.5px; font-weight:600; letter-spacing:-0.02em; color:var(--text); font-variant-numeric:tabular-nums lining-nums; } .ds-v i { margin-left:2px; font-style:normal; font-size:0.66em; font-weight:500; color:var(--muted); } .ds-v.ds-none { font-weight:400; color:var(--muted); } .ds-d { margin-left:0.5rem; font-family:var(--font-mono); font-size:11.5px; color:var(--muted); } .ds-d.ds-up { color:var(--up); } .ds-d.ds-down { color:var(--down); }"
+    },
+    {
+      "name": "Lead box",
+      "kind": "card",
+      "refersTo": "lead-box",
+      "description": "A headline or dated event: a rail in the kind's colour, a mono chip naming the kind, the date, then the sentence.",
+      "html": "<div class=\"ds-lead\"><span class=\"ds-lead-f\">PDUFA</span><span class=\"ds-lead-d\">2026-12-18</span><span class=\"ds-lead-h\"><b>LLY</b>Decision date set for the obesity pill</span></div>",
+      "css": ".ds-lead { display:grid; grid-template-columns:1fr auto; gap:0.22rem 0.4rem; max-width:280px; padding:0.35rem 0.6rem; background:var(--panel); border:1px solid var(--rule); border-left:2px solid var(--flag); transition:border-color 120ms linear, transform 120ms ease-out; } .ds-lead:hover { border-color:var(--rule-strong); border-left-color:var(--flag); transform:translateY(-1px); } .ds-lead-f { justify-self:start; padding:1px 3px; border:1px solid var(--flag); border-radius:var(--radius-small); color:var(--flag); font-family:var(--font-mono); font-size:9.5px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; } .ds-lead-d { font-family:var(--font-mono); font-size:10px; color:var(--muted); } .ds-lead-h { grid-column:1 / -1; font-family:var(--font-ui); font-size:12px; line-height:1.28; color:var(--text); } .ds-lead-h b { margin-right:0.4rem; font-family:var(--font-mono); font-weight:600; }"
+    },
+    {
+      "name": "State block",
+      "kind": "custom",
+      "refersTo": "state-block",
+      "description": "Info, flag or error: a 2 px left bar and two lines, on a wash when it needs attention.",
+      "html": "<div class=\"ds-state ds-state-flag\"><p class=\"ds-state-t\">3 values need review</p><p class=\"ds-state-d\">Their seed cites a source that is not on file.</p></div>",
+      "css": ".ds-state { padding:8px 12px; border-left:2px solid var(--muted); font-family:var(--font-ui); color:var(--text); } .ds-state p { margin:0; font-size:13px; line-height:18px; } .ds-state-t { font-weight:600; } .ds-state-d { color:var(--muted); } .ds-state-flag { border-left-color:var(--flag); background:color-mix(in oklab, var(--panel) 88%, var(--flag)); } .ds-state-flag .ds-state-d { color:var(--text); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument",
+    "overview": "Novatalis Lens is drawn as a measuring instrument. Every mark on the screen is a reading: a figure, a date, a bar, a tick. The chrome is two dark surfaces and a hairline, and it carries no hue at all. Colour is spent only where it encodes something: the direction of a move, how far a compound is from market, which FDA book a product sits in, and whether a value still needs review. The stylesheet says it in its own words: \"an instrument, not a landing page\".\n\nThe system is dense and flat. A full tab fits one 1440 px screen with little scrolling, at a 14 px base with most labels between 9.5 and 12.5 px. Sections are separated by a rule and a caps label, never by a card. Three type roles do three separate jobs: Archivo for structure, IBM Plex Mono for anything measured, and Newsreader for the one thing that is written rather than computed, the analyst note.\n\nOne surface breaks the density on purpose: the front door. It is a single wheel of three drawn motifs, one per engine, with the NOVATALIS wordmark and no figures. Everything behind it is the instrument.",
+    "keyCharacteristics": [
+      "Dark only. Deep petrol ground, one raised panel tone, hairlines in three weights.",
+      "Hue means something or it is absent. Chrome is neutral.",
+      "Square corners. Radius is 0, or 2 px on small controls.",
+      "Figures in tabular mono so columns hold when values refresh.",
+      "A missing value is drawn as missing (a dash, a hatch, a broken line), never as zero.",
+      "Every chart is a hand-built SVG from the token set."
+    ],
+    "rules": [
+      {
+        "name": "The Two Files Rule",
+        "body": "A colour or spacing value is written in `frontend/assets/tokens.css` and `frontend/components/tokens.py` and nowhere else. A test keeps the two in step. Everything else reads a token or a `color-mix()` of tokens.",
+        "section": "colors"
+      },
+      {
+        "name": "The Second Signal Rule",
+        "body": "Colour is never the only signal. Every coloured mark also carries a label, a glyph or a position. A down chip draws its own triangle; a phase colour sits beside the phase name.",
+        "section": "colors"
+      },
+      {
+        "name": "The Spoken-For Rule",
+        "body": "A hue that already means something is not borrowed for something else. Amber is \"filed\" on the phase ramp and \"needs review\" everywhere else, which is why a panel vote takes ochre and the biotech engine got its own orange.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measured In Mono Rule",
+        "body": "Anything measured or identified is Plex Mono with tabular lining numerals: figures, tickers, dates, application numbers. A negative uses a true minus (U+2212), not a hyphen.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Written Voice Rule",
+        "body": "Newsreader is for prose a person wrote or the note engine composed. It never sets a label, a heading or a figure.",
+        "section": "typography"
+      },
+      {
+        "name": "The Caps Are Labels Rule",
+        "body": "Uppercase belongs to section labels, micro labels, tickers and marker letters. A sentence, a headline and a money figure keep their own case.",
+        "section": "typography"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "A section is a rule and a caps label, never a card. Structure comes from `rule-strong`; rows and grids from `rule`; the mesh behind dense data from `rule-faint`.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do take every colour from a token or a `color-mix()` of tokens, and add a new token to both `tokens.css` and `tokens.py` when a new meaning needs one.",
+      "Do pair every use of colour with a label, a glyph or a position.",
+      "Do set figures, tickers, dates and identifiers in IBM Plex Mono with tabular numerals, right-aligned in tables, with a true minus.",
+      "Do draw a missing value as missing: a dash in Slate, a hatched band, a broken line. State why in place where the reason is known (\"no free data\").",
+      "Do open a section with a hairline and a caps label, and put the period its figures cover in the boxed basis tag when two sections on a page differ.",
+      "Do build charts through `frontend/components/charts.py` as inline SVG.",
+      "Do set `font-family` on the class of any text injected through Streamlit markdown. Streamlit's markdown container sets its own face, so a class that relies on inheriting Archivo from the page renders in Streamlit's default sans.",
+      "Do keep the focus ring and honour `prefers-reduced-motion`."
+    ],
+    "donts": [
+      "Don't write a colour literal or a spacing constant outside the two token files.",
+      "Don't use a radius above 2 px. Streamlit's native segmented control still ships its own rounded corners; the house segmented control is square with 2 px outer corners.",
+      "Don't wrap a section in a card or give a resting surface a shadow.",
+      "Don't spend hue on chrome. A button, a border or a heading that is green, amber or red is making a claim about data.",
+      "Don't reuse a hue that already carries a meaning for a second meaning.",
+      "Don't plot a null as zero.",
+      "Don't set labels, headings or figures in Newsreader, or prose in mono.",
+      "Don't use native Streamlit or Altair charts. A chart rendered inside a hidden Streamlit tab is measured at a few pixels and collapses.",
+      "Don't design a light theme against this file. The light palette in `theme.py` is kept for tests only; the running app is always dark."
+    ]
+  }
+}
