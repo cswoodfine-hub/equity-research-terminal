@@ -49,6 +49,13 @@
 # The fetcher now emits one row per brand and the asset key widens to the brand where
 # an application carries more than one; the asset is back and the forecast builds at
 # 35,842mm DKK. See backend/fetchers/approvals_openfda.parse_drugsfda.
+#
+# Off the list 2026-11-21, with no edit to the file: lly_verve_102.csv. That day's
+# refresh created the asset its rows name, VERVE-102 under LLY, and loaded all 23 of
+# them in the same run. The same refresh nearly put a file on the list: it renamed GSK's
+# bepirovirsen to the FDA's own name, Bepirovirsen Sodium with the brand Hibsago, and
+# gsk_bepirovirsen.csv still named the row as it had been. Its 27 rows were already in
+# the book and stayed there; the file now names the brand.
 abbv_bretisilocin.csv
 amgn_be_one.csv
 biib_salanersen.csv
@@ -59,7 +66,6 @@ jnj_iti_1284.csv
 jnj_surgical.csv
 lly_ixo_vec.csv
 lly_ly4515100_via_sad.csv
-lly_verve_102.csv
 mrk_cd388_injection.csv
 mrk_efinopegdutide.csv
 nvs_tour006_20_mg.csv
