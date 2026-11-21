@@ -37,6 +37,7 @@ import catalyst_grid as catalyst_grid_module
 import company_lines as company_lines_module
 import catalysts as catalysts_module
 import cashflow as cashflow_module
+import earnings_report as earnings_report_module
 import comps as comps_module
 import catalysts_command as catalysts_command_module
 import comps_context as comps_context_module
@@ -313,6 +314,19 @@ def company_allocation(
     built = allocation_module.build(None, ticker, years=max(1, min(years, 20)))
     if built is None:
         raise HTTPException(status_code=404, detail=f"unknown ticker: {ticker}")
+    return built
+
+
+@app.get("/companies/{ticker}/report")
+def company_report(ticker: str) -> dict:
+    """The latest earnings report as one reading: the quarter against the street, each
+    guided figure against the reading before, the first close that could react, this
+    book's value before and after, the products that made the quarter and the last four
+    reports. A part with no data is null and carries its reason; the verdict is built by
+    rule from the parts that are there."""
+    built = earnings_report_module.build(None, ticker)
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return built
 
 
