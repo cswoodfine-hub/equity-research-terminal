@@ -389,19 +389,21 @@ def bar_chart(bars: Sequence[dict], width: int = 700, height: int = 220,
 # --- 4. stacked bar -------------------------------------------------------
 def stacked_bar(rows: Sequence[dict], width: int = 760, height: int = 260,
                 value_fmt: Callable[[float], str] = None,
-                legend: Sequence[tuple] = ()) -> str:
+                legend: Sequence[tuple] = (), pad_l: float = 120,
+                pad_r: float = 70, legend_size: float = 14) -> str:
     """Horizontal stacked bars. Each row: {label, segments: [{name, value, colour}]}.
 
     Segment values must be real; a row with nothing to show renders its label and
     an em-dash rather than an empty bar pretending to be zero.
+
+    ``pad_l``, ``pad_r`` and ``legend_size`` default to what a chart drawn wide and
+    scaled down into its column needs. A caller that draws at the width it is shown
+    at passes the real figures instead: room for a row label and a total, and a
+    legend at a reading size.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 1))
     n = max(len(rows), 1)
-    # Taller, because the swatch row scales down with the chart: this band sits in
-    # half a row on the financials tab, so what was 9.5 units came out around six
-    # pixels on the screen and could not be read.
     legend_h = 26 if legend else 0
-    pad_l, pad_r = 120, 70
     row_h = (height - 8 - legend_h) / n
     total_max = max((sum(s["value"] for s in r["segments"]) for r in rows
                      if r["segments"]), default=1.0)
@@ -411,11 +413,16 @@ def stacked_bar(rows: Sequence[dict], width: int = 760, height: int = 260,
     out = [_svg_open(width, height, "stacked bars")]
     ly = 15
     lx = pad_l
+    # The swatch, the gap and the advance all follow the legend's type size, so a
+    # smaller legend packs as the larger one does rather than spreading out. At the
+    # default 14 these are the figures the chart always used: 12, 17, 8.2 and 24.
+    swatch = round(legend_size * 6 / 7)
     for name, colour in legend:
-        out.append(f'<rect x="{lx}" y="{ly - 11}" width="12" height="12"'
-                   f' fill="{colour}"/>')
-        out.append(_text(lx + 17, ly, name, 14, TK.TEXT, family=UI))
-        lx += 17 + 8.2 * len(str(name)) + 24
+        out.append(f'<rect x="{lx}" y="{ly - swatch + 1}" width="{swatch}"'
+                   f' height="{swatch}" fill="{colour}"/>')
+        out.append(_text(lx + swatch + 5, ly, name, legend_size, TK.TEXT, family=UI))
+        lx += (swatch + 5 + legend_size * 8.2 / 14 * len(str(name))
+               + legend_size * 12 / 7)
     for i, r in enumerate(rows):
         cy = legend_h + 4 + row_h * i + row_h / 2
         out.append(_text(pad_l - 8, cy + 3.5, r["label"], 10.5, TK.TEXT, "end"))

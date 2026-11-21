@@ -16,16 +16,20 @@ import html
 
 from theme import MINUS, P
 
-W = 1100             # fills most of the column; the SVG scales to fit narrower ones
-# Taller than it was. The SVG scales to its column's width and takes its height from
-# this ratio, so since the panel moved into half a row it needed a deeper box to keep
-# the same plot area: at 340 the two lines had about a hundred pixels to move in and
-# a margin compressing over forty quarters read as a flat line.
-H = 470
-PAD_L = 52           # room for the percentage axis figures
-PAD_R = 20
-TOP = 46             # room for the legend row
-BOTTOM = 30          # room for the period labels
+# Drawn at the width it is shown at. The panel sits in half a row, about 690px of a
+# 1440px page, and at 1100 wide the SVG was scaled to 0.63 of itself: a period label
+# declared at 8.5 came out at 5.3px on the screen and the axis could not be read. At
+# its real width a declared size is the rendered size, and the type below is set for
+# that. A wider column scales it up, never down past this.
+W = 690
+# The same height as the allocation band beside it, so the row ends on one line and
+# the statements under it start level. 240 leaves the two lines about 165px to move
+# in, which is more than the 0.63 scale left them at 470.
+H = 240
+PAD_L = 44           # room for the percentage axis figures
+PAD_R = 12
+TOP = 40             # room for the legend row
+BOTTOM = 28          # room for the period labels
 
 # How many period labels the axis can carry before they touch. The series itself is not
 # thinned: every quarter is still plotted, and only the naming of them is rationed.
@@ -40,7 +44,9 @@ GROWTH_COLOUR = P.data          # revenue growth, the plotted-series colour
 MARGIN_COLOUR = P.orange_book   # net margin, a distinct second hue
 
 MONO = "IBM Plex Mono, ui-monospace, Menlo, monospace"
-UI = "Public Sans, system-ui, sans-serif"
+# The same face the chart primitives name. This read Public Sans, which the app does
+# not ship, so the legend fell back to whatever the system had.
+UI = "Archivo, system-ui, sans-serif"
 
 
 def _pct(value, decimals=1) -> str:
@@ -113,10 +119,16 @@ def render(points, basis: str = "quarterly") -> str:
 
     n = len(points)
     lo, hi = _domain(reals, include_zero=min(reals) < 0)
-    plot_w, plot_h = W - PAD_L - PAD_R, H - TOP - BOTTOM
+    # The axis gets the room its own figures need. A developer with a few hundred
+    # thousand of revenue has margins in the tens of thousands of per cent, and a label
+    # like that is twice the width the usual two digits take: at a fixed pad it ran off
+    # the left edge of the panel.
+    ticks = [_pct(hi - (hi - lo) * frac, 0) for frac in (0.0, 0.5, 1.0)]
+    pad_l = max(PAD_L, 12 + round(6.1 * max(len(tick) for tick in ticks)))
+    plot_w, plot_h = W - pad_l - PAD_R, H - TOP - BOTTOM
 
     def x_at(index):
-        return PAD_L + (index / (n - 1)) * plot_w
+        return pad_l + (index / (n - 1)) * plot_w
 
     def off_scale(value):
         return value is not None and not (lo <= value <= hi)
@@ -127,24 +139,24 @@ def render(points, basis: str = "quarterly") -> str:
 
     out = [
         f'<svg viewBox="0 0 {W} {H}" width="100%"'
-        f' style="max-width:{W}px;font-family:{UI}" role="img"'
+        f' style="font-family:{UI}" role="img"'
         f' aria-label="Revenue growth and net margin over the last {n}'
         f' {"quarters" if basis == "quarterly" else "years"}, two lines on one axis">'
     ]
 
     # The axes: left and bottom hairlines.
-    out.append(f'<line x1="{PAD_L}" y1="{TOP}" x2="{PAD_L}" y2="{TOP + plot_h}"'
+    out.append(f'<line x1="{pad_l}" y1="{TOP}" x2="{pad_l}" y2="{TOP + plot_h}"'
                f' stroke="{P.rule}"/>')
-    out.append(f'<line x1="{PAD_L}" y1="{TOP + plot_h}" x2="{PAD_L + plot_w}"'
+    out.append(f'<line x1="{pad_l}" y1="{TOP + plot_h}" x2="{pad_l + plot_w}"'
                f' y2="{TOP + plot_h}" stroke="{P.rule}"/>')
 
     # Three quiet gridlines, each labelled with its percentage on the left.
     for frac in (0.0, 0.5, 1.0):
         value = hi - (hi - lo) * frac
         gy = TOP + plot_h * frac
-        out.append(f'<line x1="{PAD_L}" y1="{gy:.1f}" x2="{PAD_L + plot_w}"'
+        out.append(f'<line x1="{pad_l}" y1="{gy:.1f}" x2="{pad_l + plot_w}"'
                    f' y2="{gy:.1f}" stroke="{P.rule}"/>')
-        out.append(f'<text x="{PAD_L - 6}" y="{gy + 3:.1f}" font-size="9"'
+        out.append(f'<text x="{pad_l - 6}" y="{gy + 3.5:.1f}" font-size="10"'
                    f' text-anchor="end" fill="{P.stale}" font-family="{MONO}">'
                    f'{_pct(value, 0)}</text>')
 
@@ -152,9 +164,9 @@ def render(points, basis: str = "quarterly") -> str:
     # series actually turns negative, so it is never noise on an all-positive panel.
     if lo < 0 < hi:
         zy = y_at(0)
-        out.append(f'<line x1="{PAD_L}" y1="{zy:.1f}" x2="{PAD_L + plot_w}"'
+        out.append(f'<line x1="{pad_l}" y1="{zy:.1f}" x2="{pad_l + plot_w}"'
                    f' y2="{zy:.1f}" stroke="{P.rule_strong}" stroke-dasharray="3,3"/>')
-        out.append(f'<text x="{PAD_L + plot_w:.1f}" y="{zy - 3:.1f}" font-size="8.5"'
+        out.append(f'<text x="{pad_l + plot_w:.1f}" y="{zy - 4:.1f}" font-size="10"'
                    f' text-anchor="end" fill="{P.stale}">0%</text>')
 
     # The two lines, each broken at its own gaps, with a dot at every real point.
@@ -194,23 +206,23 @@ def render(points, basis: str = "quarterly") -> str:
     for i, p in enumerate(points):
         if i % every and i != n - 1:
             continue
-        out.append(f'<text x="{x_at(i):.1f}" y="{TOP + plot_h + 16:.1f}" font-size="8.5"'
+        out.append(f'<text x="{x_at(i):.1f}" y="{TOP + plot_h + 17:.1f}" font-size="10"'
                    f' text-anchor="middle" fill="{P.stale}" font-family="{MONO}">'
                    f'{html.escape(str(p.get("label") or ""))}</text>')
 
     # The legend: a stroke swatch, the series name, and its latest value in the colour.
-    lx = PAD_L
+    lx = pad_l
     for name, colour, latest in (
         ("Revenue growth", GROWTH_COLOUR, _last_real(g_vals)),
         ("Net margin", MARGIN_COLOUR, _last_real(m_vals)),
     ):
-        out.append(f'<line x1="{lx:.1f}" y1="16" x2="{lx + 15:.1f}" y2="16"'
+        out.append(f'<line x1="{lx:.1f}" y1="15" x2="{lx + 15:.1f}" y2="15"'
                    f' stroke="{colour}" stroke-width="2.4"/>')
-        out.append(f'<text x="{lx + 21:.1f}" y="19" font-size="10" fill="{P.ink}">'
+        out.append(f'<text x="{lx + 21:.1f}" y="19" font-size="11" fill="{P.ink}">'
                    f'{name}</text>')
-        value_x = lx + 27 + len(name) * 5.6
+        value_x = lx + 28 + len(name) * 6.1
         if latest is not None:
-            out.append(f'<text x="{value_x:.1f}" y="19" font-size="10"'
+            out.append(f'<text x="{value_x:.1f}" y="19" font-size="11"'
                        f' font-family="{MONO}" font-weight="600" fill="{colour}">'
                        f'{_pct(latest)}</text>')
         lx = value_x + 52

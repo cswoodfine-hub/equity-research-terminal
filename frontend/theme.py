@@ -799,6 +799,37 @@ details.prof-summary.long[open] > summary {{ display: none; }}
                    grid-template-columns: none; border: 0; margin: 0.1rem 0 0; }}
 .tiles.tiles-row > div {{ border-left: 0; padding: 0.35rem 1.1rem 0.4rem 0; }}
 .tiles.tiles-row .k, .tiles.tiles-row .n {{ overflow: hidden; text-overflow: ellipsis; }}
+/* Rows that stand one above another, on one grid. The financials tab stacks a row of
+   four figures, a row of five and a row of eight, and each divided the width its own
+   way, so only the first figure of each row stood under another. On eight shared tracks
+   a tile takes one or two (the builder decides, leading figures first), and every edge
+   in one row is an edge in the other two. */
+.tiles.tiles-row.tiles-t8 {{ grid-auto-flow: row;
+                            grid-template-columns: repeat(8, minmax(0, 1fr)); }}
+.tiles.tiles-t8 > .s2 {{ grid-column: span 2; }}
+/* A tile is a column with its note at the foot. Where one figure's change wraps under
+   it, that tile is a line deeper than its neighbours, and their notes used to sit a
+   line above its own; at the foot they share a line across the row. */
+.tiles.tiles-t8 > div {{ display: flex; flex-direction: column; }}
+.tiles.tiles-t8 .n {{ margin-top: auto; padding-top: 4px; }}
+/* Eight tracks need the page's width. Under it a track is too narrow for its own label
+   ("FY2026 EPS guidance" was cut short and "USD per share" broke in two), so the grid
+   drops to four and the rows wrap rather than truncate. */
+@media (max-width: 1179.98px) {{
+  .tiles.tiles-row.tiles-t8 {{ grid-template-columns: repeat(4, minmax(0, 1fr));
+                              row-gap: var(--space); }}
+  .tiles.tiles-t8 > .s2 {{ grid-column: span 1; }}
+}}
+/* The financials tab's rhythm, found by the gridded rows it alone carries. A section
+   label stood 7px under the block before it and 3px over its own, so the two gaps read
+   as one and the rule did the separating. The section gap above a label and its own
+   block close under it: the space says where a section starts, and the rule confirms
+   it. The first section keeps the terminal's own margin, since what is above it is the
+   tab strip and not another section. */
+[data-baseweb="tab-panel"]:has(.tiles-t8) [data-testid="stElementContainer"]:has(.sec) {{
+  margin-top: var(--section-gap); }}
+[data-baseweb="tab-panel"]:has(.tiles-t8) [class*="st-key-fin_lead_"]
+  [data-testid="stElementContainer"]:has(.sec) {{ margin-top: 0.9rem; }}
 .tiles .k {{ display: block; font-size: 9.5px; letter-spacing: 0.07em;
             text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
             white-space: nowrap; }}
@@ -1442,9 +1473,14 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 [class*="st-key-fcb_page_"] [class*="st-key-fcb_strip_"] {{ margin-bottom: 0.75rem; }}
 /* A row of choices: each named in small caps, the buttons after the name, the next
    choice a little further off, and the row wrapping where the column is narrow. */
-[class*="st-key-fcb_ctl_"], [class*="st-key-fcb_morerow_"], [class*="st-key-fcb_head_"] {{
+[class*="st-key-fcb_ctl_"], [class*="st-key-fcb_morerow_"], [class*="st-key-fcb_head_"],
+[class*="st-key-fin_ctl_"] {{
   align-items: center; gap: 0.3rem 0.5rem; flex-wrap: wrap; }}
-[class*="st-key-fcb_ctl_"] [data-testid="stElementContainer"]:has(.fc-ctl-k):not(:first-child) {{
+/* The statements' three choices are the same kind of row as a forecast chart's: a key,
+   its buttons, the next key. They stood in three columns 130 and 300px apart, which
+   read as three unrelated controls and left a quarter of the row empty at its end. */
+[class*="st-key-fcb_ctl_"] [data-testid="stElementContainer"]:has(.fc-ctl-k):not(:first-child),
+[class*="st-key-fin_ctl_"] [data-testid="stElementContainer"]:has(.fc-ctl-k):not(:first-child) {{
   margin-left: 0.7rem; }}
 [class*="st-key-fcb_ctl_"] [data-testid="stSelectbox"] > div > div {{ min-height: 28px; }}
 /* The head: the two views as the page's own tabs, a size up from a chart's choices, with

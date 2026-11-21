@@ -1689,7 +1689,7 @@ def _cash_block(api_base: str, ticker: str) -> None:
         # click apart, so this one says which it is.
         ("Acquisitions", *_scaled((cash.get("inputs") or {}).get("acquisitions")),
          "", "", "cash paid"),
-    ], one_row=True), unsafe_allow_html=True)
+    ], one_row=True, shared_grid=True), unsafe_allow_html=True)
 
     inputs = cash.get("inputs") or {}
     missing = [name.replace("_", " ") for name, value in inputs.items()
@@ -1782,7 +1782,8 @@ def _street_block(api_base: str, ticker: str) -> None:
                           ", ".join(covered) if len(covered) < 3
                           else f"{len(covered)} assets modelled"))
     if tiles:
-        st.markdown(metric_tiles(tiles, one_row=True), unsafe_allow_html=True)
+        st.markdown(metric_tiles(tiles, one_row=True, shared_grid=True),
+                    unsafe_allow_html=True)
     if quotes:
         # The sentence the figure was read out of, so a guidance number can always be
         # argued with rather than taken on trust.
@@ -1920,10 +1921,11 @@ def _allocation_band(api_base: str, ticker: str) -> None:
             f'{spend.get("currency") or ""} {unit} a year'.strip())
     st.markdown(
         f'<div class="trend">'
-        # 36 per row rather than 26: the band shares a row with the trend panel now,
-        # so it scales to half the width and the bars came out too thin to compare
-        # one year's mix against another.
-        f'{CH.stacked_bar(rows, 1100, 48 + 36 * len(rows), legend=legend, value_fmt=lambda v: T.num(v, 1))}'
+        # Drawn at the width it is shown at, like the trend panel it shares a row with,
+        # so its labels render at the size they are declared and not at 0.63 of it. As
+        # tall as that panel when there are years enough to fill it, so the row ends on
+        # one line; with fewer years it is as tall as its bars need and no taller.
+        f'{CH.stacked_bar(rows, trend_module.W, min(trend_module.H, 34 + 32 * len(rows)), legend=legend, value_fmt=lambda v: T.num(v, 1), pad_l=40, pad_r=44, legend_size=11)}'
         f'</div>', unsafe_allow_html=True)
 
     # No notes fold under this band. What it said was a caveat about research being
@@ -2015,7 +2017,25 @@ def statement_table(block: dict, currency: str | None,
             f'{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div>')
 
 
-def metric_tiles(items, one_row: bool = False) -> str:
+# How many tracks a block of stacked tile rows shares. Eight, because the forward row on
+# the financials tab carries eight figures and the two rows above it carry four and five.
+TILE_TRACKS = 8
+
+
+def _tile_spans(count: int, tracks: int) -> list:
+    """How many tracks each of ``count`` tiles takes on a grid of ``tracks``.
+
+    Every tile takes one track and the leading tiles take the spare ones, a second track
+    each, until none is left. Four tiles on eight tracks are four doubles, five are
+    three doubles and two singles, eight are eight singles, so every tile edge in one
+    row is an edge in the others and the lead figures get the room. Three or fewer take
+    a double each and leave the rest of the row empty, which is where a short row ends.
+    """
+    spare = max(tracks - count, 0)
+    return [2 if index < spare else 1 for index in range(count)]
+
+
+def metric_tiles(items, one_row: bool = False, shared_grid: bool = False) -> str:
     """A row of headline figures, in one language every block can use.
 
     Each item is (label, value, unit, change, tone, note). The unit rides with the
@@ -2023,24 +2043,36 @@ def metric_tiles(items, one_row: bool = False) -> str:
     on the same baseline as the number, because it is part of the figure rather than a
     line of its own: stacked underneath, four figures read as twelve unrelated lines.
     A note appears only where the number cannot be read without it.
+
+    ``shared_grid`` puts the row on the grid of TILE_TRACKS columns, for rows that sit
+    one above another: three rows of four, five and eight figures each divided the
+    width their own way, so no figure stood under another. More tiles than tracks
+    fall back to an even split, since a row that does not fit a grid is not on it.
+    A flag rather than a count, so a caller names no constant of this module.
     """
+    tracks = TILE_TRACKS if shared_grid else 0
     # one_row puts every figure on a single line whatever the count, for a block that has
     # the full width of the page. The default still wraps, which is what a half-width
     # column needs.
+    items = list(items)
+    gridded = bool(tracks) and 0 < len(items) <= tracks
+    spans = _tile_spans(len(items), tracks) if gridded else [1] * len(items)
     out = []
-    for label, value, unit, change, tone, note in items:
+    for (label, value, unit, change, tone, note), span in zip(items, spans):
         missing = value is None or value == T.num(None)
         figure = ("no free data" if missing
                   else f'{value}<span class="u">{unit}</span>' if unit
                   else str(value))
+        wide = ' class="s2"' if span == 2 else ""
         out.append(
-            f'<div><span class="k">{html_escape(label)}</span>'
+            f'<div{wide}><span class="k">{html_escape(label)}</span>'
             f'<span class="row"><span class="v{" none" if missing else ""}">{figure}</span>'
             + (f'<span class="d{tone}">{html_escape(change)}</span>' if change else "")
             + '</span>'
             + (f'<span class="n">{html_escape(note)}</span>' if note else "")
             + '</div>')
-    return (f'<div class="tiles{" tiles-row" if one_row else ""}">'
+    return (f'<div class="tiles{" tiles-row" if one_row else ""}'
+            f'{f" tiles-t{tracks}" if gridded else ""}">'
             f'{"".join(out)}</div>')
 
 
@@ -6860,7 +6892,7 @@ def snapshot_strip(snapshot: dict) -> str:
         ("R&D", T.pct(snapshot["rd_intensity"] * 100
                       if snapshot["rd_intensity"] is not None else None, 1),
          "", "", "", "share of sales"),
-    ], one_row=True)
+    ], one_row=True, shared_grid=True)
 
 
 def _quoted(text) -> str:
@@ -11353,7 +11385,8 @@ with main:
         # then fit on one line: at half a page the period strip wrapped R&D onto a second
         # row and the cash strip wrapped acquisitions, so a four-figure block stood two
         # deep and the two blocks disagreed about where their own baseline was.
-        left, right = st.container(), st.container()
+        # Keyed so the stylesheet can tell the tab's first section from the rest.
+        left, right = st.container(key=f"fin_lead_{ticker}"), st.container()
 
         if snapshot:
             with left:
@@ -11418,20 +11451,25 @@ with main:
             # horizontal radio groups carry three sets of radio dots and their labels
             # wrapped at this width, so the row stood at 67px; as segments it is one
             # line and the statements grid starts that much higher up the page.
-            controls = st.columns([0.85, 1.9, 1.6], vertical_alignment="center")
-            with controls[0]:
+            #
+            # One row, each choice named by a key beside it, the way the forecast tab
+            # sets a chart's choices. Three columns put the groups 130 and 300px apart
+            # with nothing saying what each one changed.
+            with st.container(horizontal=True, key=f"fin_ctl_{ticker}"):
                 # An annual-only filer gets no toggle at all. Offering a control that
                 # can only produce an empty grid is worse than not offering it.
                 if built["has_interim"]:
+                    _fc_label("Basis")
                     st.segmented_control(
                         "Basis", ["Quarterly", "Annual"], default="Quarterly",
                         label_visibility="collapsed", key=basis_key)
-            with controls[1]:
                 _labels = [label for _, label in STATEMENT_ORDER]
+                _fc_label("Statement")
                 which = st.segmented_control(
                     "Statement", _labels, default=_labels[0],
-                    label_visibility="collapsed", key=f"stmt_{ticker}") or _labels[0]
-            with controls[2]:
+                    label_visibility="collapsed",
+                    key=f"stmt_{ticker}") or _labels[0]
+                _fc_label("Lens")
                 lens = st.segmented_control(
                     "Lens", LENSES, default=ABSOLUTE, label_visibility="collapsed",
                     key=f"lens_{ticker}") or ABSOLUTE
