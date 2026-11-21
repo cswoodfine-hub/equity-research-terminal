@@ -823,6 +823,12 @@ details.prof-summary.long[open] > summary {{ display: none; }}
                               row-gap: var(--space); }}
   .tiles.tiles-t8 > .s2 {{ grid-column: span 1; }}
 }}
+/* Narrower still, a strip that sits in half the page has four tracks of seventy pixels,
+   and "Net income" and "Free cash flow" were cut to their first word. Two tracks there:
+   four figures stand two by two and each keeps its label and its note. */
+@media (max-width: 899.98px) {{
+  .tiles.tiles-row.tiles-t8 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+}}
 /* The financials tab's rhythm, found by the gridded rows it alone carries. A section
    label stood 7px under the block before it and 3px over its own, so the two gaps read
    as one and the rule did the separating. The section gap above a label and its own
