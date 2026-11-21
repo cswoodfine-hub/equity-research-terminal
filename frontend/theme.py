@@ -299,57 +299,6 @@ h3 {{ font-size: 0.9rem; }}
 .ident .nm {{ font-size: 0.95rem; }}
 .ident .meta {{ font-size: 11px; color: var(--muted); }}
 
-.rail {{ margin-top: 0.5rem; }}
-/* The horizon SVG fills the rail column and scales to it, so it reads larger. */
-.rail svg {{ width: 100%; height: auto; }}
-
-/* The rail follows the page. It is reference material read against whatever tab is
-   open, so it sticks under the top bar rather than scrolling away with the content.
-   A column is a flex item that stretches to the row's height by default, and a sticky
-   element that is already as tall as its scroll range cannot travel, so it is pinned to
-   flex-start first and sticks at its own height. The spine renders well past 1500px,
-   taller than any viewport, so it is capped to what is visible and scrolls inside
-   itself; without the cap sticky would hold the top and put the far years out of reach.
-   Scroll chaining stays at the default, so a wheel that runs past the rail's end
-   carries on down the page rather than trapping the cursor. Styling the column itself
-   avoids assuming what Streamlit nests inside it. */
-[data-testid="stColumn"]:has(.rail-anchor) {{
-  align-self: flex-start;
-  position: sticky; top: 5.9rem;
-  max-height: calc(100vh - 6.6rem); overflow-y: auto;
-}}
-/* A pseudo-element cannot sit on its own line: the whitespace would read as a
-   descendant combinator and style the children's scrollbars instead of this one. */
-[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar {{ width: 6px; }}
-[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
-[data-testid="stColumn"]:has(.rail-anchor)::-webkit-scrollbar-track {{ background: transparent; }}
-
-/* The horizon rail is a single-company view, so it is dropped on the Universe tab, the
-   cross-coverage view, and its width handed to the content. Streamlit gives no server
-   signal for the active tab, so this keys on the first tab (Universe) carrying
-   aria-selected in the DOM: when it does, the page-level split hides its rail column
-   (found by the marker inside it) and lets the content column take the full width. Every
-   other tab leaves the rail in place. */
-[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"])
-  > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
-[data-testid="stHorizontalBlock"]:has(.stTabs [data-baseweb="tab"]:first-of-type[aria-selected="true"]):has(> [data-testid="stColumn"] .rail-anchor)
-  > [data-testid="stColumn"]:first-child {{
-    width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
-
-/* The same for any tab whose own content asks for it, found by a marker inside the
-   visible panel rather than by counting tabs: which position Portfolio sits at depends
-   on the engine, and a tab index would silently point at the wrong tab elsewhere.
-
-   Both pairs also require the rail anchor as a direct child column. :has() reaches any
-   descendant, so a tab strip nested inside a column made the block holding that column
-   match, and the rule written for the page-level split widened an inner one to 100% and
-   stacked it. The Portfolio tab's own layers did exactly that to its two columns. */
-[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail)
-  > [data-testid="stColumn"]:has(.rail-anchor) {{ display: none !important; }}
-[data-testid="stHorizontalBlock"]:has([data-baseweb="tab-panel"]:not([hidden]) .no-rail):has(> [data-testid="stColumn"] .rail-anchor)
-  > [data-testid="stColumn"]:first-child {{
-    width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important; }}
-
 /* A byline folded to one line. The Universe tab has to fit a screen and its notes are
    long, so they collapse rather than going away. */
 /* Closed, the note is a one-line label, but it sat in a full element slot with the 8px
@@ -1233,25 +1182,6 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .anno .who {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
              display: block; margin-bottom: 1px; }}
 
-/* Pinned spine selection: sits above the tabs, the cross-link from a spine click. */
-.pinned {{ border-left: 3px solid var(--up); background: var(--panel);
-          padding: 6px 12px; margin: 4px 0 8px; }}
-.pin-head {{ display: flex; justify-content: space-between; align-items: baseline; }}
-.pin-tag {{ font-size: 9px; letter-spacing: 0.09em; text-transform: uppercase;
-           color: var(--muted); }}
-.pin-clear {{ font-size: 10px; color: var(--muted); text-decoration: none;
-             border-bottom: 1px solid var(--rule-strong); }}
-.pin-clear:hover {{ color: var(--text); }}
-.pin-body {{ font-size: 13px; margin-top: 2px; }}
-.pin-body .d {{ font-family: var(--font-mono); color: var(--muted);
-               margin-right: 6px; }}
-.pin-body .why {{ font-size: 10px; color: var(--flag); text-transform: uppercase;
-                 letter-spacing: 0.04em; margin-left: 6px; }}
-.pin-detail {{ font-size: 11.5px; color: var(--muted); margin-top: 3px;
-              line-height: 1.4; }}
-/* A spine anchor is a link but must not look like body text underlined. */
-.rail a {{ text-decoration: none; cursor: pointer; }}
-.rail a:hover line {{ stroke-width: 2.4; }}
 /* Coverage small-multiple panels are links to the clicked company; outline on hover. */
 .chart-mount a {{ cursor: pointer; }}
 .chart-mount a:hover rect {{ stroke: var(--muted); stroke-width: 1; }}

@@ -303,11 +303,11 @@ sections, 12 px inside a card.
   in mono, Refresh all.
 - **Tab strip:** plain text under the top bar. The tab set depends on the company's
   engine.
-- **Horizon rail:** on single-company tabs a right-hand column holds the time spine,
-  one continuous vertical axis in three scales (days to 90, months to 24, then years to
-  the cliff). It sticks under the top bar and scrolls inside itself. Universe drops the
-  rail, and so does any tab that asks for the full width with a `no-rail` marker
-  (Forecast and Comps among them).
+- **Page width:** every tab takes the page's full width. A right-hand horizon rail
+  (the time spine, one vertical axis in three scales) is retired: a rule meant to drop
+  it on Universe hid it on every tab once a page had loaded, and it showed only while
+  the page was loading. The `no-rail` marker survives as the spacing of a full-width
+  tab (Forecast and Comps among them), and the spine's builders are kept.
 - **Sections:** a hairline with a caps label on the left, an optional mono count on the
   right, and an optional boxed basis tag that states the period the figures cover. A
   label sits close to its content (about 0.55rem) and further from what came before
@@ -437,9 +437,11 @@ direct label always accompanies colour. A null breaks the line, hatches the bar 
 leaves the heatmap cell as ground.
 
 ### The time spine
-The signature component. A continuous vertical axis on the right of single-company
-tabs, three compressed scales stacked without a break, with ticks at the real catalyst
-and expiry dates.
+A continuous vertical axis, three compressed scales stacked without a break, with ticks
+at the real catalyst and expiry dates. It was written as the signature component, a
+rail on the right of single-company tabs, and it is built (`charts.timeline_spine`) but
+not on the page: see Page width above. Putting it back takes a quarter of the width
+from every tab it stands beside, so it is a decision and not a repair.
 
 ### The front door
 One wheel of three wedges, each a drawn motif in its engine's colour (green, violet,

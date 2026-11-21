@@ -1,10 +1,10 @@
 """Streamlit terminal: key insights, prices, financials, comps, pipeline, and LOE.
 
 A thin client over the FastAPI JSON endpoints. One company is selected in the sidebar
-and drives every per-company view, so the feed, the note, and the horizon rail always
-describe the same company.
+and drives every per-company view, so the feed and the note always describe the same
+company.
 
-Presentation rules live in ``theme`` and the horizon rail in ``rail``. Valuation ratios
+Presentation rules live in ``theme``. Valuation ratios
 resolve only for US filers (shares outstanding and USD reporting); those cells show a
 dash, which means no free data rather than zero.
 """
@@ -11210,46 +11210,16 @@ def _spine_cliff(assets: list) -> dict:
     return cliff
 
 
-# The horizon rail draws catalysts out to two years, so it reads the fuller catalyst
-# list rather than the 60-day feed the note sections use.
-spine_cats = api_get(api_base, f"/catalysts?within_days=760&"
-                     f"ticker={urllib.parse.quote(ticker)}")
-spine_items = _spine_items(feed, spine_cats if isinstance(spine_cats, list) else [])
-selected_key = (st.query_params.get("sel") or "") or None
-pinned = next((it for it in spine_items if it["key"] == selected_key), None)
-
-# The pinned item sits above the tabs, so selecting a point on the spine cross-links
-# to a panel visible on every tab. Clicking a tick navigates to ?…&sel=key (a pure
-# SVG anchor, no script); this reads it back and draws the hairline to it.
-if pinned:
-    detail = html_escape(pinned.get("detail") or "") if pinned.get("detail") else ""
-    reason = (f'<span class="why">{html_escape(pinned["reason"])}</span>'
-              if pinned.get("reason") else "")
-    st.markdown(
-        f'<div class="pinned"><div class="pin-head"><span class="pin-tag">pinned '
-        f'from spine</span> <a class="pin-clear" href="?ticker='
-        f'{urllib.parse.quote(ticker)}">clear</a></div>'
-        f'<div class="pin-body"><span class="d">{(pinned.get("date") or "")[:10]}'
-        f'</span> {html_escape(pinned.get("headline") or "")} {reason}</div>'
-        + (f'<div class="pin-detail">{detail}</div>' if detail else "")
-        + "</div>", unsafe_allow_html=True)
-
-# The rail is a reference column, not a view: dates and one line of what each is. Every
-# point of width it takes comes off the tab beside it, where the charts and statements
-# are, so it is sized to the longest date plus a readable clause and no more.
-main, rail_col = st.columns([1, 0.27], gap="medium")
-
-with rail_col:
-    # Marker so the theme can find and drop this column on the Universe tab, where the
-    # single-company rail is out of place against a cross-coverage view.
-    st.markdown('<span class="rail-anchor"></span>', unsafe_allow_html=True)
-    R.show(CH.timeline_spine(
-        spine_items, dt.date.today(), 300, 920,
-        cliff_years=_spine_cliff(exclusivities), selected_key=selected_key,
-        link_base=f"?ticker={urllib.parse.quote(ticker)}&sel="), css_class="rail")
-    st.markdown('<div class="byline">Forward-dated only. Click a point to pin it '
-                'above the tabs. Amber is a regulatory date needing review; orange '
-                'and purple are the two FDA books.</div>', unsafe_allow_html=True)
+# The tabs take the page's whole width. A right-hand column held a horizon rail here,
+# one company's forward dates on a spine, with a panel above the tabs for a date picked
+# from it. The theme hid the rail on the Universe tab by finding the tab strip, and the
+# strip is drawn after the rail, so on every load the rail stood on the right until the
+# tabs arrived. A tab strip nested inside a tab matched the same rule, so once a page
+# had loaded the rail was hidden on every tab: what was left of it was the flash. It is
+# not drawn, and the two years of catalysts that fed it are not asked for. Its builders
+# (_spine_items, _spine_cliff and charts.timeline_spine) are kept, and tested, for a
+# rail that is put back on purpose.
+main = st.container()
 
 # --- Time machine ---------------------------------------------------------
 # A date in the sidebar puts the terminal into a clearly marked historical mode:
@@ -11523,7 +11493,7 @@ with main:
             # (up arrow, below the bar) and any loss-of-exclusivity date inside the window
             # (down arrow, above it). Both come from the approvals endpoint. Future LOE
             # dates sit years past the price history, so they fall outside the window and
-            # are left to the LOE tab and the horizon rail.
+            # are left to the LOE tab.
             approvals = api_get(
                 api_base, f"/companies/{ticker}/approvals").get("approvals") or []
             events = []
@@ -11861,8 +11831,8 @@ with main:
     # --- Comps -----------------------------------------------------------
     with comps_tab:
         # Two markers: one lets the theme size this tab's charts against the screen, the
-        # other drops the horizon rail. The rail is one company's forward calendar and
-        # this tab is every company at once, so its width belongs to the comparison.
+        # other sets the spacing of a tab laid out at the page's full width. It is named
+        # for the horizon rail such a tab used to drop, which is no longer drawn.
         st.markdown('<span class="comps-anchor"></span><span class="no-rail"></span>',
                     unsafe_allow_html=True)
         # The Indications and Pipelines views stay cut to the open engine's own cohort:
@@ -12292,8 +12262,8 @@ with main:
             # tab on every rerun. Everything it reads is set above it on the page.
             @st.fragment
             def _portfolio_tab():
-                # The rail is a forward calendar and this tab is a record of what is
-                # already sold, so the marker tells the theme to hand its width back.
+                # The marker gives this tab the spacing of one laid out at the page's
+                # full width. It is named for the rail such a tab used to drop.
                 st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
                 approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
                 # Revenue-mix data fetched once here: the donut renders above the product cards
