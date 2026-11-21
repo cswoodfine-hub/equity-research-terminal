@@ -109,9 +109,8 @@ ER Tool/
     design/                 # the contract for each tab, with "as built" notes
     research/               # dated research notes and the draft rows they produced
     ROADMAP.md, ACTION_PLAN.md
-    PRD.md                  # the v1 spec, July 2026: history, not a plan
   work/                     # finished working papers; no code reads it, data files cite it
-  archive/                  # superseded documents, kept for the record
+  archive/                  # superseded documents, kept for the record: the v1 PRD, the July tour and logs
 ```
 
 ## Core concepts (read before writing code)
@@ -325,7 +324,7 @@ streamlit run frontend/streamlit_app.py   # UI on 8501
 
 ## Rules for you, Claude Code
 
-- Work one piece of work per session. Use plan mode, get the plan agreed, then implement. (The build phases this rule was written for are in `docs/PRD.md` and ended in July 2026.)
+- Work one piece of work per session. Use plan mode, get the plan agreed, then implement. (The build phases this rule was written for are in `archive/PRD.md` and ended in July 2026.)
 - Snapshot before you mutate current-state tables, so a diff is always possible.
 - When a source's real payload differs from these notes, trust the payload, update the fetcher, and update the fixture. Report the discrepancy in your summary.
 - Do not add data sources that need a paid subscription.

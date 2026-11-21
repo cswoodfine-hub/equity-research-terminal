@@ -218,6 +218,5 @@ them: the app tests need the API on 8000, and the JavaScript tests of the Comps 
 | `data/` | The universe, the curated registers, the assumption seeds, the committed history |
 | `docs/design/` | The contract for each tab |
 | `docs/research/` | Dated research notes and the rows they produced |
-| `docs/PRD.md`, `TERMINAL_OVERVIEW.md` | The July 2026 spec and tour. History: both describe the first build, not this one |
 | `work/` | Finished working papers. No code reads them; data files cite them as sources |
-| `archive/` | Superseded documents |
+| `archive/` | Superseded documents: the July 2026 spec and tour, the first build's logs and screenshots. History, not this build |

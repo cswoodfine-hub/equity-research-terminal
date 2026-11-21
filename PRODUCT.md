@@ -111,8 +111,9 @@ Open decisions:
 
 - The in-app title still reads "Equity research terminal" and the cloud user agent
   reads "NovatalisTerminal". Both are expected to follow the name; no date is set.
-- `README.md`, `TERMINAL_OVERVIEW.md` and `docs/PRD.md` still describe the 18-company,
-  change-detection-only product. They are history, not the current record.
+- `archive/TERMINAL_OVERVIEW.md` and `archive/PRD.md` describe the 18-company,
+  change-detection-only product. They are history, not the current record; `README.md`
+  was rewritten from the code on 2026-11-17.
 
 ## Brand Commitments
 
@@ -131,11 +132,11 @@ Open decisions:
   locally shipped fonts in `frontend/assets/`. No DESIGN.md records it yet.
 - Design plans per surface in `docs/design/` (Forecast tab, Comps, Key insights,
   company scorecard, strategy lab and others).
-- Deterministic renders in `docs/screenshots/` (tearsheet, analyst views, chart
+- Deterministic renders in `archive/screenshots/` (tearsheet, analyst views, chart
   primitives, spine and donut). They predate the three-engine split; check them against
   the running app before treating them as current.
-- Model audits with measured figures: `docs/what_is_modelled.md`,
-  `docs/where_the_gap_is.md`, `docs/ACTION_PLAN.md`.
+- Model audits with measured figures: `docs/where_the_gap_is.md`,
+  `docs/ACTION_PLAN.md`.
 - Live data in the SQLite database and the committed snapshot history.
 
 Absent, and not to be fabricated: customers, testimonials, press, pricing, usage
