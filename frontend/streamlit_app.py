@@ -11836,7 +11836,9 @@ with main:
                       "Programmes are derived from the drug each trial names. Press Refresh "
                       "all to pull the registry and bind them.")
             else:
-                html = ['<div class="progs">']
+                # Not named html: at the top level of the script that name is the html module,
+                # and a list in its place broke every later caller of html.unescape and html.escape.
+                progs_html = ['<div class="progs">']
                 for ph in phase_order:
                     group = by_phase.get(ph)
                     if not group:
@@ -11867,7 +11869,7 @@ with main:
                     _sum = (f'<span class="prog-gv">&middot; {len(_worth_here)} valued '
                             f'&middot; {T.num(sum(_worth_here), 2)}</span>'
                             if _worth_here else "")
-                    html.append(f'<details class="prog-g"{opened}>'
+                    progs_html.append(f'<details class="prog-g"{opened}>'
                                 f'<summary class="prog-h">{html_escape(ph)}'
                                 f'<span>{len(group)}{_sum}</span></summary>')
                     for p in group:
@@ -11904,7 +11906,7 @@ with main:
                                 f'<span class="q">{html_escape(p.get("evidence") or "")}</span>'
                                 f'</div>']
                             area_txt = p.get("indication") or ""
-                        html.append(
+                        progs_html.append(
                             f'<details class="prog"><summary>'
                             f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
                             f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
@@ -11915,9 +11917,9 @@ with main:
                             f'<span class="prog-d">{html_escape(due or "no date")}</span>'
                             f'{_value_cell(p.get("asset_id"))}'
                             f'</summary>{"".join(studies)}</details>')
-                    html.append("</details>")
-                html.append("</div>")
-                st.markdown("".join(html), unsafe_allow_html=True)
+                    progs_html.append("</details>")
+                progs_html.append("</div>")
+                st.markdown("".join(progs_html), unsafe_allow_html=True)
 
 
     # --- Portfolio -------------------------------------------------------
