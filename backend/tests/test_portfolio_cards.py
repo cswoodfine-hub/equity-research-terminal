@@ -192,6 +192,43 @@ def test_a_compound_with_no_study_says_so():
     assert "No registered study is bound to this compound." in markup and "<table" not in markup
 
 
+def test_one_table_draws_a_study_for_a_compound_and_for_a_marketed_product():
+    studies = _programme()["studies"]
+    table = PC.studies_table_html(studies, TODAY)
+    # The compound's dialog is this table under its facts, not a second drawing of it.
+    assert table in PC.trials_html(_programme(), None, TODAY)
+    assert table.count("<tr>") == 1 + len(studies)          # the head and a row a study
+    # A study with no area prints its registry number alone, with no stray separator.
+    bare = PC.studies_table_html([{"nct_id": "NCT9", "title": "T", "due": "2027-03"}], TODAY)
+    assert "<span>NCT9</span>" in bare and "Mar 2027" in bare
+
+
+def test_completed_studies_are_newest_first_with_the_outcome_the_registry_names():
+    done = [{"nct_id": "NCT1", "title": "Older", "phase": "Phase 3",
+             "completion_date": "2024-07-23", "enrollment": 400,
+             "primary_outcome": "Change From Baseline in HbA1c"},
+            {"nct_id": "NCT2", "title": "Newer", "phase": "Phase 1",
+             "completion_date": "2025-09-26", "enrollment": None, "primary_outcome": ""}]
+    table = PC.completed_table_html(done)
+    assert table.index("Newer") < table.index("Older")
+    assert 'href="https://clinicaltrials.gov/study/NCT1?tab=results"' in table
+    assert "primary outcome: Change From Baseline in HbA1c" in table
+    # No outcome on file is no outcome line, and no enrolment is no nought.
+    assert "<span>NCT2</span>" in table and ">no free data<" in table
+    assert "Sep 2025" in table and "Jul 2024" in table
+
+
+def test_a_figure_a_period_is_a_bar_on_the_blocks_own_scale():
+    drawn = PC.bars_html([("FY2023", "5.16 USD bn", 5.16e9), ("FY2024", "11.54 USD bn", 11.54e9),
+                          ("FY2025", "22.97 USD bn", 22.97e9), ("FY2026", "none", None)])
+    assert drawn.count('class="pb-r"') == 3                 # a period with no figure is left out
+    assert "width:100.0%" in drawn and "width:22.5%" in drawn
+    assert ">22.97 USD bn<" in drawn and "FY2026" not in drawn
+    # A negative figure is printed and has no length.
+    assert "width:0.0%" in PC.bars_html([("Q1", "1.0", 1.0), ("Q2", f"{PC.MINUS}0.5", -0.5)])
+    assert PC.bars_html([]) == "" and PC.bars_html([("FY", "x", None)]) == ""
+
+
 # --- the marketed card ----------------------------------------------------------------
 def _rows():
     return [{"asset_id": 1, "fiscal_year": 2023, "value": 5.0e9},

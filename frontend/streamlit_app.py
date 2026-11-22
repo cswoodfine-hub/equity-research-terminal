@@ -589,25 +589,9 @@ def _loe_stack_table_html(rows, ticker) -> str:
             + "".join(body) + "</tbody></table></div>")
 
 
-def _render_product_profile(api_base, ticker, product, today) -> None:
-    """The fact profile for one product: sourced facts on the left, the analyst's curated
-    market-size / peak-sales / competitor view on the right, editable and saved back. Read
-    from the profile endpoint, so it always reflects what is actually on file."""
-    aid = product["asset_id"]
-    try:
-        prof = api_get(api_base, f"/companies/{ticker}/product/{aid}")
-    except Exception:                       # a stale id or a backend hiccup: drop it
-        st.session_state.pop("profile_asset", None)
-        return
-
-    head, closer = st.columns([6, 1])
-    with head:
-        section(f"{prof['brand']} fact profile", prof.get("modality") or "")
-    with closer:
-        if st.button("close", key=f"pf_close_{aid}", use_container_width=True):
-            st.session_state.pop("profile_asset", None)
-            _rerun_here()
-
+def _profile_tiles_html(prof: dict) -> str:
+    """The sheet's four figures: what the product earns, how long it is protected, what
+    Medicare spends on it and when it was first approved."""
     loe = prof.get("loe") or {}
     dem = prof.get("demand")
     rev = _headline_revenue(prof)
@@ -637,7 +621,7 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         tail.append(f'use patents to {loe["use_patent_year"]}')
     if tail:
         loe_note += " &middot; " + ", ".join(tail)
-    stats = (
+    return (
         '<div class="pos">'
         f'<div><span class="k">latest revenue</span>'
         f'<span class="v{"" if rev else " none"}">'
@@ -655,6 +639,10 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         f'{(prof.get("first_approval") or "—")[:10]}</span>'
         f'<span class="sub">{html_escape((prof.get("generic") or "").lower())}</span></div>'
         '</div>')
+
+
+def _profile_summary(prof: dict) -> None:
+    """The label's own first sentence, folded where the label does not write in one."""
     if prof.get("summary"):
         # The label's own first sentence, which says what the drug is and what it
         # treats. Not written here, so a product with no label carries no summary.
@@ -672,32 +660,12 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
         else:
             st.markdown(f'<div class="prof-summary">{html_escape(_sum)}</div>',
                         unsafe_allow_html=True)
-    st.markdown(stats, unsafe_allow_html=True)
 
-    html = ['<div class="prof">']
-    # Revenue history, when the SEC tags more than the latest year.
-    if len(prof.get("revenue") or []) > 1:
-        html.append('<div class="prof-sub">revenue, tagged years</div>')
-        html.append(_prof_rows(
-            [(f'FY{r["fiscal_year"]}', f'{T.num(r["value"] / 1e9, 2)} {r.get("unit") or ""} bn')
-             for r in prof["revenue"]]))
-    # The quarters, read from the earnings exhibit. Kept in their own block rather than
-    # merged into the years above: a quarter printed beside a year reads as a collapse.
-    quarters = [r for r in (prof.get("quarterly_revenue") or []) if r["period"] != "H1"]
-    if quarters:
-        html.append('<div class="prof-sub">revenue, quarters stated</div>')
-        html.append(_prof_rows(
-            [(_period_label(r), _money(r)) for r in quarters]))
-    # Approvals, one line each with the approved indication.
-    if prof.get("approvals"):
-        html.append('<div class="prof-sub">approvals</div>')
-        for ap in prof["approvals"]:
-            ind = (ap.get("indication_text") or "").strip()
-            ind = ind if len(ind) <= 90 else ind[:89] + "…"
-            html.append(
-                f'<div class="prof-line"><span class="d">{(ap.get("approval_date") or "")[:10]}</span>'
-                f'{html_escape(ap.get("application_number") or "")}'
-                f'{" · " + html_escape(ind) if ind else ""}</div>')
+
+def _profile_exclusivity_html(prof: dict) -> tuple:
+    """(the patent stack, the range and what follows the date) as two blocks of markup,
+    for the sheet's two columns. Either is empty where nothing is on file."""
+    html = []
     # The patent stack. A product does not have a patent, it has a stack of them, and
     # the stack is why two pages could once disagree about Farxiga: dapagliflozin's own
     # patent went in April 2026 while the book also lists a second molecule patent to
@@ -757,26 +725,11 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
                         "listed expiry")
             html.append(f'<div class="prof-row"><span class="prof-k">basis</span>'
                         f'<span class="prof-v none">{note_txt}</span></div>')
+    stack = "".join(html)
+    html = []
     html.extend(_loe_range_html(prof.get("loe_range")))
     html.extend(_erosion_html(prof.get("erosion")))
     html.extend(_ira_bear_html(prof.get("ira_bear")))
-
-    # Label, supplements, challenges: the regulatory footprint.
-    lab = prof.get("label")
-    if lab:
-        html.append('<div class="prof-sub">label</div>')
-        html.append(_prof_rows([
-            ("approved indications", str(lab.get("indication_count"))
-             if lab.get("indication_count") is not None else None),
-            ("label updated", (lab.get("effective_time") or "")[:10] or None),
-            ("population", (lab.get("population_text") or "")[:60] or None)]))
-    if prof.get("supplement_count"):
-        html.append('<div class="prof-sub">efficacy supplements</div>')
-        for s in prof.get("supplements") or []:
-            d = (s.get("description") or "").strip()
-            d = d if len(d) <= 80 else d[:79] + "…"
-            html.append(f'<div class="prof-line"><span class="d">'
-                        f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
     if prof.get("paragraph_iv"):
         html.extend(_paragraph_iv_html(prof["paragraph_iv"]))
     elif prof.get("challenges"):
@@ -785,138 +738,214 @@ def _render_product_profile(api_base, ticker, product, today) -> None:
             (c.get("application_number") or "application",
              (c.get("first_submission") or "")[:10] or "filed")
             for c in prof["challenges"]]))
-    # The drug's own studies. For a marketed product these are the label-expansion
-    # trials that drive the next indication; for a pipeline compound they are the
-    # whole programme.
-    if prof.get("trials"):
-        phases = prof.get("trials_by_phase") or {}
-        phase_txt = ", ".join(f'{n} {ph}' for ph, n in sorted(phases.items()))
-        html.append(f'<div class="prof-sub">trials · {prof["trial_count"]} '
-                    f'{"· " + html_escape(phase_txt) if phase_txt else ""}</div>')
-        for tr in prof["trials"]:
-            title = (tr.get("title") or "").strip()
-            title = title if len(title) <= 78 else title[:77].rstrip() + "…"
-            due = (tr.get("primary_completion_date") or "")[:10] or "no date"
-            link = (f'<a href="https://clinicaltrials.gov/study/{html_escape(tr["nct_id"])}"'
-                    f' target="_blank" rel="noopener">{html_escape(title)}</a>')
+    return stack, "".join(html)
+
+
+def _profile_label_html(prof: dict) -> str:
+    """Approvals, the label, efficacy supplements and any dated regulatory event."""
+    html = []
+    # Approvals, one line each with the approved indication.
+    if prof.get("approvals"):
+        html.append('<div class="prof-sub">approvals</div>')
+        for ap in prof["approvals"]:
+            ind = (ap.get("indication_text") or "").strip()
+            ind = ind if len(ind) <= 90 else ind[:89] + "…"
             html.append(
-                f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
-                f'({html_escape(tr.get("nct_id") or "")})">'
-                f'<span class="d">{html_escape(due)}</span>'
-                f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
-                f'</div>')
-    if prof.get("completed_trials"):
-        html.append(
-            f'<div class="prof-sub">completed with results &middot; '
-            f'{prof.get("completed_count")}</div>')
-        for tr in prof["completed_trials"]:
-            title = (tr.get("title") or "").strip()
-            title = title if len(title) <= 74 else title[:73].rstrip() + "…"
-            done = (tr.get("completion_date") or "")[:10] or "no date"
-            outcome = (tr.get("primary_outcome") or "").strip()
-            outcome = outcome if len(outcome) <= 64 else outcome[:63].rstrip() + "…"
-            link = (f'<a href="https://clinicaltrials.gov/study/'
-                    f'{html_escape(tr["nct_id"])}?tab=results" target="_blank"'
-                    f' rel="noopener">{html_escape(title)}</a>')
-            html.append(
-                f'<div class="prof-line" title="{html_escape(tr.get("title") or "")} '
-                f'({html_escape(tr.get("nct_id") or "")})">'
-                f'<span class="d">{html_escape(done)}</span>'
-                f'<span class="ph">{html_escape(tr.get("phase") or "")}</span> {link}'
-                + (f'<span class="ep">{html_escape(outcome)}</span>' if outcome else "")
-                + '</div>')
-    if prof.get("catalysts"):
-        html.append('<div class="prof-sub">upcoming catalysts</div>')
-        for c in prof["catalysts"]:
-            t = (c.get("title") or "").strip()
-            t = t if len(t) <= 80 else t[:79] + "…"
+                f'<div class="prof-line"><span class="d">{(ap.get("approval_date") or "")[:10]}</span>'
+                f'{html_escape(ap.get("application_number") or "")}'
+                f'{" · " + html_escape(ind) if ind else ""}</div>')
+    # Label, supplements, challenges: the regulatory footprint.
+    lab = prof.get("label")
+    if lab:
+        html.append('<div class="prof-sub">label</div>')
+        html.append(_prof_rows([
+            ("approved indications", str(lab.get("indication_count"))
+             if lab.get("indication_count") is not None else None),
+            # The whole date. It was cut to ten characters, which suits an ISO date and
+            # turned the label's own "Aug 13, 2026" into "Aug 13, 20".
+            ("label updated", (lab.get("effective_time") or "").strip() or None),
+            ("population", (lab.get("population_text") or "")[:60] or None)]))
+    if prof.get("supplement_count"):
+        html.append('<div class="prof-sub">efficacy supplements</div>')
+        for s in prof.get("supplements") or []:
+            d = (s.get("description") or "").strip()
+            d = d if len(d) <= 80 else d[:79] + "…"
             html.append(f'<div class="prof-line"><span class="d">'
-                        f'{(c.get("expected_date") or "")[:10]}</span>{html_escape(t)}</div>')
-    html.append('</div>')
-    st.markdown("".join(html), unsafe_allow_html=True)
-    # What used to be three company-wide tables at the foot of the tab, cut to this one
-    # product. Asked of a portfolio they were a ranking; asked of a drug they are the
-    # three things a reader wants next to its revenue: who actually takes it, what the
-    # filer books for it, and what is still being trialled on it.
-    _profile_detail(api_base, ticker, prof, aid)
-
-    st.markdown(
-        '<div class="byline">Every field here is sourced: approval and supplements '
-        'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
-        'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
-        'data is left out rather than filled. '
-        f'{html_escape(_payer_byline(prof.get("access")))}</div>',
-        unsafe_allow_html=True)
+                        f'{(s.get("approval_date") or "")[:10]}</span>{html_escape(d)}</div>')
+    # A readout dated on the calendar is a study's own date, and the studies have their
+    # table. What is listed here is the rest: an FDA decision, an advisory committee.
+    events = [c for c in prof.get("catalysts") or [] if c.get("catalyst_type") != "data readout"]
+    if events:
+        html.append('<div class="prof-sub">dated regulatory events</div>')
+        for c in events:
+            t = (c.get("title") or "").strip()
+            t = t if len(t) <= 110 else t[:109] + "…"
+            html.append(f'<div class="prof-line"><span class="d">'
+                        f'{(c.get("expected_date") or "")[:10]}</span>'
+                        f'{html_escape(c.get("catalyst_type") or "")} &middot; {html_escape(t)}</div>')
+    return "".join(html)
 
 
-def _profile_detail(api_base: str, ticker: str, prof: dict, aid) -> None:
-    """Medicare demand, booked revenue and live studies, for this product alone.
+def _profile_revenue(api_base: str, ticker: str, prof: dict, aid) -> None:
+    """What the product earns and who pays for it: revenue by year and by quarter as the
+    filer states it, Medicare's spending, then prescribing, plan coverage and Medicaid.
 
-    Each is absent for most products, and an absence is stated rather than drawn as a
-    gap: free data carries CMS spending for the drugs Medicare buys, tagged revenue only
-    where the filer tags a product axis, and a trial only where one is running.
+    Each is absent for most products, and an absence is one plain line, not a panel:
+    three empty panels were most of what a new product's sheet showed.
     """
+    years = [(f'FY{r["fiscal_year"]}', f'{T.num(r["value"] / 1e9, 2)} {r.get("unit") or ""} bn',
+              r["value"]) for r in prof.get("revenue") or [] if r.get("value") is not None]
+    # The quarters, read from the earnings exhibit. Kept in their own block and never
+    # merged into the years: a quarter printed beside a year reads as a collapse.
+    quarters = [(_period_label(r), _money(r), r.get("value"))
+                for r in prof.get("quarterly_revenue") or [] if r["period"] != "H1"]
+    left, right = st.columns(2, gap="large")
+    with left:
+        st.markdown('<div class="ps"><div class="prof-sub">revenue by year, as tagged</div>'
+                    + (PC.bars_html(years) or
+                       '<div class="ps-none">No year is tagged. The SEC data sets carry '
+                       'revenue per product only where the filer tags a product axis, and '
+                       'most do not.</div>') + '</div>', unsafe_allow_html=True)
+    with right:
+        st.markdown('<div class="ps"><div class="prof-sub">revenue by quarter, as stated</div>'
+                    + (PC.bars_html(quarters) or
+                       '<div class="ps-none">No quarter is read from an earnings exhibit.'
+                       '</div>') + '</div>', unsafe_allow_html=True)
     # By id: a brand or generic substring also caught a neighbour whose CMS name
     # contained it.
-    demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
-                          or []) if str(d.get("asset_id")) == str(aid)]
-    # Revenue rows carry the asset id, so this one needs no name matching at all.
-    revenue = [r for r in (api_get(api_base, f"/companies/{ticker}/revenue").get("rows")
-                           or []) if r.get("asset_id") == aid]
-    studies = [s for s in (api_get(api_base, f"/companies/{ticker}/post-approval")
-                           .get("studies") or []) if s.get("asset_id") == aid]
-
-    cols = st.columns(3, gap="medium")
-    with cols[0]:
-        section("Medicare demand", len(demand) or None, "US Part D and Part B")
-        if not demand:
-            state("Not in the CMS files",
-                  "CMS publishes spending for the drugs Medicare buys. A product it "
-                  "does not cover, or one sold only outside the US, has no row.")
-        else:
-            # Each row is one Medicare part with a year series; the latest year is what
-            # a reader wants, and the part says whether it is the pharmacy or the clinic.
-            rows_html = []
-            for d in demand[:6]:
-                latest = (d.get("series") or [])[-1:] or [{}]
-                point = latest[0]
-                rows_html.append(
-                    f'<div class="fitem"><span class="d">'
-                    f'{html_escape(str(point.get("year") or ""))}</span>'
-                    f'<span class="t">{html_escape(d.get("brand") or "")}</span>'
-                    f'<span class="why">{html_escape(d.get("part_label") or "")}</span>'
-                    f'<span class="s">'
-                    f'{T.num((point.get("spending") or 0) / 1e6, 0)}m</span></div>')
-            st.markdown('<div class="feed">' + "".join(rows_html) + "</div>",
-                        unsafe_allow_html=True)
-    with cols[1]:
-        section("Booked revenue", len(revenue) or None, "as the filer tags it")
-        if not revenue:
-            state("Not tagged",
-                  "The SEC data sets carry revenue per product only where the filer "
-                  "tags a product axis. Most do not, for most products.")
-        else:
-            st.markdown('<div class="feed">' + "".join(
-                f'<div class="fitem"><span class="d">FY{r.get("fiscal_year")}</span>'
-                f'<span class="t">{html_escape(prof.get("brand") or "")}</span>'
-                f'<span class="why"></span><span class="s">'
-                f'{T.num((r.get("value") or 0) / 1e9, 2)} {html_escape(r.get("unit") or "")}'
-                f' bn</span></div>' for r in revenue[:8]) + "</div>",
-                unsafe_allow_html=True)
-    with cols[2]:
-        section("Studies underway", len(studies) or None, "on this approved product")
-        if not studies:
-            state("None running",
-                  "No registered trial is open on this product. Lifecycle work is a new "
-                  "indication, a formulation or a post-marketing commitment, and not "
-                  "every product has one.")
-        else:
-            st.markdown('<div class="feed">' + "".join(
-                _post_approval_row(s) for s in studies[:8]) + "</div>",
-                unsafe_allow_html=True)
+    try:
+        demand = [d for d in (api_get(api_base, f"/companies/{ticker}/demand").get("drugs")
+                              or []) if str(d.get("asset_id")) == str(aid)]
+    except Exception:
+        demand = []
+    st.markdown('<div class="ps"><div class="prof-sub">Medicare demand &middot; US Part D '
+                'and Part B</div></div>', unsafe_allow_html=True)
+    if not demand:
+        st.markdown('<div class="ps-none">Not in the CMS files. CMS publishes spending for '
+                    'the drugs Medicare buys; a product it does not cover, or one sold only '
+                    'outside the US, has no row.</div>', unsafe_allow_html=True)
+    else:
+        # Each row is one Medicare part with a year series; the latest year is what
+        # a reader wants, and the part says whether it is the pharmacy or the clinic.
+        rows_html = []
+        for d in demand[:6]:
+            latest = (d.get("series") or [])[-1:] or [{}]
+            point = latest[0]
+            rows_html.append(
+                f'<div class="fitem"><span class="d">'
+                f'{html_escape(str(point.get("year") or ""))}</span>'
+                f'<span class="t">{html_escape(d.get("brand") or "")}</span>'
+                f'<span class="why">{html_escape(d.get("part_label") or "")}</span>'
+                f'<span class="s">'
+                f'{T.num((point.get("spending") or 0) / 1e6, 0)}m</span></div>')
+        st.markdown('<div class="feed">' + "".join(rows_html) + "</div>",
+                    unsafe_allow_html=True)
     # Who prescribes it in Medicare, which Part D plans cover it, how often Medicaid
-    # fills it: a second row, under the three above.
+    # fills it.
     _payer_row(prof)
+
+
+def _profile_trials(api_base: str, ticker: str, prof: dict, aid, today) -> None:
+    """Every study on the product in two tables: the ones underway, soonest first, and
+    the ones completed with results. The sheet listed the open studies twice, once as
+    titles and once with their status, and their dates a third time as catalysts."""
+    sizes = {t.get("nct_id"): t.get("enrollment") for t in prof.get("trials") or []}
+    try:
+        open_now = [s for s in (api_get(api_base, f"/companies/{ticker}/post-approval")
+                                .get("studies") or []) if s.get("asset_id") == aid]
+    except Exception:
+        open_now = []
+    if open_now:
+        studies = [{"nct_id": s.get("nct_id"), "title": s.get("title"), "phase": s.get("phase"),
+                    "status": s.get("status"), "due": s.get("due"),
+                    "enrollment": sizes.get(s.get("nct_id")),
+                    "area": ", ".join((s.get("conditions") or [])[:1])
+                    if isinstance(s.get("conditions"), list) else None} for s in open_now]
+    else:
+        # The profile's own list where the lifecycle read has none: at most its first few.
+        studies = [{"nct_id": t.get("nct_id"), "title": t.get("title"), "phase": t.get("phase"),
+                    "status": t.get("overall_status"), "due": t.get("primary_completion_date"),
+                    "enrollment": t.get("enrollment")} for t in prof.get("trials") or []]
+    total = prof.get("trial_count") or len(studies)
+    if studies:
+        more = f" &middot; {len(studies)} shown" if len(studies) < total else ""
+        st.markdown(f'<div class="ps"><div class="prof-sub">underway &middot; {total}{more}</div>'
+                    f'</div>' + PC.studies_table_html(studies, today), unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="ps"><div class="prof-sub">underway</div></div>'
+                    '<div class="ps-none">No registered trial is open on this product. '
+                    'Lifecycle work is a new indication, a formulation or a post-marketing '
+                    'commitment, and not every product has one.</div>', unsafe_allow_html=True)
+    done = prof.get("completed_trials") or []
+    if done:
+        count = prof.get("completed_count") or len(done)
+        more = f" &middot; the latest {len(done)} shown" if len(done) < count else ""
+        st.markdown(f'<div class="ps"><div class="prof-sub">completed with results &middot; '
+                    f'{count}{more}</div></div>' + PC.completed_table_html(done),
+                    unsafe_allow_html=True)
+
+
+def _render_product_profile(api_base, ticker, product, today) -> None:
+    """A marketed product's fact sheet, in a dialog: what the label says it is, four
+    figures, then four tabs.
+
+    It was one column of a dozen headed lists opened above the charts, in half the page's
+    width: revenue, approvals, patents, the range, erosion, the label, two lists of the
+    same open studies, the completed ones, and the studies' dates again as catalysts,
+    then three panels that for most products each said there was nothing. The same facts
+    are here under four questions: what it earns and who pays, how long it is protected,
+    what it is approved for, and what is being studied. A card opens it the way a
+    compound's card opens its studies, and closing it leaves the page where it was.
+    """
+    aid = product["asset_id"]
+    try:
+        prof = api_get(api_base, f"/companies/{ticker}/product/{aid}")
+    except Exception:                       # a stale id or a backend hiccup: drop it
+        st.session_state.pop("profile_asset", None)
+        return
+
+    @st.dialog(str(prof.get("brand") or "Product"), width="large",
+               on_dismiss=lambda: st.session_state.pop("profile_asset", None))
+    def _sheet():
+        said = " · ".join(x for x in ((prof.get("generic") or "").lower(),
+                                      prof.get("modality"), prof.get("company")) if x)
+        if said:
+            st.markdown(f'<div class="ps-kind">{html_escape(said)}</div>',
+                        unsafe_allow_html=True)
+        _profile_summary(prof)
+        st.markdown(_profile_tiles_html(prof), unsafe_allow_html=True)
+        stack, after = _profile_exclusivity_html(prof)
+        label = _profile_label_html(prof)
+        n_trials = (prof.get("trial_count") or 0) + (prof.get("completed_count") or 0)
+        panes = [("Revenue and demand", "revenue")]
+        if stack or after:
+            panes.append(("Exclusivity", "exclusivity"))
+        if label:
+            panes.append(("Label and approvals", "label"))
+        panes.append((f"Trials ({n_trials})" if n_trials else "Trials", "trials"))
+        for tab, (_name, key) in zip(st.tabs([name for name, _key in panes]), panes):
+            with tab:
+                if key == "revenue":
+                    _profile_revenue(api_base, ticker, prof, aid)
+                elif key == "exclusivity":
+                    left, right = st.columns(2, gap="large")
+                    with left:
+                        st.markdown(f'<div class="ps">{stack}</div>', unsafe_allow_html=True)
+                    with right:
+                        st.markdown(f'<div class="ps">{after}</div>', unsafe_allow_html=True)
+                elif key == "label":
+                    st.markdown(f'<div class="ps narrow">{label}</div>', unsafe_allow_html=True)
+                else:
+                    _profile_trials(api_base, ticker, prof, aid, today)
+        st.markdown(
+            '<div class="byline">Every field here is sourced: approval and supplements '
+            'from openFDA, revenue from the SEC data sets, exclusivity from the Orange and '
+            'Purple Books, demand from CMS, the label from DailyMed. A field with no free '
+            'data is left out rather than filled. '
+            f'{html_escape(_payer_byline(prof.get("access")))}</div>',
+            unsafe_allow_html=True)
+
+    _sheet()
 
 
 # --- payer access: Part D prescribing, Part D plan coverage, Medicaid -------------------
@@ -12547,15 +12576,6 @@ with main:
                             '</div>', unsafe_allow_html=True)
 
 
-                        # The left column stacked four panels and the last of them was a
-                        # placeholder until a card was clicked. The two charts are layers
-                        # now, and the fact sheet sits above them rather than among them: a
-                        # card click is a request to read that product, and st.tabs keeps
-                        # the selected label across a rerun, so adding a "Fact sheet" tab
-                        # left the reader looking at the revenue mix they had already seen.
-                        # Filled after the cards are drawn, since the click that selects a
-                        # product happens in the column beside this one.
-                        _profile_slot = st.container()
                         st.markdown('<span class="fc-layers"></span>', unsafe_allow_html=True)
                         # Medicare demand is a layer only where CMS has a brand of this
                         # company's, and a failed read leaves it out rather than the tab.
@@ -12973,13 +12993,11 @@ with main:
                                 st.session_state["profile_asset"] = clicked.get("asset_id")
                                 _rerun_here()
 
-                    # Nothing where no card has been clicked. The panel used to hold a
-                    # placeholder saying to click one, which spent a quarter of the column on
-                    # an instruction; the hint now sits on the Products heading, next to the
-                    # cards it is about.
+                    # A clicked card opens its fact sheet in a dialog, as a compound's card
+                    # opens its studies. It used to open in a slot above the charts, in half
+                    # the page's width, and pushed them down the column.
                     if sel is not None:
-                        with _profile_slot:
-                            _render_product_profile(api_base, ticker, sel, today)
+                        _render_product_profile(api_base, ticker, sel, today)
 
             _portfolio_tab()
 

@@ -529,6 +529,12 @@ details.pt-more[open] > summary {{ color: var(--text); }}
 details.prof-summary.long {{ cursor: pointer; }}
 details.prof-summary.long > summary {{ list-style: none; }}
 details.prof-summary.long > summary::-webkit-details-marker {{ display: none; }}
+/* A dialog puts the focus on the first thing in it that can take one, and here that is
+   this fold: the browser's own ring then boxed the label's sentence in white the moment
+   the sheet opened. The fold keeps a ring for the keyboard, in the rule's colour. */
+details.prof-summary.long > summary:focus {{ outline: none; }}
+details.prof-summary.long > summary:focus-visible {{ outline: 1px solid var(--rule-strong);
+  outline-offset: 3px; }}
 details.prof-summary.long .more {{ color: var(--up); margin-left: 0.4rem;
   font-size: 11px; }}
 details.prof-summary.long[open] .more {{ display: none; }}
@@ -1585,6 +1591,28 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
   letter-spacing: 0.055em; text-transform: uppercase; color: var(--text); }}
 [class*="st-key-fin_stmt_"] [data-testid="stExpanderDetails"] {{ padding: 0.2rem 0 2rem; }}
+/* A marketed product's fact sheet, in the dialog its card opens. Its blocks are a caps
+   label over rows with no box round them: inside a dialog a bordered panel is a card in
+   a card. One line under the title says what kind of thing the product is. */
+.ps-kind {{ font-size: 12px; color: var(--muted); margin: -0.5rem 0 0.5rem; }}
+.ps {{ padding: 0; }}
+.ps.narrow {{ max-width: 760px; }}
+.ps .prof-sub:first-child {{ margin-top: 0.2rem; }}
+/* An absence, said once in a line. The three panels that each said "nothing here" were
+   most of what a new product's sheet showed. */
+.ps-none {{ font-size: 12px; line-height: 1.45; color: var(--muted); max-width: 62ch;
+           padding: 2px 0 6px; }}
+/* A figure a period, with its bar: the label, the bar on the block's own scale, the
+   figure. Read down, the bars are the product's growth; read across, each is exact. */
+.pb {{ display: grid; row-gap: 5px; padding: 2px 0 6px; }}
+.pb-r {{ display: grid; grid-template-columns: 74px minmax(40px, 1fr) max-content;
+         column-gap: 10px; align-items: center; font-size: 12px; }}
+.pb-r .l {{ font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+            white-space: nowrap; }}
+.pb-r .b {{ height: 6px; background: var(--rule); }}
+.pb-r .b i {{ display: block; height: 100%; background: var(--up); }}
+.pb-r .v {{ font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+            color: var(--text); white-space: nowrap; }}
 /* A compound's studies, in the dialog a pipeline card opens. What the card said, as a
    row of figures, then every study as a line of a table: when it is due, its phase, its
    status, its patients, and the registry's own title as the link to the record. The

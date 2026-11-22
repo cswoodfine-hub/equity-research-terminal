@@ -291,6 +291,75 @@ def pipeline_summary(programmes, book, today: dt.date) -> dict:
 
 
 # --- the studies, in full ---------------------------------------------------------------
+def studies_table_html(studies, today: dt.date) -> str:
+    """Studies as a table, soonest first: when each is due, its phase, its status, its
+    patients and its registry title, linked. One builder for a compound's dialog and a
+    marketed product's, so a study reads the same way on both."""
+    studies = sorted(studies or [],
+                     key=lambda s: (not s.get("due"), s.get("due") or "", s.get("nct_id") or ""))
+    rows = []
+    this_month = (today.year, today.month)
+    for s in studies:
+        size = s.get("enrollment")
+        # A study still open whose registry date is behind today is the one to look
+        # up: it has read out and the registry has not caught up, or it has slipped.
+        due = _year_month(s.get("due"))
+        late = (due is not None and due < this_month
+                and str(s.get("status") or "").strip().lower() != "completed")
+        tip = ' title="Past its registry date and still open."' if late else ""
+        tail = " · ".join(str(x) for x in (s.get("nct_id"), s.get("area")) if x)
+        rows.append(
+            f'<tr><td class="d{" late" if late else ""}"{tip}>'
+            f'{esc(month_text(s.get("due")) or "no date")}</td>'
+            f'<td>{esc(s.get("phase") or "")}</td>'
+            f'<td>{esc(s.get("status") or "")}</td>'
+            f'<td class="n">{f"{int(size):,}" if isinstance(size, (int, float)) and size else NO_DATA}</td>'
+            f'<td class="t"><a href="https://clinicaltrials.gov/study/{esc(s.get("nct_id"))}" '
+            f'target="_blank" rel="noopener">{esc(s.get("title") or s.get("nct_id"))}</a>'
+            f'<span>{esc(tail)}</span></td></tr>')
+    return ('<table class="pt-tbl"><thead><tr><th>Due</th><th>Phase</th><th>Status</th>'
+            '<th class="n">Patients</th><th>Study</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>')
+
+
+def completed_table_html(trials) -> str:
+    """Studies that have finished and posted results, newest first: when each completed,
+    its phase, its patients, its title linked to the registry's results, and the primary
+    outcome the registry names, under the title."""
+    rows = []
+    for t in sorted(trials or [], key=lambda t: t.get("completion_date") or "", reverse=True):
+        size = t.get("enrollment")
+        outcome = str(t.get("primary_outcome") or "").strip()
+        said = " · primary outcome: " + outcome if outcome else ""
+        rows.append(
+            f'<tr><td class="d">{esc(month_text(t.get("completion_date")) or "no date")}</td>'
+            f'<td>{esc(t.get("phase") or "")}</td>'
+            f'<td class="n">{f"{int(size):,}" if isinstance(size, (int, float)) and size else NO_DATA}</td>'
+            f'<td class="t"><a href="https://clinicaltrials.gov/study/{esc(t.get("nct_id"))}?tab=results" '
+            f'target="_blank" rel="noopener">{esc(t.get("title") or t.get("nct_id"))}</a>'
+            f'<span>{esc(t.get("nct_id"))}{esc(said)}</span></td></tr>')
+    return ('<table class="pt-tbl done"><thead><tr><th>Completed</th><th>Phase</th>'
+            '<th class="n">Patients</th><th>Study and primary outcome</th></tr></thead>'
+            f'<tbody>{"".join(rows)}</tbody></table>')
+
+
+def bars_html(rows) -> str:
+    """A figure a period as a row with its bar, on the block's own scale: [(label, the
+    figure as printed, the figure)]. A row with no figure is left out, and a negative one
+    is printed with no bar, since a length cannot be less than nothing."""
+    rows = [r for r in rows or [] if r[2] is not None]
+    if not rows:
+        return ""
+    top = max((r[2] for r in rows), default=0) or 1.0
+    out = []
+    for label, shown, value in rows:
+        width = max(0.0, value) / top * 100 if top > 0 else 0.0
+        out.append(f'<div class="pb-r"><span class="l">{esc(label)}</span>'
+                   f'<span class="b"><i style="width:{width:.1f}%"></i></span>'
+                   f'<span class="v">{esc(shown)}</span></div>')
+    return f'<div class="pb">{"".join(out)}</div>'
+
+
 def trials_html(programme, b, today: dt.date) -> str:
     """A compound's studies as a table, soonest first: when each is due, its phase, its
     status, its patients and its registry title, linked. Above them, what the card said."""
@@ -307,33 +376,9 @@ def trials_html(programme, b, today: dt.date) -> str:
             facts.append(("if it fails", f"{esc(num(b['miss']))} a share"))
     head = "".join(f'<div><span class="k">{esc(k)}</span><span class="v">{v}</span></div>'
                    for k, v in facts)
-    studies = sorted(programme.get("studies") or [],
-                     key=lambda s: (not s.get("due"), s.get("due") or "", s.get("nct_id") or ""))
-    if not studies:
-        body = ('<div class="pt-none">No registered study is bound to this compound.</div>')
-    else:
-        rows = []
-        this_month = (today.year, today.month)
-        for s in studies:
-            size = s.get("enrollment")
-            # A study still open whose registry date is behind today is the one to look
-            # up: it has read out and the registry has not caught up, or it has slipped.
-            due = _year_month(s.get("due"))
-            late = (due is not None and due < this_month
-                    and str(s.get("status") or "").strip().lower() != "completed")
-            rows.append(
-                f'<tr><td class="d{" late" if late else ""}"'
-                f'{" title=" + chr(34) + "Past its registry date and still open." + chr(34) if late else ""}>'
-                f'{esc(month_text(s.get("due")) or "no date")}</td>'
-                f'<td>{esc(s.get("phase") or "")}</td>'
-                f'<td>{esc(s.get("status") or "")}</td>'
-                f'<td class="n">{f"{int(size):,}" if isinstance(size, (int, float)) and size else NO_DATA}</td>'
-                f'<td class="t"><a href="https://clinicaltrials.gov/study/{esc(s.get("nct_id"))}" '
-                f'target="_blank" rel="noopener">{esc(s.get("title") or s.get("nct_id"))}</a>'
-                f'<span>{esc(s.get("nct_id"))} · {esc(s.get("area") or "")}</span></td></tr>')
-        body = ('<table class="pt-tbl"><thead><tr><th>Due</th><th>Phase</th><th>Status</th>'
-                '<th class="n">Patients</th><th>Study</th></tr></thead>'
-                f'<tbody>{"".join(rows)}</tbody></table>')
+    studies = programme.get("studies") or []
+    body = (studies_table_html(studies, today) if studies else
+            '<div class="pt-none">No registered study is bound to this compound.</div>')
     line = studies_line(programme.get("studies"))
     return (f'<div class="pt-facts">{head}</div>'
             f'<div class="pt-count">{esc(line)}</div>{body}')
