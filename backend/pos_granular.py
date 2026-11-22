@@ -940,6 +940,22 @@ def _held(conn, asset_id: int, placement: dict, trial: dict, today: str,
             "pos": pos, "note": held_note(len(others), pos)}
 
 
+def guided_dates(conn, asset_id: int) -> dict:
+    """{nct_id: {"date", "confidence", "url", "note"}} for the asset's studies whose
+    readout the company has dated (catalysts.guided_date, migration 110). A readout
+    already met or missed is left out: it has happened, and no date is still to come."""
+    return {r["nct_id"]: {"date": r["guided_date"], "confidence": r["guided_confidence"],
+                          "url": r["guided_source_url"], "note": r["guided_note"]}
+            for r in conn.execute(
+                f"""SELECT t.nct_id, cat.guided_date, cat.guided_confidence,
+                           cat.guided_source_url, cat.guided_note
+                      FROM catalysts cat {_READOUT_JOIN}
+                     WHERE t.asset_id = ? AND cat.catalyst_type = 'data readout'
+                       AND cat.guided_date IS NOT NULL
+                       AND COALESCE(cat.status, 'pending') NOT IN ('met', 'missed')
+                     ORDER BY cat.id""", (asset_id,))}
+
+
 def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=None, *,
               gate: str | None = None, lead_indication_id=None) -> dict | None:
     """The event that decides the asset next: the one gate source, and GATE_LABELS the
@@ -965,7 +981,8 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
     today_date = today or dt.date.today()
     iso = today_date.isoformat()
     out = {"gate": gate, "label": GATE_LABELS[gate], "trial": None, "date": None,
-           "date_basis": None, "due": False, "held": None, "why": None}
+           "date_basis": None, "due": False, "held": None, "why": None,
+           "registry_date": None, "guided": None}
     if gate == "nda_to_approval":
         filing = placement.get("filing")
         if not (filing or {}).get("lifts"):
@@ -1003,13 +1020,22 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                     f"cannot be matched to an indication the forecast values")
     rows = _trials(conn, asset_id, _GATE_PHASES[gate], mesh, spoken)
     open_rows = [t for t in rows if t["status"] in OPEN_STATUSES]
+    # The day a study's result is expected: the company's date where it has given one,
+    # else the registry's primary completion. The registry dates the last measurement
+    # and the company dates the announcement, so a study past the first and short of
+    # the second is still to come, not overdue.
+    guided = guided_dates(conn, asset_id)
+
+    def when(t):
+        return (guided.get(t["nct_id"]) or {}).get("date") or t["primary_completion"]
+
     if trial is None:
         upcoming = sorted((t for t in open_rows if t["modelled"]
-                           and (t["primary_completion"] or "") >= iso),
-                          key=lambda t: (t["primary_completion"], -(t["enrollment"] or 0)))
-        overdue = sorted((t for t in open_rows if t["modelled"] and t["primary_completion"]
-                          and t["primary_completion"] < iso),
-                         key=lambda t: t["primary_completion"], reverse=True)
+                           and (when(t) or "") >= iso),
+                          key=lambda t: (when(t), -(t["enrollment"] or 0)))
+        overdue = sorted((t for t in open_rows if t["modelled"] and when(t)
+                          and when(t) < iso),
+                         key=when, reverse=True)
         trial = upcoming[0] if upcoming else overdue[0] if overdue else None
     if trial is None:
         phase_word = "Phase 3" if gate == "p3_to_nda" else "Phase 2"
@@ -1035,14 +1061,27 @@ def next_gate(conn, asset_id: int, placement: dict | None, modelled_mesh, today=
                      f"indication the forecast values ({'; '.join(parts)})")
         out["why"] = "; ".join(filter(None, (note, count)))
         return out
-    due = (trial["primary_completion"] or "9999") < iso
+    said = guided.get(trial["nct_id"])
+    registry = trial["primary_completion"]
+    due = (when(trial) or "9999") < iso
+    if said:
+        passed = bool(registry) and registry < iso
+        basis = ("the company's date for the readout, passed with no readout on file; "
+                 f"the registry's primary completion was {registry or 'not given'}"
+                 if due else
+                 "the company's date for the readout; the registry's primary completion, "
+                 f"{registry}, has passed, and overdue is judged on the company's date"
+                 if passed else
+                 "the company's date for the readout; the registry's primary completion "
+                 f"is {registry or 'not given'}")
+    else:
+        basis = ("primary completion on the registry, passed with no readout on file"
+                 if due else "primary completion on the registry")
     out.update(trial={k: trial[k] for k in ("nct_id", "phase", "status",
                                             "primary_completion", "enrollment",
                                             "indications", "title")},
-               date=trial["primary_completion"], due=due,
-               date_basis=("primary completion on the registry, passed with no readout "
-                           "on file" if due else "primary completion on the registry"),
-               why=note)
+               date=when(trial), due=due, date_basis=basis, why=note,
+               registry_date=registry, guided=said)
     if gate == "p3_to_nda":
         out["held"] = _held(conn, asset_id, placement, trial, iso, mesh)
     return out
@@ -1236,7 +1275,7 @@ def mesh_on_file(conn, nct_id: str) -> bool:
 def _event(nxt: dict | None) -> dict:
     nxt = nxt or {}
     return {key: nxt.get(key) for key in ("gate", "label", "trial", "date", "date_basis",
-                                          "due", "why")}
+                                          "due", "why", "registry_date", "guided")}
 
 
 def _phase(conn, asset_id: int) -> str | None:

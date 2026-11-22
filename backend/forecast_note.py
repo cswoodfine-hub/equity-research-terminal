@@ -73,6 +73,7 @@ def _gate_range(v: dict) -> str | None:
     else:
         when = ("" if not date else
                 f", due since {_month(date)} with no readout on file," if gate.get("due")
+                else f", dated to {_month(date)} by the company," if gate.get("guided")
                 else f", est. {_month(date)},")
         event = (f"{_per_share(success)} a share if its {gate.get('label') or 'next gate'}"
                  f"{when} passes, {lost} if it fails")

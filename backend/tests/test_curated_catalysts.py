@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import csv
+import datetime as dt
 
 import applications
 import curated_catalysts as C
 import db
 
 COLUMNS = ["ticker", "asset", "indication", "catalyst_type", "expected_date",
-           "date_confidence", "title", "description", "source_url"]
+           "date_confidence", "title", "description", "source_url", "guides_nct"]
 ROW = {"ticker": "NVO", "asset": "Cagrilintide", "indication": "Obesity",
        "catalyst_type": "regulatory decision", "expected_date": "2026-12-31",
        "date_confidence": "quarter", "title": "CagriSema (cagrilintide) decision, obesity",
@@ -48,11 +49,11 @@ def _catalysts(conn):
 def test_a_book_without_the_row_gets_it_joined_to_its_asset_and_indication(tmp_path):
     conn = _book(tmp_path)
     got = C.load(conn, _file(tmp_path, ROW))
-    assert got == {"written": 1, "updated": 0, "withdrawn": 0, "skipped": []}
+    assert got == {"written": 1, "updated": 0, "guided": 0, "withdrawn": 0, "skipped": []}
     assert _catalysts(conn) == [{"asset_id": 7, "asset_indication_id": 40,
                                  "expected_date": "2026-12-31", "date_confidence": "quarter",
                                  "title": ROW["title"], "is_curated": 1, "status": "pending"}]
-    assert C.load(conn, _file(tmp_path, ROW)) == {"written": 0, "updated": 0, "withdrawn": 0,
+    assert C.load(conn, _file(tmp_path, ROW)) == {"written": 0, "updated": 0, "guided": 0, "withdrawn": 0,
                                                   "skipped": []}
 
 
@@ -92,7 +93,15 @@ def test_every_committed_title_names_its_product_and_indication():
         assert "—" not in row["description"] + row["title"]
         if row["catalyst_type"] == "data readout":
             assert row["asset"] and C.names_study(row), row["title"]
+            if row.get("guides_nct"):
+                # A date held beside a registry date is the end of a period the company
+                # named, with how wide that period is and the page it stands on.
+                assert C.guided_ncts(row) == row["guides_nct"].split(), row["title"]
+                assert all(n in row["description"] for n in C.guided_ncts(row)), row["title"]
+                assert row["date_confidence"] in ("month", "quarter", "half"), row["title"]
+                assert len(row["expected_date"]) == 10 and row["source_url"], row["title"]
             continue
+        assert not row.get("guides_nct"), row["title"]
         product, indication = applications.parse_title(row["title"])
         assert product and indication, row["title"]
         if row["indication"]:
@@ -137,7 +146,7 @@ def test_a_readout_the_registry_does_not_date_is_written_to_its_asset(tmp_path):
     """Dyne's ACHIEVE cohort reads out in Q1 2027 inside a study the registry dates to
     2029; the row keeps its asset through the nightly release of indication links."""
     conn = _book(tmp_path)
-    assert C.load(conn, _file(tmp_path, READOUT)) == {"written": 1, "updated": 0,
+    assert C.load(conn, _file(tmp_path, READOUT)) == {"written": 1, "updated": 0, "guided": 0,
                                                       "withdrawn": 0, "skipped": []}
     conn.execute("UPDATE catalysts SET asset_indication_id = NULL")
     applications.resolve(conn)
@@ -196,3 +205,103 @@ def test_a_copy_is_withdrawn_only_if_it_is_machine_read_pending_and_the_same_pro
     got = C.load(conn, _file(tmp_path, row))
     assert (got["written"], got["withdrawn"]) == (1, 0)
     assert len(_catalysts(conn)) == 4
+
+
+# ------------------------------------------------- a company's date beside the registry's
+TODAY = dt.date(2026, 11, 22)
+GUIDED = {**READOUT, "expected_date": "2026-12-31", "date_confidence": "month",
+          "title": "Cagrilintide twin studies topline, obesity",
+          "description": "Topline from NCT01234567 and NCT07654321 in the first half of "
+                         "December 2026.",
+          "guides_nct": "NCT01234567 NCT07654321"}
+
+
+def _derived(conn, cid, nct, due, status="unknown"):
+    conn.execute(
+        "INSERT INTO catalysts (id, company_id, asset_id, catalyst_type, expected_date,"
+        " date_confidence, title, description, is_curated, source_url, status)"
+        " VALUES (?, 2, 7, 'data readout', ?, 'estimated', 'Phase 3, a study', ?, 0, ?, ?)",
+        (cid, due, nct, f"https://clinicaltrials.gov/study/{nct}", status))
+    conn.commit()
+
+
+def _dates(conn):
+    return {r["id"]: (r["expected_date"], r["guided_date"], r["guided_confidence"], r["status"])
+            for r in conn.execute("SELECT id, expected_date, guided_date, guided_confidence,"
+                                  " status FROM catalysts ORDER BY id")}
+
+
+def test_a_date_the_company_gives_stands_beside_the_registrys_and_never_over_it(tmp_path):
+    """Biogen's TOPAZ-1 and TOPAZ-2 completed in September 2026 and report in the first
+    half of December. One row of the file, two studies: each keeps the registry's date,
+    gains the company's, and comes back from unknown while that date is ahead. No second
+    catalyst is written."""
+    conn = _book(tmp_path)
+    _derived(conn, 1, "NCT01234567", "2026-09-30")
+    _derived(conn, 2, "NCT07654321", "2026-09-27", status="pending")
+    got = C.load(conn, _file(tmp_path, GUIDED), today=TODAY)
+    assert got == {"written": 0, "updated": 0, "guided": 2, "withdrawn": 0, "skipped": []}
+    assert _dates(conn) == {1: ("2026-09-30", "2026-12-31", "month", "pending"),
+                            2: ("2026-09-27", "2026-12-31", "month", "pending")}
+    row = conn.execute("SELECT guided_source_url, guided_note FROM catalysts WHERE id = 1"
+                       ).fetchone()
+    assert row["guided_source_url"] == GUIDED["source_url"]
+    assert row["guided_note"] == GUIDED["description"]
+    assert C.load(conn, _file(tmp_path, GUIDED), today=TODAY)["guided"] == 0
+    later = {**GUIDED, "expected_date": "2027-03-31", "date_confidence": "quarter"}
+    assert C.load(conn, _file(tmp_path, later), today=TODAY)["guided"] == 2
+    assert _dates(conn)[1][:3] == ("2026-09-30", "2027-03-31", "quarter")
+
+
+def test_a_date_that_has_itself_passed_does_not_reopen_the_readout(tmp_path):
+    conn = _book(tmp_path)
+    _derived(conn, 1, "NCT01234567", "2026-03-30")
+    past = {**GUIDED, "expected_date": "2026-09-30", "date_confidence": "quarter"}
+    assert C.load(conn, _file(tmp_path, past), today=TODAY)["guided"] == 1
+    assert _dates(conn)[1] == ("2026-03-30", "2026-09-30", "quarter", "unknown")
+
+
+def test_the_second_catalyst_an_earlier_file_wrote_is_withdrawn(tmp_path):
+    """Until the column existed the file wrote the company's date as a catalyst of its
+    own, so the study stood on the calendar twice: once overdue, once to come."""
+    conn = _book(tmp_path)
+    _derived(conn, 1, "NCT01234567", "2026-09-30")
+    alone = {k: v for k, v in GUIDED.items() if k != "guides_nct"}
+    assert C.load(conn, _file(tmp_path, alone), today=TODAY)["written"] == 1
+    got = C.load(conn, _file(tmp_path, GUIDED), today=TODAY)
+    assert (got["guided"], got["withdrawn"], got["written"]) == (1, 1, 0)
+    assert list(_dates(conn)) == [1]
+
+
+def test_a_guided_row_with_no_registry_readout_is_written_as_its_own(tmp_path):
+    """The date is not lost where the book holds no derived readout to put it beside."""
+    conn = _book(tmp_path)
+    got = C.load(conn, _file(tmp_path, GUIDED), today=TODAY)
+    assert (got["written"], got["guided"]) == (1, 0)
+    assert _catalysts(conn)[0]["expected_date"] == "2026-12-31"
+
+
+def test_a_readout_that_has_happened_keeps_what_it_has_and_a_dropped_row_releases(tmp_path):
+    conn = _book(tmp_path)
+    _derived(conn, 1, "NCT01234567", "2026-09-30", status="met")
+    _derived(conn, 2, "NCT07654321", "2026-09-27")
+    assert C.load(conn, _file(tmp_path, GUIDED), today=TODAY)["guided"] == 1
+    assert _dates(conn)[1] == ("2026-09-30", None, None, "met")
+    # The file is the record: a study no row guides any longer has its date taken off.
+    C.load(conn, _file(tmp_path, ROW), today=TODAY)
+    assert _dates(conn)[2][:3] == ("2026-09-27", None, None)
+
+
+def test_a_guided_readout_is_listed_and_priced_on_the_companys_date(tmp_path):
+    """The stakes read pending catalysts dated from today. A study past its registry date
+    is one of them again on the company's date, with the registry's carried beside it."""
+    import forecast_view
+    conn = _book(tmp_path)
+    _derived(conn, 1, "NCT01234567", "2020-01-15", status="pending")
+    assert forecast_view._stake_rows(conn, {"id": 2}, "NVO") == []
+    conn.execute("UPDATE catalysts SET guided_date = '2999-12-31', guided_confidence = 'quarter',"
+                 " guided_source_url = 'https://sec.gov/x' WHERE id = 1")
+    (row,) = forecast_view._stake_rows(conn, {"id": 2}, "NVO")
+    assert (row["expected_date"], row["registry_date"], row["date_confidence"]) == (
+        "2999-12-31", "2020-01-15", "quarter")
+    assert row["guided_source_url"] == "https://sec.gov/x"

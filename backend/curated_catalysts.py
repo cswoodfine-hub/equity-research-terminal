@@ -26,17 +26,34 @@ rests on it; stated legs whose sources cite that study are priced on the row
 (forecast_view.catalyst_stakes). Its title is free text, since resolve parses only a
 decision's, and its asset link is one the nightly rebuild does not release. A readout
 naming no study is skipped and said, because nothing could tie it to a trial.
+
+A readout the registry does date, and the company dates later, is not a second event. A
+row that fills ``guides_nct`` says which registry studies its date is for, and the loader
+writes that date onto each study's own derived readout (``guided_date`` and its source,
+migration 110) and leaves the registry's ``expected_date`` where it is. No second
+catalyst is written, and one an earlier file wrote under the same title is withdrawn.
+Biogen's TOPAZ-1 and TOPAZ-2 completed in September 2026 and report "in the first half
+of December": one row, two studies, each keeping both dates. A readout closed unknown
+while the company's date is still ahead goes back to pending, since unknown says a
+window closed with nothing found and the window is the company's. Where the book holds
+no derived readout for any study named, the row is written as a catalyst of its own, so
+the date is not lost. The file is the record: a study no row guides any longer has its
+guided date taken off. A cohort or an interim inside a study (ACHIEVE, PREVAIL,
+HARMONi-3) is an event of its own and leaves the column empty.
 """
 
 from __future__ import annotations
 
 import csv
+import datetime as dt
 import re
 from pathlib import Path
 
 CSV_PATH = Path(__file__).resolve().parent.parent / "data" / "curated_catalysts.csv"
 _MOVABLE = ("expected_date", "date_confidence", "description", "source_url")
 _NCT = re.compile(r"NCT\d{8}")
+_GUIDED = ("guided_date", "guided_confidence", "guided_source_url", "guided_note")
+_RESOLVED = ("met", "missed")
 # The kinds of row that are an FDA decision, as applications.FILED_KINDS names them.
 _DECISIONS = ("PDUFA", "regulatory decision")
 
@@ -44,6 +61,60 @@ _DECISIONS = ("PDUFA", "regulatory decision")
 def names_study(row: dict) -> bool:
     """True where a row names a registry study in its text or its link."""
     return bool(_NCT.search((row.get("description") or "") + " " + (row.get("source_url") or "")))
+
+
+def guided_ncts(row: dict) -> list:
+    """The registry studies a row's date is for, as its ``guides_nct`` column names them."""
+    return _NCT.findall(row.get("guides_nct") or "")
+
+
+def _guide(conn, company_id: int, r: dict, today: dt.date) -> tuple:
+    """Write the row's date onto the derived readout of each study it guides.
+
+    (studies found, rows changed). The registry's own date is never touched. A readout
+    already met or missed is the record of what happened and keeps what it has."""
+    wanted = {"guided_date": r["expected_date"] or None,
+              "guided_confidence": r["date_confidence"] or None,
+              "guided_source_url": r["source_url"] or None,
+              "guided_note": r["description"] or None}
+    found = changed = 0
+    for nct in guided_ncts(r):
+        for cat in conn.execute(
+                "SELECT id, status, guided_date, guided_confidence, guided_source_url,"
+                "       guided_note FROM catalysts"
+                " WHERE company_id = ? AND catalyst_type = 'data readout'"
+                "   AND is_curated = 0 AND description = ?", (company_id, nct)).fetchall():
+            found += 1
+            status = cat["status"] or "pending"
+            if status in _RESOLVED:
+                continue
+            moved = {k: v for k, v in wanted.items() if (cat[k] or None) != v}
+            # Unknown is a window that closed with nothing found. The window is the
+            # company's, and while it is open the readout is still to come.
+            if (status == "unknown" and wanted["guided_date"]
+                    and wanted["guided_date"] >= today.isoformat()):
+                moved["status"] = "pending"
+            if moved:
+                sets = ", ".join(f"{k} = ?" for k in moved)
+                conn.execute(f"UPDATE catalysts SET {sets}, updated_at = datetime('now')"
+                             " WHERE id = ?", (*moved.values(), cat["id"]))
+                changed += 1
+    return found, changed
+
+
+def _release_unguided(conn, guided: set) -> int:
+    """Take the guided date off a study no row of the file guides any longer."""
+    gone = 0
+    for cat in conn.execute(
+            "SELECT id, description, status FROM catalysts WHERE guided_date IS NOT NULL"
+            "   AND catalyst_type = 'data readout' AND is_curated = 0").fetchall():
+        if cat["description"] in guided or (cat["status"] or "pending") in _RESOLVED:
+            continue
+        sets = ", ".join(f"{k} = NULL" for k in _GUIDED)
+        conn.execute(f"UPDATE catalysts SET {sets}, updated_at = datetime('now')"
+                     " WHERE id = ?", (cat["id"],))
+        gone += 1
+    return gone
 
 
 def _norm(text) -> str:
@@ -110,10 +181,13 @@ def _withdraw_copies(conn, company_id: int, kept: int, r: dict, asset_id) -> int
     return gone
 
 
-def load(conn, path: Path | None = None) -> dict:
-    """Write the file's catalysts into the book. {"written", "updated", "withdrawn",
-    "skipped"}."""
-    out = {"written": 0, "updated": 0, "withdrawn": 0, "skipped": []}
+def load(conn, path: Path | None = None, today: dt.date | None = None) -> dict:
+    """Write the file's catalysts into the book. {"written", "updated", "guided",
+    "withdrawn", "skipped"}; "guided" counts the registry readouts given, or moved to,
+    a company's date."""
+    today = today or dt.date.today()
+    out = {"written": 0, "updated": 0, "guided": 0, "withdrawn": 0, "skipped": []}
+    guided: set = set()
     for r in rows(path):
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
                                (r["ticker"],)).fetchone()
@@ -124,6 +198,20 @@ def load(conn, path: Path | None = None) -> dict:
             out["skipped"].append({"title": r["title"],
                                    "why": "a readout must name its asset and its study"})
             continue
+        if r["catalyst_type"] == "data readout" and guided_ncts(r):
+            guided.update(guided_ncts(r))
+            found, changed = _guide(conn, company["id"], r, today)
+            if found:
+                out["guided"] += changed
+                # The row an earlier file wrote for this date, as a catalyst of its
+                # own: the study's readout carries the date now, so the copy goes.
+                cur = conn.execute(
+                    "DELETE FROM catalysts WHERE company_id = ? AND catalyst_type = ?"
+                    "   AND title = ? AND is_curated = 1"
+                    "   AND COALESCE(status, 'pending') = 'pending'",
+                    (company["id"], r["catalyst_type"], r["title"]))
+                out["withdrawn"] += cur.rowcount
+                continue
         # A row naming no asset is written unjoined: applications.resolve joins it
         # from the title once the asset exists (Intellia's lonvo-z had none).
         asset_id = _asset(conn, company["id"], r["asset"]) if r["asset"] else None
@@ -168,4 +256,5 @@ def load(conn, path: Path | None = None) -> dict:
             conn.execute(f"UPDATE catalysts SET {sets}, updated_at = datetime('now')"
                          " WHERE id = ?", (*moved.values(), existing["id"]))
             out["updated"] += 1
+    _release_unguided(conn, guided)
     return out

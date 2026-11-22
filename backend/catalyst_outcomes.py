@@ -60,6 +60,15 @@ that the reader found no result in, ``trial_readouts.reread`` reads those again 
 their exhibits, and a result labelled later overturns the unknown to met or missed on
 the next run. The unknown stays on the ledger beside the overturning row.
 
+**A company's date outranks the registry's for the window.** The registry's primary
+completion is the day the last primary measurement is taken; a company that has said
+when it will report has named the day the result is public, and the two can be a
+quarter apart. Where a readout carries a guided date (migration 110) its window is
+that date's, so it is not closed unknown 45 days after a completion the company never
+promised a result for, and a result announced in the guided period is matched inside
+it. The registry date stays on the row and is still what a registry slip is read
+against.
+
 Dating is the market's, not the machine's. The register's ``updated_at`` is what
 ``call_log`` reads as the resolution date, so it is set to the approval date or the
 announcement date, and the moment the resolver ran is kept separately in the audit.
@@ -85,6 +94,30 @@ LATE_DAYS = 45       # an announcement follows the data by weeks, not months
 GRACE_DAYS = 45      # a window closed this long ago with nothing found is unknown
 
 _PHASE = re.compile(r"\bPhase\s*(\d)", re.I)
+
+
+# A guided date is the last day of the period the company names, and the confidence
+# says how long that period is.
+_GUIDED_MONTHS = {"month": 1, "quarter": 3, "half": 6}
+
+
+def window_of(cat) -> tuple[str, str] | None:
+    """The first and last day a catalyst could fall due: the company's period where it
+    has given one, else the window of the register's own date.
+
+    "The first half of 2027" is held as 2027-06-30 with the confidence ``half``, so its
+    window opens on 1 January; read as the one day it would refuse a result announced in
+    February as too early."""
+    guided = cat.get("guided_date")
+    if not guided:
+        return date_window(cat.get("expected_date"))
+    window = date_window(guided)
+    months = _GUIDED_MONTHS.get(cat.get("guided_confidence") or "")
+    if window and months and len(str(guided)) >= 10:
+        end = dt.date.fromisoformat(window[1])
+        back = end.year * 12 + (end.month - 1) - (months - 1)
+        return dt.date(back // 12, back % 12 + 1, 1).isoformat(), window[1]
+    return window
 
 
 def _shift(day: str, days: int) -> str:
@@ -336,7 +369,8 @@ def _sibling_rows(conn, cat, phase) -> list:
     out = []
     for r in conn.execute(
             """SELECT c.id, c.description AS nct, c.status, c.title AS cat_title,
-                      c.expected_date, t.title, t.conditions, t.primary_outcome, t.mesh_terms
+                      COALESCE(c.guided_date, c.expected_date) AS expected_date, t.title,
+                      t.conditions, t.primary_outcome, t.mesh_terms
                  FROM catalysts c LEFT JOIN trials t ON t.nct_id = c.description
                 WHERE c.company_id = ? AND c.asset_id IS ? AND c.catalyst_type = 'data readout'
                   AND (c.status = 'pending' OR c.id = ?)""",
@@ -513,7 +547,7 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
     try:
         rows = [dict(r) for r in conn.execute(
             """SELECT id, company_id, asset_id, catalyst_type, expected_date, title,
-                      description FROM catalysts
+                      description, guided_date, guided_confidence FROM catalysts
                 WHERE status = 'pending' AND expected_date IS NOT NULL
                 ORDER BY expected_date""")]
         for cat in rows:
@@ -521,7 +555,7 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
             if conn.execute("SELECT status FROM catalysts WHERE id = ?",
                             (cat["id"],)).fetchone()["status"] != "pending":
                 continue
-            window = date_window(cat["expected_date"])
+            window = window_of(cat)
             if not window or window[1] >= today.isoformat():
                 continue
             if cat["catalyst_type"] in REGULATORY:
@@ -538,7 +572,7 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
         # The unknown stays on the ledger beside it; the register's status moves.
         for cat in [dict(r) for r in conn.execute(
                 """SELECT id, company_id, asset_id, catalyst_type, expected_date, title,
-                          description FROM catalysts
+                          description, guided_date, guided_confidence FROM catalysts
                     WHERE status = 'unknown' AND catalyst_type IN ('data readout')
                       AND expected_date IS NOT NULL ORDER BY expected_date""")]:
             # (A registry termination also reaches here: an unknown row whose trial the
@@ -546,7 +580,7 @@ def resolve(db_path=None, today: dt.date | None = None, fetch: bool = True, get=
             if conn.execute("SELECT status FROM catalysts WHERE id = ?",
                             (cat["id"],)).fetchone()["status"] != "unknown":
                 continue
-            window = date_window(cat["expected_date"])
+            window = window_of(cat)
             if not window:
                 continue
             got = _readout(conn, cat, window, today, fetch, get, announced_only=True)

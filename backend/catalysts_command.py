@@ -336,6 +336,9 @@ def _gate_rows(src: dict, priced_by_asset: dict, by_nct: dict, areas: dict,
             "asset_id": aid, "name": m.get("name"), "area": areas.get(aid),
             "gate": g.get("gate"), "label": g.get("label"), "date": g.get("date"),
             "date_basis": g.get("date_basis"), "due": bool(g.get("due")), "why": g.get("why"),
+            "registry_date": g.get("registry_date"),
+            "guided": _guided(**{k: (g.get("guided") or {}).get(k)
+                                 for k in ("date", "confidence", "url", "note")}),
             "floor": floor,
             "trial": ({**trial, **{k: v for k, v in (detail or {}).items()
                                     if k != "phase" and v is not None}} if nct else None),
@@ -366,6 +369,14 @@ def _gate_rows(src: dict, priced_by_asset: dict, by_nct: dict, areas: dict,
     return rows
 
 
+def _guided(date, confidence, url, note) -> dict | None:
+    """A company's own date for a readout with where it said so, or None where it has
+    given none."""
+    if not date:
+        return None
+    return {"date": date, "confidence": confidence, "url": url, "note": note}
+
+
 def _events(src: dict, lines: dict, gated: set, by_nct: dict, areas: dict, trials: dict,
             asset_rows: dict) -> list:
     """Every dated catalyst on the calendar, priced or not, with its trial and its move."""
@@ -383,7 +394,12 @@ def _events(src: dict, lines: dict, gated: set, by_nct: dict, areas: dict, trial
         if marketed is None and aid in asset_rows:
             marketed = bool(asset_rows[aid].get("is_marketed"))
         out.append({
+            # ``date`` is the day the readout is expected: the company's where it has
+            # given one, else the registry's. Both are carried, never one over the other.
             "id": r.get("id"), "date": r.get("expected_date"),
+            "registry_date": r.get("registry_date") or r.get("expected_date"),
+            "guided": _guided(r.get("guided_date"), r.get("guided_confidence"),
+                              r.get("guided_source_url"), r.get("guided_note")),
             "confidence": r.get("date_confidence"), "curated": bool(r.get("is_curated")),
             "kind": r.get("catalyst_type"), "asset_id": aid, "asset": r.get("asset_name"),
             "area": areas.get(aid), "phase": phase_of(r.get("title"), trial),

@@ -1238,3 +1238,53 @@ def test_the_prevalence_cut_reads_the_shared_pool_where_the_asset_writes_none(tm
     got = PG._gather(conn, 7, area="Oncology", phase="Phase 3", big=True)
     assert got["prevalence_us"] == 36_110
     conn.close()
+
+
+# ------------------------------------------------- the company's date beside the registry's
+def _guided_readout(conn, nct, registry, guided, confidence="month", status="pending"):
+    conn.execute(
+        "INSERT INTO catalysts (company_id, asset_id, catalyst_type, expected_date, title,"
+        " description, is_curated, source_url, status, guided_date, guided_confidence,"
+        " guided_source_url) VALUES (1, 7, 'data readout', ?, 'Phase 3, a study', ?, 0, ?, ?,"
+        " ?, ?, 'https://sec.gov/x')",
+        (registry, nct, f"https://clinicaltrials.gov/study/{nct}", status, guided, confidence))
+    conn.commit()
+
+
+def test_overdue_is_judged_on_the_companys_date_and_both_dates_are_carried(tmp_path):
+    """A study past its primary completion is not overdue while the date the company gave
+    for the result is still ahead: the registry dates the last measurement, the company
+    the announcement. The gate is dated by the company's, the registry's rides beside
+    it, and once the company's own date has passed the readout is due."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Active not recruiting", "2026-08-01", 900, MYELOMA),))
+    gathered, placement = _placed(conn)
+    plain = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert (plain["date"], plain["due"], plain["guided"]) == ("2026-08-01", True, None)
+    _guided_readout(conn, "NCT1", "2026-08-01", "2026-12-31")
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert (got["date"], got["registry_date"], got["due"]) == ("2026-12-31", "2026-08-01", False)
+    assert got["guided"]["confidence"] == "month" and got["guided"]["url"] == "https://sec.gov/x"
+    assert got["trial"]["primary_completion"] == "2026-08-01"
+    assert "judged on the company's date" in got["date_basis"]
+    _house_style(got["date_basis"])
+    legs = PG.legs(conn, 7, placement, gathered, TODAY)
+    assert (legs["date"], legs["registry_date"], legs["due"]) == ("2026-12-31", "2026-08-01", False)
+    after = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], dt.date(2027, 2, 1))
+    assert after["due"] is True and after["date"] == "2026-12-31"
+    assert "passed with no readout on file" in after["date_basis"]
+    conn.close()
+
+
+def test_a_guided_study_takes_its_place_among_the_upcoming_by_the_companys_date(tmp_path):
+    """Two open studies, one past its registry date and guided to December, one completing
+    in 2029: the next gate is the guided one, as the sooner of the two still to come."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-08-01", 400, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 900, MYELOMA)))
+    _guided_readout(conn, "NCT1", "2026-08-01", "2026-12-31")
+    conn.execute("UPDATE trials SET overall_status = 'Recruiting'")
+    gathered, placement = _placed(conn)
+    got = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    assert got["trial"]["nct_id"] == "NCT1" and got["date"] == "2026-12-31" and not got["due"]
+    conn.close()

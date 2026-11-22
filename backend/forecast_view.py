@@ -756,14 +756,25 @@ _ROW_ONLY = ("owner_company_id", "own_asset_id")
 _TRIAL_JOIN = (f"LEFT JOIN trials t ON cat.source_url LIKE '{_CTGOV_URL}%'"
                f" AND t.nct_id = substr(cat.source_url, {len(_CTGOV_URL) + 1})")
 _ASSET_OF = "COALESCE(t.asset_id, cat.asset_id)"
+# The day a catalyst is expected: the company's date where it has given one (migration
+# 110), else the register's own.
+_DUE = "COALESCE(cat.guided_date, cat.expected_date)"
 
 
 def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -> list:
     """Pending catalysts on the company's own or partnered assets dated from today, or
     one asset's; ``include_id`` adds that catalyst whatever its date, so a readout
     resolved after its estimated day is read by the same rule as the calendar."""
-    query = f"""SELECT cat.id, cat.catalyst_type, cat.expected_date,
-                       cat.date_confidence, cat.title, cat.description, cat.source_url,
+    # A readout the company has dated is expected on the company's date: that is the
+    # day it is listed, ordered and priced by here, and why a study past its registry
+    # date is still on the calendar. The registry's own date rides beside it.
+    query = f"""SELECT cat.id, cat.catalyst_type,
+                       {_DUE} AS expected_date,
+                       CASE WHEN cat.guided_date IS NOT NULL THEN cat.guided_confidence
+                            ELSE cat.date_confidence END AS date_confidence,
+                       cat.expected_date AS registry_date, cat.guided_date,
+                       cat.guided_confidence, cat.guided_source_url, cat.guided_note,
+                       cat.title, cat.description, cat.source_url,
                        cat.is_curated, {_ASSET_OF} AS asset_id, cat.asset_indication_id,
                        cat.asset_id AS own_asset_id,
                        COALESCE(a.brand_name, a.generic_name) AS asset_name,
@@ -771,7 +782,7 @@ def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -
                   FROM catalysts cat {_TRIAL_JOIN}
                   JOIN assets a ON a.id = {_ASSET_OF}
                  WHERE cat.status = 'pending'
-                   AND (cat.expected_date >= date('now') OR cat.id = ?)
+                   AND ({_DUE} >= date('now') OR cat.id = ?)
                    AND (a.owner_company_id = ? OR a.id IN
                         (SELECT asset_id FROM assumptions WHERE key = 'partner_ticker'
                            AND UPPER(COALESCE(text_value, '')) = ?))"""
@@ -779,8 +790,7 @@ def _stake_rows(conn, company, ticker: str, *, asset_id=None, include_id=None) -
     if asset_id is not None:
         query += " AND a.id = ?"
         params.append(asset_id)
-    return [dict(r) for r in conn.execute(query + " ORDER BY cat.expected_date, cat.id",
-                                          params)]
+    return [dict(r) for r in conn.execute(query + f" ORDER BY {_DUE}, cat.id", params)]
 
 
 def _legs_state(conn, asset_id: int) -> dict:
@@ -2002,9 +2012,11 @@ def _last_close(conn, company_id: int):
 
 def _next_catalyst(conn, asset_id: int):
     row = conn.execute(
-        """SELECT catalyst_type, expected_date, title FROM catalysts
-            WHERE asset_id = ? AND status = 'pending' AND expected_date >= date('now')
-            ORDER BY expected_date LIMIT 1""", (asset_id,)).fetchone()
+        """SELECT catalyst_type, COALESCE(guided_date, expected_date) AS expected_date,
+                  title FROM catalysts
+            WHERE asset_id = ? AND status = 'pending'
+              AND COALESCE(guided_date, expected_date) >= date('now')
+            ORDER BY COALESCE(guided_date, expected_date) LIMIT 1""", (asset_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -2211,6 +2223,7 @@ def _gate(legs: dict | None, built: dict, shares, share, scalars: dict | None = 
         "gate": legs["gate"], "label": legs["label"], "date": legs.get("date"),
         "date_basis": legs.get("date_basis"), "due": legs.get("due"),
         "why": legs.get("why"),
+        "registry_date": legs.get("registry_date"), "guided": legs.get("guided"),
         "trial": ({"nct_id": trial["nct_id"],
                    "indication": (trial.get("indications") or [None])[0],
                    "indications": trial.get("indications") or [],

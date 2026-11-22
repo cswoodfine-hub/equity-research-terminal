@@ -429,3 +429,46 @@ def test_two_named_studies_a_season_apart_are_not_twins(tmp_path):
     CO.resolve(path, today=TODAY, fetch=False)
     status = {r[0]: r[1] for r in conn.execute("SELECT id, status FROM catalysts ORDER BY id")}
     assert status == {1: "met", 2: "pending"}
+
+
+# ------------------------------------------------- the company's date sets the window
+def _guide(conn, cid, date, confidence):
+    conn.execute("UPDATE catalysts SET guided_date = ?, guided_confidence = ? WHERE id = ?",
+                 (date, confidence, cid))
+    conn.commit()
+
+
+def test_a_readout_the_company_dates_later_is_not_closed_on_the_registry_date(tmp_path):
+    """Litifilimab: primary completion in September 2026, topline guided to December. On
+    the registry date the row would close unknown in mid November, a month before the
+    company ever said it would report. It closes unknown only once the company's own
+    period has passed with nothing found."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-08-01", "Phase 3, Rhapsido", "NCT00000001")
+    _guide(conn, 1, "2026-12-31", "month")
+    got = CO.resolve(path, today=TODAY, fetch=False)
+    assert got["unknown"] == 0
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
+    late = CO.resolve(path, today=dt.date(2027, 3, 1), fetch=False)
+    assert late["unknown"] == 1
+
+
+def test_a_result_inside_the_companys_period_is_matched_there(tmp_path):
+    """ "The first half of 2027" is held as 2027-06-30: the window opens on 1 January, so
+    a February result is the study's own and not too early to be it. On the registry
+    date, 2026-10-01, the same result falls after the window and is never matched."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "data readout", "2026-10-01", "Phase 3, Rhapsido", "NCT00000001")
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase, outcome,"
+                 " event_date, quote) VALUES ('A-1', 1, 'remibrutinib', 3, 'positive',"
+                 " '2027-02-10', 'The study met its primary endpoint.')")
+    conn.commit()
+    assert CO.window_of({"expected_date": "2026-10-01", "guided_date": "2027-06-30",
+                         "guided_confidence": "half"}) == ("2027-01-01", "2027-06-30")
+    assert CO.window_of({"expected_date": "2026-10-01"}) == ("2026-10-01", "2026-10-01")
+    _guide(conn, 1, "2027-06-30", "half")
+    assert CO.resolve(path, today=dt.date(2027, 7, 10), fetch=False)["met"] == 1
+    row = conn.execute("SELECT status, updated_at, expected_date FROM catalysts WHERE id = 1"
+                       ).fetchone()
+    assert (row["status"], row["updated_at"], row["expected_date"]) == (
+        "met", "2027-02-10", "2026-10-01")

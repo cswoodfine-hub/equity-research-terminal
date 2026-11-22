@@ -347,7 +347,8 @@ def _gate_floor(legs: dict | None, clock_row: dict | None,
     trial = legs.get("trial") or {}
     out = {"gate": legs["gate"], "label": legs.get("label"),
            "nct_id": trial.get("nct_id"), "date": legs.get("date"),
-           "due": bool(legs.get("due")), "decision_date": None,
+           "due": bool(legs.get("due")), "guided": bool(legs.get("guided")),
+           "decision_date": None,
            "first_possible_year": None, "first_full_year": None, "why": None,
            "same_as_governing": bool(trial.get("nct_id")
                                      and trial.get("nct_id") == governing_nct)}
@@ -599,7 +600,10 @@ def _gate_sentence(gate: dict | None) -> str:
     when = _when(gate.get("date")) or "no date on file"
     if gate["gate"] == "p2_to_p3":
         return f" The next gate is a Phase 2 readout, {gate['nct_id']}, due {when}."
-    timing = f"due since {when}" if gate.get("due") else f"completing {when}"
+    # A date the company gave is when it reports, not when the study completes.
+    timing = (f"due since {when}" if gate.get("due")
+              else f"dated to {when} by the company" if gate.get("guided")
+              else f"completing {when}")
     tail = (f", which puts the earliest approval from it at "
             f"{_month(parse_date(gate['decision_date']))}" if gate.get("decision_date")
             else "")
