@@ -4778,7 +4778,7 @@ def _launch_flagged(markup: str, launch, tip: bool = True) -> str:
 
 def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
                      launch: dict = None) -> str:
-    """The Pipeline tab's rightmost column: what the compound is worth a share, or why not.
+    """The Trials tab's rightmost column: what the compound is worth a share, or why not.
 
     Four states, and the difference between the last two is the point. "no forecast"
     means nobody has written the assumptions. The refused row means they were written,
@@ -11257,7 +11257,10 @@ with main:
     _sells = _stage != "clinical"
     _wanted = [("universe", "Universe"), ("insights", "Key insights"),
                ("prices", "Prices"), ("financials", "Financials"),
-               ("pipeline", "Pipeline")]
+               # Named for what it lists. It was "Pipeline", and the pipeline as a set of
+               # assets is the Portfolio tab's to show; this one is the registry's
+               # studies, by area and by compound.
+               ("pipeline", "Trials")]
     if _engine == "pharma" or (_engine != "cellgene" and _sells):
         _wanted.append(("portfolio", "Portfolio"))
     _wanted.append(("catalysts", "Catalysts"))

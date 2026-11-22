@@ -65,7 +65,7 @@ The tabs depend on the engine and on whether the company sells anything:
 | Key insights | The morning note and the company at a glance | all |
 | Prices | The price chart | all |
 | Financials | The three statements at every period the filer tags | all |
-| Pipeline | Trials by asset and indication | all |
+| Trials | Trials by asset and indication | all |
 | Portfolio | Revenue mix and loss of exclusivity | big pharma, and biotech once the company markets a product |
 | Catalysts | Dated events ahead and the readouts behind | all |
 | Forecast | The company and its assets year by year, and what the value is made of | all |
