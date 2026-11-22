@@ -796,9 +796,119 @@ div[role="dialog"]:has(.cx-dlg) [data-baseweb="tab"] { height: 30px; padding: 0 
 div[role="dialog"]:has(.cx-dlg) [data-baseweb="tab-panel"] { padding-top: 6px; }
 .st-key-cx_dlg_rec [data-testid="stPopover"] button { min-height: 30px; font-size: 12px; }
 
+/* ---------------------------------------------------------------------------------- */
+/* The summary the tab opens on: one sentence, the five largest moves as rows, a strip  */
+/* of when every priced readout lands, and a line of links. The list, its header and    */
+/* its rail are in the same markup behind it. The frame's script sets data-on on the    */
+/* page and one of the two is shown. With no script nothing is hidden: the summary      */
+/* stands over the list, and the page takes its own height.                             */
+/* ---------------------------------------------------------------------------------- */
+.cx.cr-page[data-on="top"] { height: auto; min-height: var(--ca-h); }
+.cx.cr-page[data-on="top"] .cr-hd, .cx.cr-page[data-on="top"] .cr-top, .cx.cr-page[data-on="top"] .ca-body { display: none; }
+.cx.cr-page[data-on="priced"] .cs-sum, .cx.cr-page[data-on="all"] .cs-sum { display: none; }
+.cx.cr-page:not([data-on]) { height: auto; }
+.cx.cr-page:not([data-on]) .ca-body { flex: 0 0 auto; height: var(--ca-h); }
+.cx.cr-page:not([data-on]) .cs-sum { margin-bottom: 28px; }
+.cx .cs-sum { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: clamp(16px, 2.6vh, 30px); }
+/* The sentence. Read first, so it is the largest type on the view, and its two figures
+   are the only colour in it. */
+.cx .cs-lead { margin: 4px 0 0; max-width: 118ch; font-size: 15px; line-height: 1.5; color: var(--text); text-wrap: pretty; }
+.cx .cs-lead b { font-weight: 650; }
+.cx .cs-lead b.m { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.cx .cs-blk { display: flex; flex-direction: column; min-height: 0; }
+/* Five rows of four things on one grid with their head: the number that joins a row to
+   its mark on the strip, when, what, the odds, and the bar at 440 px with its zero at
+   the middle. */
+.cx .cs-th, .cx .cs-row { display: grid; grid-template-columns: 18px 132px minmax(0, 1fr) 104px 440px; column-gap: 16px; align-items: center; padding: 0 8px; }
+.cx .cs-th { margin-top: 8px; padding-bottom: 4px; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--rule); }
+.cx .cs-th .o { text-align: right; white-space: nowrap; }
+.cx .cs-row { min-height: clamp(42px, 5.6vh, 54px); border-bottom: 1px solid var(--rule-faint); color: var(--text); text-decoration: none; cursor: pointer; }
+.cx .cs-row:hover { background: var(--panel); }
+.cx .cs-row:hover .d b { color: var(--up); }
+.cx .cs-row > span { min-width: 0; }
+.cx .cs-row .n { font-size: 12px; color: var(--muted); text-align: right; }
+.cx .cs-row .w { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx .cs-row .w i { font-style: normal; font-family: var(--font-ui); font-size: 10.5px; color: var(--muted); margin-right: 2px; }
+.cx .cs-row .w i.od { color: var(--flag); font-weight: 600; }
+.cx .cs-row .d { display: flex; flex-direction: column; gap: 3px; }
+.cx .cs-row .d b { font-size: 14px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx .cs-row .d em { display: flex; align-items: center; gap: 9px; min-width: 0; font-style: normal; font-size: 11px; line-height: 1.2; color: var(--muted); }
+.cx .cs-row .d em span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cx .cs-row .o { text-align: right; font-size: 12px; }
+.cx .cs-row .o b { font-weight: 600; }
+.cx .cs-row .o b.mu { font-family: var(--font-ui); font-size: 11px; font-weight: 400; }
+.cx .cs-row .b { display: flex; align-items: center; }
+.cx .cs-row .b svg { max-width: 100%; }
+/* Where nothing is priced the rows are the soonest readouts, with no odds and no bar:
+   the last column says why each carries no price. */
+.cx .cs-th.np, .cx .cs-row.np { grid-template-columns: 18px 132px minmax(0, 1fr) minmax(0, 440px); }
+.cx .cs-th.np .y { text-align: right; }
+.cx .cs-row.np .d b { font-weight: 600; }
+.cx .cs-row .y { font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The switches on the summary are written as links in a sentence, not as the list's
+   pills: the pill's box, wash and height are taken back off. */
+.cx .cs-sum .cr-vw, .cx .cs-sum .cr-vw.on { display: inline; height: auto; padding: 0; border: 0; border-radius: 0; background: none; font-weight: 400; }
+.cx .cs-sum .cs-more, .cx .cs-sum .cs-more.on { align-self: flex-start; margin: 8px 8px 0 42px; font-size: 12px; color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--rule-strong); padding-bottom: 1px; cursor: pointer; }
+.cx .cs-sum .cs-more b, .cx .cs-sum .cs-more.on b { font-size: 12px; font-weight: 600; }
+.cx .cs-sum .cs-more b.up-t, .cx .cs-sum .cs-more.on b.up-t { color: var(--up); }
+.cx .cs-sum .cs-more b.dn-t, .cx .cs-sum .cs-more.on b.dn-t { color: var(--down); }
+.cx .cs-sum .cs-more:hover { color: var(--text); border-bottom-color: var(--up); }
+/* The strip. The plot takes the height the screen has left, between a floor its stems
+   need and a ceiling past which it is air. Its line sits where the data puts it: --ax,
+   written on the plot, is the share of the height above the line. A stem is a share of
+   that height too (--u for what a pass adds, --d for what a miss takes, written on the
+   mark), so a taller screen is taller stems and the same type. 16px is kept clear at the
+   top for the numbers the five largest carry, and 2px at the foot. */
+.cx .cs-strip { flex: 1 1 auto; }
+.cx .cs-plot { --ax: 0.5; --room: calc(100% - 18px); --line: calc(16px + var(--room) * var(--ax)); position: relative; flex: 1 1 150px; min-height: 124px; max-height: 290px; margin: 6px 8px 0; }
+/* With no priced readout there are no stems to give height to: the strip is its line
+   and the ticks on it, which are then the only marks and are drawn to be seen. */
+.cx .cs-strip.flat { flex: 0 0 auto; }
+.cx .cs-plot.flat { --room: 0px; --line: 50%; flex: 0 0 40px; min-height: 40px; }
+.cx .cs-plot.flat .cs-tk { height: 11px; margin-top: -5px; opacity: 1; }
+.cx .cs-ax { position: absolute; left: 0; right: 0; top: var(--line); border-top: 1px solid var(--rule-strong); }
+.cx .cs-gl { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--rule-faint); }
+.cx .cs-gl.y { border-left-color: var(--rule); }
+.cx .cs-now { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--muted); }
+.cx .cs-tk { position: absolute; top: var(--line); height: 5px; margin-top: -2px; border-left: 1px solid var(--muted); opacity: 0.75; }
+.cx .cs-mk { --u: 0; --d: 0; --h: 0; position: absolute; top: 0; bottom: 0; width: 14px; margin-left: -7px; text-decoration: none; cursor: pointer; }
+.cx .cs-mk .u, .cx .cs-mk .dn { position: absolute; left: 50%; width: 3px; margin-left: -1.5px; }
+.cx .cs-mk .u { bottom: calc(100% - var(--line)); height: calc(var(--room) * var(--u)); background: var(--up); }
+/* --h is the share of a miss that other Phase 3s hold: the far end of the stem, pale
+   inside a line of the miss's own red, where the bars in the rows hatch it. */
+.cx .cs-mk .dn { top: var(--line); height: calc(var(--room) * var(--d)); background: linear-gradient(to bottom, var(--down) calc((1 - var(--h)) * 100%), var(--down-wash) 0); box-shadow: inset 0 0 0 1px var(--down); }
+.cx .cs-mk.top .u, .cx .cs-mk.top .dn { width: 7px; margin-left: -3.5px; }
+.cx .cs-mk b { position: absolute; left: 50%; bottom: calc(100% - var(--line) + var(--room) * var(--u) + 3px); transform: translateX(-50%); font-size: 10.5px; font-weight: 700; line-height: 1; color: var(--text); }
+.cx .cs-mk:hover { background: var(--panel); }
+.cx .cs-qs { position: relative; height: 15px; margin: 3px 8px 0; }
+.cx .cs-qs em { position: absolute; top: 0; padding-left: 4px; font-style: normal; font-size: 10.5px; line-height: 15px; color: var(--muted); white-space: nowrap; }
+.cx .cs-qs em.od { padding: 0 5px 0 0; color: var(--flag); }
+.cx .cs-cap { margin: 4px 8px 0; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+/* The rest, one click each: a label, then each thing as a link with the figure the
+   list's rail gives it. */
+.cx .cs-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 22px; padding: 9px 8px 4px; border-top: 1px solid var(--rule-strong); }
+.cx .cs-links .h { font-size: 12px; font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase; }
+.cx .cs-sum .cs-lk, .cx .cs-sum .cs-lk.on { font-size: 12px; color: var(--text); text-decoration: none; border-bottom: 1px solid var(--rule-strong); padding-bottom: 1px; cursor: pointer; white-space: nowrap; }
+.cx .cs-sum .cs-lk b, .cx .cs-sum .cs-lk.on b { margin-left: 3px; font-size: 11px; font-weight: 500; color: var(--muted); }
+.cx .cs-lk b .u { margin-left: 3px; font-family: var(--font-ui); font-size: 10.5px; }
+.cx .cs-sum .cs-lk:hover { color: var(--up); border-bottom-color: var(--up); }
+.cx .cs-row:focus-visible, .cx .cs-mk:focus-visible, .cx .cs-lk:focus-visible, .cx .cs-more:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+
 @media (max-width: 1179.98px) {
   .cx.ca-page { height: auto; }
   .cx .ca-body { grid-template-columns: minmax(0, 1fr); row-gap: 16px; }
   .cx .ca-hd { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
   .cx .cr-rows { max-height: 70vh; }
+  .cx .cs-th, .cx .cs-row { grid-template-columns: 18px 118px minmax(0, 1fr) 70px minmax(0, 320px); column-gap: 12px; }
+  .cx .cs-plot { flex: 0 0 150px; }
+}
+@media (max-width: 899.98px) {
+  .cx .cs-th .b { display: none; }
+  .cx .cs-th, .cx .cs-row { grid-template-columns: 18px 104px minmax(0, 1fr) 48px; }
+  .cx .cs-th.np, .cx .cs-row.np { grid-template-columns: 18px 104px minmax(0, 1fr); }
+  .cx .cs-th.np .y { display: none; }
+  .cx .cs-row.np .y { grid-column: 2 / -1; text-align: left; }
+  .cx .cs-row { padding-top: 6px; padding-bottom: 6px; }
+  .cx .cs-row .b { grid-column: 2 / -1; }
+  .cx .cs-sum .cs-more, .cx .cs-sum .cs-more.on { margin-left: 8px; }
 }

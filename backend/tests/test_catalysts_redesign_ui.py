@@ -573,8 +573,13 @@ def test_each_priced_gate_within_24_months_is_one_row_and_the_bars_add_up(payloa
     assert t["n_gates"] == len(near)
     assert t["gain"] == pytest.approx(sum(g["success"] - g["now"] for g in near))
     assert t["risk"] == pytest.approx(sum(g["now"] - g["failure"] for g in near))
+    sc = CR.scale(rows)
+    sc["close"], sc["tiers"] = t["close"], CR.tiers(rows)
+    # one bar a gate in the list; the summary over it draws its five largest again
+    assert CR.list_html(rows, sc, t).count('class="ca-bar cr-bar"') == len(near)
     markup = CR.page_html(payload)
-    assert markup.count('class="ca-bar cr-bar"') == len(near)
+    again = min(CR.TOP_ROWS, len(CR._priced_by_size(rows)))
+    assert markup.count('class="ca-bar cr-bar"') == len(near) + again
     later = [g for g in CR.priced_gates(payload) if not g["in24"]]
     assert [r["gate"]["asset_id"] for r in rows if r["later"]] == [
         r["gate"]["asset_id"] for r in rows if r["group"] == CR.GROUP_LATER]
@@ -1266,12 +1271,17 @@ def test_the_biggest_moves_lead_the_page_and_each_opens_its_card(payload):
     assert (strip == "") == (not top)
 
 
-def test_the_list_opens_on_what_moves_the_price(payload):
+def test_the_tab_opens_on_the_summary_and_the_list_is_one_click_behind_it(payload):
     rows = CR.readouts(payload)
     markup = CR.page_html(payload)
     n_priced = sum(1 for r in rows if r["gate"] is not None)
-    want = "priced" if n_priced else "all"
-    assert f'class="cx ca-page cr-page" data-view="{want}"' in markup
+    assert 'class="cx ca-page cr-page" data-view="top"' in markup
+    # the summary first, then the list's own header, both in the one page
+    assert 0 < markup.index('class="cs-sum"') < markup.index('class="ca-hd cr-hd"')
+    # the list's switch leads back to the summary, from every company's list
+    for q in (payload, _no_stakes(payload)):
+        switch = CR.view_html(CR.readouts(q), {})
+        assert switch.index('data-vw="top"') < switch.index('data-vw="all"')
     if 0 < n_priced < len(rows):
         assert f'data-vw="priced"' in markup and f'data-vw="all"' in markup
         assert f"{len(rows) - n_priced} more read out with no price move" in _visible(markup)
@@ -1289,3 +1299,282 @@ def test_a_readout_on_no_priced_gate_says_why(payload):
             why = CR.REASON_SHORT.get(CR._reason_key(r["event"] or {}))
             if why:
                 assert why in _visible(markup)
+
+
+
+# --- the summary the tab opens on ---------------------------------------------------------
+def _sum_row(aid, gain, risk, group=(2027, 1), when="<i>in</i> Mar", day=32, ph="p3",
+             ind="Obesity", d=None, held=0.0):
+    first = dt.date(group[0], 3 * group[1] - 2, 1) if isinstance(group, tuple) else dt.date(2026, 11, 1)
+    return {"gate": {"asset_id": aid, "gain": gain, "risk": risk, "held_part": held, "d": d,
+                     "p_gate": 0.5, "name": f"Drug {aid}", "glabel": "Phase 3 readout"},
+            "later": False, "group": group, "sort": (first, day), "when": when,
+            "drug": f"Drug {aid}", "ph": ph, "ph_txt": "Ph3", "ind": ind}
+
+
+def _sum_totals(rows, close=100.0, n_rows=None):
+    gates = [r["gate"] for r in rows]
+    return {"gain": sum(g["gain"] or 0 for g in gates), "risk": sum(g["risk"] or 0 for g in gates),
+            "held": sum(g["held_part"] for g in gates), "n_gates": len(gates),
+            "n_rows": len(rows) if n_rows is None else n_rows,
+            "n_overdue": sum(1 for r in rows if r["group"] == CR.GROUP_OVERDUE), "n_fda": 0,
+            "n_later": 0, "close": close,
+            "missing": [g["name"] for g in gates if g["gain"] is None or g["risk"] is None]}
+
+
+def _said(markup: str) -> str:
+    """The lead as read: ``_visible`` puts a space where a tag closed, and the name the
+    sentence sets in bold is followed by a colon."""
+    return _visible(markup).replace(" :", ":")
+
+
+def test_the_lead_sentence_is_the_totals_in_words(payload):
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    text = _said(CR.lead_html(rows, t))
+    assert text.startswith(f"{t['n_gates']} priced readouts in the next 24 months:")
+    assert f"{CR._sgn_usd(t['gain'])} to gain if every one passes" in text
+    assert f"{CR._sgn_usd(-t['risk'])} at risk if every one fails" in text
+    assert f"against a {CV.usd(t['close'])} share" in text
+    assert f"A lone study miss takes {CV.usd(t['risk'] - t['held'])}" in text
+    # it is the page's opening words
+    assert _visible(CR.page_html(payload)).startswith(text[:60])
+
+
+def test_the_lead_names_one_readout_only_where_it_is_half_of_the_total():
+    """On Lilly one overdue Phase 3 was 20.34 of the 29.23 at risk and sat in the list's
+    third row. Half or more of a total and the sentence names it; under half, naming one
+    would be the page's opinion, and it gives the largest as the largest and no more."""
+    big = _sum_row(1, 0.4, 20.0, group=CR.GROUP_OVERDUE, when="Nov 2026", d=dt.date(2026, 11, 1))
+    rows = [big, _sum_row(2, 3.0, 5.0), _sum_row(3, 1.0, 0.6)]
+    text = _said(CR.lead_html(rows, _sum_totals(rows)))
+    assert "Drug 1 is $20.00 of that risk: Phase 3, Obesity, overdue since Nov 2026." in text
+    # the one overdue readout is the one already named, so it is not counted a second time
+    assert "past the registry date" not in text
+    even = [_sum_row(1, 2.0, 3.0), _sum_row(2, 2.0, 3.0), _sum_row(3, 2.0, 2.9, when="12 Feb", day=12)]
+    text = _said(CR.lead_html(even, _sum_totals(even)))
+    assert "The largest single move is Drug 1: Phase 3, Obesity, in Mar 2027." in text
+    assert "of that risk" not in text and "of that gain" not in text
+    gain = [_sum_row(1, 9.0, 1.0, when="<i>est.</i> 30 Sep", day=30), _sum_row(2, 1.0, 1.0),
+            _sum_row(3, 1.0, 1.0)]
+    text = _said(CR.lead_html(gain, _sum_totals(gain)))
+    assert "Drug 1 is $9.00 of that gain: Phase 3, Obesity, estimated for 30 Sep 2027." in text
+    one = [_sum_row(7, 2.0, 1.0, when="<i>≥</i> 12 Feb", day=12)]
+    text = _said(CR.lead_html(one, _sum_totals(one)))
+    assert text.startswith("1 priced readout in the next 24 months:")
+    assert "if it passes" in text and "if it fails" in text
+    assert "It is Drug 7: Phase 3, Obesity, no earlier than 12 Feb 2027." in text
+
+
+def test_the_lead_counts_the_overdue_it_has_not_named():
+    od = lambda aid, risk: _sum_row(aid, 0.1, risk, group=CR.GROUP_OVERDUE, when="Aug 2026",  # noqa: E731
+                                    d=dt.date(2026, 8, 1))
+    rows = [od(1, 9.0), od(2, 0.2), _sum_row(3, 0.3, 0.3)]
+    text = _said(CR.lead_html(rows, _sum_totals(rows)))
+    assert "Drug 1 is $9.00 of that risk" in text
+    assert "1 other is also past the registry date with no result on file." in text
+    rows = [_sum_row(1, 4.0, 4.0), od(2, 0.2), od(3, 0.3)]
+    text = _said(CR.lead_html(rows, _sum_totals(rows)))
+    assert "2 readouts are past the registry date with no result on file." in text
+
+
+def test_a_sum_of_nothing_is_not_a_nought(payload):
+    q = _stripped(payload)
+    rows = CR.readouts(q)
+    t = CR.totals(rows, q)
+    text = _said(CR.lead_html(rows, t))
+    assert "no free data on what a pass adds" in text
+    assert "$0.00" not in text and "against a" not in text
+    assert f"{len(t['missing'])} of them have a leg with no free data" in text
+    none = [_sum_row(1, None, None), _sum_row(2, None, None)]
+    text = _said(CR.lead_html(none, _sum_totals(none, close=None)))
+    assert "no free data on what a pass adds" in text and "no free data on what a miss takes" in text
+    assert "$" not in text
+
+
+def test_a_company_with_no_priced_gate_is_told_so_in_the_lead(payload):
+    q = _no_stakes(payload)
+    rows = CR.readouts(q)
+    t = CR.totals(rows, q)
+    text = _said(CR.lead_html(rows, t))
+    assert text == (f"No priced readout lands in the next 24 months. {t['n_rows']} readouts are "
+                    f"dated and none is valued.")
+    assert CR.top_rows_html(rows, t) == ""
+    # with nothing to rank, the soonest dated readouts take the rows' place: each says
+    # why it carries no price and opens its trial's card
+    block = CR.next_rows_html(rows)
+    dated = [r for r in rows if not r["later"]]
+    assert re.findall(r'<a class="cs-row np" data-ev="([^"]+)"', block) == [
+        r["id"] for r in dated[:CR.TOP_ROWS]]
+    for r in dated[:CR.TOP_ROWS]:
+        why = CR.REASON_SHORT.get(CR._reason_key(r["event"] or {}), "not priced")
+        assert f"no priced gate · {why}" in _visible(block)
+    assert f"{len(dated) - CR.TOP_ROWS} more dated readouts" in _visible(block)
+    assert 'class="ca-bar' not in block and block in CR.summary_html(q, rows, t)
+    # and where a readout is priced, they are not drawn at all
+    priced_rows = CR.readouts(payload)
+    assert "The next readouts" not in CR.summary_html(payload, priced_rows,
+                                                      CR.totals(priced_rows, payload))
+    strip = CR.strip_html(rows, q)
+    assert 'class="cs-mk' not in strip and 'class="cs-tk"' in strip
+    assert 'class="cs-plot flat"' in strip
+    assert f"The ticks are the {t['n_rows']} dated readouts, none of them priced." in _visible(strip)
+    assert "click a mark" not in _visible(strip)
+    empty = _empty(payload)
+    rows = CR.readouts(empty)
+    assert _said(CR.lead_html(rows, CR.totals(rows, empty))) == (
+        "No dated readout is on file for the next 24 months.")
+    assert CR.strip_html(rows, empty) == ""
+    assert 'class="cs-sum"' in CR.page_html(empty)
+
+
+def test_the_five_largest_moves_are_rows_and_each_opens_its_card(payload):
+    rows = CR.readouts(payload)
+    t = CR.totals(rows, payload)
+    priced = CR._priced_by_size(rows)
+    block = CR.top_rows_html(rows, t)
+    got = re.findall(r'<a class="cs-row" data-gate="(\d+)"', block)
+    assert got == [str(r["gate"]["asset_id"]) for r in priced[:CR.TOP_ROWS]]
+    sizes = [CR.move_size(r["gate"]) for r in priced[:CR.TOP_ROWS]]
+    assert sizes == sorted(sizes, reverse=True)
+    assert re.findall(r'<span class="n m">(\d)</span>', block) == [str(i) for i in range(1, len(got) + 1)]
+    text = _visible(block)
+    for r in priced[:CR.TOP_ROWS]:
+        assert r["drug"] in text and _visible(CR.when_full(r)) in text
+        # a row standing on its own carries its year; the list leaves it to the quarter
+        assert re.search(r"\d{4}", CR.when_full(r)) or "no free data" in CR.when_full(r)
+    rest = priced[CR.TOP_ROWS:]
+    if rest:
+        gain = sum(r["gate"]["gain"] for r in rest if r["gate"]["gain"] is not None)
+        risk = sum(r["gate"]["risk"] for r in rest if r["gate"]["risk"] is not None)
+        assert (f"{len(rest)} more priced readouts, {CR._sgn_usd(gain)} to gain and "
+                f"{CR._sgn_usd(-risk)} at risk between them") in text
+        assert 'class="cs-more cr-vw" data-vw="priced"' in block
+    # every priced gate in the window is in the five or in what the line under them sums
+    assert len(priced) == len(got) + len(rest)
+
+
+def _strip_marks(strip):
+    return [(int(g), float(x), float(u), float(d), n) for g, x, u, d, _h, n in re.findall(
+        r'<a class="cs-mk(?: top)?" data-gate="(\d+)" title="[^"]*" style="left:([\d.]+)%;'
+        r'--u:([\d.]+);--d:([\d.]+);--h:([\d.]+)"><i class="u"></i><i class="dn"></i>'
+        r'(?:<b class="m">(\d)</b>)?</a>', strip)]
+
+
+def test_the_part_of_a_miss_other_studies_hold_is_drawn_pale_on_the_strip(payload):
+    """The bars hatch what a lone miss leaves standing. A stem all one red said the lone
+    miss takes the lot: Biogen's litifilimab, 10.40 at risk of which a lone miss takes
+    0.28."""
+    rows = CR.readouts(payload)
+    strip = CR.strip_html(rows, payload)
+    held = {m[0]: float(m[1]) for m in re.findall(r'data-gate="(\d+)"[^>]*--h:([\d.]+)"', strip)}
+    win = [r["gate"] for r in rows if r["gate"] is not None and not r["later"]]
+    for g in win:
+        want = (min(g["held_part"] / g["risk"], 1.0)
+                if g["risk"] and g["held_part"] > 0.004 else 0.0)
+        assert held[str(g["asset_id"])] == pytest.approx(want, abs=0.001)
+    said = "The pale part of a miss is held while other Phase 3s run." in _visible(strip)
+    assert said == any(v > 0 for v in held.values())
+
+
+def test_the_strip_has_one_mark_a_priced_readout_at_its_date(payload):
+    rows = CR.readouts(payload)
+    strip = CR.strip_html(rows, payload)
+    marks = _strip_marks(strip)
+    win = [r for r in rows if r["gate"] is not None and not r["later"]]
+    assert sorted(m[0] for m in marks) == sorted(r["gate"]["asset_id"] for r in win)
+    by = {r["gate"]["asset_id"]: r for r in win}
+    # one linear scale for both stems: a dollar up is as tall as a dollar down, and the
+    # tallest on each side reaches the room the line leaves it or stops short of it
+    axis, k, vmax = CR.strip_scale(rows)
+    assert f'class="cs-plot" style="--ax:{axis:.3f}"' in strip
+    assert CR.STRIP_AXIS_MIN <= axis <= CR.STRIP_AXIS_MAX
+    assert max(u for _g, _x, u, _d, _n in marks) <= axis + 0.001
+    assert max(d for _g, _x, _u, d, _n in marks) <= 1 - axis + 0.001
+    assert (max(u for _g, _x, u, _d, _n in marks) == pytest.approx(axis, abs=0.001)
+            or max(d for _g, _x, _u, d, _n in marks) == pytest.approx(1 - axis, abs=0.001))
+    assert vmax == max(v for r in win for v in (r["gate"]["gain"], r["gate"]["risk"]) if v is not None)
+    for gid, x, u, d, _n in marks:
+        g = by[gid]["gate"]
+        for got, leg in ((u, g["gain"]), (d, g["risk"])):
+            want = 0.0 if not leg or leg <= 0 else max(leg * k, CR.STRIP_FLOOR)
+            assert got == pytest.approx(want, abs=0.001)
+        # the overdue stand left of today, everything dated from today on
+        if by[gid]["group"] == CR.GROUP_OVERDUE:
+            assert 0 < x < CR.STRIP_GUTTER
+        else:
+            assert CR.STRIP_GUTTER <= x <= 99.6
+    # the five rows carry their number on their mark, and nothing else carries one
+    top = [str(r["gate"]["asset_id"]) for r in CR._priced_by_size(rows)[:CR.TOP_ROWS]]
+    assert {str(g): n for g, _x, _u, _d, n in marks if n} == {g: str(i) for i, g in enumerate(top, 1)}
+    # no two dated marks on one another, in date order
+    today = CV._today(payload)
+    dated = sorted((r for r in win if r["group"] != CR.GROUP_OVERDUE),
+                   key=lambda r: (r["sort"], r["drug"].lower()))
+    xs = [next(x for g, x, *_ in marks if g == r["gate"]["asset_id"]) for r in dated]
+    assert all(b - a >= CR.STRIP_GAP - 0.011 for a, b in zip(xs, xs[1:]) if b < 99.6)
+    assert xs[0] >= CR._strip_x(CR._row_day(dated[0]), today) - 0.006
+    text = _visible(strip)
+    assert f"the tallest is {CV.usd(vmax)}" in text
+    unpriced = sum(1 for r in rows if r["gate"] is None and not r["later"])
+    assert f"The small ticks are the {unpriced} readouts with no price move." in text
+    assert "today" in text and "Q1 2027" in text
+
+
+def test_the_strips_line_sits_where_the_largest_pass_and_miss_put_it():
+    """Half way up, a Lilly strip was empty above the line: one miss takes 20.34 and the
+    best pass adds 3.14. The line follows the two, inside limits that keep the small side
+    readable, and the scale stays one for both."""
+    lop = [_sum_row(1, 3.14, 20.34), _sum_row(2, 1.0, 0.5)]
+    axis, k, vmax = CR.strip_scale(lop)
+    assert axis == CR.STRIP_AXIS_MIN and vmax == 20.34
+    assert 20.34 * k == pytest.approx(1 - axis) and 3.14 * k < axis
+    even = [_sum_row(1, 4.0, 4.0)]
+    axis, k, _ = CR.strip_scale(even)
+    assert axis == 0.5 and 4.0 * k == pytest.approx(0.5)
+    only_up = [_sum_row(1, 4.0, None)]
+    axis, k, _ = CR.strip_scale(only_up)
+    assert axis == CR.STRIP_AXIS_MAX and 4.0 * k == pytest.approx(axis)
+    assert CR.strip_scale([_sum_row(1, None, None)]) == (0.5, 0.0, 0.0)
+
+
+def test_the_strip_places_a_date_by_its_share_of_24_months():
+    today = dt.date(2026, 10, 6)
+    assert CR._strip_x(today, today) == CR.STRIP_GUTTER
+    assert CR._strip_x(today + dt.timedelta(days=CR.WINDOW_DAYS), today) == CR.STRIP_END
+    half = CR._strip_x(today + dt.timedelta(days=CR.WINDOW_DAYS // 2), today)
+    assert half == pytest.approx((CR.STRIP_GUTTER + CR.STRIP_END) / 2, abs=0.07)
+    # a month the registry gives without a day sits at its middle
+    assert CR._row_day({"sort": (dt.date(2027, 3, 1), 32)}) == dt.date(2027, 3, 15)
+    assert CR._row_day({"sort": (dt.date(2027, 3, 1), 30)}) == dt.date(2027, 3, 28)
+
+
+def test_everything_else_is_one_link_from_the_summary(payload):
+    rows = CR.readouts(payload)
+    links = CR.links_html(payload, rows)
+    n_priced = sum(1 for r in rows if r["gate"] is not None)
+    assert f'data-vw="priced"' in links and f"Priced readouts {n_priced}" in _visible(links)
+    assert f'data-vw="all"' in links and f"All readouts {len(rows)}" in _visible(links)
+    for key, label, *_ in CR.index_items(payload, rows):
+        assert f'data-more="{key}"' in links and label in _visible(links)
+    # where every readout is unpriced the two lists are one, and one link is offered
+    q = _no_stakes(payload)
+    links = CR.links_html(q, CR.readouts(q))
+    assert 'data-vw="priced"' not in links and 'data-vw="all"' in links
+
+
+def test_the_summary_is_shown_and_hidden_by_the_frame_and_never_without_it():
+    """The show and hide rules read data-on, which only the frame's script sets. Drawn
+    inline with no click component, nothing is hidden and the list is still there."""
+    css = re.sub(r"/\*.*?\*/", "", CSS.read_text(), flags=re.S)
+    assert '.cx.cr-page[data-on="top"] .ca-body { display: none; }' in css.replace(
+        '.cx.cr-page[data-on="top"] .cr-hd, .cx.cr-page[data-on="top"] .cr-top, ', "")
+    assert '.cx.cr-page[data-on="priced"] .cs-sum, .cx.cr-page[data-on="all"] .cs-sum { display: none; }' in css
+    hidden = re.findall(r"([^{}]+)\{[^{}]*display:\s*none[^{}]*\}", css)
+    for sel in hidden:
+        if ".cs-sum" in sel or ".ca-body" in sel or ".cr-hd" in sel:
+            assert "[data-on=" in sel, sel
+    frame = (FRONTEND / "components" / "catnav" / "index.html").read_text()
+    assert 'page.setAttribute("data-on", view)' in frame
+    assert 'page.getAttribute("data-view")' in frame
+

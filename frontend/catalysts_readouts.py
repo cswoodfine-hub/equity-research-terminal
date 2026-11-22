@@ -1,6 +1,12 @@
-"""The Catalysts tab as a dated list: every readout in the next 24 months, soonest first.
+"""The Catalysts tab: what can move the share, when and by how much, then the dated list.
 
-The first view is one list under quarter headings, an Overdue group first: the date, the
+The tab opens on a summary (``summary_html``): one sentence built from the totals, the five
+priced readouts with the largest moves as rows, a 24-month strip of when every priced one
+lands, and a line of links to the rest. It was the full list at first, 691 words and 95
+click targets on a Lilly screen, with the readout that was two thirds of the risk in its
+third row. The list is one click behind the summary and is as it was.
+
+The full view is one list under quarter headings, an Overdue group first: the date, the
 drug, its phase, the indication, the disease area as a tag, the patients and, for a row
 that decides a priced gate, the odds and one diverging bar (what a miss takes to the left,
 what a pass adds to the right, dollars a share, both printed). A readout on no priced gate
@@ -33,7 +39,7 @@ import re
 import catalysts_view as CV
 from catalysts_view import MINUS, NO_DATA, esc, usd, pct, dm, dmy, mon
 
-REVISION = 2
+REVISION = 3
 
 # --------------------------------------------------------------------------- layout
 BAR_W = 300          # the bar column, drawn 1:1, its zero at the middle
@@ -555,12 +561,17 @@ def _group_head(group, rows) -> str:
 
 
 def view_html(rows, t) -> str:
-    """The switch over the list: the readouts that move the price, or every readout."""
+    """The switch over the list: back to the summary, the readouts that move the price, or
+    every readout. Where every readout is priced, or none is, the two lists are one and
+    the switch offers the summary and that."""
     n_all = len(rows)
     n_priced = sum(1 for r in rows if r["gate"] is not None)
+    back = ('<a class="cr-vw" data-vw="top" title="The largest moves and when they land">'
+            'Summary</a>')
     if not n_priced or n_priced == n_all:
-        return ""
-    return (f'<div class="cr-view"><a class="cr-vw" data-vw="priced" title="Only the readouts '
+        return (f'<div class="cr-view">{back}<a class="cr-vw" data-vw="all" title="Every dated '
+                f'readout">All readouts <b class="m">{n_all}</b></a></div>')
+    return (f'<div class="cr-view">{back}<a class="cr-vw" data-vw="priced" title="Only the readouts '
             f'that decide a priced gate">Moves the price <b class="m">{n_priced}</b></a>'
             f'<a class="cr-vw" data-vw="all" title="Every dated readout, priced or not">'
             f'All readouts <b class="m">{n_all}</b></a>'
@@ -687,6 +698,371 @@ def index_html(p, rows) -> str:
             f'<span class="c">one click each</span></div><div class="ca-ixs">{"".join(out)}</div>')
 
 
+# -------------------------------------------------------------------- the summary
+# What the tab opens on. The question it answers is the one the tab exists for: what can
+# move the share, when, and by how much. Everything else the list, its rail and its
+# dialogs hold is one click from here and none of it is on this view.
+TOP_ROWS = 5                          # the readouts printed as rows
+SUM_BAR_W = 440                       # their bar column, wider than the list's 300
+SUM_BAR_H, SUM_ROW_SVG_H = 14, 30
+# One readout is "most of" a total when it is half of it or more. Below that, naming one
+# row as the story would be the page's opinion and not the book's arithmetic.
+DOMINANT = 0.5
+STRIP_GUTTER = 7.0                    # per cent of the strip kept for the overdue
+STRIP_END = 99.0                      # where the 24th month sits
+STRIP_GAP = 0.8                       # the least two marks stand apart, per cent
+STRIP_FLOOR = 0.012                   # the shortest stem a leg that is not nil is drawn
+# Where the line sits in the strip's height, as the share above it. It follows the data:
+# the largest pass against the largest miss. Half way was drawn first, and on Lilly, where
+# one miss takes 20.34 and the best pass adds 3.14, the upper half of the strip was empty.
+# Kept off the edges so the smaller side still has room to be read.
+STRIP_AXIS_MIN, STRIP_AXIS_MAX = 0.18, 0.82
+PHASE_WORDS = {"p2": "Phase 2", "p3": "Phase 3", "filed": "FDA decision"}
+
+
+def _plain(markup) -> str:
+    return re.sub(r"<[^>]+>", "", str(markup or ""))
+
+
+def when_full(r) -> str:
+    """A row's date with its year, as markup. The list prints "in Mar" under a quarter
+    heading that carries the year; a row standing on its own has to carry it itself. An
+    overdue row says so and gives the date that passed."""
+    g = r["gate"]
+    if r["group"] == GROUP_OVERDUE:
+        d = g.get("d") if g else None
+        return f'<i class="od">overdue</i> {mon(d)}' if d else '<i class="od">overdue</i>'
+    if re.search(r"\d{4}", r["when"]) or NO_DATA in r["when"]:
+        return r["when"]
+    return f'{r["when"]} {r["sort"][0].year}'
+
+
+def _when_words(r) -> str:
+    """The same date as a clause of the lead sentence."""
+    g = r["gate"]
+    if r["group"] == GROUP_OVERDUE:
+        d = g.get("d") if g else None
+        return f"overdue since {mon(d)}" if d else "overdue"
+    text = _plain(when_full(r))
+    if NO_DATA in text:
+        return "with no date on file"
+    if text.startswith("≥"):
+        return "no earlier than" + text[1:]
+    if text.startswith("est. "):
+        return "estimated for " + text[5:]
+    if text.startswith("in "):
+        return text
+    return f"on {text}"
+
+
+def _what_words(r) -> str:
+    """ "Phase 3, Obesity": the phase and the indication as the registry writes it."""
+    return ", ".join(x for x in (PHASE_WORDS.get(r["ph"]), r["ind"]) if x)
+
+
+def _leg_sum(rows, leg):
+    """The sum of one leg over the rows that have it, or None where none does: a sum of
+    nothing is not a nought."""
+    vals = [r["gate"][leg] for r in rows if r["gate"][leg] is not None]
+    return sum(vals) if vals else None
+
+
+def lead_html(rows, t) -> str:
+    """The one sentence the tab opens on, by rule from the totals and the ranked gates.
+
+    How many priced readouts, what they add up to either way and against what price; then
+    the one readout that is half or more of the risk, or of the gain, where there is one,
+    and the largest where there is not; then how many are overdue. A company with no
+    priced gate is told that, and how many readouts are dated all the same."""
+    n = t["n_gates"]
+    if not n:
+        if not t["n_rows"]:
+            said = "No dated readout is on file for the next 24 months."
+        else:
+            one = t["n_rows"] == 1
+            said = (f"No priced readout lands in the next 24 months. "
+                    f"{CV._plural(t['n_rows'], 'readout')} {'is' if one else 'are'} dated and "
+                    f"{'it is not' if one else 'none is'} valued.")
+        if t["n_later"]:
+            said += (f" {CV._plural(t['n_later'], 'priced gate')} "
+                     f"{'is' if t['n_later'] == 1 else 'are'} later or undated.")
+        return f'<p class="cs-lead">{esc(said)}</p>'
+    one = n == 1
+    win = [r for r in rows if r["gate"] is not None and not r["later"]]
+    gain, risk = _leg_sum(win, "gain"), _leg_sum(win, "risk")
+    up = (f'<b class="up-t m">{_sgn_usd(gain)}</b> to gain' if gain is not None
+          else f'{NO_DATA} on what a pass adds')
+    dn = (f'<b class="dn-t m">{_sgn_usd(-risk)}</b> at risk' if risk is not None
+          else f'{NO_DATA} on what a miss takes')
+    close = t["close"]
+    out = [f'{CV._plural(n, "priced readout")} in the next 24 months: {up} if '
+           f'{"it passes" if one else "every one passes"}, {dn} if '
+           f'{"it fails" if one else "every one fails"}'
+           + (f', against a {usd(close)} share.' if close else '.')]
+    if t["held"] > 0.004 and risk is not None:
+        out.append(f'A lone study miss takes {usd(risk - t["held"])}: the rest is held while '
+                   f'other Phase 3s run.')
+    k = len(t["missing"])
+    if k and (gain is not None or risk is not None):
+        out.append(f'{k} of them {"has" if k == 1 else "have"} a leg with {NO_DATA} and '
+                   f'{"is" if k == 1 else "are"} left out of that sum.')
+    priced = _priced_by_size(rows)
+    named = None
+    if priced:
+        def most(leg, total):
+            have = [r for r in priced if r["gate"][leg] is not None]
+            top = max(have, key=lambda r: r["gate"][leg], default=None)
+            return top if (top is not None and total and top["gate"][leg] >= DOMINANT * total) else None
+        tail = lambda r: ", ".join(x for x in (_what_words(r), _when_words(r)) if x)  # noqa: E731
+        by_risk = None if one else most("risk", risk)
+        by_gain = None if (one or by_risk) else most("gain", gain)
+        named = by_risk or by_gain or priced[0]
+        who = f'<b>{esc(named["drug"])}</b>'
+        if one:
+            out.append(f'It is {who}: {esc(tail(named))}.')
+        elif by_risk:
+            out.append(f'{who} is {usd(named["gate"]["risk"])} of that risk: {esc(tail(named))}.')
+        elif by_gain:
+            out.append(f'{who} is {usd(named["gate"]["gain"])} of that gain: {esc(tail(named))}.')
+        else:
+            out.append(f'The largest single move is {who}: {esc(tail(named))}.')
+    rest = t["n_overdue"] - (1 if named is not None and named["group"] == GROUP_OVERDUE else 0)
+    if rest > 0 and rest == t["n_overdue"]:
+        out.append(f'{CV._plural(rest, "readout")} {"is" if rest == 1 else "are"} past the '
+                   f'registry date with no result on file.')
+    elif rest > 0:
+        out.append(f'{CV._plural(rest, "other")} {"is" if rest == 1 else "are"} also past the '
+                   f'registry date with no result on file.')
+    return f'<p class="cs-lead">{" ".join(out)}</p>'
+
+
+def top_rows_html(rows, t) -> str:
+    """The priced readouts with the largest moves as rows of four things: when, what, the
+    odds and one bar. Numbered, because the strip under them carries the same numbers.
+    Each row opens the card it opens in the list."""
+    priced = _priced_by_size(rows)
+    top = priced[:TOP_ROWS]
+    if not top:
+        return ""
+    sc = scale(rows, w=SUM_BAR_W)
+    out = []
+    for i, r in enumerate(top, 1):
+        g = r["gate"]
+        odds = CV._num(g.get("p_gate"))
+        oc = (f'<b class="m">{pct(odds)}</b>' if odds is not None
+              else f'<b class="mu" title="{NO_DATA}">n/a</b>')
+        ph = f'<i class="mk-ph {r["ph"]}">{esc(r["ph_txt"])}</i>' if r["ph_txt"] else ""
+        ind = (f'<span title="{esc(r["ind"])}">{esc(r["ind"])}</span>' if r["ind"]
+               else f'<span>{NO_DATA}</span>')
+        out.append(
+            f'<a class="cs-row" data-gate="{g["asset_id"]}" title="{esc(_gate_tip(g))}">'
+            f'<span class="n m">{i}</span><span class="w m">{when_full(r)}</span>'
+            f'<span class="d"><b>{esc(r["drug"])}</b><em>{ph}{ind}</em></span>'
+            f'<span class="o">{oc}</span>'
+            f'<span class="b">{bar_svg(g, sc, h=SUM_BAR_H, height=SUM_ROW_SVG_H)}</span></a>')
+    head = ('<div class="cs-th"><span class="n"></span><span class="w">When</span>'
+            '<span class="d">Readout</span><span class="o">Odds of a pass</span>'
+            f'<span class="b">{axis_svg(sc)}</span></div>')
+    rest, more = priced[TOP_ROWS:], ""
+    if rest:
+        gain, risk = _leg_sum(rest, "gain"), _leg_sum(rest, "risk")
+        up = (f'<b class="up-t m">{_sgn_usd(gain)}</b> to gain' if gain is not None
+              else f'{NO_DATA} on what a pass adds')
+        dn = (f'<b class="dn-t m">{_sgn_usd(-risk)}</b> at risk' if risk is not None
+              else f'{NO_DATA} on what a miss takes')
+        more = (f'<a class="cs-more cr-vw" data-vw="priced" title="The list, on the readouts that '
+                f'decide a priced gate">{CV._plural(len(rest), "more priced readout")}, '
+                f'{up} and {dn} between them</a>')
+    said = (f"the {len(top)} largest of {len(priced)} priced" if len(priced) > len(top)
+            else f"every priced readout, {len(top)}") + ", each by the larger of its two moves"
+    return (f'<div class="cs-blk"><div class="ca-sec"><span class="h">The largest moves</span>'
+            f'<span class="c">{said} · click a row for its card</span></div>'
+            f'{head}{"".join(out)}{more}</div>')
+
+
+def next_rows_html(rows) -> str:
+    """Where nothing is priced there is no largest move to rank, and the summary was a
+    sentence over an empty strip: Bayer's, on the day this was built. The soonest dated
+    readouts take the rows' place, each saying why it carries no price and opening its
+    trial's card. Drawn only where no priced readout lands in the window."""
+    dated = [r for r in rows if r["gate"] is None and not r["later"]]
+    soon = dated[:TOP_ROWS]
+    if not soon:
+        return ""
+    out = []
+    for r in soon:
+        why = REASON_SHORT.get(_reason_key(r["event"] or {}), "not priced")
+        ph = f'<i class="mk-ph {r["ph"]}">{esc(r["ph_txt"])}</i>' if r["ph_txt"] else ""
+        ind = (f'<span title="{esc(r["ind"])}">{esc(r["ind"])}</span>' if r["ind"]
+               else f'<span>{NO_DATA}</span>')
+        out.append(
+            f'<a class="cs-row np" data-ev="{esc(r["id"])}" title="{esc(_row_tip(r))}">'
+            f'<span class="n"></span><span class="w m">{when_full(r)}</span>'
+            f'<span class="d"><b>{esc(r["drug"])}</b><em>{ph}{ind}</em></span>'
+            f'<span class="y">no priced gate · {esc(why)}</span></a>')
+    head = ('<div class="cs-th np"><span class="n"></span><span class="w">When</span>'
+            '<span class="d">Readout</span><span class="y">Why no price</span></div>')
+    rest = len(dated) - len(soon)
+    more = (f'<a class="cs-more cr-vw" data-vw="all" title="The list, every dated readout">'
+            f'{CV._plural(rest, "more dated readout")}</a>' if rest else "")
+    said = (f"the {len(soon)} soonest of {len(dated)} dated" if rest
+            else f"every dated readout, {len(soon)}")
+    return (f'<div class="cs-blk"><div class="ca-sec"><span class="h">The next readouts</span>'
+            f'<span class="c">{said}, none of them priced · click a row for its card</span></div>'
+            f'{head}{"".join(out)}{more}</div>')
+
+
+def _row_day(r):
+    """Where a dated row sits on the strip: its day, or the middle of its month where the
+    registry gives the month alone."""
+    first, day = r["sort"]
+    return first.replace(day=15 if day == 32 else max(1, min(day, 28)))
+
+
+def _strip_x(day, today) -> float:
+    span = STRIP_END - STRIP_GUTTER
+    return STRIP_GUTTER + span * min(max((day - today).days, 0), WINDOW_DAYS) / WINDOW_DAYS
+
+
+def strip_scale(rows) -> tuple:
+    """(share of the strip above the line, shares of its height a dollar is drawn at, the
+    largest leg) over the priced readouts within 24 months. One scale for both sides: a
+    dollar a pass adds is as tall as a dollar a miss takes."""
+    gates = [r["gate"] for r in rows if r["gate"] is not None and not r["later"]]
+    gmax = max([g["gain"] for g in gates if g["gain"] is not None] + [0.0])
+    rmax = max([g["risk"] for g in gates if g["risk"] is not None] + [0.0])
+    if gmax <= 0 and rmax <= 0:
+        return 0.5, 0.0, 0.0
+    axis = gmax / (gmax + rmax)
+    axis = min(max(axis, STRIP_AXIS_MIN), STRIP_AXIS_MAX)
+    none = float("inf")
+    k = min(axis / gmax if gmax > 0 else none, (1 - axis) / rmax if rmax > 0 else none)
+    return axis, k, max(gmax, rmax)
+
+
+def strip_html(rows, p) -> str:
+    """When they land: 24 months left to right, a mark at each priced readout's date.
+
+    A stem up for what a pass adds and a stem down for what a miss takes, one linear scale
+    for both (``strip_scale``), so the tall one is the one that matters and its place says
+    when. The five
+    rows above carry their number on their mark. An overdue readout has no place on a
+    line that starts today, so it stands in a gutter to the left of it. A readout on no
+    priced gate is a small tick on the line: counted, not valued. With no priced readout
+    at all the strip is the line and its ticks, drawn low.
+
+    Placed in percentages of the strip's width with HTML, not a stretched drawing, so the
+    type stays the size it was set whatever width the frame is."""
+    today = CV._today(p)
+    win = [r for r in rows if not r["later"]]
+    if not win:
+        return ""
+    priced = [r for r in win if r["gate"] is not None]
+    rank = {r["gate"]["asset_id"]: i
+            for i, r in enumerate(_priced_by_size(rows)[:TOP_ROWS], 1)}
+    axis, k, vmax = strip_scale(rows)
+
+    def frac(v):
+        return 0.0 if (v is None or v <= 0 or not k) else max(v * k, STRIP_FLOOR)
+
+    overdue = [r for r in priced if r["group"] == GROUP_OVERDUE]
+    dated = sorted((r for r in priced if r["group"] != GROUP_OVERDUE),
+                   key=lambda r: (r["sort"], r["drug"].lower()))
+    placed = [(STRIP_GUTTER * (i + 1) / (len(overdue) + 1), r) for i, r in enumerate(overdue)]
+    last = None
+    for r in dated:
+        x = _strip_x(_row_day(r), today)
+        # Two readouts the registry dates to the same month would stand on one another.
+        if last is not None and x < last + STRIP_GAP:
+            x = last + STRIP_GAP
+        last = x = min(x, 99.6)
+        placed.append((x, r))
+    marks, any_held = [], False
+    for x, r in placed:
+        g = r["gate"]
+        n = rank.get(g["asset_id"])
+        # The part of a miss that other Phase 3s hold is drawn pale, as the bars hatch it:
+        # a stem all one red would say a lone miss takes the lot.
+        held = (min(g["held_part"] / g["risk"], 1.0)
+                if g["risk"] and g["risk"] > 0 and g["held_part"] > 0.004 else 0.0)
+        any_held = any_held or held > 0
+        marks.append(
+            f'<a class="cs-mk{" top" if n else ""}" data-gate="{g["asset_id"]}" '
+            f'title="{esc(_gate_tip(g))}" style="left:{x:.2f}%;--u:{frac(g["gain"]):.3f};'
+            f'--d:{frac(g["risk"]):.3f};--h:{held:.3f}"><i class="u"></i><i class="dn"></i>'
+            + (f'<b class="m">{n}</b>' if n else "") + '</a>')
+    unpriced = [r for r in win if r["gate"] is None]
+    ticks = "".join(f'<i class="cs-tk" style="left:{x:.1f}%"></i>' for x in sorted(
+        {round(_strip_x(_row_day(r), today), 1) for r in unpriced}))
+    lines, labels = [], []
+    if overdue:
+        labels.append(f'<em class="od" style="right:{100 - STRIP_GUTTER:.2f}%">overdue</em>')
+    labels.append(f'<em style="left:{STRIP_GUTTER:.2f}%">today</em>')
+    year, q = today.year, (today.month - 1) // 3 + 1
+    first = True
+    while True:
+        year, q = (year + 1, 1) if q == 4 else (year, q + 1)
+        start = dt.date(year, 3 * q - 2, 1)
+        if (start - today).days > WINDOW_DAYS:
+            break
+        x = _strip_x(start, today)
+        lines.append(f'<i class="cs-gl{" y" if q == 1 else ""}" style="left:{x:.2f}%"></i>')
+        # A quarter that starts within a few weeks of today would print on "today".
+        if x - STRIP_GUTTER >= 4.0:
+            labels.append(f'<em style="left:{x:.2f}%">Q{q}{f" {year}" if (q == 1 or first) else ""}</em>')
+            first = False
+    if priced and vmax:
+        cap = (f"Up is what a pass adds and down what a miss takes, a share, on one scale: "
+               f"the tallest is {usd(vmax)}.")
+    elif priced:
+        cap = f"The marks are the priced readouts; their moves have {NO_DATA}."
+    else:
+        cap = ""
+    if any_held:
+        cap += " The pale part of a miss is held while other Phase 3s run."
+    if unpriced and priced:
+        cap += (f" The small ticks are the {CV._plural(len(unpriced), 'readout')} with no "
+                f"price move.")
+    elif unpriced:
+        one = len(unpriced) == 1
+        cap = (f"The {'tick is' if one else 'ticks are'} the "
+               f"{CV._plural(len(unpriced), 'dated readout')}, "
+               f"{'not' if one else 'none of them'} priced.")
+    flat = "" if priced else " flat"
+    mark_hint = " · click a mark for its card" if priced else ""
+    return (f'<div class="cs-blk cs-strip{flat}"><div class="ca-sec"><span class="h">When they land'
+            f'</span><span class="c">24 months from {dmy(today)}{mark_hint}'
+            f'</span></div><div class="cs-plot{flat}" style="--ax:{axis:.3f}">'
+            f'<i class="cs-now" style="left:{STRIP_GUTTER:.2f}%"></i>{"".join(lines)}'
+            f'<i class="cs-ax"></i>{ticks}{"".join(marks)}</div>'
+            f'<div class="cs-qs">{"".join(labels)}</div><div class="cs-cap">{esc(cap)}</div></div>')
+
+
+def links_html(p, rows) -> str:
+    """Everything else, one click each: the list on its priced rows, the list whole, and
+    the seven indexes the list's rail holds, each with the figure it shows there."""
+    n_all = len(rows)
+    n_priced = sum(1 for r in rows if r["gate"] is not None)
+    out = []
+    if n_priced and n_priced != n_all:
+        out.append(f'<a class="cs-lk cr-vw" data-vw="priced" title="The list, on the readouts '
+                   f'that decide a priced gate, those later than 24 months or undated among '
+                   f'them">Priced readouts <b class="m">{n_priced}</b></a>')
+    if n_all:
+        out.append(f'<a class="cs-lk cr-vw" data-vw="all" title="The list, every dated readout, '
+                   f'with the filter by area">All readouts <b class="m">{n_all}</b></a>')
+    for key, label, fig, _sub, tip in index_items(p, rows):
+        out.append(f'<a class="cs-lk" data-more="{key}" title="{esc(tip)}">{esc(label)} '
+                   f'<b class="m">{fig}</b></a>')
+    return f'<div class="cs-links"><span class="h">More</span>{"".join(out)}</div>'
+
+
+def summary_html(p, rows, t) -> str:
+    return (f'<div class="cs-sum">{lead_html(rows, t)}'
+            f'{top_rows_html(rows, t) or next_rows_html(rows)}'
+            f'{strip_html(rows, p)}{links_html(p, rows)}</div>')
+
+
 HATCH = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'
          '<pattern id="ca-hd" width="4" height="4" patternUnits="userSpaceOnUse" '
          'patternTransform="rotate(45)"><rect class="hd-bg" width="4" height="4"/>'
@@ -694,14 +1070,19 @@ HATCH = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true"
 
 
 def page_html(p) -> str:
-    """The whole first view: the header, the dated list and the rail."""
+    """The whole tab: the summary it opens on, then the header, the dated list and the rail.
+
+    Both are in the markup and the frame's script shows one, by ``data-on`` on the page,
+    which it sets from ``data-view`` and then from the reader's own click. Drawn with no
+    script (the click component missing), nothing is hidden and the summary stands over
+    the list."""
     rows = readouts(p)
     sc = scale(rows)
     t = totals(rows, p)
     sc["close"] = t["close"]
     sc["tiers"] = tiers(rows)
-    view = "priced" if any(r["gate"] is not None for r in rows) else "all"
-    return (f'<div class="cx ca-page cr-page" data-view="{view}">{HATCH}{header_html(p, t)}'
+    return (f'<div class="cx ca-page cr-page" data-view="top">{HATCH}{summary_html(p, rows, t)}'
+            f'{header_html(p, t)}'
             f'{top_html(rows, t["close"])}'
             f'<div class="ca-body"><div class="ca-main">{list_html(rows, sc, t)}</div>'
             f'<div class="ca-rail">{chips_html(rows)}{index_html(p, rows)}</div></div></div>')
