@@ -46,6 +46,7 @@ from components import enginepick
 from components import clicklist
 from components import compsval
 from components import prodcards
+import portfolio_cards as PC
 from components import drawchart
 try:                                    # the drug card's click listener
     from components import drugclick
@@ -4774,6 +4775,118 @@ def _launch_flagged(markup: str, launch, tip: bool = True) -> str:
     quoted = html_escape(message).replace('"', "&quot;")
     title = f' title="{quoted}"' if message else ""
     return f'<span class="u-flagged {tone}"{title}>{markup}</span>'
+
+
+# What the card frame needs of the palette. One dict for both kinds of card, so a marketed
+# product and a compound cannot drift into two looks.
+_CARD_TOKENS = {"panel": TK.PANEL, "panel-hi": TK.RULE, "rule": TK.RULE,
+                "rule-strong": TK.RULE_STRONG, "muted": TK.MUTED, "text": TK.TEXT,
+                "up": TK.UP, "down": TK.DOWN, "flag": TK.FLAG,
+                "orange-book": TK.ORANGE_BOOK, "purple-book": TK.PURPLE_BOOK,
+                "font-mono": TK.FONT_MONO, "font-ui": TK.FONT_UI}
+_PIPE_PHASES = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1", "Phase 4",
+                "unphased"]
+
+
+def _pipe_group(p: dict) -> str:
+    """The heading a compound sits under: the furthest phase it has reached, or for one
+    named in a filing with no registered study, the stage the filing states. The same
+    rule as the Trials tab's list, so the two never file a compound differently."""
+    if p.get("source") == "filing":
+        return p.get("stage") or "named in the filing"
+    return p.get("phase") or "unphased"
+
+
+def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict) -> None:
+    """The Portfolio tab's pipeline side: the compounds in development as cards, one phase
+    at a time, each opening onto its own studies.
+
+    The compounds are the Trials tab's own (``/programmes``) and the odds and values are
+    the forecast's (``PC.book_from_verdict``), so nothing here is a second reading of
+    either. A phase is picked from a row of pills, as an area is on the marketed side:
+    Lilly has fifty-five compounds in Phase 1, and one grid of all eighty-eight would be
+    most of them, in the order nobody reads a pipeline in.
+    """
+    today = dt.date.today()
+    if not programmes:
+        state(f"No compounds in development mapped for {ticker}",
+              "Programmes are derived from the drug each trial names. Press Refresh all "
+              "to pull the registry and bind them.")
+        return
+    summary = PC.pipeline_summary(programmes, book, today)
+    section(f"{ticker} pipeline", f"{summary['n']} compounds &middot; click one for its trials")
+    nxt = summary["next"]
+    st.markdown(
+        '<div class="pos">'
+        f'<div><span class="k">compounds</span><span class="v">{summary["n"]}</span>'
+        f'<span class="sub">in development</span></div>'
+        f'<div><span class="k">late stage</span>'
+        f'<span class="v{"" if summary["late"] else " none"}">{summary["late"] or "none"}</span>'
+        f'<span class="sub">Phase 2/3 or Phase 3</span></div>'
+        f'<div><span class="k">valued by the book</span>'
+        f'<span class="v{"" if summary["n_valued"] else " none"}">'
+        f'{T.num(summary["value"], 2) if summary["value"] is not None else "none"}</span>'
+        f'<span class="sub">{"a share, across " + str(summary["n_valued"]) if summary["n_valued"] else "no compound carries a forecast"}'
+        f'</span></div>'
+        f'<div><span class="k">next study due</span>'
+        f'<span class="v{"" if nxt else " none"}">{html_escape(PC.month_text(nxt[0])) if nxt else "none"}</span>'
+        f'<span class="sub">{html_escape(nxt[1]) if nxt else "no dated study ahead"}</span></div>'
+        '</div>', unsafe_allow_html=True)
+
+    groups: dict = {}
+    for p in programmes:
+        groups.setdefault(_pipe_group(p), []).append(p)
+    order = [g for g in _PIPE_PHASES + FILING_STAGES + ["named in the filing"] if g in groups]
+    order += [g for g in groups if g not in order]
+    labels = {g: f"{g} ({len(groups[g])})" for g in order}
+    picked = st.pills("Phase", [labels[g] for g in order], default=labels[order[0]],
+                      key=f"pipe_phase_{ticker}", label_visibility="collapsed")
+    chosen = next((g for g in order if labels[g] == picked), order[0])
+    shown = groups[chosen]
+    # The areas of the phase that is open, as a second row only where there is more than
+    # one to choose between. None picked is all of them.
+    areas: dict = {}
+    for p in shown:
+        for a in (p.get("areas") or [])[:1] or ["Area not stated"]:
+            areas[a] = areas.get(a, 0) + 1
+    area = None
+    if len(areas) > 1:
+        a_labels = {a: f"{a} ({n})" for a, n in sorted(areas.items(), key=lambda kv: (-kv[1], kv[0]))}
+        a_picked = st.pills("Disease area", list(a_labels.values()), default=None,
+                            key=f"pipe_area_{ticker}_{re.sub(r'[^a-z0-9]+', '_', chosen.lower())}",
+                            label_visibility="collapsed")
+        area = next((a for a, label in a_labels.items() if label == a_picked), None)
+        if area:
+            shown = [p for p in shown
+                     if ((p.get("areas") or [])[:1] or ["Area not stated"])[0] == area]
+    worth = [(book.get(p.get("asset_id")) or {}).get("per_share") for p in shown
+             if (book.get(p.get("asset_id")) or {}).get("state") == "valued"]
+    worth = [v for v in worth if v is not None]
+    section(chosen + (f", {area}" if area else ""),
+            f"{len(shown)}" + (f" &middot; {len(worth)} valued at {T.num(sum(worth), 2)} a share"
+                               if worth else ""))
+    open_key = f"pipe_open_{ticker}"
+    clicked = prodcards.product_cards(
+        [{"asset_id": p.get("asset_id"),
+          "html": PC.pipeline_card_html(p, book.get(p.get("asset_id")), today)}
+         for p in PC.pipeline_order(shown, book)],
+        tokens=_CARD_TOKENS, selected=st.session_state.get(open_key),
+        key=f"pipe_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', (chosen + ' ' + (area or '')).lower())}")
+    # Acted on once: the nonce changes with each click, so a rerun for any other reason
+    # does not reopen a dialog that was closed.
+    if isinstance(clicked, dict) and clicked.get("nonce") != st.session_state.get("pipe_click_nonce"):
+        st.session_state["pipe_click_nonce"] = clicked.get("nonce")
+        st.session_state[open_key] = clicked.get("asset_id")
+        _rerun_here()
+    opened = next((p for p in programmes if p.get("asset_id") is not None
+                   and p.get("asset_id") == st.session_state.get(open_key)), None)
+    if opened is not None:
+        @st.dialog(str(opened.get("name") or "Compound"), width="large",
+                   on_dismiss=lambda: st.session_state.pop(open_key, None))
+        def _trials():
+            st.markdown(PC.trials_html(opened, book.get(opened.get("asset_id")), today)
+                        .replace("$", "&#36;"), unsafe_allow_html=True)
+        _trials()
 
 
 def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
@@ -11261,8 +11374,10 @@ with main:
                # assets is the Portfolio tab's to show; this one is the registry's
                # studies, by area and by compound.
                ("pipeline", "Trials")]
-    if _engine == "pharma" or (_engine != "cellgene" and _sells):
-        _wanted.append(("portfolio", "Portfolio"))
+    # Every company has a Portfolio: what it sells and what it is developing, as assets. It
+    # was offered only where something was sold, because it held marketed products alone
+    # and drew three empty charts for a developer. It opens on the pipeline there now.
+    _wanted.append(("portfolio", "Portfolio"))
     _wanted.append(("catalysts", "Catalysts"))
     _wanted.append(("forecast", "Forecast"))
     # Themes reads coverage by modality rather than by ticker, which is the question the
@@ -12269,6 +12384,32 @@ with main:
                 # full width. It is named for the rail such a tab used to drop.
                 st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
                 approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
+                # The two kinds of asset, one at a time. Stacked, eighty-eight compounds
+                # would stand under forty-four products and never be reached. Each side is
+                # read from where it already lives: the compounds are the Trials tab's and
+                # the values the forecast's, and a read of either that fails leaves that
+                # part out rather than the tab.
+                try:
+                    _programmes = api_get(
+                        api_base, f"/companies/{ticker}/programmes").get("programmes") or []
+                except Exception:
+                    _programmes = []
+                try:
+                    _book = PC.book_from_verdict(
+                        api_get(api_base, f"/companies/{ticker}/forecast-verdict"))
+                except Exception:
+                    _book = {}
+                _opens_on = "Marketed" if approvals else "Pipeline"
+                # Keyed as a Financials control so it takes that row's look: one row of
+                # choices, each named by the key beside it.
+                with st.container(horizontal=True, key=f"fin_ctl_pf_{ticker}"):
+                    _fc_label("Assets")
+                    _side = st.segmented_control(
+                        "Assets", ["Marketed", "Pipeline"], default=_opens_on,
+                        label_visibility="collapsed", key=f"pf_side_{ticker}") or _opens_on
+                if _side == "Pipeline":
+                    _portfolio_pipeline(api_base, ticker, _programmes, _book)
+                    return
                 # Revenue-mix data fetched once here: the donut renders above the product cards
                 # (inside the else), and the product-revenue list below reuses these rows.
                 revenue_payload = api_get(api_base, f"/companies/{ticker}/revenue")
@@ -12328,6 +12469,11 @@ with main:
                                 revenue_unit=a.get("revenue_unit"),
                                 shelf_state=a.get("shelf_state"),
                                 marketing_status=a.get("marketing_status"),
+                                # Read by the card and dropped here until now, so a lapsed
+                                # product counted down to its date ("1994 · -32y") and the
+                                # patent that sets a date was never named.
+                                loe_past=a.get("loe_past"),
+                                loe_identifier=a.get("loe_identifier"),
                                 area=a.get("area"))
                         elif a.get("approval_date") and (
                                 not p["approved"] or a["approval_date"] < p["approved"]):
@@ -12673,8 +12819,6 @@ with main:
                                     cls += " shelved"
                             y = _loe_year(p)
                             near = y is not None and y <= today.year + 3
-                            rev_txt = (f'{T.num(p["revenue"] / 1e9, 2)} {p.get("revenue_unit") or ""} bn'
-                                       if p.get("revenue") is not None else "no free data")
                             to_loe = f' · {y - today.year}y' if y else ""
                             # A small molecule usually has several Orange Book patents; the latest
                             # overstates the real cliff since generics can challenge the earlier ones.
@@ -12688,11 +12832,6 @@ with main:
                             # than counting down to a date that has gone.
                             if p.get("loe_past") and y:
                                 loe_label, loe_txt, is_range = "exclusivity", f"lapsed {y}", False
-                            # The patent that sets the date, named on the card. Which of a
-                            # product's twenty patents is the cliff is the question the stack
-                            # exists to answer, and the answer belongs where the date is.
-                            patent_txt = (f' &middot; {html_escape(str(p["loe_identifier"]))}'
-                                          if p.get("loe_identifier") else "")
                             # Where there is no expiry, say which kind of nothing it is. The
                             # Orange Book lists only unexpired patents and unexpired
                             # exclusivities, so no rows means either every one of them has run
@@ -12719,37 +12858,41 @@ with main:
                                                   "this product yet. Recently approved products "
                                                   "are often listed late, so this is an absence "
                                                   "of data rather than an absence of protection.")
-                            basis = (f'<div class="pf-row" title="{html_escape(_WHY_BASIS)}">'
-                                     f'<span class="pf-k"></span>'
-                                     f'<span class="pf-v none" style="font-size:9px">'
-                                     f'{html_escape(p.get("loe_basis") or "")}</span></div>'
-                                     if p.get("loe_basis") else "")
+                            # The note under the bar: why there is no date where there
+                            # is none, else the basis of the date and the patent that
+                            # sets it.
                             if status:
-                                basis = (f'<div class="pf-row" title="{html_escape(status_why)}">'
-                                         f'<span class="pf-k"></span>'
-                                         f'<span class="pf-v none" style="font-size:9px">'
-                                         f'{status}</span></div>')
-                            return (
-                                f'<div class="pf-card {cls}">'
-                                f'<div class="pf-head">'
-                                f'<span class="pf-brand">{html_escape(p["brand"])}</span>'
-                                f'<span class="pf-mod" title="{html_escape(_WHY_MODALITY)}">'
-                                f'{html_escape(p.get("modality") or "")}</span></div>'
-                                f'<div class="pf-generic">{html_escape(p.get("generic") or "")}</div>'
-                                f'{chip_html}'
-                                f'<div class="pf-row" title="{html_escape(_WHY_APPROVED)}">'
-                                f'<span class="pf-k">approved</span>'
-                                f'<span class="pf-v">{(p.get("approved") or "—")[:10]}</span></div>'
-                                f'<div class="pf-row" title="{html_escape(_WHY_REVENUE)}">'
-                                f'<span class="pf-k">revenue</span>'
-                                f'<span class="pf-v{"" if p.get("revenue") is not None else " none"}">'
-                                f'{rev_txt}</span></div>'
-                                f'<div class="pf-row" title="{html_escape(_WHY_LAPSED if p.get("loe_past") else (_WHY_RANGE if is_range else _WHY_LOE))}">'
-                                f'<span class="pf-k">{loe_label}</span>'
-                                f'<span class="pf-v {"near" if near else ""}">'
-                                f'{loe_txt}<span class="pf-pat">{patent_txt}</span>'
-                                f'</span></div>'
-                                f'{basis}</div>')
+                                note, note_tip = status, status_why
+                            else:
+                                note = " · ".join(x for x in (
+                                    p.get("loe_basis"), p.get("loe_identifier")) if x)
+                                note_tip = _WHY_BASIS
+                            lapsed = bool(p.get("loe_past") and y)
+                            aid = p.get("asset_id")
+                            valued = _book.get(aid) or {}
+                            return PC.marketed_card_html({
+                                "brand": p["brand"], "generic": p.get("generic"),
+                                "modality": p.get("modality"), "modality_tip": _WHY_MODALITY,
+                                "area": None, "book": "bio" if "bio" in mod else "small" if mod else "",
+                                "shelved": "shelved" in cls, "chip_html": chip_html,
+                                "approved": p.get("approved"),
+                                "revenue": p.get("revenue"),
+                                "revenue_unit": p.get("revenue_unit"),
+                                "revenue_tip": _WHY_REVENUE,
+                                "share": (p["revenue"] / total_rev
+                                          if p.get("revenue") and total_rev else None),
+                                "points": PC.history(curated, aid) if aid is not None else [],
+                                "loe_label": loe_label, "loe_text": loe_txt,
+                                "loe_tip": (_WHY_LAPSED if lapsed else
+                                            _WHY_RANGE if is_range else _WHY_LOE),
+                                # A lapsed date has no years left to draw, and a date
+                                # already behind today is not a negative bar.
+                                "years_left": (y - today.year
+                                               if y and not lapsed and y >= today.year else None),
+                                "earliest_left": (max(ey - today.year, 0) if is_range else None),
+                                "near": near and not lapsed, "note": note, "note_tip": note_tip,
+                                "value": (valued.get("per_share")
+                                          if valued.get("state") == "valued" else None)})
 
                         prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
                                                                     _loe_year(p) or 9999))
@@ -12789,12 +12932,6 @@ with main:
 
                         order = sorted(groups, key=lambda a: (a == "Area not stated",
                                                               -_area_revenue(a)))
-                        card_tokens = {"panel": TK.PANEL, "panel-hi": TK.RULE,
-                                       "rule": TK.RULE, "rule-strong": TK.RULE_STRONG,
-                                       "muted": TK.MUTED, "text": TK.TEXT, "up": TK.UP,
-                                       "down": TK.DOWN, "orange-book": TK.ORANGE_BOOK,
-                                       "purple-book": TK.PURPLE_BOOK, "font-mono": TK.FONT_MONO,
-                                       "font-ui": TK.FONT_UI}
                         # One area at a time, picked from a row of pills. Six areas stacked as six
                         # card grids was most of this tab's height and pushed the tables under it
                         # two screens down, and a reader looks at one franchise at a time anyway.
@@ -12814,7 +12951,7 @@ with main:
                             clicked = prodcards.product_cards(
                                 [{"asset_id": p.get("asset_id"), "html": _product_card_html(p)}
                                  for p in groups[area]],
-                                tokens=card_tokens,
+                                tokens=_CARD_TOKENS,
                                 # Keyed per company and area: a fixed key would carry one grid's
                                 # last click into the next.
                                 selected=sel_aid,

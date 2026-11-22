@@ -1585,6 +1585,44 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   font-family: var(--font-ui); font-size: 12.5px; font-weight: 700;
   letter-spacing: 0.055em; text-transform: uppercase; color: var(--text); }}
 [class*="st-key-fin_stmt_"] [data-testid="stExpanderDetails"] {{ padding: 0.2rem 0 2rem; }}
+/* A compound's studies, in the dialog a pipeline card opens. What the card said, as a
+   row of figures, then every study as a line of a table: when it is due, its phase, its
+   status, its patients, and the registry's own title as the link to the record. The
+   selectors carry the markdown container because Streamlit styles a table inside one,
+   with a border on every cell, and a class alone loses to it. */
+.pt-facts {{ display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 2px 0 12px;
+            border-bottom: 1px solid var(--rule-strong); }}
+.pt-facts > div {{ display: flex; flex-direction: column; }}
+.pt-facts .k {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+               color: var(--muted); line-height: 1.6; }}
+.pt-facts .v {{ font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+               font-size: 13px; color: var(--text); }}
+.pt-count {{ font-size: 11px; color: var(--muted); margin: 10px 0 4px; }}
+.pt-none {{ font-size: 12.5px; color: var(--muted); padding: 10px 0; }}
+[data-testid="stMarkdownContainer"] table.pt-tbl {{ width: 100%; border-collapse: collapse;
+  font-size: 12px; margin: 0; }}
+[data-testid="stMarkdownContainer"] table.pt-tbl th {{ text-align: left; font-size: 9.5px;
+  font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+  padding: 4px 12px 4px 0; border: 0; border-bottom: 1px solid var(--rule-strong);
+  background: transparent; }}
+[data-testid="stMarkdownContainer"] table.pt-tbl td {{ padding: 6px 12px 6px 0; border: 0;
+  border-bottom: 1px solid var(--rule); vertical-align: top; color: var(--text);
+  background: transparent; }}
+[data-testid="stMarkdownContainer"] table.pt-tbl .n {{ text-align: right; }}
+[data-testid="stMarkdownContainer"] table.pt-tbl td.d,
+[data-testid="stMarkdownContainer"] table.pt-tbl td.n {{ font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }}
+/* A study past its registry date and still open: the flag colour, the terminal's mark
+   for a date that needs a look. */
+[data-testid="stMarkdownContainer"] table.pt-tbl td.d.late {{ color: var(--flag); }}
+[data-testid="stMarkdownContainer"] table.pt-tbl td:nth-child(2),
+[data-testid="stMarkdownContainer"] table.pt-tbl td:nth-child(3) {{ white-space: nowrap;
+  color: var(--muted); }}
+table.pt-tbl td.t a {{ color: var(--text); text-decoration: underline;
+  text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}
+table.pt-tbl td.t a:hover {{ text-decoration-color: var(--up); }}
+table.pt-tbl td.t span {{ display: block; font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--muted); margin-top: 2px; }}
 /* A link on a section's rule reads as part of the rule until the pointer is on it. */
 .sec-count a {{ color: inherit; text-decoration: underline;
                text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}

@@ -10,33 +10,99 @@
     color: var(--text); font-family: var(--font-ui); font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
-  #g { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  #g { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
        gap: 8px; }
+  /* One card for both kinds of asset. It had a 3px stripe down its left edge in the
+     colour of the FDA book that governs the product; that colour now sits on the
+     exclusivity bar, which is the thing the book is about. A column, so the last line
+     of every card in a row stands on the same floor whatever the card above it holds. */
   .pf-card {
-    background: var(--panel); border: 1px solid var(--rule);
-    border-left: 3px solid var(--rule-strong); padding: 0.5rem 0.65rem;
-    cursor: pointer; transition: background 90ms linear, border-color 90ms linear;
+    background: var(--panel); border: 1px solid var(--rule); border-radius: 2px;
+    padding: 9px 11px 8px; box-sizing: border-box; cursor: pointer;
+    display: flex; flex-direction: column;
+    transition: background 90ms linear, border-color 90ms linear;
   }
-  .pf-card.small { border-left-color: var(--orange-book); }
-  .pf-card.bio { border-left-color: var(--purple-book); }
   /* Hover says the whole card is the hit area, which is the point of the component. */
   .pf-card:hover { background: var(--panel-hi); border-color: var(--rule-strong); }
   .pf-card:focus-visible { outline: 1px solid var(--muted); outline-offset: -1px; }
   .pf-card.sel { border-color: var(--up); background: var(--panel-hi); }
   .pf-head { display: flex; align-items: baseline; justify-content: space-between;
              gap: 0.5rem; }
-  .pf-brand { font-size: 13px; font-weight: 600; letter-spacing: -0.01em;
-              color: var(--text); }
+  .pf-brand { font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em;
+              color: var(--text); overflow-wrap: anywhere; }
   .pf-mod { font-size: 8.5px; letter-spacing: 0.06em; text-transform: uppercase;
             color: var(--muted); white-space: nowrap; }
-  .pf-generic { font-size: 10.5px; color: var(--muted); margin: 1px 0 5px;
-                line-height: 1.25; }
-  .pf-row { display: flex; justify-content: space-between; align-items: baseline;
-            font-size: 11px; padding: 1px 0; }
-  .pf-k { color: var(--muted); }
-  .pf-v { font-family: var(--font-mono); color: var(--text); }
-  .pf-v.none { color: var(--muted); }
-  .pf-v.near { color: var(--down); font-weight: 600; }
+  .pf-generic { font-size: 10.5px; color: var(--muted); margin: 1px 0 8px;
+                line-height: 1.25; min-height: 13px; }
+
+  /* What every line of a card is made of: a small caps key over its figure. */
+  .pc .k { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+           color: var(--muted); line-height: 1.5; }
+  .pc .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+           font-size: 12px; color: var(--text); white-space: nowrap; }
+  .pc .v.strong { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .pc .v em { font-style: normal; font-family: var(--font-ui); font-size: 10px;
+              font-weight: 400; letter-spacing: 0; color: var(--muted); margin-left: 4px; }
+  .pc .v.none { font-family: var(--font-ui); font-size: 11px; color: var(--muted); }
+  .pc .v.near { color: var(--down); font-weight: 600; }
+  .pc-foot { margin-top: auto; padding-top: 8px; font-size: 10px; color: var(--muted);
+             line-height: 1.3; min-height: 13px; }
+
+  /* A marketed product: what it earns, then how long it is protected. */
+  .pc-rev, .pc-loe, .pc-next { display: flex; flex-wrap: wrap; align-items: baseline;
+                                column-gap: 7px; }
+  .pc-rev .k, .pc-loe .k, .pc-next .k { flex: 0 0 100%; }
+  .pc-rev .g { font-family: var(--font-mono); font-size: 10.5px; }
+  .pc-rev .g.up { color: var(--up); }
+  .pc-rev .g.dn { color: var(--down); }
+  .pc-rev .sh { font-size: 10px; color: var(--muted); }
+  /* A column a year, on the product's own scale: the shape of its growth, not its size
+     against another product's. The latest year is the one in the text colour. */
+  .pc-hist { margin-left: auto; align-self: flex-end; display: inline-flex;
+             align-items: flex-end; gap: 2px; height: 22px; }
+  .pc-hist i { display: block; width: 6px; background: var(--rule-strong); }
+  .pc-hist i.now { background: var(--text); }
+  .pc-loe { margin-top: 8px; }
+  /* Years left, on fifteen. The fill is the book's colour: orange for a small molecule,
+     whose patents the Orange Book lists, violet for a biologic, whose exclusivity the
+     Purple Book does. Solid to the earliest patent and lighter to the latest where there
+     is a window between them. Red inside three years, as the date beside it is. */
+  .pc-run { flex: 1 1 60px; min-width: 60px; align-self: center; position: relative;
+            height: 5px; background: var(--rule); }
+  .pc-run i { position: absolute; top: 0; bottom: 0; }
+  .pc-run .f { left: 0; background: var(--muted); }
+  .pc-run.small .f, .pc-run.small .w { background: var(--orange-book); }
+  .pc-run.bio .f, .pc-run.bio .w { background: var(--purple-book); }
+  .pc-run .w { opacity: 0.4; }
+  .pc-run.near .f, .pc-run.near .w { background: var(--down); }
+  .pc-note { font-size: 9.5px; color: var(--muted); line-height: 1.3; margin-top: 3px;
+             overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2;
+             -webkit-box-orient: vertical; }
+
+  /* A compound: how far it has come, what happens next, what the book makes of it. Four
+     squares on a line. A step reached is filled, the one a seamless study is running
+     into is half filled, and one not reached is an outline. */
+  .pc-track { display: flex; align-items: flex-start; margin: 0 0 9px; max-width: 190px; }
+  .pc-track .n { flex: 0 0 auto; width: 22px; display: flex; flex-direction: column;
+                 align-items: center; }
+  .pc-track .n i { display: block; width: 9px; height: 9px; box-sizing: border-box;
+                   border: 1px solid var(--rule-strong); }
+  .pc-track .n.on i { background: var(--text); border-color: var(--text); }
+  .pc-track .n.half i { border-color: var(--text);
+                        background: linear-gradient(90deg, var(--text) 50%, transparent 50%); }
+  .pc-track .n b { font-size: 8.5px; font-weight: 500; letter-spacing: 0.05em;
+                   color: var(--muted); margin-top: 3px; }
+  .pc-track .n.on b, .pc-track .n.half b { color: var(--text); }
+  .pc-track .l { flex: 1 1 auto; height: 1px; margin-top: 4px; background: var(--rule-strong); }
+  .pc-track .l.on, .pc-track .l.half { background: var(--text); }
+  /* A stage that is words and not a step: a Phase 4, or what a filing says. */
+  .pc-stage { font-size: 11px; color: var(--text); margin: 0 0 9px; line-height: 1.3; }
+  .pc-next .far { font-size: 10px; color: var(--muted); }
+  /* A date that has passed with nothing on file is a date to go and check. */
+  .pc-next .far.late { color: var(--flag); }
+  .pc-fs { display: flex; gap: 20px; margin-top: 8px; }
+  .pc-f { display: flex; flex-direction: column; }
+
   /* Where the FDA says the product stands, shown only when that is not "on sale": the
      expected state on a marketed card is selling, and a chip on all 448 of them would
      be noise rather than an answer. */
