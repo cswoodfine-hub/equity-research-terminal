@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Biogen's release feed as the 2026-10-02 run read it, rebuilt from the rows the news
+     table holds (title, link, date) in the shape the feed is served in. That run began
+     at 12:15 UTC, before the day's own release was out, so the newest item is the
+     EMPAVELI paper of 2026-09-17. The time of day is not stored, so every item is
+     stamped 00:00:00 +0000, and the description the live feed carries is left out
+     because no row kept it. -->
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" version="2.0" xml:base="https://investors.biogen.com/">
+  <channel>
+    <title>Biogen News Releases</title>
+    <link>https://investors.biogen.com/</link>
+    <language>en</language>
+    <item>
+      <title>Phase 3 Pediatric EMPAVELI Data Published in Clinical Journal of the American Society of Nephrology Show Reduction in Proteinuria and Stabilized Kidney Function in Adolescents with C3G or Primary IC-MPGN</title>
+      <link>https://investors.biogen.com/news-releases/news-release-details/phase-3-pediatric-empaveli-data-published-clinical-journal</link>
+      <pubDate>Thu, 17 Sep 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Biogen to Report Third Quarter 2026 Financial Results October 28, 2026</title>
+      <link>https://investors.biogen.com/news-releases/news-release-details/biogen-report-third-quarter-2026-financial-results-october-28</link>
+      <pubDate>Wed, 16 Sep 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>LEQEMBI® Pen (Subcutaneous Formulation of LEQEMBI®) Approved in Japan for the Treatment of Early Alzheimer’s Disease</title>
+      <link>https://investors.biogen.com/news-releases/news-release-details/leqembir-pen-subcutaneous-formulation-leqembir-approved-japan</link>
+      <pubDate>Wed, 16 Sep 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Stoke Therapeutics and Biogen Present Long-Term Clinical Data that Support the Disease-Modifying Potential of Zorevunersen, an Investigational Medicine for the Treatment of Dravet Syndrome, at the 16th European Epilepsy Congress (EEC)</title>
+      <link>https://investors.biogen.com/news-releases/news-release-details/stoke-therapeutics-and-biogen-present-long-term-clinical-data</link>
+      <pubDate>Thu, 03 Sep 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>LEQEMBI® (lecanemab) Subcutaneous Formulation as an Initiation Treatment for Early Alzheimer’s Disease Approved in China</title>
+      <link>https://investors.biogen.com/news-releases/news-release-details/leqembir-lecanemab-subcutaneous-formulation-initiation-treatment</link>
+      <pubDate>Thu, 03 Sep 2026 00:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

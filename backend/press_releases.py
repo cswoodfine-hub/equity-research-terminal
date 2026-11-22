@@ -342,12 +342,66 @@ def _held_under_another_url(conn, row) -> bool:
     return False
 
 
+def _already_a_change(conn, row) -> bool:
+    """Whether the change feed already holds this release, under this url or another.
+
+    News cannot answer that on its own. News is re-fetchable, so it is not in the history
+    export (history.HISTORY_TABLES), and a database rebuilt from that export starts with
+    the changes table whole and the news table empty. Every release still inside the
+    change window then takes its news insert again, and while that insert was the only
+    test, it was written to changes again as well. The scheduled run rebuilt that way
+    every day until it began restoring the published database on 2026-10-29: Biogen's
+    litifilimab readout of 2026-10-02 was reported on twenty separate days, and 1,574 of
+    the 1,724 press release rows written by then were repeats.
+
+    So the question is put to the table that travels. The key is the ticker and the url,
+    and a release whose key is there has been reported. A release read under a new url is
+    still the same release (BioMarin's moved from investors.biomarin.com to biomarin.com
+    on 2026-10-10 and was reported as new again under the second link), so a headline
+    already reported for the company counts too, by the rule news uses: the same letters
+    and digits, or one the opening of the other.
+
+    A headline match needs a bound, because "Announces Dividend" is a new release every
+    quarter. A change is never detected before its release is published, so an earlier
+    report of this headline can only be this release if it was detected on or after the
+    day this one is dated, less the days two routes may date one release apart.
+    """
+    prefix = f"{row['ticker']}|"
+    held = conn.execute(
+        "SELECT entity_key, new_value, date(detected_at) FROM changes"
+        " WHERE entity_type = 'company' AND field = 'press release'"
+        "   AND substr(entity_key, 1, ?) = ?", (len(prefix), prefix)).fetchall()
+    if any(key == prefix + row["url"] for key, _, _ in held):
+        return True
+    title = title_key(row["title"])
+    if not title or not row.get("published"):
+        return False
+    try:
+        earliest = (dt.date.fromisoformat(row["published"][:10])
+                    - dt.timedelta(days=SAME_RELEASE_DAYS)).isoformat()
+    except ValueError:
+        return False
+    for _, reported, detected in held:
+        if not detected or detected < earliest:
+            continue
+        other = title_key(reported)
+        if other == title:
+            return True
+        short, long_ = sorted((other, title), key=len)
+        if len(short) >= _PREFIX_MIN and long_.startswith(short):
+            return True
+    return False
+
+
 def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
     """Write releases to news, and the recent classified ones on to changes and
     catalysts. Returns (written, changed, catalysts).
 
-    The caller commits. Only the insert that takes decides anything, so a re-run over the
-    same feed reports nothing twice.
+    The caller commits. The news insert that takes decides what is new to news, and a
+    re-run over the same feed writes nothing twice there. It does not decide what is new
+    to the change feed or the calendar: both of those travel in the history export and
+    news does not, so each is asked whether it already holds the release before it is
+    given it (see ``_already_a_change``).
     """
     cutoff = ((today or dt.date.today())
               - dt.timedelta(days=CHANGE_WINDOW_DAYS)).isoformat()
@@ -364,7 +418,8 @@ def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
         written += 1
         if not row["kind"]:
             continue
-        if row["published"] and row["published"] >= cutoff:
+        if (row["published"] and row["published"] >= cutoff
+                and not _already_a_change(conn, row)):
             conn.execute(
                 "INSERT INTO changes (entity_type, entity_key, field, old_value,"
                 "  new_value, change_type, significance, refresh_run_id)"
@@ -373,7 +428,13 @@ def record(conn, rows, source: str, refresh_run_id=None, today=None) -> tuple:
                  change_type(row["kind"]), SIGNIFICANCE.get(row["kind"], "low"),
                  refresh_run_id))
             changed += 1
-        if row["ahead"] and row["stated_date"]:
+        # The calendar travels in the export as the change feed does, and a decision
+        # date stays ahead for months, well past the change window. A rebuilt database
+        # would write it once a day until the date came. The url is what the release
+        # was read at, so a row of this type citing it is this catalyst.
+        if row["ahead"] and row["stated_date"] and not conn.execute(
+                "SELECT 1 FROM catalysts WHERE source_url = ? AND catalyst_type = ?",
+                (row["url"], CATALYST_KINDS[row["kind"]])).fetchone():
             conn.execute(
                 "INSERT INTO catalysts (company_id, catalyst_type, expected_date,"
                 "  date_confidence, title, description, is_curated, source_url, status)"

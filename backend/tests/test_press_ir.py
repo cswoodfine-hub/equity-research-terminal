@@ -9,6 +9,8 @@ import datetime as dt
 import json
 import pathlib
 
+import pytest
+
 import db
 import press_releases as pr
 from fetchers.press_ir import PressIrFetcher
@@ -599,3 +601,161 @@ def test_a_headline_repeated_months_apart_is_two_releases(tmp_path):
     # Short headlines are matched whole, never on their opening alone.
     assert _record(path, "Bristol Myers Squibb Announces", "https://x.example/d3",
                    "2026-09-16") == 1
+
+
+# --- a release is a change once ----------------------------------------------
+
+# Biogen's feed as two consecutive runs read it (see the note at the head of each
+# fixture). The second holds one release the first did not, the litifilimab readout of
+# 2026-10-02, and that is the only thing the second day has to report.
+BIIB_DAY_1 = (FIXTURES / "ir_feed_biib_2026-10-02.xml").read_text()
+BIIB_DAY_2 = (FIXTURES / "ir_feed_biib_2026-10-03.xml").read_text()
+_BIIB = "BIIB|https://investors.biogen.com/news-releases/news-release-details/"
+EMPAVELI = _BIIB + "phase-3-pediatric-empaveli-data-published-clinical-journal"
+LITIFILIMAB = _BIIB + "biogens-litifilimab-demonstrates-rapid-and-durable-efficacy-new"
+
+# Taken before any test patches the clock, so a day below is a plain date and the
+# classes made from it do not stack on one another.
+_REAL_DATE = dt.date
+
+
+def _on(monkeypatch, year, month, day):
+    """Set the wall clock press_releases reads to one day."""
+    fixed = _REAL_DATE(year, month, day)
+
+    class _Day(_REAL_DATE):
+        @classmethod
+        def today(cls):
+            return fixed
+
+    monkeypatch.setattr(pr.dt, "date", _Day)
+
+
+def _biogen_run(path, monkeypatch, xml):
+    """One day's read of Biogen's feed into the database at ``path``."""
+    conn = db.get_connection(path)
+    conn.execute("INSERT OR IGNORE INTO companies (id, ticker, name, ir_rss_url)"
+                 " VALUES (1, 'BIIB', 'Biogen Inc', 'https://example.test/rss.xml')")
+    conn.commit()
+    conn.close()
+    monkeypatch.setattr("fetchers.press_ir.urllib.request.urlopen",
+                        lambda *a, **k: _Response(xml))
+    fetcher = PressIrFetcher("BIIB", db_path=path)
+    fetcher.force = True        # the feed is read every day, whatever the TTL says
+    assert fetcher.run().errors == []
+
+
+def _press_changes(path):
+    return [c["entity_key"] for c in _rows(
+        path, "SELECT entity_key FROM changes WHERE field = 'press release' ORDER BY id")]
+
+
+def _next_day_database(tmp_path, first, how):
+    """The database the second day's run starts from, by each route the workflow takes.
+
+    Restored is yesterday's file carried over whole. Rebuilt is the history export loaded
+    into a new file, which is how every scheduled run began until 2026-10-29 and how one
+    still begins whenever the restore is refused: the changes table whole, and news,
+    which the export leaves out, empty.
+    """
+    if how == "restored":
+        return first
+    import history
+    history.export(first, tmp_path / "history")
+    second = str(tmp_path / "day2.db")
+    history.rebuild(second, tmp_path / "history")
+    assert _press_changes(second) == _press_changes(first)
+    assert _rows(second, "SELECT COUNT(*) c FROM news")[0]["c"] == 0
+    return second
+
+
+@pytest.mark.parametrize("how", ["restored", "rebuilt"])
+def test_a_release_is_a_change_on_the_first_day_and_not_the_next(tmp_path, monkeypatch, how):
+    """The EMPAVELI paper of 2026-09-17 was written to changes on seventeen days and the
+    litifilimab readout on twenty, because the only test of "already seen" was the news
+    table and a rebuilt database has none. A release is reported the day it is first
+    read, and the day after reports only what is new since."""
+    first = str(tmp_path / "day1.db")
+    db.init(first)
+    _on(monkeypatch, 2026, 10, 2)
+    _biogen_run(first, monkeypatch, BIIB_DAY_1)
+    assert _press_changes(first) == [EMPAVELI]
+
+    second = _next_day_database(tmp_path, first, how)
+    _on(monkeypatch, 2026, 10, 3)
+    _biogen_run(second, monkeypatch, BIIB_DAY_2)
+    assert _press_changes(second) == [EMPAVELI, LITIFILIMAB]
+    # And every release is in news again, which is what a rebuild is expected to cost.
+    assert (_rows(second, "SELECT COUNT(*) c FROM news")[0]["c"]
+            == len(pr.parse_feed(BIIB_DAY_2)))
+
+
+def _announce(path, ticker, title, url, published, today, detected=None):
+    """Record one classified release as the fetchers would, and return record's counts.
+    ``detected`` backdates the change it wrote, since the table stamps the wall clock."""
+    kind, ahead = pr.classify(title)
+    conn = db.get_connection(path)
+    cid = conn.execute("SELECT id FROM companies WHERE ticker = ?", (ticker,)).fetchone()[0]
+    rows = [{"company_id": cid, "ticker": ticker, "title": title, "url": url,
+             "published": published, "kind": kind, "ahead": ahead,
+             "stated_date": pr.stated_date(title, today=today) if ahead else None}]
+    counts = pr.record(conn, rows, "press_ir", today=today)
+    if detected:
+        conn.execute("UPDATE changes SET detected_at = ? WHERE entity_key = ?",
+                     (detected, f"{ticker}|{url}"))
+    conn.commit()
+    conn.close()
+    return counts
+
+
+def _forget_news(path):
+    """What a rebuild from history leaves of news: nothing."""
+    conn = db.get_connection(path)
+    conn.execute("DELETE FROM news")
+    conn.commit()
+    conn.close()
+
+
+def test_a_release_reported_under_its_old_link_is_not_reported_under_its_new_one(tmp_path):
+    """BioMarin's POMBILITI data was reported from investors.biomarin.com for a week and
+    then, from 2026-10-10, as new again from biomarin.com. News catches a moved link only
+    while it still holds the old row, and a rebuilt database does not."""
+    path = _company(tmp_path, "BMRN", "BioMarin Pharmaceutical Inc", "")
+    title = ("BioMarin Announces Five-Year Phase 3 Data for POMBILITI® (cipaglucosidase"
+             " alfa-atga) + OPFOLDA® (miglustat) at World Muscle Society Annual Congress")
+    today = dt.date(2026, 10, 10)
+    assert _announce(path, "BMRN", title, "https://investors.biomarin.com/news/pombiliti",
+                     "2026-10-02", today, detected="2026-10-03 11:29:55")[1] == 1
+    _forget_news(path)
+    written, changed, _ = _announce(
+        path, "BMRN", title.replace("®", ""), "https://www.biomarin.com/news/pombiliti",
+        "2026-10-02", today)
+    assert (written, changed) == (1, 0)
+
+
+def test_a_headline_reported_last_quarter_is_reported_again_this_quarter(tmp_path):
+    """The bound on a headline match. The June dividend was detected in June, before
+    September's was published, so it cannot be the same release."""
+    path = _company(tmp_path, "BMY", "Bristol-Myers Squibb Co", "")
+    title = "Bristol Myers Squibb Announces Dividend"
+    assert _announce(path, "BMY", title, "https://q4.example/d1", "2026-06-17",
+                     dt.date(2026, 6, 18), detected="2026-06-18 06:10:00")[1] == 1
+    _forget_news(path)
+    assert _announce(path, "BMY", title, "https://q4.example/d2", "2026-09-16",
+                     dt.date(2026, 9, 17))[1] == 1
+    # The same url is the same release however long ago it was reported.
+    _forget_news(path)
+    assert _announce(path, "BMY", title, "https://q4.example/d1", "2026-06-17",
+                     dt.date(2026, 6, 19))[1] == 0
+
+
+def test_a_decision_date_reaches_the_calendar_once(tmp_path):
+    """A PDUFA date stays ahead for months, so with no test but the news insert a
+    rebuilt database would have written the same catalyst every day until it came."""
+    path = _company(tmp_path, "AZN", "AstraZeneca PLC", "")
+    title = "FDA sets PDUFA date of 12 March 2027 for camizestrant"
+    url = "https://example.test/camizestrant-pdufa"
+    assert _announce(path, "AZN", title, url, "2026-10-01", dt.date(2026, 10, 2)) == (1, 1, 1)
+    _forget_news(path)
+    assert _announce(path, "AZN", title, url, "2026-10-01", dt.date(2026, 10, 3)) == (1, 0, 0)
+    assert _rows(path, "SELECT COUNT(*) c FROM catalysts")[0]["c"] == 1
