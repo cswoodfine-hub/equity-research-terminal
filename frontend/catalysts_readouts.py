@@ -39,7 +39,7 @@ import re
 import catalysts_view as CV
 from catalysts_view import MINUS, NO_DATA, esc, usd, pct, dm, dmy, mon
 
-REVISION = 3
+REVISION = 4
 
 # --------------------------------------------------------------------------- layout
 BAR_W = 300          # the bar column, drawn 1:1, its zero at the middle
@@ -174,9 +174,23 @@ def _gate_tip(g) -> str:
 
 
 # ------------------------------------------------------------------------- the rows
-def _when_event(e, d, month) -> tuple:
+def _two_dates(guided, registry_iso, tip) -> tuple:
+    """(cell markup, hover) for a readout the company has dated: its date over the
+    registry's, both labelled, so neither is read as the other."""
+    # The separator is for the places that print the cell on one line (the biggest moves,
+    # the calendar's hover); the list's own cell stacks the two and hides it.
+    return (f'<span class="co"><i>co.</i> {esc(CV.guided_period(guided, year=False))}</span>'
+            f'<u class="sp"> · </u>'
+            f'<span class="rg"><i>reg.</i> {esc(CV.registry_day(registry_iso, year=False))}</span>',
+            tip)
+
+
+def _when_event(e, d, month, today=None) -> tuple:
     """(cell markup, hover) for a calendar readout's date: the month alone where the
-    registry gives no day, "est." where the day is the registry's estimate."""
+    registry gives no day, "est." where the day is the registry's estimate, and both
+    dates where the company has given one of its own."""
+    if isinstance(e.get("guided"), dict):
+        return _two_dates(e["guided"], e.get("registry_date"), CV.both_dates(e, today))
     if month:
         return f'<i>in</i> {CV.MON[d.month - 1]}', f"{mon(d)}: the registry gives the month, not the day"
     if e.get("confidence") in (None, "estimated", "anticipated"):
@@ -187,6 +201,11 @@ def _when_event(e, d, month) -> tuple:
 def _when_gate(g, today) -> tuple:
     """(cell markup, hover) for a gate's own row: an overdue study's passed date, an FDA
     decision's floor, or the gate study's registry date."""
+    if g.get("guided") and g.get("d"):
+        cell, tip = _two_dates(g["guided"], g.get("registry_date"), CV.both_dates(g, today))
+        if g.get("due"):
+            tip = ("Past the company's own date with no result on file. " + tip)
+        return cell, tip
     if g.get("due") and g.get("d"):
         return mon(g["d"]), f"{CV.day_text(g)}: past the registry date, no result on file"
     if g.get("fl"):
@@ -206,12 +225,14 @@ def _when_gate(g, today) -> tuple:
 
 def _event_row(e, d, month, gate, today) -> dict:
     t = e.get("trial") or {}
-    when, tip = _when_event(e, d, month)
+    when, tip = _when_event(e, d, month, today)
     overdue = bool(gate and gate.get("due"))
     cond = (t.get("conditions") or [None])[0] if t.get("conditions") else None
     return {"kind": "event", "id": str(e.get("id")), "event": e, "gate": gate, "later": False,
             "group": GROUP_OVERDUE if overdue else _quarter(max(d, today)),
             "sort": _sort_key(max(d, today), month), "when": when, "when_tip": tip,
+            "guided": e.get("guided") if isinstance(e.get("guided"), dict) else None,
+            "registry_date": e.get("registry_date"),
             "drug": e.get("asset") or "unmatched", "ph": CV.phase_class(e.get("phase")),
             "ph_txt": _ev_phase(e), "ind": cond, "area": e.get("area") or NO_AREA,
             "n": t.get("enrollment"), "nct": e.get("nct")}
@@ -235,6 +256,7 @@ def _gate_row(g, today) -> dict:
     ind = t.get("indication") or (t.get("conditions") or t.get("indications") or [None])[0]
     return {"kind": "gate", "id": str(g["asset_id"]), "event": None, "gate": g, "later": later,
             "group": group, "sort": sort, "when": when, "when_tip": tip,
+            "guided": g.get("guided"), "registry_date": g.get("registry_date"),
             "drug": g.get("name") or "unmatched", "ph": g["ph"], "ph_txt": PHASE_TAG.get(g["ph"], ""),
             "ind": ind, "area": g.get("area") or NO_AREA, "n": t.get("enrollment"),
             "nct": t.get("nct_id")}
@@ -520,7 +542,7 @@ def row_html(r, sc) -> str:
     ph = (f'<i class="mk-ph {r["ph"]}">{esc(r["ph_txt"])}</i>' if r["ph_txt"]
           else f'<span class="mu">{NO_DATA}</span>')
     return (f'<div class="{cls}" {hit} data-area="{esc(r["area"])}" title="{esc(_row_tip(r))}">'
-            f'<span class="c-date m" title="{esc(r["when_tip"])}">{r["when"]}</span>'
+            f'<span class="c-date m{" two" if r.get("guided") else ""}" title="{esc(r["when_tip"])}">{r["when"]}</span>'
             f'<span class="c-drug" title="{esc(r["drug"])}"><b>{esc(r["drug"])}</b>{tag}</span>'
             f'<span class="c-ph">{ph}</span>{ind}'
             f'<span class="c-area"><em title="{esc(r["area"])}">{esc(area_tag(r["area"]) if r["area"] != NO_AREA else "no area")}</em></span>'
@@ -547,7 +569,10 @@ def _group_head(group, rows) -> str:
     stats = _group_stats(rows)
     n, k, gn, rk = stats["*"]
     if group == GROUP_OVERDUE:
-        sub = "past the registry date, no result on file"
+        # A readout the company dated is overdue only on the company's own date.
+        sub = ("past the registry date, or the company's own where it gave one, no result "
+               "on file" if any(r.get("guided") for r in rows)
+               else "past the registry date, no result on file")
     elif group == GROUP_LATER:
         sub = "priced gates past 24 months or undated, not in the totals"
     else:
@@ -711,6 +736,7 @@ DOMINANT = 0.5
 STRIP_GUTTER = 7.0                    # per cent of the strip kept for the overdue
 STRIP_END = 99.0                      # where the 24th month sits
 STRIP_GAP = 0.8                       # the least two marks stand apart, per cent
+STRIP_TAIL = 1.6                      # how far left of today a passed registry date is drawn
 STRIP_FLOOR = 0.012                   # the shortest stem a leg that is not nil is drawn
 # Where the line sits in the strip's height, as the share above it. It follows the data:
 # the largest pass against the largest miss. Half way was drawn first, and on Lilly, where
@@ -729,6 +755,13 @@ def when_full(r) -> str:
     heading that carries the year; a row standing on its own has to carry it itself. An
     overdue row says so and gives the date that passed."""
     g = r["gate"]
+    if r.get("guided"):
+        # Both dates, each named, the company's first: it is the one the row is filed
+        # under and the one overdue is judged on.
+        od = '<i class="od">overdue</i> ' if r["group"] == GROUP_OVERDUE else ""
+        return (f'<span class="co">{od}<i>company</i> {esc(CV.guided_period(r["guided"]))}</span>'
+                f'<u class="sp"> · </u>'
+                f'<span class="rg"><i>registry</i> {esc(CV.registry_day(r.get("registry_date")))}</span>')
     if r["group"] == GROUP_OVERDUE:
         d = g.get("d") if g else None
         return f'<i class="od">overdue</i> {mon(d)}' if d else '<i class="od">overdue</i>'
@@ -740,6 +773,11 @@ def when_full(r) -> str:
 def _when_words(r) -> str:
     """The same date as a clause of the lead sentence."""
     g = r["gate"]
+    if r.get("guided"):
+        late = "overdue on the company's own date of " if r["group"] == GROUP_OVERDUE else \
+            "dated by the company to "
+        return (f"{late}{CV.guided_period(r['guided'])}, by the registry to "
+                f"{CV.registry_day(r.get('registry_date'))}")
     if r["group"] == GROUP_OVERDUE:
         d = g.get("d") if g else None
         return f"overdue since {mon(d)}" if d else "overdue"
@@ -827,12 +865,15 @@ def lead_html(rows, t) -> str:
         else:
             out.append(f'The largest single move is {who}: {esc(tail(named))}.')
     rest = t["n_overdue"] - (1 if named is not None and named["group"] == GROUP_OVERDUE else 0)
+    which = ("registry date, or the company's own where it gave one,"
+             if any(r.get("guided") for r in rows if r["group"] == GROUP_OVERDUE)
+             else "registry date")
     if rest > 0 and rest == t["n_overdue"]:
         out.append(f'{CV._plural(rest, "readout")} {"is" if rest == 1 else "are"} past the '
-                   f'registry date with no result on file.')
+                   f'{which} with no result on file.')
     elif rest > 0:
         out.append(f'{CV._plural(rest, "other")} {"is" if rest == 1 else "are"} also past the '
-                   f'registry date with no result on file.')
+                   f'{which} with no result on file.')
     return f'<p class="cs-lead">{" ".join(out)}</p>'
 
 
@@ -856,7 +897,8 @@ def top_rows_html(rows, t) -> str:
                else f'<span>{NO_DATA}</span>')
         out.append(
             f'<a class="cs-row" data-gate="{g["asset_id"]}" title="{esc(_gate_tip(g))}">'
-            f'<span class="n m">{i}</span><span class="w m">{when_full(r)}</span>'
+            f'<span class="n m">{i}</span><span class="w m{" two" if r.get("guided") else ""}" '
+            f'title="{esc(r["when_tip"])}">{when_full(r)}</span>'
             f'<span class="d"><b>{esc(r["drug"])}</b><em>{ph}{ind}</em></span>'
             f'<span class="o">{oc}</span>'
             f'<span class="b">{bar_svg(g, sc, h=SUM_BAR_H, height=SUM_ROW_SVG_H)}</span></a>')
@@ -897,7 +939,8 @@ def next_rows_html(rows) -> str:
                else f'<span>{NO_DATA}</span>')
         out.append(
             f'<a class="cs-row np" data-ev="{esc(r["id"])}" title="{esc(_row_tip(r))}">'
-            f'<span class="n"></span><span class="w m">{when_full(r)}</span>'
+            f'<span class="n"></span><span class="w m{" two" if r.get("guided") else ""}" '
+            f'title="{esc(r["when_tip"])}">{when_full(r)}</span>'
             f'<span class="d"><b>{esc(r["drug"])}</b><em>{ph}{ind}</em></span>'
             f'<span class="y">no priced gate · {esc(why)}</span></a>')
     head = ('<div class="cs-th np"><span class="n"></span><span class="w">When</span>'
@@ -977,10 +1020,21 @@ def strip_html(rows, p) -> str:
             x = last + STRIP_GAP
         last = x = min(x, 99.6)
         placed.append((x, r))
-    marks, any_held = [], False
+    marks, any_held, tails = [], False, []
     for x, r in placed:
         g = r["gate"]
         n = rank.get(g["asset_id"])
+        # A mark stands on the company's date where it has given one. The registry's date
+        # is the open end of a dashed tail running back from it: left of today where it
+        # has passed, which is the case that used to read as overdue.
+        if r.get("guided") and r["group"] != GROUP_OVERDUE:
+            rd, rmonth = CV.day_or_month(r.get("registry_date"))
+            if rd is not None:
+                rd = rd.replace(day=15) if rmonth else rd
+                x0 = (_strip_x(rd, today) if rd >= today else STRIP_GUTTER - STRIP_TAIL)
+                if x - x0 > 0.4:
+                    tails.append(f'<i class="cs-rg" style="left:{x0:.2f}%;width:{x - x0:.2f}%" '
+                                 f'title="{esc(CV.both_dates(g, today))}"></i>')
         # The part of a miss that other Phase 3s hold is drawn pale, as the bars hatch it:
         # a stem all one red would say a lone miss takes the lot.
         held = (min(g["held_part"] / g["risk"], 1.0)
@@ -1020,6 +1074,10 @@ def strip_html(rows, p) -> str:
         cap = ""
     if any_held:
         cap += " The pale part of a miss is held while other Phase 3s run."
+    if tails:
+        cap += (" A dashed tail runs back from a mark on the company's date to the "
+                "registry's, which is the earlier of the two; overdue is judged on the "
+                "company's.")
     if unpriced and priced:
         cap += (f" The small ticks are the {CV._plural(len(unpriced), 'readout')} with no "
                 f"price move.")
@@ -1034,7 +1092,7 @@ def strip_html(rows, p) -> str:
             f'</span><span class="c">24 months from {dmy(today)}{mark_hint}'
             f'</span></div><div class="cs-plot{flat}" style="--ax:{axis:.3f}">'
             f'<i class="cs-now" style="left:{STRIP_GUTTER:.2f}%"></i>{"".join(lines)}'
-            f'<i class="cs-ax"></i>{ticks}{"".join(marks)}</div>'
+            f'<i class="cs-ax"></i>{ticks}{"".join(tails)}{"".join(marks)}</div>'
             f'<div class="cs-qs">{"".join(labels)}</div><div class="cs-cap">{esc(cap)}</div></div>')
 
 
@@ -1161,7 +1219,10 @@ def readout_card(p, ev_id) -> tuple:
     here = next((r for r in rows if r["kind"] == "event" and r["id"] == str(e.get("id"))), None)
     if here and here["gate"] is not None:     # a gate's own row opens the gate's dialog
         g = here["gate"]
-    when = (f"{mon(d)}, the registry gives the month" if month else
+    said = e.get("guided") if isinstance(e.get("guided"), dict) else None
+    when = (f"company's date {CV.guided_period(said)}, registry "
+            f"{CV.registry_day(e.get('registry_date'))}" if said else
+            f"{mon(d)}, the registry gives the month" if month else
             f"{dmy(d)}, the registry's estimate" if d and e.get("confidence") in (None, "estimated", "anticipated")
             else dmy(d) if d else NO_DATA)
     url = e.get("url") or (f"https://clinicaltrials.gov/study/{e['nct']}" if e.get("nct") else "")
@@ -1172,6 +1233,15 @@ def readout_card(p, ev_id) -> tuple:
     left = [CV._kv("Registry", reg), CV._kv("Status", esc(t.get("overall_status") or NO_DATA)),
             CV._kv("Patients", f"{n:,}" if n else NO_DATA), CV._kv("Conditions", esc(conds)),
             CV._kv("Started", dmy(t.get("start_date")) if CV._d(t.get("start_date")) else NO_DATA)]
+    if said:
+        src = CV.guided_source(said)
+        link = (f' · <a href="{esc(said.get("url"))}" target="_blank" rel="noopener" '
+                f'title="{esc(said.get("note") or "")}">{esc(src or "source")} ›</a>'
+                if said.get("url") else "")
+        left.append(CV._kv("Company's date", f'{esc(CV.guided_period(said))}{link}'))
+        left.append(CV._kv("Registry date", f'{esc(CV.registry_day(e.get("registry_date")))} · '
+                                            f'primary completion'))
+        left.append(CV._kv("Overdue", f'<span class="wrap">{esc(CV.OVERDUE_RULE)}</span>'))
     s = e.get("slip") or {}
     if s.get("old") and s.get("new") and s.get("days"):
         left.append(CV._kv("Date moved", f'{dmy(s["new"])} · was {dmy(s["old"])} · '
@@ -1201,7 +1271,7 @@ def readout_card(p, ev_id) -> tuple:
     ph = (f'<i class="mk-ph {CV.phase_class(e.get("phase"))}">{esc(_ev_phase(e))}</i>'
           if e.get("phase") else "")
     head = (f'<div class="rd-hd"><span class="rd-a">{esc(e.get("area") or NO_AREA)}</span>{ph}'
-            f'<span>{esc(when)}{", primary completion" if t else ""}</span>'
+            f'<span>{esc(when)}{", primary completion" if t and not said else ""}</span>'
             f'<span class="rd-np">no priced gate</span></div>')
     return (f'<div class="cx cx-dlg rd">{head}<div class="gd-2">'
             f'<div><div class="cx-dh2">The trial</div>{"".join(left)}</div>'

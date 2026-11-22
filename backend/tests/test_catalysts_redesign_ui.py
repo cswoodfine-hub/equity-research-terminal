@@ -1578,3 +1578,114 @@ def test_the_summary_is_shown_and_hidden_by_the_frame_and_never_without_it():
     assert 'page.setAttribute("data-on", view)' in frame
     assert 'page.getAttribute("data-view")' in frame
 
+
+
+# ------------------------------------------------- the company's date beside the registry's
+GUIDED_NOTE = "Topline data are expected in the fourth quarter of 2026."
+
+
+def _guided(p, asset_id=1826, date="2026-12-31", confidence="quarter"):
+    """The payload with one due gate given a company's date: AZD7798's study passed its
+    registry date on 2026-08-10 with no result on file."""
+    p = copy.deepcopy(p)
+    g = next(g for g in p["gates"] if g["asset_id"] == asset_id)
+    assert g["due"] and g["date"] == "2026-08-10"
+    said = {"date": date, "confidence": confidence, "url": "https://www.sec.gov/x.htm",
+            "note": GUIDED_NOTE}
+    today = dt.date.fromisoformat(p["today"])
+    g.update(registry_date=g["date"], date=date, guided=said,
+             due=dt.date.fromisoformat(date) < today)
+    return p, g
+
+
+def test_a_guided_gate_leaves_overdue_and_prints_both_dates_in_the_list(payload):
+    """The registry date passed in August; the company says the fourth quarter. The row is
+    filed under that quarter, not under Overdue, and its date cell names both."""
+    before = next(r for r in CR.readouts(payload) if r["gate"] and r["gate"]["asset_id"] == 1826)
+    assert before["group"] == CR.GROUP_OVERDUE
+    p, _g = _guided(payload)
+    rows = CR.readouts(p)
+    row = next(r for r in rows if r["gate"] and r["gate"]["asset_id"] == 1826)
+    assert row["group"] == (2026, 4)
+    assert _visible(row["when"]) == "co. Q4 · reg. 10 Aug"
+    assert CV.OVERDUE_RULE in row["when_tip"] and "sec.gov" in row["when_tip"]
+    assert "was 10 Aug 2026" in row["when_tip"]
+    listed = CR.row_html(row, CR.scale(rows))
+    assert 'class="c-date m two"' in listed
+    assert CR.totals(rows, p)["n_overdue"] == CR.totals(CR.readouts(payload), payload)["n_overdue"] - 1
+    _house_style(_visible(listed) + " " + row["when_tip"])
+
+
+def test_the_summary_row_the_lead_and_the_strip_carry_both_dates(payload):
+    p, _g = _guided(payload)
+    rows = CR.readouts(p)
+    row = next(r for r in rows if r["gate"] and r["gate"]["asset_id"] == 1826)
+    full = _visible(CR.when_full(row))
+    assert full == "company Q4 2026 · registry 10 Aug 2026"
+    words = CR._when_words(row)
+    assert words == "dated by the company to Q4 2026, by the registry to 10 Aug 2026"
+    strip = CR.strip_html(rows, p)
+    assert strip.count('class="cs-rg"') == 1
+    assert "dashed tail" in strip and "overdue is judged on the company's" in _visible(strip)
+    # The plain payload draws no tail and says nothing of one.
+    plain = CR.strip_html(CR.readouts(payload), payload)
+    assert "cs-rg" not in plain and "dashed tail" not in plain
+    _house_style(_visible(strip))
+
+
+def test_the_gates_card_names_both_dates_and_which_one_overdue_uses(payload):
+    p, _g = _guided(payload)
+    d = CV.dialog_parts(p, 1826)
+    dates = _visible(d["dates"])
+    assert "Company's date" in dates and "Q4 2026" in dates
+    assert "Registry date" in dates and "10 Aug 2026" in dates and "passed" in dates
+    assert CV.OVERDUE_RULE in dates
+    assert 'href="https://www.sec.gov/x.htm"' in d["dates"] and GUIDED_NOTE in d["dates"]
+    r = CV._gate(p, 1826)
+    svg = CV.dates_svg(r, CV._today(p))
+    assert 'class="co-ln"' in svg and "company Q4 2026" in svg and "registry 10 Aug" in svg
+    assert CV.date_text(r) == ("co. Q4 2026", "")
+    _house_style(dates)
+
+
+def test_once_the_companys_own_date_passes_the_readout_is_overdue_again(payload):
+    p, g = _guided(payload, date="2026-09-30", confidence="quarter")
+    assert g["due"] is True
+    rows = CR.readouts(p)
+    row = next(r for r in rows if r["gate"] and r["gate"]["asset_id"] == 1826)
+    assert row["group"] == CR.GROUP_OVERDUE
+    assert "overdue" in _visible(CR.when_full(row)) and "company Q3 2026" in _visible(CR.when_full(row))
+    assert row["when_tip"].startswith("Past the company's own date")
+    late = [r for r in rows if r["group"] == CR.GROUP_OVERDUE]
+    assert "or the company's own where it gave one" in _visible(CR._group_head(CR.GROUP_OVERDUE, late))
+    plain = [r for r in CR.readouts(payload) if r["group"] == CR.GROUP_OVERDUE]
+    assert "company" not in _visible(CR._group_head(CR.GROUP_OVERDUE, plain))
+    assert CV.date_text(CV._gate(p, 1826)) == ("co. Q3 2026", "due")
+
+
+def test_a_readout_on_no_priced_gate_shows_both_dates_on_its_row_and_card(payload):
+    p = copy.deepcopy(payload)
+    today = dt.date.fromisoformat(p["today"])
+    e = next(e for e in p["events"] if e.get("nct") and not e.get("priced")
+             and CV.day_or_month(e.get("date"))[0] and CV.day_or_month(e["date"])[0] > today)
+    e.update(registry_date="2026-09-27", date="2026-12-31", confidence="month",
+             guided={"date": "2026-12-31", "confidence": "month",
+                     "url": "https://www.sec.gov/y.htm", "note": GUIDED_NOTE})
+    row = next(r for r in CR.readouts(p) if r["kind"] == "event" and r["id"] == str(e["id"]))
+    assert "co." in row["when"] and "Dec" in row["when"] and "27 Sep" in row["when"]
+    card, _offer = CR.readout_card(p, e["id"])
+    seen = _visible(card)
+    assert "Company's date" in seen and "Dec 2026" in seen
+    assert "Registry date" in seen and "27 Sep 2026" in seen and CV.OVERDUE_RULE in seen
+    _house_style(seen)
+
+
+def test_a_companys_period_prints_as_the_period_it_named():
+    period = lambda d, c, **k: CV.guided_period({"date": d, "confidence": c}, **k)  # noqa: E731
+    assert period("2026-12-31", "month") == "Dec 2026"
+    assert period("2026-12-31", "quarter") == "Q4 2026"
+    assert period("2027-06-30", "half") == "H1 2027"
+    assert period("2027-12-31", "half", year=False) == "H2"
+    assert period("2027-03-10", "confirmed") == "10 Mar 2027"
+    assert CV.registry_day("2026-10") == "Oct 2026" and CV.registry_day("2026-09-27") == "27 Sep 2026"
+    assert CV.both_dates({"registry_date": "2026-09-27"}) == ""

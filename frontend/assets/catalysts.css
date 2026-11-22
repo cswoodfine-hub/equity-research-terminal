@@ -912,3 +912,25 @@ div[role="dialog"]:has(.cx-dlg) [data-baseweb="tab-panel"] { padding-top: 6px; }
   .cx .cs-row .b { grid-column: 2 / -1; }
   .cx .cs-sum .cs-more, .cx .cs-sum .cs-more.on { margin-left: 8px; }
 }
+
+/* The company's date beside the registry's (catalysts.guided_date, migration 110). The
+   company's is the one a row is filed under and the one overdue is judged on, so it
+   takes the cell's own weight; the registry's stands under it, muted, never dropped. */
+.cx .cr-row .c-date.two { display: flex; flex-direction: column; justify-content: center; gap: 1px; white-space: nowrap; line-height: 1.05; }
+.cx .sp { text-decoration: none; color: var(--muted); }
+.cx .cr-row .c-date.two .sp, .cx .cs-row .w.two .sp { display: none; }
+.cx .cr-row .c-date.two .co, .cx .cr-row .c-date.two .rg { overflow: hidden; text-overflow: ellipsis; }
+.cx .cr-row .c-date.two .rg { font-size: 9.5px; color: var(--muted); }
+.cx .cr-row .c-date.two .rg i { font-size: 9px; }
+.cx .cr-row:has(.c-date.two) { min-height: 30px; }
+.cx .cs-row .w.two { display: flex; flex-direction: column; justify-content: center; gap: 3px; white-space: nowrap; line-height: 1.1; }
+.cx .cs-row .w.two .co, .cx .cs-row .w.two .rg { overflow: hidden; text-overflow: ellipsis; }
+.cx .cs-row .w.two .rg { font-size: 11px; color: var(--muted); }
+.cx .cs-row .w.two .rg i { font-size: 10px; }
+/* On the strip the mark stands on the company's date; the registry's is the open end of
+   a dashed tail, left of today where it has passed. */
+.cx .cs-rg { position: absolute; top: var(--line); height: 0; border-top: 1px dashed var(--muted); pointer-events: auto; }
+.cx .cs-rg::before { content: ""; position: absolute; left: -3px; top: -4px; width: 5px; height: 5px; border: 1px solid var(--muted); border-radius: 50%; background: var(--ground); }
+.cx .dates .co-ln { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 2; }
+.cx .dates .st-co { fill: var(--ground); stroke: var(--phase-3); stroke-width: 1.5; }
+.cx .dates .st-co.p2 { stroke: var(--phase-2); }

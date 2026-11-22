@@ -174,6 +174,62 @@ def dm(x) -> str:
     return f"{x.day} {MON[x.month - 1]}" if x else NO_DATA
 
 
+# ------------------------------------------------- the company's date beside the registry's
+# Where a company has said when a readout comes, the page prints that date and the
+# registry's side by side and never one in place of the other. The sentence below is the
+# rule every view states where the two disagree.
+OVERDUE_RULE = ("Overdue is judged on the company's date: the registry dates the last "
+                "patient's primary measurement, the company dates the announcement.")
+
+
+def guided_period(guided, year=True) -> str:
+    """A company's date as the period it named: "Dec 2026", "Q4 2026", "H1 2027", or the
+    day where it gave one. The stored date is the last day of that period."""
+    d = _d((guided or {}).get("date"))
+    if d is None:
+        return NO_DATA
+    conf, yr = (guided or {}).get("confidence"), (f" {d.year}" if year else "")
+    if conf == "month":
+        return f"{MON[d.month - 1]}{yr}"
+    if conf == "quarter":
+        return f"Q{(d.month - 1) // 3 + 1}{yr}"
+    if conf == "half":
+        return f"H{1 if d.month <= 6 else 2}{yr}"
+    return dmy(d) if year else dm(d)
+
+
+def registry_day(iso, year=True) -> str:
+    """The registry's date as precise as it gives it: "27 Sep 2026" or "Oct 2026"."""
+    d, month = day_or_month(iso)
+    if d is None:
+        return NO_DATA
+    if month:
+        return mon(d) if year else MON[d.month - 1]
+    return dmy(d) if year else dm(d)
+
+
+def guided_source(guided) -> str:
+    """Where the company said it, as the host of the page."""
+    m = re.match(r"https?://(?:www\.)?([^/]+)", str((guided or {}).get("url") or ""))
+    return m.group(1) if m else ""
+
+
+def both_dates(x, today=None) -> str:
+    """One sentence with both dates and which of them overdue is judged on, for a gate or
+    an event that carries a company's date. "" where it carries none."""
+    guided = x.get("guided") if isinstance(x.get("guided"), dict) else None
+    if not guided:
+        return ""
+    reg = x.get("registry_date")
+    rd, _m = day_or_month(reg)
+    was = "was" if (rd and today and rd < today) else "is"
+    src = guided_source(guided)
+    return (f"The company dates this readout to {guided_period(guided)}"
+            + (f" ({src})" if src else "")
+            + (f"; the registry's primary completion {was} {registry_day(reg)}" if rd else "")
+            + f". {OVERDUE_RULE}")
+
+
 def ordinal(n: int) -> str:
     if 10 <= n % 100 <= 20:
         return f"{n}th"
@@ -246,8 +302,11 @@ def gate_rows(p) -> list:
         held = g.get("held") if isinstance(g.get("held"), dict) else {}
         held_ps = _num(held.get("per_share"))
         swing = (success - failure) if None not in (success, failure) else None
+        reg, regmonth = day_or_month(g.get("registry_date"))
+        guided = g.get("guided") if isinstance(g.get("guided"), dict) else None
         rows.append({**g, "ph": ph, "glabel": g.get("label") or label, "short": short,
                      "d": date, "dmonth": dmonth, "fl": floor, "grp": grp, "view": GROUPS[grp][1],
+                     "guided": guided, "reg": reg, "regmonth": regmonth,
                      "now": now, "success": success, "failure": failure, "swing": swing,
                      "held_ps": held_ps, "up": (success - now) if None not in (success, now) else None,
                      "priced": bool(g.get("stake"))})
@@ -277,6 +336,10 @@ def selected_gate(p, wanted):
 def date_text(r) -> tuple:
     """The date cell and its flag: an estimated registry date, an FDA floor, a due
     readout, or none on file."""
+    if r.get("guided") and r.get("d"):
+        # The company's date, marked as such; the registry's stands beside it wherever
+        # the cell has the room (both_dates is the sentence).
+        return f"co. {guided_period(r['guided'])}", "due" if r.get("due") else ""
     if r.get("due") and r.get("d"):
         return mon(r["d"]), "due"
     if r.get("fl"):
@@ -299,6 +362,10 @@ def miss_move(r) -> tuple:
 
 
 def _when_long(r) -> str:
+    if r.get("guided") and r.get("d"):
+        reg = f", registry {registry_day(r.get('registry_date'))}" if r.get("reg") else ""
+        tail = ", passed with no result on file" if r.get("due") else ""
+        return f"company's date {guided_period(r['guided'])}{reg}{tail}"
     if r.get("due") and r.get("d"):
         return f"due {day_text(r)}, no result on file"
     if r.get("fl"):
@@ -1469,6 +1536,11 @@ def dates_svg(r, today) -> str:
     lg = launch.get("gate") if isinstance(launch.get("gate"), dict) else {}
     move = r.get("move") or {}
     marks = [today] + [s[1] for s in st]
+    # The company's own date for the gate study, where it has given one: drawn beside
+    # the registry's, never in its place.
+    said = r.get("d") if r.get("guided") else None
+    if said:
+        marks.append(said)
     old, new = _d(move.get("old")), _d(move.get("new"))
     if old and new:
         marks += [old, new]
@@ -1533,7 +1605,17 @@ def dates_svg(r, today) -> str:
         o.append(f'<circle cx="{px(dd):.1f}" cy="{rs}" r="{rad:.1f}" class="{cls} {r["ph"]}">'
                  f'<title>{esc(tip)}</title></circle>')
     gate_st = [s for s in st if s[3] == "gate"]
-    if gate_st:
+    if gate_st and said and said != gate_st[0][1]:
+        _n, dd, n, _ = gate_st[0]
+        xr0, xs = px(dd), px(said)
+        mid = (xr0 + xs) / 2
+        anchor = "end" if mid > R - 110 else "start" if mid < L + 110 else "middle"
+        o.append(f'<line x1="{xr0:.1f}" x2="{xs:.1f}" y1="{rs}" y2="{rs}" class="co-ln"/>'
+                 f'<circle cx="{xs:.1f}" cy="{rs}" r="4" class="st-co {r["ph"]}">'
+                 f'<title>{esc(both_dates(r, today))}</title></circle>'
+                 f'<text x="{mid:.1f}" y="{rs + 16}" class="lab m" text-anchor="{anchor}">registry '
+                 f'{dm(dd)} · company {esc(guided_period(r["guided"]))}</text>')
+    elif gate_st:
         _n, dd, n, _ = gate_st[0]
         anchor = "end" if px(dd) > R - 70 else "start" if px(dd) < L + 70 else "middle"
         o.append(f'<text x="{px(dd):.1f}" y="{rs + 16}" class="lab m" text-anchor="{anchor}">gate '
@@ -2252,6 +2334,18 @@ def dialog_parts(p, gid, cost_html="", ladder_html="", studies_html="", can_reco
                                       f'<b class="{"dn-t" if move["days"] > 0 else "up-t"}">'
                                       f'{_plural(abs(move["days"]), "day")} {later}</b>, seen '
                                       f'{dmy(move.get("seen"))}'))
+    elif r.get("guided") and r.get("d"):
+        g_ = r["guided"]
+        src = guided_source(g_)
+        link = (f' · <a href="{esc(g_.get("url"))}" target="_blank" rel="noopener" '
+                f'title="{esc(g_.get("note") or "")}">{esc(src or "source")} ›</a>'
+                if g_.get("url") else "")
+        passed = r.get("reg") and r["reg"] < today
+        dates.append(_kv("Company's date", f'{esc(guided_period(g_))}{link}'
+                                           + (" · passed, no result on file" if r.get("due") else "")))
+        dates.append(_kv("Registry date", f'{esc(registry_day(r.get("registry_date")))} · primary '
+                                          f'completion{" · passed" if passed else ""}'))
+        dates.append(_kv("Overdue", f'<span class="wrap">{esc(OVERDUE_RULE)}</span>'))
     elif r.get("d"):
         dates.append(_kv("Gate date", f'{day_text(r)} · {esc(r.get("date_basis") or "registry")}'
                                       + (" · due, no result on file" if r.get("due") else "")))
