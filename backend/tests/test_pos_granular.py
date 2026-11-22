@@ -994,6 +994,88 @@ def test_a_miss_lands_where_the_held_note_said_whenever_it_is_recorded(tmp_path)
     conn.close()
 
 
+AE_OUTCOME = "Number of Participants With Treatment-Emergent Adverse Events (TEAEs)"
+EXTENSION = ("A Long-Term Extension Study to Learn More About the Safety of Etentamig",
+             AE_OUTCOME)
+LONG_TERM_SAFETY = ("A Study to Learn More About the Long-Term Safety of Etentamig",
+                    AE_OUTCOME)
+
+
+def _named(conn, nct, title, outcome):
+    """Give a seeded study the title and the primary outcome the registry would."""
+    conn.execute("UPDATE trials SET title = ?, primary_outcome = ? WHERE nct_id = ?",
+                 (title, outcome, nct))
+    conn.commit()
+
+
+def test_an_extension_and_a_long_term_safety_study_do_not_hold_a_miss(tmp_path):
+    """Litifilimab's case. The only other Phase 3s open after the gate study are a
+    long-term extension and a long-term safety study. Neither tests whether the drug
+    works, so a miss is not held, and once it is recorded the asset is negative: nil,
+    where the legs said it would be."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Active not recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Enrolling by invitation", "2029-06-26", 306, MYELOMA),
+        ("NCT3", "Phase 3", "Enrolling by invitation", "2032-05-03", 864, MYELOMA)))
+    _named(conn, "NCT2", *EXTENSION)
+    _named(conn, "NCT3", *LONG_TERM_SAFETY)
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    after_gate = PG.held_after(conn, 7, placement, "NCT1", "2026-12-01", TODAY,
+                               modelled_mesh=gathered["modelled_mesh"])
+    _readout(conn, "NCT1", "missed")
+    _, after = _placed(conn)
+    conn.close()
+    assert gate["trial"]["nct_id"] == "NCT1"
+    assert gate["held"] is None and after_gate is None
+    assert (after["stage"], after["pos"]) == ("negative", 0.0)
+    assert "no Phase 3 remains open" in after["evidence"]
+
+
+def test_a_study_of_efficacy_still_holds_beside_an_extension(tmp_path):
+    """Only the studies that could carry the programme are counted: the note names one
+    other Phase 3 where the registry lists three, and a recorded miss lands on the same
+    point with the same count."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 400, FOLLICULAR),
+        ("NCT3", "Phase 3", "Enrolling by invitation", "2031-01-01", 1200, MYELOMA),
+        ("NCT4", "Phase 3", "Recruiting", "2030-01-01", 300, MYELOMA)))
+    _named(conn, "NCT3", *EXTENSION)
+    _named(conn, "NCT4", *LONG_TERM_SAFETY)
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    _readout(conn, "NCT1", "missed")
+    _, after = _placed(conn)
+    conn.close()
+    held = gate["held"]
+    assert held["open"] == 1 and held["ncts"] == ["NCT2"]
+    assert held["note"] == PG.held_note(1, held["pos"])
+    assert after["stage"] == "mixed" and after["pos"] == held["pos"]
+    assert "1 Phase 3 still listed open" in after["evidence"]
+    assert "the largest NCT2" in after["evidence"], "not the larger extension, NCT3"
+
+
+def test_a_title_or_an_outcome_that_only_resembles_one_is_still_counted(tmp_path):
+    """The three near misses the book carries: a long-term study of efficacy, a study
+    whose first outcome is its safety run-in, and a study the registry gives no outcome
+    for. Each could still carry the programme and each holds."""
+    conn = _gate_seed(tmp_path, trials=(
+        ("NCT1", "Phase 3", "Recruiting", "2026-12-01", 900, MYELOMA),
+        ("NCT2", "Phase 3", "Recruiting", "2029-01-01", 400, MYELOMA),
+        ("NCT3", "Phase 3", "Recruiting", "2030-01-01", 300, MYELOMA),
+        ("NCT4", "Phase 3", "Recruiting", "2031-01-01", 200, MYELOMA)))
+    _named(conn, "NCT2", "A Research Study to Look Into the Long-term Effect of Etentamig",
+           "Progression-free survival")
+    _named(conn, "NCT3", "A Study of Etentamig Plus Pomalidomide Versus Standard Therapies",
+           "Safety Run-In: Number of Participants With Adverse Events (AE)s")
+    _named(conn, "NCT4", LONG_TERM_SAFETY[0], None)
+    gathered, placement = _placed(conn)
+    gate = PG.next_gate(conn, 7, placement, gathered["modelled_mesh"], TODAY)
+    conn.close()
+    assert sorted(gate["held"]["ncts"]) == ["NCT2", "NCT3", "NCT4"]
+
+
 def test_accepting_a_resolved_readout_later_does_not_move_its_date(tmp_path):
     """The evidence is dated the day the outcome was recorded. The accept route rewrote
     updated_at on any derived row, which moved a recorded miss forward, changed the cite

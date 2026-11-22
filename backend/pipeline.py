@@ -12,6 +12,7 @@ import json
 import re
 
 import db
+import extension_studies
 import therapeutic_areas
 from fetchers.trials_ctgov import PHASES
 
@@ -21,26 +22,10 @@ _PLACEHOLDERS = ",".join("?" * len(PHASES))
 POST_APPROVAL = "Phase 4"
 
 # Long-term follow-up, extension and rollover studies carry a development phase in the
-# registry (Casgevy's follow-up is filed as Phase 3), so they sit inside the pipeline
-# counts though they are lifecycle work on a product already in or past development, not
-# new development. They are recognised by the standard titling the registry uses. This is
-# a title heuristic, not a registry field: it errs toward the unmistakable phrasings.
-_FOLLOW_UP_RE = re.compile(
-    r"long[- ]term follow[- ]?up"
-    r"|long[- ]term extension"
-    r"|open[- ]label extension"
-    r"|\bextension (study|trial|phase|of)\b"
-    r"|\broll[- ]?over\b"
-    r"|follow[- ]up (study|trial|of|gene|safety)"
-    r"|safety follow[- ]up",
-    re.I,
-)
-
-
-def is_follow_up(title: str | None) -> bool:
-    """True when a trial title marks it as a long-term follow-up, extension or rollover
-    study. Pure, so the same rule serves the per-trial flag and the pipeline counts."""
-    return bool(title and _FOLLOW_UP_RE.search(title))
+# registry, so they sit inside the pipeline counts though they are lifecycle work. The
+# title rule that recognises them is extension_studies.is_follow_up, kept there since the
+# forecast's hold reads it too; the name stays importable from here.
+is_follow_up = extension_studies.is_follow_up
 
 
 # A programme its company has stopped is not in development, whatever the registry still

@@ -13,6 +13,7 @@ import pytest
 
 import assumptions
 import db
+import extension_studies
 import forecast
 import pos_granular as PG
 
@@ -130,3 +131,54 @@ def test_a_stated_probability_is_never_published_odds(placed):
         else:
             assert force["pos_now"] < force["pos_success"] - PG.STATED_PAST_GATE \
                 or force["gate"] == "nda_to_approval", row["id"]
+
+
+# --- what holds a miss ---------------------------------------------------------------
+
+# Litifilimab's long-term safety study in systemic lupus and its long-term extension in
+# cutaneous lupus: the two studies that held it at 61% after a miss on 2026-11-22.
+LITIFILIMAB_EXTENSIONS = ("NCT05352919", "NCT06044337")
+
+
+def _held_ncts(asset: dict) -> set:
+    return {nct for legs in (asset["own"], asset["force"])
+            for nct in ((legs or {}).get("held") or {}).get("ncts") or []}
+
+
+def test_no_extension_or_long_term_safety_study_holds_a_miss(placed):
+    """Every study a held note counts is one that could still carry the programme. An
+    extension, a rollover or a long-term safety study is filed as Phase 3 and tests no
+    efficacy, so none may be among them (pos_granular.still_asking)."""
+    counted = sorted({nct for a in placed for nct in _held_ncts(a)})
+    conn = db.get_connection()
+    try:
+        marks = ",".join("?" * len(counted))
+        rows = conn.execute(f"SELECT nct_id, title, primary_outcome FROM trials"
+                            f" WHERE nct_id IN ({marks})", counted).fetchall()
+    finally:
+        conn.close()
+    assert len(rows) == len(counted), "a held note counts a study the registry lacks"
+    wrong = [r["nct_id"] for r in rows
+             if extension_studies.cannot_carry(r["title"], r["primary_outcome"])]
+    assert wrong == []
+
+
+def test_litifilimabs_two_extensions_no_longer_hold_it(placed):
+    """The case the rule was written on. Skipped where the book does not carry both
+    studies on one placed asset: nothing is then held by them to check."""
+    conn = db.get_connection()
+    try:
+        marks = ",".join("?" * len(LITIFILIMAB_EXTENSIONS))
+        rows = conn.execute(f"SELECT asset_id, title, primary_outcome FROM trials"
+                            f" WHERE nct_id IN ({marks})", LITIFILIMAB_EXTENSIONS).fetchall()
+    finally:
+        conn.close()
+    owners = {r["asset_id"] for r in rows}
+    if len(rows) != len(LITIFILIMAB_EXTENSIONS) or len(owners) != 1:
+        pytest.skip("litifilimab's two extension studies are not on one asset in this book")
+    asset = next((a for a in placed if a["id"] in owners), None)
+    if asset is None:
+        pytest.skip("litifilimab is not placed at a Phase 2 or 3 gate in this book")
+    for r in rows:
+        assert extension_studies.cannot_carry(r["title"], r["primary_outcome"]), r["title"]
+    assert not _held_ncts(asset) & set(LITIFILIMAB_EXTENSIONS)

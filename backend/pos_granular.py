@@ -60,6 +60,7 @@ import re
 
 import engines
 import epidemiology
+import extension_studies
 import fx
 import indication_mapping
 import productivity
@@ -100,7 +101,8 @@ STATED_PAST_GATE = 1e-3
 MIN_N = 50
 
 # A Phase 3 that is still open when another has read out negative. The negative is
-# one trial's answer and these are the others still asking.
+# one trial's answer and these are the others still asking. Open on the registry is not
+# enough to be asking: see still_asking.
 OPEN_STATUSES = ("Recruiting", "Active not recruiting", "Not yet recruiting",
                  "Enrolling by invitation")
 
@@ -259,6 +261,25 @@ def answered(conn, asset_id: int, modelled_mesh) -> set:
     return {r["nct_id"] for r in _resolved_readouts(conn, asset_id, modelled_mesh)}
 
 
+def still_asking(title: str | None, primary_outcome: str | None) -> bool:
+    """Whether an open Phase 3 could still carry the programme after another has missed:
+    the one test of it, for stage_of's mixed rule and for the held note that says
+    beforehand what that rule will do.
+
+    False for an extension, a rollover, a long-term follow-up and a long-term safety
+    study (extension_studies.cannot_carry). They are filed as Phase 3 and stay open for
+    years, and none of them tests whether the drug works: an extension keeps treating the
+    people who finished the parent study, and a safety study counts adverse events. On
+    2026-11-22 litifilimab was held at 61% after a miss by two of them, NCT05352919 and
+    NCT06044337, with every study of its efficacy already past primary completion.
+
+    Read from the title, with the primary outcome as the check on the looser titles. The
+    registry has no field that says a study is an extension; extension_studies sets out
+    which fields were tried and why each falls short. A study it does not recognise
+    counts as asking, as every open Phase 3 did before."""
+    return not extension_studies.cannot_carry(title, primary_outcome)
+
+
 def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
              lead_indication_id=None, modelled_mesh=None) -> dict:
     """Where the asset stands, from the trials and readouts on file.
@@ -277,7 +298,7 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
     today = today_date.isoformat()
     p3 = [dict(r) for r in conn.execute(
         """SELECT nct_id, overall_status, primary_completion_date, enrollment, design,
-                  title FROM trials
+                  title, primary_outcome FROM trials
             WHERE asset_id = ? AND phase LIKE '%3%'
               AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
             ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id,))]
@@ -363,11 +384,15 @@ def stage_of(conn, asset_id: int, company_id: int, names: list, today=None,
         # futility stop, say) lands where the held note said it would: a study due to
         # complete before the gate study was is not counted as still asking, as the
         # note did not count it.
+        # Nor is an extension or a long-term safety study (still_asking), which the
+        # note leaves out by the same test: with only those left open the programme has
+        # no study that could reverse the miss, and it is negative.
         since = max(filter(None, (negative["event_date"], negative.get("completion"))),
                     default="")
         remaining = [t for t in p3 if t["overall_status"] in OPEN_STATUSES
                      and t["nct_id"] not in done
-                     and (t["primary_completion_date"] or "9999") > since]
+                     and (t["primary_completion_date"] or "9999") > since
+                     and still_asking(t["title"], t["primary_outcome"])]
         if remaining:
             return {"stage": "mixed", "gate": None, "pivotal": remaining[0],
                     "evidence": f"one Phase 3 read out negative {cite(negative)} with "
@@ -838,7 +863,7 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set, skip: set) -> list:
     out = []
     for r in conn.execute(
             f"""SELECT nct_id, phase, overall_status, primary_completion_date, enrollment,
-                       conditions, mesh_terms, title FROM trials
+                       conditions, mesh_terms, title, primary_outcome FROM trials
                  WHERE asset_id = ? AND phase IN ({marks})
                    AND COALESCE(overall_status, '') NOT IN ('Withdrawn')
                  ORDER BY COALESCE(enrollment, 0) DESC""", (asset_id, *phases)):
@@ -850,6 +875,7 @@ def _trials(conn, asset_id: int, phases: tuple, mesh: set, skip: set) -> list:
                     "status": r["overall_status"],
                     "primary_completion": r["primary_completion_date"],
                     "enrollment": r["enrollment"], "title": r["title"],
+                    "primary_outcome": r["primary_outcome"],
                     "indications": [t["term"] for t in found],
                     "mesh_on_file": bool(browse["meshes"]),
                     "modelled": bool({t["id"] for t in found} & mesh)})
@@ -885,7 +911,10 @@ def _held(conn, asset_id: int, placement: dict, trial: dict, today: str,
           modelled_mesh) -> dict | None:
     """What the model does after one miss at a Phase 3 gate while other Phase 3s stay
     open: stage_of's mixed rule, which counts every open Phase 3 completing after the
-    negative in any indication, and holds the asset at the capped mixed point.
+    negative in any indication, and holds the asset at the capped mixed point. Every
+    one that could still carry the programme, that is: an extension, a rollover or a
+    long-term safety study is not counted here or there (still_asking), so an asset
+    whose only other open Phase 3s are those is not held, and a miss takes it to nil.
 
     Counted from the gate study's own completion date, or today once that has passed.
     stage_of counts a recorded miss from the later of the day it was recorded and the
@@ -897,7 +926,8 @@ def _held(conn, asset_id: int, placement: dict, trial: dict, today: str,
     others = [t for t in _trials(conn, asset_id, _GATE_PHASES["p3_to_nda"], mesh,
                                  answered(conn, asset_id, mesh))
               if t["nct_id"] != trial["nct_id"] and t["status"] in OPEN_STATUSES
-              and (t["primary_completion"] or "9999") > after]
+              and (t["primary_completion"] or "9999") > after
+              and still_asking(t["title"], t["primary_outcome"])]
     if not others:
         return None
     # The same arithmetic resolve's mixed branch runs on the same chain and cuts: the
