@@ -19,7 +19,7 @@ import annotations as annotations_module
 import allocation as allocation_module
 import asof as asof_module
 import assumption_log
-import auto_resolve as auto_resolve_module
+import landed_readouts as landed_readouts_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
@@ -1080,22 +1080,42 @@ def company_catalysts_view(ticker: str):
     return JSONResponse(payload, headers=headers)
 
 
+@app.get("/companies/{ticker}/readout-reports")
 @app.get("/companies/{ticker}/resolve-proposals")
-def company_resolve_proposals(ticker: str, days: int = Query(default=45)) -> dict:
-    """Readouts in this company's news matched to the gates they decide.
+def company_readout_reports(ticker: str, days: int = Query(default=45)) -> dict:
+    """What has landed for this company, and what was reported and is held.
 
-    A proposal, never a decision. The same feed carries results, enrolment notices and
-    diary entries, so a headline is classified only where it names the outcome in the
-    words the industry uses, and every proposal says whether it matched the trial or
-    only the asset's name.
+    Two lists and never one. ``landed`` is every readout resolved met or missed in the
+    window, with the sentence and the page it was read from and what it did to the gate.
+    ``reported`` is what a source carried that the rules would not record: a study that
+    is certain with its outcome not stated in words a rule reads, or a result that names
+    no study the book holds. Nothing here is matched by an asset's name alone.
     """
-    return auto_resolve_module.proposals(None, ticker, days=days)
+    return landed_readouts_module.block(None, ticker, days=days)
 
 
+@app.get("/readout-reports")
 @app.get("/resolve-proposals")
-def universe_resolve_proposals(days: int = Query(default=45)) -> dict:
-    """The same, across every company the book models."""
-    return auto_resolve_module.proposals(None, None, days=days)
+def universe_readout_reports(days: int = Query(default=45)) -> dict:
+    """The same, across every company the book holds."""
+    return landed_readouts_module.block(None, None, days=days)
+
+
+class ReportIn(BaseModel):
+    outcome: str    # met | missed
+
+
+@app.post("/readout-reports/{report_id}/record")
+def record_readout_report(report_id: int, body: ReportIn) -> dict:
+    """A person says the outcome of a report the rules held with its study certain. It is
+    recorded as a hand-entered result is, on the day the report carries."""
+    try:
+        out = landed_readouts_module.record_report(None, report_id, body.outcome)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    if out is None:
+        raise HTTPException(status_code=404, detail=f"no report {report_id}")
+    return out
 
 
 class ResolveIn(BaseModel):

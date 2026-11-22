@@ -13008,11 +13008,12 @@ with main:
         # value at risk and to gain on its row, each row's full card a click away, the
         # gate's drawn with the Next gate block's own builders. Every other company keeps the tab below exactly, and so does this one
         # when the view's read fails.
-        # A readout in the news that may have landed on a gate this book carries, with
-        # both legs and what it would be worth. Above whichever catalyst view draws,
-        # because it is the one thing on the tab that may be hours old, and it renders
-        # nothing at all on the weeks there is nothing, which is most of them.
-        catalysts_page.proposals_block(api_base, ticker)
+        # The readouts that have landed, each tied to its study and recorded with its
+        # source, and beside them, as a different thing, what was reported and is held
+        # with why. Above whichever catalyst view draws, because it is the one thing on
+        # the tab that may be hours old, and it renders nothing at all on the weeks
+        # there is nothing, which is most of them.
+        catalysts_page.landed_block(api_base, ticker)
         drawn = (_catalysts_redesigned(ticker)
                  and catalysts_page.render(api_base, ticker, _CATALYSTS_KIT))
         if not drawn:

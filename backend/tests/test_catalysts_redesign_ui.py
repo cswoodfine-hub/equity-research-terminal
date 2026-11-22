@@ -868,7 +868,7 @@ def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
     calls = []
     page = types.SimpleNamespace(
         render=lambda api_base, t, kit: calls.append("redesign") or drawn,
-        proposals_block=lambda api_base, t: calls.append("proposals"))
+        landed_block=lambda api_base, t: calls.append("proposals"))
     space = {"ticker": ticker, "api_base": "http://api.invalid", "feed": [],
              "_catalysts_redesigned": switch["_catalysts_redesigned"],
              "catalysts_page": page, "_CATALYSTS_KIT": object(),
@@ -876,7 +876,7 @@ def test_every_other_company_keeps_todays_tab(switch, ticker, drawn, want):
     pick = _tab_block()[:3]
     exec(compile(ast.Module(body=pick, type_ignores=[]), str(APP), "exec"), space)
     # The proposals block draws first and for every company: which catalyst view wins is
-    # not its business, and a readout that may have landed is worth the same on either.
+    # not its business, and a readout that has landed is worth the same on either.
     assert calls == ["proposals"] + want
 
 

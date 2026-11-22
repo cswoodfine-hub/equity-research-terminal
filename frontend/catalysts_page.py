@@ -268,73 +268,104 @@ def _post_json(api_base: str, path: str, body: dict, timeout: int = 300) -> dict
         return json.loads(resp.read().decode("utf-8"))
 
 
-def proposals_block(api_base: str, ticker: str) -> None:
-    """Readouts in the news that may have landed on a gate this book carries.
+def landed_block(api_base: str, ticker: str) -> None:
+    """What has landed for this company, and what was reported and is held.
 
-    Drawn only where there is one. Most companies have none most weeks, and an empty
-    panel at the top of a tab that already has to fit a screen costs more than it says.
-    Where there is one, a binary event worth hundreds of millions may have resolved
-    overnight, which earns the room.
+    Two lists, and they are different things. A readout that has landed was tied to its
+    study by registry number or by the study's own name, its outcome is in the source's
+    words, and it is recorded: the row gives the sentence, the page and what it did to
+    the gate. A report that is held is one the rules would not record, with why: the
+    study is certain and no rule reads the outcome, or a result names no study the book
+    holds. Nothing is matched to a gate by an asset's name.
 
-    The confirm is offered only where the book will keep the resolution. A derived gate
-    is recomputed by the next refresh, so recording an outcome on one would be undone by
-    morning, and the row says that instead of offering a button that lies.
+    Drawn only where there is something to say. A held report whose study is certain
+    takes an outcome from the reader; one tied to no study cannot, and is settled in
+    data/set_aside_reports.csv or by naming the study in data/study_names.csv.
     """
     try:
         got = _get_json(
             api_base,
-            f"/companies/{urllib.parse.quote(ticker)}/resolve-proposals")
+            f"/companies/{urllib.parse.quote(ticker)}/readout-reports")
     except (urllib.error.URLError, OSError, ValueError):
         return
-    found = got.get("proposals") or []
-    if not found:
+    landed, reported = got.get("landed") or [], got.get("reported") or []
+    if landed:
+        st.markdown('<div class="sec"><span class="sec-label">Readouts landed</span>'
+                    f'<span class="sec-count">{len(landed)}</span></div>'
+                    + "".join(landed_html(x) for x in landed), unsafe_allow_html=True)
+    if not reported:
         return
-    st.markdown('<div class="sec"><span class="sec-label">Readouts that may have '
-                f'landed</span><span class="sec-count">{len(found)}</span></div>',
+    st.markdown('<div class="sec"><span class="sec-label">Reported, not recorded</span>'
+                f'<span class="sec-count">{len(reported)}</span></div>',
                 unsafe_allow_html=True)
-    for n, p in enumerate(found):
-        row, act = st.columns([7, 1], vertical_alignment="center")
+    for x in reported:
+        certain = x.get("state") == "outcome_not_read" and x.get("nct_id")
+        row, met, missed = st.columns([6, 1, 1], vertical_alignment="center")
         with row:
-            st.markdown(_proposal_html(p), unsafe_allow_html=True)
-        with act:
-            if not p.get("resolvable"):
-                continue
-            key = f"cx_prop_{ticker}_{p.get('catalyst_id')}_{n}"
-            if st.button(f"Record {p['outcome']}", key=key, width="stretch"):
-                try:
-                    st.session_state[f"cat_resolved_{ticker}"] = _post_json(
-                        api_base,
-                        f"/companies/{urllib.parse.quote(ticker)}/catalysts/"
-                        f"{p['catalyst_id']}/resolve", {"outcome": p["outcome"]})
-                except (urllib.error.URLError, OSError, ValueError) as exc:
-                    st.warning(f"The resolve did not go through: {exc}")
-                else:
-                    st.rerun()
+            st.markdown(reported_html(x), unsafe_allow_html=True)
+        if not certain:
+            continue
+        for col, outcome in ((met, "met"), (missed, "missed")):
+            with col:
+                if st.button(f"Record {outcome}", key=f"cx_rep_{ticker}_{x.get('id')}_{outcome}",
+                             width="stretch"):
+                    try:
+                        _post_json(api_base, f"/readout-reports/{x['id']}/record",
+                                   {"outcome": outcome})
+                    except (urllib.error.URLError, OSError, ValueError) as exc:
+                        st.warning(f"The outcome was not recorded: {exc}")
+                    else:
+                        _fetch_complete.clear()      # the book moved: read it again
+                        st.rerun()
 
 
-def _proposal_html(p: dict) -> str:
+def _study_words(x: dict) -> str:
+    """ "TroFuse-015 (NCT06356311)", the number alone, or nothing where no study is tied."""
+    name, nct = x.get("study"), x.get("nct_id")
+    return f"{name} ({nct})" if name and nct else (nct or "")
+
+
+def _source_link(x: dict) -> str:
+    url = str(x.get("url") or "")
+    if not url.startswith("http"):
+        return ""
+    host = urllib.parse.urlparse(url).netloc.replace("www.", "")
+    return f' <a href="{html.escape(url)}" target="_blank" rel="noopener">{html.escape(host)} ›</a>'
+
+
+def landed_html(x: dict) -> str:
+    """One readout that has landed: the asset and its study, the outcome and the day it
+    was announced, the sentence that states it with its page, and what it did to the gate."""
     esc = html.escape
-    pct = lambda v: f"{v:.0%}" if isinstance(v, (int, float)) else "?"
-    mm = lambda v: f"{v:,.0f}mm" if isinstance(v, (int, float)) else "?"
-    # A headline naming the registry number decides that trial. One naming only the
-    # asset says a company reported something about a product carrying an open gate,
-    # which is a weaker claim and is labelled as one.
-    strength = ("names the trial" if p.get("match") == "trial"
-                else "names the asset, not the trial")
-    far = p.get("days_to_gate")
-    when = f", gate {far} days out" if isinstance(far, int) else ""
-    tail = ("" if p.get("resolvable")
-            else f' <span class="u-tag">{esc(str(p.get("resolve_note") or "not recorded here"))}</span>')
-    link = (f' <a href="{esc(str(p["url"]))}" target="_blank">source</a>'
-            if p.get("url") else "")
+    said = "met its primary endpoint" if x.get("outcome") == "met" else "did not meet its primary endpoint"
+    how = ("entered by hand" if not x.get("automated") else
+           f"read from the source and tied to the study by its {x['tied_by']}"
+           if x.get("tied_by") else "read from the source")
+    effect = f' &nbsp;·&nbsp; {esc(str(x["effect"]))}' if x.get("effect") else ""
     return (
-        f'<div class="prop-lead"><b>{esc(str(p.get("asset_name")))}</b> '
-        f'{esc(str(p.get("outcome")))} &nbsp;·&nbsp; PoS {pct(p.get("pos_now"))} to '
-        f'{pct(p.get("pos_after"))} &nbsp;·&nbsp; rNPV {mm(p.get("rnpv_now"))} to '
-        f'{mm(p.get("rnpv_after"))}</div>'
-        f'<div class="byline">&ldquo;{esc(str(p.get("matched_words") or ""))}&rdquo; in: '
-        f'{esc(str(p.get("headline") or "")[:150])}{link}</div>'
-        f'<div class="byline">{esc(strength)}{esc(when)}{tail}</div>')
+        f'<div class="prop-lead"><b>{esc(str(x.get("asset") or "A study"))}</b> '
+        f'{esc(_study_words(x))} {esc(said)} &nbsp;·&nbsp; announced '
+        f'{esc(str(x.get("event_date") or ""))}</div>'
+        f'<div class="byline">&ldquo;{esc(str(x.get("sentence") or "")[:260])}&rdquo;'
+        f'{_source_link(x)}</div>'
+        f'<div class="byline">{esc(how)}{effect}</div>')
+
+
+def reported_html(x: dict) -> str:
+    """One report the rules held: what the source said, and why it is not recorded."""
+    esc = html.escape
+    kind = {"outcome_not_read": "study certain, outcome not read",
+            "not_tied": "tied to no study",
+            "awaiting_register": "approval reported, register not yet updated"}.get(
+                x.get("state"), "held")
+    study = _study_words(x)
+    who = esc(str(x.get("asset") or "")) + (f" {esc(study)}" if study else "")
+    return (
+        f'<div class="prop-lead"><b>{who or "A report"}</b> &nbsp;·&nbsp; {esc(kind)}'
+        f' &nbsp;·&nbsp; {esc(str(x.get("published_at") or ""))}</div>'
+        f'<div class="byline">&ldquo;{esc(str(x.get("sentence") or "")[:260])}&rdquo;'
+        f'{_source_link(x)}</div>'
+        f'<div class="byline">Not recorded because {esc(str(x.get("reason") or "no rule reads it"))}.</div>')
 
 
 def render(api_base: str, ticker: str, kit=None) -> bool:

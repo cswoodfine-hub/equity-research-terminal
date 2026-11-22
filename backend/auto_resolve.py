@@ -1,4 +1,14 @@
-"""A readout in the news, matched to the gate it decides, proposed for confirmation.
+"""The rules that read a press headline for an outcome, kept from the proposals block.
+
+``proposals`` matched a headline to every priced gate on an asset it named, and is gone:
+on 2026-11-22 it held 17 proposals from four headlines and none decided the gate it stood
+against. ``landed_readouts`` ties a report to a study by registry number or by the study's
+own name and records it, or holds it and says why. What stays here is what other modules
+read: the test for a headline that announces an event to come (``ANNOUNCEMENT``), the
+looser outcome words ``submissions`` follows (``classify``), and the press rows worth
+reading (``recent_press``). The account below is the block's original one.
+
+A readout in the news, matched to the gate it decides, proposed for confirmation.
 
 The loop the terminal was missing. A result lands on a company's press page, the fetcher
 files it, the diff engine writes a change row, and there it stopped: a human had to
@@ -147,71 +157,3 @@ def recent_press(conn, ticker: str | None, since: str) -> list[dict]:
                     "detected_at": r["detected_at"],
                     "significance": r["significance"]})
     return out
-
-
-def proposals(db_path=None, ticker: str | None = None, days: int = 45,
-              stakes_fn=None) -> dict:
-    """Readouts in the news matched to the gates they decide.
-
-    Every proposal carries the words that classified it, the gate it lands on, both legs
-    of that gate, and whether the book will take the resolution. A gate the refresh
-    recomputes is shown and not offered, because a resolution the next run overwrites is
-    worse than none.
-    """
-    if stakes_fn is None:
-        import forecast_view
-        stakes_fn = lambda t: forecast_view.catalyst_stakes(db_path, t)
-    since = (dt.datetime.now(dt.timezone.utc).date()
-             - dt.timedelta(days=days)).isoformat()
-    conn = db.get_connection(db_path)
-    try:
-        press = recent_press(conn, ticker, since)
-        resolved = {r["id"] for r in conn.execute(
-            "SELECT id FROM catalysts WHERE description LIKE '%| resolved%'")}
-    finally:
-        conn.close()
-    read, out = {}, []
-    for item in press:
-        outcome, words = classify(item["headline"])
-        if outcome is None:
-            continue
-        who = item["ticker"]
-        if who not in read:
-            try:
-                read[who] = stakes_fn(who) or {}
-            except Exception:                                       # noqa: BLE001
-                read[who] = {}
-        for gate in read[who].get("priced") or []:
-            if gate.get("id") in resolved:
-                continue
-            names = _names(gate)
-            if not names or not any(_mentions(item["headline"], n) for n in names):
-                continue
-            leg = "success" if outcome == "met" else "failure"
-            # Naming the registry number decides that trial. Naming the asset says a
-            # company reported something about a product carrying an open gate.
-            nct = (gate.get("gate_trial") or gate.get("trial") or "").strip()
-            matched_trial = bool(nct) and _mentions(item["headline"], nct)
-            out.append({
-                "match": "trial" if matched_trial else "asset",
-                "days_to_gate": _days_between(item["detected_at"],
-                                              gate.get("expected_date")),
-                "ticker": who, "catalyst_id": gate.get("id"),
-                "asset_id": gate.get("asset_id"), "asset_name": gate.get("asset_name"),
-                "gate": gate.get("gate"), "gate_label": gate.get("gate_label"),
-                "expected_date": gate.get("expected_date"),
-                "trial": gate.get("gate_trial") or gate.get("trial"),
-                "outcome": outcome, "matched_words": words,
-                "headline": item["headline"], "url": item["url"],
-                "kind": item["kind"], "detected_at": item["detected_at"],
-                "pos_now": gate.get("pos_now"),
-                "pos_after": gate.get(f"pos_{leg}"),
-                "per_share_now": gate.get("per_share"),
-                "rnpv_now": gate.get("rnpv_now"),
-                "rnpv_after": gate.get(f"rnpv_{leg}"),
-                "resolvable": bool(gate.get("resolvable")),
-                "resolve_note": gate.get("resolve_note"),
-            })
-    out.sort(key=lambda p: (p["detected_at"], p["catalyst_id"] or 0), reverse=True)
-    return {"ticker": (ticker or "").upper() or None, "days": days,
-            "read": len(press), "proposals": out}
