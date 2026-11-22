@@ -150,7 +150,7 @@ def _recent_changes(conn, days):
             # departure") that reads as a sentence once lowered. A press release stores
             # the company's own headline, where the case is carrying drug names, so it
             # is printed as written, and so is a daily pulse item, which is a sentence.
-            if (r["change_type"] or "").startswith(("press_", "pulse_")):
+            if (r["change_type"] or "").startswith(("press_", "pulse_", "readout_")):
                 headline = f"{ticker} {r['new_value']}"
             else:
                 headline = f"{ticker} {(r['new_value'] or '').lower()}"

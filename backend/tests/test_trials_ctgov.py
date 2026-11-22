@@ -185,3 +185,16 @@ def test_the_shipped_exclusions_name_a_basis_and_a_registry_record():
         assert r["nct_id"].startswith("NCT"), r
         assert "clinicaltrials.gov/study/" + r["nct_id"] in r["basis"], r["nct_id"]
         assert len(r["basis"]) > 80, r["nct_id"]
+
+
+def test_a_studys_own_name_is_kept_and_a_study_without_one_holds_none():
+    """A release names a study by the registry's acronym (TroFuse-015, VOLGA), and a
+    posted result is tied to its study by that name. The saved payload predates the
+    field, so the acronym is set on one study here as the registry returns it."""
+    from fetchers.trials_ctgov import FIELDS
+    assert "protocolSection.identificationModule.acronym" in FIELDS
+    payload = json.loads(FIXTURE.read_text())
+    payload["studies"][3]["protocolSection"]["identificationModule"]["acronym"] = " ATTAIN-2 "
+    rows = {r["nct_id"]: r for r in parse_studies(payload)}
+    assert rows["NCT06972472"]["acronym"] == "ATTAIN-2"
+    assert rows["NCT07545590"]["acronym"] is None

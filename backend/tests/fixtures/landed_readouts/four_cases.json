@@ -1,0 +1,30 @@
+{
+ "_about": "The four headlines the proposals block held on 2026-11-22, as the change feed carried them, with the book rows each was shown against. Headlines and URLs are verbatim from the book; trials are as the registry lists them.",
+ "companies": [[1, "MRK", "Merck"], [2, "AZN", "AstraZeneca"], [3, "GSK", "GSK"], [4, "VKTX", "Viking Therapeutics"]],
+ "assets": [[10, 1, "Sacituzumab Tirumotecan", null, "MK-2870", 0],
+            [20, 2, "Durvalumab", "Imfinzi", null, 1],
+            [30, 3, "Bepirovirsen Sodium", "Hibsago", null, 1],
+            [40, 4, "VK2735", null, "VK2735", 0]],
+ "trials": [["NCT06356311", 10, 1, "Phase 3", "Active not recruiting", "2026-10-19", "A Study to Evaluate Sacituzumab Tirumotecan (MK-2870) in Advanced/Metastatic Gastroesophageal Adenocarcinoma (MK-2870-015)"],
+            ["NCT06074588", 10, 1, "Phase 3", "Active not recruiting", "2027-05-10", "Sacituzumab Tirumotecan (MK-2870) Versus Chemotherapy in Previously Treated Advanced or Metastatic Nonsquamous Non-small Cell Lung Cancer"],
+            ["NCT04960709", 20, 2, "Phase 3", "Active not recruiting", "2026-03-02", "Treatment Combination of Durvalumab, Tremelimumab and Enfortumab Vedotin or Durvalumab and Enfortumab Vedotin in Patients With Muscle Invasive Bladder Cancer Ineligible to Cisplatin or Who Refuse Cisplatin"],
+            ["NCT04550260", 20, 2, "Phase 3", "Active not recruiting", "2027-06-30", "Study of Durvalumab Versus Placebo in Combination With Definitive Chemoradiation Therapy in Patient With ESCC"],
+            ["NCT06960577", 20, 2, "Phase 2", "Recruiting", "2028-08-30", "Perioperative Durvalumab With Neoadjuvant ddMVAC in Patients With Muscle-Invasive Bladder Cancer (NIAGARA-2)"],
+            ["NCT06537414", 30, 3, "Phase 2", "Active not recruiting", "2027-05-31", "A Study of Sequential Therapy With Daplusiran/Tomligisiran (DAP/TOM) Followed by Bepirovirsen in Participants Living With Chronic Hepatitis B (CHB)"],
+            ["NCT07104500", 40, 4, "Phase 3", "Active not recruiting", "2027-07-01", "VK2735 for Weight Management Phase 3"]],
+ "catalysts": [[1462, 1, 10, "2026-10-19", "pending", "NCT06356311"],
+               [434, 1, 10, "2027-05-10", "pending", "NCT06074588"],
+               [1328, 2, 20, "2026-03-02", "unknown", "NCT04960709"],
+               [293, 2, 20, "2027-06-30", "pending", "NCT04550260"],
+               [1204, 2, 20, "2028-08-30", "pending", "NCT06960577"],
+               [360, 3, 30, "2027-05-31", "pending", "NCT06537414"],
+               [932, 4, 40, "2027-07-01", "pending", "NCT07104500"]],
+ "approvals": [[20, "US", "FDA", "2017-05-01", "BLA761069"], [30, "US", "FDA", "2026-10-20", "NDA221276"]],
+ "supplements": [[20, "BLA761069", "59", "EFFICACY", "2026-11-13"], [20, "BLA761069", "53", "EFFICACY", "2026-05-28"]],
+ "press": [
+  ["MRK", "https://www.merck.com/news/merck-announces-trofuse-015-trial-evaluating-sacituzumab-tirumotecan-sac-tmt-met-primary-endpoint-of-overall-survival-os-in-third-line-or-later-locally-advanced-unresectable-or-metastatic-gastroes/", "Merck Announces TroFuse-015 Trial Evaluating Sacituzumab Tirumotecan (Sac-TMT) Met Primary Endpoint of Overall Survival (OS) in Third-Line or Later Locally Advanced Unresectable or Metastatic Gastroesophageal Adenocarcinoma", "press_data_readout", "2026-11-20", ["2026-11-21"]],
+  ["AZN", "https://www.astrazeneca.com/content/astraz/media-centre/press-releases/2026/imfinzi-ev-approve-in-us-in-bladder-cancer.html", "Perioperative Imfinzi approved in the US in novel regimen with neoadjuvant enfortumab vedotin for patients with muscle-invasive bladder cancer", "press_approval", "2026-11-13", ["2026-11-21"]],
+  ["GSK", "https://www.gsk.com/en-gb/media/press-releases/hibsago-bepirovirsen-approved-in-the-us-for-the-treatment-of-chronic-hepatitis-b-chb/", "Hibsago (bepirovirsen) approved in the US for the treatment of chronic hepatitis B (CHB)", "press_approval", "2026-10-20", ["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29"]],
+  ["VKTX", "https://ir.vikingtherapeutics.com/2026-09-22-Viking-Therapeutics-Announces-Positive-Topline-Results-from-Maintenance-Study-of-GLP-1-GIP-Agonist-VK2735-Demonstrating-the-Promise-of-Multiple-Maintenance-Dosing-Regimens", "Viking Therapeutics Announces Positive Topline Results from Maintenance Study of GLP-1/GIP Agonist VK2735 Demonstrating the Promise of Multiple Maintenance Dosing Regimens", "press_data_readout", null, ["2026-10-08", "2026-10-09", "2026-10-10", "2026-10-11", "2026-10-12"]]
+ ]
+}

@@ -101,6 +101,9 @@ def change_reason(change_type: str, old_value=None, new_value=None) -> Optional[
         return "CMS deselection, for review"
     if change_type == "payer_access":
         return f"Part D coverage moved {PAYER_ACCESS_POINTS:.0f} points or more"
+    # A posted result tied to its study and recorded (landed_readouts.py).
+    if change_type == "readout_landed":
+        return "readout landed"
     # A press release carries its kind in its type, e.g. press_data_readout. The rule
     # that flagged it is the company saying so, and the kind is what it said.
     if change_type.startswith("press_"):

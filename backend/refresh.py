@@ -41,6 +41,7 @@ import biologic_loe
 import catalysts
 import consensus as consensus_module
 import announced_readouts
+import landed_readouts
 import curated_catalysts
 import curated_register
 import discontinued
@@ -502,6 +503,16 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     trial_reads["reread"] = trial_readouts.reread(db_path)
     trial_reads["press"] = press_readouts.extract(db_path)
     trial_reads["registry"] = registry_readouts.extract(db_path)
+    # A posted result tied to its study by registry number or by the study's own name,
+    # with the outcome in the source's words, is recorded here without a click; the rest
+    # is kept on file with why. Before the resolver, so it finds those readouts closed.
+    # The names come from the registry, asked once a study; a registry that does not
+    # answer costs the names of that batch and nothing else.
+    try:
+        trial_reads["study_names"] = landed_readouts.fill_names(db_path)
+    except Exception as exc:  # noqa: BLE001
+        trial_reads["study_names"] = {"errors": [str(exc)]}
+    mapped["landed_readouts"] = landed_readouts.run(db_path, refresh_run_id=run_id)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
@@ -808,6 +819,16 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     trial_reads["reread"] = trial_readouts.reread(db_path)
     trial_reads["press"] = press_readouts.extract(db_path)
     trial_reads["registry"] = registry_readouts.extract(db_path)
+    # A posted result tied to its study by registry number or by the study's own name,
+    # with the outcome in the source's words, is recorded here without a click; the rest
+    # is kept on file with why. Before the resolver, so it finds those readouts closed.
+    # The names come from the registry, asked once a study; a registry that does not
+    # answer costs the names of that batch and nothing else.
+    try:
+        trial_reads["study_names"] = landed_readouts.fill_names(db_path)
+    except Exception as exc:  # noqa: BLE001
+        trial_reads["study_names"] = {"errors": [str(exc)]}
+    mapped["landed_readouts"] = landed_readouts.run(db_path, refresh_run_id=run_id)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces

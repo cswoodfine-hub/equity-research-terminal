@@ -42,6 +42,7 @@ SOURCE = "hand"
 BASIS = ("a result the company announced, entered by hand with the sentence that states "
          "it and the page it stands on")
 _NCT = re.compile(r"NCT\d{8}")
+CTGOV_URL = "https://clinicaltrials.gov/study/"
 
 
 def rows(path: Path | None = None) -> list[dict]:
@@ -71,6 +72,23 @@ def evidence(row: dict) -> str:
     return f"{row['source_url']}: {row['quote']}"
 
 
+def record(conn, catalyst_id: int, outcome: str, event_date: str, evidence: str,
+           basis: str = BASIS, source: str = SOURCE, automated: bool = False,
+           today: dt.date | None = None) -> None:
+    """Close one readout on the day its result was announced and write the resolution to
+    the ledger. The one path a result takes into the book, whether a person entered it
+    (this file) or the refresh read it and tied it to the study (landed_readouts.py)."""
+    today = today or dt.date.today()
+    conn.execute(
+        """INSERT OR IGNORE INTO catalyst_resolutions
+               (catalyst_id, outcome, event_date, resolved_at, source, evidence,
+                basis, automated, dedupe)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (catalyst_id, outcome, event_date, today.isoformat(), source, evidence, basis,
+         int(bool(automated)), evidence))
+    catalyst_outcomes._close(conn, catalyst_id, outcome, event_date, today)
+
+
 def load(conn, path: Path | None = None, today: dt.date | None = None) -> dict:
     """Close the readouts the file names. {"resolved", "held", "skipped"}."""
     today = today or dt.date.today()
@@ -89,11 +107,13 @@ def load(conn, path: Path | None = None, today: dt.date | None = None) -> dict:
         if company is None:
             skip(r, f"no company {r['ticker']}")
             continue
-        # A derived readout carries its trial's registry number as its description.
+        # A derived readout is its trial's registry page. The description carries the
+        # number too, until a resolve in the terminal appends its note to it.
         found = conn.execute(
             "SELECT id, company_id, status FROM catalysts"
-            " WHERE catalyst_type = 'data readout' AND description = ? ORDER BY id",
-            (r["nct_id"],)).fetchall()
+            " WHERE catalyst_type = 'data readout'"
+            "   AND (source_url = ? OR description = ?) ORDER BY id",
+            (CTGOV_URL + r["nct_id"], r["nct_id"])).fetchall()
         if not found:
             skip(r, f"no readout on the calendar for {r['nct_id']}")
             continue
@@ -106,14 +126,7 @@ def load(conn, path: Path | None = None, today: dt.date | None = None) -> dict:
             elif status in OUTCOMES:
                 skip(r, f"the book already holds {r['nct_id']} as {status}")
             else:
-                text = evidence(r)
-                conn.execute(
-                    """INSERT OR IGNORE INTO catalyst_resolutions
-                           (catalyst_id, outcome, event_date, resolved_at, source, evidence,
-                            basis, automated, dedupe)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)""",
-                    (cat["id"], r["outcome"], r["event_date"], today.isoformat(), SOURCE,
-                     text, BASIS, text))
-                catalyst_outcomes._close(conn, cat["id"], r["outcome"], r["event_date"], today)
+                record(conn, cat["id"], r["outcome"], r["event_date"], evidence(r),
+                       today=today)
                 out["resolved"] += 1
     return out

@@ -51,6 +51,9 @@ ACTIVE_STATUSES = [
 FIELDS = [
     "protocolSection.identificationModule.nctId",
     "protocolSection.identificationModule.briefTitle",
+    # The study's own name (TroFuse-015, VOLGA, TOPAZ-1). A release names a study by it,
+    # and a posted result is tied to a study by that name, never by the asset's.
+    "protocolSection.identificationModule.acronym",
     "protocolSection.statusModule.overallStatus",
     "protocolSection.statusModule.primaryCompletionDateStruct",
     "protocolSection.statusModule.completionDateStruct",
@@ -170,6 +173,7 @@ def parse_studies(payload: dict) -> list[dict]:
             {
                 "nct_id": ident.get("nctId"),
                 "title": ident.get("briefTitle"),
+                "acronym": (ident.get("acronym") or "").strip() or None,
                 "phase": phase,
                 "overall_status": _humanize_status(status.get("overallStatus")),
                 "primary_completion_date": _date(status.get("primaryCompletionDateStruct")),
@@ -524,9 +528,9 @@ class TrialsFetcher(BaseFetcher):
                          primary_completion_date, primary_completion_type,
                          completion_date, enrollment, conditions, mesh_terms,
                          last_update_posted, start_date, first_posted,
-                         lead_sponsor, primary_outcome, design,
+                         lead_sponsor, primary_outcome, design, acronym,
                          source, fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                             datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id=excluded.sponsor_company_id, title=excluded.title,
@@ -541,7 +545,9 @@ class TrialsFetcher(BaseFetcher):
                         first_posted=excluded.first_posted,
                         lead_sponsor=excluded.lead_sponsor,
                         primary_outcome=excluded.primary_outcome,
-                        design=excluded.design, fetched_at=datetime('now')
+                        design=excluded.design,
+                        acronym=COALESCE(excluded.acronym, trials.acronym),
+                        fetched_at=datetime('now')
                     """,
                     (
                         row["nct_id"], company_id, row["title"], row["phase"],
@@ -553,7 +559,7 @@ class TrialsFetcher(BaseFetcher):
                         row["last_update_posted"],
                         row.get("start_date"), row.get("first_posted"),
                         row.get("lead_sponsor"), row.get("primary_outcome"),
-                        row.get("design"), CTGOV_SOURCE,
+                        row.get("design"), row.get("acronym"), CTGOV_SOURCE,
                     ),
                 )
                 # The study drugs, replaced wholesale per trial so a dropped arm does not

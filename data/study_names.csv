@@ -1,0 +1,9 @@
+# Names a company uses for a study that the registry does not carry as its acronym
+# (read by backend/landed_readouts.py). The registry's own acronym is stored on the
+# trial (trials.acronym) and needs no row here. A posted result is tied to a study by
+# its registry number or by one of these names, never by the asset's name, so a row
+# here is what lets a release that says "FENhance 1" land on NCT04586010. Each row
+# carries the page that uses the name for that study.
+nct_id,name,source_url
+NCT04586010,FENhance 1,https://www.roche.com/media/releases/med-cor-2026-03-02
+NCT06012435,SigVie-002,https://www.stocktitan.net/news/PFE/pfizer-announces-topline-phase-3-results-for-sigvotatug-vedotin-in-l86q7ep7s339.html
