@@ -24,8 +24,10 @@ not drawn: it is a level and the band above it is flows, and one axis cannot hol
 One view is drawn at a time, chosen on the page, and after the three of them the same
 selector offers every line of the three statements on its own (``render_line``).
 
-A null is never drawn as zero. A period with no revenue has no column; a line the filer
-does not tag is left out of its stack and the rest absorbs it by name ("tax and other");
+A null is never drawn as zero. A period with no revenue has no column; a cost the filer
+does not tag is left out of its stack and a remainder absorbs it by name ("other
+operating" or "other costs" above the line the stack is split at, "tax and other" below
+it);
 a quarter's cash is worked out of the year-to-date figures a 10-Q prints, and where a
 figure in that chain is missing the quarter is left empty.
 
@@ -69,10 +71,25 @@ LEVEL_ROW = 20        # net debt, printed
 # The neutrals step from light at the foot of a stack to dark under what was kept. The
 # remainder used the hairline colour at first, which is two steps off the page's own
 # ground: the largest block of a Lilly quarter read as a gap in its column.
+#
+# There are two remainders, one above a line of the income statement and one below it.
+# One was drawn at first, named "Tax and other", and Vertex's quarter to June 2024
+# stood 4.5bn of it against 0.2bn of tax: an operating charge with no line of its own.
+# The line is operating income where the filer tags it, which 52 of the 60 companies
+# with quarterly revenue do. Lilly, Merck, Pfizer, J&J, Bristol and Biogen do not, and
+# are split at income before tax, so the upper remainder there holds interest as well
+# and is named for less. A period has one upper remainder or the other, never both,
+# which is why the two share a fill.
+#
+# The lower remainder is light again and breaks the ladder on purpose. A step darker
+# than the upper one, which is where the ladder put it, is the hairline's colour once
+# more, and on a Lilly quarter the tax read as a gap between the costs and the profit.
 COSTS = (("cogs", "Cost of sales", TK.MUTED, 1.0),
          ("rd", "R&D", TK.PURPLE_BOOK, 1.0),
          ("sga", "SG&A", TK.MUTED, 0.5),
-         ("other", "Tax and other", TK.RULE_STRONG, 1.0))
+         ("opex_other", "Other operating", TK.RULE_STRONG, 1.0),
+         ("pretax_other", "Other costs", TK.RULE_STRONG, 1.0),
+         ("other", "Tax and other", TK.MUTED, 0.75))
 USES = (("capex", "Capital expenditure", TK.MUTED, 1.0),
         ("acquisitions", "Acquisitions", TK.PURPLE_BOOK, 1.0),
         ("buybacks", "Buybacks", TK.MUTED, 0.5),
@@ -133,10 +150,24 @@ def _is_cumulative(periods: list) -> bool:
 def prepare(statements: dict, trend: list = None) -> dict:
     """The periods, oldest first, each with what the figure draws. Pure.
 
-    ``other`` is what is left of revenue after the three named costs and net income:
-    tax, interest, other operating lines and any cost the filer does not tag on its
-    own. It is a remainder and is named as one. Negative, the company had other income
-    larger than its tax, and no segment is drawn for it.
+    Two remainders, split at a line of the income statement, each named as one.
+
+    Where the filer tags operating income, ``opex_other`` is what is left of revenue
+    after the three named costs and operating income: operating costs with no line of
+    their own, a bought programme written off or a plant written down, and any of the
+    three the filer does not tag. ``other`` is then operating income less net income:
+    interest, tax and whatever else sits below the line.
+
+    Where it tags income before tax and not operating income, the split is there.
+    ``pretax_other`` is what is left after the named costs and income before tax, which
+    is the same operating costs and the interest and other income with them, and
+    ``other`` is income before tax less net income, which is the tax.
+
+    Where it tags neither there is nothing to split at, and ``other`` is everything
+    revenue left after the named costs and net income, as it was before the split.
+
+    Any of them can be negative: a gain booked in operations, or interest income larger
+    than the tax. No segment is drawn for a negative one.
     """
     income, cash, balance = (statements.get(k) or {} for k in ("income", "cashflow", "balance"))
     periods = income.get("periods") or []
@@ -154,7 +185,8 @@ def prepare(statements: dict, trend: list = None) -> dict:
     lines = {key: _line(income, name) for key, name in (
         ("revenue", "Revenues"), ("cogs", "CostOfRevenue"),
         ("rd", "ResearchAndDevelopmentExpense"),
-        ("sga", "SellingGeneralAndAdministrative"), ("net", "NetIncomeLoss"))}
+        ("sga", "SellingGeneralAndAdministrative"), ("operating", "OperatingIncomeLoss"),
+        ("pretax", "IncomeBeforeTax"), ("net", "NetIncomeLoss"))}
 
     def at(values, index):
         return values[index] if index is not None and index < len(values) else None
@@ -166,8 +198,16 @@ def prepare(statements: dict, trend: list = None) -> dict:
         for key, values in lines.items():
             row[key] = at(values, i)
         named = _plus(row["cogs"], row["rd"], row["sga"]) or 0.0
-        row["other"] = (row["revenue"] - named - row["net"]
-                        if row["revenue"] is not None and row["net"] is not None else None)
+        revenue, net = row["revenue"], row["net"]
+        row["opex_other"] = row["pretax_other"] = None
+        split_at, upper = ((row["operating"], "opex_other") if row["operating"] is not None
+                           else (row["pretax"], "pretax_other"))
+        if split_at is not None:
+            row[upper] = revenue - named - split_at if revenue is not None else None
+            row["other"] = split_at - net if net is not None else None
+        else:
+            row["other"] = (revenue - named - net
+                            if revenue is not None and net is not None else None)
         row["gross"] = (row["revenue"] - row["cogs"]
                         if row["revenue"] is not None and row["cogs"] is not None else None)
         c = cash_at.get(end)
@@ -543,11 +583,19 @@ def render(data: dict, currency: str = "", view: str = "income") -> str:
     for i, row in enumerate(rows):
         facts = [(row["label"], "", True)]
         if show_income:
+            # The upper remainder and the line it stops at, whichever this period has.
+            split = ((("Other operating", _num(row["opex_other"], div)),
+                      ("Operating income", _num(row.get("operating"), div)))
+                     if row.get("opex_other") is not None else
+                     (("Other costs", _num(row["pretax_other"], div)),
+                      ("Income before tax", _num(row.get("pretax"), div)))
+                     if row.get("pretax_other") is not None else ())
             shown = (("Revenue", _num(row.get("revenue"), div)),
                      ("Cost of sales", _num(row.get("cogs"), div)),
                      ("Gross profit", _num(row.get("gross"), div)),
                      ("R&D", _num(row.get("rd"), div)),
                      ("SG&A", _num(row.get("sga"), div)),
+                     *split,
                      ("Tax and other", _num(row.get("other"), div)),
                      ("Net income", _num(row.get("net"), div)),
                      ("Net margin", _pct(row.get("margin"))))

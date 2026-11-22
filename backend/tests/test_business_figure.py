@@ -70,7 +70,10 @@ def test_on_an_annual_basis_every_figure_is_already_its_own_period():
 def test_the_remainder_is_what_revenue_left_after_the_named_costs_and_net_income():
     rows = {r["label"]: r for r in business.prepare(_statements())["periods"]}
     latest = rows["Q3 26"]
+    # Neither operating income nor income before tax on this filer, so there is nothing
+    # to split the remainder at.
     assert latest["other"] == 100e9 - 20e9 - 25e9 - 15e9 - 30e9
+    assert latest["opex_other"] is None and latest["pretax_other"] is None
     assert latest["gross"] == 80e9
     # Businesses bought and programmes bought are one use of cash.
     assert latest["acquisitions"] == (6e9 - 6e9) + (3e9 - 1e9)
@@ -78,6 +81,73 @@ def test_the_remainder_is_what_revenue_left_after_the_named_costs_and_net_income
     # Oldest first, so time runs left to right.
     assert [r["label"] for r in business.prepare(_statements())["periods"]] == [
         "Q4 25", "Q1 26", "Q2 26", "Q3 26"]
+
+
+def _with_operating_income():
+    statements = _statements()
+    statements["income"]["lines"].append(
+        {"key": "OperatingIncomeLoss", "cells": _cells(36e9, 33e9, 29e9, -4e9)})
+    return statements
+
+
+def test_the_remainder_is_split_at_operating_income_where_the_filer_tags_it():
+    """One remainder called "Tax and other" held a 4.5bn operating charge in a Vertex
+    quarter whose tax was 0.2bn. Above operating income it is an operating cost with no
+    line of its own, and is named as that; below it, tax, interest and the rest."""
+    data = business.prepare(_with_operating_income())
+    rows = {r["label"]: r for r in data["periods"]}
+    latest = rows["Q3 26"]
+    assert latest["opex_other"] == 100e9 - 20e9 - 25e9 - 15e9 - 36e9
+    assert latest["other"] == 36e9 - 30e9
+    # The two together are the one remainder there was: nothing is added or lost.
+    assert latest["opex_other"] + latest["other"] == 100e9 - 20e9 - 25e9 - 15e9 - 30e9
+    # The loss quarter: 30bn spent in operations that no named line carries, and 1bn
+    # below the line.
+    assert rows["Q4 25"]["opex_other"] == 70e9 - 14e9 - 18e9 - 12e9 + 4e9
+    assert rows["Q4 25"]["other"] == -4e9 + 5e9
+
+    drawn = business.render(data, "USD", "income")
+    block = f'fill="{business.TK.RULE_STRONG}" fill-opacity="1.0"'
+    # A segment in each of the four periods, and its name beside the latest.
+    assert drawn.count(block) == 5
+    assert ">Other operating<" in drawn and ">Tax and other<" in drawn
+    assert ">Operating income<" in drawn and ">36.00<" in drawn
+    # With no operating income on file no such segment is drawn, in any period.
+    assert business.render(business.prepare(_statements()), "USD", "income").count(block) == 0
+
+
+def test_a_filer_with_no_operating_income_is_split_at_income_before_tax():
+    """Lilly, Merck, Pfizer, J&J, Bristol and Biogen tag no operating income. Their upper
+    remainder stops at income before tax, holds the interest too, and says less."""
+    statements = _statements()
+    statements["income"]["lines"].append(
+        {"key": "IncomeBeforeTax", "cells": _cells(35e9, 32e9, 28e9, -5e9)})
+    data = business.prepare(statements)
+    latest = data["periods"][-1]
+    assert latest["pretax_other"] == 100e9 - 20e9 - 25e9 - 15e9 - 35e9
+    assert latest["other"] == 35e9 - 30e9 and latest["opex_other"] is None
+    drawn = business.render(data, "USD", "income")
+    assert ">Other costs<" in drawn and ">Income before tax<" in drawn
+    assert ">Other operating<" not in drawn and ">Operating income<" not in drawn
+    # Where both are tagged, operating income is the line, as the finer of the two.
+    statements["income"]["lines"].append(
+        {"key": "OperatingIncomeLoss", "cells": _cells(36e9, 33e9, 29e9, -4e9)})
+    both = business.prepare(statements)["periods"][-1]
+    assert both["opex_other"] == 4e9 and both["pretax_other"] is None
+    assert both["other"] == 36e9 - 30e9
+
+
+def test_a_gain_in_operations_draws_no_segment_and_is_still_printed():
+    statements = _with_operating_income()
+    # Operating income above what the named costs leave: a gain booked in operations.
+    statements["income"]["lines"][-1]["cells"] = _cells(45e9, 33e9, 29e9, -4e9)
+    data = business.prepare(statements)
+    latest = data["periods"][-1]
+    assert latest["opex_other"] == -5e9 and latest["other"] == 15e9
+    drawn = business.render(data, "USD", "income")
+    block = f'fill="{business.TK.RULE_STRONG}" fill-opacity="1.0"'
+    assert drawn.count(block) == 3            # the three other periods, none beside the latest
+    assert f">{business.MINUS}5.00<" in drawn  # the period's readout still says it
 
 
 def _data():
