@@ -12420,7 +12420,16 @@ with main:
                 mix_reported = (revenue_payload.get("company_revenue") or {}).get(
                     str(mix_year)) or {}
                 mix_drivers, mix_tail = revenue_mix.split(mix_rows)
-                if not approvals:
+                if not approvals and _stage == "clinical":
+                    # A developer has nothing here and that is the answer, not a gap in the
+                    # data: its filings report no product sale. The message for a company
+                    # the book has simply not been given products for said "this is missing
+                    # coverage, not evidence that the company has no products", which is
+                    # the wrong thing to tell the reader of a company that has none.
+                    state(f"{ticker} has nothing on the market",
+                          "Its filings report no product revenue and no approval is on file. "
+                          "What it is developing is on the Pipeline side.")
+                elif not approvals:
                     state(f"Product coverage unavailable for {ticker}",
                           "No marketed products or approval records are linked in this dataset. "
                           "This is missing coverage, not evidence that the company has no products.")
