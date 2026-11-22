@@ -40,6 +40,7 @@ import brand_split
 import biologic_loe
 import catalysts
 import consensus as consensus_module
+import announced_readouts
 import curated_catalysts
 import curated_register
 import discontinued
@@ -440,6 +441,9 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
         # decisions a person dated from a filing. After the seeds, so the assets exist.
         mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
+        # Results a company announced that no reader placed, entered by hand with their
+        # source. Before the resolver, so it finds those readouts closed.
+        mapped["announced_readouts"] = announced_readouts.load(conn)["resolved"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
@@ -750,6 +754,9 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         # Hand-entered catalysts from the repo, so a rebuilt book carries the FDA
         # decisions a person dated from a filing. After the seeds, so the assets exist.
         mapped["curated_catalysts"] = curated_catalysts.load(conn)["written"]
+        # Results a company announced that no reader placed, entered by hand with their
+        # source. Before the resolver, so it finds those readouts closed.
+        mapped["announced_readouts"] = announced_readouts.load(conn)["resolved"]
         # A balance sheet the filer has published that companyfacts does not carry yet.
         # Insert-only, so the day EDGAR tags the period its own figure takes over.
         mapped["balance_updates"] = balance_updates.load(conn)["written"]
