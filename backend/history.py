@@ -122,6 +122,8 @@ SAME_ROW = {
     "gate_calls": (("as_of", "ticker", "catalyst_id"), True),
     "valuation_snapshots": (("company_id", "as_of"), True),
     "catalyst_resolutions": (("catalyst_id", "outcome", "dedupe"), True),
+    # A correction is named by what it corrects, never by a number (migration 115).
+    "price_corrections": (("kind", "ref_key"), True),
     "trial_readouts": (("accession",), True),
     "consensus_estimates": (("company_id", "metric", "period", "as_of"), True),
 }
@@ -133,7 +135,7 @@ SAME_ROW = {
 # two different rows here is proof of two books. Everywhere else it is proof only when
 # the book is not a continuation of the files (``_Compared``).
 NEVER_DELETED = frozenset({"refresh_runs", "snapshots", "fx_rates", "model_calls",
-                           "gate_calls", "valuation_snapshots"})
+                           "gate_calls", "valuation_snapshots", "price_corrections"})
 
 
 class Parted(Exception):
