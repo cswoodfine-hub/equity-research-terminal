@@ -80,6 +80,7 @@ from fetchers.eu_medicines_ema import EuMedicinesFetcher
 from fetchers.approvals_pmda import PmdaApprovalsFetcher
 from fetchers.news_pulse import PulseNewsFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
+from fetchers.insiders_edgar import InsidersEdgarFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.financials_esef import FinancialsEsefFetcher
 from fetchers.financials_ir import WORKBOOKS as IR_WORKBOOKS, FinancialsIrFetcher
@@ -181,6 +182,10 @@ def _company_fetchers(company, db_path):
         # Runs after the filings fetcher, which populates the 10-K/10-Q rows whose
         # documents this one reads for the risk factors and MD&A text.
         fetchers.append(FilingTextEdgarFetcher(company["ticker"], db_path))
+        # Form 4: what the company's own officers and directors did with its shares.
+        # Capped per run, so a first run reads the newest forms and the year behind
+        # them fills in over the following days (fetchers/insiders_edgar.py).
+        fetchers.append(InsidersEdgarFetcher(company["ticker"], db_path))
     elif company["ticker"] in IR_WORKBOOKS:
         # A company with no CIK cannot be reached through EDGAR at all, and two in this
         # universe have none. Both publish a machine-readable statement of their own, and
