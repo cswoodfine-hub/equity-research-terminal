@@ -43,6 +43,7 @@ ER Tool/
     contact.py              # the User-Agent identity, read from .env
     market_session.py       # whether a daily bar is a finished session or one still trading
     price_record.py         # recorded prices that were not closes, corrected beside the record
+    signal_test.py          # the one measurement every signal goes through; data/signals.csv
     loe.py                  # effective LOE: molecule patent over longest listed
     regional_loe.py         # LOE by region
     competitors.py          # who is selling against a product: three registers kept apart

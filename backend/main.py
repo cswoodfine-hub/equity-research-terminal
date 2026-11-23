@@ -32,6 +32,7 @@ import insiders as insiders_module
 import positioning as positioning_module
 import thesis_log
 import event_signal as event_signal_module
+import signal_test
 import gate_odds as gate_odds_module
 import comparator_link as comparator_link_module
 import refusal_calendar as refusal_calendar_module
@@ -1961,6 +1962,15 @@ def gate_odds_view() -> dict:
     asset is worth if it works, which the readout cannot settle, and the row says so.
     """
     return gate_odds_module.build(None)
+
+
+@app.get("/signals")
+def signals_view() -> dict:
+    """Every signal in data/signals.csv, kept or dropped, measured the one way
+    (backend/signal_test.py): entry at the next session's close, against XBI and a
+    same-day placebo, after one spread a round trip, counted by month and by company.
+    A result here is a backtest on the book's own names and says so."""
+    return signal_test.build(None)
 
 
 @app.get("/event-signal")

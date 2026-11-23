@@ -368,6 +368,9 @@ def track_record(fetch, args):
         "valuation": _trim(_soft(fetch, "/valuation-backtest"), rows=20),
         "events_before_moves": _trim(_soft(fetch, "/event-signal"), rows=20, text=400),
         "events_and_readouts": _trim(_soft(fetch, "/backtest"), rows=20),
+        # Every signal tried, kept or dropped, measured one way; a pass is a backtest on
+        # the book's own names and never proof.
+        "signals": _trim(_soft(fetch, "/signals"), rows=20, text=500),
         "theses": log.get("summary") if isinstance(log, dict) else None,
         "reading": "ic is the rank correlation between the upside the book stated and the "
                    "return over XBI that followed; independent_days is how many "

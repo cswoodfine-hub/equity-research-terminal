@@ -1,0 +1,20 @@
+# Every signal the book has tried, kept or dropped (backend/signal_test.py). A signal is
+# written here before it is measured, and a dropped one stays: the number of rows is what
+# a surviving signal is weighed against.
+#
+# name          the key backend/signal_test.py finds its events under (SOURCES)
+# rule          the event, in words, exactly as it is measured
+# side          outperform or underperform: what the share is claimed to do against XBI
+# horizon_days  trading days from entry at which the claim is judged
+# basis         written_first where the rule was stated before any result was seen, which
+#               needs t of 2 by month and by company; searched where it was found by
+#               trying cuts, which needs 3
+# written       the day the rule was written down; events after it are the forward record
+# status        registered, dropped or passed. passed means the backtest on the book's own
+#               names only, never proven
+# note          what is known about it, with its date
+name,rule,side,horizon_days,basis,written,status,note
+officer_purchase,"A company's first Form 4 filing in 30 days that reports an open-market purchase of its shares on a form naming an officer and no ten percent holder",outperform,126,searched,2026-11-23,registered,"Found on 2026-11-23 after about a dozen cuts of the SEC's bulk Form 4 files (officers, directors, ten percent holders, size, period). On the book's names, before costs: 107 events, 37 companies, median +9.6% against XBI at six months, 58% ahead of XBI against 44% for the placebo, t 2.9 by month. Weak before 2022. Through the harness the same day, after one spread a round trip: t 2.8 by month and 2.3 by company with no liquidity floor, 2.4 and 2.1 at $250,000 traded a day, 1.7 and 1.1 at $1m, 0.3 and 0.6 at $5m. So it does not reach the searched bar of 3 at any floor, and what there is sits in shares too thin to trade in size. Not yet repeated outside the book. The book's own insider table is close to empty until it is filled from the bulk files"
+short_runway,"A balance sheet showing under 12 months of cash and investments at the trailing twelve month operating burn, taken as public 60 days after a quarter end and 90 after a year end",underperform,63,written_first,2026-11-23,dropped,"Tested 2026-11-23 on 1,408 cash-burning company-quarters: names with under 12 months of cash did not lag those with over 24 (spread +14.8 points at three months, t 1.75, the wrong sign). A short runway does come before a raise (65% inside two quarters against 25%), so it is kept as a calendar of likely raises and not as a signal. The book holds no company that ran out of cash, so the test cannot see the cases that matter most"
+leadership_change,"An 8-K reporting the departure of an officer or director under item 5.02",underperform,63,written_first,2026-11-23,registered,"Not measured here yet: no event source is built. The change feed showed -8.8% against XBI over three months on 276 events across five months, which is one period"
+results_release,"An 8-K furnishing quarterly results under item 2.02",underperform,63,written_first,2026-11-23,registered,"Not measured here yet: no event source is built. The change feed showed -10.3% against XBI over three months on 141 events across five months, which is one period"
