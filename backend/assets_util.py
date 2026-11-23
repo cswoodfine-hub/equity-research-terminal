@@ -106,14 +106,29 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality,
             "  updated_at = datetime('now') WHERE id = ?",
             (generic, modality, row[0]))
         return row[0]
-    row = conn.execute(
-        "SELECT id FROM assets WHERE internal_code = ?", (internal_code,)
-    ).fetchone()
+    # Every asset on the application, and of those the one this brand already names. A
+    # caller without ``brand_key`` knows the application and not that it carries two
+    # products: the Purple Book lists BLA125326 once as ARZERRA and once as KESIMPTA, and
+    # taking whichever row came first sent both to one asset.
+    held = conn.execute(
+        "SELECT id, brand_name FROM assets WHERE internal_code = ? ORDER BY id",
+        (internal_code,)).fetchall()
+    row = next((r for r in held if (r[1] or "").strip() and (brand or "").strip()
+                and same_brand_family(r[1], brand)), held[0] if held else None)
     if row is None:
         merged_into = resolve_alias(conn, internal_code)
         if merged_into is not None:
-            row = (merged_into,)
+            row = conn.execute("SELECT id, brand_name FROM assets WHERE id = ?",
+                               (merged_into,)).fetchone()
     if row is not None:
+        # The name is filled in or tidied, never changed to another product's. This
+        # wrote brand_name = COALESCE(?, brand_name) whatever the row was called, so a
+        # register naming the application's other product renamed the asset to it:
+        # Novartis's ofatumumab, selling 4.4bn as Kesimpta, became "Arzerra", the brand
+        # withdrawn from sale, with Kesimpta's revenue and forecast still on the row.
+        # Kesimpta was then created a second time and the revenue stood in the book
+        # twice.
+        named = brand if same_brand_family(row[1], brand) else None
         conn.execute(
             """
             UPDATE assets
@@ -124,7 +139,7 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality,
                    updated_at = datetime('now')
              WHERE id = ?
             """,
-            (brand, generic, modality, row[0]),
+            (named, generic, modality, row[0]),
         )
         return row[0]
     return _insert_asset(conn, company_id, internal_code, brand, generic, modality)

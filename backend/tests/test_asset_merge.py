@@ -733,6 +733,53 @@ def test_the_second_brand_does_not_rename_the_first(tmp_path):
     conn.close()
 
 
+def test_a_register_naming_the_other_product_does_not_rename_the_asset(tmp_path):
+    """What put Kesimpta in the book twice. BLA125326 is ofatumumab under two brands:
+    Arzerra, withdrawn from sale, and Kesimpta, selling 4.4bn. A register that knows the
+    application and not the brands (the Purple Book lists it under both) resolved onto
+    the one asset and wrote its own name over it, so the row holding Kesimpta's revenue
+    and forecast was called Arzerra and Kesimpta was created again beside it."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    kesimpta = _asset(conn, "LLY", brand="Kesimpta", generic="Ofatumumab", marketed=1,
+                      code="BLA125326")
+    conn.commit()
+    # The other product's name arrives without a brand key: the asset is found, kept,
+    # and still called what it was.
+    assert assets_util.upsert_asset(conn, company, "BLA125326", "Arzerra", "Ofatumumab",
+                                    "biologic") == kesimpta
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (kesimpta,)).fetchone()[0] == "Kesimpta"
+    # A presentation of the same product still tidies the name, as it always did.
+    assert assets_util.upsert_asset(conn, company, "BLA125326", "KESIMPTA", "Ofatumumab",
+                                    "biologic") == kesimpta
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (kesimpta,)).fetchone()[0] == "KESIMPTA"
+    conn.close()
+
+
+def test_with_both_products_on_file_each_register_row_finds_its_own(tmp_path):
+    """Once the application's two products are two assets, a row naming one of them goes
+    to that one, not to whichever has the lower id."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    arzerra = _asset(conn, "LLY", brand="Arzerra", generic="Ofatumumab", marketed=1,
+                     code="BLA125326")
+    kesimpta = _asset(conn, "LLY", brand="Kesimpta", generic="Ofatumumab", marketed=1,
+                      code="BLA125326")
+    conn.commit()
+    assert assets_util.upsert_asset(conn, company, "BLA125326", "Kesimpta", "Ofatumumab",
+                                    "biologic") == kesimpta
+    assert assets_util.upsert_asset(conn, company, "BLA125326", "Arzerra", "Ofatumumab",
+                                    "biologic") == arzerra
+    assert sorted(r[0] for r in conn.execute(
+        "SELECT brand_name FROM assets WHERE internal_code = 'BLA125326'")) \
+        == ["Arzerra", "Kesimpta"]
+    conn.close()
+
+
 def test_a_single_brand_application_is_looked_up_the_way_it_always_was(tmp_path):
     """The change is confined to the application that needs it. Nearly every one carries
     one brand across several strengths, and an absorbed number must still resolve to the
