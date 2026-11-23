@@ -472,3 +472,67 @@ def test_a_result_inside_the_companys_period_is_matched_there(tmp_path):
                        ).fetchone()
     assert (row["status"], row["updated_at"], row["expected_date"]) == (
         "met", "2027-02-10", "2026-10-01")
+
+
+def _pdufa_from_filing(conn, cid, decision, url, filed=None, created="2026-11-23 14:07:06",
+                       asset_id=10):
+    conn.execute(
+        "INSERT INTO catalysts (id, company_id, asset_id, catalyst_type, expected_date,"
+        " date_confidence, title, description, status, is_curated, source_url, created_at)"
+        " VALUES (?, 1, ?, 'PDUFA', ?, 'confirmed', 'PDUFA', ?, 'pending', 0, ?, ?)",
+        (cid, asset_id, decision,
+         "The application has been granted Priority Review with a target action date.",
+         url, created))
+    if filed:
+        conn.execute("INSERT INTO pdufa_reads (accession, url, form_type, filed_date, outcome)"
+                     " VALUES ('0001104659-26-120915', ?, '8-K', ?, 'found')", (url, filed))
+    conn.commit()
+
+
+ACCEPTANCE_8K = "https://www.sec.gov/Archives/edgar/data/1590560/000110465926120915/tm_8k.htm"
+
+
+def test_a_filing_gate_is_met_when_a_decision_date_is_set_and_dated_by_the_filing(tmp_path):
+    """uniQure's AMT-130: the gate was whether the FDA would take the filing, due
+    2026-11-01. The acceptance was filed on the 2nd with a decision date of 2027-05-01,
+    and the reader got to it on the 23rd. The gate closes met on the 2nd, the day the
+    market knew, and the decision date it set stays pending as its own catalyst."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "regulatory decision", "2026-11-01",
+              "Ifezuntirgene inilparvovec (AMT-130) BLA filing decision, Huntington's disease")
+    _pdufa_from_filing(conn, 2, "2027-05-01", ACCEPTANCE_8K, filed="2026-11-02")
+    got = CO.resolve(path, today=dt.date(2026, 11, 23), fetch=False)
+    assert got["met"] == 1
+    rows = {r["id"]: (r["status"], r["updated_at"])
+            for r in conn.execute("SELECT id, status, updated_at FROM catalysts")}
+    assert rows[1] == ("met", "2026-11-02") and rows[2][0] == "pending"
+    led = [r for r in CO.ledger(path) if r["catalyst_id"] == 1][0]
+    assert led["source"] == "pdufa" and led["event_date"] == "2026-11-02"
+    assert "2027-05-01" in led["basis"] and ACCEPTANCE_8K in led["evidence"]
+
+
+def test_a_decision_gate_is_not_closed_by_a_decision_date_alone(tmp_path):
+    """Only a gate on the filing itself. A gate on the approval is not met because a date
+    for the decision exists: that date is the thing it is waiting for."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "regulatory decision", "2026-11-01", "CagriSema decision, obesity")
+    _pdufa_from_filing(conn, 2, "2027-05-01", ACCEPTANCE_8K, filed="2026-11-02")
+    got = CO.resolve(path, today=dt.date(2026, 11, 23), fetch=False)
+    assert got["met"] == 0
+    assert conn.execute("SELECT status FROM catalysts WHERE id = 1").fetchone()[0] == "pending"
+
+
+def test_a_decision_date_set_long_before_the_filing_gate_does_not_close_it(tmp_path):
+    """An older decision date for the same asset, from an earlier application, is not
+    this filing's acceptance. Where the filing's own date is not on file the day the row
+    was read stands in, and it too has to fall inside the gate's reach."""
+    path, conn = _book(tmp_path)
+    _catalyst(conn, 1, "regulatory decision", "2026-11-01", "AMT-130 BLA filing decision")
+    _pdufa_from_filing(conn, 2, "2027-05-01", ACCEPTANCE_8K, filed="2025-12-01")
+    assert CO.resolve(path, today=dt.date(2026, 11, 23), fetch=False)["met"] == 0
+    conn.execute("DELETE FROM pdufa_reads")
+    conn.execute("UPDATE catalysts SET created_at = '2026-11-23 14:07:06' WHERE id = 2")
+    conn.commit()
+    assert CO.resolve(path, today=dt.date(2026, 11, 23), fetch=False)["met"] == 1
+    led = [r for r in CO.ledger(path) if r["catalyst_id"] == 1][0]
+    assert led["event_date"] == "2026-11-23" and "the day the row was read" in led["basis"]

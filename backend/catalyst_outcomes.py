@@ -161,6 +161,43 @@ def _close(conn, catalyst_id: int, status: str, event_date: str | None, today: d
                  (status, event_date or today.isoformat(), catalyst_id))
 
 
+# A gate on whether the agency takes the filing, as distinct from whether it approves it.
+# Read off the title, which is where the curated register says what a row is waiting on.
+FILING_GATE = re.compile(r"\bfiling (?:decision|acceptance)\b|\bacceptance decision\b", re.I)
+_ACCESSION = re.compile(r"/(\d{10})(\d{2})(\d{6})/")
+
+
+def _accepted(conn, cat, lo: str) -> dict | None:
+    """The decision date set for this asset on or after ``lo``, which is the acceptance.
+
+    The FDA sets a PDUFA target action date when it files an application, and not
+    before: a company that reports the date is reporting that the filing was taken.
+    ``pdufa.py`` reads that sentence out of the filing and writes the PDUFA row with the
+    filing as its source, so the row is the evidence and the filing's date is the day
+    the market knew. The day is the filing's own (``pdufa_reads``), never the day the
+    reader got to it: uniQure's acceptance was filed on 2026-11-02 and read on the 23rd.
+    """
+    for row in conn.execute(
+            """SELECT id, expected_date, description, source_url, created_at FROM catalysts
+                WHERE asset_id = ? AND catalyst_type = 'PDUFA' AND id <> ?
+                  AND source_url IS NOT NULL AND expected_date > ?
+                ORDER BY expected_date""",
+            (cat["asset_id"], cat["id"], cat["expected_date"])):
+        match = _ACCESSION.search(row["source_url"] or "")
+        filed = None
+        if match:
+            read = conn.execute(
+                "SELECT filed_date FROM pdufa_reads WHERE accession = ?",
+                ("-".join(match.groups()),)).fetchone()
+            filed = read["filed_date"] if read else None
+        day = (filed or str(row["created_at"] or ""))[:10]
+        if day and day >= lo:
+            return {"id": row["id"], "decision_date": row["expected_date"], "day": day,
+                    "dated_by": "the filing" if filed else "the day the row was read",
+                    "url": row["source_url"], "sentence": row["description"]}
+    return None
+
+
 def _regulatory(conn, cat, window, today) -> str | None:
     lo, hi = _shift(window[0], -EARLY_DAYS), _shift(window[1], LATE_DAYS)
     approval = conn.execute(
@@ -173,6 +210,20 @@ def _regulatory(conn, cat, window, today) -> str | None:
                 f"an approval row for the asset between {lo} and {hi}", approval["approval_date"], today)
         _close(conn, cat["id"], "met", approval["approval_date"], today)
         return "met"
+    if FILING_GATE.search(cat["title"] or ""):
+        # The gate is the acceptance, and an acceptance is a fact a filing states. No
+        # upper bound on the day: an agency that takes a filing late has still taken it.
+        accepted = _accepted(conn, cat, lo)
+        if accepted:
+            ev = (f"{accepted['url']}: {accepted['sentence']}" if accepted["sentence"]
+                  else accepted["url"])
+            _record(conn, cat["id"], "met", "pdufa", ev,
+                    f"the filing was accepted: a target action date of "
+                    f"{accepted['decision_date']} was set for the asset (catalyst "
+                    f"{accepted['id']}), dated by {accepted['dated_by']}",
+                    accepted["day"], today)
+            _close(conn, cat["id"], "met", accepted["day"], today)
+            return "met"
     successor = conn.execute(
         """SELECT id, expected_date FROM catalysts
             WHERE asset_id = ? AND catalyst_type = ? AND id <> ? AND status = 'pending'
