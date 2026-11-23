@@ -122,6 +122,17 @@ def _record_calls(db_path, run_id) -> None:
         _log(f"calls not recorded: {type(exc).__name__}: {exc}")
 
 
+def _record_corrections(db_path) -> None:
+    """The recorded prices that were not the close of their session, appended to the
+    ledger once the daily series has moved past them (price_record.py). Logged and never
+    fatal, like the calls: the refresh has already done its work."""
+    try:
+        import price_record
+        _log(f"price corrections: {json.dumps(price_record.record(db_path))}")
+    except Exception as exc:
+        _log(f"price corrections not recorded: {type(exc).__name__}: {exc}")
+
+
 def force_mode(env=None, today=None):
     """True (fetch every source) or "daily" (fetch what is due daily, let slower sources
     skip inside their TTL), from ``ER_REFRESH_FORCE``.
@@ -171,6 +182,7 @@ def run(refresh_fn=None, db_path=None) -> int:
         _log(f"run {result.get('id')} {status}; changes={json.dumps(changes)}")
         if status in ("complete", "partial"):
             _record_calls(db_path, result.get("id"))
+            _record_corrections(db_path)
         return 0 if status in ("complete", "partial") else 1
     except Exception as exc:                       # a hard failure to run at all
         _log(f"failed: {type(exc).__name__}: {exc}")

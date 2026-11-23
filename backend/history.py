@@ -46,6 +46,10 @@ HISTORY_TABLES = [
     # calendar's own record back, so it travels with the snapshots rather than living
     # only in the published database.
     "catalyst_resolutions",
+    # The recorded prices that were not the close of their day, and the close
+    # (price_record.py). Found the day after, from the daily series, by the one run that
+    # writes the record, so it travels with the snapshots and calls it stands beside.
+    "price_corrections",
     # Every change to an analyst assumption (assumption_log.py). The assumptions table
     # itself reseeds from data/assumptions/*.csv, so the seeds and this ledger together
     # carry the model through a rebuild; the ledger alone carries what the seeds cannot,

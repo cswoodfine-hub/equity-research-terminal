@@ -41,6 +41,7 @@ ER Tool/
     llm.py                  # the one seam in front of the model providers
     contact.py              # the User-Agent identity, read from .env
     market_session.py       # whether a daily bar is a finished session or one still trading
+    price_record.py         # recorded prices that were not closes, corrected beside the record
     loe.py                  # effective LOE: molecule patent over longest listed
     regional_loe.py         # LOE by region
     competitors.py          # who is selling against a product: three registers kept apart
@@ -401,7 +402,7 @@ streamlit run frontend/streamlit_app.py   # UI on 8501
 ```
 
 - The app tests skip when the API is not on 8000, and the JavaScript tests skip when `node` is not installed. A green run with either missing has not tested that part.
-- A refresh while a market is open no longer files an intraday price as that day's close: the daily price and benchmark fetchers hold back the bar of a session still trading (`backend/market_session.py`). Until 2026-11-23 they did not. Measured that day, 28 days of snapshots from 2026-07-24 to 2026-11-20 carry a mid-session price under the name of a close (1,232 company-days, median 1.2% from the settled close), and 382 of the 1,542 model calls were priced off one. That record is left as it was written; a reader of an old snapshot checks it against the `prices` table, which the next run settled. The Refresh button on the Prices tab is not that refresh: it is the live read, which writes nothing and is safe at any hour.
+- A refresh while a market is open no longer files an intraday price as that day's close: the daily price and benchmark fetchers hold back the bar of a session still trading (`backend/market_session.py`). Until 2026-11-23 they did not. Measured that day, 28 days of snapshots from 2026-07-24 to 2026-11-20 carry a mid-session price under the name of a close (1,232 company-days, median 1.2% from the settled close), and 382 of the 1,542 model calls were priced off one. That record is left as it was written. The scheduled run appends each such price and the close it settled at to `price_corrections` (`backend/price_record.py`), and `call_log.score` reports every horizon from the recorded price and from the settled close, side by side. The Refresh button on the Prices tab is not that refresh: it is the live read, which writes nothing and is safe at any hour.
 - `uvicorn --reload` restarts the API on any edit under `backend/`, which empties its caches; the first page after that is slow.
 
 ## Rules for you, Claude Code

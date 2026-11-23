@@ -372,7 +372,9 @@ def track_record(fetch, args):
         "reading": "ic is the rank correlation between the upside the book stated and the "
                    "return over XBI that followed; independent_days is how many "
                    "non-overlapping observations it rests on. Few of either means no "
-                   "claim can be made yet.",
+                   "claim can be made yet. Each horizon also carries settled: the same "
+                   "calls scored from the close of their session, for the calls recorded "
+                   "off a mid-session price; price_basis counts them.",
     }
 
 

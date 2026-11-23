@@ -23,6 +23,13 @@ horizon only once the horizon has passed and a close exists within five days of 
 Daily calls overlap, so the days are not independent; the count of days a horizon apart is
 reported beside the average so the evidence is not overstated.
 
+A call is scored twice. The recorded basis starts from the price the call carries, which
+is what the book saw. The settled basis starts from the close of that session
+(``price_record.settled_close``), because until 2026-11-23 a run that fired mid-session
+priced the day's calls off the last trade, and the benchmark leg and the end of the window
+are both closes. Neither replaces the other: ``settled`` sits beside the recorded scores
+with the number of calls it repriced.
+
 Off when ``ER_TOOL_CALL_LOG=0``, which the test suite sets, so a test that runs the
 scheduled refresh never values the book.
 """
@@ -36,6 +43,7 @@ from pathlib import Path
 
 import benchmark_series
 import db
+import price_record
 
 HORIZONS = {"1m": 30, "3m": 91, "6m": 182, "12m": 365}
 BENCHMARK = benchmark_series.BENCHMARK   # XBI; benchmark_series says why
@@ -241,11 +249,13 @@ def spearman(xs: list[float], ys: list[float]) -> float | None:
     return sxy / (sxx * syy) ** 0.5 if sxx and syy else None
 
 
-def _excess(conn, call, days: int, today: dt.date) -> float | None:
+def _excess(conn, call, days: int, today: dt.date, price: float | None = None) -> float | None:
     """The call's return over ``days`` from its close, less the benchmark's over the same
-    dates (XBI; benchmark_series says why not the book's own universe or PPH)."""
+    dates (XBI; benchmark_series says why not the book's own universe or PPH). ``price``
+    stands in for the call's recorded price as the start, for the settled basis."""
     start = call["price_date"] or call["as_of"]
-    if not call["price"] or not start:
+    base = call["price"] if price is None else price
+    if not base or not start:
         return None
     end = dt.date.fromisoformat(start) + dt.timedelta(days=days)
     if end > today:
@@ -257,7 +267,7 @@ def _excess(conn, call, days: int, today: dt.date) -> float | None:
     if (end - dt.date.fromisoformat(stock[0])).days > END_SLACK_DAYS or \
             (end - dt.date.fromisoformat(bench1[0])).days > END_SLACK_DAYS:
         return None
-    return (stock[1] / call["price"] - 1) - (bench1[1] / bench0[1] - 1)
+    return (stock[1] / base - 1) - (bench1[1] / bench0[1] - 1)
 
 
 def _horizon_score(by_day: dict, days: int) -> dict:
@@ -390,9 +400,16 @@ def score(db_path=None, today: dt.date | None = None, cohort: str | None = None)
             sql, args = sql + " AND cohort = ?", (cohort,)
         calls = conn.execute(sql + " ORDER BY as_of", args).fetchall()
         first = calls[0]["as_of"] if calls else None
+        # The close each call's session settled at, read once. None where the daily
+        # series has not moved past that session, and the recorded price then stands.
+        closes = {c["id"]: price_record.settled_close(
+            conn, c["ticker"], c["price_date"] or c["as_of"]) for c in calls}
+        repriced = {c["id"] for c in calls
+                    if price_record.differs(c["price"], closes[c["id"]])}
         horizons = {}
         for name, days in HORIZONS.items():
             model, street = {}, {}
+            model_s, street_s, moved = {}, {}, 0
             for c in calls:
                 ex = _excess(conn, c, days, today)
                 if ex is None:
@@ -401,15 +418,39 @@ def score(db_path=None, today: dt.date | None = None, cohort: str | None = None)
                 if c["target_mid"] and c["price"]:
                     street.setdefault(c["as_of"], []).append(
                         (c["target_mid"] / c["price"] - 1, ex))
+                # The same call from the close of its session. The upside is restated
+                # against that close too, since it was a ratio to the recorded price.
+                base = closes[c["id"]] if c["id"] in repriced else c["price"]
+                ex_s = ex if c["id"] not in repriced else _excess(conn, c, days, today, base)
+                if ex_s is None:
+                    continue
+                moved += c["id"] in repriced
+                upside = (c["forward_12m"] / base - 1
+                          if c["id"] in repriced and c["forward_12m"] else c["upside_12m"])
+                model_s.setdefault(c["as_of"], []).append((upside, ex_s))
+                if c["target_mid"] and base:
+                    street_s.setdefault(c["as_of"], []).append(
+                        (c["target_mid"] / base - 1, ex_s))
             horizons[name] = {"days": days, "model": _horizon_score(model, days),
                               "street": _horizon_score(street, days),
+                              "settled": {"model": _horizon_score(model_s, days),
+                                          "street": _horizon_score(street_s, days),
+                                          "repriced": moved},
                               "first_scored": (dt.date.fromisoformat(first)
                                                + dt.timedelta(days=days)).isoformat()
                               if first else None}
         return {"benchmark": BENCHMARK, "today": today.isoformat(), "cohort": cohort,
                 "calls": len(calls), "first_call": first,
                 "companies": len({c["ticker"] for c in calls}),
-                "horizons": horizons, "gates": _calibration(conn)}
+                "horizons": horizons, "gates": _calibration(conn),
+                # How many calls carry a price that was not the close of its session,
+                # and how many cannot be checked yet because the session has not settled.
+                "price_basis": {
+                    "repriced_calls": len(repriced),
+                    "not_yet_settled": sum(1 for c in calls if closes[c["id"]] is None),
+                    "reading": ("model and street are scored from the price each call "
+                                "recorded; settled scores the same calls from the close "
+                                "of that session, restating the upside against it")}}
     finally:
         conn.close()
 
