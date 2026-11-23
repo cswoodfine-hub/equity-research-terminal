@@ -44,6 +44,16 @@ SECONDARY_KEPT = 10
 OTHER_EVENTS_KEPT = 15
 SERIOUS_EVENTS_KEPT = 10
 LATE = ("Phase 2", "Phase 2/3", "Phase 3")
+# The statuses of a study that can have posted, as the trials table spells them. The
+# pipeline fetcher stores the registry's status humanised ("Active not recruiting"), and
+# this list was written in the API's own spelling (ACTIVE_NOT_RECRUITING), so the half of
+# the query that reads the trials table matched nothing: only studies already in
+# completed_trials were ever asked. A Phase 3 is "active, not recruiting" for years
+# after its primary completion, which is exactly when it posts, so on 2026-11-23 the
+# registry held posted results for 38 overdue readouts the book showed as unknown, and
+# 1,007 late-phase studies had never been asked. Compared in a spelling-proof form in
+# due(), so neither spelling can do this again.
+POSTABLE = ("COMPLETED", "ACTIVE_NOT_RECRUITING", "TERMINATED")
 _TIMEOUT_S = 90
 _POLITE_SLEEP_S = 0.3
 _USER_AGENT = contact.product_agent()
@@ -215,6 +225,7 @@ class TrialResultsFetcher(BaseFetcher):
         if company is None:
             return []
         marks = ",".join("?" * len(LATE))
+        states = ",".join("?" * len(POSTABLE))
         rows = conn.execute(
             f"""SELECT nct_id, MAX(done) AS done FROM (
                     SELECT nct_id, completion_date AS done FROM completed_trials
@@ -224,13 +235,12 @@ class TrialResultsFetcher(BaseFetcher):
                     SELECT nct_id, primary_completion_date AS done FROM trials
                      WHERE sponsor_company_id = ? AND asset_id IS NOT NULL
                        AND phase IN ({marks})
-                       AND overall_status IN ('COMPLETED', 'ACTIVE_NOT_RECRUITING',
-                                              'TERMINATED'))
+                       AND UPPER(REPLACE(overall_status, ' ', '_')) IN ({states}))
                  WHERE nct_id NOT IN (
                     SELECT nct_id FROM trial_result_fetches
                      WHERE fetched_at >= datetime('now', ?))
                  GROUP BY nct_id ORDER BY done DESC""",
-            (company["id"], *LATE, company["id"], *LATE,
+            (company["id"], *LATE, company["id"], *LATE, *POSTABLE,
              f"-{REFETCH_DAYS} days")).fetchall()
         return [r["nct_id"] for r in rows][:MAX_STUDIES_PER_RUN]
 

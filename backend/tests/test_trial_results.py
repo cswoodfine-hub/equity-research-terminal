@@ -97,3 +97,31 @@ def test_a_study_without_results_is_marked_asked_and_writes_nothing(tmp_path, mo
     fetcher.force = True
     fetcher.run()
     assert len(calls) == 1
+
+
+def test_a_study_still_active_is_asked_however_its_status_is_spelled(tmp_path):
+    """The pipeline stores the registry's status humanised, "Active not recruiting", and
+    the list of statuses that can have posted was written as the API spells them. That
+    half of the query matched nothing, so a Phase 3 past its primary completion and still
+    following patients, which is when it posts, was never asked. Both spellings are due;
+    a study still recruiting, one before Phase 2 and one mapped to no asset are not."""
+    path = str(tmp_path / "tr.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name) VALUES (1, 1, 'Omvoh')")
+    studies = [("NCT00000001", 1, "Phase 3", "Active not recruiting", "2025-03-01"),
+               ("NCT00000002", 1, "Phase 3", "ACTIVE_NOT_RECRUITING", "2025-02-01"),
+               ("NCT00000003", 1, "Phase 2", "Completed", "2025-01-01"),
+               ("NCT00000004", 1, "Phase 3", "Terminated", "2024-12-01"),
+               ("NCT00000005", 1, "Phase 3", "Recruiting", "2027-01-01"),
+               ("NCT00000006", 1, "Phase 1", "Completed", "2024-01-01"),
+               ("NCT00000007", None, "Phase 3", "Completed", "2024-01-01")]
+    for nct, asset, phase, status, done in studies:
+        conn.execute("INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase,"
+                     " overall_status, primary_completion_date) VALUES (?, ?, 1, ?, ?, ?)",
+                     (nct, asset, phase, status, done))
+    conn.commit()
+    due = TR.TrialResultsFetcher("LLY", path).due(conn)
+    conn.close()
+    assert due == ["NCT00000001", "NCT00000002", "NCT00000003", "NCT00000004"]
