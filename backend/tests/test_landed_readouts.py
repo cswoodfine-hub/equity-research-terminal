@@ -294,6 +294,47 @@ def test_result_tables_on_the_registry_are_a_study_certain_and_an_outcome_not_re
     assert "state no outcome in words" in rep["reason"] and _status(conn)[434] == "pending"
 
 
+def test_a_posting_carries_the_primary_endpoint_as_posted_and_still_reads_no_outcome(tmp_path):
+    """Roche's IMvigor011: the registry posts disease-free survival at a hazard ratio of
+    0.64, 0.47 to 0.87, p = 0.0047. The report says so, in the registry's own figures,
+    and the outcome stays unread: whether a p-value met an endpoint depends on the alpha
+    the protocol spent on it, which no table carries."""
+    path, conn = _one(tmp_path, "Merck Announces Quarterly Dividend")
+    conn.execute("INSERT INTO trial_result_fetches (nct_id, has_results, results_date)"
+                 " VALUES ('NCT06074588', 1, '2026-11-13')")
+    for index, kind, title in ((0, "PRIMARY", "INV-assessed Disease-free  Survival (DFS)"),
+                               (1, "SECONDARY", "Overall Survival (OS)")):
+        conn.execute("INSERT INTO trial_result_outcomes (nct_id, outcome_index, outcome_type,"
+                     " title, group_id, value) VALUES ('NCT06074588', ?, ?, ?, 'OG000', '1')",
+                     (index, kind, title))
+    conn.execute("INSERT INTO trial_result_analyses (nct_id, outcome_index, method, param_type,"
+                 " param_value, ci_lower, ci_upper, p_value) VALUES ('NCT06074588', 0,"
+                 " 'Log Rank', 'Hazard Ratio (HR)', 0.64, 0.47, 0.87, 0.0047)")
+    conn.execute("INSERT INTO trial_result_analyses (nct_id, outcome_index, method, param_type,"
+                 " param_value, ci_lower, ci_upper, p_value) VALUES ('NCT06074588', 1,"
+                 " 'Log Rank', 'Hazard Ratio (HR)', 0.59, 0.39, 0.9, 0.0131)")
+    conn.commit()
+    L.run(path, today=TODAY, step=False, set_aside_path=NONE)
+    rep = _reports(conn)["MRK"]
+    assert rep["sentence"].endswith(
+        "Primary endpoint as posted. INV-assessed Disease-free Survival (DFS): "
+        "Hazard Ratio (HR) 0.64 (0.47 to 0.87), p = 0.0047 by Log Rank")
+    assert "Overall Survival" not in rep["sentence"]
+    assert rep["state"] == "outcome_not_read" and rep["outcome"] is None
+
+
+def test_a_primary_endpoint_with_no_analysis_posted_says_so(tmp_path):
+    path, conn = _one(tmp_path, "Merck Announces Quarterly Dividend")
+    conn.execute("INSERT INTO trial_result_outcomes (nct_id, outcome_index, outcome_type,"
+                 " title, group_id, value) VALUES ('NCT06074588', 0, 'PRIMARY',"
+                 " 'Number of participants with adverse events', 'OG000', '12')")
+    conn.commit()
+    assert L.posted_primary(conn, "NCT06074588") == (
+        "Primary endpoint as posted. Number of participants with adverse events: "
+        "no statistical analysis posted")
+    assert L.posted_primary(conn, "NCT00000000") is None
+
+
 # ----------------------------------------------- results the extractors read from a body
 def _labelled(conn, accession, quote, outcome="positive", title="8-K: RESULTS", company=1,
               day="2026-11-10"):

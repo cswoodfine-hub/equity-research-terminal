@@ -512,6 +512,56 @@ def _feed(conn, study: dict, outcome: str, event_date: str, effect: str | None,
         (key, text, refresh_run_id))
 
 
+PRIMARY_SHOWN = 3
+
+
+def _number(value) -> str:
+    return f"{value:g}" if isinstance(value, (int, float)) else str(value)
+
+
+def posted_primary(conn, nct_id: str) -> str | None:
+    """The primary endpoint as the registry posts it, in one line: its name, the estimate
+    with its interval, and the p-value, each as posted.
+
+    A posting used to arrive here as "results posted" and nothing else, which told a
+    reader that a study had reported and left them to open the registry to learn what.
+    The figures are what a table can honestly give. What they cannot give is the verdict:
+    whether p = 0.03 met the endpoint depends on the alpha the protocol spent on it,
+    which the registry does not carry, and an estimate's good direction depends on what
+    was measured. So the line is the registry's own numbers and the outcome stays
+    unread, for the release that states it or for a person.
+    """
+    outcomes = conn.execute(
+        """SELECT DISTINCT outcome_index, title FROM trial_result_outcomes
+            WHERE nct_id = ? AND outcome_type = 'PRIMARY' ORDER BY outcome_index""",
+        (nct_id,)).fetchall()
+    if not outcomes:
+        return None
+    parts = []
+    for o in outcomes[:PRIMARY_SHOWN]:
+        stats = []
+        for a in conn.execute(
+                """SELECT method, param_type, param_value, ci_lower, ci_upper, p_value
+                     FROM trial_result_analyses WHERE nct_id = ? AND outcome_index = ?
+                    ORDER BY id LIMIT 2""", (nct_id, o["outcome_index"])):
+            bits = []
+            if a["param_value"] is not None:
+                bits.append(f"{a['param_type'] or 'estimate'} {_number(a['param_value'])}")
+                if a["ci_lower"] is not None and a["ci_upper"] is not None:
+                    bits[-1] += f" ({_number(a['ci_lower'])} to {_number(a['ci_upper'])})"
+            if a["p_value"] is not None:
+                bits.append(f"p = {_number(a['p_value'])}"
+                            + (f" by {a['method']}" if a["method"] else ""))
+            if bits:
+                stats.append(", ".join(bits))
+        name = " ".join((o["title"] or "primary endpoint").split())
+        parts.append(f"{name}: " + ("; ".join(stats) if stats
+                                    else "no statistical analysis posted"))
+    more = len(outcomes) - PRIMARY_SHOWN
+    return ("Primary endpoint as posted. " + " | ".join(parts)
+            + (f" | and {more} more primary endpoints" if more > 0 else ""))
+
+
 # ---------------------------------------------------------------------------------- run
 def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool | None = None,
         refresh_run_id=None, names_path=None, set_aside_path=None) -> dict:
@@ -532,6 +582,8 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                   JOIN catalysts cat ON cat.source_url = '{_CTGOV}' || f.nct_id
                  WHERE f.has_results = 1 AND cat.catalyst_type = 'data readout'
                    AND COALESCE(cat.status, 'pending') IN ('pending', 'unknown')""")]
+        for p in posted:
+            p["primary"] = posted_primary(conn, p["nct_id"])
     finally:
         conn.close()
     ruled = set_aside(set_aside_path)
@@ -618,7 +670,8 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
             source_key=f"registry:{p['nct_id']}", company_id=study["company_id"],
             source="registry", kind="readout", url=_CTGOV + p["nct_id"],
             published_at=str(p["results_date"] or "")[:10] or None,
-            sentence=f"Results posted on the registry for {label(study)}.",
+            sentence=(f"Results posted on the registry for {label(study)}."
+                      + (f" {p['primary']}" if p.get("primary") else "")),
             asset_id=study["asset_id"], nct_id=study["nct_id"], tied_by="registry number",
             state="outcome_not_read",
             reason="the registry posts result tables, which state no outcome in words"))
