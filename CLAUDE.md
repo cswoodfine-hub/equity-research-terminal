@@ -107,6 +107,7 @@ ER Tool/
     streamlit_app.py        # the app: the top bar, the tabs, every page
     theme.py                # the page's CSS
     *_view.py               # pure builders for a page's HTML and SVG
+    *_page.py               # a tab's Streamlit side, kept out of streamlit_app.py
     components/
       charts.py             # the SVG chart layer
       tokens.py             # colour, type and spacing, mirrored in assets/tokens.css
@@ -324,6 +325,13 @@ no single page connects and every figure it uses is one the book computed.
   read it was made from. The reader's own holdings are not offered to it unless
   `CHAT_ALLOW_PORTFOLIO=1`, because what a tool returns is sent to the model's provider.
   With no key the tab says so and the rest of the app is unaffected.
+- The Trading tab is a board of panels beside the same Ask box (`frontend/trading_view.py`
+  the pure half, `frontend/trading_page.py` the Streamlit half,
+  `docs/design/trading-tab.md` the contract). A panel is a registry entry over a read the
+  API already has. Asked from beside the board, a question goes with the kind and company
+  of each open panel and never with what a panel shows; `desk_chat.ON_SCREEN` is the list
+  the model is named them from, and a panel built on the reader's holdings is not in it.
+  The board reads only: no order, no broker action, no write to the book.
 
 ### The call log follows the committed record
 

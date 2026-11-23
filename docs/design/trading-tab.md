@@ -167,3 +167,56 @@ Not offered as panels:
 5. Options behind a button, because every read of it is a live call to Cboe.
 6. Working notes are left out until where to keep them is settled. Not the database: a
    write there moves the stamp every valuation is held against.
+
+## What was built, 2026-11-23
+
+Steps 1 to 5, on branch `claude/trading-tab`. Steps 6 to 15 are not built.
+
+The tab sits beside Ask. The board holds three kinds of panel, What changed, Company news
+and Dated ahead, picked from a row of pills and laid out one, two or three across for the
+company in the top bar. The Ask box sits in a column beside it, with a switch to put it
+away, and a question asked there goes with the names of the open panels.
+
+Measured on Lilly at 1440 by 900: two across beside the Ask box shows the first row of
+two panels whole and about half of the next; three across shows all three. A panel's body
+is 340 px and scrolls inside itself. The board's two reads of the API (`/news` and
+`/catalysts`) each answer in about a millisecond from the response cache, and the board
+holds each for a minute, so a full run of the page with the board hidden adds no read
+within the minute and two short ones after it.
+
+Decisions taken while building:
+
+- **Dated ahead is a list, not the Catalysts tab's month grid.** The grid is built for
+  the page's full width and a panel has half of it or less. The list is one line an
+  event, soonest first, and a month the registry gives with no day is shown as the month
+  and marked "month only", never as the first of it.
+- **A list is measured against its own panel.** Three across beside the Ask box left a
+  headline a few characters wide in the feed's four columns. A narrow row is the date and
+  the headline, with the qualifier and the tag on a line under them; from about 35rem it
+  is the feed's columns. This is a container query on the panel's body.
+- **A panel is a section, not a card.** A rule and a caps label from the house's own
+  `section`, with the company in the basis tag. The design system has no cards.
+- **A private panel is never named to the model**, whatever `CHAT_ALLOW_PORTFOLIO` says.
+  The plan had the switch let it through. The switch offers a tool the model has to ask
+  for; naming a holdings panel beside a ticker would tell it unasked. So `desk_chat`'s
+  list holds no private panel at all, and a test holds that list to the frontend's.
+- **What is on screen is read when the question is sent**, from the session, not passed
+  when the box is drawn. The board and the box are separate fragments, and a value
+  passed at draw time would be the board as it stood at the last full run of the page.
+- **The Ask box's slot goes after the part of each key the stylesheet matches**
+  (`ask_box_td_LLY`, not `td_ask_box_LLY`), so the second box takes the same styles with
+  no change to `theme.py`.
+- **The registry lists only what is built.** The picker offers what works; the table
+  above is the plan for the rest.
+- **The board's held reads are cleared through `api_get.clear`**, the call every handler
+  that changes the book already makes. It did nothing since the page stopped caching;
+  now it drops the board's minute of reads.
+
+Not checked yet:
+
+- The whole suite (`make verify`). Another session's suite was running, and one heavy
+  thing runs at a time. The eight test files this work touches pass: 129 tests.
+- A question asked end to end against a model with the board's sentence in the prompt.
+  The copy's page was run against the API of the real checkout, which does not have the
+  new field and ignores it. `test_desk_chat.py` pins the prompt and `test_ask_route.py`
+  the route.
