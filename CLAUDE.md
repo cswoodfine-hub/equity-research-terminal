@@ -167,6 +167,8 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 
 - yfinance is free but unofficial and can break or get rate-limited without warning. Wrap it in retries and treat failures as a soft, reported error, not a crash.
 - FMP's paid tier is the stable fallback for quotes and the one genuinely useful cheap dataset, consensus EPS and revenue. Everything else has a free route.
+- The Prices tab reads Yahoo for itself, apart from the refresh: `/companies/{ticker}/prices/live` (`backend/prices_live.py`) asks the same chart endpoint for five sessions of 5 minute bars and a month of hourly ones, holds the answer in the API's memory for about a minute and writes nothing. No bar, no snapshot, no `refresh_runs` row: a path that cannot write cannot file an intraday price as a close, and a write a minute would move the stamp `response_cache` keeps every valuation against. The page lays the live bars over the stored series (`price_chart.merge_live`) and re-reads each minute while the regular session is open.
+- The chart endpoint's `meta` carries no market state and no stated delay (read 2026-11-23). It carries `currentTradingPeriod`, the hours of the pre, regular and post sessions, and `regularMarketTime`, the last trade; whether a session is open is worked out from those. While one is open the last element of an intraday series is the last trade, stamped to the second with a volume of nought, not a bar. `parse_chart` stamps every bar with the one `gmtoffset` in the meta, so bars from the other side of a clock change come out an hour off; each entry of `tradingPeriods` carries its own offset, and the live read drops the sessions that differ.
 
 ### LOE and patents
 
@@ -396,7 +398,7 @@ streamlit run frontend/streamlit_app.py   # UI on 8501
 ```
 
 - The app tests skip when the API is not on 8000, and the JavaScript tests skip when `node` is not installed. A green run with either missing has not tested that part.
-- Refresh only before 08:00 UTC or after the US close. A refresh while a market is open writes an intraday price into the snapshot history as that day's close (see "Daily pulse" above).
+- Refresh only before 08:00 UTC or after the US close. A refresh while a market is open writes an intraday price into the snapshot history as that day's close (see "Daily pulse" above). The Refresh button on the Prices tab is not that refresh: it is the live read, which writes nothing and is safe at any hour.
 - `uvicorn --reload` restarts the API on any edit under `backend/`, which empties its caches; the first page after that is slow.
 
 ## Rules for you, Claude Code

@@ -246,3 +246,222 @@ def chart_html(bars, events=None, *, mode: str = LINE, ticker: str = "", currenc
 }})();
 </script>
 """
+
+
+# --- The live overlay -----------------------------------------------------
+# The chart reads two things. The stored series is the book's: daily closes and the
+# intraday windows as the last full refresh left them. The live read is Yahoo's recent
+# bars as they stand now, fetched by /companies/{ticker}/prices/live, which writes
+# nothing (backend/prices_live.py says why). What follows lays the second over the first
+# and puts into words what the reader is then looking at. All of it is pure: the route's
+# answer in, bars and sentences out.
+
+# How often the chart re-reads while a session is open.
+LIVE_TICK_S = 60
+# A session that opens within this long gets one timer set for the bell, so a tab left
+# open before the open starts updating by itself. Further off than that and no timer
+# runs at all.
+LIVE_WAKE_WITHIN_S = 12 * 60 * 60
+
+
+def merge_live(stored, live) -> list[dict]:
+    """The stored bars with the live ones laid over them, oldest first.
+
+    Keyed on the bar's timestamp. Where both hold a bar the live one wins: it is the
+    later look at the same bar, and the stored one may be a session caught half formed
+    by a refresh run during market hours. No timestamp appears twice, and the order is
+    by time whatever order the two lists came in.
+    """
+    by_time: dict = {}
+    for bar in list(stored or []) + list(live or []):
+        key = str(bar.get("as_of") or "")
+        if key:
+            by_time[key] = bar
+    return [by_time[key] for key in sorted(by_time)]
+
+
+def live_gap(stored, live) -> dict | None:
+    """Where the stored bars stop short of the live ones, or None where they meet.
+
+    The live read reaches back a few sessions. If the last full refresh is older than
+    that, the chart would join the last stored bar to the first live one across days
+    nobody fetched, and a line through them reads as data. A weekday between the two is
+    taken as a session missed. It may have been a holiday, which is why the sentence
+    built from this says what is on file and not what happened.
+    """
+    stored_days = [str(b.get("as_of") or "") for b in stored or [] if b.get("as_of")]
+    live_days = [str(b.get("as_of") or "") for b in live or [] if b.get("as_of")]
+    if not stored_days or not live_days:
+        return None
+    ends, begins = max(stored_days), min(live_days)
+    if begins <= ends:
+        return None
+    last, first = _parse_day(ends), _parse_day(begins)
+    if last is None or first is None:
+        return None
+    between = [last + dt.timedelta(days=n) for n in range(1, (first - last).days)]
+    if not any(day.weekday() < 5 for day in between):
+        return None
+    return {"stored_ends": ends, "live_begins": begins}
+
+
+def _moment(value) -> str:
+    """A timestamp from either side, as comparable text: 'YYYY-MM-DD HH:MM:SS'."""
+    return str(value or "").replace("T", " ").replace("Z", "")[:19]
+
+
+def live_daily_applies(stored, live_daily, stored_read_at=None) -> bool:
+    """Whether the session's live daily bar goes on the daily chart.
+
+    It does whenever the stored series has no bar for that day, and whenever it has one
+    that may not be the day's close: a session still open, or a stored bar read before
+    the session ended, which is the last trade at the hour of the refresh and not a
+    close. Only a stored bar read after the bell is left standing, because that one is
+    the finished session with the consolidated volume, and the live bar is five minute
+    bars added up.
+    """
+    if not live_daily or not live_daily.get("as_of") or live_daily.get("close") is None:
+        return False
+    day = str(live_daily["as_of"])[:10]
+    if not any(str(b.get("as_of") or "")[:10] == day for b in stored or []):
+        return True
+    ended = _moment(live_daily.get("session_end"))
+    read = _moment(stored_read_at)
+    return not (live_daily.get("complete") and ended and read and read >= ended)
+
+
+def poll_seconds(live):
+    """Seconds until the chart should read again, or None for no timer.
+
+    Sixty while the regular session is open. One timer set for the bell when the
+    session opens within twelve hours. Otherwise nothing: a closed market is not asked
+    the same question every minute.
+    """
+    market = (live or {}).get("market") or {}
+    if market.get("regular_open"):
+        return LIVE_TICK_S
+    wait = market.get("seconds_to_open")
+    if wait is not None and 0 <= wait <= LIVE_WAKE_WITHIN_S:
+        return max(int(wait) + 5, 15)
+    return None
+
+
+def poll_kind(seconds) -> str:
+    """Which of the three timers a figure from ``poll_seconds`` is: 'tick' while a
+    session is open, 'wake' when waiting for the bell, 'off' for none."""
+    if seconds is None:
+        return "off"
+    return "tick" if seconds == LIVE_TICK_S else "wake"
+
+
+def _utc_clock(stamp, seconds: bool = True) -> str:
+    """'2026-11-23T14:47:05Z' as '14:47:05 UTC'."""
+    text = _moment(stamp)
+    return f"{text[11:19] if seconds else text[11:16]} UTC" if len(text) >= 16 else ""
+
+
+def _span(seconds) -> str:
+    seconds = max(int(seconds), 0)
+    if seconds < 90:
+        return f"{seconds} seconds"
+    return f"{round(seconds / 60)} minutes"
+
+
+def live_status(live) -> str:
+    """The few words that ride on the tab's section rule: whose prices, read when, and
+    whether the market is open."""
+    if not live:
+        return ""
+    parts = []
+    read = _utc_clock(live.get("fetched_at"))
+    if not live.get("ok"):
+        parts.append("Yahoo did not answer" + (f", last read {read}" if read else ""))
+    elif read:
+        parts.append(f"Yahoo, read {read}")
+    market = live.get("market") or {}
+    exchange = market.get("exchange") or "market"
+    if market.get("regular_open"):
+        parts.append(f"{exchange} open, re-read every minute")
+    elif market:
+        opens = (_utc_clock(market.get("regular_start"), seconds=False)
+                 if market.get("seconds_to_open") is not None else "")
+        parts.append(f"{exchange} closed" + (f", opens {opens}" if opens else ""))
+    return " · ".join(parts)
+
+
+def live_bar_words(live, base: str, applied, stored=None) -> str:
+    """What the legend says about the live bars on screen, in words, so that nobody has
+    to tell a forming bar from a finished one by its colour. Empty when the live read
+    put nothing on the chart that the stored series did not already hold.
+
+    ``base`` is the stored series the view is built from ('1d', '5m' or '60m'),
+    ``applied`` the live bars laid over it and ``stored`` the series itself.
+    """
+    applied = list(applied or [])
+    if not applied:
+        return ""
+    if base != "1d":
+        ends = max((str(b.get("as_of") or "") for b in stored or []), default="")
+        fresh = sorted(str(b.get("as_of") or "") for b in applied
+                       if str(b.get("as_of") or "") > ends)
+        if not fresh:
+            return ""
+        return f"live from {fresh[0]}: Yahoo's bars, not in the stored history"
+    bar = applied[-1]
+    day = str(bar.get("as_of") or "")[:10]
+    zone = ((live or {}).get("market") or {}).get("timezone") or "exchange time"
+    if bar.get("complete"):
+        return (f"{day} is live: the finished session added up from Yahoo's five minute "
+                "bars, not yet a stored close")
+    upto = str(bar.get("last_bar") or "")[11:16]
+    return (f"{day} is live: the session so far"
+            + (f", to the {upto} {zone} bar" if upto else "") + ", not a close")
+
+
+def live_gap_words(gap) -> str:
+    """The plain statement that the stored bars stop short of the live ones."""
+    if not gap:
+        return ""
+    return (f"Stored bars end {gap['stored_ends']} and the live read begins "
+            f"{gap['live_begins']}. Nothing between the two is on file, so the line "
+            "across it is not data; a full refresh fills it.")
+
+
+def live_note(live) -> str:
+    """The sentences for the folded byline: whose prices these are, when they were read,
+    what the market is doing and how far behind the feed runs."""
+    if not live:
+        return ""
+    out = []
+    read = _utc_clock(live.get("fetched_at"))
+    if not live.get("ok"):
+        why = live.get("reason") or "no reason given"
+        out.append(f"Yahoo did not answer the live read ({why}). "
+                   + (f"The live bars shown were read at {read}. " if read
+                      else "The chart shows the stored bars only. "))
+    elif read:
+        out.append(f"Live prices are Yahoo's, read at {read}. The live read writes "
+                   "nothing to the book, so the stored history still ends at the last "
+                   "full refresh and no close is filed during a session. ")
+    market = live.get("market") or {}
+    exchange = market.get("exchange") or "The market"
+    if market.get("regular_open"):
+        out.append(f"{exchange}'s regular session is open until "
+                   f"{_utc_clock(market.get('regular_end'), seconds=False)} and the "
+                   "chart reads again every minute while it is. ")
+        if market.get("traded_this_session") is False:
+            out.append("No trade has printed in this session yet. ")
+        stated, age = market.get("stated_delay_minutes"), market.get("quote_age_seconds")
+        if stated is not None:
+            out.append(f"Yahoo states a delay of {stated} minutes. ")
+        elif age is not None:
+            out.append("Yahoo does not state a delay on this feed; the last trade was "
+                       f"{_span(age)} before the read. ")
+    elif market:
+        opens = (_utc_clock(market.get("regular_start"), seconds=False)
+                 if market.get("seconds_to_open") is not None else "")
+        out.append(f"{exchange}'s regular session is closed"
+                   + (f" and opens at {opens}" if opens else "")
+                   + ", so nothing is read again until it opens. Refresh reads Yahoo "
+                     "again at once. ")
+    return "".join(out)

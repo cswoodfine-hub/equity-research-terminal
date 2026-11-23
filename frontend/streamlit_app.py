@@ -11661,240 +11661,330 @@ with main:
 
     # --- Prices ----------------------------------------------------------
     with prices_tab:
-        # Everything above the chart on one line. The tab used to stack a heading, a
-        # refresh button, an interval row, a window row, a stats strip and a row of
-        # toggles before the chart began, which put the chart itself below the fold on
-        # the tab whose whole subject is the chart.
-        section("Price", prices.get("currency") or "")
-        ctrl_int, ctrl_view, ctrl_events, ctrl_grid, ctrl_refresh = st.columns(
-            [3.2, 1.3, 0.8, 0.7, 1.0], vertical_alignment="center")
-        with ctrl_events:
-            show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
-        with ctrl_grid:
-            # Off by default: the price line is the subject and the gridlines sat on top
-            # of it. The toggle stays, so a reader measuring a level can put them back.
-            show_grid = st.toggle("Grid", value=False, key=f"grid_{ticker}")
-        with ctrl_refresh:
-            if st.button("Refresh", key="refresh_prices", width="stretch"):
-                run_refresh(api_base, f"/refresh?ticker={urllib.parse.quote(ticker)}",
-                            "price_run", f"Refreshing {ticker} from Yahoo")
+        # The tab keeps itself current. The stored series is the book's, as the last full
+        # refresh left it; over it goes Yahoo's live read (/companies/{t}/prices/live),
+        # which fetches the recent bars in a second or two and writes nothing, so reading
+        # it during a session cannot file an intraday price as a close.
+        def _live_prices(fresh: bool = False) -> dict:
+            """The live read, or the reason there is none. Never raises: an API that
+            does not answer leaves the stored chart standing with the reason said."""
+            path = (f"/companies/{urllib.parse.quote(ticker)}/prices/live"
+                    + ("?fresh=1" if fresh else ""))
+            try:
+                return api_get(api_base, path, timeout=12)
+            except (urllib.error.URLError, OSError, ValueError) as exc:
+                return {"ok": False, "reason": f"the API did not answer: {exc}",
+                        "bars": {}, "live_daily": None, "market": None,
+                        "fetched_at": None}
+
+        # A fragment's timer is fixed where the fragment is declared, so the market is
+        # asked once here for what the timer should be: a minute while the regular
+        # session is open, the time to the bell when it opens later today, and no timer
+        # at all when it is closed. The API holds the answer, so the read inside the
+        # fragment a moment later costs nothing.
+        _live_timer = price_chart.poll_seconds(_live_prices())
+
+        # A fragment: the timer, the Refresh button and every control here rerun this
+        # tab alone. The page renders every tab on every rerun, and a chart that reads
+        # again each minute must not take the other eleven with it. It reads `prices`,
+        # the stored daily series, from the page above it, which is right: that series
+        # moves only with a full refresh, and a full refresh reruns the page.
+        @st.fragment(run_every=_live_timer)
+        def _prices_tab():
+            # Everything above the chart on one line. The tab used to stack a heading, a
+            # refresh button, an interval row, a window row, a stats strip and a row of
+            # toggles before the chart began, which put the chart itself below the fold on
+            # the tab whose whole subject is the chart.
+            #
+            # The section rule is drawn last and placed first: it says when Yahoo was
+            # read, and the read waits on the button in the row beneath it.
+            head = st.container()
+            ctrl_int, ctrl_view, ctrl_events, ctrl_grid, ctrl_refresh = st.columns(
+                [3.2, 1.3, 0.8, 0.7, 1.0], vertical_alignment="center")
+            with ctrl_events:
+                show_events = st.toggle("Events", value=True, key=f"events_{ticker}")
+            with ctrl_grid:
+                # Off by default: the price line is the subject and the gridlines sat on top
+                # of it. The toggle stays, so a reader measuring a level can put them back.
+                show_grid = st.toggle("Grid", value=False, key=f"grid_{ticker}")
+            with ctrl_refresh:
+                # Reads Yahoo again now, past the minute the API holds an answer for.
+                # It was the whole company refresh, seventeen sources to move one
+                # series, and during a session that refresh filed the last trade as
+                # the day's close. This writes nothing.
+                reread = st.button(
+                    "Refresh", key="refresh_prices", width="stretch",
+                    help="Read Yahoo's prices again now. Nothing is written to the "
+                         "book; the stored history moves with Refresh all.")
+
+            # The bar interval and the line/candle view. The window radio comes after the base
+            # series loads, since which windows can be filled depends on how far it reaches.
+            with ctrl_int:
+                interval = st.segmented_control(
+                    "Interval", PRICE_INTERVALS, default="1D", key="price_interval_v2",
+                    label_visibility="collapsed") or "1D"
+            with ctrl_view:
+                view = st.segmented_control(
+                    "View", [price_chart.LINE, price_chart.CANDLE],
+                    default=price_chart.CANDLE, key="price_view",
+                    label_visibility="collapsed") or price_chart.CANDLE
+
+            live = _live_prices(fresh=reread)
+            # The timer was set when the fragment was declared and a run of the fragment
+            # alone cannot change it. So when this read finds the market in a different
+            # state from the one the timer was set for, at the bell or at the close, the
+            # page is rerun once to set it again. Not more than once in half a minute:
+            # a read that flickered between answers would otherwise rerun the page for
+            # as long as it did.
+            if (price_chart.poll_kind(price_chart.poll_seconds(live))
+                    != price_chart.poll_kind(_live_timer)
+                    and (dt.datetime.now().timestamp()
+                         - st.session_state.get("_live_timer_set", 0)) > 30):
+                st.session_state["_live_timer_set"] = dt.datetime.now().timestamp()
                 st.rerun()
+            with head:
+                section("Price", html_escape(" · ".join(
+                    part for part in (prices.get("currency") or live.get("currency"),
+                                      price_chart.live_status(live)) if part)))
 
-        # The bar interval and the line/candle view. The window radio comes after the base
-        # series loads, since which windows can be filled depends on how far it reaches.
-        with ctrl_int:
-            interval = st.segmented_control(
-                "Interval", PRICE_INTERVALS, default="1D", key="price_interval_v2",
-                label_visibility="collapsed") or "1D"
-        with ctrl_view:
-            view = st.segmented_control(
-                "View", [price_chart.LINE, price_chart.CANDLE],
-                default=price_chart.CANDLE, key="price_view",
-                label_visibility="collapsed") or price_chart.CANDLE
-
-        # 1D/1W/1M read the 5y daily already fetched; sub-daily reads the intraday base.
-        base, rule, intraday = _INTERVAL_BASE[interval]
-        base_resp = (prices if base == "1d" else
-                     api_get(api_base, f"/companies/{ticker}/prices?interval={base}"))
-        base_points = base_resp.get("points") or []
-        if not base_points:
-            state(f"No {interval} history yet",
-                  "Press Refresh prices to pull the history from Yahoo. Prices expire "
-                  "after 15 minutes, so a second press inside that window is a no-op."
-                  if base == "1d" else
-                  f"No {interval} bars on file yet. Intraday is a rolling window the free "
-                  "feed caps at about two months for minutes and two years for hours; "
-                  "press Refresh prices to fill it.")
-        else:
-            frame = pd.DataFrame(base_points)
-            frame["as_of"] = pd.to_datetime(frame["as_of"])
-            # Resample the base into the asked bar: open first, high max, low min, close
-            # last, volume sum. 5m, 1H and 1D pass through as their own base.
-            if rule:
-                agg = (frame.set_index("as_of").resample(rule)
-                       .agg({"open": "first", "high": "max", "low": "min",
-                             "close": "last", "volume": "sum"})
-                       .dropna(subset=["close"]).reset_index())
-                bar_frame = agg
-                out = agg.copy()
-                out["as_of"] = agg["as_of"].dt.strftime(
-                    "%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d")
-                chart_rows = out.to_dict("records")
+            # 1D/1W/1M read the 5y daily already fetched; sub-daily reads the intraday base.
+            base, rule, intraday = _INTERVAL_BASE[interval]
+            base_resp = (prices if base == "1d" else
+                         api_get(api_base, f"/companies/{ticker}/prices?interval={base}"))
+            stored_points = base_resp.get("points") or []
+            # The live bars for this view. On the daily, weekly and monthly views that
+            # is the current session as one bar, unless the stored series already holds
+            # that day's finished close; on the intraday ones it is Yahoo's recent bars
+            # at the size the view is built from.
+            if base == "1d":
+                live_points = ([live["live_daily"]] if price_chart.live_daily_applies(
+                    stored_points, live.get("live_daily"), base_resp.get("last_fetch_at"))
+                    else [])
             else:
-                bar_frame = frame
-                chart_rows = base_points
-            held = (bar_frame["as_of"].max() - bar_frame["as_of"].min()).days
+                live_points = (live.get("bars") or {}).get(base) or []
+            # Laid over the stored series by timestamp, the live bar winning, so the
+            # chart runs unbroken from the last full refresh to now. Where it cannot,
+            # because the refresh is older than the live read reaches, that is said in
+            # words under the chart.
+            base_points = price_chart.merge_live(stored_points, live_points)
+            live_warning = price_chart.live_gap_words(
+                price_chart.live_gap(stored_points, live_points))
+            if live_points and not stored_points:
+                live_warning = (f"No stored {interval} bars are on file, so only the "
+                                "sessions Yahoo's live read reaches are drawn. Refresh "
+                                "all, in the top bar, files the history.")
+            if not base_points:
+                state(f"No {interval} history yet",
+                      "Refresh all, in the top bar, files the price history from Yahoo. "
+                      "The live read returned no bars to draw in the meantime: "
+                      f"{html_escape(str(live.get('reason') or 'no free data'))}."
+                      if base == "1d" else
+                      f"No {interval} bars on file yet. Intraday is a rolling window the free "
+                      "feed caps at about two months for minutes and two years for hours; "
+                      "Refresh all, in the top bar, fills it. The live read returned no "
+                      f"bars either: {html_escape(str(live.get('reason') or 'no free data'))}.")
+            else:
+                frame = pd.DataFrame(base_points)
+                frame["as_of"] = pd.to_datetime(frame["as_of"])
+                # Resample the base into the asked bar: open first, high max, low min, close
+                # last, volume sum. 5m, 1H and 1D pass through as their own base.
+                if rule:
+                    agg = (frame.set_index("as_of").resample(rule)
+                           .agg({"open": "first", "high": "max", "low": "min",
+                                 "close": "last", "volume": "sum"})
+                           .dropna(subset=["close"]).reset_index())
+                    bar_frame = agg
+                    out = agg.copy()
+                    out["as_of"] = agg["as_of"].dt.strftime(
+                        "%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d")
+                    chart_rows = out.to_dict("records")
+                else:
+                    bar_frame = frame
+                    chart_rows = base_points
+                held = (bar_frame["as_of"].max() - bar_frame["as_of"].min()).days
 
-            # Only offer windows the loaded base can fill. The window sets the chart's
-            # opening view; pan and zoom (two-finger scroll) refine it from there.
-            choices = [(label, days) for label, days in PRICE_WINDOWS
-                       if days is None or days <= held + 45]
-            labels = [label for label, _ in choices]
-            # Open on 5Y rather than Max, so the daily chart does not start fully zoomed
-            # out over ten years; Max and pan reach the older bars.
-            default_win = labels.index("5Y") if "5Y" in labels else len(labels) - 1
-            # The window picker and the figures it describes share a row. Stacked they
-            # were two bands of chrome between the controls and the chart, and the
-            # figures are a reading of the window rather than a separate subject.
-            win_col, stat_col = st.columns([2.1, 3.4], vertical_alignment="center")
-            with win_col:
-                span = st.radio("Window", labels, index=default_win, horizontal=True,
-                                key="price_window", label_visibility="collapsed")
-            days = dict(choices)[span]
+                # Only offer windows the loaded base can fill. The window sets the chart's
+                # opening view; pan and zoom (two-finger scroll) refine it from there.
+                choices = [(label, days) for label, days in PRICE_WINDOWS
+                           if days is None or days <= held + 45]
+                labels = [label for label, _ in choices]
+                # Open on 5Y rather than Max, so the daily chart does not start fully zoomed
+                # out over ten years; Max and pan reach the older bars.
+                default_win = labels.index("5Y") if "5Y" in labels else len(labels) - 1
+                # The window picker and the figures it describes share a row. Stacked they
+                # were two bands of chrome between the controls and the chart, and the
+                # figures are a reading of the window rather than a separate subject.
+                win_col, stat_col = st.columns([2.1, 3.4], vertical_alignment="center")
+                with win_col:
+                    span = st.radio("Window", labels, index=default_win, horizontal=True,
+                                    key="price_window", label_visibility="collapsed")
+                days = dict(choices)[span]
 
-            windowed = (bar_frame if days is None else
-                        bar_frame[bar_frame["as_of"]
-                                  >= bar_frame["as_of"].max() - pd.Timedelta(days=days)])
-            opened, latest_close = windowed["close"].iloc[0], windowed["close"].iloc[-1]
-            change = (latest_close - opened) / opened * 100 if opened else None
-            low, high = windowed["low"].min(), windowed["high"].max()
-            low = windowed["close"].min() if pd.isna(low) else low
-            high = windowed["close"].max() if pd.isna(high) else high
-            with stat_col:
-                st.markdown(
-                    '<div class="stats stats-tight">'
-                    f'<span class="stat"><span class="k">last</span>'
-                    f'<span class="v">{T.num(latest_close, 2)}</span></span>'
-                    f'<span class="stat"><span class="k">as of</span>'
-                    f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
-                    f'<span class="stat"><span class="k">{span} change</span>'
-                    f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
-                    f'{T.pct(change)}</span>{_vs_sector(api_base, ticker, span)}</span>'
-                    f'<span class="stat"><span class="k">{span} range</span>'
-                    f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
-                    f'<span class="stat"><span class="k">bars</span>'
-                    f'<span class="v">{len(windowed)}</span></span></div>',
-                    unsafe_allow_html=True)
-
-            # Major events on the chart, from the data rather than typed in: FDA approvals
-            # (up arrow, below the bar) and any loss-of-exclusivity date inside the window
-            # (down arrow, above it). Both come from the approvals endpoint. Future LOE
-            # dates sit years past the price history, so they fall outside the window and
-            # are left to the LOE tab.
-            approvals = api_get(
-                api_base, f"/companies/{ticker}/approvals").get("approvals") or []
-            events = []
-            for appr in approvals:
-                name = appr.get("brand_name") or appr.get("generic_name")
-                if appr.get("approval_date") and name:
-                    events.append({"date": appr["approval_date"], "label": name,
-                                   "kind": "approval"})
-                if appr.get("loe") and name:
-                    events.append({"date": appr["loe"], "label": f"{name} LOE",
-                                   "kind": "loe"})
-
-            # The fair value this book stated, day by day, against the close it was stated
-            # against. A day the refresh did not run carries the last stated view flat and
-            # is drawn muted, because the model did not change its mind on a day nobody
-            # asked it. Nothing is carried backwards and nothing is recomputed: the line
-            # is the record, and a company the book has never valued simply has no line.
-            # Asked for the window on screen rather than the whole record: the price
-            # history runs ten years and the fair value line is clipped to the bars
-            # anyway, so fetching all of it moves thousands of points to draw dozens.
-            _since = str(chart_rows[0]["as_of"])[:10] if chart_rows else None
-            history = api_get(
-                api_base, f"/companies/{ticker}/forecast-history"
-                          + (f"?since={_since}" if _since else ""))
-            fair = price_chart.forecast_series(
-                history.get("points") or [], intraday,
-                bars=chart_rows) if history.get("ok") else []
-
-            # Why the line last moved, from the two most recent days the book stated a
-            # view: what the market did, what the analyst changed and why, what the data
-            # underneath did, and whether the engine itself changed. Fetched before the
-            # chart draws, because the chart takes the height the tab has and would
-            # otherwise push this under the fold, where the first version of it lived.
-            _said = [pt["as_of"] for pt in (history.get("points") or [])
-                     if pt.get("stated")]
-            _why = {}
-            if len(_said) >= 2 and not intraday:
-                try:
-                    _why = api_get(
-                        api_base, f"/companies/{ticker}/why-moved"
-                                  f"?start={_said[-2]}&end={_said[-1]}")
-                except Exception:                                   # noqa: BLE001
-                    _why = {}
-            _why_lines = _why.get("reading") or [] if _why.get("ok") else []
-            # The analyst's own changes go on the chart beside the world's. The rest of
-            # the feed stays on the change feed, where it already reads in full: a trial
-            # slipping a month is not what a price chart is for.
-            for moved in (history.get("events") or []):
-                if moved.get("kind") == "model" and moved.get("headline"):
-                    events.append({"date": moved["date"], "kind": "model",
-                                   "label": moved["headline"]})
-
-            # A lightweight-charts component with native two-finger zoom that stretches
-            # the sticks and auto-fits the y-axis. Drawing trendlines on it is gone: it
-            # did not work, and the toggle, its Clear button and the annotation
-            # round-trip cost a control row on a tab that has to fit one screen.
-            data = price_chart.series_data(chart_rows, view, intraday)
-            # "rule" draws the chart's gridlines only, so it takes the faint token: a
-            # price chart draws far more lines than a table draws borders, and at the
-            # hairline weight the mesh competes with the series it is there to measure.
-            theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
-                     "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
-                     "flag": TK.FLAG}
-
-            # Gridlines off is the background colour rather than a transparent value,
-            # which the chart library would fall back to its own default for.
-            theme = dict(theme, rule=TK.RULE_FAINT if show_grid else TK.GROUND)
-
-            # Approval and LOE markers only when the toggle is on, so the price can be read
-            # clean.
-            markers = price_chart.event_markers(
-                chart_rows, events if show_events else [], intraday)
-            drawchart.draw_chart(
-                data=data, markers=markers, fair=fair, mode=view, intraday=intraday,
-                lines=[], draw_mode=False, theme=theme,
-                gutter=56 + (46 if _why_lines else 0),
-                view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
-                key=f"drawchart_{ticker}")
-
-            legend = ('<span style="color:var(--up)">▲</span> FDA approval'
-                      '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
-                      f'exclusivity &nbsp;·&nbsp; {len(markers)} on this view')
-            if fair:
-                _said = history.get("stated_days", 0)
-                _held = history.get("carried_days", 0)
-                legend += ('&nbsp;&nbsp;<span style="color:var(--flag)">—</span> '
-                           f'fair value, stated on {_said} of {_said + _held} days')
-            detail = ("Markers are read from the approvals and exclusivity data; a date "
-                      "outside the loaded window is not drawn. A day carrying several "
-                      "events shows the one that leads and counts the rest. ")
-            if fair:
-                detail += (
-                    "The fair value line is what this book stated on the day, from the "
-                    f"daily record that begins {history.get('begins')}; it was last "
-                    f"stated {history.get('last_stated')}. A day the refresh did not run "
-                    "holds the last stated figure flat and is drawn muted, rather than "
-                    "recomputing a past date with everything learnt since. ")
-            elif intraday:
-                detail += ("The fair value line is a daily figure and is left off an "
-                           "intraday view. ")
-            if intraday:
-                detail += ("Intraday is a rolling window from the free feed: minutes "
-                           "reach back about two months, hours about two years. Older "
-                           "bars are unavailable, not missing.")
-            # Legend visible, the caveats folded. Two stacked bylines under the chart were
-            # sixty pixels of the height the chart wanted.
-            st.markdown(f'<div class="byline chart-legend">{legend}</div>',
+                windowed = (bar_frame if days is None else
+                            bar_frame[bar_frame["as_of"]
+                                      >= bar_frame["as_of"].max() - pd.Timedelta(days=days)])
+                opened, latest_close = windowed["close"].iloc[0], windowed["close"].iloc[-1]
+                change = (latest_close - opened) / opened * 100 if opened else None
+                low, high = windowed["low"].min(), windowed["high"].max()
+                low = windowed["close"].min() if pd.isna(low) else low
+                high = windowed["close"].max() if pd.isna(high) else high
+                with stat_col:
+                    st.markdown(
+                        '<div class="stats stats-tight">'
+                        f'<span class="stat"><span class="k">last</span>'
+                        f'<span class="v">{T.num(latest_close, 2)}</span></span>'
+                        f'<span class="stat"><span class="k">as of</span>'
+                        f'<span class="v">{str(chart_rows[-1]["as_of"])}</span></span>'
+                        f'<span class="stat"><span class="k">{span} change</span>'
+                        f'<span class="v {"risk" if (change or 0) < 0 else ""}">'
+                        f'{T.pct(change)}</span>{_vs_sector(api_base, ticker, span)}</span>'
+                        f'<span class="stat"><span class="k">{span} range</span>'
+                        f'<span class="v">{T.num(low, 2)} to {T.num(high, 2)}</span></span>'
+                        f'<span class="stat"><span class="k">bars</span>'
+                        f'<span class="v">{len(windowed)}</span></span></div>',
                         unsafe_allow_html=True)
-            note(detail)
 
-            # The move itself on one line, the reasoning folded under it. The tab has to
-            # fit a screen and the chart takes most of it, so this reads at a glance and
-            # opens where a reader wants it, the same bargain the Universe bylines make.
-            if _why_lines:
-                _rest = "".join(
-                    f'<li class="warn">{html_escape(line)}</li>'
-                    if ("cannot be attributed" in line or "different books" in line)
-                    else f'<li>{html_escape(line)}</li>'
-                    for line in _why_lines[1:])
-                st.markdown(
-                    f'<div class="whym-lead">{html_escape(_why_lines[0])}</div>'
-                    f'<details class="note-d"><summary>what moved it</summary>'
-                    f'<ul class="whym">{_rest}</ul></details>',
-                    unsafe_allow_html=True)
+                # Major events on the chart, from the data rather than typed in: FDA approvals
+                # (up arrow, below the bar) and any loss-of-exclusivity date inside the window
+                # (down arrow, above it). Both come from the approvals endpoint. Future LOE
+                # dates sit years past the price history, so they fall outside the window and
+                # are left to the LOE tab.
+                approvals = api_get(
+                    api_base, f"/companies/{ticker}/approvals").get("approvals") or []
+                events = []
+                for appr in approvals:
+                    name = appr.get("brand_name") or appr.get("generic_name")
+                    if appr.get("approval_date") and name:
+                        events.append({"date": appr["approval_date"], "label": name,
+                                       "kind": "approval"})
+                    if appr.get("loe") and name:
+                        events.append({"date": appr["loe"], "label": f"{name} LOE",
+                                       "kind": "loe"})
+
+                # The fair value this book stated, day by day, against the close it was stated
+                # against. A day the refresh did not run carries the last stated view flat and
+                # is drawn muted, because the model did not change its mind on a day nobody
+                # asked it. Nothing is carried backwards and nothing is recomputed: the line
+                # is the record, and a company the book has never valued simply has no line.
+                # Asked for the window on screen rather than the whole record: the price
+                # history runs ten years and the fair value line is clipped to the bars
+                # anyway, so fetching all of it moves thousands of points to draw dozens.
+                _since = str(chart_rows[0]["as_of"])[:10] if chart_rows else None
+                history = api_get(
+                    api_base, f"/companies/{ticker}/forecast-history"
+                              + (f"?since={_since}" if _since else ""))
+                fair = price_chart.forecast_series(
+                    history.get("points") or [], intraday,
+                    bars=chart_rows) if history.get("ok") else []
+
+                # Why the line last moved, from the two most recent days the book stated a
+                # view: what the market did, what the analyst changed and why, what the data
+                # underneath did, and whether the engine itself changed. Fetched before the
+                # chart draws, because the chart takes the height the tab has and would
+                # otherwise push this under the fold, where the first version of it lived.
+                _said = [pt["as_of"] for pt in (history.get("points") or [])
+                         if pt.get("stated")]
+                _why = {}
+                if len(_said) >= 2 and not intraday:
+                    try:
+                        _why = api_get(
+                            api_base, f"/companies/{ticker}/why-moved"
+                                      f"?start={_said[-2]}&end={_said[-1]}")
+                    except Exception:                                   # noqa: BLE001
+                        _why = {}
+                _why_lines = _why.get("reading") or [] if _why.get("ok") else []
+                # The analyst's own changes go on the chart beside the world's. The rest of
+                # the feed stays on the change feed, where it already reads in full: a trial
+                # slipping a month is not what a price chart is for.
+                for moved in (history.get("events") or []):
+                    if moved.get("kind") == "model" and moved.get("headline"):
+                        events.append({"date": moved["date"], "kind": "model",
+                                       "label": moved["headline"]})
+
+                # A lightweight-charts component with native two-finger zoom that stretches
+                # the sticks and auto-fits the y-axis. Drawing trendlines on it is gone: it
+                # did not work, and the toggle, its Clear button and the annotation
+                # round-trip cost a control row on a tab that has to fit one screen.
+                data = price_chart.series_data(chart_rows, view, intraday)
+                # "rule" draws the chart's gridlines only, so it takes the faint token: a
+                # price chart draws far more lines than a table draws borders, and at the
+                # hairline weight the mesh competes with the series it is there to measure.
+                theme = {"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
+                         "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
+                         "flag": TK.FLAG}
+
+                # Gridlines off is the background colour rather than a transparent value,
+                # which the chart library would fall back to its own default for.
+                theme = dict(theme, rule=TK.RULE_FAINT if show_grid else TK.GROUND)
+
+                # Approval and LOE markers only when the toggle is on, so the price can be read
+                # clean.
+                markers = price_chart.event_markers(
+                    chart_rows, events if show_events else [], intraday)
+                drawchart.draw_chart(
+                    data=data, markers=markers, fair=fair, mode=view, intraday=intraday,
+                    lines=[], draw_mode=False, theme=theme,
+                    gutter=56 + (46 if _why_lines else 0) + (20 if live_warning else 0),
+                    view_key=f"{ticker}|{interval}|{view}", height=PRICE_CHART_HEIGHT,
+                    key=f"drawchart_{ticker}")
+
+                legend = ('<span style="color:var(--up)">▲</span> FDA approval'
+                          '&nbsp;&nbsp;<span style="color:var(--down)">▼</span> loss of '
+                          f'exclusivity &nbsp;·&nbsp; {len(markers)} on this view')
+                # Which bars are live, in words. A forming bar and a finished one are
+                # drawn alike, so the legend is the only place the difference can sit.
+                _live_words = price_chart.live_bar_words(
+                    live, base, live_points, stored_points)
+                if _live_words:
+                    legend += f' &nbsp;·&nbsp; {html_escape(_live_words)}'
+                if fair:
+                    _said = history.get("stated_days", 0)
+                    _held = history.get("carried_days", 0)
+                    legend += ('&nbsp;&nbsp;<span style="color:var(--flag)">—</span> '
+                               f'fair value, stated on {_said} of {_said + _held} days')
+                detail = html_escape(price_chart.live_note(live))
+                detail += ("Markers are read from the approvals and exclusivity data; a date "
+                           "outside the loaded window is not drawn. A day carrying several "
+                           "events shows the one that leads and counts the rest. ")
+                if fair:
+                    detail += (
+                        "The fair value line is what this book stated on the day, from the "
+                        f"daily record that begins {history.get('begins')}; it was last "
+                        f"stated {history.get('last_stated')}. A day the refresh did not run "
+                        "holds the last stated figure flat and is drawn muted, rather than "
+                        "recomputing a past date with everything learnt since. ")
+                elif intraday:
+                    detail += ("The fair value line is a daily figure and is left off an "
+                               "intraday view. ")
+                if intraday:
+                    detail += ("Intraday is a rolling window from the free feed: minutes "
+                               "reach back about two months, hours about two years. Older "
+                               "bars are unavailable, not missing.")
+                # Legend visible, the caveats folded. Two stacked bylines under the chart were
+                # sixty pixels of the height the chart wanted.
+                st.markdown(f'<div class="byline chart-legend">{legend}</div>',
+                            unsafe_allow_html=True)
+                if live_warning:
+                    st.markdown(f'<div class="byline">{html_escape(live_warning)}</div>',
+                                unsafe_allow_html=True)
+                note(detail)
+
+                # The move itself on one line, the reasoning folded under it. The tab has to
+                # fit a screen and the chart takes most of it, so this reads at a glance and
+                # opens where a reader wants it, the same bargain the Universe bylines make.
+                if _why_lines:
+                    _rest = "".join(
+                        f'<li class="warn">{html_escape(line)}</li>'
+                        if ("cannot be attributed" in line or "different books" in line)
+                        else f'<li>{html_escape(line)}</li>'
+                        for line in _why_lines[1:])
+                    st.markdown(
+                        f'<div class="whym-lead">{html_escape(_why_lines[0])}</div>'
+                        f'<details class="note-d"><summary>what moved it</summary>'
+                        f'<ul class="whym">{_rest}</ul></details>',
+                        unsafe_allow_html=True)
+
+        _prices_tab()
 
     # --- Financials ------------------------------------------------------
     with financials_tab:
