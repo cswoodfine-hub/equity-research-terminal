@@ -30,13 +30,17 @@ import trading_view as TV
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 1
+REVISION = 2
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
 CHANGE_LEVELS = ("high", "medium")
 CHANGES_SHOWN = 40
+# The board against the Ask column beside it: about two thirds to one, which leaves the
+# box the measure its answers are set at and the board room for two panels across.
+BESIDE = (2.05, 1)
+ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
 
 
 @st.cache_data(ttl=HOLD_SECONDS, show_spinner=False)
@@ -142,8 +146,8 @@ DRAW = {"changes": _changes, "news": _news, "catalysts": _catalysts}
 
 # ----------------------------------------------------------------------------- the board
 def _controls() -> dict:
-    """The row above the board: which panels, and how many across. The widgets' own
-    keys hold the choice for the session."""
+    """The row above the board: which panels, how many across, and whether the Ask box
+    sits beside them. The widgets' own keys hold the choice for the session."""
     kinds = [panel["id"] for panel in TV.PANELS]
     with st.container(key="td_controls", horizontal=True, vertical_alignment="center"):
         picked = st.pills(
@@ -156,13 +160,22 @@ def _controls() -> dict:
             "Columns", list(TV.COLUMNS), default=TV.DEFAULT_COLUMNS, key="td_columns",
             format_func=lambda n: f"{n} across", label_visibility="collapsed",
             help="How many panels sit side by side.") or TV.DEFAULT_COLUMNS
-    return TV.from_ids(picked or [], columns=columns)
+        ask = st.toggle(
+            "Ask beside", value=True, key="td_ask",
+            help="The Ask box in a column beside the board. It is the same conversation "
+                 "as the Ask tab's, kept per company.")
+    return TV.from_ids(picked or [], columns=columns, ask=ask)
 
 
 @st.fragment
 def _board(api_base: str, ticker: str, kit, feed) -> None:
     """The controls and the panels. A fragment: picking a panel redraws the board alone."""
     layout, left_out = TV.normalise(_controls())
+    # The Ask column is laid out by the page, outside this fragment, so a run of the
+    # fragment alone cannot add or remove it. When the switch no longer matches what the
+    # page drew, the page is run once to draw it.
+    if layout["ask"] != st.session_state.get("_td_ask_drawn", layout["ask"]):
+        st.rerun()
     # What the Ask box may be told is on screen. Kept in the session and read when a
     # question is sent, so it is the board as it stands and not as it stood at the last
     # full run of the page.
@@ -192,4 +205,13 @@ def render(api_base: str, ticker: str, name: str, kit, feed=None,
                   "A date is set in the sidebar, and the board's panels are not rebuilt "
                   "for a past date. Clear the date to use it.")
         return
-    _board(api_base, ticker, kit, feed)
+    beside = st.session_state.get("td_ask", True)
+    st.session_state["_td_ask_drawn"] = beside
+    if not beside:
+        _board(api_base, ticker, kit, feed)
+        return
+    board, ask = st.columns(list(BESIDE), gap="medium")
+    with board:
+        _board(api_base, ticker, kit, feed)
+    with ask:
+        kit.ask(api_base, ticker, name, slot=ASK_SLOT)

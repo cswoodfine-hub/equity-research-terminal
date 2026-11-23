@@ -66,7 +66,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 1:
+if getattr(trading_page, "REVISION", 0) < 2:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -10283,13 +10283,6 @@ def _pulse_panel(api_base: str) -> None:
          "appear in that company's What changed.")
 
 
-# The house's own builders, handed to the Trading tab's page module so a panel on the board
-# reads as the page it was lifted from: the section rule, the state block, the folded
-# note, and the change feed's filter and row.
-_TRADING_KIT = types.SimpleNamespace(
-    section=section, state=state, note=note, changes=_ki_changes, change_row=change_row)
-
-
 # The Ask box's opening questions: the three a reader most often has of a company that no
 # one tab answers, each a reading across several. Offered only while the conversation is
 # empty, so the box does not open on a blank line and a blinking cursor.
@@ -10344,14 +10337,21 @@ def _ask_send(api_base: str, ticker: str, name: str, key: str, question: str) ->
 
 
 @st.fragment
-def _ask_tab(api_base: str, ticker: str, name: str) -> None:
+def _ask_tab(api_base: str, ticker: str, name: str, slot: str = "") -> None:
     """The Ask tab: a question about the book, answered from the book.
 
     A fragment, so asking redraws this tab and not the other eleven. The conversation is
     kept per company in the session and nowhere else: closing the page ends it, and the
     only thing that outlives it is a thesis the reader asked to have logged.
+
+    The box is drawn in two places, its own tab and beside the Trading tab's board, and a
+    page cannot hold two widgets under one key. ``slot`` names the place and goes into
+    every key after the part the stylesheet matches on ("ask_box_", "ask_answer_"), so
+    both copies take the same styles. The conversation's own key carries no slot: it is
+    one conversation a company, shown in both places.
     """
     key = f"ask_turns_{ticker}"
+    where = f"{slot}{ticker}"
     turns = st.session_state.setdefault(key, [])
     section("Ask the book")
     try:
@@ -10370,12 +10370,12 @@ def _ask_tab(api_base: str, ticker: str, name: str) -> None:
         f'figures are the book\'s. Research, not advice. Model: {html_escape(str(status.get("model") or ""))}.'
         '</div>', unsafe_allow_html=True)
 
-    pending = st.session_state.pop(f"ask_pending_{ticker}", None)
+    pending = st.session_state.pop(f"ask_pending_{where}", None)
     for i, turn in enumerate(turns):
         st.markdown(f'<div class="ask-turn"><div class="ask-q">{html_escape(turn["q"])}</div></div>',
                     unsafe_allow_html=True)
         if turn.get("ok"):
-            with st.container(key=f"ask_answer_{ticker}_{i}"):
+            with st.container(key=f"ask_answer_{where}_{i}"):
                 # Streamlit reads a pair of dollar signs as mathematics, and an answer
                 # about money has several: "$1,134m in cash and $221m" came out as one
                 # italic run with the spaces gone. Escaped, they are dollar signs.
@@ -10396,20 +10396,20 @@ def _ask_tab(api_base: str, ticker: str, name: str) -> None:
         st.rerun(scope="fragment")
 
     if not turns:
-        with st.container(key=f"ask_starters_{ticker}", horizontal=True):
+        with st.container(key=f"ask_starters_{where}", horizontal=True):
             for n, text in enumerate(ASK_STARTERS):
-                if st.button(text.format(ticker=ticker), key=f"ask_start_{ticker}_{n}"):
-                    st.session_state[f"ask_pending_{ticker}"] = text.format(ticker=ticker)
+                if st.button(text.format(ticker=ticker), key=f"ask_start_{where}_{n}"):
+                    st.session_state[f"ask_pending_{where}"] = text.format(ticker=ticker)
                     st.rerun(scope="fragment")
 
-    with st.container(key=f"ask_box_{ticker}"):
+    with st.container(key=f"ask_box_{where}"):
         typed = st.chat_input(f"Ask about {ticker} or anything in the book",
-                              key=f"ask_input_{ticker}")
+                              key=f"ask_input_{where}")
     if typed:
-        st.session_state[f"ask_pending_{ticker}"] = typed
+        st.session_state[f"ask_pending_{where}"] = typed
         st.rerun(scope="fragment")
     if turns:
-        if st.button("Clear the conversation", key=f"ask_clear_{ticker}"):
+        if st.button("Clear the conversation", key=f"ask_clear_{where}"):
             st.session_state[key] = []
             st.rerun(scope="fragment")
 
@@ -10422,6 +10422,14 @@ def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
         headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+# The house's own builders, handed to the Trading tab's page module so a panel on the board
+# reads as the page it was lifted from: the section rule, the state block, the folded
+# note, the change feed's filter and row, and the Ask box itself.
+_TRADING_KIT = types.SimpleNamespace(
+    section=section, state=state, note=note, changes=_ki_changes, change_row=change_row,
+    ask=_ask_tab)
 
 
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,

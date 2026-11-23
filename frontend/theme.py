@@ -1215,16 +1215,30 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 [class*="st-key-td_body_"]::-webkit-scrollbar {{ width: 5px; }}
 [class*="st-key-td_body_"]::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
 [class*="st-key-td_panel_"] {{ margin-bottom: 0.5rem; }}
-/* A list on the board runs in a column half the page wide or less. The feed's four
-   columns in a row left the headline a third of that, so here the qualifier drops to a
-   line of its own under the headline and the headline takes the width. */
-.td-list .fitem {{ grid-template-columns: 72px minmax(0, 1fr) minmax(0, 8.5rem);
+/* A list on the board runs in a panel that can be a sixth of the page wide (three across,
+   beside the Ask box) or all of it (one across). The feed's four columns in a row left the
+   headline a few characters at the narrow end, so a row is measured against its own
+   panel: narrow, it is the date and the headline, with the qualifier and the tag on a
+   line under them; from about 35rem it is the date, the headline and the tag in columns,
+   as the feed is elsewhere. */
+[class*="st-key-td_body_"] {{ container-type: inline-size; }}
+.td-list .fitem {{ display: flex; flex-wrap: wrap; align-items: baseline;
                   column-gap: 0.6rem; row-gap: 0.1rem; }}
-.td-list .fitem .d {{ grid-column: 1; grid-row: 1; }}
-.td-list .fitem .t {{ grid-column: 2; grid-row: 1; }}
-.td-list .fitem .s {{ grid-column: 3; grid-row: 1; white-space: normal; text-align: right; }}
-.td-list .fitem .why {{ grid-column: 2; grid-row: 2; white-space: normal; }}
+.td-list .fitem .d {{ flex: 0 0 72px; }}
+.td-list .fitem .t {{ flex: 1 1 calc(100% - 72px - 0.6rem); min-width: 0; }}
+.td-list .fitem .why {{ flex: 0 1 auto; margin-left: calc(72px + 0.6rem);
+                       white-space: normal; }}
 .td-list .fitem .why:empty {{ display: none; }}
+.td-list .fitem .s {{ flex: 0 1 auto; margin-left: auto; white-space: normal;
+                     text-align: right; }}
+@container (min-width: 35rem) {{
+  .td-list .fitem {{ display: grid; row-gap: 0.1rem;
+                    grid-template-columns: 72px minmax(0, 1fr) minmax(0, 8.5rem); }}
+  .td-list .fitem .d {{ grid-column: 1; grid-row: 1; }}
+  .td-list .fitem .t {{ grid-column: 2; grid-row: 1; }}
+  .td-list .fitem .s {{ grid-column: 3; grid-row: 1; margin-left: 0; }}
+  .td-list .fitem .why {{ grid-column: 2; grid-row: 2; margin-left: 0; }}
+}}
 .td-left-out {{ color: var(--flag); margin: 0 0 0.4rem; }}
 [class*="st-key-td_controls"] {{ margin-bottom: 0.2rem; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than
