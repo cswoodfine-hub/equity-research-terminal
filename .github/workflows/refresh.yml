@@ -109,9 +109,10 @@ jobs:
         # of them refetched everything every day. Starting from the database the last
         # run published lets the sources slower than daily skip inside their TTL. Every
         # daily source still fetches every run (fetchers/base.py), and Sunday fetches
-        # everything. history.py restore-check accepts the file only if it is intact and
-        # at least as recent as the committed history; otherwise it is removed and the
-        # run below rebuilds and fetches every source, as before.
+        # everything. history.py restore-check accepts the file only if it is intact, at
+        # least as recent as the committed history, and the same book: every run and
+        # snapshot number it shares with the history is the same row. Otherwise it is
+        # removed and the run below rebuilds and fetches every source, as before.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -130,8 +131,9 @@ jobs:
       - name: Rebuild the database from committed history
         # The diff engine needs the prior snapshots to detect what changed. On a restored
         # database this merges the committed history into it (a row replaces the one
-        # with its id); on none it builds the database from history alone. On the first
-        # ever run data/history is empty and this is a harmless no-op.
+        # with its id, where it is the same row; restore-check has already turned away a
+        # database where it is not); on none it builds the database from history alone.
+        # On the first ever run data/history is empty and this is a harmless no-op.
         run: python backend/history.py rebuild
 
       - name: Seed the universe
@@ -210,7 +212,10 @@ jobs:
         # retry takes what landed, merges it into the database (a row replaces the one
         # with its id, as the rebuild step does) and exports again: a superset of both,
         # committed on top. The concurrency group keeps two runs from writing the same
-        # ids, so the merge never trades this run's rows for another's.
+        # ids, so the merge never trades this run's rows for another's. If what landed
+        # is not a run's work but another book's (a history export committed by hand from
+        # a database with refreshes of its own), the rebuild refuses, and this step
+        # fails with the day's rows safe in the release published above.
         run: |
           git config user.name  "er-terminal-bot"
           git config user.email "actions@github.com"

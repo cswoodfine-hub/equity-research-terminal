@@ -121,6 +121,12 @@ git pull
 make history-rebuild
 ```
 
+That loads into a new database, or into one that is still the record's own. A book
+that has run refreshes of its own holds different rows under the same numbers, and the
+rebuild refuses it and writes nothing (`python backend/history.py parted` shows where
+the two differ). `make history-export` refuses the same book, and one the record has
+moved past, for the same reason in the other direction.
+
 The workflow needs a repository secret `SEC_USER_AGENT`. Model and openFDA keys are
 optional.
 

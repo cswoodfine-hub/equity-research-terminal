@@ -31,6 +31,18 @@ data/history too, and a local refresh writes to both, so the same ids hold diffe
 rows in the two books (204 of 245 resolutions differed on the day this was written).
 Appending to those would interleave two histories.
 
+A call row is copied as the record wrote it, pointers and all, and two of its pointers
+are numbers out of the scheduled book: ``refresh_run_id`` and, on a gate, ``catalyst_id``.
+A book that has run refreshes of its own has given those numbers to other rows
+(``history.SAME_ROW`` says how to tell). The run number is the record's and nothing here
+joins on it. The catalyst number is joined on, by the calibration in ``call_log``, so
+the result counts the gate calls whose number is another catalyst in this book, or none,
+against ``catalysts.ndjson``. On 2026-11-23 that was 50 calls on seven numbers the two
+books had each given out. On three the books had by chance numbered the same study alike.
+On four, 29 calls, the number was another catalyst altogether: AstraZeneca's AZD0780
+gate sat on the number this book had given a Novartis Phase 2. It counts and says so.
+It does not re-point them: the record's rows stay the record's.
+
 Run at API start (``main.lifespan``), so a pull followed by a restart is enough, and by
 hand with ``python backend/call_sync.py``. Off where the call log is off
 (``ER_TOOL_CALL_LOG=0``, which the test suite sets).
@@ -122,6 +134,40 @@ def _catch_up(conn, table: str, key: tuple, path: Path) -> dict:
             "through": new[-1].get("as_of")}
 
 
+def _other_catalysts(conn, path: Path) -> dict:
+    """How many of this book's gate calls carry a catalyst number that is not, here, the
+    catalyst the record made the call about: ``other_catalyst`` where the book holds a
+    different catalyst under the number, ``no_catalyst`` where it holds none and the
+    record does. Empty when every number means the same thing in both, and when there
+    is no catalysts file to ask."""
+    if not path.exists():
+        return {}
+    cols = history.SAME_ROW["catalysts"][0]
+    try:
+        mine = {r[0]: tuple(r[1:]) for r in conn.execute(
+            f"SELECT id, {', '.join(cols)} FROM catalysts")}
+        used = {r[0]: r[1] for r in conn.execute(
+            "SELECT catalyst_id, COUNT(*) FROM gate_calls"
+            " WHERE catalyst_id IS NOT NULL GROUP BY catalyst_id")}
+    except sqlite3.OperationalError:
+        return {}
+    other = absent = 0
+    for row in _file_rows(path):
+        calls = used.get(row["id"])
+        if not calls:
+            continue
+        if row["id"] not in mine:
+            absent += calls
+        elif mine[row["id"]] != tuple(row.get(c) for c in cols):
+            other += calls
+    out = {}
+    if other:
+        out["other_catalyst"] = other
+    if absent:
+        out["no_catalyst"] = absent
+    return out
+
+
 def catch_up(db_path=None, in_dir: Path | None = None) -> dict:
     """{table: what happened} for the two call tables. Never raises on a table it cannot
     bring up to date; the reason is in the result."""
@@ -133,6 +179,7 @@ def catch_up(db_path=None, in_dir: Path | None = None) -> dict:
     try:
         for table, key in TABLES:
             out[table] = _catch_up(conn, table, key, in_dir / f"{table}.ndjson")
+        out["gate_calls"].update(_other_catalysts(conn, in_dir / "catalysts.ndjson"))
     finally:
         conn.close()
     return out
@@ -151,6 +198,12 @@ def sentence(result: dict) -> str:
         else:
             parts.append(f"{table} already current"
                          + (f" ({got['through']})" if got.get("through") else ""))
+        if got.get("other_catalyst"):
+            parts.append(f"{got['other_catalyst']} gate calls carry a catalyst number "
+                         "that is another catalyst in this book")
+        if got.get("no_catalyst"):
+            parts.append(f"{got['no_catalyst']} gate calls carry a catalyst number this "
+                         "book does not hold")
     return "; ".join(parts)
 
 

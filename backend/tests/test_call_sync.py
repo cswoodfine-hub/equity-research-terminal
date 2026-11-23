@@ -142,3 +142,34 @@ def test_nothing_is_synced_where_the_call_log_is_off(tmp_path, monkeypatch):
     _write(hist, "model_calls", [_call(1, "2026-11-08")])
     out = call_sync.catch_up(path, hist)
     assert "off" in out and _rows(path, "model_calls") == []
+
+
+def test_a_gate_call_whose_catalyst_number_is_another_catalyst_here_is_counted(tmp_path):
+    """A call row is the record's, pointers and all, and the catalyst number is one the
+    scheduled book gave out. A book that has run a refresh of its own has given the same
+    number to something else, and the calibration joins on it. The sync says how many
+    calls that is and re-points none of them."""
+    gates = [_gate(1, "2026-11-12", 7), _gate(2, "2026-11-12", 8), _gate(3, "2026-11-12", 9)]
+    path = _book(tmp_path, calls=[_call(1, "2026-11-12")], gates=gates)
+    conn = db.get_connection(path)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute("INSERT INTO catalysts (id, title, created_at) VALUES"
+                 " (7, 'the same study', '2026-11-01 06:10:00'),"
+                 " (8, 'this book''s own catalyst', '2026-11-16 11:18:08')")
+    conn.commit()
+    conn.close()
+    hist = tmp_path / "history"
+    _write(hist, "model_calls", [_call(1, "2026-11-12")])
+    _write(hist, "gate_calls", gates)
+    _write(hist, "catalysts", [
+        {"id": 7, "title": "the same study, since renamed", "created_at": "2026-11-01 06:10:00"},
+        {"id": 8, "title": "the record's catalyst", "created_at": "2026-11-12 15:17:40"},
+        {"id": 9, "title": "one this book never made", "created_at": "2026-11-12 15:17:40"}])
+    before = _rows(path, "gate_calls")
+    out = call_sync.catch_up(path, hist)
+    assert out["gate_calls"] == {"appended": 0, "through": "2026-11-12",
+                                 "other_catalyst": 1, "no_catalyst": 1}
+    assert _rows(path, "gate_calls") == before
+    said = call_sync.sentence(out)
+    assert "1 gate calls carry a catalyst number that is another catalyst" in said
+    assert "1 gate calls carry a catalyst number this book does not hold" in said

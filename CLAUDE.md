@@ -314,6 +314,12 @@ no single page connects and every figure it uses is one the book computed.
   `call_sync.py` appends the days the history files hold beyond the book at API start,
   changes nothing already there, and refuses where the book and the file disagree. Pull
   `main`, restart the API, and the gate odds are current.
+- A number is not a row. The scheduled book and a book refreshed on a machine both take
+  the next number in every history table, so after one refresh each the same number is
+  two rows. `history.py` says what makes a row the same row (`history.SAME_ROW`) and
+  merges nothing with another book: `rebuild` loads nothing, `export` writes nothing and
+  `restore-check` turns the database away. A table added to `HISTORY_TABLES` needs its
+  entry there. `python backend/history.py parted` says where a book and the record differ.
 
 ### Form 4 (insider transactions)
 
