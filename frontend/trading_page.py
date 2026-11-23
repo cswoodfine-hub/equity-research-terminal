@@ -28,11 +28,12 @@ import streamlit as st
 import calendar_view
 import price_chart
 import trading_view as TV
+import trend
 from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 5
+REVISION = 6
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -186,6 +187,85 @@ def _catalysts(api_base, company, kit, rule, slot, width, have):
                        "commitment. The odds and the value at stake are on Catalysts.")
 
 
+def _results(api_base, company, kit, rule, slot, width, have):
+    """The last reported period, drawn by the Financials tab's own builders."""
+    label, basis = rule
+    payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/report")
+    report = payload if (payload or {}).get("report") else None
+    kit.section(label, basis=basis)
+    with _body(slot):
+        if problem:
+            _failed(kit, "The report", problem)
+        elif not report:
+            kit.state(f"No report on file for {TV.esc(company)}",
+                      "A report is built when a results release and the street's "
+                      "estimates for the same period are both on file. "
+                      f"For this company one of them is {TV.NO_DATA}.")
+        else:
+            kit.report_lead(report)
+            kit.report_landed(report)
+
+
+def _trend(api_base, company, kit, rule, slot, width, have):
+    """Growth and margin by year as two lines, under the latest period's figures."""
+    label, basis = rule
+    built, problem = read(
+        api_base, f"/companies/{urllib.parse.quote(company)}/statements?basis=annual")
+    built = built or {}
+    points, snapshot = built.get("trend") or [], built.get("snapshot") or {}
+    kit.section(label, basis=" · ".join(part for part in (
+        basis, snapshot.get("label"), built.get("currency")) if part))
+    with _body(slot):
+        figure = trend.render(points, "annual")
+        if problem:
+            _failed(kit, "The statements", problem)
+        elif not figure and not snapshot:
+            kit.state(f"No statements on file for {TV.esc(company)}",
+                      "Filed financials are read on each refresh. Two periods are "
+                      "needed before a trend can be drawn.")
+        else:
+            if snapshot:
+                st.markdown(kit.snapshot_strip(snapshot), unsafe_allow_html=True)
+            _figure(figure)
+            if figure:
+                kit.note(TV.esc(trend.caption(points, "annual"))
+                         + " Filed figures by fiscal year. A year missing a figure "
+                           "breaks that line there. The statements in full are on "
+                           "Financials.")
+
+
+def _filings(api_base, company, kit, rule, slot, width, have):
+    label, basis = rule
+    payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/filings")
+    rows = TV.filings_rows(payload)
+    today = dt.date.today()
+    kit.section(label, count=len(rows) if rows else None, basis=basis)
+    with _body(slot):
+        if problem:
+            _failed(kit, "The filings", problem)
+        elif not rows:
+            kit.state(f"No filings on file for {TV.esc(company)}",
+                      "Filings are read from EDGAR on each refresh. A company outside "
+                      "the SEC files none there.")
+        else:
+            figure = TV.filings_figure(rows, today, width)
+            _figure(figure)
+            st.markdown(TV.filings_leads(rows)
+                        + TV.fold_html(f"The list: {TV.filings_basis(rows)}",
+                                       TV.filings_html(rows)),
+                        unsafe_allow_html=True)
+            older = TV.filings_older(rows, today)
+            kit.note((f"A square is one filing, in the month it was filed and the row of "
+                      f"its form, over {TV.FILING_MONTHS} months. An annual report is "
+                      "filled and a quarterly one an outline. "
+                      if figure else
+                      f"Nothing was filed in the last {TV.FILING_MONTHS} months, so no "
+                      "figure is drawn. ")
+                     + (f"{older} older {'filing is' if older == 1 else 'filings are'} in "
+                        "the list and not on the figure. " if older else "")
+                     + "The three named are the newest, and each opens on EDGAR.")
+
+
 def live_prices(api_base: str, company: str) -> dict:
     """Yahoo's live read for one company, or the reason there is none. Never raises, and
     never held here: the API holds the answer for about a minute and writes nothing, so
@@ -275,7 +355,8 @@ def _price(api_base, company, kit, rule, slot, width, have):
     chart()
 
 
-DRAW = {"price": _price, "changes": _changes, "news": _news, "catalysts": _catalysts}
+DRAW = {"price": _price, "changes": _changes, "news": _news, "results": _results,
+        "trend": _trend, "filings": _filings, "catalysts": _catalysts}
 
 
 # ----------------------------------------------------------------------------- the board

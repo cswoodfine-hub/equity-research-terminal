@@ -547,6 +547,57 @@ def test_an_approval_with_no_name_or_no_date_is_not_an_event():
     assert TV.price_events(None) == []
 
 
+FILED = {"ticker": "LLY", "filings": [
+    {"form_type": "10-Q", "filed_date": "2026-10-29", "accession": "a", "title": "10-Q",
+     "url": "https://www.sec.gov/Archives/edgar/data/1/q.htm"},
+    {"form_type": "8-K", "filed_date": "2026-11-05", "accession": "b",
+     "title": "Results of operations", "url": "https://www.sec.gov/Archives/edgar/data/1/k.htm"},
+    {"form_type": "10-K", "filed_date": "2026-02-19", "accession": "c", "title": "10-K",
+     "url": None},
+    {"form_type": "10-K/A", "filed_date": "2026-03-02", "accession": "d", "title": "",
+     "url": None},
+    {"form_type": "S-8", "filed_date": "2025-06-01", "accession": "e", "title": "S-8"},
+    {"form_type": "10-K", "filed_date": "2022-02-20", "accession": "f", "title": "10-K"},
+    {"form_type": "", "filed_date": "2026-01-01"}, "not a row"]}
+
+
+def test_a_filing_sits_in_the_row_of_the_report_it_is():
+    rows = TV.filings_rows(FILED)
+    assert [r["filed_date"] for r in rows][:2] == ["2026-11-05", "2026-10-29"]
+    assert len(rows) == 6                               # no form, no row
+    assert [TV.filing_lane(r) for r in rows] == ["current", "quarterly", "annual",
+                                                 "annual", "other", "annual"]
+    assert TV.filing_lane({"form_type": "20-F"}) == "annual"
+    assert TV.filing_lane({"form_type": "6-K"}) == "current"
+
+
+def test_the_filings_figure_is_two_years_by_month_and_form():
+    rows = TV.filings_rows(FILED)
+    svg = TV.filings_figure(rows, TODAY, 440)
+    ET.fromstring(svg)
+    assert len(_units(svg)) == 5 and TV.filings_older(rows, TODAY) == 1
+    for label in ("Annual", "Quarterly", "Current", "Other"):
+        assert f">{label}</text>" in svg
+    hollow = [u for u in _units(svg) if "stroke=" in u]
+    assert len(hollow) == 2                             # the 10-Q and the S-8
+    assert "2026-11-05 · 8-K · Results of operations" in svg
+    assert "2026-10-29 · 10-Q<" in svg                  # a title that is the form is not said twice
+    assert TV.filings_figure([], TODAY, 440) == ""
+
+
+def test_the_newest_filings_are_named_and_open_on_edgar_where_the_address_is_on_file():
+    markup = TV.filings_leads(TV.filings_rows(FILED))
+    assert markup.count('class="td-lead td-') == 3
+    assert 'href="https://www.sec.gov/Archives/edgar/data/1/k.htm"' in markup
+    assert "Results of operations" in markup and "Quarterly report" in markup
+    assert "Annual report" in markup                         # the 10-K/A has no title
+    assert '<div class="td-lead td-company">' in markup      # the 10-K/A, no address
+    listed = TV.filings_html(TV.filings_rows(FILED))
+    assert listed.count('class="fitem') == 6
+    assert TV.filings_basis(TV.filings_rows(FILED)) == "6 of 6, newest first"
+    assert TV.filings_html([]) == "" and TV.filings_basis([]) == ""
+
+
 # ------------------------------------------------------------------------- house style
 def test_house_style_on_every_word_the_board_prints():
     words = [p["title"] for p in TV.PANELS] + [p["about"] for p in TV.PANELS]
@@ -571,6 +622,10 @@ def test_house_style_on_every_word_the_board_prints():
     words += [TV.dated_wait(r, TODAY) for r in AHEAD] + [TV.dated_when(r) for r in AHEAD]
     words.append(_visible(TV.price_stats_html(TV.price_stats(BARS), "1Y")))
     words.append(_visible(TV.price_stats_html(TV.price_stats([]), "1Y")))
+    filed = TV.filings_rows(FILED)
+    words.append(_visible(TV.filings_figure(filed, TODAY, 440)) + " "
+                 + _visible(TV.filings_leads(filed)) + " " + TV.filings_basis(filed))
+    words += [lane["label"] for lane in TV.FILING_LANES]
     for text in words:
         _house_style(text)
 

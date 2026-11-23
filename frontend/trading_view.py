@@ -54,6 +54,16 @@ PANELS = (
     {"id": "news", "title": "Company news", "group": "News", "wide": False,
      "cost": "light", "private": False, "reads": ("/companies/{ticker}/news",),
      "about": "Releases, 8-K headlines and the daily pulse's items, by month and source."},
+    {"id": "results", "title": "Latest results", "group": "Fiscal", "wide": False,
+     "cost": "light", "private": False, "reads": ("/companies/{ticker}/report",),
+     "about": "The last reported period: what it was, and how it landed against the street."},
+    {"id": "trend", "title": "Growth and margin", "group": "Fiscal", "wide": False,
+     "cost": "light", "private": False,
+     "reads": ("/companies/{ticker}/statements?basis=annual",),
+     "about": "Revenue growth and net margin by year, with the latest period's figures."},
+    {"id": "filings", "title": "Filings", "group": "Fiscal", "wide": False,
+     "cost": "light", "private": False, "reads": ("/companies/{ticker}/filings",),
+     "about": "Two years of filings by month and form, the newest opening on EDGAR."},
     {"id": "catalysts", "title": "Dated ahead", "group": "Catalysts", "wide": False,
      "cost": "light", "private": False,
      "reads": ("/catalysts?within_days={days}&ticker={ticker}",),
@@ -651,3 +661,87 @@ def price_events(approvals) -> list:
         if row.get("loe"):
             events.append({"date": row["loe"], "label": f"{name} LOE", "kind": "loe"})
     return events
+
+
+# --- filings: what was filed, when, and the newest ---------------------------------------
+FILING_MONTHS = 24
+FILINGS_SHOWN = 40
+# A filing's row is the kind of report it is. Annual and quarterly are the scheduled
+# ones and take the text colour, the annual one filled and the quarterly an outline; a
+# current report (8-K, 6-K) is an event and takes Slate. The row's label says which.
+FILING_LANES = (
+    {"key": "annual", "label": "Annual", "colour": TK.TEXT},
+    {"key": "quarterly", "label": "Quarterly", "colour": TK.TEXT},
+    {"key": "current", "label": "Current", "colour": TK.MUTED},
+    {"key": "other", "label": "Other", "colour": TK.MUTED},
+)
+_FILING_LANE = {"10-K": "annual", "20-F": "annual", "40-F": "annual", "10-Q": "quarterly",
+                "8-K": "current", "6-K": "current"}
+# What a form is, for a filing whose title on file is only the form's own name.
+_FILING_WORDS = {"annual": "Annual report", "quarterly": "Quarterly report",
+                 "current": "Current report", "other": "Filing"}
+_ALWAYS_FILED = ("annual", "quarterly", "current")
+_HOLLOW_FILED = ("quarterly", "other")
+
+
+def filing_lane(row: dict) -> str:
+    """The row a form sits in. An amended form ("10-K/A") sits with the form it amends."""
+    form = str(row.get("form_type") or "").upper().split("/")[0].strip()
+    return _FILING_LANE.get(form, "other")
+
+
+def filings_rows(payload) -> list:
+    """The company's filings as the API holds them, newest first, each with a form."""
+    rows = [r for r in ((payload or {}).get("filings") or [])
+            if isinstance(r, dict) and str(r.get("form_type") or "").strip()]
+    return sorted(rows, key=lambda r: str(r.get("filed_date") or ""), reverse=True)
+
+
+def filings_figure(rows, today: dt.date, width: int) -> str:
+    """Two years of filings on a grid of months and forms."""
+    items = [{"date": r.get("filed_date"), "lane": filing_lane(r),
+              "hollow": filing_lane(r) in _HOLLOW_FILED,
+              "tip": f'{str(r.get("filed_date") or "")[:10]} · {_one_line(r.get("form_type"))}'
+                     + (f' · {_one_line(r.get("title"))}'
+                        if _one_line(r.get("title")) not in ("", _one_line(r.get("form_type")))
+                        else "")}
+             for r in rows or []]
+    used = {it["lane"] for it in items}
+    lanes = [lane for lane in FILING_LANES
+             if lane["key"] in used or lane["key"] in _ALWAYS_FILED]
+    return CH.unit_lanes(items, lanes, month_start(today, 1 - FILING_MONTHS), today,
+                         step="month", width=width, cap=5,
+                         label="filings by month and form")
+
+
+def filings_leads(rows) -> str:
+    """The newest three, each opening the filing on EDGAR where the address is on file."""
+    out = []
+    for r in (rows or [])[:LEADS]:
+        form, title = _one_line(r.get("form_type")), _one_line(r.get("title"))
+        out.append({"tone": "company" if filing_lane(r) in ("annual", "quarterly")
+                    else "filing",
+                    "tag": form, "date": str(r.get("filed_date") or "")[:10],
+                    "text": title if title and title != form
+                    else _FILING_WORDS[filing_lane(r)], "url": r.get("url")})
+    return leads_html(out)
+
+
+def filings_html(rows) -> str:
+    if not rows:
+        return ""
+    lines = [_row(str(r.get("filed_date") or "")[:10],
+                  _one_line(r.get("title")) or _one_line(r.get("form_type")),
+                  _one_line(r.get("form_type")), url=r.get("url"))
+             for r in rows[:FILINGS_SHOWN]]
+    return '<div class="feed td-list">' + "".join(lines) + "</div>"
+
+
+def filings_basis(rows) -> str:
+    total = len(rows or [])
+    return f"{min(FILINGS_SHOWN, total)} of {total}, newest first" if total else ""
+
+
+def filings_older(rows, today: dt.date) -> int:
+    start = month_start(today, 1 - FILING_MONTHS)
+    return sum(1 for r in rows or [] if (_day(r.get("filed_date")) or start) < start)

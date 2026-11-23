@@ -45,6 +45,19 @@ def fetch(api_base, path, timeout):
         return NEWS
     if path.endswith("/prices"):
         return PRICES
+    if path.endswith("/report"):
+        return {{"report": {{"period": "Q3 2026"}}, "verdict": "up"}} if {has_report!r} else {{}}
+    if path.endswith("/statements?basis=annual"):
+        return {{"currency": "USD", "basis": "annual",
+                 "snapshot": {{"label": "FY25", "revenue": 45.0}},
+                 "trend": [{{"label": f"FY{{20 + n}}", "revenue_growth": 0.05 * n,
+                             "net_margin": 0.2 + 0.01 * n}} for n in range(6)]}}
+    if path.endswith("/filings"):
+        return {{"filings": [{{"form_type": "8-K", "filed_date": today.isoformat(),
+                               "title": "Results of operations",
+                               "url": "https://www.sec.gov/x.htm"}},
+                              {{"form_type": "10-K", "filed_date": "2019-02-01",
+                               "title": "10-K", "url": None}}]}}
     if path.endswith("/approvals"):
         return {{"approvals": [{{"brand_name": "Drug", "loe": "2040-01-01",
                                  "approval_date": PRICES["points"][-5]["as_of"]}},
@@ -77,8 +90,16 @@ def change_row(item):
     return f"<div class='fitem'>{{item['headline']}}</div>"
 def ask(api_base, ticker, name, slot="", showing_key=""):
     st.markdown(f"ASK[{{ticker}}|{{name}}|{{slot}}|{{showing_key}}]")
+def report_lead(report):
+    st.markdown("LEAD[" + report["report"]["period"] + "]")
+def report_landed(report):
+    st.markdown("LANDED[" + report["verdict"] + "]")
+def snapshot_strip(snapshot):
+    return "<div class='tiles'>STRIP[" + snapshot["label"] + "]</div>"
 kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
-                            change_row=change_row, ask=ask, draw_chart=draw_chart)
+                            change_row=change_row, ask=ask, draw_chart=draw_chart,
+                            report_lead=report_lead, report_landed=report_landed,
+                            snapshot_strip=snapshot_strip)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
           "significance": "high", "change_type": "status_change"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
@@ -113,12 +134,14 @@ def _patch_button_group():
     element_tree.ButtonGroup.indices = property(indices)
 
 
-def _page(fail="", historical=False, market_open=False, page_has_prices=True):
+def _page(fail="", historical=False, market_open=False, page_has_prices=True,
+          has_report=True):
     from streamlit.testing.v1 import AppTest
     _patch_button_group()
     test = AppTest.from_string(
         _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical,
-                     market_open=market_open, page_has_prices=page_has_prices),
+                     market_open=market_open, page_has_prices=page_has_prices,
+                     has_report=has_report),
         default_timeout=60)
     test.run()
     assert not test.exception, test.exception
@@ -268,6 +291,34 @@ def test_with_no_price_history_the_panel_says_so_and_draws_no_chart():
     md = _md(test)
     assert "STATE[The price history did not load|" in md and "CHART[" not in md
     assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+
+
+FISCAL = ["results", "trend", "filings"]
+
+
+def test_the_fiscal_panels_are_drawn_by_the_financials_tabs_own_builders():
+    test = _page()
+    test.button_group(key="td_pick").set_value(FISCAL).run()
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert _sections(test) == ["Latest results", "Growth and margin", "Filings"]
+    assert "LEAD[Q3 2026]" in md and "LANDED[up]" in md
+    assert "SECTION[Growth and margin|None|LLY · FY25 · USD]" in md and "STRIP[FY25]" in md
+    figures = [str(m.value) for m in test.markdown if "td-fig" in str(m.value)]
+    assert len(figures) == 2                       # the trend's lines and the filings' grid
+    assert "<polyline" in figures[0] and 'class="unit"' in figures[1]
+    assert "SECTION[Filings|2|LLY]" in md and "1 older filing is in the list" in md
+    assert test.session_state["td_showing"] == [
+        {"panel": panel, "ticker": "LLY"} for panel in FISCAL]
+
+
+def test_a_company_with_no_report_is_told_what_is_missing_and_shown_no_figure():
+    test = _page(has_report=False)
+    test.button_group(key="td_pick").set_value(["results"]).run()
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert "STATE[No report on file for LLY|" in md and "no free data" in md
+    assert "LEAD[" not in md and "LANDED[" not in md
 
 
 def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():
