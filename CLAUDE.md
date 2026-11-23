@@ -58,6 +58,10 @@ ER Tool/
     brand_split.py          # route a study to the brand whose label covers it
     trial_mapping.py        # interventions -> assets, pipeline asset derivation
     payer_access.py         # Part D prescribing, plan coverage, Medicaid: display only
+    mcp_tools.py            # the desk tools: the book's reads shaped for a model to call
+    thesis_log.py           # dated, falsifiable reads, appended to ledger/theses.ndjson
+    insiders.py, holders.py # Form 4 dealing and 13F holders, read from the book
+    positioning.py          # short interest, options, insiders, holders: side by side
     companyfacts.py         # the XBRL parser EDGAR and ESEF data share
     roche.py, bayer.py      # the two non-SEC filers' own workbooks
     cms_catalogue.py        # the data.cms.gov catalogue, cached on disk
@@ -84,6 +88,8 @@ ER Tool/
       demand_cms.py, negotiated_prices_cms.py
       utilization_medicaid.py  # Medicaid State Drug Utilization Data, national rows
       broker_t212.py        # the user's own Trading 212 account, read only
+      insiders_edgar.py     # Form 4, per company, capped per run
+      holders_13f.py        # the SEC's quarterly Form 13F data sets, by CUSIP
     tools/
     tests/
       fixtures/             # saved sample payloads
@@ -105,6 +111,10 @@ ER Tool/
     assumptions/            # one seed file an asset or a layer
     history/                # the snapshot history as NDJSON, committed by the workflow
     company_lines/, consensus/
+  mcp_server/
+    lens_mcp.py             # the MCP server: the protocol only, run with uv
+  ledger/
+    theses.ndjson           # the thesis log; beside data/ so a line does not move the cache
   docs/
     design/                 # the contract for each tab, with "as built" notes
     research/               # dated research notes and the draft rows they produced
@@ -261,6 +271,57 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   dictionary gives no threshold: never write one. A product code is matched through
   `drug_codes` at read time, and a code CMS lists under another drug's name in months
   RxNorm does not list it for the brand is left out.
+
+## Desk tools (MCP)
+
+The book's reads are exposed to a language model as tools, so a model can connect things
+no single page connects and every figure it uses is one the book computed.
+
+- `backend/mcp_tools.py` is the catalogue: what each tool asks the API and how the answer
+  is cut to size. It is plain standard library and imports nothing from the backend,
+  because it also runs inside the server process on a different interpreter.
+- `mcp_server/lens_mcp.py` is the protocol and nothing else. The SDK needs Python 3.10 or
+  later and the backend runs on 3.9, so it is a separate process that reaches the API
+  over HTTP. Run it with `uv run mcp_server/lens_mcp.py` (stdio) or `--http PORT`. The API
+  must be up. It binds to 127.0.0.1 and has no authentication: one analyst's own machine.
+- The tools read. One writes: `lens_log_thesis` appends to `ledger/theses.ndjson`
+  (`thesis_log.py`), append-only, marked against XBI on its due date. No tool changes a
+  value, an assumption or a catalyst, and the what-if tool saves nothing.
+- The model is still confined as the LLM rule above says: never a value, a forecast or a
+  rule. A read made through the tools is commentary until it is logged as a thesis and
+  marked.
+- A new tool is a new entry in `mcp_tools.TOOLS` over an API route. Give it a route first
+  if the read does not exist; do not compute in the tool.
+
+### Form 4 (insider transactions)
+
+- An issuer's `submissions` list on EDGAR carries its Form 4s beside the ones it filed as
+  a shareholder of somebody else, and only the document's `issuerCik` separates them.
+  The rendered path (`xslF345X06/...`) is the raw XML without its first directory; the
+  number follows the schema version.
+- Codes P and S are the decisions; everything else (awards, exercises, tax withholding,
+  gifts) is counted apart and never netted in. The Rule 10b5-1 box is one for the whole
+  form and dates from April 2023. A foreign private issuer may show no forms at all.
+
+### Form 13F (institutional holders)
+
+- The SEC's Form 13F data sets, one ZIP of tab-separated tables a quarter, about 100 MB
+  each. A download address is read off the listing page and never built from a pattern:
+  the newest file and the older ones sit under different paths. INFOTABLE is 3.8 million
+  lines and is read row by row out of the ZIP, never unpacked.
+- A release is cut by filing date, not by quarter, and holds late reports for many
+  earlier periods. The quarter is taken from each filing, not from the file name.
+- Filtered by the CUSIPs in `data/cusips.csv`, each confirmed against the SEC's Official
+  List of Section 13(f) Securities and check-digit validated. A company whose US line
+  trades over the counter (Roche, Bayer) is not a 13(f) security: it is left out with
+  the reason in `data/cusips_left_out.csv`, and the reader answers with that reason.
+- VALUE is in dollars from 2023 and some filers still report thousands; such a value is
+  left null and never scaled. The readme says nothing on amendments: the cover page boxes
+  decide, and a "new holdings" amendment at least half the size of the report it amends
+  is read as a restatement, which is a judgement and is documented in the fetcher.
+- Long positions of managers over the reporting threshold only, filed up to 45 days
+  after the quarter end, options held apart. Lent shares are reported twice, so reported
+  holdings can exceed the shares outstanding.
 
 ## Fetcher contract
 
