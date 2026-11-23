@@ -539,6 +539,9 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["policy"] = policy_fedreg.recent(db_path, days=730)
         src["deal_rows"] = _deal_rows(conn, cohort,
                                       (today - dt.timedelta(days=2 * NEWS_DAYS)).isoformat())
+        src["pulse"] = _pulse_rows(conn, cohort,
+                                   (today - dt.timedelta(days=NEWS_DAYS)).isoformat(),
+                                   today.isoformat())
         if engine in FOCUS_ENGINES:
             src["focus"] = _focus_reads(conn, db_path, cohort, today, src["catalysts"])
     finally:
@@ -937,6 +940,111 @@ def _ev_name(e: dict) -> str:
     return e.get("short") or e.get("title") or ""
 
 
+def _pulse_rows(conn, cohort, since: str, today: str) -> list:
+    """The week's daily pulse items that name a cohort company, one per story: a story
+    the pulse ran on several days (one ``event_key``) is its latest telling, dated by the
+    day it was first reported. Each carries its cohort tickers by role."""
+    marks = ",".join("?" * len(cohort))
+    by_item: dict = {}
+    for r in conn.execute(
+            f"""SELECT p.id, p.pulse_date, p.tier, p.kind, p.headline, p.detail, p.url,
+                       p.published_at, p.event_key, p.first_reported, p.phase,
+                       c.ticker, pc.role
+                  FROM pulse_items p
+                  JOIN pulse_item_companies pc ON pc.item_id = p.id
+                  JOIN companies c ON c.id = pc.company_id
+                 WHERE p.pulse_date BETWEEN ? AND ? AND c.ticker IN ({marks})
+                 ORDER BY p.pulse_date, p.id""", (since, today, *cohort)):
+        row = by_item.setdefault(r["id"], {**{k: r[k] for k in (
+            "id", "pulse_date", "tier", "kind", "headline", "detail", "url", "published_at",
+            "event_key", "first_reported", "phase")}, "roles": {}})
+        row["roles"][r["ticker"]] = r["role"]
+    stories: dict = {}
+    for row in by_item.values():
+        stories.setdefault(row["event_key"] or row["url"], []).append(row)
+    out = []
+    for tellings in stories.values():
+        tellings.sort(key=lambda t: (t["pulse_date"], t["id"]))
+        latest = dict(tellings[-1])
+        latest["first"] = min(d for t in tellings for d in (
+            t["first_reported"], t["published_at"], t["pulse_date"]) if d)
+        latest["days"] = sorted({t["pulse_date"] for t in tellings})
+        out.append(latest)
+    return out
+
+
+# Which ranked kinds a pulse item of each kind is the same story as, for folding.
+_PULSE_SAME = {"deal": ("deal",), "readout": ("readout", "readout2", "notice"),
+               "approval": ("approval", "regulatory"), "rejection": ("regulatory",),
+               "regulatory": ("regulatory", "approval"), "earnings": ("earnings",)}
+
+
+def _pulse_place(src: dict, companies: dict, items: list, marks: dict) -> list:
+    """The ranked list with the week's daily pulse stories placed in it.
+
+    The pulse ranks every story in three tiers, and its tier 1 is the week's major
+    headlines, so a tier 1 story about a cohort company ranks among the primary items:
+    a deal after the priced deals, a readout after the Phase 3 results, anything else
+    (guidance, policy, a leadership change, an approval or a rejection) right after the
+    rate move. Tier 2 follows the notices; tier 3 stays on the company's news.
+
+    A story a primary item already tells (the same ticker, a matching kind and a date a
+    day either side) is not listed twice: the pulse's link folds into that item. A story
+    that matters to a company only by read-across never ranks. Every placed item says it
+    is the pulse, an AI summary in our words, and carries no figure of its own."""
+    def day(i):
+        return _date(i.get("date"))
+
+    placed = {"deal": [], "top": [], "readout": [], "tier2": []}
+    for r in sorted(src.get("pulse") or [], key=lambda r: (r["tier"] or 4, r["first"] or "",
+                                                           r["id"])):
+        named = [t for t, role in r["roles"].items() if role != "read_across" and t in companies]
+        if not named or r["tier"] not in (1, 2):
+            continue
+        when = _date(r["first"])
+        same = [i for i in items if i["kind"] in _PULSE_SAME.get(r["kind"], ())
+                and set(named) & set(i.get("tickers") or [])
+                and day(i) and when and abs((day(i) - when).days) <= 1]
+        if same:
+            same[0].setdefault("rows", []).append(
+                ["Daily pulse (AI summary)", r["headline"]])
+            same[0].setdefault("pulse", []).append({"url": r["url"], "tier": r["tier"]})
+            continue
+        across = [t for t, role in r["roles"].items() if role == "read_across" and t in companies]
+        rows = [["What it is", "the daily pulse's summary of the article linked, not a "
+                               "filing or an announcement"]]
+        if r["detail"]:
+            rows.append(["Detail", r["detail"]])
+        rows.append(["First reported", r["first"]])
+        if len(r["days"]) > 1:
+            rows.append(["In the pulse", ", ".join(r["days"])])
+        if across:
+            rows.append(["Read across to", " · ".join(across)])
+        it = {"kind": "pulse", "tag": f"pulse · {r['kind']}", "tickers": named,
+              "head": r["headline"], "verbatim": False,
+              "fig": f"tier {r['tier']}", "fig_sub": "the pulse's rank",
+              "date": r["first"], "pulse_kind": r["kind"], "tier": r["tier"],
+              "phase": r["phase"], "event_key": r["event_key"],
+              "mini": {"type": "stock", "ticker": named[0], "marks": [r["first"]]},
+              "rows": rows, "url": r["url"], "src": "Daily pulse (AI summary)"}
+        if r["tier"] == 2:
+            placed["tier2"].append(it)
+        elif r["kind"] == "deal":
+            placed["deal"].append(it)
+        elif r["kind"] == "readout":
+            placed["readout"].append(it)
+        else:
+            placed["top"].append(it)
+    out = []
+    for n, it in enumerate(items + [None]):
+        for block, at in marks.items():
+            if at == n:
+                out += placed[block]
+        if it is not None:
+            out.append(it)
+    return out
+
+
 def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                 rows: list | None = None) -> list:
     """The week across the group, ranked by a stated rule that never reads the company in
@@ -1017,6 +1125,8 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
             _fold_filings(d, rows, companies, folded)
     items += [i for i in priced if i["value_usd"]]
     unpriced_heads = [i for i in priced if not i["value_usd"]]
+    # Where the daily pulse's stories go in (_pulse_place): the index each block opens at.
+    marks = {"deal": len(items)}
 
     # 2. The rate move the book is priced on: the latest 10-year flag of the week.
     rate_flags = sorted([r for r in feed if r.get("kind") == "market"
@@ -1056,6 +1166,8 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                       "mini": {"type": "spark", "values": [v for _d, v in path]},
                       "rows": rows_, "url": None, "src": "/markets, /changes (rate_move)"})
 
+    marks["top"] = len(items)
+
     # 3 and 5. Readouts from the headlines, by the phase the announcement reports.
     readouts = []
     for h in heads:
@@ -1076,6 +1188,7 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                                   ["Day move", [[t, move(t, day)]]]],
                          "url": h.get("url"), "src": "/headlines (readout)"})
     items += [r for r in readouts if r["phase"] != "2"]
+    marks["readout"] = len(items)
 
     # The focus list's own rules, after the Phase 3 results: the binary events ahead, the
     # week's share moves, the money raised and the analysts' changes of view.
@@ -1217,6 +1330,8 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                                                   "not a result"]],
                           "url": None, "src": "/changes (press_data_readout)"})
 
+    marks["tier2"] = len(items)
+
     # 10. Results dates, the call's day read from the announcement.
     for r in rows:
         if r.get("change_type") != "press_results":
@@ -1331,6 +1446,7 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                       "rows": [[f"{_dshort(r.get('date'))} {r['ticker']}", what(r)] for r in loe],
                       "url": None, "src": "/changes (loe, Orange and Purple Books)"})
 
+    items = _pulse_place(src, companies, items, marks)
     for i, it in enumerate(items[:WEEK_ITEMS], 1):
         it["rank"] = i
     return items[:WEEK_ITEMS]
