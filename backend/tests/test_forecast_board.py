@@ -173,22 +173,19 @@ def test_the_board_is_a_view_beside_the_value():
         assert "import forecast_board" not in (BACKEND / f"{name}.py").read_text(), name
 
 
-def test_the_live_board_reconciles_with_the_sum_of_the_parts():
+def test_the_live_board_reconciles_with_the_sum_of_the_parts(book):
     """Its value split adds to the equity a share, and its revenue to the sum of the
-    assets' own, for a company the book carries."""
-    import db
+    assets' own, for a company the book carries.
+
+    Skipped, with the reason, where no built database is on file."""
     import forecast_view as V
-    conn = db.get_connection()
-    try:
-        row = conn.execute("SELECT 1 FROM companies WHERE ticker = 'AMGN'").fetchone()
-        if row is None:
-            pytest.skip("no AMGN in this book")
-        verdict = V.company_verdict(None, "AMGN")
-        if not (verdict or {}).get("ok"):
-            pytest.skip("no AMGN verdict in this book")
-        board = B.build(conn, None, "AMGN", verdict)
-    finally:
-        conn.close()
+    row = book.execute("SELECT 1 FROM companies WHERE ticker = 'AMGN'").fetchone()
+    if row is None:
+        pytest.skip("no AMGN in this book")
+    verdict = V.company_verdict(None, "AMGN")
+    if not (verdict or {}).get("ok"):
+        pytest.skip("no AMGN verdict in this book")
+    board = B.build(book, None, "AMGN", verdict)
     assert board["ok"]
     split = sum(x["per_share"] for x in board["value"]["source"])
     assert split == pytest.approx(board["value"]["equity_per_share"], abs=0.01)

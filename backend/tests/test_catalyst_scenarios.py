@@ -230,12 +230,10 @@ def test_an_indication_the_label_does_not_cover_still_asks_for_a_layer(tmp_path,
 
 # --- the file on the book ---------------------------------------------------
 
-def test_no_row_of_the_curated_file_is_silently_ignored():
+def test_no_row_of_the_curated_file_is_silently_ignored(book):
     """The guard the orphaned seed files earned. A row naming an asset the book does not
     hold, or a scenario nobody wrote, prices as a confident nothing; the file is only
-    worth keeping if a row that does not land says so."""
-    conn = db.get_connection()
-    try:
-        assert S.unresolved(conn) == []
-    finally:
-        conn.close()
+    worth keeping if a row that does not land says so.
+
+    Skipped, with the reason, where no built database is on file."""
+    assert S.unresolved(book) == []

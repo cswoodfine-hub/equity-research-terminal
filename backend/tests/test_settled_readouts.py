@@ -146,12 +146,10 @@ def test_no_study_is_both_settled_at_nil_and_priced_from_a_case():
     assert nil & cased == set(), sorted(nil & cased)
 
 
-def test_no_row_of_the_shipped_file_is_silently_ignored():
-    conn = db.get_connection()
-    try:
-        assert S.unresolved(conn) == []
-    finally:
-        conn.close()
+def test_no_row_of_the_shipped_file_is_silently_ignored(book):
+    """Read against the book itself, so skipped, with the reason, where no built
+    database is on file."""
+    assert S.unresolved(book) == []
 
 
 def test_every_shipped_row_names_a_kind_and_a_basis_worth_reading():
