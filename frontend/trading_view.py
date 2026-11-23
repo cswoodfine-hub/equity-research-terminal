@@ -43,6 +43,11 @@ COSTS = ("free", "light", "heavy", "live")
 # panel's company. ``private`` marks a panel built on the reader's own holdings: it is
 # drawn on their screen and is never named to the model (see ``showing``).
 PANELS = (
+    {"id": "price", "title": "Price chart", "group": "Market", "wide": True,
+     "cost": "live", "private": False,
+     "reads": ("/companies/{ticker}/prices", "/companies/{ticker}/prices/live",
+               "/companies/{ticker}/approvals"),
+     "about": "The daily price with Yahoo's live read over it, and approvals marked."},
     {"id": "changes", "title": "What changed", "group": "News", "wide": False,
      "cost": "free", "private": False, "reads": ("/changes?ticker={ticker}",),
      "about": "What the book detected changing in the last 30 days, by day and rating."},
@@ -61,7 +66,7 @@ MAX_LIVE = 4             # each live price is two Yahoo requests a minute while 
 COLUMNS = (1, 2, 3)
 DEFAULT_COLUMNS = 2
 # What a reader sees before they have chosen anything.
-DEFAULT_PANELS = ("changes", "news", "catalysts")
+DEFAULT_PANELS = ("price", "changes", "news", "catalysts")
 
 # A ticker as the book writes one: LLY, NOVO-B.CO, 4568.T. Anything else is not sent on.
 TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
@@ -573,3 +578,76 @@ def kinds_html(rows, shown: int = 6) -> str:
     if rest:
         cells.append(f'<span class="td-kind"><b>{rest}</b>other</span>')
     return '<div class="td-kinds">' + "".join(cells) + "</div>"
+
+
+# --- price: the window on screen and the figures that describe it -----------------------
+PRICE_SPANS = (("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", 1826))
+DEFAULT_SPAN = "1Y"
+SPAN_DAYS = dict(PRICE_SPANS)
+
+
+def price_window(points, span: str) -> list:
+    """The bars inside the window, counted back from the newest bar and not from today:
+    a book last refreshed on Friday still shows a full month on Monday."""
+    bars = [p for p in points or [] if isinstance(p, dict) and _day(p.get("as_of"))]
+    if not bars:
+        return []
+    bars.sort(key=lambda p: str(p["as_of"]))
+    since = _day(bars[-1]["as_of"]) - dt.timedelta(days=SPAN_DAYS.get(span, 365))
+    return [p for p in bars if _day(p["as_of"]) >= since]
+
+
+def price_stats(bars) -> dict:
+    """The window in four figures. Each is None where the bars do not give it: a change
+    needs a first close above nought, a range needs a high and a low or the closes."""
+    closes = [p["close"] for p in bars or [] if p.get("close") is not None]
+    if not closes:
+        return {"last": None, "as_of": None, "change": None, "low": None, "high": None,
+                "bars": 0}
+    lows = [p["low"] for p in bars if p.get("low") is not None] or closes
+    highs = [p["high"] for p in bars if p.get("high") is not None] or closes
+    first, last = closes[0], closes[-1]
+    return {"last": last, "as_of": str(bars[-1].get("as_of") or "")[:10],
+            "change": (last - first) / first * 100 if first else None,
+            "low": min(lows), "high": max(highs), "bars": len(closes)}
+
+
+def _money(value) -> str:
+    return NO_DATA if value is None else f"{value:,.2f}"
+
+
+def price_stats_html(stats: dict, span: str) -> str:
+    """The strip above the chart: last, as of, the window's change and its range. The
+    change carries its sign and a true minus; a fall takes the down colour and the sign
+    says the same."""
+    change = stats.get("change")
+    if change is None:
+        moved, tone = NO_DATA, " none"
+    else:
+        moved = f'{"+" if change >= 0 else chr(0x2212)}{abs(change):.1f}%'
+        tone = " risk" if change < 0 else ""
+    missing = " none" if stats.get("last") is None else ""
+    span_range = (f'{_money(stats.get("low"))} to {_money(stats.get("high"))}'
+                  if stats.get("low") is not None else NO_DATA)
+    cells = (("last", _money(stats.get("last")), missing),
+             ("as of", stats.get("as_of") or NO_DATA, missing),
+             (f"{span} change", moved, tone),
+             (f"{span} range", span_range, missing))
+    return ('<div class="stats stats-tight td-stats">' + "".join(
+        f'<span class="stat"><span class="k">{esc(k)}</span>'
+        f'<span class="v{cls}">{esc(v)}</span></span>' for k, v, cls in cells) + "</div>")
+
+
+def price_events(approvals) -> list:
+    """Approvals and loss-of-exclusivity dates as the chart's markers want them. A row
+    with no name or no date is not an event."""
+    events = []
+    for row in approvals or []:
+        name = row.get("brand_name") or row.get("generic_name")
+        if not name:
+            continue
+        if row.get("approval_date"):
+            events.append({"date": row["approval_date"], "label": name, "kind": "approval"})
+        if row.get("loe"):
+            events.append({"date": row["loe"], "label": f"{name} LOE", "kind": "loe"})
+    return events

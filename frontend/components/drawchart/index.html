@@ -56,6 +56,10 @@ window.addEventListener("message", function (e) {
   state.height = a.height || 560;
   state.gutter = a.gutter || BOTTOM_GUTTER;
   state.minHeight = state.height;
+  /* On its own tab the chart takes the room the window has. In a panel beside others it
+     keeps the height it was given: a chart that grew to the window would push every
+     panel under it off the screen. */
+  state.fill = a.fill !== false;
   render();
 });
 
@@ -75,6 +79,7 @@ function availableHeight() {
      rendered correctly and was never seen. */
   const gutter = state.gutter || BOTTOM_GUTTER;
   const floor = state.minHeight || 560;
+  if (state.fill === false) return floor;
   try {
     const frame = window.frameElement;
     if (!frame) return floor;
@@ -138,6 +143,17 @@ function syncFair() {
   fairSeries.setData(state.fair);
 }
 
+/* A chart in a panel is drawn while its tab may be hidden and a few pixels wide, and the
+   bars it fitted to that width stay bunched at the right edge when the tab is shown. So
+   a fixed-height chart fits its bars again whenever its width has changed. The chart on
+   its own tab is left alone: there the pan and zoom are the analyst's to keep. */
+let fittedWidth = -1;
+function refit() {
+  if (state.fill !== false || !chart) return;
+  const w = chartEl.clientWidth;
+  if (w !== fittedWidth) { fittedWidth = w; chart.timeScale().fitContent(); }
+}
+
 function render() {
   state.height = availableHeight();
   if (!chart || state.viewKey !== lastViewKey) {
@@ -157,6 +173,7 @@ function render() {
     grid: { vertLines: { color: state.theme.rule },
             horzLines: { color: state.theme.rule } },
   });
+  refit();
   canvas.style.pointerEvents = state.draw ? "auto" : "none";   // else the chart pans
   canvas.style.cursor = state.draw ? "crosshair" : "default";
   hintEl.style.color = state.theme.muted || "#7E9098";
@@ -287,6 +304,7 @@ window.addEventListener("load", function () {
     if (!chart) return;
     state.height = availableHeight();
     chart.applyOptions({ width: chartEl.clientWidth, height: state.height });
+    refit();
     sizeCanvas();
     Streamlit.height(state.height + 2);
   });

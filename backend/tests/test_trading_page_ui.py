@@ -25,6 +25,15 @@ NEWS = {{"ticker": "LLY", "news": [
       "published_at": "2026-11-18"}}]}}
 DATED = [{{"expected_date": ahead, "catalyst_type": "readout", "date_confidence": "day",
            "title": "Phase 3 readout of a study", "source_url": None}}]
+# Forty daily bars ending yesterday, and a session still trading today.
+PRICES = {{"ticker": "LLY", "interval": "1d", "currency": "USD", "last_fetch_at": None,
+           "points": [{{"as_of": (today - dt.timedelta(days=40 - n)).isoformat(),
+                        "open": 100.0 + n, "high": 102.0 + n, "low": 99.0 + n,
+                        "close": 101.0 + n, "volume": 1000}} for n in range(40)]}}
+LIVE = {{"ok": True, "currency": "USD", "fetched_at": "2026-11-23T15:00:00Z", "bars": {{}},
+         "live_daily": {{"as_of": today.isoformat(), "open": 141.0, "high": 150.0,
+                         "low": 140.0, "close": 149.5, "volume": 10, "complete": False}},
+         "market": {{"regular_open": {market_open!r}, "exchange": "NYSE"}}}}
 asked = st.session_state.setdefault("asked", [])
 FAIL = {fail!r}
 
@@ -34,6 +43,12 @@ def fetch(api_base, path, timeout):
         raise urllib.error.URLError("connection refused")
     if path.endswith("/news"):
         return NEWS
+    if path.endswith("/prices"):
+        return PRICES
+    if path.endswith("/approvals"):
+        return {{"approvals": [{{"brand_name": "Drug", "loe": "2040-01-01",
+                                 "approval_date": PRICES["points"][-5]["as_of"]}},
+                                {{"brand_name": None, "approval_date": "2026-01-01"}}]}}
     if path.startswith("/catalysts?"):
         return DATED
     if path.startswith("/changes?"):
@@ -42,6 +57,13 @@ def fetch(api_base, path, timeout):
     raise AssertionError("a read the board was not expected to make: " + path)
 fetch.clear = lambda: None
 trading_page._fetch = fetch
+def live_prices(api_base, company):
+    st.session_state.setdefault("live_asked", []).append(company)
+    return LIVE
+trading_page.live_prices = live_prices
+def draw_chart(**kw):
+    st.session_state.setdefault("charts", {{}})[kw["key"]] = kw
+    st.markdown("CHART[" + kw["key"] + "]")
 
 def section(label, count=None, basis=""):
     st.markdown(f"SECTION[{{label}}|{{count}}|{{basis}}]")
@@ -56,12 +78,13 @@ def change_row(item):
 def ask(api_base, ticker, name, slot="", showing_key=""):
     st.markdown(f"ASK[{{ticker}}|{{name}}|{{slot}}|{{showing_key}}]")
 kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
-                            change_row=change_row, ask=ask)
+                            change_row=change_row, ask=ask, draw_chart=draw_chart)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
           "significance": "high", "change_type": "status_change"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
           "significance": "low"}}]
 trading_page.render("http://api.invalid", "LLY", "Eli Lilly", kit, feed=FEED,
+                    prices=PRICES if {page_has_prices!r} else None,
                     historical={historical!r})
 '''
 
@@ -90,11 +113,12 @@ def _patch_button_group():
     element_tree.ButtonGroup.indices = property(indices)
 
 
-def _page(fail="", historical=False):
+def _page(fail="", historical=False, market_open=False, page_has_prices=True):
     from streamlit.testing.v1 import AppTest
     _patch_button_group()
     test = AppTest.from_string(
-        _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical),
+        _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical,
+                     market_open=market_open, page_has_prices=page_has_prices),
         default_timeout=60)
     test.run()
     assert not test.exception, test.exception
@@ -109,10 +133,10 @@ def _sections(test) -> list:
     return re.findall(r"SECTION\[([^|]+)\|", _md(test))
 
 
-def test_the_default_board_draws_its_three_panels_for_the_top_bars_company():
+def test_the_default_board_draws_its_panels_for_the_top_bars_company():
     test = _page()
     md = _md(test)
-    assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
     assert "SECTION[What changed|2|LLY]" in md and "A high change" in md
     assert "SECTION[Company news|2|LLY]" in md and "Daily pulse (AI summary)" in md
     assert "SECTION[Dated ahead|1|LLY]" in md and "Phase 3 readout of a study" in md
@@ -127,6 +151,7 @@ def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     assert len(figures) == 3 and all("<svg" in b and 'class="unit"' in b for b in figures)
     md = _md(test)
     assert md.count('<details class="note-d td-all">') == 3
+    assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_0_0]")
     for panel, figure in zip(("What changed", "Company news", "Dated ahead"), figures):
         section = md.index(f"SECTION[{panel}|")
         assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
@@ -134,11 +159,12 @@ def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     assert 'class="td-kinds"' in md
 
 
-def test_the_top_bars_change_feed_is_used_and_not_read_a_second_time():
+def test_what_the_page_has_already_read_is_used_and_not_read_a_second_time():
     test = _page()
     asked = test.session_state["asked"]
     assert not [path for path in asked if path.startswith("/changes")]
-    assert sorted(set(asked)) == sorted({"/companies/LLY/news",
+    assert "/companies/LLY/prices" not in asked
+    assert sorted(set(asked)) == sorted({"/companies/LLY/news", "/companies/LLY/approvals",
                                          next(p for p in asked if p.startswith("/catalysts?"))})
     assert "ticker=LLY" in next(p for p in asked if p.startswith("/catalysts?"))
 
@@ -146,8 +172,8 @@ def test_the_top_bars_change_feed_is_used_and_not_read_a_second_time():
 def test_what_is_on_screen_is_kept_for_the_ask_box_as_kinds_and_tickers_only():
     test = _page()
     assert test.session_state["td_showing"] == [
-        {"panel": "changes", "ticker": "LLY"}, {"panel": "news", "ticker": "LLY"},
-        {"panel": "catalysts", "ticker": "LLY"}]
+        {"panel": "price", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"},
+        {"panel": "news", "ticker": "LLY"}, {"panel": "catalysts", "ticker": "LLY"}]
 
 
 def test_taking_a_panel_off_redraws_the_board_without_it():
@@ -172,7 +198,7 @@ def test_the_board_draws_at_one_two_and_three_across():
     for across in (1, 3, 2):
         test.button_group(key="td_columns").set_value(across).run()
         assert not test.exception, test.exception
-        assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
+        assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
 
 
 def test_the_ask_box_sits_beside_the_board_in_its_own_place_on_the_page():
@@ -186,16 +212,68 @@ def test_the_ask_box_can_be_put_away_and_the_board_takes_the_width():
     test.toggle(key="td_ask").set_value(False).run()
     assert not test.exception, test.exception
     assert "ASK[" not in _md(test)
-    assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
     test.toggle(key="td_ask").set_value(True).run()
     assert not test.exception, test.exception
     assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
 
 
+def test_the_price_chart_keeps_its_height_and_carries_the_session_still_trading():
+    test = _page()
+    assert "CHART[td_chart_0_0]" in _md(test)
+    chart = test.session_state["charts"]["td_chart_0_0"]
+    assert chart["fill"] is False and chart["height"] == 300 and chart["intraday"] is False
+    assert chart["lines"] == [] and chart["draw_mode"] is False and chart["fair"] == []
+    # Forty stored bars and today's session laid over them: the last point is the live one.
+    assert len(chart["data"]) == 41 and chart["data"][-1]["value"] == 149.5
+    assert chart["data"][-2]["value"] == 140.0
+    assert len(chart["markers"]) == 1                 # the approval; the LOE is off the view
+    md = _md(test)
+    assert "SECTION[Price chart|None|LLY · USD" in md
+    assert "149.50" in md and "1Y change" in md and "+48.0%" in md
+    assert "is live: the session so far" in md and "not a close" in md
+    assert "writes nothing to the book" in md
+
+
+def test_a_shorter_window_draws_fewer_bars_and_tells_the_chart_to_refit():
+    test = _page()
+    before = test.session_state["charts"]["td_chart_0_0"]
+    test.button_group(key="td_span_0_0").set_value("1M").run()
+    assert not test.exception, test.exception
+    after = test.session_state["charts"]["td_chart_0_0"]
+    assert len(after["data"]) < len(before["data"]) and after["data"][-1]["value"] == 149.5
+    assert after["view_key"] != before["view_key"] and "1M change" in _md(test)
+    test.button_group(key="td_view_0_0").set_value("Candlestick").run()
+    assert not test.exception, test.exception
+    candle = test.session_state["charts"]["td_chart_0_0"]
+    assert candle["mode"] == "Candlestick" and "open" in candle["data"][0]
+
+
+def test_the_price_panel_reads_the_history_itself_when_the_page_has_not():
+    test = _page(page_has_prices=False)
+    assert "/companies/LLY/prices" in test.session_state["asked"]
+    assert len(test.session_state["charts"]["td_chart_0_0"]["data"]) == 41
+
+
+def test_the_price_panel_draws_with_the_market_open_and_with_it_closed():
+    for market_open in (True, False):
+        test = _page(market_open=market_open)
+        assert not test.exception, test.exception
+        assert "CHART[td_chart_0_0]" in _md(test)
+        assert set(test.session_state["live_asked"]) == {"LLY"}
+
+
+def test_with_no_price_history_the_panel_says_so_and_draws_no_chart():
+    test = _page(fail="/prices", page_has_prices=False)
+    md = _md(test)
+    assert "STATE[The price history did not load|" in md and "CHART[" not in md
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+
+
 def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():
     test = _page(fail="/news")
     md = _md(test)
-    assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
     assert "STATE[The news did not load|" in md and "|True]" in md
     assert "A high change" in md and "Phase 3 readout of a study" in md
 
@@ -204,13 +282,14 @@ def test_with_a_date_set_the_board_says_it_is_the_live_book_and_reads_nothing():
     test = _page(historical=True)
     assert "STATE[The board shows the live book|" in _md(test)
     assert _sections(test) == [] and not test.session_state["asked"]
+    assert "live_asked" not in test.session_state
 
 
 def test_no_two_widgets_or_containers_on_the_board_share_a_key():
     """A second panel of one kind, or the Ask box drawn beside its own tab, must not
     reuse a key: Streamlit stops the page on the first duplicate."""
     source = (FRONTEND / "trading_page.py").read_text()
-    keys = re.findall(r'key=f?"([^"]+)"', source)
+    keys = re.findall(r'(?<![a-z_])key=f?"([^"]+)"', source)
     assert keys and all(key.startswith("td_") for key in keys), keys
     fixed = [key for key in keys if "{" not in key]
     assert len(fixed) == len(set(fixed))
@@ -218,7 +297,27 @@ def test_no_two_widgets_or_containers_on_the_board_share_a_key():
 
 def test_the_page_module_only_reads():
     """Every request it builds is a GET: no body, no method, and no write route named."""
+    import ast
     source = (FRONTEND / "trading_page.py").read_text()
-    assert not re.search(r"\bmethod\s*=|\bdata\s*=", source)
+    assert "Request(" not in source
+    opened = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)
+              and getattr(node.func, "attr", "") == "urlopen"]
+    assert len(opened) == 2
+    for call in opened:
+        assert len(call.args) == 1 and {kw.arg for kw in call.keywords} == {"timeout"}
     assert "broker_t212" not in source and "fetchers" not in source
     assert not re.search(r"/portfolio/|/tearsheet|/brief|/refresh", source)
+
+
+def test_the_chart_component_has_a_height_it_keeps():
+    """On its own tab the chart grows to the window. In a panel it must not."""
+    component = FRONTEND / "components" / "drawchart"
+    wrapper = (component / "__init__.py").read_text()
+    frame = (component / "index.html").read_text()
+    assert "fill: bool = True" in wrapper and "fill=fill" in wrapper
+    assert "state.fill = a.fill !== false;" in frame
+    assert "if (state.fill === false) return floor;" in frame
+    # Fitted again when its width changes, and only in a panel: drawn in a hidden tab it
+    # is a few pixels wide, and the bars stayed bunched at the right edge.
+    assert "if (state.fill !== false || !chart) return;" in frame
+    assert frame.count("refit();") == 2

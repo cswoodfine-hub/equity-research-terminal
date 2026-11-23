@@ -19,7 +19,8 @@ _component = components.declare_component("drawchart", path=str(_DIR))
 
 
 def draw_chart(*, data, markers, mode, intraday, lines, draw_mode, theme, view_key,
-               fair=None, gutter: int = 56, height: int = 560, key=None):
+               fair=None, gutter: int = 56, height: int = 560, fill: bool = True,
+               key=None):
     """Render the chart and return the current set of drawn lines.
 
     ``data`` and ``markers`` are the series and event markers already built by
@@ -28,9 +29,11 @@ def draw_chart(*, data, markers, mode, intraday, lines, draw_mode, theme, view_k
     component returns until the user changes them. ``view_key`` changes when the interval
     or window changes, telling the frontend to refit rather than keep the old pan/zoom.
     ``gutter`` is the room the page needs under the chart: the frame ends at the legend
-    and cannot measure what follows it, so the caller says.
+    and cannot measure what follows it, so the caller says. ``fill`` false keeps the
+    chart at ``height`` and stops it growing to the window, for a chart that is one panel
+    among several.
     """
     return _component(data=data, markers=markers, fair=fair or [], mode=mode,
                       intraday=intraday,
                       lines=lines, draw_mode=draw_mode, theme=theme, view_key=view_key,
-                      gutter=gutter, height=height, key=key, default=lines)
+                      gutter=gutter, height=height, fill=fill, key=key, default=lines)

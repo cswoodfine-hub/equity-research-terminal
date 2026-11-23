@@ -66,7 +66,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 4:
+if getattr(trading_page, "REVISION", 0) < 5:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -10436,10 +10436,10 @@ def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
 
 # The house's own builders, handed to the Trading tab's page module so a panel on the board
 # reads as the page it was lifted from: the section rule, the state block, the folded
-# note, the change feed's filter and row, and the Ask box itself.
+# note, the change feed's filter and row, the price chart's frame, and the Ask box itself.
 _TRADING_KIT = types.SimpleNamespace(
     section=section, state=state, note=note, changes=_ki_changes, change_row=change_row,
-    ask=_ask_tab)
+    ask=_ask_tab, draw_chart=drawchart.draw_chart)
 
 
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,
@@ -11599,7 +11599,8 @@ with main:
 
     with _panels["trading"]:
         trading_page.render(api_base, ticker, (company or {}).get("name") or "",
-                            _TRADING_KIT, feed=feed, historical=bool(asof_state))
+                            _TRADING_KIT, feed=feed, prices=prices,
+                            historical=bool(asof_state))
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:

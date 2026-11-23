@@ -26,11 +26,13 @@ import urllib.request
 import streamlit as st
 
 import calendar_view
+import price_chart
 import trading_view as TV
+from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 4
+REVISION = 5
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -42,6 +44,8 @@ CHANGES_SHOWN = 40
 BESIDE = (2.05, 1)
 ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
 SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
+PRICE_HEIGHT = 300           # the chart in a panel: fixed, so the panels under it stay put
+LIVE_TIMEOUT_S = 12
 
 
 @st.cache_data(ttl=HOLD_SECONDS, show_spinner=False)
@@ -68,9 +72,10 @@ def clear() -> None:
 
 # --------------------------------------------------------------------------- the panels
 # Each takes the API's address, the company the panel is for, the kit, the panel's rule
-# (label and basis), its slot on the board, the width its figure is drawn at, and the
-# page's own change feed where the company is the top bar's. Each draws its rule first,
-# so the count beside it is the count of what is under it.
+# (label and basis), its slot on the board, the width its figure is drawn at, and what
+# the page has already read for this company (``have``: its change feed and its stored
+# prices, where the company is the top bar's, so those cost the board no read). Each
+# draws its rule first, so the count beside it is the count of what is under it.
 #
 # A panel leads with a figure: when and how much, read at a glance. The few items worth
 # naming sit under it, and the whole list is folded beneath, one click away.
@@ -88,9 +93,9 @@ def _figure(svg: str) -> None:
                     unsafe_allow_html=True)
 
 
-def _changes(api_base, company, kit, rule, slot, width, feed=None):
+def _changes(api_base, company, kit, rule, slot, width, have):
     label, basis = rule
-    problem = None
+    feed, problem = have.get("feed"), None
     if feed is None:
         feed, problem = read(api_base, f"/changes?ticker={urllib.parse.quote(company)}")
     today = dt.date.today()
@@ -119,7 +124,7 @@ def _changes(api_base, company, kit, rule, slot, width, feed=None):
                      "on the Dated ahead panel.")
 
 
-def _news(api_base, company, kit, rule, slot, width, feed=None):
+def _news(api_base, company, kit, rule, slot, width, have):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/news")
     rows = TV.news_rows(payload)
@@ -153,7 +158,7 @@ def _news(api_base, company, kit, rule, slot, width, feed=None):
                        "catalyst.")
 
 
-def _catalysts(api_base, company, kit, rule, slot, width, feed=None):
+def _catalysts(api_base, company, kit, rule, slot, width, have):
     label, basis = rule
     payload, problem = read(
         api_base, f"/catalysts?within_days={CALENDAR_MONTHS * 31}"
@@ -181,7 +186,96 @@ def _catalysts(api_base, company, kit, rule, slot, width, feed=None):
                        "commitment. The odds and the value at stake are on Catalysts.")
 
 
-DRAW = {"changes": _changes, "news": _news, "catalysts": _catalysts}
+def live_prices(api_base: str, company: str) -> dict:
+    """Yahoo's live read for one company, or the reason there is none. Never raises, and
+    never held here: the API holds the answer for about a minute and writes nothing, so
+    asking it again costs nothing and files no price."""
+    path = f"/companies/{urllib.parse.quote(company)}/prices/live"
+    try:
+        with urllib.request.urlopen(api_base.rstrip("/") + path,
+                                    timeout=LIVE_TIMEOUT_S) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return {"ok": False, "reason": f"the API did not answer: {exc}", "bars": {},
+                "live_daily": None, "market": None, "fetched_at": None}
+
+
+def _price(api_base, company, kit, rule, slot, width, have):
+    """The daily price with the live session over it, at a fixed height.
+
+    The same builders as the Prices tab (``price_chart``) in a smaller frame: daily bars
+    only, a window, line or candle, and the approvals marked. The intraday views, the
+    fair value line and why it moved stay on the Prices tab, which is their page.
+    """
+    label, basis = rule
+    # The timer belongs to the chart alone, so a tick redraws one chart and not the
+    # board. It is set from the market's state when the panel is drawn: a minute while
+    # the session is open, the wait for the bell when that is near, and none otherwise.
+    timer = price_chart.poll_seconds(live_prices(api_base, company))
+
+    @st.fragment(run_every=timer)
+    def chart():
+        stored, problem = have.get("prices"), None
+        if stored is None:
+            stored, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/prices")
+        stored = stored or {}
+        live = live_prices(api_base, company)
+        kit.section(label, basis=" · ".join(part for part in (
+            basis, stored.get("currency") or live.get("currency"),
+            price_chart.live_status(live)) if part))
+        with st.container(key=f"td_pricectl_{slot}", horizontal=True,
+                          vertical_alignment="center"):
+            span = st.segmented_control(
+                "Window", [name for name, _days in TV.PRICE_SPANS], default=TV.DEFAULT_SPAN,
+                key=f"td_span_{slot}", label_visibility="collapsed") or TV.DEFAULT_SPAN
+            view = st.segmented_control(
+                "View", [price_chart.LINE, price_chart.CANDLE], default=price_chart.LINE,
+                key=f"td_view_{slot}", label_visibility="collapsed") or price_chart.LINE
+        points = stored.get("points") or []
+        over = ([live["live_daily"]] if price_chart.live_daily_applies(
+            points, live.get("live_daily"), stored.get("last_fetch_at")) else [])
+        bars = TV.price_window(price_chart.merge_live(points, over), span)
+        if problem:
+            _failed(kit, "The price history", problem)
+            return
+        if not bars:
+            kit.state(f"No price history for {TV.esc(company)} yet",
+                      "Refresh all, in the top bar, files the daily history from Yahoo. "
+                      "The live read returned no bar to draw in the meantime: "
+                      f"{TV.esc(str(live.get('reason') or TV.NO_DATA))}.")
+            return
+        st.markdown(TV.price_stats_html(TV.price_stats(bars), span), unsafe_allow_html=True)
+        approvals, _problem = read(
+            api_base, f"/companies/{urllib.parse.quote(company)}/approvals")
+        markers = price_chart.event_markers(
+            bars, TV.price_events((approvals or {}).get("approvals")), False)
+        kit.draw_chart(
+            data=price_chart.series_data(bars, view, False), markers=markers, fair=[],
+            mode=view, intraday=False, lines=[], draw_mode=False,
+            theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.GROUND,
+                   "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
+                   "flag": TK.FLAG},
+            gutter=0, view_key=f"{company}|{span}|{view}", height=PRICE_HEIGHT,
+            fill=False, key=f"td_chart_{slot}")
+        legend = (f'<span style="color:var(--up)">▲</span> FDA approval &nbsp;'
+                  f'<span style="color:var(--down)">▼</span> loss of exclusivity '
+                  f'&nbsp;·&nbsp; {len(markers)} on this view')
+        words = price_chart.live_bar_words(live, "1d", over, points)
+        if words:
+            legend += f" &nbsp;·&nbsp; {TV.esc(words)}"
+        st.markdown(f'<div class="byline chart-legend">{legend}</div>',
+                    unsafe_allow_html=True)
+        kit.note(TV.esc(price_chart.live_note(live))
+                 + "Daily bars from the book's stored history, with the current session "
+                   "from Yahoo's live read laid over them where the stored series does "
+                   "not yet hold that day's close. The live read writes nothing to the "
+                   "book. Intraday bars, the fair value line and why the price moved "
+                   "are on the Prices tab.")
+
+    chart()
+
+
+DRAW = {"price": _price, "changes": _changes, "news": _news, "catalysts": _catalysts}
 
 
 # ----------------------------------------------------------------------------- the board
@@ -208,7 +302,7 @@ def _controls() -> dict:
 
 
 @st.fragment
-def _board(api_base: str, ticker: str, kit, feed) -> None:
+def _board(api_base: str, ticker: str, kit, page: dict) -> None:
     """The controls and the panels. A fragment: picking a panel redraws the board alone."""
     layout, left_out = TV.normalise(_controls())
     # The Ask column is laid out by the page, outside this fragment, so a run of the
@@ -234,25 +328,27 @@ def _board(api_base: str, ticker: str, kit, feed) -> None:
             with cells[c], st.container(key=f"td_panel_{r}_{c}"):
                 DRAW[entry["panel"]](
                     api_base, company, kit, TV.heading(entry, ticker), f"{r}_{c}", width,
-                    feed=feed if company == ticker else None)
+                    page if company == ticker else {})
 
 
-def render(api_base: str, ticker: str, name: str, kit, feed=None,
+def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,
            historical: bool = False) -> None:
-    """The tab. ``feed`` is the change feed the page already read for this company, so
-    the What changed panel costs no read of its own."""
+    """The tab. ``feed`` and ``prices`` are the change feed and the stored daily prices
+    the page already read for this company, so the panels built on them cost no read."""
     if historical:
         kit.state("The board shows the live book",
                   "A date is set in the sidebar, and the board's panels are not rebuilt "
                   "for a past date. Clear the date to use it.")
         return
+    page = {key: value for key, value in (("feed", feed), ("prices", prices))
+            if value is not None}
     beside = st.session_state.get("td_ask", True)
     st.session_state["_td_ask_drawn"] = beside
     if not beside:
-        _board(api_base, ticker, kit, feed)
+        _board(api_base, ticker, kit, page)
         return
     board, ask = st.columns(list(BESIDE), gap="medium")
     with board:
-        _board(api_base, ticker, kit, feed)
+        _board(api_base, ticker, kit, page)
     with ask:
         kit.ask(api_base, ticker, name, slot=ASK_SLOT, showing_key=SHOWING_KEY)

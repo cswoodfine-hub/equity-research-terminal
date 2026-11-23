@@ -63,6 +63,12 @@ def test_titles_and_groups_are_sentence_case():
         assert not rest, label
 
 
+def test_the_default_board_leads_with_the_price_across_its_whole_width():
+    rows = TV.pack(TV.default_layout()["panels"], 2)
+    assert [[e["panel"] for e in row] for row in rows][0] == ["price"]
+    assert TV.BY_ID["price"]["wide"] is True and TV.BY_ID["price"]["cost"] == "live"
+
+
 def test_the_default_board_is_made_of_kinds_that_exist():
     layout = TV.default_layout()
     assert [p["panel"] for p in layout["panels"]] == list(TV.DEFAULT_PANELS)
@@ -490,6 +496,57 @@ def test_a_lead_escapes_what_it_is_given_and_links_only_to_the_web():
     assert "href" not in markup and 'class="td-lead td-xscript"' in markup
 
 
+BARS = [{"as_of": f"2026-{m:02d}-15", "open": 10.0 * m, "high": 10.0 * m + 2,
+         "low": 10.0 * m - 2, "close": 10.0 * m + 1, "volume": 5} for m in range(1, 12)]
+
+
+def test_the_price_window_is_counted_back_from_the_newest_bar_not_from_today():
+    assert len(TV.price_window(BARS, "1M")) == 2          # 15 Oct and 15 Nov
+    assert len(TV.price_window(BARS, "3M")) == 4
+    assert len(TV.price_window(BARS, "5Y")) == 11
+    assert TV.price_window(BARS, "nonsense") == TV.price_window(BARS, "1Y")
+    assert TV.price_window([], "1M") == [] and TV.price_window(None, "1M") == []
+    shuffled = list(reversed(BARS)) + [{"as_of": None, "close": 1.0}, "not a bar"]
+    assert [b["as_of"] for b in TV.price_window(shuffled, "3M")] == [
+        "2026-08-15", "2026-09-15", "2026-10-15", "2026-11-15"]
+
+
+def test_the_windows_figures_come_from_its_bars_and_a_missing_one_stays_missing():
+    stats = TV.price_stats(TV.price_window(BARS, "3M"))
+    assert stats == {"last": 111.0, "as_of": "2026-11-15", "low": 78.0, "high": 112.0,
+                     "bars": 4, "change": pytest.approx((111.0 - 81.0) / 81.0 * 100)}
+    empty = TV.price_stats([])
+    assert empty["last"] is None and empty["change"] is None and empty["bars"] == 0
+    closes_only = TV.price_stats([{"as_of": "2026-01-01", "close": 0.0},
+                                  {"as_of": "2026-01-02", "close": 5.0}])
+    assert closes_only["change"] is None                  # no change from a nought
+    assert closes_only["low"] == 0.0 and closes_only["high"] == 5.0
+
+
+def test_the_price_strip_signs_a_fall_with_a_true_minus_and_prints_a_gap_as_a_gap():
+    up = TV.price_stats_html(TV.price_stats(TV.price_window(BARS, "3M")), "3M")
+    assert "+37.0%" in up and "3M change" in up and "78.00 to 112.00" in up
+    assert 'class="v risk"' not in up
+    falling = [dict(b, close=200.0 - 10 * n) for n, b in enumerate(BARS)]
+    down = TV.price_stats_html(TV.price_stats(falling), "1Y")
+    assert "\u221250.0%" in down and 'class="v risk"' in down and "-50" not in down
+    blank = TV.price_stats_html(TV.price_stats([]), "1Y")
+    assert blank.count(TV.NO_DATA) == 4 and ">0" not in blank and "0.00" not in blank
+
+
+def test_an_approval_with_no_name_or_no_date_is_not_an_event():
+    events = TV.price_events([
+        {"brand_name": "Drug", "approval_date": "2026-09-23", "loe": "2038-09-23"},
+        {"brand_name": None, "generic_name": "Generic", "approval_date": "2025-01-01"},
+        {"brand_name": None, "generic_name": None, "approval_date": "2024-01-01"},
+        {"brand_name": "Undated"}])
+    assert events == [
+        {"date": "2026-09-23", "label": "Drug", "kind": "approval"},
+        {"date": "2038-09-23", "label": "Drug LOE", "kind": "loe"},
+        {"date": "2025-01-01", "label": "Generic", "kind": "approval"}]
+    assert TV.price_events(None) == []
+
+
 # ------------------------------------------------------------------------- house style
 def test_house_style_on_every_word_the_board_prints():
     words = [p["title"] for p in TV.PANELS] + [p["about"] for p in TV.PANELS]
@@ -512,6 +569,8 @@ def test_house_style_on_every_word_the_board_prints():
     words += [lane["label"] for lanes in (TV.DATED_LANES, TV.NEWS_LANES, TV.CHANGE_LANES)
               for lane in lanes]
     words += [TV.dated_wait(r, TODAY) for r in AHEAD] + [TV.dated_when(r) for r in AHEAD]
+    words.append(_visible(TV.price_stats_html(TV.price_stats(BARS), "1Y")))
+    words.append(_visible(TV.price_stats_html(TV.price_stats([]), "1Y")))
     for text in words:
         _house_style(text)
 

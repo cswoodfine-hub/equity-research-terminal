@@ -98,7 +98,7 @@ def house_style(text: str) -> str:
 # never named, whatever CHAT_ALLOW_PORTFOLIO says: that switch offers a tool, which the
 # model has to ask for, and this would tell it unasked. The frontend's registry
 # (frontend/trading_view.PANELS) is held to this list by a test.
-ON_SCREEN = {"changes": "What changed", "news": "Company news",
+ON_SCREEN = {"price": "Price chart", "changes": "What changed", "news": "Company news",
              "catalysts": "Dated ahead"}
 ON_SCREEN_MAX = 12
 _PANEL_TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
