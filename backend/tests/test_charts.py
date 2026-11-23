@@ -532,3 +532,108 @@ def test_a_football_field_row_without_both_ends_is_dropped_not_zeroed():
     svg = charts.football_field([{"label": "a", "low": 1, "high": 2},
                                  {"label": "b", "low": None, "high": 5}])
     assert svg.count("<rect") == 1 and ">b<" not in svg
+
+
+# --- unit lanes -----------------------------------------------------------
+LANES = [{"key": "p3", "label": "Phase 3", "colour": tokens.PHASE_RAMP["Phase 3"]},
+         {"key": "p2", "label": "Phase 2", "colour": tokens.PHASE_RAMP["Phase 2"]}]
+EVENTS = [{"date": "2026-12-15", "lane": "p3", "tip": "a Phase 3 readout"},
+          {"date": "2027-03-01", "lane": "p2", "tip": "a Phase 2 readout", "hollow": True},
+          {"date": "2027-03-20", "lane": "p2", "tip": "another in March"}]
+
+
+def _units(svg: str) -> list:
+    return re.findall(r'<rect class="unit"[^>]*>', svg)
+
+
+def _lanes(events=EVENTS, **kw):
+    args = dict(start=dt.date(2026, 11, 23), end=dt.date(2028, 11, 23), step="month")
+    args.update(kw)
+    return charts.unit_lanes(events, LANES, **args)
+
+
+def test_unit_lanes_is_valid_svg_with_one_mark_an_event():
+    svg = _lanes()
+    ET.fromstring(svg)
+    assert len(_units(svg)) == 3
+    assert svg.count("<title>") == 3 and "a Phase 3 readout" in svg
+
+
+def test_unit_lanes_puts_an_event_in_its_lanes_colour_and_a_hollow_one_is_an_outline():
+    svg = _lanes()
+    filled = [u for u in _units(svg) if 'stroke=' not in u]
+    hollow = [u for u in _units(svg) if 'stroke=' in u]
+    assert len(filled) == 2 and len(hollow) == 1
+    assert f'fill="{tokens.PHASE_RAMP["Phase 3"]}"' in filled[0]
+    assert f'stroke="{tokens.PHASE_RAMP["Phase 2"]}"' in hollow[0]
+    assert f'fill="{tokens.GROUND}"' in hollow[0]
+
+
+def test_unit_lanes_stacks_two_events_in_one_period_and_never_overlays_them():
+    svg = _lanes()
+    march = [u for u in _units(svg) if tokens.PHASE_RAMP["Phase 2"] in u]
+    xs = {round(float(re.search(r' x="([0-9.]+)"', u).group(1))) for u in march}
+    ys = {round(float(re.search(r' y="([0-9.]+)"', u).group(1))) for u in march}
+    assert len(xs) == 1 and len(ys) == 2
+
+
+def test_unit_lanes_draws_a_lane_with_nothing_in_it_and_counts_each():
+    svg = _lanes([EVENTS[0]])
+    assert ">Phase 2</text>" in svg and ">Phase 3</text>" in svg
+    counts = re.findall(r'text-anchor="end"[^>]*>(\d+)</text>', svg)
+    assert counts == ["1", "0"]
+
+
+def test_unit_lanes_prints_the_overflow_as_a_count_and_keeps_every_tip():
+    crowd = [{"date": "2027-06-10", "lane": "p3", "tip": f"study {n}"} for n in range(9)]
+    svg = _lanes(crowd, cap=4)
+    assert len(_units(svg)) == 3                    # cap - 1 drawn
+    assert re.search(r'class="more">\+6</text>', svg)
+    assert all(f"study {n}" in svg for n in range(9))
+
+
+def test_unit_lanes_leaves_off_what_is_undated_out_of_window_or_in_no_lane():
+    stray = [{"date": None, "lane": "p3"}, {"date": "2031-01-01", "lane": "p3"},
+             {"date": "2026-01-01", "lane": "p3"}, {"date": "2027-01-01", "lane": "p9"},
+             {"date": "not a date", "lane": "p3"}]
+    assert _lanes(stray) == ""
+    assert len(_units(_lanes(stray + EVENTS))) == 3
+
+
+def test_unit_lanes_with_nothing_or_a_window_that_runs_backwards_renders_nothing():
+    assert _lanes([]) == "" and _lanes(None) == ""
+    assert _lanes(start=dt.date(2028, 1, 1), end=dt.date(2026, 1, 1)) == ""
+    assert charts.unit_lanes(EVENTS, [], dt.date(2026, 1, 1), dt.date(2028, 1, 1)) == ""
+    assert _lanes(step="fortnight") == ""
+
+
+def test_unit_lanes_marks_today_only_inside_the_window():
+    assert 'class="today"' in _lanes(today=dt.date(2027, 1, 15))
+    assert 'class="today"' not in _lanes(today=dt.date(2030, 1, 15))
+    assert 'class="today"' not in _lanes()
+
+
+@pytest.mark.parametrize("step,start,end", [
+    ("day", dt.date(2026, 10, 24), dt.date(2026, 11, 23)),
+    ("week", dt.date(2026, 5, 25), dt.date(2026, 11, 23)),
+    ("month", dt.date(2025, 12, 1), dt.date(2026, 11, 23))])
+def test_unit_lanes_keeps_every_mark_inside_the_frame_at_each_step_and_width(step, start, end):
+    events = [{"date": start.isoformat(), "lane": "p3", "tip": "first day"},
+              {"date": end.isoformat(), "lane": "p2", "tip": "last day"}]
+    for width in (260, 440, 900):
+        svg = charts.unit_lanes(events, LANES, start, end, step=step, width=width)
+        ET.fromstring(svg)
+        units = _units(svg)
+        assert len(units) == 2
+        for u in units:
+            x = float(re.search(r' x="([0-9.]+)"', u).group(1))
+            w = float(re.search(r' width="([0-9.]+)"', u).group(1))
+            assert 0 <= x and x + w <= width
+
+
+def test_unit_lanes_takes_every_colour_from_a_token():
+    svg = _lanes(today=dt.date(2027, 1, 15))
+    allowed = {v.upper() for v in vars(tokens).values() if isinstance(v, str)
+               and v.startswith("#")} | {c.upper() for c in tokens.PHASE_RAMP.values()}
+    used = {c.upper() for c in re.findall(r"#[0-9A-Fa-f]{6}", svg)}
+    assert used <= allowed

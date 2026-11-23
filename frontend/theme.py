@@ -1239,6 +1239,58 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   .td-list .fitem .s {{ grid-column: 3; grid-row: 1; margin-left: 0; }}
   .td-list .fitem .why {{ grid-column: 2; grid-row: 2; margin-left: 0; }}
 }}
+/* A panel leads with its figure. It is drawn at about the panel's width and stretched
+   the rest of the way, so the type stays near its drawn size. */
+.td-fig {{ margin: 0.1rem 0 0.45rem; }}
+.td-fig svg .unit {{ transition: opacity 100ms linear; }}
+.td-fig svg g:hover .unit {{ opacity: 0.6; }}
+/* The items named under a figure: a tag for the kind, the date, the headline. A rail in
+   the colour of the row it sits in on the figure, so the two read as one thing; the tag
+   beside it says the same in words. Raised panel and a hairline, as a lead box is. */
+.td-leads {{ display: grid; gap: 4px; margin: 0 0 0.45rem;
+            grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr)); }}
+.td-lead {{ --accent: var(--rule-strong); display: grid; grid-template-columns: 1fr auto;
+           column-gap: 0.5rem; row-gap: 0.15rem; padding: 0.4rem 0.55rem 0.45rem;
+           background: var(--panel); border: 1px solid var(--rule);
+           border-left: 2px solid var(--accent); color: inherit; text-decoration: none;
+           transition: border-color 120ms linear; }}
+/* A lead that opens a source reads as itself, not as a link: Streamlit's markdown gives
+   every anchor the link colour and an underline, and its rule outranks a single class. */
+a.td-lead, a.td-lead:visited, a.td-lead:hover {{ color: inherit !important;
+                                                text-decoration: none !important; }}
+a.td-lead:hover {{ border-color: var(--rule-strong); border-left-color: var(--accent); }}
+a.td-lead:hover .t {{ color: var(--up); }}
+.td-lead .k {{ font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.06em;
+              text-transform: uppercase; color: var(--muted); }}
+.td-lead .d {{ font-family: var(--font-mono); font-size: 10px; color: var(--muted);
+              white-space: nowrap; }}
+.td-lead .t {{ grid-column: 1 / -1; font-family: var(--font-ui); font-size: 12.5px;
+              line-height: 1.35; color: var(--text); display: -webkit-box;
+              -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }}
+.td-lead.td-high, .td-lead.td-pulse {{ --accent: var(--flag); }}
+.td-lead.td-medium, .td-lead.td-company {{ --accent: var(--text); }}
+.td-lead.td-low, .td-lead.td-filing {{ --accent: var(--muted); }}
+.td-lead.td-fda {{ --accent: var(--fda); }}
+/* What the changes were, counted: a figure and its kind, a row of them that wraps. */
+.td-kinds {{ display: flex; flex-wrap: wrap; gap: 0.2rem 0.9rem; margin: 0 0 0.5rem; }}
+.td-kind {{ font-family: var(--font-ui); font-size: 11px; color: var(--muted);
+           white-space: nowrap; }}
+.td-kind b {{ font-family: var(--font-mono); font-weight: 600; color: var(--text);
+             margin-right: 0.3rem; }}
+/* The nearest dated events, as tiles: how far off, the date, what it is. */
+.tiles.td-next {{ grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+                 margin: 0 0 0.45rem; }}
+.tiles.td-next .v {{ font-size: 0.95rem; }}
+.tiles.td-next .n {{ display: -webkit-box; -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical; overflow: hidden; }}
+/* The whole list, folded. Its handle is a control, so it reads as one: Slate, and Paper
+   White when it is open or under the pointer. */
+.note-d.td-all {{ margin: 0 0 0.3rem; }}
+.note-d.td-all > summary {{ font-family: var(--font-ui); font-size: 11px;
+                           letter-spacing: 0; text-transform: none; color: var(--muted);
+                           border-bottom: 1px dotted var(--rule-strong); }}
+.note-d.td-all > summary:hover, .note-d.td-all[open] > summary {{ color: var(--text); }}
+.note-d.td-all[open] > summary {{ margin-bottom: 0.3rem; }}
 .td-left-out {{ color: var(--flag); margin: 0 0 0.4rem; }}
 [class*="st-key-td_controls"] {{ margin-bottom: 0.2rem; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than

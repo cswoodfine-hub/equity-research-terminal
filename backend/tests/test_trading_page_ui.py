@@ -58,7 +58,7 @@ def ask(api_base, ticker, name, slot="", showing_key=""):
 kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
                             change_row=change_row, ask=ask)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
-          "significance": "high"}},
+          "significance": "high", "change_type": "status_change"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
           "significance": "low"}}]
 trading_page.render("http://api.invalid", "LLY", "Eli Lilly", kit, feed=FEED,
@@ -113,10 +113,25 @@ def test_the_default_board_draws_its_three_panels_for_the_top_bars_company():
     test = _page()
     md = _md(test)
     assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
-    assert "SECTION[What changed|1|LLY]" in md and "LLY a high change" in md
-    assert "LLY a low change" not in md
+    assert "SECTION[What changed|2|LLY]" in md and "A high change" in md
     assert "SECTION[Company news|2|LLY]" in md and "Daily pulse (AI summary)" in md
     assert "SECTION[Dated ahead|1|LLY]" in md and "Phase 3 readout of a study" in md
+
+
+def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
+    """A panel is not a list. The figure comes first, the named items next, and the
+    rows are there for whoever opens the fold."""
+    test = _page()
+    blocks = [str(m.value) for m in test.markdown]
+    figures = [b for b in blocks if 'class="chart-mount stretch td-fig"' in b]
+    assert len(figures) == 3 and all("<svg" in b and 'class="unit"' in b for b in figures)
+    md = _md(test)
+    assert md.count('<details class="note-d td-all">') == 3
+    for panel, figure in zip(("What changed", "Company news", "Dated ahead"), figures):
+        section = md.index(f"SECTION[{panel}|")
+        assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
+    assert 'class="td-leads"' in md and 'class="tiles td-next"' in md
+    assert 'class="td-kinds"' in md
 
 
 def test_the_top_bars_change_feed_is_used_and_not_read_a_second_time():
@@ -182,7 +197,7 @@ def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():
     md = _md(test)
     assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
     assert "STATE[The news did not load|" in md and "|True]" in md
-    assert "LLY a high change" in md and "Phase 3 readout of a study" in md
+    assert "A high change" in md and "Phase 3 readout of a study" in md
 
 
 def test_with_a_date_set_the_board_says_it_is_the_live_book_and_reads_nothing():

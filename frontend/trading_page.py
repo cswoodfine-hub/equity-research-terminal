@@ -30,12 +30,12 @@ import trading_view as TV
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 3
+REVISION = 4
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
-CHANGE_LEVELS = ("high", "medium")
+CHANGE_LEVELS = ("high", "medium", "low")
 CHANGES_SHOWN = 40
 # The board against the Ask column beside it: about two thirds to one, which leaves the
 # box the measure its answers are set at and the board room for two panels across.
@@ -68,8 +68,12 @@ def clear() -> None:
 
 # --------------------------------------------------------------------------- the panels
 # Each takes the API's address, the company the panel is for, the kit, the panel's rule
-# (label and basis) and the page's own change feed where the company is the top bar's.
-# Each draws its rule first, so the count beside it is the count of what is under it.
+# (label and basis), its slot on the board, the width its figure is drawn at, and the
+# page's own change feed where the company is the top bar's. Each draws its rule first,
+# so the count beside it is the count of what is under it.
+#
+# A panel leads with a figure: when and how much, read at a glance. The few items worth
+# naming sit under it, and the whole list is folded beneath, one click away.
 def _body(slot: str):
     return st.container(height=PANEL_HEIGHT, border=False, key=f"td_body_{slot}")
 
@@ -78,32 +82,48 @@ def _failed(kit, what: str, problem: str) -> None:
     kit.state(f"{what} did not load", TV.esc(problem), error=True)
 
 
-def _changes(api_base, company, kit, rule, slot, feed=None):
+def _figure(svg: str) -> None:
+    if svg:
+        st.markdown(f'<div class="chart-mount stretch td-fig">{svg}</div>',
+                    unsafe_allow_html=True)
+
+
+def _changes(api_base, company, kit, rule, slot, width, feed=None):
     label, basis = rule
     problem = None
     if feed is None:
         feed, problem = read(api_base, f"/changes?ticker={urllib.parse.quote(company)}")
-    rows = kit.changes(feed or [], company, dt.date.today(), CHANGE_LEVELS)
+    today = dt.date.today()
+    rows = kit.changes(feed or [], company, today, CHANGE_LEVELS)
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot):
         if problem:
             _failed(kit, "The change feed", problem)
         elif not rows:
-            kit.state(f"Nothing rated high or medium for {TV.esc(company)} in 30 days",
-                      "Every change, at every level, is on the Universe tab's feed.")
+            kit.state(f"Nothing detected for {TV.esc(company)} in {TV.CHANGE_DAYS} days",
+                      "The book records a change when two refreshes differ. None has.")
         else:
-            st.markdown('<div class="feed td-list">'
-                        + "".join(kit.change_row(it) for it in rows[:CHANGES_SHOWN])
-                        + "</div>", unsafe_allow_html=True)
-            kit.note("Changes the book detected between two refreshes and rated high or "
-                     "medium, in the last 30 days, newest first. What is dated ahead is "
+            _figure(TV.changes_figure(rows, today, width))
+            st.markdown(TV.kinds_html(rows) + TV.changes_leads(rows, company)
+                        + TV.fold_html(
+                            f"The list: {min(len(rows), CHANGES_SHOWN)} of {len(rows)}, "
+                            "newest first",
+                            '<div class="feed td-list">'
+                            + "".join(kit.change_row(it) for it in rows[:CHANGES_SHOWN])
+                            + "</div>"),
+                        unsafe_allow_html=True)
+            kit.note(f"A square is one change the book detected between two refreshes, on "
+                     f"the day it was detected and in the row of its rating, over "
+                     f"{TV.CHANGE_DAYS} days. Hover a square for what it was. The three "
+                     "named are the highest rated, newest first. What is dated ahead is "
                      "on the Dated ahead panel.")
 
 
-def _news(api_base, company, kit, rule, slot, feed=None):
+def _news(api_base, company, kit, rule, slot, width, feed=None):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/news")
     rows = TV.news_rows(payload)
+    today = dt.date.today()
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot):
         if problem:
@@ -113,20 +133,34 @@ def _news(api_base, company, kit, rule, slot, feed=None):
                       "Company releases, 8-K headlines, the FDA's feeds and the daily "
                       "pulse are read on each refresh. None names this company yet.")
         else:
-            st.markdown(TV.news_html(rows), unsafe_allow_html=True)
-            kit.note(f"{TV.news_basis(rows)}. Each row opens its source. A row marked "
-                     "Daily pulse (AI summary) is a model's summary of the trade press "
-                     "and links the article it summarises; it moves no value, deal term "
-                     "or catalyst.")
+            figure = TV.news_figure(rows, today, width)
+            _figure(figure)
+            st.markdown(TV.news_leads(rows)
+                        + TV.fold_html(f"The list: {TV.news_basis(rows)}",
+                                       TV.news_html(rows)),
+                        unsafe_allow_html=True)
+            older = TV.news_older(rows, today)
+            kit.note((f"A square is one item, in the month it was published and the row "
+                      f"of its source, over {TV.NEWS_MONTHS} months. "
+                      if figure else
+                      f"Nothing on file is from the last {TV.NEWS_MONTHS} months, so no "
+                      "figure is drawn. ")
+                     + (f"{older} older {'item is' if older == 1 else 'items are'} in the "
+                        "list and not on the figure. " if older else "")
+                     + "The three named are the newest, and each opens its source. Pulse "
+                       "(AI) is the daily pulse, a model's summary of the trade press that "
+                       "links the article it summarises; it moves no value, deal term or "
+                       "catalyst.")
 
 
-def _catalysts(api_base, company, kit, rule, slot, feed=None):
+def _catalysts(api_base, company, kit, rule, slot, width, feed=None):
     label, basis = rule
     payload, problem = read(
         api_base, f"/catalysts?within_days={CALENDAR_MONTHS * 31}"
                   f"&ticker={urllib.parse.quote(company)}")
     listed = payload if isinstance(payload, list) else []
-    rows = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS))
+    today = dt.date.today()
+    rows = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS, today))
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot):
         if problem:
@@ -135,9 +169,14 @@ def _catalysts(api_base, company, kit, rule, slot, feed=None):
             kit.state(f"Nothing dated for {TV.esc(company)} in the next "
                       f"{CALENDAR_MONTHS} months", calendar_view.SOURCES)
         else:
-            st.markdown(TV.dated_html(rows), unsafe_allow_html=True)
-            kit.note(f"{TV.dated_basis(rows, CALENDAR_MONTHS)}, soonest first. "
-                     + calendar_view.caption(listed, CALENDAR_MONTHS)
+            _figure(TV.dated_figure(rows, today, CALENDAR_MONTHS, width))
+            st.markdown(TV.dated_next(rows, today)
+                        + TV.fold_html(f"The list: {TV.dated_basis(rows, CALENDAR_MONTHS)}, "
+                                       "soonest first", TV.dated_html(rows)),
+                        unsafe_allow_html=True)
+            kit.note("A square is one dated event, in its month and in the row of its "
+                     "phase, which is read from the start of its registry title. "
+                     + calendar_view.caption(listed, CALENDAR_MONTHS, today)
                      + " A date here is the registry's or the filing's, not a "
                        "commitment. The odds and the value at stake are on Catalysts.")
 
@@ -189,11 +228,12 @@ def _board(api_base: str, ticker: str, kit, feed) -> None:
     for r, row in enumerate(TV.pack(layout["panels"], layout["columns"])):
         alone = len(row) == 1 and (layout["columns"] == 1 or TV.is_wide(row[0]))
         cells = [st.container()] if alone else st.columns(layout["columns"], gap="medium")
+        width = TV.figure_width(1 if alone else layout["columns"], layout["ask"])
         for c, entry in enumerate(row):
             company = TV.company_of(entry, ticker)
             with cells[c], st.container(key=f"td_panel_{r}_{c}"):
                 DRAW[entry["panel"]](
-                    api_base, company, kit, TV.heading(entry, ticker), f"{r}_{c}",
+                    api_base, company, kit, TV.heading(entry, ticker), f"{r}_{c}", width,
                     feed=feed if company == ticker else None)
 
 

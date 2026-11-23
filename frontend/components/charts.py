@@ -2516,3 +2516,145 @@ def date_strip(items: Sequence[dict], start: str, width: int = 760) -> str:
         out.append(_text(lx, ly, text, 9.5, TK.TEXT if filled else TK.MUTED))
     out.append("</svg>")
     return "".join(out)
+
+
+# --- unit lanes -----------------------------------------------------------
+_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+UNIT_STEPS = ("day", "week", "month")
+
+
+def unit_lanes(items: Sequence[dict], lanes: Sequence[dict], start, end,
+               step: str = "month", width: int = 440, cap: int = 6,
+               today=None, label: str = "events by period") -> str:
+    """Dated events as unit marks on a time grid: a row a lane, a column a period, a
+    square an event.
+
+    The question it answers is when, and how much of what, at a glance: a list of
+    seventy dated rows says neither until it has been read to the end. Each item is
+    {date (ISO), lane (a lane's key), tip?, hollow?}; each lane {key, label, colour}.
+    ``start`` and ``end`` are dates and both ends are drawn; ``step`` is the width of a
+    column, a day, a week or a month.
+
+    A lane is drawn whether or not anything is in it, because an empty Phase 3 lane is a
+    finding. A period holding more than ``cap`` events in one lane draws ``cap - 1`` and
+    prints the rest as a count, so nothing is dropped unsaid. An item outside the window,
+    undated, or in no lane given is left off, and it is the caller's to say so. Each
+    mark's ``tip`` is its hover. ``today`` draws a rule at that date where it falls
+    inside the window. Empty when nothing falls inside it.
+    """
+    import datetime as _dt
+
+    def day(value):
+        if isinstance(value, _dt.datetime):
+            return value.date()
+        if isinstance(value, _dt.date):
+            return value
+        try:
+            return _dt.date.fromisoformat(str(value)[:10])
+        except (TypeError, ValueError):
+            return None
+
+    t0, t1 = day(start), day(end)
+    if step not in UNIT_STEPS or not lanes or t0 is None or t1 is None or t1 < t0:
+        return ""
+
+    def position(d) -> float:
+        """Where a date falls, in columns from the left edge."""
+        if step == "month":
+            first = _dt.date(d.year, d.month, 1)
+            after = _dt.date(d.year + d.month // 12, d.month % 12 + 1, 1)
+            whole = (d.year - t0.year) * 12 + d.month - t0.month
+            return whole + (d - first).days / (after - first).days
+        return (d - t0).days / (7.0 if step == "week" else 1.0)
+
+    count = int(position(t1)) + 1
+    keys = [lane["key"] for lane in lanes]
+    cells: dict = {}
+    for it in items or []:
+        d = day(it.get("date"))
+        if d is None or d < t0 or d > t1 or it.get("lane") not in keys:
+            continue
+        cells.setdefault((it["lane"], int(position(d))), []).append(it)
+    if not cells:
+        return ""
+
+    cap = max(2, int(cap))
+    totals = {key: sum(len(v) for (lane, _), v in cells.items() if lane == key)
+              for key in keys}
+    tallest = {key: max([min(len(v), cap) for (lane, _), v in cells.items()
+                         if lane == key] or [1]) for key in keys}
+    gutter = min(110.0, max(len(str(lane["label"])) for lane in lanes) * 5.7 + 30)
+    pad_r, top, axis = 8.0, 6.0, 18.0
+    plot_w = width - gutter - pad_r
+    cell_w = plot_w / count
+    size = max(3.0, min(9.0, cell_w - 2.0))
+    pitch = size + 2.0                       # a mark and the gap of ground above it
+    heights = {key: tallest[key] * pitch + 8.0 for key in keys}
+    height = top + sum(heights.values()) + axis
+
+    out = [_svg_open(width, int(round(height)), label)]
+    y = top
+    for lane in lanes:
+        key, base = lane["key"], y + heights[lane["key"]] - 4.0
+        out.append(f'<line x1="{gutter:.1f}" y1="{base + 2:.1f}" x2="{width - pad_r:.1f}"'
+                   f' y2="{base + 2:.1f}" stroke="{TK.RULE}"/>')
+        out.append(_text(0, base - 1, lane["label"], 10, TK.MUTED))
+        out.append(_text(gutter - 8, base - 1, totals[key], 10,
+                         TK.TEXT if totals[key] else TK.MUTED, "end", MONO))
+        for (lane_key, col), held in sorted(cells.items(), key=lambda kv: kv[0][1]):
+            if lane_key != key:
+                continue
+            x = gutter + col * cell_w + (cell_w - size) / 2
+            drawn = held if len(held) <= cap else held[:cap - 1]
+            for n, it in enumerate(drawn):
+                my = base - (n + 1) * pitch + 2.0
+                colour = lane["colour"]
+                paint = (f'fill="{TK.GROUND}" stroke="{colour}" stroke-width="1.2"'
+                         if it.get("hollow") else f'fill="{colour}"')
+                inset = 0.6 if it.get("hollow") else 0.0
+                # The hover takes the whole cell row, so a 5 px square is not the target.
+                out.append(
+                    f'<g><title>{_esc(it.get("tip") or "")}</title>'
+                    f'<rect x="{gutter + col * cell_w:.1f}" y="{my - 1:.1f}"'
+                    f' width="{cell_w:.1f}" height="{pitch:.1f}" fill="transparent"/>'
+                    f'<rect class="unit" x="{x + inset:.1f}" y="{my + inset:.1f}"'
+                    f' width="{size - 2 * inset:.1f}" height="{size - 2 * inset:.1f}" rx="1"'
+                    f' {paint}/></g>')
+            if len(held) > cap:
+                more = len(held) - (cap - 1)
+                tips = "; ".join(str(it.get("tip") or "") for it in held[cap - 1:])
+                out.append(
+                    f'<g><title>{_esc(tips)}</title>'
+                    + _text(gutter + col * cell_w + cell_w / 2, base - (cap - 1) * pitch - 1,
+                            f"+{more}", 8.5, TK.TEXT, "middle", MONO, extra=' class="more"')
+                    + "</g>")
+        y += heights[key]
+
+    # The axis: a label wherever one fits, at the start of its period.
+    need = 34.0 if step == "month" else 40.0
+    every = max(1, int(math.ceil(need / cell_w)))
+    axis_y = height - 5
+    for col in range(count):
+        if step == "month":
+            month = (t0.month - 1 + col) % 12
+            year = t0.year + (t0.month - 1 + col) // 12
+            text = _MONTHS[month] + (f" {year % 100:02d}" if month == 0 or col == 0 else "")
+            first_of_year = month == 0
+        else:
+            d = t0 + _dt.timedelta(days=col * (7 if step == "week" else 1))
+            text, first_of_year = f"{d.day} {_MONTHS[d.month - 1]}", False
+        x = gutter + col * cell_w
+        if first_of_year and col:
+            out.append(f'<line x1="{x:.1f}" y1="{top:.1f}" x2="{x:.1f}"'
+                       f' y2="{height - axis:.1f}" stroke="{TK.RULE}"/>')
+        if col % every == 0 and x + need <= width:
+            out.append(_text(x + 1, axis_y, text, 9, TK.MUTED, "start", MONO))
+    now = day(today)
+    if now is not None and t0 <= now <= t1:
+        x = gutter + position(now) * cell_w
+        out.append(f'<line class="today" x1="{x:.1f}" y1="{top:.1f}" x2="{x:.1f}"'
+                   f' y2="{height - axis:.1f}" stroke="{TK.MUTED}" stroke-dasharray="2 2">'
+                   f'<title>today, {now.isoformat()}</title></line>')
+    out.append("</svg>")
+    return "".join(out)

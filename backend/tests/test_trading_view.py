@@ -308,6 +308,188 @@ def test_what_was_left_off_a_board_is_said_once_and_nothing_is_said_of_nothing()
     assert "Left off the board: one thing; another." in said
 
 
+# ----------------------------------------------------------------------------- figures
+import datetime as dt  # noqa: E402
+import xml.etree.ElementTree as ET  # noqa: E402
+
+from components import tokens as TK  # noqa: E402
+
+TODAY = dt.date(2026, 11, 23)
+AHEAD = [
+    {"expected_date": "2026-12", "catalyst_type": "data readout", "date_confidence": "month",
+     "title": "Phase 2, a study of one drug", "source_url": None},
+    {"expected_date": "2026-12", "catalyst_type": "data readout", "date_confidence": "month",
+     "title": "Phase 3, a study of another", "source_url": None},
+    {"expected_date": "2027-01-10", "catalyst_type": "PDUFA", "date_confidence": "day",
+     "title": "FDA decision on a filing", "source_url": None},
+    {"expected_date": "2027-06-15", "catalyst_type": "data readout",
+     "date_confidence": "estimated", "title": "Phase 1/2, a first study", "source_url": None},
+    {"expected_date": "2027-09", "catalyst_type": "data readout",
+     "title": "A study with no phase in its title"},
+    {"expected_date": "2031-01-01", "catalyst_type": "data readout",
+     "title": "Phase 3, far past the window"}]
+
+
+def _units(svg: str) -> list:
+    return re.findall(r'<rect class="unit"[^>]*>', svg)
+
+
+def test_a_month_given_with_no_day_is_read_as_its_month():
+    """The calendar stores a month-only readout as "2026-12". It is a date, in December,
+    and it is never printed with a day."""
+    row = AHEAD[0]
+    assert TV.dated_when(row) == "Dec 2026" and TV.dated_wait(row, TODAY) == "next month"
+    assert TV.dated_when(dict(row, date_confidence=None)) == "Dec 2026"
+    assert TV.dated_when(AHEAD[2]) == "10 Jan 2027"
+    assert TV.dated_wait(AHEAD[2], TODAY) == "in 48 days"
+    assert TV.dated_when({"expected_date": "sometime"}) == TV.NO_DATA
+    markup = TV.dated_html(TV.dated_rows(AHEAD))
+    assert '<span class="d">2026-12</span>' in markup and "2026-12-01" not in markup
+
+
+@pytest.mark.parametrize("row,wait", [
+    ({"expected_date": "2026-11", "date_confidence": "month"}, "this month"),
+    ({"expected_date": "2027-02", "date_confidence": "month"}, "in 3 months"),
+    ({"expected_date": "2026-11-23"}, "today"), ({"expected_date": "2026-11-24"}, "tomorrow"),
+    ({"expected_date": None}, "")])
+def test_how_far_off_is_counted_in_the_unit_the_date_is_given_in(row, wait):
+    assert TV.dated_wait(row, TODAY) == wait
+
+
+def test_a_readout_sits_in_the_row_of_the_phase_its_title_starts_with():
+    lanes = [TV.dated_lane(r) for r in AHEAD]
+    assert lanes == ["p2", "p3", "decision", "p2", "other", "p3"]
+    assert TV.dated_lane({"title": "A Phase 3 study, named late"}) == "other"
+    assert TV.dated_lane({"title": "Phase 2/3, seamless"}) == "p3"
+    assert TV.dated_lane({"title": "Phase 1, first in human"}) == "p1"
+
+
+def test_the_dated_figure_draws_one_square_an_event_inside_the_window():
+    svg = TV.dated_figure(TV.dated_rows(AHEAD), TODAY, 24, 440)
+    ET.fromstring(svg)
+    assert len(_units(svg)) == 5                       # the 2031 row is past the window
+    for label in ("Phase 3", "Phase 2", "Phase 1", "Decision", "Other"):
+        assert f">{label}</text>" in svg
+    assert "Dec 2026 · data readout · Phase 3, a study of another" in svg
+    assert "10 Jan 2027 · PDUFA · FDA decision on a filing" in svg
+
+
+def test_the_three_phase_rows_are_drawn_even_when_empty_and_the_rest_only_when_used():
+    svg = TV.dated_figure([AHEAD[0]], TODAY, 24, 440)
+    assert ">Phase 3</text>" in svg and ">Phase 1</text>" in svg
+    assert ">Decision</text>" not in svg and ">Other</text>" not in svg
+    assert TV.dated_figure([], TODAY, 24, 440) == ""
+
+
+def test_the_nearest_events_are_named_with_the_later_phase_first_in_a_month():
+    markup = TV.dated_next(TV.dated_rows(AHEAD), TODAY)
+    order = re.findall(r'<span class="n">([^<]+)</span>', markup)
+    assert order == ["Phase 3, a study of another", "Phase 2, a study of one drug",
+                     "FDA decision on a filing"]
+    assert markup.count('class="v"') == TV.LEADS and "next month" in markup
+    assert TV.dated_next([], TODAY) == ""
+
+
+def test_the_news_figure_is_a_year_by_month_and_source_and_says_what_is_older():
+    rows = TV.news_rows(NEWS) + [{"source": "press_ir", "title": "An old release",
+                                  "url": None, "published_at": "2024-03-01"}]
+    svg = TV.news_figure(rows, TODAY, 440)
+    ET.fromstring(svg)
+    assert len(_units(svg)) == 4                        # the 2024 row is off the figure
+    assert TV.news_older(rows, TODAY) == 1
+    for label in ("Company", "8-K", "Pulse (AI)", "Other"):
+        assert f">{label}</text>" in svg
+    assert ">FDA</text>" not in svg
+    assert "Daily pulse (AI summary) · Obesity pricing talks widen" in svg
+    assert TV.news_figure([], TODAY, 440) == ""
+
+
+def test_the_pulse_row_takes_the_review_colour_and_a_label_that_says_a_model_wrote_it():
+    lane = next(l for l in TV.NEWS_LANES if l["key"] == "pulse")
+    assert lane["colour"] == TK.FLAG and "AI" in lane["label"]
+    assert TV.news_lane({"source": "pulse"}) == "pulse"
+    assert TV.news_lane({"source": "a_new_feed"}) == "other"
+
+
+def test_the_newest_three_are_named_and_each_opens_its_source():
+    markup = TV.news_leads(TV.news_rows(NEWS))
+    assert markup.count('class="td-lead td-') == 3
+    assert markup.index("Obesity pricing talks widen") < markup.index("Lilly to present")
+    assert 'class="td-lead td-pulse" href="https://example.com/pulse-article"' in markup
+    assert "Daily pulse (AI summary)" in markup
+    assert '<div class="td-lead td-filing">' in markup          # an 8-K with no address
+    assert TV.news_leads([]) == ""
+
+
+CHANGES = [
+    {"date": "2026-11-21 17:15:48", "significance": "high", "change_type":
+     "efficacy_supplement", "headline": "LLY efficacy supplement: a drug approved",
+     "reason": "efficacy supplement"},
+    {"date": "2026-11-23", "significance": "medium", "change_type": "date_slip",
+     "headline": "LLY trial NCT0001: primary completion slips"},
+    {"date": "2026-11-23", "significance": "medium", "change_type": "date_slip",
+     "headline": "LLY trial NCT0002: primary completion slips"},
+    {"date": "2026-11-10", "significance": "low", "change_type": "status_change",
+     "headline": "LLY trial NCT0003: status Recruiting"},
+    {"date": "2026-11-22", "significance": "high", "kind": "loe",
+     "headline": "LLY a newer high one"}]
+
+
+def test_the_changes_figure_is_thirty_days_by_day_and_rating():
+    svg = TV.changes_figure(CHANGES, TODAY, 440)
+    ET.fromstring(svg)
+    assert len(_units(svg)) == 5
+    for label in ("High", "Medium", "Low"):
+        assert f">{label}</text>" in svg
+    high = [u for u in _units(svg) if f'fill="{TK.FLAG}"' in u]
+    assert len(high) == 2
+    assert "2026-11-21 · efficacy supplement · LLY efficacy supplement: a drug approved" in svg
+    assert TV.changes_figure([], TODAY, 440) == ""
+
+
+def test_the_three_changes_to_read_are_the_highest_rated_then_the_newest():
+    markup = TV.changes_leads(CHANGES, "LLY")
+    texts = re.findall(r'<span class="t">([^<]+)</span>', markup)
+    assert texts == ["A newer high one", "Efficacy supplement: a drug approved",
+                     "Trial NCT0001: primary completion slips"]
+    assert markup.count("td-high") == 2 and markup.count("td-medium") == 1
+    assert '<span class="k">loe</span>' in markup
+    assert 'title="efficacy supplement"' in markup
+
+
+def test_what_the_changes_were_is_counted_by_kind_with_the_rest_as_other():
+    markup = TV.kinds_html(CHANGES)
+    assert re.findall(r"<b>(\d+)</b>([a-z ]+)<", markup) == [
+        ("2", "date slip"), ("1", "efficacy supplement"), ("1", "loe"),
+        ("1", "status change")]
+    cut = TV.kinds_html(CHANGES, shown=2)
+    assert re.findall(r"<b>(\d+)</b>([a-z ]+)<", cut) == [
+        ("2", "date slip"), ("1", "efficacy supplement"), ("2", "other")]
+    assert TV.kinds_html([]) == "" and "_" not in TV.kinds_html(CHANGES)
+
+
+def test_a_figure_is_drawn_near_the_width_its_panel_has():
+    assert TV.figure_width(1, False) > TV.figure_width(2, False) > TV.figure_width(3, False)
+    assert TV.figure_width(2, True) < TV.figure_width(2, False)
+    assert 260 <= TV.figure_width(3, True) and TV.figure_width(1, False) <= 1380
+    assert TV.figure_width(9, False) == TV.figure_width(TV.DEFAULT_COLUMNS, False)
+
+
+def test_the_fold_holds_the_whole_list_and_is_nothing_when_there_is_none():
+    assert TV.fold_html("all 3", "") == ""
+    fold = TV.fold_html("all <3>", "<div>rows</div>")
+    assert fold.startswith('<details class="note-d td-all"><summary>all &lt;3&gt;</summary>')
+    assert "<div>rows</div></details>" in fold
+
+
+def test_a_lead_escapes_what_it_is_given_and_links_only_to_the_web():
+    markup = TV.leads_html([{"tone": "x\"><script>", "tag": "<b>", "date": "<i>",
+                             "text": "<script>alert(1)</script>",
+                             "url": "javascript:alert(1)", "hover": '"><u>'}])
+    assert "<script>" not in markup and "<b>" not in markup and "<u>" not in markup
+    assert "href" not in markup and 'class="td-lead td-xscript"' in markup
+
+
 # ------------------------------------------------------------------------- house style
 def test_house_style_on_every_word_the_board_prints():
     words = [p["title"] for p in TV.PANELS] + [p["about"] for p in TV.PANELS]
@@ -320,6 +502,16 @@ def test_house_style_on_every_word_the_board_prints():
     words.append(_visible(TV.news_html(TV.news_rows(NEWS))) + " " + TV.news_basis([{}] * 50))
     words.append(_visible(TV.dated_html(TV.dated_rows(DATED))) + " " + TV.dated_basis([{}] * 70, 24))
     words.append(_visible(TV.left_out_html(["a panel this version does not have: x"])))
+    rows = TV.dated_rows(AHEAD)
+    words.append(_visible(TV.dated_figure(rows, TODAY, 24, 440)))
+    words.append(_visible(TV.dated_next(rows, TODAY)))
+    words.append(_visible(TV.news_figure(TV.news_rows(NEWS), TODAY, 440)))
+    words.append(_visible(TV.news_leads(TV.news_rows(NEWS))))
+    words.append(_visible(TV.changes_figure(CHANGES, TODAY, 440)))
+    words.append(_visible(TV.changes_leads(CHANGES, "LLY")) + " " + _visible(TV.kinds_html(CHANGES)))
+    words += [lane["label"] for lanes in (TV.DATED_LANES, TV.NEWS_LANES, TV.CHANGE_LANES)
+              for lane in lanes]
+    words += [TV.dated_wait(r, TODAY) for r in AHEAD] + [TV.dated_when(r) for r in AHEAD]
     for text in words:
         _house_style(text)
 
