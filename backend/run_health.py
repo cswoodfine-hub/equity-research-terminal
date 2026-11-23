@@ -18,8 +18,15 @@ already knows and decides nothing the run did not measure.
 
 What makes a run abnormal, and what does not:
 
-* it began inside the US regular session. Weekday hours only: this module holds no
-  exchange calendar, so a market holiday reads as a session;
+* the hour it began does not. The start, whether it fell inside the US regular session,
+  and when the scheduled job itself began are in the summary and in its line on every
+  run, and none of them makes a run abnormal. The owner's decision of 2026-11-23. A
+  mid-session start used to file an intraday price as that day's close; the price and
+  benchmark fetchers now hold back the bar of a session still trading
+  (``market_session.py``), so the start no longer damages the record, and the hosted
+  runner starts late on most weekdays, so a line that called it abnormal would say so
+  most days. The session is weekday hours only: this module holds no exchange calendar,
+  so a market holiday reads as a session;
 * a source fetched nothing and erred on every attempt. A source that erred for one
   company of seventy-five is listed and does not by itself make the run abnormal,
   because one has done so on almost every run since August and a line that says
@@ -123,10 +130,10 @@ def summarise(started_at, sources, quiet=None, readers=None, model=None,
         if bad == calls:
             readers_failed.append(name)
 
+    # The hour is stated in the line and is never a reason: see the module docstring.
     reasons = []
     clock = started.strftime("%H:%M") if started else "an unknown hour"
-    if session:
-        reasons.append(f"started at {clock} UTC, inside the US session")
+    job = parse_utc(job_started_at)
     if failed:
         reasons.append(f"{len(failed)} source{'s' if len(failed) != 1 else ''} fetched "
                        f"nothing and erred: {', '.join(failed)}")
@@ -148,6 +155,7 @@ def summarise(started_at, sources, quiet=None, readers=None, model=None,
     where = {True: "inside", False: "outside"}.get(session)
     line = (f"{'abnormal' if abnormal else 'normal'}: started {clock} UTC"
             + (f", {where} the US session" if where else ", session not known")
+            + (f", job began {job.strftime('%H:%M')} UTC" if job else "")
             + f"; sources erred: {', '.join(e['source'] for e in erred) or 'none'}"
             + "; quiet: " + (", ".join(
                 f"{n} ({quiet_runs[n]} run{'s' if quiet_runs[n] != 1 else ''})"

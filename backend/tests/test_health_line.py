@@ -55,10 +55,26 @@ def test_the_us_session_follows_new_york_not_a_fixed_utc_hour(started, inside):
     assert run_health.in_us_session(run_health.parse_utc(started)) is inside
 
 
-def test_a_run_that_began_in_the_us_session_is_abnormal():
-    health = run_health.summarise("2026-11-23 17:49:53", [], [], {}, "groq")
-    assert health["abnormal"] and health["start_hour_utc"] == 17
-    assert health["reasons"] == ["started at 17:49 UTC, inside the US session"]
+def test_a_run_that_began_in_the_us_session_is_listed_and_is_not_abnormal_for_it():
+    """The owner's decision of 2026-11-23. The fetchers hold back the bar of a session
+    still trading, so the hour no longer damages the stored closes, and the hosted runner
+    starts late on most weekdays: the line states the hour and does not cry wolf on it."""
+    health = run_health.summarise("2026-11-23 17:49:53", [], [], {}, "groq",
+                                  job_started_at="2026-11-23 17:31:02")
+    assert health["abnormal"] is False and health["reasons"] == []
+    assert health["start_hour_utc"] == 17 and health["in_us_session"] is True
+    assert health["job_started_at"] == "2026-11-23 17:31:02"
+    assert health["line"].startswith(
+        "normal: started 17:49 UTC, inside the US session, job began 17:31 UTC; ")
+
+
+def test_a_mid_session_start_does_not_hide_a_real_fault_beside_it():
+    health = run_health.summarise(
+        "2026-11-23 17:49:53", [_source("trials", rows=0, errors=75, ran=75)], [], {},
+        "groq")
+    assert health["abnormal"] is True
+    assert health["reasons"] == ["1 source fetched nothing and erred: trials"]
+    assert health["line"].startswith("abnormal: started 17:49 UTC, inside the US session; ")
 
 
 def test_an_unreadable_start_is_not_called_outside_the_session():
@@ -581,9 +597,13 @@ def test_a_run_that_began_mid_session_says_so(tmp_path, monkeypatch, groq_only):
     monkeypatch.setenv("ER_JOB_STARTED_AT", "2026-11-23 17:31:02")
     _, run = _run(tmp_path, monkeypatch, started="2026-11-23 17:49:53")
     health = run["detail"]["health"]
-    assert health["abnormal"] and health["in_us_session"] is True
+    assert health["in_us_session"] is True and health["start_hour_utc"] == 17
     assert health["job_started_at"] == "2026-11-23 17:31:02"
-    assert run["status"] == "complete", "the hour is the summary's business, not the status"
+    assert health["line"] == ("normal: started 17:49 UTC, inside the US session, job "
+                              "began 17:31 UTC; sources erred: none; quiet: none; "
+                              "readers failing every call: none")
+    # Listed, and not abnormal for it: the hour no longer damages the stored closes.
+    assert health["abnormal"] is False and run["status"] == "complete"
 
 
 def test_a_single_company_refresh_carries_the_summary_too(
@@ -643,7 +663,7 @@ def test_the_scheduled_job_logs_the_health_line(tmp_path, monkeypatch):
     monkeypatch.setattr(sched, "LOG_DIR", tmp_path)
     monkeypatch.setattr(sched, "wait_for_network", lambda *a, **k: True)
     monkeypatch.setattr(sched, "_record_calls", lambda *a, **k: None)
-    line = "abnormal: started 17:49 UTC, inside the US session; sources erred: none"
+    line = "abnormal: started 17:49 UTC, inside the US session; sources erred: trials"
     result = {"id": 144, "status": "partial",
               "detail": {"changes": {}, "health": {"abnormal": True, "line": line}}}
     assert sched.run(refresh_fn=lambda path=None: result) == 0
