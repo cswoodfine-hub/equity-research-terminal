@@ -68,10 +68,14 @@ def test_build_reports_runup_and_reaction_and_skips_the_trial(tmp_path):
     assert result["total_changes"] == 2 and result["measured_events"] == 1
     assert [r["change_type"] for r in result["rows"]] == ["new_approval"]
     windows = result["rows"][0]["windows"]
-    assert round(windows["runup_1w"]["mean_abnormal"], 4) == 0.10
-    assert round(windows["after_1w"]["mean_abnormal"], 4) == 0.0909
+    # An approval carries a date and no time, so the last close before it is the day
+    # before's (108) and the reaction is given two sessions (to 112).
+    assert round(windows["runup_1w"]["mean_abnormal"], 4) == 0.08         # 100 -> 108
+    assert round(windows["after_1d"]["mean_abnormal"], 4) == 0.037        # 108 -> 112
+    assert round(windows["after_1w"]["mean_abnormal"], 4) == 0.0714       # 112 -> 120
     assert windows["after_1w"]["hit_rate"] == 1.0
     assert "runup_1m" not in windows          # off the start of the series, so unmeasured
+    assert result["rows"][0]["timing"] == {"timed": 0, "date only": 1}
 
 
 def test_trial_readouts_enter_the_study_by_phase_and_sign(tmp_path):
@@ -88,4 +92,41 @@ def test_trial_readouts_enter_the_study_by_phase_and_sign(tmp_path):
     types = {r["change_type"] for r in result["rows"]}
     assert "phase3_positive" in types
     row = next(r for r in result["rows"] if r["change_type"] == "phase3_positive")
-    assert round(row["windows"]["after_1w"]["mean_abnormal"], 4) == 0.0909
+    assert round(row["windows"]["after_1w"]["mean_abnormal"], 4) == 0.0714
+
+
+def _readout_with_filing(db_file, cid, accepted_at, filed):
+    conn = db.get_connection(db_file)
+    conn.execute("INSERT INTO filings (company_id, form_type, filed_date, accession,"
+                 " accepted_at) VALUES (?, '8-K', ?, 'r9', ?)", (cid, filed, accepted_at))
+    conn.execute("INSERT INTO trial_readouts (accession, company_id, drug, phase,"
+                 " outcome, event_date) VALUES ('r9', ?, 'Zepbound', 3, 'negative', ?)",
+                 (cid, filed))
+    conn.commit()
+    conn.close()
+
+
+def test_a_result_filed_before_the_open_has_its_reaction_counted_as_the_reaction(tmp_path):
+    """Filed at 07:30 in New York on the event day: the day's own move is the reaction.
+    Measured from that day's close, as it used to be, the move sat in the run-up."""
+    db_file = tmp_path / "t.db"
+    cid = _seed(db_file)
+    _readout_with_filing(db_file, cid["LLY"], f"{_EVENT}T11:30:00.000Z", _EVENT)
+    row = next(r for r in backtest.build(db_file)["rows"]
+               if r["change_type"] == "phase3_negative")
+    assert row["timing"] == {"timed": 1, "date only": 0}
+    assert round(row["windows"]["after_1d"]["mean_abnormal"], 4) == 0.0185   # 108 -> 110
+    assert round(row["windows"]["runup_1w"]["mean_abnormal"], 4) == 0.08     # 100 -> 108
+    assert round(row["windows"]["after_1w"]["mean_abnormal"], 4) == 0.0909   # 110 -> 120
+
+
+def test_a_result_filed_after_the_close_is_given_two_sessions(tmp_path):
+    """Filed at 17:00 in New York: the release may have gone out that day or after the
+    bell, so the reaction runs from the close before to the close after."""
+    db_file = tmp_path / "t.db"
+    cid = _seed(db_file)
+    _readout_with_filing(db_file, cid["LLY"], f"{_EVENT}T21:00:00.000Z", _EVENT)
+    row = next(r for r in backtest.build(db_file)["rows"]
+               if r["change_type"] == "phase3_negative")
+    assert round(row["windows"]["after_1d"]["mean_abnormal"], 4) == 0.037    # 108 -> 112
+    assert round(row["windows"]["after_1w"]["mean_abnormal"], 4) == 0.0714   # 112 -> 120

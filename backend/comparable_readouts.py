@@ -34,15 +34,16 @@ import backtest
 import benchmark_series
 import db
 import engines
+import market_session
 
 # The windows a reader of a single readout wants: was it anticipated, and how did it land.
 # The offsets are backtest's own, so a row here and a mean there are the same measurement.
 WINDOWS = (
-    {"key": "runup_3m", "label": "three months before", "a": -63, "b": 0},
-    {"key": "runup_1m", "label": "one month before", "a": -21, "b": 0},
-    {"key": "after_1d", "label": "the day after", "a": 0, "b": 1},
-    {"key": "after_1w", "label": "the week after", "a": 0, "b": 5},
-    {"key": "after_1m", "label": "the month after", "a": 0, "b": 21},
+    {"key": "runup_3m", "label": "three months before", "kind": "runup", "days": 63},
+    {"key": "runup_1m", "label": "one month before", "kind": "runup", "days": 21},
+    {"key": "after_1d", "label": "the reaction", "kind": "reaction", "days": 0},
+    {"key": "after_1w", "label": "the week after it", "kind": "after", "days": 5},
+    {"key": "after_1m", "label": "the month after it", "kind": "after", "days": 21},
 )
 OUTCOMES = ("positive", "negative")
 DEFAULT_LIMIT = 25
@@ -55,17 +56,26 @@ CAVEATS = (
     "surfaces later and less plainly.",
     "A window is the stock's return less XBI's over the same trading days. A window that "
     "runs off either price series is left empty, not estimated.",
-    "The event day is the day the result was filed or published. A result released after "
-    "the close lands in the day after, one released before the open in the day itself.",
+    "The windows before end at the last close before the result. The reaction runs from "
+    "that close for one session where the filing was accepted before the New York close, "
+    "and two where it was accepted after it or only a date is on file. The windows after "
+    "are counted from the end of the reaction.",
 )
 
 
-def _abnormal(series: dict, bars: list, company_id: int, day: str) -> dict:
-    """{window key: abnormal return or None} for one event."""
+def _abnormal(series: dict, bars: list, company_id: int, day: str,
+              accepted_at: str | None = None) -> dict:
+    """{window key: abnormal return or None} for one event, placed among the closes by
+    ``market_session.news_window`` as ``backtest`` places it."""
+    news = market_session.news_window(day, accepted_at)
     out = {}
     for window in WINDOWS:
-        own = backtest.span_return(series, company_id, day, window["a"], window["b"])
-        market = benchmark_series.span(bars, day, window["a"], window["b"])
+        if news is None:
+            out[window["key"]] = None
+            continue
+        a, b = backtest.offsets(window, news["sessions"])
+        own = backtest.span_return(series, company_id, news["anchor"], a, b)
+        market = benchmark_series.span(bars, news["anchor"], a, b)
         out[window["key"]] = (None if own is None or market is None
                               else round(own - market, 4))
     return out
@@ -119,8 +129,10 @@ def build(db_path=None, *, ticker: str | None = None, phase: int | None = None,
             params.append(outcome)
         found = conn.execute(
             f"""SELECT r.company_id, c.ticker, c.name, r.drug, r.phase, r.outcome,
-                       r.event_date, r.quote, r.source_url, r.nct_id, r.source
+                       r.event_date, r.quote, r.source_url, r.nct_id, r.source,
+                       f.accepted_at
                   FROM trial_readouts r JOIN companies c ON c.id = r.company_id
+                  LEFT JOIN filings f ON f.accession = r.accession
                  WHERE {' AND '.join(clauses)}
                  ORDER BY r.event_date DESC, r.id DESC""", params).fetchall()
     finally:
@@ -136,7 +148,8 @@ def build(db_path=None, *, ticker: str | None = None, phase: int | None = None,
             "event_date": r["event_date"], "quote": r["quote"],
             "source_url": r["source_url"], "nct_id": r["nct_id"],
             "read_from": r["source"] or "filing",
-            "abnormal": _abnormal(series, bars, r["company_id"], r["event_date"] or ""),
+            "abnormal": _abnormal(series, bars, r["company_id"], r["event_date"] or "",
+                                  r["accepted_at"]),
         }
         rows.append(row)
 

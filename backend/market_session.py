@@ -18,7 +18,11 @@ one rule without importing each other.
 
 from __future__ import annotations
 
+import datetime as dt
+
 _DAY_S = 86400
+US_ZONE = "America/New_York"
+US_CLOSE = dt.time(16, 0)
 
 
 def unsettled_from(meta: dict | None, now: float) -> int | None:
@@ -51,3 +55,48 @@ def is_settled(stamp, meta: dict | None, now: float | None) -> bool:
         return True
     cut = unsettled_from(meta, now)
     return cut is None or stamp < cut
+
+
+def news_window(day: str | None, accepted_at: str | None = None) -> dict | None:
+    """Where the share's reaction to a piece of news sits among its daily closes.
+
+    A study of what a share did around an event needs two things the event's date alone
+    does not give: the last close before the news could have been known, and the first
+    close by which the market had certainly had it. Measured from the event day's own
+    close, a result released before the open has already been reacted to, and its
+    reaction is filed as the run-up: on 2026-11-23 a failed Phase 3 read -6.5% in the
+    week "before" and -1.9% the day "after".
+
+    ``anchor`` is a calendar day such that the last close on or before it is the last
+    close before the news. ``sessions`` is how many sessions after that close the
+    reaction is given. ``basis`` says which rule was used:
+
+    - **timed**: ``accepted_at`` is the moment EDGAR accepted the filing that carried the
+      news, in UTC. The anchor is the day before its New York date. Accepted before the
+      16:00 close, the reaction is that one session. Accepted after it, the reaction is
+      two: the release may have gone out during the day and been filed that evening, or
+      gone out after the bell, and the close-to-close series cannot tell which.
+    - **date only**: no time is on file (a press page, an approval date). The anchor is
+      the day before and the reaction is two sessions, for the same reason.
+
+    What it cannot fix: a release that preceded its filing by a day or more has still
+    been reacted to before the anchor. None where there is no usable date at all.
+    """
+    stamp = (accepted_at or "").strip()
+    if stamp:
+        try:
+            moment = dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=dt.timezone.utc)
+            from zoneinfo import ZoneInfo
+            local = moment.astimezone(ZoneInfo(US_ZONE))
+            return {"anchor": (local.date() - dt.timedelta(days=1)).isoformat(),
+                    "sessions": 2 if local.time() >= US_CLOSE else 1, "basis": "timed"}
+        except (ValueError, KeyError):
+            pass                      # an unreadable stamp falls back to the date
+    try:
+        on = dt.date.fromisoformat((day or "")[:10])
+    except ValueError:
+        return None
+    return {"anchor": (on - dt.timedelta(days=1)).isoformat(), "sessions": 2,
+            "basis": "date only"}

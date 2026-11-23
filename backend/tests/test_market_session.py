@@ -131,3 +131,36 @@ def test_a_benchmark_payload_with_no_hours_holds_back_only_a_bar_dated_today():
     assert len(benchmarks.parse_chart(payload, "XLV", now=same_day)) == 4
     assert len(benchmarks.parse_chart(payload, "XLV", now=stamps[-1] + 86400)) == 5
     assert len(benchmarks.parse_chart(payload, "XLV")) == 5
+
+
+# --- where a piece of news sits among the closes --------------------------------------------
+def test_news_accepted_before_the_close_is_one_session_from_the_day_before():
+    # 11:30 UTC on a November day is 06:30 in New York.
+    got = market_session.news_window("2026-11-18", "2026-11-18T11:30:00.000Z")
+    assert got == {"anchor": "2026-11-17", "sessions": 1, "basis": "timed"}
+
+
+def test_news_accepted_after_the_close_is_given_two_sessions():
+    # 22:00 UTC is 17:00 in New York: after the bell on the 18th.
+    got = market_session.news_window("2026-11-18", "2026-11-18T22:00:15.000Z")
+    assert got == {"anchor": "2026-11-17", "sessions": 2, "basis": "timed"}
+
+
+def test_the_new_york_date_decides_and_not_the_one_the_filing_is_listed_under():
+    """EDGAR lists a filing accepted after 17:30 under the next business day. The news
+    was public the evening before, so the close before it is the day before that."""
+    got = market_session.news_window("2026-11-19", "2026-11-18T23:10:00.000Z")
+    assert got["anchor"] == "2026-11-17" and got["sessions"] == 2
+
+
+def test_summer_time_is_read_off_the_calendar_and_not_assumed():
+    # 20:30 UTC is 16:30 in New York in July (after the close) and 15:30 in December.
+    assert market_session.news_window("2026-07-15", "2026-07-15T20:30:00Z")["sessions"] == 2
+    assert market_session.news_window("2026-12-15", "2026-12-15T20:30:00Z")["sessions"] == 1
+
+
+def test_a_date_with_no_time_is_given_two_sessions_from_the_day_before():
+    got = market_session.news_window("2026-11-18")
+    assert got == {"anchor": "2026-11-17", "sessions": 2, "basis": "date only"}
+    assert market_session.news_window("2026-11-18", "not a time")["basis"] == "date only"
+    assert market_session.news_window(None) is None and market_session.news_window("") is None

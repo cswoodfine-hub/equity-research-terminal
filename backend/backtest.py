@@ -11,6 +11,13 @@ one month, subtracts the equal-weight return of the rest of the universe over th
 window so a sector-wide move does not read as signal, and aggregates the abnormal return
 and the hit rate by change type.
 
+Where the news sits among the closes is decided by ``market_session.news_window``: the
+run-up ends at the last close before the news could have been known, the reaction runs
+from that close to the first close by which the market had certainly had it, and the
+windows after are counted from there. Measured from the event day's own close, as this
+was until 2026-11-23, a result released before the open had its reaction counted as
+run-up.
+
 Only changes with a real event date are measured. An FDA approval and a filing carry
 their own date, which may sit years before we first saw them, and the five-year daily
 series covers it. A trial status or completion-date change has no such date, only our
@@ -28,19 +35,32 @@ from collections import defaultdict
 
 import benchmark_series
 import db
+import market_session
 
-# Windows around the event, in trading days relative to the last bar on or before the
-# event date. Negative is the run-up into the event, positive is the reaction after it,
-# so the study shows both whether a move was anticipated and how it landed. About 21
-# trading days to a month, so 63 is the three-month run-up.
+# Windows around the event, in trading days. A run-up ends at the last close before the
+# news. The reaction runs from that close for as many sessions as the news needs to be
+# certainly in the price (one or two; market_session.news_window). A window after is
+# counted from the end of the reaction, so it is what was left for somebody who bought
+# once the news was out. About 21 trading days to a month, so 63 is the three-month
+# run-up. The keys are the ones the views and the desk tools already read.
 WINDOWS = (
-    {"key": "runup_3m", "label": "run-up 3mo", "a": -63, "b": 0},
-    {"key": "runup_1m", "label": "run-up 1mo", "a": -21, "b": 0},
-    {"key": "runup_1w", "label": "run-up 1wk", "a": -5, "b": 0},
-    {"key": "after_1d", "label": "after 1d", "a": 0, "b": 1},
-    {"key": "after_1w", "label": "after 1wk", "a": 0, "b": 5},
-    {"key": "after_1m", "label": "after 1mo", "a": 0, "b": 21},
+    {"key": "runup_3m", "label": "run-up 3mo", "kind": "runup", "days": 63},
+    {"key": "runup_1m", "label": "run-up 1mo", "kind": "runup", "days": 21},
+    {"key": "runup_1w", "label": "run-up 1wk", "kind": "runup", "days": 5},
+    {"key": "after_1d", "label": "reaction", "kind": "reaction", "days": 0},
+    {"key": "after_1w", "label": "1wk after it", "kind": "after", "days": 5},
+    {"key": "after_1m", "label": "1mo after it", "kind": "after", "days": 21},
 )
+
+
+def offsets(window: dict, sessions: int) -> tuple:
+    """(a, b) in bars from the last close before the news, for one window of an event
+    whose reaction takes ``sessions`` sessions."""
+    if window["kind"] == "runup":
+        return -window["days"], 0
+    if window["kind"] == "reaction":
+        return 0, sessions
+    return sessions, sessions + window["days"]
 EVENT_TYPES = ("new_approval", "new_filing", "risk_factors_change")
 
 
@@ -91,19 +111,24 @@ def _events(conn) -> list[dict]:
                 (change["entity_key"],)).fetchone()
         elif ct in ("new_filing", "risk_factors_change"):
             row = conn.execute(
-                "SELECT company_id AS cid, filed_date AS d FROM filings WHERE accession = ?",
-                (change["entity_key"],)).fetchone()
+                "SELECT company_id AS cid, filed_date AS d, accepted_at AS t"
+                "  FROM filings WHERE accession = ?", (change["entity_key"],)).fetchone()
         else:
             row = None
         if row and row["cid"] and row["d"]:
             out.append({"company_id": row["cid"], "date": row["d"],
+                        "accepted_at": row["t"] if "t" in row.keys() else None,
                         "change_type": ct, "significance": change["significance"]})
     # A readout's type carries its phase and sign, so the study splits into Phase 2 and
     # Phase 3, positive and negative, on its own.
+    # The time comes from the filing the readout was read out of, where there is one; a
+    # readout read from a press page or the registry has a date and no time.
     for r in conn.execute(
-        "SELECT company_id, event_date, phase, outcome FROM trial_readouts"
-        " WHERE outcome IN ('positive', 'negative')"):
+        "SELECT r.company_id, r.event_date, r.phase, r.outcome, f.accepted_at"
+        "  FROM trial_readouts r LEFT JOIN filings f ON f.accession = r.accession"
+        " WHERE r.outcome IN ('positive', 'negative')"):
         out.append({"company_id": r["company_id"], "date": r["event_date"],
+                    "accepted_at": r["accepted_at"],
                     "change_type": f"phase{r['phase']}_{r['outcome']}",
                     "significance": "high"})
     return out
@@ -120,16 +145,21 @@ def build(db_path=None) -> dict:
 
     # change_type -> window key -> list of abnormal returns
     by_type: dict[str, dict] = defaultdict(lambda: defaultdict(list))
+    timing: dict[str, dict] = defaultdict(lambda: {"timed": 0, "date only": 0})
     for event in events:
+        news = market_session.news_window(event["date"], event.get("accepted_at"))
+        if news is None:
+            continue
+        timing[event["change_type"]][news["basis"]] += 1
         for window in WINDOWS:
-            own = span_return(series, event["company_id"], event["date"],
-                              window["a"], window["b"])
+            a, b = offsets(window, news["sessions"])
+            own = span_return(series, event["company_id"], news["anchor"], a, b)
             # XBI where it covers the window, the book's own universe only where it does
             # not, and the result says which: the universe is a benchmark almost anything
             # beats (benchmark_series), so a figure against it is not the same claim.
-            market = benchmark_series.span(bars, event["date"], window["a"], window["b"])
+            market = benchmark_series.span(bars, news["anchor"], a, b)
             if market is None:
-                market = universe_span(series, event["date"], window["a"], window["b"],
+                market = universe_span(series, news["anchor"], a, b,
                                        exclude=event["company_id"])
             if own is None or market is None:
                 continue
@@ -150,7 +180,10 @@ def build(db_path=None) -> dict:
                 measured = max(measured, len(values))
         if windows:
             rows.append({"change_type": change_type, "n": measured,
-                         "windows": windows})
+                         "windows": windows,
+                         # How many events had a filing time and how many a date alone,
+                         # since the second kind is given a two-session reaction.
+                         "timing": dict(timing[change_type])})
 
     dates = [e["date"] for e in events]
     return {
@@ -160,6 +193,11 @@ def build(db_path=None) -> dict:
         "total_changes": _count_changes(db_path),
         "event_date_min": min(dates) if dates else None,
         "event_date_max": max(dates) if dates else None,
+        "reading": ("a run-up ends at the last close before the news; the reaction runs "
+                    "from that close for one session where the filing was accepted "
+                    "before the New York close, and two where it was accepted after it "
+                    "or only a date is on file; the windows after are counted from the "
+                    "end of the reaction"),
     }
 
 
