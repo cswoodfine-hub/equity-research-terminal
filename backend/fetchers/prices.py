@@ -32,6 +32,43 @@ _USER_AGENT = "Mozilla/5.0 (compatible; NovatalisResearch/0.1)"
 _TIMEOUT_S = 30
 
 
+def fetch_chart(symbol: str, chart_range: str, interval: str,
+                timeout: float = _TIMEOUT_S) -> dict:
+    """One request to the chart endpoint, returned as Yahoo sent it.
+
+    A function of its own so that the live read (backend/prices_live.py) asks Yahoo
+    exactly as the fetchers do, with the same address and the same User-Agent, and
+    differs from them only in what it does with the answer: it writes none of it.
+    The timeout is the caller's because the two wait differently. A refresh can sit
+    half a minute on a slow source; a page that is being drawn cannot.
+    """
+    query = urllib.parse.urlencode({"range": chart_range, "interval": interval})
+    url = f"{CHART_URL.format(ticker=urllib.parse.quote(symbol))}?{query}"
+    request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def yahoo_symbol(ticker: str, db_path=None) -> str:
+    """The tradable US symbol to quote: the US ADR ticker if set, else the ticker.
+
+    Foreign names must be quoted by their US ADR (ROG -> RHHBY Roche, BAYN -> BAYRY
+    Bayer), not their home-exchange ticker, which either 404s or, worse, resolves to
+    an unrelated US company (bare ROG is Rogers Corporation).
+
+    A function and not only a method, so the live read quotes the symbol the stored
+    series was fetched under: two rules for it would one day lay Rogers over Roche."""
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute(
+            "SELECT us_adr_ticker FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+    finally:
+        conn.close()
+    adr = (row["us_adr_ticker"] or "").strip() if row else ""
+    return adr or ticker
+
+
 def parse_chart(payload: dict, ticker: str, interval: str = "1d") -> tuple[list[dict], dict]:
     """Turn a Yahoo chart payload into price rows plus quote meta. Pure.
 
@@ -108,29 +145,10 @@ class PricesFetcher(BaseFetcher):
         return self.ticker
 
     def _yahoo_symbol(self) -> str:
-        """The tradable US symbol to quote: the US ADR ticker if set, else the ticker.
-
-        Foreign names must be quoted by their US ADR (ROG -> RHHBY Roche, BAYN -> BAYRY
-        Bayer), not their home-exchange ticker, which either 404s or, worse, resolves to
-        an unrelated US company (bare ROG is Rogers Corporation)."""
-        conn = db.get_connection(self.db_path)
-        try:
-            row = conn.execute(
-                "SELECT us_adr_ticker FROM companies WHERE ticker = ?", (self.ticker,)
-            ).fetchone()
-        finally:
-            conn.close()
-        adr = (row["us_adr_ticker"] or "").strip() if row else ""
-        return adr or self.ticker
+        return yahoo_symbol(self.ticker, self.db_path)
 
     def fetch(self) -> dict:
-        symbol = self._yahoo_symbol()
-        query = urllib.parse.urlencode({"range": self.chart_range,
-                                        "interval": self.chart_interval})
-        url = f"{CHART_URL.format(ticker=urllib.parse.quote(symbol))}?{query}"
-        request = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+        return fetch_chart(self._yahoo_symbol(), self.chart_range, self.chart_interval)
 
     def normalise(self, raw) -> list[dict]:
         rows, self._meta = parse_chart(raw, self.ticker, self.chart_interval)

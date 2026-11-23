@@ -66,7 +66,10 @@ NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                "/ask")
 # The positioning read is short interest and an options chain, which move with the market
 # and not with the book, so no stamp of the book can say when it is out of date.
-NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet", "/positioning")
+# The live price read is Yahoo's bars as they stand this minute. It keeps its own hold
+# of about a minute (prices_live.py), and stored here it would be served for as long as
+# the book did not change, which is the opposite of what it is for.
+NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet", "/positioning", "/prices/live")
 # Writes that change nothing a cached read is computed from. A thesis is appended to a
 # ledger beside the book (thesis_log.py); clearing every valuation for it would cost
 # minutes of recomputation to protect reads it cannot have changed.

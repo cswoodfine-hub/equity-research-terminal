@@ -285,6 +285,36 @@ def company_intraday(ticker: str) -> dict:
     return {"ticker": ticker, "interval": "15m", "sessions": sessions, "points": points}
 
 
+@app.get("/companies/{ticker}/prices/live")
+def company_prices_live(ticker: str, fresh: int = Query(default=0)) -> dict:
+    """Yahoo's recent five minute and hourly bars as they stand now, with the current
+    session as one daily bar and what Yahoo says of the market's hours.
+
+    A read of the source and not of the book. Nothing it returns is written anywhere:
+    no bar, no snapshot, no ``refresh_runs`` row, so calling it during a session cannot
+    file an intraday price as a close and cannot move the stamp the response cache
+    keeps every valuation against (see prices_live.py). The page lays these bars over
+    the stored series; the stored series is still what /prices returns.
+
+    The answer is held for about a minute in this process and ``fresh=1`` asks again
+    regardless. A Yahoo failure is ``ok: false`` with the reason, never a 500.
+    """
+    import prices_live
+    from fetchers.prices import yahoo_symbol
+
+    ticker = ticker.upper()
+    conn = db.get_connection()
+    try:
+        company = conn.execute(
+            "SELECT id FROM companies WHERE ticker = ?", (ticker,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if company is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker}")
+    return prices_live.read(ticker, yahoo_symbol(ticker), fresh=bool(fresh))
+
+
 @app.get("/companies/{ticker}/financials")
 def company_financials(ticker: str) -> dict:
     ticker = ticker.upper()
