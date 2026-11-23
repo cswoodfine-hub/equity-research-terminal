@@ -23,7 +23,21 @@ import time
 import urllib.error
 import urllib.request
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Proposed, and the owner's to confirm: which provider the readers use is their call.
+# Groq shut down llama-3.3-70b-versatile on 2026-08-16 and its deprecations page names
+# this model as the replacement. Read on 2026-11-23: the page, the key's own model list
+# (https://api.groq.com/openai/v1/models, which no longer carries the old id) and one
+# small call that came back answered. What the id does not fix: on Groq's free tier the
+# model takes 8,000 tokens a minute, a request over that is refused outright (HTTP 413),
+# and the readers send up to 60,000 characters of a filing, so a long document fails
+# on that tier whatever the model. The run's health summary counts those failures.
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+# The reasoning models Groq serves spend their reasoning out of max_tokens. The readers
+# classify and copy out; they do not need a long think, and a short one leaves the
+# allowance for the answer. Groq documents reasoning_effort (low, medium, high) for
+# these two ids only, so it is sent to no other model.
+_GROQ_REASONING_PREFIX = "openai/gpt-oss"
+GROQ_REASONING_EFFORT = os.getenv("GROQ_REASONING_EFFORT", "low")
 # The floating alias, not a pinned version. Google retires numbered Gemini models and
 # answers 404 with a note telling you to update your code, which is a deployment that
 # stops working on a date nobody wrote down. The alias tracks the current flash model;
@@ -267,6 +281,8 @@ def _groq(system: str, user: str, max_tokens: int) -> str:
         "max_tokens": max_tokens,
         "temperature": 0.2,
     }
+    if GROQ_MODEL.startswith(_GROQ_REASONING_PREFIX) and GROQ_REASONING_EFFORT:
+        body["reasoning_effort"] = GROQ_REASONING_EFFORT
     try:
         payload = _post("groq", GROQ_URL, {"Authorization": f"Bearer {key}"}, body)
     except RuntimeError as exc:

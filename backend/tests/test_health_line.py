@@ -195,6 +195,24 @@ def test_an_answer_cut_off_before_it_began_is_an_error_not_an_empty_answer():
     assert llm.groq_text(empty_by_choice) == ""
 
 
+def test_a_groq_reasoning_model_is_asked_for_a_short_think_and_no_other_model_is(
+        groq_only, monkeypatch):
+    sent = []
+
+    def answer(label, url, headers, body, timeout=None):
+        sent.append(body)
+        return {"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]}
+
+    monkeypatch.setattr(llm, "_post", answer)
+    monkeypatch.setattr(llm, "GROQ_MODEL", "openai/gpt-oss-120b")
+    llm.complete("s", "u")
+    monkeypatch.setattr(llm, "GROQ_MODEL", "some-other-model")
+    llm.complete("s", "u")
+    assert sent[0]["model"] == "openai/gpt-oss-120b"
+    assert sent[0]["reasoning_effort"] == "low"
+    assert "reasoning_effort" not in sent[1], "Groq documents it for two ids only"
+
+
 # --- through a whole run ---------------------------------------------------------------
 
 def _probe(name, behaviour):
