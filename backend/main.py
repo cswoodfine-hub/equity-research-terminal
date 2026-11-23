@@ -109,6 +109,15 @@ import why_moved as why_moved_module
 async def lifespan(app: FastAPI):
     # Ensure the schema exists so a fresh checkout can serve immediately.
     db.init()
+    # The calls are recorded by the scheduled run alone and reach this book through
+    # data/history, so a book that only ever refreshes from the terminal would go on
+    # showing the gate odds of the day it was restored (call_sync.py). Soft: a book that
+    # cannot be brought up to date still serves.
+    try:
+        import call_sync
+        print("call log: " + call_sync.sentence(call_sync.catch_up()), flush=True)
+    except Exception as exc:
+        print(f"call log not synced: {type(exc).__name__}: {exc}", flush=True)
     yield
 
 
