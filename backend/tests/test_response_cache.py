@@ -49,6 +49,15 @@ def client(tmp_path, monkeypatch):
     def edit():
         return {"ok": True}
 
+    @app.post("/theses")
+    def log_thesis():
+        return {"ok": True}
+
+    @app.get("/theses")
+    def theses():
+        calls["n"] += 1
+        return {"n": calls["n"]}
+
     yield TestClient(app), calls, revalidated, database, data
     RC.clear()
     RC.flush()
@@ -93,6 +102,24 @@ def test_a_write_through_the_api_clears_everything(client):
     c.post("/edit")
     after = c.get("/value")
     assert after.json() == {"n": 2} and after.headers["x-cache"] == "miss"
+
+
+def test_logging_a_thesis_clears_nothing(client):
+    """A thesis is appended to a ledger beside the book and changes no figure the book
+    computes, so the valuations computed before it are still the valuations."""
+    c, calls, _revalidated, _db, _data = client
+    c.get("/value")
+    c.post("/theses")
+    after = c.get("/value")
+    assert after.json() == {"n": 1} and after.headers["x-cache"] == "hit"
+
+
+def test_the_thesis_log_is_always_read_live(client):
+    """It is marked against today's prices and read straight after a write to it."""
+    c, _calls, _revalidated, _db, _data = client
+    first, second = c.get("/theses"), c.get("/theses")
+    assert second.json()["n"] == first.json()["n"] + 1
+    assert "x-cache" not in second.headers
 
 
 def test_the_bypass_header_recomputes_and_stores(client):

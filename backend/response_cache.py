@@ -57,8 +57,17 @@ SKIP = "x-cache-skip"
 # Reads that must be live, or that write. Matched as prefixes or substrings of the path.
 NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                # The user's own account: always live, never on disk.
-               "/portfolio/")
-NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet")
+               "/portfolio/",
+               # The thesis log is marked against today's prices and read straight after
+               # a write to it.
+               "/theses")
+# The positioning read is short interest and an options chain, which move with the market
+# and not with the book, so no stamp of the book can say when it is out of date.
+NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet", "/positioning")
+# Writes that change nothing a cached read is computed from. A thesis is appended to a
+# ledger beside the book (thesis_log.py); clearing every valuation for it would cost
+# minutes of recomputation to protect reads it cannot have changed.
+QUIET_WRITES = ("/theses",)
 MAX_ENTRIES = 3000
 # A stale entry is recomputed at most this often, so a writer that commits every few
 # seconds cannot keep the book recomputing in a loop.
@@ -372,7 +381,8 @@ async def handle(request, call_next):
         return await call_next(request)
     if request.method != "GET":
         response = await call_next(request)
-        clear()
+        if not any(request.url.path.startswith(p) for p in QUIET_WRITES):
+            clear()
         return response
     path, query = request.url.path, request.url.query
     if not cacheable(path, query):
