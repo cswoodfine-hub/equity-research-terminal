@@ -305,7 +305,12 @@ def is_fatal(exc: Exception) -> bool:
                ("credit balance", "quota", "billing", "invalid x-api-key",
                 "authentication_error", "api_key_invalid", "api key not valid",
                 "invalid api key", "resource_exhausted", "permission_denied",
-                "http 401", "http 403", "http 429"))
+                "http 401", "http 403", "http 429",
+                # A model the provider no longer serves fails every call the same way.
+                # The scheduled run asked a retired Groq model 33 times on 2026-11-23,
+                # one EDGAR fetch each, to collect one message (llm._groq_model_gone,
+                # and the Gemini equivalent in llm._gemini).
+                "is not served to this key", "has been retired"))
 
 
 def record_read(conn, filing: dict, outcome: str, detail: str | None) -> None:

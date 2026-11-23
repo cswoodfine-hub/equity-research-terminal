@@ -180,6 +180,11 @@ def run(refresh_fn=None, db_path=None) -> int:
         detail = result.get("detail", {}) if isinstance(result, dict) else {}
         changes = detail.get("changes") if isinstance(detail, dict) else None
         _log(f"run {result.get('id')} {status}; changes={json.dumps(changes)}")
+        # The run's own summary of whether it was normal (run_health), on the one line
+        # of the job log a person reads. The same summary is in the run's detail.
+        health = detail.get("health") if isinstance(detail, dict) else None
+        if isinstance(health, dict) and health.get("line"):
+            _log(f"run {result.get('id')} health {health['line']}")
         if status in ("complete", "partial"):
             _record_calls(db_path, result.get("id"))
             _record_corrections(db_path)

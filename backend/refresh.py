@@ -52,9 +52,11 @@ import evidence
 import guidance as guidance_module
 import valuation_history
 import leadership
+import llm
 import applications
 import pdufa
 import relink
+import run_health
 import submissions
 import revenue_earnings
 import revenue_mdna
@@ -311,6 +313,38 @@ def _finish_run(db_path, run_id: int, status: str, detail: dict) -> dict:
     return out
 
 
+def _started_at(db_path, run_id: int) -> str | None:
+    conn = db.get_connection(db_path)
+    try:
+        row = conn.execute("SELECT started_at FROM refresh_runs WHERE id = ?",
+                           (run_id,)).fetchone()
+    finally:
+        conn.close()
+    return row["started_at"] if row else None
+
+
+def _read(calls: dict, name: str, reader, *args, **kwargs):
+    """Run one reader with its model calls counted at the seam (``llm.counting``).
+
+    The count is the reader's own only because the readers run one after another. What
+    is asked of the model while the fetchers run in their pool is counted as one stage.
+    """
+    with llm.counting() as count:
+        out = reader(*args, **kwargs)
+    calls[name] = count.as_dict()
+    return out
+
+
+def _health(db_path, run_id: int, sources, quiet, calls: dict, outputs: dict) -> dict:
+    """The run's health summary (``run_health``), with each reader whose every model
+    call failed marked on its own entry in the detail."""
+    health = run_health.summarise(
+        _started_at(db_path, run_id), sources, quiet, calls, llm.provider(),
+        job_started_at=os.getenv("ER_JOB_STARTED_AT"))
+    run_health.mark_failed_readers(health, outputs)
+    return health
+
+
 def _fail_run(db_path, run_id: int, exc: BaseException) -> None:
     """Close a run the code crashed out of, rather than leaving it open forever.
 
@@ -326,6 +360,10 @@ def _fail_run(db_path, run_id: int, exc: BaseException) -> None:
     """
     detail = {"error": f"{type(exc).__name__}: {exc}",
               "traceback": traceback.format_exc()}
+    try:
+        detail["health"] = run_health.crashed(_started_at(db_path, run_id), exc)
+    except Exception:            # the summary is a courtesy; the failure is the record
+        pass
     try:
         _finish_run(db_path, run_id, "failed", detail)
     except Exception:            # a failure to record the failure is not the story
@@ -360,7 +398,12 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     fetchers = _company_fetchers(company, db_path)
     for fetcher in fetchers:
         fetcher.refresh_run_id = run_id
-    results = [fetcher.run() for fetcher in fetchers]
+    # Model calls are counted reader by reader (``_read``); the label reader runs inside
+    # its fetcher, so the fetch stage is counted as one.
+    calls: dict = {}
+    with llm.counting() as fetch_calls:
+        results = [fetcher.run() for fetcher in fetchers]
+    calls["labels"] = fetch_calls.as_dict()
 
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
@@ -499,7 +542,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # A counterparty that is not a party puts another company's transaction on this
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
-    mapped["deal_terms"] = deals.enrich(db_path)["filled"]
+    mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
     # What became of the catalysts whose dates have passed, read back from the approvals
     # and the announced readouts, before the derivation below withdraws a derived row
     # whose date is behind it. Resolving first is what turns the calendar into a record.
@@ -507,9 +550,11 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # closes its catalyst this run: the filings, the rows an earlier pass read from the
     # envelope, the companies' own releases, and the registry's record of the trials
     # that fell due.
-    trial_reads = trial_readouts.extract(db_path)
-    trial_reads["reread"] = trial_readouts.reread(db_path)
-    trial_reads["press"] = press_readouts.extract(db_path)
+    trial_reads = _read(calls, "trial_readouts", trial_readouts.extract, db_path)
+    trial_reads["reread"] = _read(calls, "trial_readouts.reread",
+                                  trial_readouts.reread, db_path)
+    trial_reads["press"] = _read(calls, "press_readouts", press_readouts.extract,
+                                 db_path)
     trial_reads["registry"] = registry_readouts.extract(db_path)
     # A posted result tied to its study by registry number or by the study's own name,
     # with the outcome in the source's words, is recorded here without a click; the rest
@@ -525,7 +570,7 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # Derived readouts run after the trial fetch and before the diff, so a completion
     # date that moved this run is already a catalyst by the time changes are computed.
     readouts = catalysts.derive_readouts(db_path)
-    goals = pdufa.extract(db_path)
+    goals = _read(calls, "pdufa", pdufa.extract, db_path)
     # Join what the extractor wrote to an asset and an indication. It writes a ticker and
     # a title and never an asset id, so without this the probability model cannot see a
     # filing at all. Runs after every extract, including one that found nothing, because
@@ -537,16 +582,16 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         _rc.close()
     # Management guidance out of the same filings, ledgered so the model spend is
     # bounded to sections not yet read.
-    guided = guidance_module.extract(db_path)
+    guided = _read(calls, "guidance", guidance_module.extract, db_path)
     # After the filing text is on file, derive a biologic LOE for the valuation from the
     # 12-year floor and any cliff year the 10-K discloses.
-    bio_loe = biologic_loe.derive(db_path)
+    bio_loe = _read(calls, "biologic_loe", biologic_loe.derive, db_path)
     # Product revenue the SEC data sets do not tag, read from the filing's own table.
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
     # And the quarterly table in the earnings exhibit, which is the only place a product
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
-    deal_reads = deals.extract(db_path)
+    deal_reads = _read(calls, "deals", deals.extract, db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
     leaders = leadership.detect(db_path, run_id)
@@ -567,7 +612,14 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # all on 2026-10-26. Runs once the asset rows are settled, and never guesses.
     relinked = relink.run(db_path)
     status = "partial" if any(r.errors for r in results) else "complete"
-    detail = {"ticker": ticker, "sources": [asdict(r) for r in results],
+    sources = [asdict(r) for r in results]
+    health = _health(db_path, run_id, sources, [], calls, {
+        "pdufa": goals, "guidance": guided, "biologic_loe": bio_loe,
+        "trial_readouts": trial_reads, "trial_readouts.reread": trial_reads["reread"],
+        "press_readouts": trial_reads["press"], "deals": deal_reads})
+    if health["readers_failed"]:
+        status = "partial"             # a reader that read nothing is not a clean run
+    detail = {"ticker": ticker, "health": health, "sources": sources,
               "readouts": readouts, "pdufa": goals, "submissions": filed,
               "relinked": relinked, "guidance": guided,
               "biologic_loe": bio_loe,
@@ -609,6 +661,12 @@ def went_quiet(db_path, by_source: dict, run_id: int | None = None) -> list[dict
     says partial every day teaches the analyst to ignore the word. What is a failure is a
     source that used to return rows and now returns none, so the test is against this
     source's own last productive run rather than against zero.
+
+    ``quiet_runs`` counts the runs in a row, this one included, in which the source was
+    asked and returned nothing. One quiet run is usually a quiet day: in the committed
+    log to 2026-11-23, 31 of the 33 spells that ended by themselves lasted one or two
+    runs, and the other two were gaps in the pulse feed of three and five. The health
+    summary (run_health) reads the count to tell a quiet day from a fault.
     """
     live = {name: agg for name, agg in by_source.items()
             if agg["rows_fetched"] == 0 and agg["ran"] > agg["skipped_ttl"]
@@ -625,16 +683,23 @@ def went_quiet(db_path, by_source: dict, run_id: int | None = None) -> list[dict
         conn.close()
     quiet = []
     for name in sorted(live):
+        quiet_runs = 1
         for run in runs:
             try:
                 sources = (json.loads(run["detail"]) or {}).get("sources") or []
             except (TypeError, ValueError):
                 continue
             was = next((s for s in sources if s.get("source") == name), None)
-            if not was or not was.get("rows_fetched"):
+            if not was:
+                continue
+            if not was.get("rows_fetched"):
+                # A run that skipped it on the TTL did not ask, so it is not a quiet one.
+                if was.get("ran", 1) > (was.get("skipped_ttl") or 0):
+                    quiet_runs += 1
                 continue
             quiet.append({"source": name, "last_rows": was["rows_fetched"],
-                          "last_run": run["id"], "last_seen": run["started_at"]})
+                          "last_run": run["id"], "last_seen": run["started_at"],
+                          "quiet_runs": quiet_runs})
             break
     return quiet
 
@@ -682,8 +747,13 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
             fetcher.force = force
             record(fetcher.run(), company["ticker"])
 
-    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-        list(pool.map(run_company, companies))
+    # Model calls are counted reader by reader (``_read``); the label reader runs inside
+    # its fetcher, on the pool's threads, so the fetch stage is counted as one.
+    calls: dict = {}
+    with llm.counting() as fetch_calls:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            list(pool.map(run_company, companies))
+    calls["labels"] = fetch_calls.as_dict()
 
     # Bind the trials just fetched to the assets they study, before anything reads the
     # pipeline by product. A compound a company trials but does not sell becomes an
@@ -822,10 +892,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # A counterparty that is not a party puts another company's transaction on this
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
-    mapped["deal_terms"] = deals.enrich(db_path)["filled"]
-    trial_reads = trial_readouts.extract(db_path)
-    trial_reads["reread"] = trial_readouts.reread(db_path)
-    trial_reads["press"] = press_readouts.extract(db_path)
+    mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
+    trial_reads = _read(calls, "trial_readouts", trial_readouts.extract, db_path)
+    trial_reads["reread"] = _read(calls, "trial_readouts.reread",
+                                  trial_readouts.reread, db_path)
+    trial_reads["press"] = _read(calls, "press_readouts", press_readouts.extract,
+                                 db_path)
     trial_reads["registry"] = registry_readouts.extract(db_path)
     # A posted result tied to its study by registry number or by the study's own name,
     # with the outcome in the source's words, is recorded here without a click; the rest
@@ -841,7 +913,7 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     readouts = catalysts.derive_readouts(db_path)
     # PDUFA dates have no free calendar, so they are read out of the 8-K that announces
     # the acceptance. Without an Anthropic key this reports that it did nothing.
-    goals = pdufa.extract(db_path)
+    goals = _read(calls, "pdufa", pdufa.extract, db_path)
     # Join what the extractor wrote to an asset and an indication. It writes a ticker and
     # a title and never an asset id, so without this the probability model cannot see a
     # filing at all. Runs after every extract, including one that found nothing, because
@@ -853,14 +925,14 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         _rc.close()
     # Management guidance out of the same filings, ledgered so the model spend is
     # bounded to sections not yet read.
-    guided = guidance_module.extract(db_path)
-    bio_loe = biologic_loe.derive(db_path)
+    guided = _read(calls, "guidance", guidance_module.extract, db_path)
+    bio_loe = _read(calls, "biologic_loe", biologic_loe.derive, db_path)
     # Product revenue the SEC data sets do not tag, read from the filing's own table.
     mdna_revenue = revenue_mdna.extract(db_path)["written"]
     # And the quarterly table in the earnings exhibit, which is the only place a product
     # acquired mid-year appears until the next 10-K.
     quarter_revenue = revenue_earnings.extract(db_path)["written"]
-    deal_reads = deals.extract(db_path)
+    deal_reads = _read(calls, "deals", deals.extract, db_path)
     # Who runs the company. Item 5.02 filings are already on file; this reads the
     # ones that report a senior change rather than a board rotation.
     leaders = leadership.detect(db_path, run_id)
@@ -893,7 +965,18 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
             f"returned no rows; the last run that reached it returned "
             f"{gone['last_rows']} ({str(gone['last_seen'])[:10]})")
     status = "partial" if any(s["errors"] for s in by_source.values()) else "complete"
-    detail = {"scope": "all", "companies": len(companies), "went_quiet": quiet,
+    # One summary of whether the run was normal, at the head of its detail: the hour it
+    # began, the sources that erred or went quiet, and the readers the model failed on
+    # every call. Such a reader makes the run partial whatever the sources did, and its
+    # own entry below stops saying "ok".
+    health = _health(db_path, run_id, list(by_source.values()), quiet, calls, {
+        "pdufa": goals, "guidance": guided, "biologic_loe": bio_loe,
+        "trial_readouts": trial_reads, "trial_readouts.reread": trial_reads["reread"],
+        "press_readouts": trial_reads["press"], "deals": deal_reads})
+    if health["readers_failed"]:
+        status = "partial"
+    detail = {"scope": "all", "companies": len(companies), "health": health,
+              "went_quiet": quiet,
               # Which TTLs held: True fetched everything, "daily" let slower sources
               # skip, False is an analyst's refresh.
               "force": force,

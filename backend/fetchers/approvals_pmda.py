@@ -101,4 +101,8 @@ class PmdaApprovalsFetcher(BaseFetcher):
             conn.commit()
         finally:
             conn.close()
-        return RefreshResult(self.source, len(rows))
+        # A release already read is not due, which is not the same as quiet: see
+        # fetchers.base.run.
+        return RefreshResult(self.source, len(rows),
+                             skipped_ttl=bool(release) and not release.get("new")
+                             and not rows)

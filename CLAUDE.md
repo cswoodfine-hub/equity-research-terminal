@@ -33,6 +33,7 @@ ER Tool/
     migrations/             # numbered, each applied once
     seed.py                 # load the universe, resolve CIKs
     refresh.py              # orchestrates fetchers, writes refresh_runs
+    run_health.py           # one summary a run: start hour, sources erred or quiet, readers the model failed
     scheduled_refresh.py    # the whole-universe refresh with no server, for a schedule
     pulse_refresh.py        # reads the daily pulse; opens no refresh_runs row
     history.py              # export and rebuild data/history/*.ndjson

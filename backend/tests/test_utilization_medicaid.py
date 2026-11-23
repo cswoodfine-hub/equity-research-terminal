@@ -229,6 +229,8 @@ def test_forced_rerun_with_no_new_release_reads_only_the_metastore(tmp_path):
     result = _fetcher(path, fake).run()
     assert fake.calls == [METASTORE_URL]        # no fullness probe, no data page
     assert result.errors == [] and "nothing was read" in result.notes[0]
+    # Not due, so the run record does not count it as a source gone quiet.
+    assert result.skipped_ttl is True
     assert _last_snapshot(path)["fetch_kind"] == "cache"
 
 

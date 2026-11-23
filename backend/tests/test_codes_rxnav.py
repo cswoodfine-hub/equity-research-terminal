@@ -247,6 +247,8 @@ def test_a_looked_up_asset_is_not_fetched_again_inside_30_days_even_forced(tmp_p
     result = _run(path, refuse)
     assert not result.errors
     assert any("nothing was fetched" in n for n in result.notes)
+    # Not due, so the run record does not count it as a source gone quiet.
+    assert result.skipped_ttl is True
     conn = db.get_connection(path)
     payload = json.loads(conn.execute(
         "SELECT payload FROM snapshots WHERE source = 'rxnav_codes'"

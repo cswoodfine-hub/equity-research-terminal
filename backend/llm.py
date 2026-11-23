@@ -15,8 +15,10 @@ The key rides in a header, never the URL, so a proxy or a log cannot capture it.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -119,7 +121,65 @@ def _is_transient(exc: BaseException) -> bool:
 
 
 
+# --- counting what was asked and what failed -----------------------------
+# A reader decides for itself what to do with a failed call, and three of them decide to
+# say nothing: the readout readers skip the filing and move on, so a model that refused
+# every call left "read: 0, errors: []" in the run record for a fortnight. The seam is
+# the one place every call passes, so the count is kept here, where no reader can leave
+# it out. ``counting`` is opened around one reader; ``complete`` reports into every
+# count open at that moment.
+_COUNTS: list = []
+_COUNTS_LOCK = threading.Lock()
+
+
+class Count:
+    """Completions asked for inside one ``counting`` block, and how many failed."""
+
+    def __init__(self):
+        self.calls = 0
+        self.failed = 0
+        self.last_error: str | None = None
+
+    def as_dict(self) -> dict:
+        return {"calls": self.calls, "failed": self.failed, "last_error": self.last_error}
+
+
+@contextlib.contextmanager
+def counting():
+    """Count the completions made while the block is open, on any thread."""
+    count = Count()
+    with _COUNTS_LOCK:
+        _COUNTS.append(count)
+    try:
+        yield count
+    finally:
+        with _COUNTS_LOCK:
+            _COUNTS.remove(count)
+
+
+def _counted(error: BaseException | None) -> None:
+    with _COUNTS_LOCK:
+        for count in _COUNTS:
+            count.calls += 1
+            if error is not None:
+                count.failed += 1
+                count.last_error = f"{error}"[:300]
+
+
 def complete(system: str, user: str, max_tokens: int = 1024,
+             prefer: str | None = None, thinking_budget: int | None = None) -> str:
+    """One completion, counted. See ``_complete`` for what it does; this is the same
+    call with its outcome reported to whoever is counting."""
+    try:
+        text = _complete(system, user, max_tokens, prefer, thinking_budget)
+    except Exception as exc:
+        _counted(exc)
+        raise
+    _counted(None)
+    return text
+
+
+def _complete(system: str, user: str, max_tokens: int = 1024,
              prefer: str | None = None, thinking_budget: int | None = None) -> str:
     """One completion. Raises when no provider is configured or the call fails, which is
     what the callers already expect: the note degrades to its rules layer and the PDUFA
@@ -187,7 +247,15 @@ def groq_text(payload: dict) -> str:
     choices = payload.get("choices") or []
     if not choices:
         raise ValueError(f"groq returned nothing: {str(payload)[:120]}")
-    return ((choices[0].get("message") or {}).get("content") or "").strip()
+    text = ((choices[0].get("message") or {}).get("content") or "").strip()
+    if not text and choices[0].get("finish_reason") == "length":
+        # A reasoning model spends its reasoning out of the same allowance as its
+        # answer. Read on 2026-11-23: openai/gpt-oss-120b given 64 tokens used 62 of them
+        # reasoning and returned an empty answer with finish_reason "length". An empty
+        # string parses as "nothing found", and a reader would ledger the filing as read.
+        raise ValueError("groq used the whole token allowance before answering "
+                         "(finish_reason length, empty content)")
+    return text
 
 
 def _groq(system: str, user: str, max_tokens: int) -> str:
@@ -199,7 +267,31 @@ def _groq(system: str, user: str, max_tokens: int) -> str:
         "max_tokens": max_tokens,
         "temperature": 0.2,
     }
-    return groq_text(_post("groq", GROQ_URL, {"Authorization": f"Bearer {key}"}, body))
+    try:
+        payload = _post("groq", GROQ_URL, {"Authorization": f"Bearer {key}"}, body)
+    except RuntimeError as exc:
+        raise _groq_model_gone(exc, GROQ_MODEL) or exc
+    return groq_text(payload)
+
+
+def _groq_model_gone(exc: BaseException, model: str) -> RuntimeError | None:
+    """The error that says what to do, where Groq says the model is not there.
+
+    Groq answers a retired model with HTTP 404 and "does not exist or you do not have
+    access to it", which reads like a problem with the key. It was not: the scheduled
+    run asked for llama-3.3-70b-versatile on every call from 2026-11-09, a model Groq's
+    deprecations page lists as shut down on 2026-08-16, and the same id answered 404 on
+    a second key. The original message is kept, since it is what the provider said.
+    """
+    text = str(exc)
+    if "404" in text and "does not exist" in text:
+        gone = RuntimeError(
+            f"the Groq model {model!r} is not served to this key (retired, or never "
+            f"offered to it). Set GROQ_MODEL to an id that "
+            f"https://api.groq.com/openai/v1/models lists. Groq said: {text}")
+        gone.__cause__ = exc
+        return gone
+    return None
 
 
 # --- Gemini, over REST ---------------------------------------------------

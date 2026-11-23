@@ -720,8 +720,11 @@ class DrugCodesRxNavFetcher(BaseFetcher):
                 self._drop_conflicts(conn)
         finally:
             conn.close()
+        # No asset due a lookup is not due, which is not the same as quiet: see
+        # fetchers.base.run.
         return RefreshResult(self.source, written, errors=list(self._errors),
-                             notes=list(self._notes))
+                             notes=list(self._notes),
+                             skipped_ttl=meta.get("due") == 0 and not written)
 
     def _apply_overrides(self, conn) -> None:
         for row in read_overrides(self.overrides_path):

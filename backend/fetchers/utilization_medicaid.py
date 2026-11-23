@@ -467,8 +467,11 @@ class MedicaidSdudFetcher(BaseFetcher):
                         f"out")
         finally:
             conn.close()
+        # No new release is not due, which is not the same as quiet: see
+        # fetchers.base.run.
         return RefreshResult(self.source, written, errors=list(self._errors),
-                             notes=list(self._notes))
+                             notes=list(self._notes),
+                             skipped_ttl=bool(self._meta.get("skipped")) and not written)
 
 
 def main(argv=None) -> None:

@@ -282,6 +282,8 @@ def test_a_forced_run_with_nothing_new_makes_one_stats_call(tmp_path):
     assert not result.errors
     assert len(fake.calls) == 1 and "/stats" in fake.calls[0]
     assert any("no new Part D Prescribers release" in n for n in result.notes)
+    # Not due, so the run record does not count it as a source gone quiet.
+    assert result.skipped_ttl is True
     assert _last_snapshot(path)["fetch_kind"] == "cache"
 
 

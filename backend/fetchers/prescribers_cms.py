@@ -686,7 +686,9 @@ class PartDPrescribersFetcher(BaseFetcher):
     def upsert(self, records: list[dict]) -> RefreshResult:
         meta = self._meta
         if meta.get("skipped"):
-            return RefreshResult(self.source, 0, notes=list(self._notes))
+            # Not due, which is not the same as quiet: see fetchers.base.run.
+            return RefreshResult(self.source, 0, notes=list(self._notes),
+                                 skipped_ttl=True)
         year, reset = meta["year"], meta.get("reset")
         written = 0
         conn = db.get_connection(self.db_path)

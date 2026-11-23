@@ -227,6 +227,8 @@ def test_a_known_release_makes_no_range_request_under_force(tmp_path):
     result = _fetcher(path, ranges).run()
     assert ranges.calls == []
     assert result.errors == [] and "already read" in result.notes[0]
+    # Not due, so the run record does not count it as a source gone quiet.
+    assert result.skipped_ttl is True
     feed = _query(path, "SELECT payload FROM snapshots WHERE source = 'partd_formulary'"
                         " AND entity_type = 'feed' ORDER BY id DESC LIMIT 1")[0]
     assert json.loads(feed["payload"])["fetch_kind"] == "cache"

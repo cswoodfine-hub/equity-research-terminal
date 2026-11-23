@@ -70,6 +70,14 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
     steps:
+      - name: Note when the job began
+        # The refresh records when it started fetching, which is after the restore, the
+        # rebuild and the seed. Every run from 2026-10-10 began fetching between 10:26
+        # and 18:14 UTC against the 06:00 schedule, and the run record cannot say how
+        # much of that was the runner starting late and how much was these steps. With
+        # this beside it in the run's health summary (backend/run_health.py), it can.
+        run: echo "ER_JOB_STARTED_AT=$(date -u '+%Y-%m-%d %H:%M:%S')" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
         with:
           # The branch as it stands when the job starts, not the commit the run was

@@ -495,7 +495,9 @@ class PartDFormularyFetcher(BaseFetcher):
     # --- upsert -----------------------------------------------------------------------
     def upsert(self, data: dict) -> RefreshResult:
         if self._meta.get("skipped") or not data:
-            return RefreshResult(self.source, 0, notes=list(self._notes))
+            # Not due, which is not the same as quiet: see fetchers.base.run.
+            return RefreshResult(self.source, 0, notes=list(self._notes),
+                                 skipped_ttl=bool(self._meta.get("skipped")))
         meta, release = self._meta, data["release"]
         day = meta["release_date"]
         conn = db.get_connection(self.db_path)

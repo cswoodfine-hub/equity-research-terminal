@@ -249,6 +249,14 @@ class BaseFetcher(ABC):
                 result = self.upsert(rows)
                 rows_fetched = result.rows_fetched
                 errors.extend(result.errors)
+                # A fetcher that holds a release guard of its own never skips on the TTL
+                # (the guard has to hold under a forced run), so it comes through here on
+                # a day with nothing new, fetches nothing by design, and says so on its
+                # result. Dropped here, that read as a live fetch returning no rows, and
+                # refresh.went_quiet reported the three Medicare and Medicaid sources as
+                # gone quiet on every run from 2026-10-30, the first run on a restored
+                # database, when all three were answering "no new release".
+                skipped = bool(result.skipped_ttl)
                 # A fetcher's notes were being dropped here, so the one place designed
                 # to report what a run declined or could not find said nothing.
                 notes.extend(result.notes)
