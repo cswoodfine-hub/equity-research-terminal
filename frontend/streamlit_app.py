@@ -66,7 +66,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 2:
+if getattr(trading_page, "REVISION", 0) < 3:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -10317,27 +10317,35 @@ def _ask_reads_html(steps: list) -> str:
             + "".join(rows) + "</details>")
 
 
-def _ask_send(api_base: str, ticker: str, name: str, key: str, question: str) -> None:
+def _ask_send(api_base: str, ticker: str, name: str, key: str, question: str,
+              showing_key: str = "") -> None:
     """Put one question to the API and keep the exchange. A failure to reach the API is
-    kept as an exchange too, so the reader sees what happened beside what they asked."""
+    kept as an exchange too, so the reader sees what happened beside what they asked.
+
+    ``showing_key`` names where the session holds the panels open on a board beside the
+    box. It is read here, when the question goes, so it is the board as it stands. What
+    goes is the kind of each panel and its company, never anything a panel shows."""
     turns = st.session_state.setdefault(key, [])
     history = []
     for turn in turns:
         history.append({"role": "user", "text": turn["q"]})
         if turn.get("ok"):
             history.append({"role": "assistant", "text": turn["answer"]})
+    body = {"question": question, "history": history, "ticker": ticker, "name": name}
+    showing = st.session_state.get(showing_key) if showing_key else None
+    if showing:
+        body["showing"] = showing
     with st.spinner("Reading the book"):
         try:
-            got = api_post_body(api_base, "/ask", {
-                "question": question, "history": history, "ticker": ticker,
-                "name": name}, timeout=300)
+            got = api_post_body(api_base, "/ask", body, timeout=300)
         except (urllib.error.URLError, OSError, ValueError) as exc:
             got = {"ok": False, "reason": f"The API did not answer: {exc}"}
     turns.append({"q": question, **got})
 
 
 @st.fragment
-def _ask_tab(api_base: str, ticker: str, name: str, slot: str = "") -> None:
+def _ask_tab(api_base: str, ticker: str, name: str, slot: str = "",
+             showing_key: str = "") -> None:
     """The Ask tab: a question about the book, answered from the book.
 
     A fragment, so asking redraws this tab and not the other eleven. The conversation is
@@ -10368,7 +10376,9 @@ def _ask_tab(api_base: str, ticker: str, name: str, slot: str = "") -> None:
         '<div class="byline ask-by">A language model answers from the book\'s own reads '
         'and lists each one under its answer. It values nothing and changes nothing; the '
         f'figures are the book\'s. Research, not advice. Model: {html_escape(str(status.get("model") or ""))}.'
-        '</div>', unsafe_allow_html=True)
+        + (' It is told which panels are open on the board, by name, and not what they '
+           'show.' if showing_key else '')
+        + '</div>', unsafe_allow_html=True)
 
     pending = st.session_state.pop(f"ask_pending_{where}", None)
     for i, turn in enumerate(turns):
@@ -10392,7 +10402,7 @@ def _ask_tab(api_base: str, ticker: str, name: str, slot: str = "") -> None:
         # the ten seconds a read takes are not ten seconds of a page that did nothing.
         st.markdown(f'<div class="ask-turn"><div class="ask-q">{html_escape(pending)}</div></div>',
                     unsafe_allow_html=True)
-        _ask_send(api_base, ticker, name, key, pending)
+        _ask_send(api_base, ticker, name, key, pending, showing_key)
         st.rerun(scope="fragment")
 
     if not turns:

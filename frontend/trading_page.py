@@ -30,7 +30,7 @@ import trading_view as TV
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 2
+REVISION = 3
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -41,6 +41,7 @@ CHANGES_SHOWN = 40
 # box the measure its answers are set at and the board room for two panels across.
 BESIDE = (2.05, 1)
 ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
+SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
 
 
 @st.cache_data(ttl=HOLD_SECONDS, show_spinner=False)
@@ -179,7 +180,7 @@ def _board(api_base: str, ticker: str, kit, feed) -> None:
     # What the Ask box may be told is on screen. Kept in the session and read when a
     # question is sent, so it is the board as it stands and not as it stood at the last
     # full run of the page.
-    st.session_state["td_showing"] = TV.showing(layout["panels"], ticker)
+    st.session_state[SHOWING_KEY] = TV.showing(layout["panels"], ticker)
     if left_out:
         st.markdown(TV.left_out_html(left_out), unsafe_allow_html=True)
     if not layout["panels"]:
@@ -214,4 +215,4 @@ def render(api_base: str, ticker: str, name: str, kit, feed=None,
     with board:
         _board(api_base, ticker, kit, feed)
     with ask:
-        kit.ask(api_base, ticker, name, slot=ASK_SLOT)
+        kit.ask(api_base, ticker, name, slot=ASK_SLOT, showing_key=SHOWING_KEY)

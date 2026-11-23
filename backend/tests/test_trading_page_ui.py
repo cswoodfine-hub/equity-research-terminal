@@ -53,8 +53,8 @@ def changes(feed, ticker, today, levels):
     return [it for it in feed if it.get("ticker") == ticker and it.get("significance") in levels]
 def change_row(item):
     return f"<div class='fitem'>{{item['headline']}}</div>"
-def ask(api_base, ticker, name, slot=""):
-    st.markdown(f"ASK[{{ticker}}|{{name}}|{{slot}}]")
+def ask(api_base, ticker, name, slot="", showing_key=""):
+    st.markdown(f"ASK[{{ticker}}|{{name}}|{{slot}}|{{showing_key}}]")
 kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
                             change_row=change_row, ask=ask)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
@@ -162,7 +162,7 @@ def test_the_board_draws_at_one_two_and_three_across():
 
 def test_the_ask_box_sits_beside_the_board_in_its_own_place_on_the_page():
     test = _page()
-    assert _md(test).count("ASK[LLY|Eli Lilly|td_]") == 1
+    assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
     assert len(test.columns) >= 2
 
 
@@ -174,7 +174,7 @@ def test_the_ask_box_can_be_put_away_and_the_board_takes_the_width():
     assert _sections(test) == ["What changed", "Company news", "Dated ahead"]
     test.toggle(key="td_ask").set_value(True).run()
     assert not test.exception, test.exception
-    assert _md(test).count("ASK[LLY|Eli Lilly|td_]") == 1
+    assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
 
 
 def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():

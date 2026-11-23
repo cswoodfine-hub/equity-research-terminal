@@ -2184,6 +2184,9 @@ class AskIn(BaseModel):
     history: Optional[list] = None
     ticker: Optional[str] = None
     name: Optional[str] = None
+    # The panels open on the Trading tab's board, as {"panel", "ticker"} pairs. Names
+    # only: desk_chat.on_screen keeps the known ones and drops the rest.
+    showing: Optional[list] = None
 
 
 @app.get("/ask/status")
@@ -2200,7 +2203,7 @@ def ask(body: AskIn, request: Request) -> dict:
     no model key, a provider that failed, or nothing asked."""
     return desk_chat.answer(
         body.question, history=body.history,
-        context={"ticker": body.ticker, "name": body.name},
+        context={"ticker": body.ticker, "name": body.name, "showing": body.showing},
         fetch=desk_chat.api_fetch(str(request.base_url)))
 
 

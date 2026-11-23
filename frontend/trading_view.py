@@ -94,7 +94,8 @@ def normalise(layout) -> tuple:
         columns = DEFAULT_COLUMNS
     kept, live = [], 0
     for raw in layout.get("panels") or []:
-        if not isinstance(raw, dict) or raw.get("panel") not in BY_ID:
+        if (not isinstance(raw, dict) or not isinstance(raw.get("panel"), str)
+                or raw["panel"] not in BY_ID):
             name = raw.get("panel") if isinstance(raw, dict) else raw
             left_out.append(f"a panel this version does not have: {str(name)[:40]}")
             continue
@@ -171,7 +172,7 @@ def showing(panels, ticker: str) -> list:
     beside a ticker would say the reader holds that stock."""
     out, seen = [], set()
     for entry in panels or []:
-        kind = BY_ID.get(entry.get("panel"))
+        kind = BY_ID.get(entry.get("panel")) if isinstance(entry, dict) else None
         if not kind or kind["private"]:
             continue
         pair = (kind["id"], company_of(entry, ticker))

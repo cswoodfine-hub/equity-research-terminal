@@ -114,10 +114,11 @@ def test_a_panel_can_be_made_narrow_or_wide_against_its_kind():
 # -------------------------------------------------------------------------- normalise
 def test_a_kind_this_version_does_not_have_is_dropped_and_said():
     layout, left_out = TV.normalise({"columns": 3, "ask": False, "panels": [
-        {"panel": "news"}, {"panel": "crystal_ball"}, "nonsense", {"panel": "changes"}]})
+        {"panel": "news"}, {"panel": "crystal_ball"}, "nonsense", {"panel": "changes"},
+        {"panel": ["news"]}, {"panel": {"a": 1}}, {"ticker": "LLY"}, None]})
     assert [p["panel"] for p in layout["panels"]] == ["news", "changes"]
     assert layout["columns"] == 3 and layout["ask"] is False
-    assert len(left_out) == 2 and "crystal_ball" in left_out[0]
+    assert len(left_out) == 6 and "crystal_ball" in left_out[0]
 
 
 def test_a_board_is_cut_at_its_limit_and_the_cut_is_said():

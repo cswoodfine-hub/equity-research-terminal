@@ -26,6 +26,10 @@ unless ``CHAT_ALLOW_PORTFOLIO=1`` is set: what the tools return is sent to the m
 provider, and a broker statement is not something to send a third party by default. And
 with no provider key the box says so and the app carries on, like every other use of a
 model here.
+
+Beside the Trading tab's board the box is also told which panels the reader has open, by
+name and company and nothing more (``on_screen``). It is told nothing a panel shows: a
+figure still has to be read through a tool.
 """
 
 from __future__ import annotations
@@ -87,6 +91,38 @@ def house_style(text: str) -> str:
     return _EM_DASH.sub(", ", text or "").strip()
 
 
+# The panels of the Trading tab's board that the model may be told are open, and the name
+# each goes by. The list is kept here, on the API's side, and a panel is named from it and
+# never from what the page sent: the page's words would otherwise go into the system
+# prompt as they came. A panel built on the reader's own holdings is not in it and so is
+# never named, whatever CHAT_ALLOW_PORTFOLIO says: that switch offers a tool, which the
+# model has to ask for, and this would tell it unasked. The frontend's registry
+# (frontend/trading_view.PANELS) is held to this list by a test.
+ON_SCREEN = {"changes": "What changed", "news": "Company news",
+             "catalysts": "Dated ahead"}
+ON_SCREEN_MAX = 12
+_PANEL_TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
+
+
+def on_screen(showing) -> list:
+    """What the page says is on the board, as the names the model is told: "Company news
+    (LLY)". Anything that is not a known panel and a ticker is dropped, not repaired."""
+    named = []
+    for entry in showing if isinstance(showing, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        panel, ticker = entry.get("panel"), entry.get("ticker")
+        label = ON_SCREEN.get(panel) if isinstance(panel, str) else None
+        if not label or not isinstance(ticker, str) or not _PANEL_TICKER.match(ticker):
+            continue
+        text = f"{label} ({ticker})"
+        if text not in named:
+            named.append(text)
+        if len(named) == ON_SCREEN_MAX:
+            break
+    return named
+
+
 def tools() -> list:
     """The desk tools as a model is offered them here."""
     held = () if os.getenv("CHAT_ALLOW_PORTFOLIO") == "1" else HELD_BACK
@@ -104,6 +140,11 @@ def system_prompt(context: dict | None = None, today: dt.date | None = None) -> 
         lines.append(f"The analyst is on the page for {ticker}"
                      + (f" ({name})" if name else "")
                      + ". A question that names no company is about this one.")
+    panels = on_screen((context or {}).get("showing"))
+    if panels:
+        lines.append("Open on the analyst's board now: " + ", ".join(panels) + ". These "
+                     "are the names of the panels on screen and nothing they show. Read "
+                     "the book with the tools for any figure, as for any other question.")
     return "\n\n".join(lines)
 
 

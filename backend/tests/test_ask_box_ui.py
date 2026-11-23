@@ -115,6 +115,32 @@ st.markdown("TURNS[%d]" % len(st.session_state["ask_turns_LLY"]))
     assert second["body"]["ticker"] == "LLY" and second["body"]["name"] == "Eli Lilly"
 
 
+def test_the_open_panels_go_with_a_question_only_from_the_box_beside_a_board():
+    test = _page('''
+st.session_state["td_showing"] = [{"panel": "news", "ticker": "LLY"}]
+_ask_send("http://api.invalid", "LLY", "Eli Lilly", "ask_turns_LLY", "From the tab?")
+_ask_send("http://api.invalid", "LLY", "Eli Lilly", "ask_turns_LLY", "From the board?",
+          "td_showing")
+st.session_state["td_showing"] = []
+_ask_send("http://api.invalid", "LLY", "Eli Lilly", "ask_turns_LLY", "An empty board?",
+          "td_showing")
+''')
+    assert not test.exception, test.exception
+    tab, board, empty = [sent["body"] for sent in test.session_state["sent"]]
+    assert "showing" not in tab and "showing" not in empty
+    assert board["showing"] == [{"panel": "news", "ticker": "LLY"}]
+    assert set(board) == {"question", "history", "ticker", "name", "showing"}
+
+
+def test_the_box_beside_a_board_says_what_the_model_is_told():
+    test = _page('''
+_ask_tab("http://api.invalid", "LLY", "Eli Lilly")
+_ask_tab("http://api.invalid", "LLY", "Eli Lilly", slot="td_", showing_key="td_showing")
+''')
+    assert not test.exception, test.exception
+    assert _md(test).count("by name, and not what they show") == 1
+
+
 def test_every_key_carries_the_slot_after_the_part_the_stylesheet_matches():
     """theme.py styles the box by key prefix ("st-key-ask_box_"). A slot put first would
     lose the second box its styles; a key with no slot would clash."""
