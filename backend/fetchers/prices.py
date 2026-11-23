@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import time
 import urllib.parse
 import urllib.request
 
 import db
+import market_session
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "prices"
@@ -69,12 +71,20 @@ def yahoo_symbol(ticker: str, db_path=None) -> str:
     return adr or ticker
 
 
-def parse_chart(payload: dict, ticker: str, interval: str = "1d") -> tuple[list[dict], dict]:
+def parse_chart(payload: dict, ticker: str, interval: str = "1d",
+                now: float | None = None) -> tuple[list[dict], dict]:
     """Turn a Yahoo chart payload into price rows plus quote meta. Pure.
 
     Rows are one per bar with a non-null close; bars with a null close (holidays,
     gaps, pre-open) are dropped rather than filled. Raises ValueError if Yahoo
     reports an error or returns no result.
+
+    ``now`` (epoch seconds) is when the payload was read. Given it, a daily bar from a
+    session that had not closed is held back and named in the meta as ``held_back``:
+    its close is the last trade, and stored it would stand in the series and in the
+    day's snapshot as a close (market_session says why the schedule cannot be trusted
+    to prevent that). Without ``now`` every bar is kept, which is how a saved payload
+    is read. An intraday series is never cut: its newest bar is meant to be live.
 
     Intraday bars keep their time. Stamping them with a bare date would collapse a
     day of 15 minute bars onto one key, and the unique constraint would silently keep
@@ -102,11 +112,15 @@ def parse_chart(payload: dict, ticker: str, interval: str = "1d") -> tuple[list[
         return seq[i] if i < len(seq) else None
 
     rows: list[dict] = []
+    held_back = None
     for i, ts in enumerate(timestamps):
         close = at(closes, i)
         if close is None:  # never fabricate a missing close
             continue
         stamp = dt.datetime.utcfromtimestamp(ts + offset)
+        if interval == "1d" and not market_session.is_settled(ts, meta, now):
+            held_back = {"as_of": stamp.strftime("%Y-%m-%d"), "last_trade": float(close)}
+            continue
         as_of = stamp.strftime("%Y-%m-%d" if interval == "1d" else "%Y-%m-%d %H:%M")
         vol = at(volumes, i)
         rows.append(
@@ -125,6 +139,9 @@ def parse_chart(payload: dict, ticker: str, interval: str = "1d") -> tuple[list[
     meta_out = {
         "currency": meta.get("currency"),
         "regular_market_price": meta.get("regularMarketPrice"),
+        # The session still trading when this was read, where there was one: its date
+        # and its last trade, kept out of the rows and never called a close.
+        "held_back": held_back,
     }
     return rows, meta_out
 
@@ -151,7 +168,8 @@ class PricesFetcher(BaseFetcher):
         return fetch_chart(self._yahoo_symbol(), self.chart_range, self.chart_interval)
 
     def normalise(self, raw) -> list[dict]:
-        rows, self._meta = parse_chart(raw, self.ticker, self.chart_interval)
+        rows, self._meta = parse_chart(raw, self.ticker, self.chart_interval,
+                                       now=time.time())
         return rows
 
     # --- snapshots --------------------------------------------------------

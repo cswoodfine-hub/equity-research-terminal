@@ -26,11 +26,13 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 import db
+import market_session
 from fetchers.base import BaseFetcher, RefreshResult
 
 SOURCE = "benchmark"
@@ -66,7 +68,7 @@ SYMBOLS = {
 }
 
 
-def parse_chart(payload: dict, symbol: str) -> list[dict]:
+def parse_chart(payload: dict, symbol: str, now: float | None = None) -> list[dict]:
     """[{symbol, as_of, close, adjclose}] from a Yahoo chart payload. Pure.
 
     A bar with a null close is dropped rather than carried forward: a holiday is a day
@@ -76,9 +78,12 @@ def parse_chart(payload: dict, symbol: str) -> list[dict]:
     happens to contain.
 
     The newest bar is the session in progress, not a settled close, whenever this runs
-    while a market is open. It is stored rather than dropped, because the company
-    prices it is read against are the same and comparing two live prices is what a
-    reader wants; the upsert keys on (symbol, as_of), so the next run settles it.
+    while a market is open. Given ``now`` (epoch seconds, when the payload was read) it
+    is held back, by the rule the company prices follow (market_session): the two are
+    read against each other, so they are either both settled or both wrong. It was
+    stored until 2026-11-23, on the reasoning that the company prices beside it were
+    live too; that was true, and it was the fault, since both then stood in the record
+    as closes. Without ``now`` every bar is kept, which is how a saved payload is read.
 
     ``adjclose`` is present for both an index and an ETF, and for the index it is
     numerically identical to the close on every one of 2,513 bars, because nothing was
@@ -93,6 +98,7 @@ def parse_chart(payload: dict, symbol: str) -> list[dict]:
     if not results:
         raise ValueError(f"yahoo chart returned no result for {symbol}")
     result = results[0]
+    meta = result.get("meta") or {}
     stamps = result.get("timestamp") or []
     indicators = result.get("indicators") or {}
     closes = ((indicators.get("quote") or [{}])[0].get("close")) or []
@@ -102,6 +108,8 @@ def parse_chart(payload: dict, symbol: str) -> list[dict]:
     for i, stamp in enumerate(stamps):
         close = closes[i] if i < len(closes) else None
         if close is None:
+            continue
+        if not market_session.is_settled(stamp, meta, now):
             continue
         adj = adjusted[i] if i < len(adjusted) else None
         rows.append({"symbol": symbol,
@@ -146,7 +154,7 @@ class BenchmarksFetcher(BaseFetcher):
         rows = []
         for symbol, payload in (raw or {}).items():
             try:
-                rows += parse_chart(payload, symbol)
+                rows += parse_chart(payload, symbol, now=time.time())
             except ValueError as exc:
                 self._soft.append(str(exc))
         return rows

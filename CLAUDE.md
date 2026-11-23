@@ -40,6 +40,7 @@ ER Tool/
     insights.py             # rules layer + note generation
     llm.py                  # the one seam in front of the model providers
     contact.py              # the User-Agent identity, read from .env
+    market_session.py       # whether a daily bar is a finished session or one still trading
     loe.py                  # effective LOE: molecule patent over longest listed
     regional_loe.py         # LOE by region
     competitors.py          # who is selling against a product: three registers kept apart
@@ -198,11 +199,13 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   `data/pulse/YYYY-MM-DD.json` to the `claude/pulse-feed` branch, never to main. It
   publishes to git itself; there is no file store in between.
 - The pulse is read by a pass of its own, not by the daily refresh. The two want times
-  that cannot be reconciled. Prices have to be read before any market opens, because
-  `fetchers/prices.py` takes Yahoo's daily chart as it stands and from the opening bell
-  that chart carries a bar for today whose close is the last trade: a refresh after
-  08:00 UTC would write an intraday price into the snapshot history, which no later run
-  could correct. So the refresh stays at 06:00 UTC. The pulse wants the opposite, since
+  that cannot be reconciled. The refresh is scheduled for 06:00 UTC, before any market
+  the book quotes has opened, because from the opening bell Yahoo's daily chart carries
+  a bar for today whose close is the last trade. The schedule does not hold: every
+  refresh in the committed run log from 2026-10-10 to 2026-11-23 began between 10:26 and
+  18:14 UTC. So the price and benchmark fetchers hold back a bar whose session has not
+  closed (`backend/market_session.py`), whatever the hour, and the run snapshots the
+  last finished close under its own date. The pulse wants the opposite of an early run, since
   its value is the European morning, so `refresh.yml` runs a second schedule at 10:00
   UTC on weekdays that restores, reads the branch into `ER_PULSE_DIR`, runs
   `backend/pulse_refresh.py` and publishes, fetching no source. The 06:00 run still
@@ -398,7 +401,7 @@ streamlit run frontend/streamlit_app.py   # UI on 8501
 ```
 
 - The app tests skip when the API is not on 8000, and the JavaScript tests skip when `node` is not installed. A green run with either missing has not tested that part.
-- Refresh only before 08:00 UTC or after the US close. A refresh while a market is open writes an intraday price into the snapshot history as that day's close (see "Daily pulse" above). The Refresh button on the Prices tab is not that refresh: it is the live read, which writes nothing and is safe at any hour.
+- A refresh while a market is open no longer files an intraday price as that day's close: the daily price and benchmark fetchers hold back the bar of a session still trading (`backend/market_session.py`). Until 2026-11-23 they did not. Measured that day, 28 days of snapshots from 2026-07-24 to 2026-11-20 carry a mid-session price under the name of a close (1,232 company-days, median 1.2% from the settled close), and 382 of the 1,542 model calls were priced off one. That record is left as it was written; a reader of an old snapshot checks it against the `prices` table, which the next run settled. The Refresh button on the Prices tab is not that refresh: it is the live read, which writes nothing and is safe at any hour.
 - `uvicorn --reload` restarts the API on any edit under `backend/`, which empties its caches; the first page after that is slow.
 
 ## Rules for you, Claude Code

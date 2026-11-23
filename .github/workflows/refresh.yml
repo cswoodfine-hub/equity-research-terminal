@@ -11,10 +11,12 @@ on:
   schedule:
     # 06:00 UTC daily, before any market this book quotes has opened. Yahoo's daily
     # chart carries a bar for today from the opening bell, whose close is the last
-    # trade, so a run after 08:00 UTC would write an intraday price into the snapshot
-    # history and no later run could tell it was wrong. Scheduled runners can start
-    # late under load, so nothing here depends on the exact minute, but the hour is
-    # not free to move.
+    # trade. This hour was meant to keep that bar out of the snapshot history and did
+    # not: every run from 2026-10-10 to 2026-11-23 began between 10:26 and 18:14 UTC,
+    # because a scheduled runner starts when the host has room. The fetchers now hold
+    # the bar back until its session has closed (backend/market_session.py), so the
+    # record no longer depends on when this fires. The hour stays, since an early run
+    # is still the one that has the day's snapshots in before anyone reads them.
     - cron: '0 6 * * *'
     # 10:00 UTC on weekdays: the daily pulse alone, hours after its scheduled run has
     # pushed the morning's briefing to claude/pulse-feed. The pulse wants the opposite
