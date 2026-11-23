@@ -9,6 +9,8 @@
         "--app-dir",
         "backend",
         "--reload",
+        "--reload-dir",
+        "backend",
         "--port",
         "8000"
       ],

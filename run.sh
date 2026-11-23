@@ -28,7 +28,11 @@ fi
 echo "API  → http://localhost:$API_PORT"
 echo "UI   → http://localhost:$UI_PORT"
 
-"$VENV/bin/uvicorn" main:app --app-dir backend --port "$API_PORT" --reload &
+# The reloader is pointed at backend/ and nothing else. Left to its default it watches
+# the whole checkout, which includes every copy under .claude/worktrees: making one put
+# thousands of new .py files in front of it, it restarted the API in the middle of a
+# refresh, and the API then sat in shutdown behind that refresh for half an hour.
+"$VENV/bin/uvicorn" main:app --app-dir backend --port "$API_PORT" --reload --reload-dir backend &
 API_PID=$!
 ER_API_BASE="http://localhost:$API_PORT" \
   "$VENV/bin/streamlit" run frontend/streamlit_app.py --server.port "$UI_PORT" &
