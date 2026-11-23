@@ -53,6 +53,10 @@ def client(tmp_path, monkeypatch):
     def log_thesis():
         return {"ok": True}
 
+    @app.post("/watch")
+    def watch_now():
+        return {"ok": True}
+
     @app.get("/theses")
     def theses():
         calls["n"] += 1
@@ -110,6 +114,16 @@ def test_logging_a_thesis_clears_nothing(client):
     c, calls, _revalidated, _db, _data = client
     c.get("/value")
     c.post("/theses")
+    after = c.get("/value")
+    assert after.json() == {"n": 1} and after.headers["x-cache"] == "hit"
+
+
+def test_a_watch_run_by_hand_clears_nothing(client):
+    """Most passes find the book as it was. One that writes moves the database's own
+    stamp, so the cache needs no second telling."""
+    c, calls, _revalidated, _db, _data = client
+    c.get("/value")
+    c.post("/watch")
     after = c.get("/value")
     assert after.json() == {"n": 1} and after.headers["x-cache"] == "hit"
 

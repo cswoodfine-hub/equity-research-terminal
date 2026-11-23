@@ -10,6 +10,9 @@ os.environ.setdefault("ER_TOOL_RESPONSE_CACHE", "0")
 os.environ.setdefault("ER_TOOL_RESPONSE_CACHE_DISK", "0")
 # Nor does a test that runs the scheduled refresh record the day's calls on the book.
 os.environ.setdefault("ER_TOOL_CALL_LOG", "0")
+# Nor does a test that starts the app start its timer: the watch asks every company's
+# press feed and EDGAR, on a thread that would outlive the test.
+os.environ.setdefault("ER_TOOL_WATCH_MINUTES", "0")
 # A fixture universe is placed by the engine rule alone; the catalyst focus list names
 # real tickers, and its own tests switch it back on.
 os.environ.setdefault("ER_TOOL_BIOTECH_FOCUS", "0")

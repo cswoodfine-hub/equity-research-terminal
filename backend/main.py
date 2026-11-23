@@ -120,6 +120,15 @@ async def lifespan(app: FastAPI):
         print("call log: " + call_sync.sentence(call_sync.catch_up()), flush=True)
     except Exception as exc:
         print(f"call log not synced: {type(exc).__name__}: {exc}", flush=True)
+    # The look between refreshes: press feeds and filing lists, asked on a timer while
+    # the API is up, so a result announced at seven in New York is on the calendar within
+    # the hour and not at the next day's refresh (watch.py). Off at ER_TOOL_WATCH_MINUTES=0.
+    try:
+        import watch
+        if watch.start():
+            print(f"watch: every {watch.minutes()} minutes", flush=True)
+    except Exception as exc:
+        print(f"watch not started: {type(exc).__name__}: {exc}", flush=True)
     yield
 
 
@@ -2151,6 +2160,23 @@ def company_holders(ticker: str, top: int = Query(default=15, ge=1, le=50)) -> d
     if not out["available"] and out["reason"] == holders_module.NOT_IN_UNIVERSE:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return out
+
+
+@app.get("/watch")
+def watch_status() -> dict:
+    """The watch's timer and what its last pass found: the look at press feeds and
+    filing lists that runs between refreshes."""
+    import watch
+    return watch.status()
+
+
+@app.post("/watch")
+def watch_now() -> dict:
+    """Look now. One pass over the press feeds and filing lists, and the readers and
+    resolver over anything new. Stands aside while a refresh is running."""
+    import watch
+    result = watch.run_once()
+    return {**result, "sentence": watch.sentence(result)}
 
 
 class AskIn(BaseModel):

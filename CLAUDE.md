@@ -36,6 +36,7 @@ ER Tool/
     run_health.py           # one summary a run: start hour, sources erred or quiet, readers the model failed
     scheduled_refresh.py    # the whole-universe refresh with no server, for a schedule
     pulse_refresh.py        # reads the daily pulse; opens no refresh_runs row
+    watch.py                # press feeds and filing lists between refreshes; writes only what is new
     history.py              # export and rebuild data/history/*.ndjson
     diff.py                 # snapshot -> changes engine
     insights.py             # rules layer + note generation
@@ -225,6 +226,11 @@ Confirm every endpoint against its live docs before relying on it. The specifics
 ### Catalysts
 
 - No free PDUFA calendar API exists. Catalysts are a curated table edited in the UI. Supplement with extraction: when a new 8-K or 6-K reports FDA acceptance of a filing, call the model (through `backend/llm.py`) to pull the PDUFA date and write a catalyst row with `is_curated = 0` for review.
+
+- A result is read the hour it is announced, not at the next refresh. The refresh runs once a day before any market opens and a company announces when it chooses, usually an hour later, so a readout sat unread for most of a day. `backend/watch.py` is the look in between: the API runs it on a timer (every 60 minutes, first look five minutes after start; `ER_TOOL_WATCH_MINUTES` sets the interval and 0 turns it off, which the test suite does). It asks each company's press feed and each SEC filer's filing list and nothing else, so it goes nowhere near a price and is safe during a session.
+- **Nothing new, nothing written.** Each answer is compared with the book (a filing by accession, a release by url and then by the headline test `press_releases.record` applies), and only a company with something new is written to. A fetcher's `run` snapshots whether or not anything changed and `response_cache` stamps every valuation with the database's modification time, so the fetchers on a short timer would revalue every company every hour. Keep it that way: a pass that finds nothing must leave the database file and its log untouched, and `tests/test_watch.py` holds that.
+- Where something new arrived, the refresh's own readers run over it in the refresh's order (`trial_readouts`, `press_readouts`, `landed_readouts`, `catalyst_outcomes`, `pdufa`, `applications`, the resolver again, `submissions`), each soft. The resolver runs twice because an acceptance closes a filing gate and is on file only after `pdufa` has read the filing. It opens no `refresh_runs` row, stands aside while a refresh is running, and leaves the registry, the change feed's row for a new filing and everything about prices to the refresh. `GET /watch` says what the last pass found and `POST /watch` runs one now; `backend/.venv/bin/python backend/watch.py` runs one with no server.
+- The watch only runs while the API is up. A machine that is asleep or an API that is stopped looks at nothing, and the next refresh catches up.
 
 ### RxNav (drug codes for the payer files)
 

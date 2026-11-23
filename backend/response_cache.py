@@ -63,7 +63,9 @@ NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                "/theses",
                # Whether the Ask box has a model to answer on depends on the environment,
                # not the book.
-               "/ask")
+               "/ask",
+               # The watch's status is the timer's own state, in this process.
+               "/watch")
 # The positioning read is short interest and an options chain, which move with the market
 # and not with the book, so no stamp of the book can say when it is out of date.
 # The live price read is Yahoo's bars as they stand this minute. It keeps its own hold
@@ -75,7 +77,12 @@ NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet", "/positioning", "/prices/l
 # minutes of recomputation to protect reads it cannot have changed.
 QUIET_WRITES = ("/theses",
                 # A question put to the Ask box reads the book and changes nothing in it.
-                "/ask")
+                "/ask",
+                # A watch pass run by hand. Most find nothing and write nothing, and one
+                # that does write moves the database's own stamp, which is what every
+                # cached read is held against. Clearing here as well would empty the
+                # cache for a look that found the book as it was.
+                "/watch")
 MAX_ENTRIES = 3000
 # A stale entry is recomputed at most this often, so a writer that commits every few
 # seconds cannot keep the book recomputing in a loop.
