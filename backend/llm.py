@@ -158,7 +158,8 @@ def complete(system: str, user: str, max_tokens: int = 1024,
 
 
 # --- shared REST plumbing ------------------------------------------------
-def _post(label: str, url: str, headers: dict, body: dict) -> dict:
+def _post(label: str, url: str, headers: dict, body: dict,
+          timeout: int | None = None) -> dict:
     """POST JSON and parse the reply, turning an HTTP error into a message that names
     the cause. Both providers put the reason in ``error.message``; a bad key is a 400 on
     Gemini and a 401 on Groq, so the code alone does not say why but the body does. The
@@ -168,7 +169,7 @@ def _post(label: str, url: str, headers: dict, body: dict) -> dict:
         headers={**headers, "Content-Type": "application/json",
                  "User-Agent": _USER_AGENT}, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as resp:
+        with urllib.request.urlopen(request, timeout=timeout or _TIMEOUT_S) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = ""
@@ -258,3 +259,277 @@ def _anthropic(system: str, user: str, max_tokens: int) -> str:
         system=system, messages=[{"role": "user", "content": user}])
     return "\n".join(block.text for block in message.content
                      if getattr(block, "type", "") == "text").strip()
+
+
+# --- a conversation that can call tools ----------------------------------
+# ``complete`` is one question and one answer. The chat box (desk_chat.py) is a different
+# shape: the model asks for a read of the book, is handed it, asks for another, and only
+# then answers. Each provider spells that exchange its own way and wants its own turn
+# handed back to it exactly as it wrote it, so the turns are kept here in the provider's
+# native form and the caller sees four verbs: ``user``, ``assistant``, ``step`` and
+# ``results``.
+#
+# A tool is {"name", "description", "input_schema"}, the schema a plain JSON Schema
+# object. ``step`` returns {"text", "calls"}, each call {"id", "name", "args"}; an answer
+# is a step with no calls. ``step(final=True)`` forbids further calls, for the turn where
+# the caller has run out of rounds and needs whatever answer the reads so far support.
+CHAT_TIMEOUT_S = 120
+CHAT_THINKING_BUDGET = 1024
+
+
+def _retrying(send, fallback=None):
+    """``send()`` with the same patience ``complete`` has: three attempts on a busy
+    provider with a widening pause, then the fallback if there is one."""
+    last = None
+    for attempt in range(LLM_ATTEMPTS):
+        try:
+            return send()
+        except Exception as exc:
+            if not _is_transient(exc):
+                raise
+            last = exc
+            if attempt + 1 < LLM_ATTEMPTS:
+                time.sleep(LLM_BACKOFF_S * (attempt + 1))
+    if fallback is not None:
+        try:
+            return fallback()
+        except Exception:
+            pass
+    raise last
+
+
+class Conversation:
+    """One tool-using exchange with one provider. Subclasses hold the turns."""
+
+    provider = ""
+    model = ""
+
+    def __init__(self, system: str, tools: list, max_tokens: int = 2048, post=None):
+        self.system, self.tools, self.max_tokens = system, list(tools or []), max_tokens
+        self._post = post or _post
+
+    def user(self, text: str) -> None:
+        raise NotImplementedError
+
+    def assistant(self, text: str) -> None:
+        raise NotImplementedError
+
+    def step(self, final: bool = False) -> dict:
+        raise NotImplementedError
+
+    def results(self, results: list) -> None:
+        raise NotImplementedError
+
+
+class GeminiConversation(Conversation):
+    """generateContent with functionDeclarations.
+
+    The model's turn is handed back as it came, part for part. A thinking model signs the
+    parts that carry a function call (``thoughtSignature``) and refuses the next request
+    if a signature it issued is missing, so nothing is rebuilt from what was parsed out
+    of the turn. The schema travels as ``parametersJsonSchema``, the field that takes a
+    plain JSON Schema; the older ``parameters`` is an OpenAPI subset that rejects
+    ``additionalProperties``, which every tool here sets.
+    """
+
+    provider = "gemini"
+
+    def __init__(self, system, tools, max_tokens=2048, post=None, model=None):
+        super().__init__(system, tools, max_tokens, post)
+        self.model = model or GEMINI_MODEL
+        self.contents: list = []
+
+    def user(self, text):
+        self.contents.append({"role": "user", "parts": [{"text": text}]})
+
+    def assistant(self, text):
+        self.contents.append({"role": "model", "parts": [{"text": text}]})
+
+    def body(self, final: bool = False) -> dict:
+        body = {
+            "systemInstruction": {"parts": [{"text": self.system}]},
+            "contents": self.contents,
+            "generationConfig": {"maxOutputTokens": self.max_tokens, "temperature": 0.2,
+                                 "thinkingConfig": {"thinkingBudget": CHAT_THINKING_BUDGET}},
+        }
+        if self.tools:
+            body["tools"] = [{"functionDeclarations": [
+                {"name": t["name"], "description": t["description"],
+                 "parametersJsonSchema": t["input_schema"]} for t in self.tools]}]
+            if final:
+                # The tools stay declared, since the turns above name them, and calling
+                # them is switched off.
+                body["toolConfig"] = {"functionCallingConfig": {"mode": "NONE"}}
+        return body
+
+    def read(self, payload: dict) -> dict:
+        """{"text", "calls"} out of a response, the model's turn kept as received."""
+        candidates = payload.get("candidates") or []
+        if not candidates:
+            reason = (payload.get("promptFeedback") or {}).get("blockReason", "no candidates")
+            raise ValueError(f"gemini returned nothing: {reason}")
+        parts = (candidates[0].get("content") or {}).get("parts") or []
+        if not parts:
+            raise ValueError("gemini stopped without an answer: "
+                             + str(candidates[0].get("finishReason") or "no reason given"))
+        self.contents.append({"role": "model", "parts": parts})
+        calls = [{"id": p["functionCall"].get("id"), "name": p["functionCall"].get("name"),
+                  "args": p["functionCall"].get("args") or {}}
+                 for p in parts if isinstance(p.get("functionCall"), dict)]
+        text = "".join(p.get("text", "") for p in parts
+                       if "text" in p and not p.get("thought")).strip()
+        return {"text": text, "calls": calls}
+
+    def step(self, final=False):
+        key = os.getenv("GEMINI_API_KEY", "").strip()
+
+        def send(model):
+            return self._post("gemini", GEMINI_URL.format(model=model),
+                              {"x-goog-api-key": key}, self.body(final), CHAT_TIMEOUT_S)
+
+        fallback = None
+        if GEMINI_FALLBACK_MODEL and GEMINI_FALLBACK_MODEL != self.model:
+            fallback = lambda: send(GEMINI_FALLBACK_MODEL)
+        return self.read(_retrying(lambda: send(self.model), fallback))
+
+    def results(self, results):
+        parts = []
+        for result in results:
+            content = result["content"]
+            reply = {"name": result["name"],
+                     "response": content if isinstance(content, dict) else {"result": content}}
+            if result.get("id"):
+                reply["id"] = result["id"]
+            parts.append({"functionResponse": reply})
+        self.contents.append({"role": "user", "parts": parts})
+
+
+class GroqConversation(Conversation):
+    """Chat completions with ``tools``, the OpenAI shape. A result goes back as a string
+    under the call's id, and is cut to ``RESULT_CHARS`` first: the hosted Llama's
+    allowance is counted in tokens a minute, and one uncut read of the book can be most
+    of a minute's worth."""
+
+    provider = "groq"
+    RESULT_CHARS = 14_000
+
+    def __init__(self, system, tools, max_tokens=2048, post=None, model=None):
+        super().__init__(system, tools, max_tokens, post)
+        self.model = model or GROQ_MODEL
+        self.messages: list = [{"role": "system", "content": system}]
+
+    def user(self, text):
+        self.messages.append({"role": "user", "content": text})
+
+    def assistant(self, text):
+        self.messages.append({"role": "assistant", "content": text})
+
+    def body(self, final: bool = False) -> dict:
+        body = {"model": self.model, "messages": self.messages,
+                "max_tokens": self.max_tokens, "temperature": 0.2}
+        if self.tools:
+            body["tools"] = [{"type": "function", "function": {
+                "name": t["name"], "description": t["description"],
+                "parameters": t["input_schema"]}} for t in self.tools]
+            body["tool_choice"] = "none" if final else "auto"
+        return body
+
+    def read(self, payload: dict) -> dict:
+        choices = payload.get("choices") or []
+        if not choices:
+            raise ValueError(f"groq returned nothing: {str(payload)[:120]}")
+        message = choices[0].get("message") or {}
+        kept = {"role": "assistant", "content": message.get("content") or ""}
+        calls = []
+        if message.get("tool_calls"):
+            kept["tool_calls"] = message["tool_calls"]
+            for call in message["tool_calls"]:
+                function = call.get("function") or {}
+                try:
+                    args = json.loads(function.get("arguments") or "{}")
+                except ValueError:
+                    # Arguments that are not JSON are passed on as they came, so the tool
+                    # refuses them by name and the model sees what it sent.
+                    args = {"unparsed_arguments": function.get("arguments")}
+                calls.append({"id": call.get("id"), "name": function.get("name"),
+                              "args": args if isinstance(args, dict) else {}})
+        self.messages.append(kept)
+        return {"text": (message.get("content") or "").strip(), "calls": calls}
+
+    def step(self, final=False):
+        key = os.getenv("GROQ_API_KEY", "").strip()
+        return self.read(_retrying(lambda: self._post(
+            "groq", GROQ_URL, {"Authorization": f"Bearer {key}"}, self.body(final),
+            CHAT_TIMEOUT_S)))
+
+    def results(self, results):
+        for result in results:
+            content = result["content"]
+            text = content if isinstance(content, str) else json.dumps(content, default=str)
+            if len(text) > self.RESULT_CHARS:
+                text = text[:self.RESULT_CHARS] + " [cut to fit this model's allowance]"
+            self.messages.append({"role": "tool", "tool_call_id": result.get("id"),
+                                  "name": result["name"], "content": text})
+
+
+class AnthropicConversation(Conversation):
+    """The Messages API with ``tools``, through the SDK the note path already uses. Not
+    exercised against the live API when it was written: no Anthropic key was configured
+    on the machine, so the tests pin the shapes against a stand-in client."""
+
+    provider = "anthropic"
+
+    def __init__(self, system, tools, max_tokens=2048, post=None, model=None, client=None):
+        super().__init__(system, tools, max_tokens, post)
+        self.model = model or ANTHROPIC_MODEL
+        self.messages: list = []
+        self._client = client
+
+    def user(self, text):
+        self.messages.append({"role": "user", "content": text})
+
+    def assistant(self, text):
+        self.messages.append({"role": "assistant", "content": text})
+
+    def step(self, final=False):
+        if self._client is None:
+            import anthropic  # lazy, so the app runs without the SDK
+            self._client = anthropic.Anthropic()
+        kwargs = {"model": self.model, "max_tokens": self.max_tokens, "system": self.system,
+                  "messages": list(self.messages)}
+        if self.tools:
+            kwargs["tools"] = [{"name": t["name"], "description": t["description"],
+                                "input_schema": t["input_schema"]} for t in self.tools]
+            if final:
+                kwargs["tool_choice"] = {"type": "none"}
+        message = _retrying(lambda: self._client.messages.create(**kwargs))
+        blocks = list(getattr(message, "content", None) or [])
+        self.messages.append({"role": "assistant", "content": blocks})
+        calls = [{"id": getattr(b, "id", None), "name": getattr(b, "name", None),
+                  "args": getattr(b, "input", None) or {}}
+                 for b in blocks if getattr(b, "type", "") == "tool_use"]
+        text = "\n".join(getattr(b, "text", "") for b in blocks
+                         if getattr(b, "type", "") == "text").strip()
+        return {"text": text, "calls": calls}
+
+    def results(self, results):
+        self.messages.append({"role": "user", "content": [
+            {"type": "tool_result", "tool_use_id": r.get("id"),
+             "content": (r["content"] if isinstance(r["content"], str)
+                         else json.dumps(r["content"], default=str)),
+             "is_error": bool(r.get("is_error"))} for r in results]})
+
+
+_CONVERSATIONS = {"gemini": GeminiConversation, "groq": GroqConversation,
+                  "anthropic": AnthropicConversation}
+
+
+def conversation(system: str, tools: list, prefer: str | None = None,
+                 max_tokens: int = 2048) -> Conversation:
+    """A tool-using conversation on whichever provider has a key, ``prefer`` first.
+    Raises where none is configured, as ``complete`` does."""
+    active = provider(prefer)
+    if active is None:
+        raise RuntimeError("no model provider configured "
+                           "(set GROQ_API_KEY, GEMINI_API_KEY or ANTHROPIC_API_KEY)")
+    return _CONVERSATIONS[active](system, tools, max_tokens)

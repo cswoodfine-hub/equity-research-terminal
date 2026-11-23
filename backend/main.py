@@ -10,7 +10,7 @@ import json
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -25,6 +25,7 @@ import fair_value
 import backtest as backtest_module
 import base_rates as base_rates_module
 import comparable_readouts as comparable_readouts_module
+import desk_chat
 import event_calendar as event_calendar_module
 import holders as holders_module
 import insiders as insiders_module
@@ -2110,6 +2111,31 @@ def company_holders(ticker: str, top: int = Query(default=15, ge=1, le=50)) -> d
     if not out["available"] and out["reason"] == holders_module.NOT_IN_UNIVERSE:
         raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
     return out
+
+
+class AskIn(BaseModel):
+    question: str
+    history: Optional[list] = None
+    ticker: Optional[str] = None
+    name: Optional[str] = None
+
+
+@app.get("/ask/status")
+def ask_status() -> dict:
+    """Whether the Ask box can answer, and on which model."""
+    return desk_chat.status()
+
+
+@app.post("/ask")
+def ask(body: AskIn, request: Request) -> dict:
+    """One question about the book, answered by a model that may only read it through
+    the desk tools (desk_chat.py). The answer carries every read it was made from. A
+    question it cannot answer comes back with ``ok`` false and the reason, not an error:
+    no model key, a provider that failed, or nothing asked."""
+    return desk_chat.answer(
+        body.question, history=body.history,
+        context={"ticker": body.ticker, "name": body.name},
+        fetch=desk_chat.api_fetch(str(request.base_url)))
 
 
 class ThesisIn(BaseModel):

@@ -60,14 +60,19 @@ NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                "/portfolio/",
                # The thesis log is marked against today's prices and read straight after
                # a write to it.
-               "/theses")
+               "/theses",
+               # Whether the Ask box has a model to answer on depends on the environment,
+               # not the book.
+               "/ask")
 # The positioning read is short interest and an options chain, which move with the market
 # and not with the book, so no stamp of the book can say when it is out of date.
 NEVER_SUFFIXES = ("/note", "/intraday", "/tearsheet", "/positioning")
 # Writes that change nothing a cached read is computed from. A thesis is appended to a
 # ledger beside the book (thesis_log.py); clearing every valuation for it would cost
 # minutes of recomputation to protect reads it cannot have changed.
-QUIET_WRITES = ("/theses",)
+QUIET_WRITES = ("/theses",
+                # A question put to the Ask box reads the book and changes nothing in it.
+                "/ask")
 MAX_ENTRIES = 3000
 # A stale entry is recomputed at most this often, so a writer that commits every few
 # seconds cannot keep the book recomputing in a loop.
