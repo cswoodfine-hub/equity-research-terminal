@@ -1150,6 +1150,64 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 .note ul {{ margin: 0.1rem 0; padding-left: 1.1rem; }}
 .note li {{ margin: 0.05rem 0; }}
 .byline {{ font-size: 11px; color: var(--muted); margin-top: 0.35rem; }}
+
+/* Ask: a transcript, not a chat application. A question is the heading of its own answer,
+   the answer is prose at a reading measure, and what it was read from folds beneath it,
+   one line a read. No bubbles and no avatars: the rest of the terminal has neither, and
+   a column of rounded balloons would be the one thing on the page dressed as a different
+   product. */
+/* One measure for the question, its answer, its reads and the box, so the column has an
+   edge: about seventy characters of the answer's size, which is the line a paragraph of
+   figures is read at. */
+.ask-q, .ask-reads, .ask-by,
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"],
+[class*="st-key-ask_box_"] [data-testid="stChatInput"] {{ max-width: 41rem; }}
+/* More room above a question than below it: it belongs to the answer under it. */
+.ask-q {{ font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35;
+         margin: 1.1rem 0 0.4rem; text-wrap: balance; }}
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"] {{
+  font-size: 13.5px; line-height: 1.55; }}
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"] p {{ margin: 0 0 0.55rem; }}
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"] ul,
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"] ol {{
+  margin: 0 0 0.55rem; padding-left: 1.1rem; }}
+[class*="st-key-ask_answer_"] [data-testid="stMarkdownContainer"] li {{ margin: 0.15rem 0; }}
+.ask-reads {{ margin: 0.15rem 0 0.6rem; }}
+.ask-reads > summary {{ font-size: 11px; color: var(--muted); cursor: pointer;
+                       list-style: none; padding: 0.15rem 0; }}
+.ask-reads > summary::-webkit-details-marker {{ display: none; }}
+.ask-reads > summary:hover, .ask-reads[open] > summary {{ color: var(--text); }}
+.ask-reads > summary:focus {{ outline: none; }}
+.ask-reads > summary:focus-visible {{ outline: 1px solid var(--rule-strong);
+                                     outline-offset: 3px; }}
+.ask-read {{ display: grid; grid-template-columns: 11.5rem minmax(0, 1fr) auto;
+            gap: 0.75rem; align-items: baseline; padding: 0.3rem 0;
+            border-top: 1px solid var(--rule); font-size: 11.5px; }}
+.ask-read .t {{ color: var(--text); }}
+.ask-read .a, .ask-read .d {{ font-family: var(--font-mono); font-size: 10.5px;
+                             color: var(--muted); }}
+.ask-read .a {{ overflow-wrap: anywhere; }}
+.ask-read .d {{ white-space: nowrap; }}
+.ask-read.err .d {{ color: var(--down); white-space: normal; text-align: right; }}
+/* The question box: square and quiet like every other control, with the rule's colour
+   for its focus ring in place of Streamlit's red. */
+[class*="st-key-ask_box_"] {{ margin-top: 0.9rem; }}
+[class*="st-key-ask_box_"] [data-testid="stChatInput"] > div {{
+  border-radius: var(--radius) !important; border: 1px solid var(--rule-strong) !important;
+  background: var(--panel) !important; box-shadow: none !important; }}
+[class*="st-key-ask_box_"] [data-testid="stChatInput"] > div:focus-within {{
+  border-color: var(--muted) !important; }}
+[class*="st-key-ask_box_"] [data-testid="stChatInputTextArea"] {{
+  font-family: var(--font-ui); font-size: 13.5px; color: var(--text);
+  caret-color: var(--text); }}
+[class*="st-key-ask_box_"] [data-testid="stChatInputTextArea"]::placeholder {{
+  color: var(--muted); opacity: 1; }}
+[class*="st-key-ask_box_"] [data-testid="stChatInputSubmitButton"] {{
+  border-radius: var(--radius) !important; color: var(--muted); }}
+[class*="st-key-ask_box_"] [data-testid="stChatInputSubmitButton"]:hover {{
+  background: var(--rule) !important; color: var(--text); }}
+/* The opening questions sit as a row of quiet controls and wrap rather than stretch. */
+[class*="st-key-ask_starters_"] .stButton button {{ font-weight: 400; text-align: left; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than
    scanned, so it takes the body size and a measure that does not run the width of a
    wide screen. */

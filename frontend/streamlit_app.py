@@ -10278,6 +10278,130 @@ def _pulse_panel(api_base: str) -> None:
          "appear in that company's What changed.")
 
 
+# The Ask box's opening questions: the three a reader most often has of a company that no
+# one tab answers, each a reading across several. Offered only while the conversation is
+# empty, so the box does not open on a blank line and a blinking cursor.
+ASK_STARTERS = (
+    "Is {ticker} funded through its next readout?",
+    "What does the share price assume about {ticker}'s next gate?",
+    "Who has been buying and selling {ticker}, and who holds it?",
+)
+
+
+def _ask_reads_html(steps: list) -> str:
+    """What an answer was read from: one line a read, folded under the answer. A read
+    that failed says why, in the down colour and in words."""
+    if not steps:
+        return ('<div class="byline ask-by">No reads were made for this answer, so it '
+                'rests on nothing in the book.</div>')
+    rows = []
+    for step in steps:
+        args = ", ".join(f"{k} {v}" for k, v in (step.get("args") or {}).items()) or "all"
+        if step.get("ok"):
+            tail = f'as of {step["as_of"]}' if step.get("as_of") else "read"
+            cls = "ask-read"
+        else:
+            tail = step.get("error") or "not read"
+            cls = "ask-read err"
+        rows.append(f'<div class="{cls}"><span class="t">{html_escape(step.get("title") or "")}'
+                    f'</span><span class="a">{html_escape(args)}</span>'
+                    f'<span class="d">{html_escape(str(tail))}</span></div>')
+    count = len(steps)
+    label = f'Read from the book: {count} read{"" if count == 1 else "s"}'
+    return (f'<details class="ask-reads"><summary>{label}</summary>'
+            + "".join(rows) + "</details>")
+
+
+def _ask_send(api_base: str, ticker: str, name: str, key: str, question: str) -> None:
+    """Put one question to the API and keep the exchange. A failure to reach the API is
+    kept as an exchange too, so the reader sees what happened beside what they asked."""
+    turns = st.session_state.setdefault(key, [])
+    history = []
+    for turn in turns:
+        history.append({"role": "user", "text": turn["q"]})
+        if turn.get("ok"):
+            history.append({"role": "assistant", "text": turn["answer"]})
+    with st.spinner("Reading the book"):
+        try:
+            got = api_post_body(api_base, "/ask", {
+                "question": question, "history": history, "ticker": ticker,
+                "name": name}, timeout=300)
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            got = {"ok": False, "reason": f"The API did not answer: {exc}"}
+    turns.append({"q": question, **got})
+
+
+@st.fragment
+def _ask_tab(api_base: str, ticker: str, name: str) -> None:
+    """The Ask tab: a question about the book, answered from the book.
+
+    A fragment, so asking redraws this tab and not the other eleven. The conversation is
+    kept per company in the session and nowhere else: closing the page ends it, and the
+    only thing that outlives it is a thesis the reader asked to have logged.
+    """
+    key = f"ask_turns_{ticker}"
+    turns = st.session_state.setdefault(key, [])
+    section("Ask the book")
+    try:
+        status = api_get(api_base, "/ask/status")
+    except (urllib.error.URLError, OSError, ValueError):
+        status = {}
+    if not status.get("ready"):
+        state("No model key is set",
+              "The Ask box is answered by a language model reading the book. Set "
+              "GEMINI_API_KEY, GROQ_API_KEY or ANTHROPIC_API_KEY in .env and restart the "
+              "API. Every other tab works without one.")
+        return
+    st.markdown(
+        '<div class="byline ask-by">A language model answers from the book\'s own reads '
+        'and lists each one under its answer. It values nothing and changes nothing; the '
+        f'figures are the book\'s. Research, not advice. Model: {html_escape(str(status.get("model") or ""))}.'
+        '</div>', unsafe_allow_html=True)
+
+    pending = st.session_state.pop(f"ask_pending_{ticker}", None)
+    for i, turn in enumerate(turns):
+        st.markdown(f'<div class="ask-turn"><div class="ask-q">{html_escape(turn["q"])}</div></div>',
+                    unsafe_allow_html=True)
+        if turn.get("ok"):
+            with st.container(key=f"ask_answer_{ticker}_{i}"):
+                # Streamlit reads a pair of dollar signs as mathematics, and an answer
+                # about money has several: "$1,134m in cash and $221m" came out as one
+                # italic run with the spaces gone. Escaped, they are dollar signs.
+                st.markdown(turn["answer"].replace("$", "\\$"))
+            st.markdown(_ask_reads_html(turn.get("steps") or []), unsafe_allow_html=True)
+        else:
+            state("No answer", html_escape(str(turn.get("reason") or "The model returned nothing.")),
+                  error=True)
+            if turn.get("steps"):
+                st.markdown(_ask_reads_html(turn["steps"]), unsafe_allow_html=True)
+
+    if pending:
+        # The question goes up the moment it is asked and the wait happens under it, so
+        # the ten seconds a read takes are not ten seconds of a page that did nothing.
+        st.markdown(f'<div class="ask-turn"><div class="ask-q">{html_escape(pending)}</div></div>',
+                    unsafe_allow_html=True)
+        _ask_send(api_base, ticker, name, key, pending)
+        st.rerun(scope="fragment")
+
+    if not turns:
+        with st.container(key=f"ask_starters_{ticker}", horizontal=True):
+            for n, text in enumerate(ASK_STARTERS):
+                if st.button(text.format(ticker=ticker), key=f"ask_start_{ticker}_{n}"):
+                    st.session_state[f"ask_pending_{ticker}"] = text.format(ticker=ticker)
+                    st.rerun(scope="fragment")
+
+    with st.container(key=f"ask_box_{ticker}"):
+        typed = st.chat_input(f"Ask about {ticker} or anything in the book",
+                              key=f"ask_input_{ticker}")
+    if typed:
+        st.session_state[f"ask_pending_{ticker}"] = typed
+        st.rerun(scope="fragment")
+    if turns:
+        if st.button("Clear the conversation", key=f"ask_clear_{ticker}"):
+            st.session_state[key] = []
+            st.rerun(scope="fragment")
+
+
 def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
     """POST a JSON body. api_post sends none, and this needs one."""
     request = urllib.request.Request(
@@ -11418,6 +11542,9 @@ with main:
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
     _wanted += [("comps", "Comps"), ("holdings", "Holdings")]
+    # Last, because it is not a view of anything: it is where a question goes that no tab
+    # above was built to answer.
+    _wanted.append(("ask", "Ask"))
     _panels = dict(zip([name for name, _label in _wanted],
                        st.tabs([label for _name, label in _wanted])))
     universe_tab = _panels["universe"]
@@ -11433,6 +11560,9 @@ with main:
     portfolio_tab = _panels.get("portfolio")
     runway_tab = _panels.get("runway")
     universe_page.click_pending_tab()
+
+    with _panels["ask"]:
+        _ask_tab(api_base, ticker, (company or {}).get("name") or "")
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:

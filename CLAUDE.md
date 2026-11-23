@@ -9,7 +9,7 @@ An equity research terminal for biopharma: large-cap pharma, biotech, and cell a
 - Backend: Python 3.11+, FastAPI, SQLite via `sqlite3`. Keep SQL portable.
 - Frontend: Streamlit (`frontend/streamlit_app.py`), a thin client over the JSON API. Every chart is hand-built SVG from `frontend/components/charts.py`; there are no native Streamlit or Altair charts. A few views are iframe components under `frontend/components/`; the largest, the Comps frame (`compsval/`), is plain JavaScript with its own `node --test` suite. The React port the first plan allowed for was never made.
 - Jobs: plain functions triggered by the refresh endpoint or by `backend/scheduled_refresh.py`. No Celery or queue. The schedule is a GitHub Actions workflow.
-- LLM: confined to the generated notes (`insights.py`, `brief.py`), to the extractors that read filing, label and press text (`pdufa.py`, `trial_readouts.py`, `press_readouts.py`, `guidance.py`, `biologic_loe.py`, `deals.py`, `dailymed.py`), and to the second read of evidence grades (`grade_review.py`). Never a value, a forecast or a rule. Every call goes through one seam, `backend/llm.py`: Groq, then Gemini, then Anthropic, the first key present wins, and `LLM_PROVIDER` pins one. The notes default to Gemini (`NOTE_LLM_PROVIDER`). The app must function without a key and degrade to rules-only output.
+- LLM: confined to the generated notes (`insights.py`, `brief.py`), to the extractors that read filing, label and press text (`pdufa.py`, `trial_readouts.py`, `press_readouts.py`, `guidance.py`, `biologic_loe.py`, `deals.py`, `dailymed.py`), to the second read of evidence grades (`grade_review.py`), and to the Ask tab (`desk_chat.py`), where it answers a question from the desk tools' reads and nothing else. Never a value, a forecast or a rule. Every call goes through one seam, `backend/llm.py`: Groq, then Gemini, then Anthropic, the first key present wins, and `LLM_PROVIDER` pins one. The notes default to Gemini (`NOTE_LLM_PROVIDER`). The app must function without a key and degrade to rules-only output.
 
 ## Repo structure
 
@@ -60,6 +60,8 @@ ER Tool/
     payer_access.py         # Part D prescribing, plan coverage, Medicaid: display only
     mcp_tools.py            # the desk tools: the book's reads shaped for a model to call
     thesis_log.py           # dated, falsifiable reads, appended to ledger/theses.ndjson
+    desk_chat.py            # the Ask tab: a question answered from the desk tools' reads
+    call_sync.py            # append the call log's missing days from data/history
     insiders.py, holders.py # Form 4 dealing and 13F holders, read from the book
     positioning.py          # short interest, options, insiders, holders: side by side
     companyfacts.py         # the XBRL parser EDGAR and ESEF data share
@@ -292,6 +294,20 @@ no single page connects and every figure it uses is one the book computed.
   marked.
 - A new tool is a new entry in `mcp_tools.TOOLS` over an API route. Give it a route first
   if the read does not exist; do not compute in the tool.
+- The Ask tab is the same tools inside the app (`desk_chat.py`, `POST /ask`). The model is
+  pinned with `CHAT_LLM_PROVIDER` (Gemini by default, like the notes) and reached through
+  `llm.conversation`, the tool-using side of the one seam. An answer comes back with every
+  read it was made from. The reader's own holdings are not offered to it unless
+  `CHAT_ALLOW_PORTFOLIO=1`, because what a tool returns is sent to the model's provider.
+  With no key the tab says so and the rest of the app is unaffected.
+
+### The call log follows the committed record
+
+- Only the scheduled run records calls (`model_calls`, `gate_calls`), so the dated record
+  has one writer. A book refreshed from the terminal gets them from `data/history`:
+  `call_sync.py` appends the days the history files hold beyond the book at API start,
+  changes nothing already there, and refuses where the book and the file disagree. Pull
+  `main`, restart the API, and the gate odds are current.
 
 ### Form 4 (insider transactions)
 
