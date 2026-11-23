@@ -23,6 +23,13 @@ import landed_readouts as landed_readouts_module
 import breakpoints
 import fair_value
 import backtest as backtest_module
+import base_rates as base_rates_module
+import comparable_readouts as comparable_readouts_module
+import event_calendar as event_calendar_module
+import holders as holders_module
+import insiders as insiders_module
+import positioning as positioning_module
+import thesis_log
 import event_signal as event_signal_module
 import gate_odds as gate_odds_module
 import comparator_link as comparator_link_module
@@ -2007,6 +2014,122 @@ def accept_catalyst(catalyst_id: int) -> dict:
             detail=f"catalyst {catalyst_id} not found, already curated, or already "
                    f"resolved")
     return {"accepted": catalyst_id}
+
+
+# --- the reads behind the desk tools (mcp_tools.py) ------------------------------------
+@app.get("/base-rates")
+def base_rates(transition: Optional[str] = Query(default=None),
+               cut: Optional[str] = Query(default=None),
+               group: Optional[str] = Query(default=None)) -> dict:
+    """The published phase transition rates a gate's odds are built from, each with the
+    number of transitions it was measured on and the figure it was transcribed from."""
+    return base_rates_module.table(transition, cut, group)
+
+
+@app.get("/base-rates/record")
+def base_rates_record() -> dict:
+    """How the catalysts this book has tracked resolved: counts, not a success rate."""
+    return base_rates_module.record(None)
+
+
+@app.get("/base-rates/asset/{asset_id}")
+def base_rates_asset(asset_id: int) -> dict:
+    """One asset's placement at its gate: the chain, the cuts it qualified for, and the
+    legs either side of its next readout."""
+    got = base_rates_module.for_asset(None, asset_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=f"no asset {asset_id}")
+    return got
+
+
+@app.get("/comparable-readouts")
+def comparable_readouts(ticker: Optional[str] = Query(default=None),
+                        phase: Optional[int] = Query(default=None),
+                        outcome: Optional[str] = Query(default=None),
+                        engine: Optional[str] = Query(default=None),
+                        limit: int = Query(default=comparable_readouts_module.DEFAULT_LIMIT,
+                                           le=comparable_readouts_module.MAX_LIMIT)) -> dict:
+    """Past readouts one row each, with the share price's move around them against XBI."""
+    return comparable_readouts_module.build(None, ticker=ticker, phase=phase,
+                                            outcome=outcome, engine=engine, limit=limit)
+
+
+@app.get("/companies/{ticker}/calendar")
+def company_calendar(ticker: str,
+                     days: int = Query(default=event_calendar_module.DEFAULT_DAYS)) -> dict:
+    """Every dated event ahead of one company in date order: catalysts with the registry
+    and guided dates side by side, panel votes, exclusivity losses and the cash-out day."""
+    got = event_calendar_module.for_company(None, ticker, days)
+    if got is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return got
+
+
+@app.get("/companies/{ticker}/positioning")
+def company_positioning(ticker: str, parts: Optional[str] = Query(default=None)) -> dict:
+    """Short interest, the move the options price, insider dealing and institutional
+    holders, side by side and not scored. ``parts`` is a comma-separated subset."""
+    wanted = tuple(p.strip() for p in parts.split(",") if p.strip()) if parts else None
+    got = positioning_module.for_company(None, ticker, wanted)
+    if got is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return got
+
+
+@app.get("/companies/{ticker}/insiders")
+def company_insiders(ticker: str, days: int = Query(default=insiders_module.DEFAULT_DAYS),
+                     as_of: Optional[str] = Query(default=None)) -> dict:
+    """Form 4 dealing by the company's officers and directors: open market purchases and
+    sales apart from awards, exercises and tax withholding, sales on a plan flagged.
+    ``as_of`` reads the record as it stood on a past day, by filing date."""
+    try:
+        built = insiders_module.for_company(None, ticker, days=max(1, min(days, 730)),
+                                            as_of=as_of)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"not an ISO date: {as_of}")
+    if built is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return built
+
+
+@app.get("/companies/{ticker}/holders")
+def company_holders(ticker: str, top: int = Query(default=15, ge=1, le=50)) -> dict:
+    """Who held the company's shares at the last 13F quarter end and how that changed.
+    A company with no CUSIP on the register answers with the reason, not a 404: Roche
+    and Bayer trade over the counter in the US and are not 13(f) securities."""
+    out = holders_module.for_company(None, ticker, top=top)
+    if not out["available"] and out["reason"] == holders_module.NOT_IN_UNIVERSE:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return out
+
+
+class ThesisIn(BaseModel):
+    ticker: str
+    side: str
+    horizon_days: int
+    claim: str
+    rests_on: str
+    wrong_if: str
+    asset_id: Optional[int] = None
+    catalyst_id: Optional[int] = None
+    supersedes: Optional[int] = None
+    author: Optional[str] = None
+
+
+@app.get("/theses")
+def theses(ticker: Optional[str] = Query(default=None)) -> dict:
+    """The thesis log, each thesis marked against XBI where its horizon has traded."""
+    return thesis_log.score(None, ticker=ticker)
+
+
+@app.post("/theses")
+def log_thesis(body: ThesisIn) -> dict:
+    """Append one thesis to the ledger. 422 with the reason where it could not later be
+    marked: no price on file, no side, nothing that would show it wrong."""
+    try:
+        return thesis_log.record(None, **body.dict())
+    except thesis_log.Refused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 @app.post("/companies/{ticker}/tearsheet")
