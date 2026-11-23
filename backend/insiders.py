@@ -191,8 +191,12 @@ def mark_superseded(rows: list[dict]) -> None:
         (same or candidates)[0]["superseded_by"] = amended.get("accession")
 
 
-# How many people each side names. Enough to see who the total is, short enough to read.
-LARGEST = 5
+# How many people each side names. Enough to see who the total is, and enough that a
+# reader is not left to add up the rest from the list of transactions, which is cut to
+# the newest and so adds up to something else: asked who had been selling Dyne, a model
+# given five names totalled the sixth from the thirty lines it could see and was 145
+# shares short.
+LARGEST = 10
 
 
 def _largest(lines: list[dict]) -> list[dict]:

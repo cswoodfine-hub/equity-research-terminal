@@ -54,7 +54,10 @@ INSTRUCTIONS = (
     "calls have scored so far, and any read you give should say so where it matters. "
     "(6) This is research, not advice: do not tell the user to buy or sell. "
     "(7) Call lens_log_thesis only when the user asks for a read to be put on the "
-    "record; it is append-only and is marked against XBI on its due date."
+    "record; it is append-only and is marked against XBI on its due date. "
+    "(8) A list that says it shows fewer rows than its total is a sample: never add it "
+    "up or count it. Use the totals and summaries the tool gives, and if the one you "
+    "need is not there, say so."
 )
 
 
