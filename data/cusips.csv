@@ -1,0 +1,98 @@
+# The CUSIP each company's US-listed shares are reported under on Form 13F.
+#
+# The book held no CUSIPs and no free service maps a ticker to one, so these were derived
+# from the SEC's own files and from nothing else. A candidate is a security the Form 13F
+# data set reports under the company's name. It is kept when the Official List of Section
+# 13(f) Securities for 2026 Q2 (https://www.sec.gov/files/investment/13flist2026q2-txt.txt,
+# read 2026-11-23) carries exactly one equity class under that issuer name, common or
+# ordinary shares or the sponsored depositary share, not marked deleted, and the check
+# digit holds. Notes, warrants, rights and the list's own option entries are not classes.
+#
+# Matching on a word of the name is not enough, which is why the whole name is compared:
+# VIKING HOLDINGS LTD (G93A5A101) is the cruise line and VERTEX INC (92538J106) the tax
+# software company, and each is reported by more managers than some companies here.
+#
+# A company with no row has no free data, and data/cusips_left_out.csv says why. A row is
+# never a guess: a wrong but well-formed CUSIP would read another company's holders, so
+# the loader (backend/cusips.py) refuses one whose check digit fails.
+#
+# class_title is the official list's own description. One ticker may hold two rows when
+# its CUSIP changed: the reader sums them and says the identifier moved.
+#
+# The official list is quarterly. When a company restructures, lists its shares somewhere
+# else or consolidates them, its CUSIP changes and the row here goes stale without any
+# error: the holders simply stop arriving. Check a company against the newest list when
+# its holder count falls away.
+ticker,cusip,class_title,source,note
+LLY,532457108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as ELI LILLY & CO; 5,139 holdings reports in the June to August 2026 data set"
+NVO,670100205,ADR,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as NOVO-NORDISK A S; 1,540 holdings reports in the June to August 2026 data set"
+MRK,58933Y105,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as MERCK & CO INC; 4,331 holdings reports in the June to August 2026 data set; 589331107, the CUSIP Merck used before 2009, is still reported by a few managers and is not on the list"
+PFE,717081103,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as PFIZER INC; 3,327 holdings reports in the June to August 2026 data set"
+ABBV,00287Y109,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as ABBVIE INC; 4,691 holdings reports in the June to August 2026 data set"
+JNJ,478160104,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as JOHNSON & JOHNSON; 5,276 holdings reports in the June to August 2026 data set"
+AZN,G0593M107,ORD,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as ASTRAZENECA PLC; 1,587 holdings reports in the June to August 2026 data set; ordinary shares listed directly on the NYSE from 2 February 2026. The sponsored ADR it replaced (046353108) was deleted from the 2026 Q1 list and is left out, so a manager still reporting under it is not counted"
+GSK,37733W204,SPONSORED ADR,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as GSK PLC; 1,189 holdings reports in the June to August 2026 data set"
+NVS,66987V109,SPONSORED ADR,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as NOVARTIS AG; 1,826 holdings reports in the June to August 2026 data set"
+SNY,80105N105,SPONSORED ADR,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as SANOFI SA; 886 holdings reports in the June to August 2026 data set
+BMY,110122108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as BRISTOL-MYERS SQUIBB CO; 2,981 holdings reports in the June to August 2026 data set"
+AMGN,031162100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as AMGEN INC; 3,542 holdings reports in the June to August 2026 data set"
+GILD,375558103,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as GILEAD SCIENCES INC; 2,649 holdings reports in the June to August 2026 data set"
+VRTX,92532F100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as VERTEX PHARMACEUTICALS INC; 1,991 holdings reports in the June to August 2026 data set"
+REGN,75886F107,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as REGENERON PHARMACEUTICALS; 1,564 holdings reports in the June to August 2026 data set"
+BIIB,09062X103,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as BIOGEN INC; 1,257 holdings reports in the June to August 2026 data set"
+LEGN,52490G102,SPONSORED ADS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as LEGEND BIOTECH CORP; 272 holdings reports in the June to August 2026 data set
+CAPR,14070B309,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as CAPRICOR THERAPEUTICS INC; 190 holdings reports in the June to August 2026 data set
+ALLO,019770106,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ALLOGENE THERAPEUTICS INC; 228 holdings reports in the June to August 2026 data set
+CRBU,142038108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as CARIBOU BIOSCIENCES INC; 149 holdings reports in the June to August 2026 data set
+IOVA,462260100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as IOVANCE BIOTHERAPEUTICS INC; 338 holdings reports in the June to August 2026 data set
+SANA,799566104,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as SANA BIOTECHNOLOGY INC; 233 holdings reports in the June to August 2026 data set
+NTLA,45826J105,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as INTELLIA THERAPEUTICS INC; 404 holdings reports in the June to August 2026 data set
+BEAM,07373V105,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as BEAM THERAPEUTICS INC; 308 holdings reports in the June to August 2026 data set
+CRSP,H17182108,NAMEN AKT,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as CRISPR THERAPEUTICS AG; 606 holdings reports in the June to August 2026 data set
+RCKT,77313F106,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ROCKET PHARMACEUTICALS INC; 206 holdings reports in the June to August 2026 data set
+SRPT,803607100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as SAREPTA THERAPEUTICS INC; 467 holdings reports in the June to August 2026 data set
+ALNY,02043Q107,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ALNYLAM PHARMACEUTICALS INC; 955 holdings reports in the June to August 2026 data set
+IONS,462222100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as IONIS PHARMACEUTICALS INC; 654 holdings reports in the June to August 2026 data set
+ARWR,04280A100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ARROWHEAD PHARMACEUTICALS IN; 569 holdings reports in the June to August 2026 data set
+MRNA,60770K107,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as MODERNA INC; 954 holdings reports in the June to August 2026 data set
+BNTX,09075V102,SPONSORED ADS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as BIONTECH SE; 332 holdings reports in the June to August 2026 data set
+VKTX,92686J106,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as VIKING THERAPEUTICS INC; 476 holdings reports in the June to August 2026 data set
+ALT,02155H200,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ALTIMMUNE INC; 233 holdings reports in the June to August 2026 data set
+GPCR,86366E106,SPONSORED ADS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as STRUCTURE THERAPEUTICS INC; 208 holdings reports in the June to August 2026 data set
+RVMD,76155X100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as REVOLUTION MEDICINES INC; 745 holdings reports in the June to August 2026 data set
+LNTH,516544103,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as LANTHEUS HLDGS INC; 513 holdings reports in the June to August 2026 data set
+ARGX,04016X101,SPONSORED ADR,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ARGENX SE; 575 holdings reports in the June to August 2026 data set
+AXSM,05464T104,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as AXSOME THERAPEUTICS INC.; 555 holdings reports in the June to August 2026 data set
+NBIX,64125C109,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as NEUROCRINE BIOSCIENCES INC; 931 holdings reports in the June to August 2026 data set
+BMRN,09061G101,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as BIOMARIN PHARMACEUTICAL INC; 713 holdings reports in the June to August 2026 data set
+UTHR,91307C102,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as UNITED THERAPEUTICS CORP DEL; 1,016 holdings reports in the June to August 2026 data set"
+INCY,45337C102,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as INCYTE CORP; 1,017 holdings reports in the June to August 2026 data set"
+EXEL,30161Q104,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as EXELIXIS INC; 903 holdings reports in the June to August 2026 data set
+QURE,N90064101,SHS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as UNIQURE NV; 296 holdings reports in the June to August 2026 data set
+EDIT,28106W103,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as EDITAS MEDICINE INC; 256 holdings reports in the June to August 2026 data set
+PRME,74168J101,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as PRIME MEDICINE INC; 203 holdings reports in the June to August 2026 data set
+VYGR,92915B106,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as VOYAGER THERAPEUTICS INC; 147 holdings reports in the June to August 2026 data set
+RGNX,75901B107,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as REGENXBIO INC; 201 holdings reports in the June to August 2026 data set
+KRYS,501147102,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as KRYSTAL BIOTECH INC; 462 holdings reports in the June to August 2026 data set
+TSHA,877619106,COM SHS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as TAYSHA GENE THERAPIES INC; 227 holdings reports in the June to August 2026 data set
+ABEO,00289Y206,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ABEONA THERAPEUTICS INC; 140 holdings reports in the June to August 2026 data set
+SLDB,83422E204,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as SOLID BIOSCIENCES INC; 173 holdings reports in the June to August 2026 data set
+FATE,31189P102,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as FATE THERAPEUTICS INC; 188 holdings reports in the June to August 2026 data set
+ATRA,046513206,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ATARA BIOTHERAPEUTICS INC; 40 holdings reports in the June to August 2026 data set
+AUTL,05280R100,SPON ADS,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as AUTOLUS THERAPEUTICS LTD; 88 holdings reports in the June to August 2026 data set
+CABA,12674W109,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as CABALETTA BIO INC; 152 holdings reports in the June to August 2026 data set
+KYTX,501976104,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as KYVERNA THERAPEUTICS INC; 124 holdings reports in the June to August 2026 data set
+IPSC,15673T100,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as CENTURY THERAPEUTICS INC; 110 holdings reports in the June to August 2026 data set
+VOR,929033207,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as VOR BIOPHARMA INC; 109 holdings reports in the June to August 2026 data set
+WVE,Y95308105,SHS,"SEC Official List of Section 13(f) Securities, 2026 Q2","listed as WAVE LIFE SCIENCES LTD; 265 holdings reports in the June to August 2026 data set; deleted from the 2026 Q3 list, so this row serves periods to 30 June 2026"
+WVE,94352A104,SHS,"SEC Official List of Section 13(f) Securities, 2026 Q3",listed as WAVE LIFE SCIENCES INC; not yet in a data set; added to the 2026 Q3 list in the quarter Y95308105 (WAVE LIFE SCIENCES LTD) was deleted. Whether one new share replaced one old share is not stated by the list
+STOK,86150R107,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as STOKE THERAPEUTICS INC; 220 holdings reports in the June to August 2026 data set
+ARCT,03969T109,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ARCTURUS THERAPEUTICS HLDGS; 150 holdings reports in the June to August 2026 data set
+DYN,26818M108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as DYNE THERAPEUTICS INC; 280 holdings reports in the June to August 2026 data set
+KRRO,500946108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as KORRO BIO INC; 119 holdings reports in the June to August 2026 data set
+PEPG,713317105,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as PEPGEN INC; 81 holdings reports in the June to August 2026 data set
+SMMT,86627T108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as SUMMIT THERAPEUTICS INC; 265 holdings reports in the June to August 2026 data set
+PRAX,74006W207,COM NEW,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as PRAXIS PRECISION MEDICINES I; 338 holdings reports in the June to August 2026 data set
+PCVX,92243G108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as VAXCYTE INC; 380 holdings reports in the June to August 2026 data set
+RARE,90400D108,COM,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as ULTRAGENYX PHARMACEUTICAL IN; 403 holdings reports in the June to August 2026 data set
+NAMS,N62509109,ORDINARY SHARES,"SEC Official List of Section 13(f) Securities, 2026 Q2",listed as NEWAMSTERDAM PHARMA COMPANY; 214 holdings reports in the June to August 2026 data set

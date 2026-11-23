@@ -81,6 +81,7 @@ from fetchers.approvals_pmda import PmdaApprovalsFetcher
 from fetchers.news_pulse import PulseNewsFetcher
 from fetchers.filings_edgar import FilingsEdgarFetcher
 from fetchers.insiders_edgar import InsidersEdgarFetcher
+from fetchers.holders_13f import Holders13FFetcher
 from fetchers.financials_edgar import FinancialsEdgarFetcher
 from fetchers.financials_esef import FinancialsEsefFetcher
 from fetchers.financials_ir import WORKBOOKS as IR_WORKBOOKS, FinancialsIrFetcher
@@ -211,7 +212,8 @@ def _universe_fetchers(db_path):
     is measured against, the Medicare prices CMS has negotiated, and the USPTO's patent
     term extensions, which name the patent that holds each molecule, the
     wording of the Orange Book's patent use codes, and the daily pulse's briefings, read
-    from the files its scheduled run commits)."""
+    from the files its scheduled run commits, and the SEC's quarterly Form 13F data
+    sets, which say who held each company's shares at the last quarter end)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             EuMedicinesFetcher(db_path), PmdaApprovalsFetcher(db_path),
             ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
@@ -221,7 +223,8 @@ def _universe_fetchers(db_path):
             DemandCmsFetcher(db_path),
             RatesFredFetcher(db_path), BenchmarksFetcher(db_path),
             PolicyFedRegFetcher(db_path),
-            NegotiatedPricesCmsFetcher(db_path)]
+            NegotiatedPricesCmsFetcher(db_path),
+            Holders13FFetcher(db_path)]
 
 
 def _payer_fetchers(db_path):

@@ -1,0 +1,16 @@
+# The companies data/cusips.csv has no row for, and why.
+#
+# Form 13F covers Section 13(f) securities only: broadly, shares and depositary shares
+# traded on a US exchange, as the SEC lists them each quarter. A share that trades over
+# the counter is not one. A handful of managers report such holdings anyway, and those
+# rows are in the data set, but the large index managers do not, so the holders they add
+# up to are not the company's holders. Showing them would be worse than showing nothing.
+#
+# Checked against the Official List of Section 13(f) Securities for 2026 Q1, Q2 and Q3
+# (https://www.sec.gov/rules-regulations/staff-guidance/official-list-section-13f-securities,
+# read 2026-11-23). The holdings reader returns the reason as its answer for the company.
+ticker,reason,source
+ROG,"Roche's US depositary receipt (RHHBY, CUSIP 771195104) trades over the counter and is not on the official list. The June to August 2026 data set holds 72 holdings reports naming it against 1,826 naming Novartis's listed ADR, and no Vanguard, BlackRock or State Street entity is among the filers","SEC Official List of Section 13(f) Securities, 2026 Q1 to Q3; Form 13F data set 01jun2026-31aug2026"
+BAYN,"Bayer's US depositary receipt (BAYRY, CUSIP 072730302) trades over the counter and is not on the official list. The June to August 2026 data set holds 17 holdings reports naming it","SEC Official List of Section 13(f) Securities, 2026 Q1 to Q3; Form 13F data set 01jun2026-31aug2026"
+SGMOQ,"Sangamo's common stock (CUSIP 800677106) was deleted from the official list in 2026 Q2. Reports fell from 136 in the March to May 2026 data set to 18 in the June to August one, which is managers ceasing to report and not managers selling","SEC Official List of Section 13(f) Securities, 2026 Q2; Form 13F data sets 01mar2026-31may2026 and 01jun2026-31aug2026"
+ADAPY,"Adaptimmune's depositary share (CUSIP 00653A107) is not on the official list for 2026 Q1, Q2 or Q3. The June to August 2026 data set holds 4 holdings reports naming it","SEC Official List of Section 13(f) Securities, 2026 Q1 to Q3; Form 13F data set 01jun2026-31aug2026"
