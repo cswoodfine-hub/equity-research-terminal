@@ -126,7 +126,12 @@ def test_a_reader_whose_every_call_failed_is_abnormal_and_a_partly_failed_one_is
 def test_no_model_at_all_is_abnormal():
     """How the scheduled run spent its first 128 runs: every reader said "no key"."""
     health = run_health.summarise(EARLY, [], [], {}, None)
-    assert health["abnormal"] and "no model provider" in health["line"]
+    assert health["abnormal"] and "readers did not run: no model" in health["line"]
+    assert health["reasons"] == [
+        "no model provider is configured, so the readers read nothing"]
+    # The seam's own words are used where it gives them.
+    said = "the readers run on anthropic and ANTHROPIC_API_KEY is not set, so they read nothing"
+    assert run_health.summarise(EARLY, [], [], {}, None, no_model=said)["reasons"] == [said]
 
 
 def test_the_job_start_is_carried_when_the_schedule_supplies_it():
@@ -140,9 +145,12 @@ def test_the_job_start_is_carried_when_the_schedule_supplies_it():
 
 @pytest.fixture
 def groq_only(monkeypatch):
+    """The readers as they ran from 2026-11-09 to 2026-11-23: on Groq. The pin is set
+    here because the default is now Anthropic and nothing else (the tests below)."""
     for var in ("GEMINI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER", "ER_JOB_STARTED_AT"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("READER_LLM_PROVIDER", "groq")
 
 
 def _retired_model(label, url, headers, body, timeout=None):
@@ -211,6 +219,153 @@ def test_a_groq_reasoning_model_is_asked_for_a_short_think_and_no_other_model_is
     assert sent[0]["model"] == "openai/gpt-oss-120b"
     assert sent[0]["reasoning_effort"] == "low"
     assert "reasoning_effort" not in sent[1], "Groq documents it for two ids only"
+
+
+# --- the readers run on Anthropic's Haiku model and on nothing else --------------------
+
+@pytest.fixture
+def no_anthropic_key(monkeypatch):
+    """This machine on 2026-11-23, and the scheduled job until the secret is added: a
+    Groq key and a Gemini key on file, and no Anthropic one."""
+    for var in ("ANTHROPIC_API_KEY", "LLM_PROVIDER", "READER_LLM_PROVIDER",
+                "ER_JOB_STARTED_AT"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "a-groq-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "a-gemini-key")
+
+
+def _never(*args, **kwargs):
+    raise AssertionError("no provider may be asked")
+
+
+def test_a_reader_does_not_fall_back_to_whichever_key_is_present(no_anthropic_key):
+    assert llm.provider() is None, "Groq and Gemini have keys; the readers are not theirs"
+    assert llm.reader_gap() == ("the readers run on anthropic and ANTHROPIC_API_KEY is "
+                                "not set, so they read nothing")
+    # A note or the Ask tab names its provider and is served as before.
+    assert llm.provider("gemini") == "gemini"
+    assert llm.provider("anthropic") == "groq", "a caller that names one still degrades"
+
+
+def test_with_its_key_a_reader_is_on_anthropic_whatever_else_is_set(
+        no_anthropic_key, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-anthropic-key")
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")       # the local .env on 2026-11-23
+    assert llm.provider() == "anthropic" and llm.reader_gap() is None
+
+
+def test_the_reader_pin_can_be_moved_or_handed_back_to_the_automatic_rule(
+        no_anthropic_key, monkeypatch):
+    monkeypatch.setenv("READER_LLM_PROVIDER", "gemini")
+    assert llm.provider() == "gemini"
+    monkeypatch.setenv("READER_LLM_PROVIDER", "auto")
+    assert llm.provider() == "groq"
+    monkeypatch.setenv("READER_LLM_PROVIDER", "nonesuch")
+    assert llm.provider() is None and "not a provider" in llm.reader_gap()
+
+
+def test_a_reader_is_sent_to_haiku_with_room_to_think_and_a_note_is_not():
+    reader = llm.anthropic_request("system", "a filing", 1200, reader=True)
+    assert reader["model"] == "claude-haiku-5-5"
+    assert reader["max_tokens"] == 1200 + llm.ANTHROPIC_THINKING_ROOM
+    assert reader["output_config"] == {"effort": "medium"}
+    assert reader["system"] == "system"
+    assert reader["messages"] == [{"role": "user", "content": "a filing"}]
+    # Nothing this model refuses: no sampling parameter, no thinking budget, no prefill.
+    assert set(reader) == {"model", "max_tokens", "system", "messages", "output_config"}
+    note = llm.anthropic_request("system", "the facts", 4096, reader=False)
+    assert note["model"] == llm.ANTHROPIC_MODEL and note["max_tokens"] == 4096
+    assert "output_config" not in note
+
+
+def test_a_call_that_names_no_provider_is_the_reader_call(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-anthropic-key")
+    monkeypatch.delenv("READER_LLM_PROVIDER", raising=False)
+    seen = []
+    monkeypatch.setattr(llm, "_anthropic",
+                        lambda system, user, max_tokens, reader=False: seen.append(reader) or "{}")
+    llm.complete("s", "u")
+    llm.complete("s", "u", prefer="anthropic")
+    assert seen == [True, False]
+
+
+class _Block:
+    def __init__(self, type_, text=""):
+        self.type, self.text = type_, text
+
+
+class _Message:
+    def __init__(self, stop_reason, *blocks):
+        self.stop_reason, self.content = stop_reason, list(blocks)
+
+
+def test_an_anthropic_answer_is_read_by_block_type_and_two_endings_are_not_answers():
+    # The model thinks first: the answer is not the first block.
+    thought_then_answer = _Message("end_turn", _Block("thinking"), _Block("text", '{"a": 1}'))
+    assert llm.anthropic_text(thought_then_answer) == '{"a": 1}'
+    # Thinking used the whole allowance: an empty string here would parse as "nothing
+    # found" and the filing would be ledgered as read.
+    with pytest.raises(ValueError, match="before answering"):
+        llm.anthropic_text(_Message("max_tokens", _Block("thinking")))
+    with pytest.raises(ValueError, match="declined"):
+        llm.anthropic_text(_Message("refusal"))
+    assert llm.anthropic_text(_Message("end_turn", _Block("text", ""))) == ""
+
+
+def test_a_model_id_anthropic_does_not_serve_stops_a_readers_loop():
+    class NotFoundError(Exception):
+        pass
+
+    assert pdufa.is_fatal(NotFoundError("model: claude-haiku-9-9"))
+
+
+def test_a_run_with_no_anthropic_key_says_the_readers_did_not_run(
+        tmp_path, monkeypatch, no_anthropic_key):
+    """Not "ok", and not quietly on the Groq key that is sitting there."""
+    monkeypatch.setattr(llm, "_post", _never)
+    monkeypatch.setattr(llm, "_anthropic", _never)
+    filings = [{"ticker": "AAA", "accession": "0000000000-26-000001",
+                "url": "https://example.invalid/1", "form_type": "8-K",
+                "filed_date": "2026-11-20"}]
+    monkeypatch.setattr(pdufa, "candidates", lambda db_path, today=None: filings)
+    monkeypatch.setattr(pdufa, "filing_text", _never)
+    _, run = _run(tmp_path, monkeypatch)
+    detail, health = run["detail"], run["detail"]["health"]
+    assert health["abnormal"] is True and health["model"] is None
+    assert health["reasons"] == ["the readers run on anthropic and ANTHROPIC_API_KEY is "
+                                 "not set, so they read nothing"]
+    assert health["line"].endswith("readers did not run: no model")
+    assert health["readers"] == [], "none of them asked anything of any provider"
+    for name in ("pdufa", "guidance", "trial_readouts", "deals"):
+        assert detail[name]["status"] == "no key", name
+    assert detail["trial_readouts"]["reread"]["status"] == "no key"
+    assert detail["trial_readouts"]["press"]["status"] == "no key"
+
+
+def test_with_the_key_the_same_run_asks_haiku_and_reads(
+        tmp_path, monkeypatch, no_anthropic_key):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-anthropic-key")
+    monkeypatch.setattr(llm, "_post", _never)
+    asked = []
+
+    def haiku(system, user, max_tokens, reader=False):
+        asked.append(llm.anthropic_request(system, user, max_tokens, reader)["model"])
+        return '{"date": null}'
+
+    monkeypatch.setattr(llm, "_anthropic", haiku)
+    filings = [{"ticker": "AAA", "accession": f"0000000000-26-00000{i}",
+                "url": f"https://example.invalid/{i}", "form_type": "8-K",
+                "filed_date": "2026-11-20"} for i in range(3)]
+    monkeypatch.setattr(pdufa, "candidates", lambda db_path, today=None: filings)
+    monkeypatch.setattr(pdufa, "filing_text",
+                        lambda filing: "The FDA accepted the NDA with a PDUFA date.")
+    monkeypatch.setattr(pdufa, "_FETCH_PAUSE_S", 0)
+    _, run = _run(tmp_path, monkeypatch)
+    health = run["detail"]["health"]
+    assert asked == ["claude-haiku-5-5"] * 3
+    assert run["detail"]["pdufa"]["read"] == 3 and run["detail"]["pdufa"]["errors"] == []
+    assert health["model"] == "anthropic" and health["abnormal"] is False
+    assert health["readers"] == [{"reader": "pdufa", "calls": 3, "failed": 0}]
 
 
 # --- through a whole run ---------------------------------------------------------------

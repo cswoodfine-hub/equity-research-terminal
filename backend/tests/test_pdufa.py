@@ -273,8 +273,10 @@ def test_a_filing_that_already_produced_a_catalyst_is_never_read_again(tmp_path,
     # extract() returns before reading anything when no model key is configured, so
     # without one this test exercised the no-key path and never reached the guard. It
     # passed only where a real key sat in .env. The guard runs before any fetch or model
-    # call, so a placeholder is enough and nothing is sent anywhere.
-    monkeypatch.setenv("GROQ_API_KEY", "placeholder-never-sent")
+    # call, so a placeholder is enough and nothing is sent anywhere. The key is the
+    # readers' own: they run on Anthropic and on nothing else (llm.provider).
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "placeholder-never-sent")
+    monkeypatch.delenv("READER_LLM_PROVIDER", raising=False)
     db_file = tmp_path / "test.db"
     db.init(db_file)
     seed.load_companies(db_file)

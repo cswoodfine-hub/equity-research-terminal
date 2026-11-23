@@ -298,7 +298,9 @@ def is_fatal(exc: Exception) -> bool:
         return True
     # Anthropic comes back as a typed SDK error.
     name = type(exc).__name__
-    if name in ("AuthenticationError", "PermissionDeniedError", "RateLimitError"):
+    # NotFoundError is a model id the provider does not serve: the same on every call.
+    if name in ("AuthenticationError", "PermissionDeniedError", "RateLimitError",
+                "NotFoundError"):
         return True
     text = str(exc).lower()
     return any(phrase in text for phrase in

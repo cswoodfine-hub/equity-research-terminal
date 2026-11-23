@@ -83,14 +83,15 @@ def _source_rows(sources) -> list[dict]:
 
 
 def summarise(started_at, sources, quiet=None, readers=None, model=None,
-              job_started_at=None) -> dict:
+              job_started_at=None, no_model=None) -> dict:
     """The health summary for one finished run.
 
     ``sources`` is the run's source list as it goes into the detail. ``quiet`` is what
     ``refresh.went_quiet`` returned. ``readers`` maps a reader's name to the count the
     model seam kept for it (``llm.Count.as_dict``). ``model`` is the provider the run
-    had, or None where it had none. ``job_started_at`` is when the scheduled job itself
-    began, where the schedule says (``ER_JOB_STARTED_AT``).
+    had, or None where it had none, and ``no_model`` is then why, in the seam's words
+    (``llm.reader_gap``). ``job_started_at`` is when the scheduled job itself began,
+    where the schedule says (``ER_JOB_STARTED_AT``).
     """
     started = parse_utc(started_at)
     session = in_us_session(started)
@@ -140,7 +141,8 @@ def summarise(started_at, sources, quiet=None, readers=None, model=None,
             f"{n} ({by_name[n]['failed']} of {by_name[n]['calls']})"
             for n in readers_failed))
     if model is None:
-        reasons.append("no model provider is configured, so the readers read nothing")
+        reasons.append(no_model or
+                       "no model provider is configured, so the readers read nothing")
 
     abnormal = bool(reasons)
     where = {True: "inside", False: "outside"}.get(session)
@@ -151,7 +153,7 @@ def summarise(started_at, sources, quiet=None, readers=None, model=None,
                 f"{n} ({quiet_runs[n]} run{'s' if quiet_runs[n] != 1 else ''})"
                 for n in quiet_names) or "none")
             + f"; readers failing every call: {', '.join(readers_failed) or 'none'}"
-            + ("" if model else "; no model provider"))
+            + ("" if model else "; readers did not run: no model"))
     out = {"abnormal": abnormal, "line": line, "reasons": reasons,
            "started_at": started.strftime(_STAMP) if started else None,
            "start_hour_utc": started.hour if started else None,

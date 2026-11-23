@@ -4,9 +4,15 @@ import llm
 
 
 def _only(monkeypatch, **present):
-    """Set the given key vars and clear the rest, so selection is deterministic."""
+    """Set the given key vars and clear the rest, so selection is deterministic.
+
+    These tests are of the automatic rule: LLM_PROVIDER, else the first key present. It
+    is what a note or the Ask tab falls back to, and what READER_LLM_PROVIDER=auto gives
+    the readers; the readers' own rule is tested in test_health_line.py.
+    """
     for var in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "LLM_PROVIDER"):
         monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("READER_LLM_PROVIDER", "auto")
     for var, value in present.items():
         monkeypatch.setenv(var, value)
 

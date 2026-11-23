@@ -6,9 +6,14 @@ provider answered. Groq and Gemini are called over their REST endpoints with url
 way every other source in this app is called, so they need no SDK installed. Anthropic
 keeps its SDK, which is already wired and tested.
 
-Selection is explicit or automatic. ``LLM_PROVIDER`` pins one. Otherwise the first key
-present wins, in order Groq, Gemini, Anthropic. A provider whose key is absent is never
-chosen, so a stale ``LLM_PROVIDER`` degrades rather than crashes.
+Selection is explicit or automatic. A caller that names a provider (the notes, the
+Ask tab) gets it, and where its key is absent ``LLM_PROVIDER`` pins one, or else the
+first key present wins, in order Groq, Gemini, Anthropic. A provider whose key is
+absent is never chosen, so a stale ``LLM_PROVIDER`` degrades rather than crashes.
+
+The readers are the exception, and they are every caller that names no provider: they
+run on the one provider ``READER_LLM_PROVIDER`` names (Anthropic, on its Haiku model)
+and on no other. See ``provider``.
 
 The key rides in a header, never the URL, so a proxy or a log cannot capture it.
 """
@@ -23,14 +28,14 @@ import time
 import urllib.error
 import urllib.request
 
-# Proposed, and the owner's to confirm: which provider the readers use is their call.
 # Groq shut down llama-3.3-70b-versatile on 2026-08-16 and its deprecations page names
 # this model as the replacement. Read on 2026-11-23: the page, the key's own model list
 # (https://api.groq.com/openai/v1/models, which no longer carries the old id) and one
-# small call that came back answered. What the id does not fix: on Groq's free tier the
-# model takes 8,000 tokens a minute, a request over that is refused outright (HTTP 413),
-# and the readers send up to 60,000 characters of a filing, so a long document fails
-# on that tier whatever the model. The run's health summary counts those failures.
+# small call that came back answered. The readers no longer run here (see
+# READER_LLM_PROVIDER below), and this is why: on Groq's free tier the model takes 8,000
+# tokens a minute, a request over that is refused outright (HTTP 413), and a reader
+# sends up to 60,000 characters of a filing. Groq is still what a note or the Ask tab
+# falls back to when its own provider has no key.
 GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 # The reasoning models Groq serves spend their reasoning out of max_tokens. The readers
 # classify and copy out; they do not need a long think, and a short one leaves the
@@ -50,6 +55,27 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 # gates mean fewer, not wronger.
 GEMINI_FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-flash-lite-latest")
 ANTHROPIC_MODEL = "claude-opus-4-8"
+# The readers: the extractors that pull PDUFA dates, guidance, readouts and deal terms
+# out of filing and press text, which is every caller that names no provider. The
+# owner's decision of 2026-11-23, "use haiku for the readers", after the scheduled run
+# was found to have read nothing since it began: no key, then a retired Groq model.
+#
+# One provider and no fallback. Falling back is how it went unseen: a reader that
+# quietly lands on whichever key happens to be present runs on a provider nobody chose,
+# with that provider's limits. With the reader's key absent the readers do not run, they
+# say so, and the run's health summary says so (run_health). "auto" restores the old
+# rule: LLM_PROVIDER, else the first key present.
+READER_PROVIDER_DEFAULT = "anthropic"
+# The id as Anthropic's models page lists it on 2026-11-23: no dated form, 1M tokens of
+# context, so a 60,000 character document (some 15,000 to 20,000 tokens) is far inside
+# it, and inside the 100,000 token prompt length above which the price changes.
+ANTHROPIC_READER_MODEL = os.getenv("ANTHROPIC_READER_MODEL", "claude-haiku-5-5")
+# This model thinks before it answers unless told otherwise, and what it thinks counts
+# toward max_tokens. The readers' caps (900 to 3,072) were sized for the answer alone,
+# so the thinking is given room of its own rather than taken out of the answer's.
+# Effort is left at the model's default; "low" is cheaper and untested on these prompts.
+ANTHROPIC_READER_EFFORT = os.getenv("ANTHROPIC_READER_EFFORT", "medium")
+ANTHROPIC_THINKING_ROOM = 4096
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GEMINI_URL = ("https://generativelanguage.googleapis.com/v1beta/"
@@ -84,6 +110,11 @@ def provider(prefer: str | None = None) -> str | None:
     want = (prefer or "").strip().lower()
     if want and _has(_KEYVAR.get(want, "")):
         return want
+    if not want:
+        # No provider named: a reader. Its provider or none, never the next key along.
+        pinned_reader = reader_provider_name()
+        if pinned_reader != "auto":
+            return pinned_reader if _has(_KEYVAR.get(pinned_reader, "")) else None
     pinned = (os.getenv("LLM_PROVIDER") or "").strip().lower()
     for name, keyvar, _ in _PROVIDERS:
         if name == pinned and _has(keyvar):
@@ -93,6 +124,29 @@ def provider(prefer: str | None = None) -> str | None:
         if _has(keyvar):
             return name
     return None
+
+
+def reader_provider_name() -> str:
+    """The provider the readers are set to, or "auto" for the first key present. Read
+    on every call, so a test or a shell can change it without a reload."""
+    return (os.getenv("READER_LLM_PROVIDER") or READER_PROVIDER_DEFAULT).strip().lower()
+
+
+def reader_gap() -> str | None:
+    """Why the readers cannot run, in words a person can act on, or None when they can.
+    The readers' own "no key" notes predate the pin and name three keys; this names the
+    one that is missing."""
+    if provider() is not None:
+        return None
+    name = reader_provider_name()
+    keyvar = _KEYVAR.get(name)
+    if name == "auto":
+        return ("no model key is set (GROQ_API_KEY, GEMINI_API_KEY or "
+                "ANTHROPIC_API_KEY), so the readers read nothing")
+    if keyvar is None:
+        return (f"READER_LLM_PROVIDER names {name!r}, which is not a provider, so the "
+                f"readers read nothing")
+    return (f"the readers run on {name} and {keyvar} is not set, so they read nothing")
 
 
 def model_name(prefer: str | None = None) -> str | None:
@@ -211,7 +265,8 @@ def _complete(system: str, user: str, max_tokens: int = 1024,
                 return _groq(system, user, max_tokens)
             if active == "gemini":
                 return _gemini(system, user, max_tokens, thinking_budget)
-            return _anthropic(system, user, max_tokens)
+            # No provider named is a reader, and a reader on Anthropic is on Haiku.
+            return _anthropic(system, user, max_tokens, reader=not prefer)
         except Exception as exc:
             if not _is_transient(exc):
                 raise
@@ -358,15 +413,42 @@ def _gemini(system: str, user: str, max_tokens: int,
 
 
 # --- Anthropic, over the SDK ---------------------------------------------
-def _anthropic(system: str, user: str, max_tokens: int) -> str:
+def anthropic_request(system: str, user: str, max_tokens: int, reader: bool) -> dict:
+    """What is sent to the Messages API. Pure, so the shape can be tested with no key."""
+    request = {"model": ANTHROPIC_MODEL, "max_tokens": max_tokens, "system": system,
+               "messages": [{"role": "user", "content": user}]}
+    if reader:
+        request["model"] = ANTHROPIC_READER_MODEL
+        request["max_tokens"] = max_tokens + ANTHROPIC_THINKING_ROOM
+        request["output_config"] = {"effort": ANTHROPIC_READER_EFFORT}
+    return request
+
+
+def anthropic_text(message) -> str:
+    """The text out of a Messages response, or a raised error. Pure.
+
+    Two endings are not answers and must not read as one: the model declining the
+    request, and the allowance running out before any text was written. Either would
+    come back as an empty string, an empty string parses as nothing found, and a reader
+    would ledger the filing as read.
+    """
+    text = "\n".join(block.text for block in (getattr(message, "content", None) or [])
+                     if getattr(block, "type", "") == "text").strip()
+    stop = getattr(message, "stop_reason", None)
+    if stop == "refusal":
+        raise ValueError("anthropic declined the request (stop_reason refusal)")
+    if not text and stop == "max_tokens":
+        raise ValueError("anthropic used the whole token allowance before answering "
+                         "(stop_reason max_tokens, no text)")
+    return text
+
+
+def _anthropic(system: str, user: str, max_tokens: int, reader: bool = False) -> str:
     import anthropic  # lazy, so the app runs without the SDK
 
     client = anthropic.Anthropic()
-    message = client.messages.create(
-        model=ANTHROPIC_MODEL, max_tokens=max_tokens,
-        system=system, messages=[{"role": "user", "content": user}])
-    return "\n".join(block.text for block in message.content
-                     if getattr(block, "type", "") == "text").strip()
+    return anthropic_text(client.messages.create(
+        **anthropic_request(system, user, max_tokens, reader)))
 
 
 # --- a conversation that can call tools ----------------------------------

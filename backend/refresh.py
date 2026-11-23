@@ -340,7 +340,7 @@ def _health(db_path, run_id: int, sources, quiet, calls: dict, outputs: dict) ->
     call failed marked on its own entry in the detail."""
     health = run_health.summarise(
         _started_at(db_path, run_id), sources, quiet, calls, llm.provider(),
-        job_started_at=os.getenv("ER_JOB_STARTED_AT"))
+        job_started_at=os.getenv("ER_JOB_STARTED_AT"), no_model=llm.reader_gap())
     run_health.mark_failed_readers(health, outputs)
     return health
 
