@@ -190,14 +190,121 @@ def test_a_company_that_is_not_a_ticker_is_not_passed_on():
 
 # ------------------------------------------------------------------------------ markup
 def test_a_heading_names_the_panel_and_its_company_and_marks_a_pin():
-    plain = TV.heading(TV.item("news"), "LLY")
-    pinned = TV.heading(TV.item("news", ticker="NVO"), "LLY")
-    assert "Company news" in plain and ">LLY<" in plain and "pinned" not in plain
-    assert ">NVO<" in pinned and "pinned" in pinned and "LLY" not in pinned
+    assert TV.heading(TV.item("news"), "LLY") == ("Company news", "LLY")
+    assert TV.heading(TV.item("news", ticker="NVO"), "LLY") == ("Company news", "NVO · pinned")
+
+
+NEWS = {"ticker": "LLY", "news": [
+    {"source": "press_ir", "title": "Lilly to present new data at a congress",
+     "url": "https://investor.lilly.com/news/1", "published_at": "2026-11-14"},
+    {"source": "pulse", "title": "Obesity pricing talks widen",
+     "url": "https://example.com/pulse-article", "published_at": "2026-11-18T07:45:00"},
+    {"source": "edgar_8k", "title": "8-K: results of operations", "url": None,
+     "published_at": "2026-10-30"},
+    {"source": "a_new_feed", "title": "  A   headline\nwith   breaks ",
+     "url": "javascript:alert(1)", "published_at": "2026-09-01"},
+    {"source": "press_ir", "title": "   ", "url": "https://example.com/blank",
+     "published_at": "2026-11-20"},
+    "not a row"]}
+
+
+def test_news_is_newest_first_and_a_row_with_no_title_is_not_a_row():
+    rows = TV.news_rows(NEWS)
+    assert [r["published_at"][:10] for r in rows] == ["2026-11-18", "2026-11-14",
+                                                      "2026-10-30", "2026-09-01"]
+
+
+def test_a_pulse_row_is_labelled_as_a_summary_a_model_wrote():
+    markup = TV.news_html(TV.news_rows(NEWS))
+    assert markup.count("Daily pulse (AI summary)") == 1
+    first = markup.split("</a>")[0]
+    assert "Obesity pricing talks widen" in first and "Daily pulse (AI summary)" in first
+
+
+def test_each_news_row_opens_its_source_and_only_a_web_address_is_a_link():
+    markup = TV.news_html(TV.news_rows(NEWS))
+    assert 'href="https://investor.lilly.com/news/1"' in markup
+    assert markup.count('target="_blank"') == 2 and markup.count("noopener noreferrer") == 2
+    assert "javascript:" not in markup
+    assert '<div class="fitem"><span class="d">2026-10-30</span>' in markup
+
+
+def test_a_source_the_page_does_not_know_prints_under_its_own_name():
+    markup = TV.news_html(TV.news_rows(NEWS))
+    assert ">a_new_feed<" in markup and ">8-K<" in markup and ">Company release<" in markup
+    assert "A headline with breaks" in markup
+    nameless = TV.news_html([{"title": "x", "published_at": "2026-01-01"}])
+    assert "source not stated" in nameless
+
+
+def test_no_news_is_no_markup_and_no_basis():
+    for empty in ({}, None, {"news": []}, {"news": None}):
+        assert TV.news_rows(empty) == []
+    assert TV.news_html([]) == "" and TV.news_basis([]) == ""
+
+
+def test_the_news_list_is_cut_at_its_limit_and_the_basis_says_so():
+    many = [{"source": "press_ir", "title": f"Release {n}", "url": None,
+             "published_at": f"2026-01-{n % 28 + 1:02d}"} for n in range(TV.NEWS_SHOWN + 17)]
+    assert TV.news_html(many).count('class="fitem"') == TV.NEWS_SHOWN
+    assert TV.news_basis(many) == f"{TV.NEWS_SHOWN} of {TV.NEWS_SHOWN + 17}, newest first"
+    assert TV.news_basis(many[:3]) == "3 of 3, newest first"
+
+
+DATED = [
+    {"expected_date": "2027-03-01", "catalyst_type": "readout", "date_confidence": "month",
+     "title": "Phase 3 study of a drug against placebo", "source_url":
+     "https://clinicaltrials.gov/study/NCT01234567"},
+    {"expected_date": "2026-12-15", "catalyst_type": "pdufa", "date_confidence": "day",
+     "title": "FDA decision on a filing", "source_url": None},
+    {"expected_date": None, "catalyst_type": "readout", "title": "No date at all"},
+    {"expected_date": "2027-01-10", "catalyst_type": None, "date_confidence": "day",
+     "title": "", "source_url": "ftp://not-the-web"}]
+
+
+def test_what_is_dated_ahead_is_soonest_first_and_an_undated_row_is_left_out():
+    rows = TV.dated_rows(DATED)
+    assert [r["expected_date"] for r in rows] == ["2026-12-15", "2027-01-10", "2027-03-01"]
+    assert TV.dated_rows(None) == [] and TV.dated_html([]) == ""
+
+
+def test_a_month_with_no_day_is_shown_as_the_month_and_never_as_its_first():
+    markup = TV.dated_html(TV.dated_rows(DATED))
+    assert '<span class="d">2027-03</span>' in markup and "2027-03-01" not in markup
+    assert markup.count("month only") == 1
+    assert '<span class="d">2026-12-15</span>' in markup
+
+
+def test_a_dated_row_says_what_the_source_left_blank_and_never_fills_it():
+    markup = TV.dated_html(TV.dated_rows(DATED))
+    assert "untitled in the source" in markup and "kind not stated" in markup
+    assert 'href="https://clinicaltrials.gov/study/NCT01234567"' in markup
+    assert "ftp://" not in markup
+
+
+def test_the_dated_basis_counts_what_is_shown_against_what_there_is():
+    rows = TV.dated_rows(DATED)
+    assert TV.dated_basis(rows, 24) == "3 in 24 months"
+    many = [dict(DATED[1], expected_date=f"2027-{n % 12 + 1:02d}-01") for n in range(70)]
+    assert TV.dated_basis(many, 24) == f"{TV.DATED_SHOWN} of 70 in 24 months"
+    assert TV.dated_basis([], 24) == ""
 
 
 def test_markup_escapes_what_it_is_given():
-    assert "<script>" not in TV.heading(TV.item("news"), "<script>")
+    rows = [{"source": "<b>x</b>", "title": "<script>alert(1)</script>",
+             "url": 'https://example.com/"><script>', "published_at": "<i>"}]
+    markup = TV.news_html(rows)
+    assert "<script>" not in markup and "<b>x</b>" not in markup and "<i>" not in markup
+    dated = TV.dated_html([{"expected_date": "2027-01-01", "title": "<img src=x>",
+                            "catalyst_type": "<u>"}])
+    assert "<img" not in dated and "<u>" not in dated
+    assert "<b>" not in TV.left_out_html(["<b>bold</b>"])
+
+
+def test_what_was_left_off_a_board_is_said_once_and_nothing_is_said_of_nothing():
+    assert TV.left_out_html([]) == ""
+    said = TV.left_out_html(["one thing", "another"])
+    assert "Left off the board: one thing; another." in said
 
 
 # ------------------------------------------------------------------------- house style
@@ -207,7 +314,11 @@ def test_house_style_on_every_word_the_board_prints():
     words += TV.normalise({"panels": [{"panel": "x"}, {"panel": "news", "ticker": "??"}]
                            + [{"panel": "news"}] * 20})[1]
     words += TV.normalise(None)[1]
-    words.append(_visible(TV.heading(TV.item("news", ticker="NVO"), "LLY")))
+    words += list(TV.heading(TV.item("news", ticker="NVO"), "LLY"))
+    words += list(TV.NEWS_SOURCES.values())
+    words.append(_visible(TV.news_html(TV.news_rows(NEWS))) + " " + TV.news_basis([{}] * 50))
+    words.append(_visible(TV.dated_html(TV.dated_rows(DATED))) + " " + TV.dated_basis([{}] * 70, 24))
+    words.append(_visible(TV.left_out_html(["a panel this version does not have: x"])))
     for text in words:
         _house_style(text)
 

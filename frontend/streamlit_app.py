@@ -36,6 +36,7 @@ import revenue_mix
 import scorecard_chart
 import treemap
 import theme as T
+import trading_page
 import business as business_figure
 import trend as trend_module
 import universe_page
@@ -65,6 +66,8 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
+if getattr(trading_page, "REVISION", 0) < 1:
+    trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
 DEFAULT_API = os.getenv("ER_API_BASE", "http://localhost:8000")
@@ -217,8 +220,10 @@ def api_get(base: str, path: str, timeout: int = 30):
         return json.loads(resp.read().decode("utf-8"))
 
 
-# Existing refresh handlers may still clear the former frontend cache.
-api_get.clear = lambda: None
+# Every handler that changes the book calls this when it has. The page itself holds
+# nothing, but the Trading tab's board holds each of its reads for a minute, and a figure
+# a reader has just changed must not sit there unchanged.
+api_get.clear = trading_page.clear
 
 
 def api_post(base: str, path: str, timeout: int = 300):
@@ -10278,6 +10283,13 @@ def _pulse_panel(api_base: str) -> None:
          "appear in that company's What changed.")
 
 
+# The house's own builders, handed to the Trading tab's page module so a panel on the board
+# reads as the page it was lifted from: the section rule, the state block, the folded
+# note, and the change feed's filter and row.
+_TRADING_KIT = types.SimpleNamespace(
+    section=section, state=state, note=note, changes=_ki_changes, change_row=change_row)
+
+
 # The Ask box's opening questions: the three a reader most often has of a company that no
 # one tab answers, each a reading across several. Offered only while the conversation is
 # empty, so the box does not open on a blank line and a blinking cursor.
@@ -11542,6 +11554,9 @@ with main:
     if _engine == "cellgene" or not _sells or _engine not in ("pharma", "biotech"):
         _wanted.append(("runway", "Runway"))
     _wanted += [("comps", "Comps"), ("holdings", "Holdings")]
+    # The board: any set of the book's reads side by side, for forming a view of a company.
+    # Beside Ask because the two are used together, a question asked of what is on screen.
+    _wanted.append(("trading", "Trading"))
     # Last, because it is not a view of anything: it is where a question goes that no tab
     # above was built to answer.
     _wanted.append(("ask", "Ask"))
@@ -11563,6 +11578,10 @@ with main:
 
     with _panels["ask"]:
         _ask_tab(api_base, ticker, (company or {}).get("name") or "")
+
+    with _panels["trading"]:
+        trading_page.render(api_base, ticker, (company or {}).get("name") or "",
+                            _TRADING_KIT, feed=feed, historical=bool(asof_state))
 
     # --- Universe: what moved across coverage since you last looked -------
     with universe_tab:

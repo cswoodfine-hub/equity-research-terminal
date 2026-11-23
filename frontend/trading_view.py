@@ -157,13 +157,12 @@ def company_of(entry: dict, ticker: str) -> str:
     return entry.get("ticker") or ticker
 
 
-def heading(entry: dict, ticker: str) -> str:
-    """The panel's title rule: what it is and whose, with a pinned company marked."""
+def heading(entry: dict, ticker: str) -> tuple:
+    """The panel's section rule: what it is, and whose. The company rides in the basis
+    tag, and a pinned one says so, since it will not follow the top bar."""
     kind = BY_ID[entry["panel"]]
     whose = company_of(entry, ticker)
-    pin = '<span class="td-pin">pinned</span>' if entry.get("ticker") else ""
-    return (f'<div class="td-head"><span class="td-title">{esc(kind["title"])}</span>'
-            f'<span class="td-co">{esc(whose)}</span>{pin}</div>')
+    return kind["title"], (f"{whose} · pinned" if entry.get("ticker") else whose)
 
 
 def showing(panels, ticker: str) -> list:
@@ -186,3 +185,110 @@ def picker_options() -> list:
     """The kinds a reader can add, grouped as the picker lists them: (group, [kinds])."""
     return [(group, [panel for panel in PANELS if panel["group"] == group])
             for group in GROUPS if any(panel["group"] == group for panel in PANELS)]
+
+
+# ------------------------------------------------------------------------------ markup
+# Where a news row came from, as the reader should hear it. The pulse is a summary
+# written by a model and is labelled as one wherever it is shown (CLAUDE.md); a source
+# not listed here prints under its own stored name, never under a guess.
+NEWS_SOURCES = {
+    "press_ir": "Company release",
+    "press_page": "Company release",
+    "edgar_8k": "8-K",
+    "fda_press": "FDA press release",
+    "fda_drugs": "FDA drugs feed",
+    "fda_safety": "FDA safety notice",
+    "pulse": "Daily pulse (AI summary)",
+}
+NEWS_SHOWN = 40
+DATED_SHOWN = 60
+
+
+def _link(url) -> str:
+    """The address where it is a web address, else nothing: a row links only to http."""
+    text = str(url or "").strip()
+    return text if re.match(r"^https?://", text, re.I) else ""
+
+
+def _row(date, title, tag, url="", why="", hover="") -> str:
+    """One line of a list, in the feed's own four columns (theme.py, .fitem): when, what,
+    a qualifier, and a tag. A row with a source opens it."""
+    link = _link(url)
+    tip = f' title="{esc(hover)}"' if hover else ""
+    open_tag = (f'<a class="fitem link" href="{esc(link)}" target="_blank" '
+                f'rel="noopener noreferrer"{tip}>' if link else f'<div class="fitem"{tip}>')
+    return (f'{open_tag}<span class="d">{esc(date)}</span><span class="t">{esc(title)}</span>'
+            f'<span class="why">{esc(why)}</span><span class="s">{esc(tag)}</span>'
+            f'{"</a>" if link else "</div>"}')
+
+
+def news_rows(payload) -> list:
+    """The company's news as the API holds it, newest first, each with a title."""
+    rows = [r for r in ((payload or {}).get("news") or [])
+            if isinstance(r, dict) and str(r.get("title") or "").strip()]
+    return sorted(rows, key=lambda r: str(r.get("published_at") or ""), reverse=True)
+
+
+def news_basis(rows) -> str:
+    """"40 of 57, newest first": how much of the list is on the panel."""
+    total = len(rows)
+    if not total:
+        return ""
+    return f"{min(NEWS_SHOWN, total)} of {total}, newest first"
+
+
+def news_html(rows) -> str:
+    """The news list. Empty where there is none, so the caller can say so in words."""
+    if not rows:
+        return ""
+    lines = []
+    for r in rows[:NEWS_SHOWN]:
+        source = str(r.get("source") or "")
+        lines.append(_row(str(r.get("published_at") or "")[:10],
+                          re.sub(r"\s+", " ", str(r["title"])).strip(),
+                          NEWS_SOURCES.get(source, source or "source not stated"),
+                          url=r.get("url")))
+    return '<div class="feed td-list">' + "".join(lines) + "</div>"
+
+
+def dated_rows(catalysts) -> list:
+    """The dated events ahead, soonest first. A row with no date is not a dated event."""
+    rows = [c for c in (catalysts or []) if isinstance(c, dict) and c.get("expected_date")]
+    return sorted(rows, key=lambda c: str(c["expected_date"]))
+
+
+def dated_html(rows) -> str:
+    """What is dated ahead, one line an event: the date, the event, how exactly it is
+    dated, and what kind it is. A month the registry gives with no day is shown as the
+    month and marked, never as the first of it."""
+    if not rows:
+        return ""
+    lines = []
+    for c in rows[:DATED_SHOWN]:
+        when = str(c.get("expected_date") or "")
+        month_only = (c.get("date_confidence") or "") == "month"
+        title = re.sub(r"\s+", " ", str(c.get("title") or "")).strip()
+        lines.append(_row(when[:7] if month_only else when[:10],
+                          title or "untitled in the source",
+                          c.get("catalyst_type") or "kind not stated",
+                          url=c.get("source_url"),
+                          why="month only" if month_only else "",
+                          hover=title))
+    return '<div class="feed td-list">' + "".join(lines) + "</div>"
+
+
+def dated_basis(rows, months: int) -> str:
+    total = len(rows)
+    if not total:
+        return ""
+    shown = min(DATED_SHOWN, total)
+    return (f"{total} in {months} months" if shown == total
+            else f"{shown} of {total} in {months} months")
+
+
+def left_out_html(left_out) -> str:
+    """What a saved board asked for and did not get, said once above the panels."""
+    if not left_out:
+        return ""
+    return ('<div class="byline td-left-out">Left off the board: '
+            + "; ".join(esc(reason) for reason in left_out) + ".</div>")
