@@ -294,6 +294,25 @@ def test_result_tables_on_the_registry_are_a_study_certain_and_an_outcome_not_re
     assert "state no outcome in words" in rep["reason"] and _status(conn)[434] == "pending"
 
 
+def test_a_held_report_is_settled_once_its_study_is_closed_from_elsewhere(tmp_path):
+    """Held on Monday, entered in announced_readouts.csv on Tuesday: the report stayed on
+    the tab as unsettled beside the landed readout it was about."""
+    path, conn = _one(tmp_path, "Merck Announces Quarterly Dividend")
+    conn.execute("INSERT INTO trial_result_fetches (nct_id, has_results, results_date)"
+                 " VALUES ('NCT06074588', 1, '2026-11-13')")
+    conn.commit()
+    first = L.run(path, today=TODAY, step=False, set_aside_path=NONE)
+    assert first["held"] == 1 and first["settled"] == 0
+    announced_readouts.record(conn, 434, "missed", "2026-11-20", "https://x/y: missed.", today=TODAY)
+    conn.commit()
+    again = L.run(path, today=TODAY, step=False, set_aside_path=NONE)
+    rep = _reports(conn)["MRK"]
+    assert again["settled"] == 1 and again["held"] == 0
+    assert (rep["state"], rep["outcome"], rep["catalyst_id"]) == ("landed", "missed", 434)
+    assert "closed from another source" in rep["reason"]
+    assert L.run(path, today=TODAY, step=False, set_aside_path=NONE)["settled"] == 0
+
+
 def test_a_posting_carries_the_primary_endpoint_as_posted_and_still_reads_no_outcome(tmp_path):
     """Roche's IMvigor011: the registry posts disease-free survival at a hazard ratio of
     0.64, 0.47 to 0.87, p = 0.0047. The report says so, in the registry's own figures,

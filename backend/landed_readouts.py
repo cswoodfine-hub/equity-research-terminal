@@ -693,10 +693,46 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
             counts["set_aside"] += rep["state"] == "set_aside"
             counts["on_file"] += rep["state"] in ("on_file", "no_gate")
             _report(conn, today, **rep)
+        counts["settled"] = _settle_closed(conn, today)
+        counts["held"] = max(0, counts["held"] - counts["settled"])
         conn.commit()
     finally:
         conn.close()
     return counts
+
+
+def _settle_closed(conn, today: dt.date) -> int:
+    """A report held for its outcome, whose study has since been closed some other way.
+
+    A report is held on the day it is read and its study can be closed afterwards from
+    somewhere this module does not write: a row added to ``announced_readouts.csv``, or
+    a resolve in the terminal. Nothing came back to the report, so it stayed on the
+    Catalysts tab as reported and unsettled beside the landed readout it was about.
+    Found on 2026-11-23, when 27 registry postings were read against the companies' own
+    releases and entered in that file, and all 27 were still listed as waiting.
+
+    Only where every readout the study has is closed, and closed the same way: a study
+    with one readout met and another open, or two that disagree, still needs a person.
+    And only a report that read no outcome of its own. One that read met where the book
+    holds missed is held because the two disagree, and that is a person's to settle.
+    """
+    closed = conn.execute(
+        f"""SELECT rep.id, MIN(cat.id) AS catalyst_id, MIN(cat.status) AS outcome
+              FROM readout_reports rep
+              JOIN catalysts cat ON cat.source_url = '{_CTGOV}' || rep.nct_id
+             WHERE rep.state = 'outcome_not_read' AND rep.outcome IS NULL
+               AND cat.catalyst_type = 'data readout' AND cat.is_curated = 0
+             GROUP BY rep.id
+            HAVING SUM(COALESCE(cat.status, 'pending') NOT IN ('met', 'missed')) = 0
+               AND MIN(cat.status) = MAX(cat.status)""").fetchall()
+    for rep in closed:
+        conn.execute(
+            "UPDATE readout_reports SET state = 'landed', outcome = ?, catalyst_id = ?,"
+            " reason = ?, effect = ?, updated_at = ? WHERE id = ?",
+            (rep["outcome"], rep["catalyst_id"],
+             "the study's readout was closed from another source after this was held",
+             "already on file with this outcome", today.isoformat(), rep["id"]))
+    return len(closed)
 
 
 def _approval(db_path, text: str, published: str, asset_id, shown) -> dict:
