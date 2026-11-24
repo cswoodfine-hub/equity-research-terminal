@@ -153,7 +153,7 @@ def test_a_study_the_fetcher_never_asked_is_unread_not_unposted(tmp_path):
     r = TR.report(path, NCT)
     assert r["fetched"] is False
     assert _card(r)["Primary endpoint"]["verdict"] == "results not fetched"
-    assert "Phase 2 and later" in r["summary"] and "no results are posted" not in r["summary"]
+    assert "Not fetched yet" in r["summary"] and "no results are posted" not in r["summary"]
     assert not any("no results are posted" in f for f in r["factors"])
     assert TR.completed(path, "EX")[0]["has_results"] is None
     assert PC.completed_label({"nct_id": NCT, "has_results": None}).endswith(

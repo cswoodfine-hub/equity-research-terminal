@@ -1067,7 +1067,12 @@ def landscape(db_path, indication_id: int, verdict_for=None) -> dict | None:
         ids = list(cands)
         pharm = _pharmacology(conn, ids)
         pool = _pool(conn, members)
-        ncts = sorted({n for c in cands.values() for n in c["trials"]})
+        # Results of the late studies only. The fetcher now reads Phase 1 and Phase 4
+        # studies too, for the Portfolio tab's past trials; the scorecard compares drugs
+        # on the evidence it was built for, and a healthy-volunteer study or a
+        # post-approval one is not that.
+        ncts = sorted({n for c in cands.values() for n, t in c["trials"].items()
+                       if t.get("phase") in LATE})
         have = {r["nct_id"] for r in conn.execute(
             f"SELECT nct_id FROM trial_result_fetches WHERE has_results = 1 AND nct_id IN"
             f" ({','.join('?' * len(ncts)) or 'NULL'})", ncts)} if ncts else set()

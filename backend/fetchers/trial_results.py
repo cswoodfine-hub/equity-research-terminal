@@ -18,9 +18,12 @@ Per study this stores, per arm:
 Nothing is derived here. A value the registry posted as "NA" is stored as text beside a
 null, never as a number.
 
-Run for the big pharma companies only, on their Phase 2 and later studies mapped to an
-asset. A study is asked once and again only when it is 90 days stale, since posted
-results rarely change; the registry is asked in batches of 20 by NCT id.
+Run for the big pharma companies only, on their studies of every phase mapped to an
+asset: Phase 2 and later first, newest completion first, then Phase 1 and Phase 4, so the
+studies the odds and the clinical scorecard read are never queued behind early work. A
+Phase 1 study is not required to post results and few do; a Phase 4 study often does. A
+study is asked once and again only when it is 90 days stale, since posted results rarely
+change; the registry is asked in batches of 20 by NCT id.
 """
 
 from __future__ import annotations
@@ -44,6 +47,10 @@ SECONDARY_KEPT = 10
 OTHER_EVENTS_KEPT = 15
 SERIOUS_EVENTS_KEPT = 10
 LATE = ("Phase 2", "Phase 2/3", "Phase 3")
+# Asked after every late study is: a past trial on the Portfolio tab of any phase opens
+# onto what its sponsor posted, and "not fetched" there was most of a product's history.
+EARLY = ("Early Phase 1", "Phase 1", "Phase 1/2", "Phase 4")
+PHASES = LATE + EARLY
 # The statuses of a study that can have posted, as the trials table spells them. The
 # pipeline fetcher stores the registry's status humanised ("Active not recruiting"), and
 # this list was written in the API's own spelling (ACTIVE_NOT_RECRUITING), so the half of
@@ -204,7 +211,7 @@ def _most_frequent(events: list, kept: int) -> list:
 
 
 class TrialResultsFetcher(BaseFetcher):
-    """One company's Phase 2 and later studies' posted results."""
+    """One company's studies' posted results, Phase 2 and later first."""
 
     source = SOURCE
     ttl_seconds = TTL_SECONDS
@@ -218,29 +225,36 @@ class TrialResultsFetcher(BaseFetcher):
         return self.ticker
 
     def due(self, conn) -> list[str]:
-        """The company's studies to ask about: Phase 2 and later, mapped to an asset,
-        never asked or asked more than REFETCH_DAYS ago. Newest completion first."""
+        """The company's studies to ask about: of any phase, mapped to an asset, never
+        asked or asked more than REFETCH_DAYS ago. Phase 2 and later first, then Phase 1
+        and Phase 4, each newest completion first, so the cap on a run never leaves a late
+        study waiting behind an early one."""
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
                                (self.ticker,)).fetchone()
         if company is None:
             return []
-        marks = ",".join("?" * len(LATE))
+        marks = ",".join("?" * len(PHASES))
+        late = ",".join("?" * len(LATE))
         states = ",".join("?" * len(POSTABLE))
         rows = conn.execute(
-            f"""SELECT nct_id, MAX(done) AS done FROM (
-                    SELECT nct_id, completion_date AS done FROM completed_trials
+            f"""SELECT nct_id, MAX(done) AS done, MIN(early) AS early FROM (
+                    SELECT nct_id, completion_date AS done,
+                           CASE WHEN phase IN ({late}) THEN 0 ELSE 1 END AS early
+                      FROM completed_trials
                      WHERE sponsor_company_id = ? AND asset_id IS NOT NULL
                        AND phase IN ({marks})
                     UNION ALL
-                    SELECT nct_id, primary_completion_date AS done FROM trials
+                    SELECT nct_id, primary_completion_date AS done,
+                           CASE WHEN phase IN ({late}) THEN 0 ELSE 1 END AS early
+                      FROM trials
                      WHERE sponsor_company_id = ? AND asset_id IS NOT NULL
                        AND phase IN ({marks})
                        AND UPPER(REPLACE(overall_status, ' ', '_')) IN ({states}))
                  WHERE nct_id NOT IN (
                     SELECT nct_id FROM trial_result_fetches
                      WHERE fetched_at >= datetime('now', ?))
-                 GROUP BY nct_id ORDER BY done DESC""",
-            (company["id"], *LATE, company["id"], *LATE, *POSTABLE,
+                 GROUP BY nct_id ORDER BY early, done DESC""",
+            (*LATE, company["id"], *PHASES, *LATE, company["id"], *PHASES, *POSTABLE,
              f"-{REFETCH_DAYS} days")).fetchall()
         return [r["nct_id"] for r in rows][:MAX_STUDIES_PER_RUN]
 

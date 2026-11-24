@@ -876,11 +876,11 @@ def _completed_block(api_base: str, ticker: str, trials: list, key: str,
     unread = sum(1 for t in options if t.get("has_results") is None)
     shown = (f"latest {len(options)} of {total}" if total and total > len(options)
              else str(len(options)))
-    # The fetcher reads Phase 2 and later studies only, so most Phase 1 and Phase 4 work
-    # is unread rather than unposted, and the heading says which.
+    # A study the results fetcher has not reached is unread rather than unposted, and
+    # the heading says which.
     st.markdown(f'<div class="tr-sub">{html_escape(heading)} &middot; {shown}'
                 f'{f" &middot; {posted} with results posted" if posted else ""}'
-                f'{f" &middot; {unread} not fetched (the book reads Phase 2 and later)" if unread else ""}'
+                f'{f" &middot; {unread} not fetched yet" if unread else ""}'
                 '</div>',
                 unsafe_allow_html=True)
     nct = st.selectbox("Past trial", list(labels), index=None,

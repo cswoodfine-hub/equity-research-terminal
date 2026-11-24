@@ -31,12 +31,13 @@ SMALL_STUDY = 100
 LARGE_STUDY = 300
 EVENTS_KEPT = 6
 RATIO_WORDS = ("ratio",)
-# What a study the results fetcher has never asked reads as. The fetcher asks the registry
-# for Phase 2 and later studies only, so a Phase 1 or Phase 4 study, or a late one it has
-# not reached yet, is not known to have nothing posted: it is unread.
-NOT_FETCHED = ("Not fetched: the book reads posted results for Phase 2 and later studies "
-               "and has not asked the registry about this one. Its registry page may "
-               "hold results.")
+# What a study the results fetcher has not asked yet reads as. It asks Phase 2 and later
+# studies first and Phase 1 and Phase 4 after them, a capped number a night, and never a
+# study with no phase stated; a study it has not reached is not known to have nothing
+# posted: it is unread.
+NOT_FETCHED = ("Not fetched yet: the book has not asked the registry about this study. "
+               "It asks Phase 2 and later studies first, then Phase 1 and Phase 4, a "
+               "capped number each night. Its registry page may hold results.")
 
 
 def _pct(affected, at_risk):

@@ -104,7 +104,8 @@ def test_a_study_still_active_is_asked_however_its_status_is_spelled(tmp_path):
     the list of statuses that can have posted was written as the API spells them. That
     half of the query matched nothing, so a Phase 3 past its primary completion and still
     following patients, which is when it posts, was never asked. Both spellings are due;
-    a study still recruiting, one before Phase 2 and one mapped to no asset are not."""
+    a study still recruiting and one mapped to no asset are not, and a Phase 1 study is
+    due after every late one."""
     path = str(tmp_path / "tr.db")
     db.init(path)
     conn = db.get_connection(path)
@@ -124,4 +125,26 @@ def test_a_study_still_active_is_asked_however_its_status_is_spelled(tmp_path):
     conn.commit()
     due = TR.TrialResultsFetcher("LLY", path).due(conn)
     conn.close()
-    assert due == ["NCT00000001", "NCT00000002", "NCT00000003", "NCT00000004"]
+    assert due == ["NCT00000001", "NCT00000002", "NCT00000003", "NCT00000004",
+                   "NCT00000006"]
+
+
+def test_a_late_study_is_asked_before_an_early_one_however_recent(tmp_path):
+    """Phase 1 and Phase 4 studies are asked too, but after every late one: the cap on a
+    run must never leave a Phase 3 waiting behind a newer Phase 1."""
+    path = str(tmp_path / "tr.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name) VALUES (1, 1, 'Omvoh')")
+    for nct, phase, done in (("NCT00000011", "Phase 1", "2026-06-01"),
+                             ("NCT00000012", "Phase 4", "2026-05-01"),
+                             ("NCT00000013", "Phase 3", "2020-01-01"),
+                             ("NCT00000014", None, "2026-07-01")):
+        conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, asset_id,"
+                     " phase, completion_date) VALUES (?, 1, 1, ?, ?)", (nct, phase, done))
+    conn.commit()
+    due = TR.TrialResultsFetcher("LLY", path).due(conn)
+    conn.close()
+    # A study with no phase stated (observational, device) is not asked.
+    assert due == ["NCT00000013", "NCT00000011", "NCT00000012"]
