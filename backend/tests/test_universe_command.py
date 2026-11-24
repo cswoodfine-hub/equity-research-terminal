@@ -340,18 +340,81 @@ def wk():
 
 def test_the_week_is_ranked_by_kind_in_the_stated_order(wk):
     """Deals with a value, the rate move, Phase 3 results, deals with none, Phase 2
-    results, label expansions, the group's slips, the next firm FDA date, then notices,
-    results dates, filings, labels, Phase 3 completions due and exclusivity ending."""
+    results, label expansions, the next firm FDA date, notices and results dates are
+    ranked; the counted record (slips, filings, labels, Phase 3 completions due and
+    exclusivity ending) follows unranked, for the sector news."""
     items = wk["items"]
     assert [i["kind"] for i in items] == [
-        "deal", "market", "readout", "deal", "readout2", "approval", "slips", "regulatory",
-        "notice", "earnings", "filing", "labels", "due", "loe"]
-    assert [i["rank"] for i in items] == list(range(1, len(items) + 1))
-    assert len(items) <= uc.WEEK_ITEMS
+        "deal", "market", "readout", "deal", "readout2", "approval", "regulatory",
+        "notice", "earnings", "slips", "filing", "labels", "due", "loe"]
+    ranked = [i for i in items if not i.get("record")]
+    assert [i["rank"] for i in ranked] == list(range(1, len(ranked) + 1))
+    assert all(i["kind"] in uc.RECORD_KINDS and "rank" not in i
+               for i in items if i.get("record"))
+    assert len(ranked) <= uc.WEEK_ITEMS
     assert items[0]["tickers"] == ["SNY", "REGN"] and items[3]["tickers"] == ["AZN"]
     cohort = set(wk["fx"]["cohort"]) | {"ALL"}
     assert all(set(i["tickers"]) <= cohort for i in items)
     assert all(isinstance(i["verbatim"], bool) for i in items)
+
+
+def _with_pulse_rows(wk, rows, covered=()):
+    fx = json.loads(WEEK_FIXTURE.read_text())
+    fx["pulse"] = rows
+    fx["valuation"] = {"companies": [{"ticker": t} for t in list(fx["companies"]) + list(covered)]}
+    return uc._week_items(fx, fx["companies"], fx["events"], TODAY, wk["rows"])
+
+
+def _pulse_row(**kw):
+    row = {"pulse_date": TODAY.isoformat(), "kind": "readout", "headline": "", "detail": None,
+           "url": "https://example.com/a", "published_at": None, "companies": "[]",
+           "tickers": ""}
+    row.update(kw)
+    return row
+
+
+def test_the_pulse_headlines_lead_the_week_and_say_what_they_are(wk):
+    """A sector-moving pulse item ranks first, its head the pulse's words marked as an AI
+    summary, and its figure the book's own day move, never a figure from the pulse."""
+    items = _with_pulse_rows(wk, [_pulse_row(
+        kind="readout", headline="Novartis: a Phase 3 hits", tickers="NVS",
+        published_at="2026-10-02", detail="n=400")])
+    top = items[0]
+    assert top["kind"] == "pulse" and top["rank"] == 1 and top["tickers"] == ["NVS"]
+    assert top["src"] == uc.PULSE_LABEL and top["verbatim"] is False
+    assert top["fig_move"] == uc._day_move(json.loads(WEEK_FIXTURE.read_text())["closes"]["NVS"],
+                                           "2026-10-02")
+    assert ["In brief", "n=400"] in top["rows"]
+    # The book's own ranking follows it unchanged.
+    assert [i["kind"] for i in items[1:4]] == ["deal", "market", "readout"]
+
+
+def test_a_pulse_headline_of_a_story_the_book_has_brings_the_books_item_up(wk):
+    """Where the book has the same story (a company the headline names, the same kind,
+    within PULSE_MATCH_DAYS), the book's item takes the pulse's place, once, with the
+    pulse's line beside its own rows."""
+    first_deal_up = next(i for i in wk["items"] if i["kind"] == "deal" and i is not wk["items"][0])
+    t = first_deal_up["tickers"][0]
+    name = json.loads(WEEK_FIXTURE.read_text())["companies"][t]["short"].split()[0]
+    items = _with_pulse_rows(wk, [_pulse_row(
+        kind="deal", headline=f"{name} agrees a deal", tickers=t,
+        published_at=first_deal_up["date"])])
+    assert items[0]["kind"] == "deal" and items[0]["head"] == first_deal_up["head"]
+    assert [uc.PULSE_LABEL, f"{name} agrees a deal"] in items[0]["rows"]
+    assert sum(1 for i in items if i.get("head") == first_deal_up["head"]) == 1
+    assert not any(i["kind"] == "pulse" for i in items)
+
+
+def test_a_pulse_headline_naming_only_another_engines_company_is_left_to_it(wk):
+    """A headline naming only companies the book covers on another engine is that
+    engine's; one naming no covered company (policy, the market) is read on every one."""
+    items = _with_pulse_rows(wk, [
+        _pulse_row(kind="readout", headline="Kymera: a degrader hits", tickers="KYMR"),
+        _pulse_row(kind="policy", headline="Congress passes a biotech bill")],
+        covered=("KYMR",))
+    pulse = [i for i in items if i["kind"] == "pulse"]
+    assert [p["head"] for p in pulse] == ["Congress passes a biotech bill"]
+    assert pulse[0]["tickers"] == [] and pulse[0]["fig_move"] is None
 
 
 def test_the_week_never_reads_the_company_in_focus(wk):

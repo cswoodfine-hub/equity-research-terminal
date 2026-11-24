@@ -660,6 +660,29 @@ def test_the_ranked_feed_runs_from_one_at_one_size_and_names_what_it_leaves(payl
         assert not any(str(k).startswith("For ") for k, _v in x["rows"])  # no focal row
 
 
+def test_the_ranked_feed_leads_with_the_pulse_and_leaves_the_record_to_sector_news(payload):
+    """A pulse item ranks with its day move and says it is an AI summary; the counted
+    record (marked ``record``) is not ranked and not counted in the feed's head."""
+    p = copy.deepcopy(payload)
+    record_kinds = ("slips", "filing", "labels", "due", "loe")
+    news = [i for i in p["week_items"] if i["kind"] not in record_kinds]
+    record = [dict(i, record=True) for i in p["week_items"] if i["kind"] in record_kinds]
+    pulse = {"kind": "pulse", "tag": "deal", "pulse_kind": "deal", "pulse": True,
+             "tickers": ["AZN"], "verbatim": False, "date": p["today"],
+             "head": "AstraZeneca agrees to buy a biotech for $5bn in cash, its largest yet",
+             "fig_move": 0.021, "mini": {}, "rows": [["Briefing", p["today"]]],
+             "url": "https://example.com/a", "src": "Daily pulse (AI summary)"}
+    p["week_items"] = [pulse] + news + record
+    rk = UC.ranked_html(p)
+    assert re.search(r'<span class="n">1</span><div class="bd"><div class="h">AstraZeneca agrees '
+                     r'to buy a biotech for \$5bn in cash</div>', rk)
+    assert "an AI summary of the trade press, not a source" in rk
+    assert "+2.1%" in rk
+    assert f"of {1 + len(news)}" in rk
+    assert record and not any(html.escape(UC.brief(it)) in rk for it in record)
+    _house_style(_visible(rk))
+
+
 def test_the_source_words_are_the_sources_and_the_rest_is_house_style(payload):
     """Every string marked as a source's own words is one the payload carries as
     verbatim; everything else a reader sees follows house style. Alexion's notice says

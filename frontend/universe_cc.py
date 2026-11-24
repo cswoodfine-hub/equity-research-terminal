@@ -1381,10 +1381,13 @@ def notes_text(p):
     firm_txt = ("; ".join(f"{e['ticker']} {e.get('short') or ''}, {dlong(e['date'])}" for e in firm)
                 if firm else "none")
     left = p.get("events_left_off") or 0
-    return (f"Prices to the {dlong(p.get('price_date'))} close. The week is ranked by kind, "
-            "then size, and never by the company picked: deals with a stated value, the rate "
-            "move, Phase 3 results, other deals, Phase 2 results, approvals, slips, then what "
-            "is due. Words in quotes, and the headlines marked as the source's, are the "
+    return (f"Prices to the {dlong(p.get('price_date'))} close. The week's headlines lead "
+            "and never by the company picked: the daily pulse's sector-moving items (an AI "
+            "summary of the trade press, each standing in for the book's own item of the "
+            "same story), then by kind and size: deals with a stated value, the rate move, "
+            "Phase 3 results, other deals, Phase 2 results, approvals, then FDA dates. "
+            "Slips, filings, labels, what is due and exclusivities ending are counted under "
+            "sector news. Words in quotes, and the headlines marked as the source's, are the "
             "source's own. Cheap to expensive is the model's 12-month upside to the close. "
             "Moves against XLV use XLV's total "
             "return and each company's price, so they understate a company by its own dividend. "
@@ -1796,6 +1799,11 @@ KIND_COLOUR = {
 GRID_COLOUR = {"deal": "var(--purple-book)", "result": "var(--phase-3)", "fda": "var(--fda)",
                "slip": "var(--orange-book)", "company": "var(--muted)",
                "routine": "var(--muted)"}
+# A pulse item takes the colour of the book's kind it is closest to.
+_PULSE_COLOUR = {"deal": "deal", "readout": "readout", "approval": "approval",
+                 "regulatory": "regulatory", "rejection": "regulatory",
+                 "financing": "financing", "earnings": "earnings", "policy": "market",
+                 "market": "market"}
 # The kinds the live week_item draws; the rest are drawn by feed_item.
 _LIVE_KINDS = ("deal", "market", "readout", "readout2", "approval", "regulatory")
 # The ranked feed: two columns of this many rows at 1440, from rank 1.
@@ -1873,6 +1881,23 @@ def feed_item(p, it):
         elif m.get("type") == "dates" and m.get("a") and m.get("b"):
             mini = dates_mini(m.get("dates") or [], m.get("a"), m.get("b"))
         tickers = it.get("tickers") or []
+        if kind == "pulse":
+            mv = it.get("fig_move")
+            rows_p = [(k, _moves(v) if isinstance(v, list) else v)
+                      for k, v in it.get("rows") or []]
+            x = {"tag": it.get("tag") or "pulse", "head": it.get("head") or "",
+                 "mini": (stock_mini((p.get("closes") or {}).get(tickers[0]) or [],
+                                     [it.get("date")]) if tickers else ""),
+                 "fig": pc(mv) if mv is not None else ("no close yet" if tickers else "sector"),
+                 "sub": dday(it.get("date")), "fcls": "" if mv is not None else "none",
+                 "rows": rows_p, "title": "", "url": it.get("url"),
+                 "src": it.get("src") or "Daily pulse (AI summary)"}
+            x["kind"] = kind
+            x["accent"] = KIND_COLOUR.get(_PULSE_COLOUR.get(it.get("pulse_kind"), ""),
+                                          "var(--rule-strong)")
+            x["verbatim"] = False
+            x["focus"] = _focal(p) in tickers
+            return x
         if kind in ("notice", "mover") and tickers:
             first = (m.get("ticker") or tickers[0]) if kind == "mover" else tickers[0]
             mini = stock_mini((p.get("closes") or {}).get(first) or [], [it.get("date")])
@@ -1911,6 +1936,10 @@ def brief(it):
     kind = it.get("kind")
     head = it.get("head") or ""
     fig = it.get("fig")
+    if kind == "pulse":
+        bare = re.sub(r"\s*\([^)]*\)", "", head)
+        words = re.split(r"; |[,:] (?=first|its|the)", bare)[0].split()
+        return " ".join(words[:10]) + (" …" if len(words) > 10 else "")
     if kind == "deal":
         party = (it.get("terms") or {}).get("counterparty")
         if not party:
@@ -1973,7 +2002,8 @@ def _item_card(p, it, x, cls=""):
     title = f'<div class="nt">{vb(x["title"])}</div>' if x.get("title") else ""
     link = (f'<a href="{esc(x["url"])}" target="_blank" rel="noopener">source</a>'
             if x.get("url") else "")
-    words = "headline as the source wrote it" if x["verbatim"] else "in our words"
+    words = ("an AI summary of the trade press, not a source" if it.get("pulse")
+             else "headline as the source wrote it" if x["verbatim"] else "in our words")
     return (f'<div class="uw-card {cls}"><div class="ck"><span class="uw-tag" '
             f'style="--accent:{x["accent"]}">{esc(x["tag"])}</span>'
             f'{_tk_marks(p, it.get("tickers") or [], 8)}'
@@ -2002,7 +2032,7 @@ def ranked_html(p, start=1, rows=RANK_ROWS):
     ``rows``, read down the first and then the second. Each item has its kind, its
     tickers, its headline, its small chart and its figure; a hover or a click opens its
     detail. The ranks the column has no room for are one hover away in the head."""
-    items = p.get("week_items") or []
+    items = [i for i in p.get("week_items") or [] if not i.get("record")]
     shown = items[start - 1:start - 1 + 2 * rows]
     rest = items[start - 1 + 2 * rows:]
     since, to = p.get("week_since"), p.get("today")

@@ -39,6 +39,7 @@ import theme as T
 import trading_page
 import business as business_figure
 import trend as trend_module
+import universe_cc
 import universe_page
 from components import charts as CH
 from components import approvnav
@@ -10263,25 +10264,63 @@ def _coverage_view(api_base: str) -> None:
          "rather than a gap, and the reason is the column beside it.")
 
 
-def _pulse_panel(api_base: str) -> None:
-    """Sector news from the daily pulse, the whole sector rather than the universe:
-    private rounds and other biotechs are kept. Drawn nothing when no briefing is on
-    file."""
+def _record_html(items: list) -> str:
+    """The week's counted record from the book's own sources (slips, filings, labels,
+    what is due, exclusivities ending), one line a kind: the count in a few words, the
+    book's own line under it, and the companies it names."""
+    if not items:
+        return ""
+    rows = []
+    for it in items:
+        head = it.get("head") or ""
+        if len(head) > 220:
+            head = head[:219].rsplit(" ", 1)[0] + " …"
+        named = it.get("tickers") or []
+        meta = " · ".join(([", ".join(named[:6])] if named else [])
+                          + ([it["date"]] if it.get("date") else []))
+        rows.append(
+            f'<div class="pulse-item"><span class="pulse-tier">'
+            f'{html_escape(str(it.get("fig") or ""))}</span>'
+            f'<span class="rec-h">{html_escape(universe_cc.brief(it))}</span>'
+            f'<div class="pulse-meta">{html_escape(head)}</div>'
+            + (f'<div class="pulse-meta">{html_escape(meta)}</div>' if meta else "")
+            + "</div>")
+    return ("<div class=\"pulse-day\">The book's record this week · "
+            f'{len(items)} kind{"" if len(items) == 1 else "s"}</div>' + "".join(rows))
+
+
+def _pulse_panel(api_base: str, week: dict | None = None) -> None:
+    """Sector news: the week's counted record from the book's own sources, then the daily
+    pulse, the whole sector rather than the universe (private rounds and other biotechs
+    are kept). Where the ranked feed is drawn above (``week`` is its payload), the record
+    is the part it leaves out and the pulse's sector-moving items of its week are
+    already in it, so they are not drawn twice. Drawn nothing when there is neither."""
+    week = week or {}
+    record = [i for i in week.get("week_items") or [] if i.get("record")]
     try:
         got = api_get(api_base, "/pulse?days=14")
     except Exception:                                               # noqa: BLE001
-        return
-    markup = _pulse_html(got)
+        got = {}
+    since = week.get("week_since")
+    if since:
+        got = {**got, "items": [i for i in got.get("items") or []
+                                if not (i.get("tier") == 1 and (i.get("pulse_date") or "") >= since)]}
+    markup = _record_html(record) + _pulse_html(got)
     if not markup:
         return
-    section("Sector news", count=len(got.get("items") or []),
-            basis=got.get("label") or "Daily pulse (AI summary)")
+    n = len(record) + len(got.get("items") or [])
+    section("Sector news", count=n,
+            basis=("the book's record and the " if record else "")
+            + (got.get("label") or "Daily pulse (AI summary)"))
     st.markdown(markup, unsafe_allow_html=True)
-    note("From the daily biopharma pulse, a scheduled Claude run that reads the trade "
-         "press each weekday morning and ranks what it finds in three tiers. Each item "
-         "links the article it summarises. It is a summary, not a source: nothing in it "
-         "moves a value, a deal term or a catalyst. Items naming a covered company also "
-         "appear in that company's What changed.")
+    note(("The record is counted from the book's own sources: registry dates, filings, "
+          "labels and the Orange and Purple Books. " if record else "")
+         + "The pulse is a scheduled Claude run that reads the trade press each weekday "
+         "morning and ranks what it finds in three tiers; each item links the article it "
+         "summarises. It is a summary, not a source: nothing in it moves a value, a deal "
+         "term or a catalyst. "
+         + ("Its sector-moving items of the week lead This week, ranked, above. " if since else "")
+         + "Items naming a covered company also appear in that company's What changed.")
 
 
 # The Ask box's opening questions: the three a reader most often has of a company that no
@@ -11675,6 +11714,7 @@ with main:
                          if (it.get("ticker") or "") in _covered
                          or it.get("kind") == "market"]
 
+        _ranked_above = False
         if _view == "Markets":
             _markets_view(api_base, universe_feed)
         elif _view == "Policy":
@@ -11683,13 +11723,21 @@ with main:
             _coverage_view(api_base)
         elif (_universe_redesigned(ticker, _view, (company or {}).get("engine"))
               and universe_page.render(api_base, ticker)):
-            pass
+            _ranked_above = True
         else:
             _universe_overview(api_base, engine, _engine_name, _covered,
                                _all_changes, universe_feed)
         # The sector's news, wider than the universe, under the overview it belongs to.
+        # Under the ranked feed it holds what the feed leaves out: the week's counted
+        # record and the pulse's lesser items.
         if _view == "Overview":
-            _pulse_panel(api_base)
+            _week = {}
+            if _ranked_above:
+                try:
+                    _week = universe_page.fetch(api_base, ticker, "all")
+                except Exception:                                   # noqa: BLE001
+                    _week = {}
+            _pulse_panel(api_base, _week)
         # Book-wide, so it sits at the foot of the book-wide tab rather than on a
         # company page, and it draws nothing when the queue is empty.
 

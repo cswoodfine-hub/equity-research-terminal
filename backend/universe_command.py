@@ -74,6 +74,19 @@ def benchmark_for(engine: str | None) -> tuple:
 MARKET_LABEL = "S&P 500"
 # The ranked feed keeps this many items; the page shows as many as fit its column.
 WEEK_ITEMS = 16
+# The week's counted record: what the book's own sources changed, each kind one item.
+# These are kept off the ranked feed, which is for the week's headlines, and are drawn
+# with the sector news instead.
+RECORD_KINDS = ("slips", "filing", "labels", "due", "loe")
+# The daily pulse's own label, carried by every item read from it.
+PULSE_LABEL = "Daily pulse (AI summary)"
+# A pulse headline and the book's own item are one story when they share a company and a
+# kind and are dated this many days apart or fewer.
+PULSE_MATCH_DAYS = 4
+# The book's kinds a pulse kind can be the same story as.
+PULSE_SAME = {"deal": ("deal",), "readout": ("readout", "readout2"),
+              "approval": ("approval", "regulatory"), "regulatory": ("regulatory", "approval"),
+              "rejection": ("regulatory",)}
 # The ranked feed's look-ahead items: Phase 3 primary completions due inside 14 days and
 # listed patents and exclusivities ending inside 60.
 DUE_DAYS = 14
@@ -539,6 +552,7 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["policy"] = policy_fedreg.recent(db_path, days=730)
         src["deal_rows"] = _deal_rows(conn, cohort,
                                       (today - dt.timedelta(days=2 * NEWS_DAYS)).isoformat())
+        src["pulse"] = _pulse_leads(conn, (today - dt.timedelta(days=NEWS_DAYS)).isoformat())
         if engine in FOCUS_ENGINES:
             src["focus"] = _focus_reads(conn, db_path, cohort, today, src["catalysts"])
     finally:
@@ -967,7 +981,14 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
     14. Listed patents and exclusivities ending inside LOE_DAYS, one item.
 
     Every item carries ``verbatim`` (its head is the source's own words), its own figure
-    and date; at most WEEK_ITEMS are kept, ranked from 1."""
+    and date.
+
+    The ranked feed is the week's headlines: the daily pulse's sector-moving items lead
+    (_pulse_items), each replaced by the book's own item of the same story where there is
+    one (_with_pulse), then the rules above in order without the counted record. At most
+    WEEK_ITEMS are kept, ranked from 1. The counted record (RECORD_KINDS: items 7 and 11
+    to 14) follows them unranked, each marked ``record``, and is drawn with the sector
+    news."""
     since = (today - dt.timedelta(days=NEWS_DAYS)).isoformat()
     closes = src.get("closes") or {}
     heads = src.get("headlines") or []
@@ -1331,9 +1352,112 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                       "rows": [[f"{_dshort(r.get('date'))} {r['ticker']}", what(r)] for r in loe],
                       "url": None, "src": "/changes (loe, Orange and Purple Books)"})
 
-    for i, it in enumerate(items[:WEEK_ITEMS], 1):
+    # The headlines lead: the pulse's sector-moving items, each standing in for the book's
+    # own item of the same story where there is one, then the rest of the book's news in
+    # the order above. The counted record follows unranked, for the sector news.
+    record = [i for i in items if i["kind"] in RECORD_KINDS]
+    news = [i for i in items if i["kind"] not in RECORD_KINDS]
+    ranked = _with_pulse(_pulse_items(src, companies, move), news, companies)[:WEEK_ITEMS]
+    for i, it in enumerate(ranked, 1):
         it["rank"] = i
-    return items[:WEEK_ITEMS]
+    for it in record:
+        it["record"] = True
+    return ranked + record
+
+
+def _pulse_leads(conn, since: str) -> list:
+    """The daily pulse's sector-moving items (tier 1) of briefings since ``since``,
+    newest briefing first and in the pulse's own order within one."""
+    try:
+        cur = conn.execute(
+            "SELECT pulse_date, kind, headline, detail, url, published_at, companies, tickers"
+            " FROM pulse_items WHERE tier = 1 AND pulse_date >= ?"
+            " ORDER BY pulse_date DESC, id", (since,))
+    except Exception:                       # a book from before the pulse table
+        return []
+    cols = [c[0] for c in cur.description]
+    return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def _pulse_items(src: dict, companies: dict, move) -> list:
+    """The pulse's sector-moving items as ranked items. One is kept when it names a
+    company of this group, or names no company the book covers at all (a policy or market
+    item, read the same on every engine); one naming only another engine's companies is
+    that engine's. The head is the pulse's words and every item says so. Its figure is
+    the book's own day move for the first company it names, never a figure from the
+    pulse."""
+    covered = {r.get("ticker") for r in (src.get("valuation") or {}).get("companies") or []}
+    out = []
+    for r in src.get("pulse") or []:
+        named = [t for t in (r.get("tickers") or "").split(",") if t]
+        ours = [t for t in named if t in companies]
+        if not ours and any(t in covered for t in named):
+            continue
+        day = _iso(r.get("published_at")) or _iso(r.get("pulse_date"))
+        try:
+            others = [c for c in json.loads(r.get("companies") or "[]") if c]
+        except ValueError:
+            others = []
+        rows = []
+        if r.get("detail"):
+            rows.append(["In brief", r["detail"]])
+        if others:
+            rows.append(["Names", ", ".join(others)])
+        rows.append(["Briefing", r.get("pulse_date")])
+        first = ours[0] if ours else None
+        if first:
+            rows.append(["Day move", [[t, move(t, day)] for t in ours[:3]]])
+        out.append({"kind": "pulse", "tag": r.get("kind") or "pulse",
+                    "pulse_kind": r.get("kind"), "tickers": ours, "head": r.get("headline") or "",
+                    "verbatim": False, "pulse": True, "date": day,
+                    "fig_move": move(first, day) if first else None,
+                    "mini": {"type": "stock", "ticker": first, "marks": [day]} if first else {},
+                    "rows": rows, "url": r.get("url"), "src": PULSE_LABEL})
+    return out
+
+
+def _story_names(t: str, companies: dict) -> set:
+    """How a headline may name a company: its ticker, the first word of its short name,
+    and the initials of a name like Johnson & Johnson."""
+    short = (companies.get(t) or {}).get("short") or ""
+    names = {t.lower()}
+    if short:
+        names.add(short.split()[0].lower())
+        if "&" in short:
+            parts = [w for w in short.replace("&", " & ").split() if w]
+            names.add("".join(w[0] if w != "&" else "&" for w in parts).lower())
+    return names
+
+
+def _with_pulse(pulse: list, news: list, companies: dict) -> list:
+    """The pulse's items first, each replaced by the book's own item of the same story
+    (a company the pulse headline names, a kind of the same story, dated within
+    PULSE_MATCH_DAYS), which then carries the pulse's line; the book's other news after."""
+    used: set = set()
+    lead = []
+    for p in pulse:
+        low = (p["head"] or "").lower()
+        same = PULSE_SAME.get(p.get("pulse_kind") or "", ())
+        hit = None
+        for i, it in enumerate(news):
+            if i in used or it["kind"] not in same:
+                continue
+            shared = [t for t in it.get("tickers") or [] if t in p["tickers"]]
+            if not any(n in low for t in shared for n in _story_names(t, companies)):
+                continue
+            a, b = _date(it.get("date")), _date(p.get("date"))
+            if a and b and abs((a - b).days) <= PULSE_MATCH_DAYS:
+                hit = i
+                break
+        if hit is None:
+            lead.append(p)
+            continue
+        used.add(hit)
+        item = news[hit]
+        item["rows"] = list(item.get("rows") or []) + [[PULSE_LABEL, p["head"]]]
+        item["pulse_url"] = p.get("url")
+        lead.append(item)
+    return lead + [it for i, it in enumerate(news) if i not in used]
 
 
 # --- the focus list's week -------------------------------------------------------------
