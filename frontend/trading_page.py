@@ -35,7 +35,7 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 13
+REVISION = 14
 
 HOLD_SECONDS = 60
 SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
@@ -113,7 +113,6 @@ def _news(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/news")
     rows = TV.news_rows(payload)
-    today = dt.date.today()
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot, frame):
         if problem:
@@ -123,24 +122,14 @@ def _news(api_base, company, kit, rule, slot, frame, have):
                       "Company releases, 8-K headlines, the FDA's feeds and the daily "
                       "pulse are read on each refresh. None names this company yet.")
         else:
-            figure = TV.news_figure(rows, today, frame["width"])
-            _figure(figure)
             st.markdown(TV.news_leads(rows)
                         + TV.fold_html(f"The list: {TV.news_basis(rows)}",
                                        TV.news_html(rows)),
                         unsafe_allow_html=True)
-            older = TV.news_older(rows, today)
-            kit.note((f"A square is one item, in the month it was published and the row "
-                      f"of its source, over {TV.NEWS_MONTHS} months. "
-                      if figure else
-                      f"Nothing on file is from the last {TV.NEWS_MONTHS} months, so no "
-                      "figure is drawn. ")
-                     + (f"{older} older {'item is' if older == 1 else 'items are'} in the "
-                        "list and not on the figure. " if older else "")
-                     + "The three named are the newest, and each opens its source. Pulse "
-                       "(AI) is the daily pulse, a model's summary of the trade press that "
-                       "links the article it summarises; it moves no value, deal term or "
-                       "catalyst.")
+            kit.note(f"The {min(len(rows), TV.NEWS_LEADS)} newest, each opening its source; "
+                     "the rest are in the list. Pulse (AI) is the daily pulse, a model's "
+                     "summary of the trade press that links the article it summarises; it "
+                     "moves no value, deal term or catalyst.")
 
 
 def _results(api_base, company, kit, rule, slot, frame, have):
@@ -265,6 +254,17 @@ def _fundamentals(api_base, company, kit, rule, slot, frame, have):
                     "they are tried again in half a minute." if street_problem else ""))
 
 
+def _window(slot: str) -> None:
+    """The chart's choice of view: the latest session in five-minute candles, or a window
+    of a month to five years."""
+    st.segmented_control(
+        "Window", list(TV.SPAN_CHOICES), default=TV.DEFAULT_SPAN, key=f"td_span_{slot}",
+        label_visibility="collapsed",
+        help="5m is the latest session in five-minute candles. The rest are how far back "
+             "the chart reaches: a candle is a day up to six months, a week for a year "
+             "and a month for five.")
+
+
 def live_prices(api_base: str, company: str) -> dict:
     """Yahoo's live read for one company, or the reason there is none. Never raises, and
     never held here: the API holds the answer for about a minute and writes nothing, so
@@ -280,11 +280,12 @@ def live_prices(api_base: str, company: str) -> dict:
 
 
 def _price(api_base, company, kit, rule, slot, frame, have):
-    """The daily price with the live session over it, at a fixed height.
+    """The price in candles with the live session over it, sized to its panel.
 
-    The same builders as the Prices tab (``price_chart``) in a smaller frame: candles, a
-    day, a week or a month each by the window, and the approvals marked. The intraday
-    views, the fair value line and why it moved stay on the Prices tab, their page.
+    The same builders as the Prices tab (``price_chart``) in a smaller frame: the latest
+    session in five-minute candles, or a window of a month to five years in candles of a
+    day, a week or a month, with the approvals marked. The other intraday sizes, the fair
+    value line and why it moved stay on the Prices tab, their page.
     """
     label, basis = rule
     # The timer belongs to the chart alone, so a tick redraws one chart and not the
@@ -301,60 +302,77 @@ def _price(api_base, company, kit, rule, slot, frame, have):
         live = live_prices(api_base, company)
         kit.section(label, basis=" · ".join(part for part in (
             basis, stored.get("currency") or live.get("currency")) if part))
-        points = stored.get("points") or []
-        over = ([live["live_daily"]] if price_chart.live_daily_applies(
-            points, live.get("live_daily"), stored.get("last_fetch_at")) else [])
         span = st.session_state.get(f"td_span_{slot}") or TV.DEFAULT_SPAN
-        bars = TV.price_window(price_chart.merge_live(points, over), span)
+        intraday = span == TV.INTRADAY
+        if intraday:
+            # The latest session in five-minute candles: the book's stored bars with
+            # Yahoo's live ones laid over them, the live bar winning where both have one.
+            five, problem = read(api_base,
+                                 f"/companies/{urllib.parse.quote(company)}/prices?interval=5m")
+            points = (five or {}).get("points") or []
+            over = (live.get("bars") or {}).get("5m") or []
+            bars = TV.latest_session(price_chart.merge_live(points, over))
+        else:
+            points = stored.get("points") or []
+            over = ([live["live_daily"]] if price_chart.live_daily_applies(
+                points, live.get("live_daily"), stored.get("last_fetch_at")) else [])
+            bars = TV.price_window(price_chart.merge_live(points, over), span)
         if problem:
-            _failed(kit, "The price history", problem)
+            _failed(kit, "The intraday bars" if intraday else "The price history", problem)
             return
         if not bars:
-            kit.state(f"No price history for {TV.esc(company)} yet",
-                      "Refresh all, in the top bar, files the daily history from Yahoo. "
+            kit.state(f"No {'five-minute' if intraday else 'price'} history for "
+                      f"{TV.esc(company)} yet",
+                      "Refresh all, in the top bar, files the history from Yahoo. "
                       "The live read returned no bar to draw in the meantime: "
                       f"{TV.esc(str(live.get('reason') or TV.NO_DATA))}.")
+            _window(slot)
             return
+        session = str(bars[-1].get("as_of") or "")[:10]
         # The window and what it shows on one line: a control a few characters wide, and
         # the last close, the window's change and its range beside it.
         with st.container(key=f"td_pricectl_{slot}", horizontal=True,
                           vertical_alignment="center", gap="small"):
-            st.segmented_control(
-                "Window", [name for name, _days in TV.PRICE_SPANS], default=TV.DEFAULT_SPAN,
-                key=f"td_span_{slot}", label_visibility="collapsed",
-                help="How far back the chart reaches. A candle is a day up to six "
-                     "months, a week for a year and a month for five.")
-            st.markdown(TV.price_stats_html(TV.price_stats(bars), span),
+            _window(slot)
+            st.markdown(TV.price_stats_html(TV.price_stats(bars), span,
+                                            label=session if intraday else ""),
                         unsafe_allow_html=True)
-        step = TV.BAR_OF.get(span, "day")
-        sticks = TV.candles(bars, step)
-        approvals, _problem = read(
-            api_base, f"/companies/{urllib.parse.quote(company)}/approvals")
-        markers = price_chart.event_markers(
-            sticks, TV.price_events((approvals or {}).get("approvals")), False)
+        if intraday:
+            step, sticks, markers = "5m", bars, []
+        else:
+            step = TV.BAR_OF.get(span, "day")
+            sticks = TV.candles(bars, step)
+            approvals, _problem = read(
+                api_base, f"/companies/{urllib.parse.quote(company)}/approvals")
+            markers = price_chart.event_markers(
+                sticks, TV.price_events((approvals or {}).get("approvals")), False)
         kit.draw_chart(
-            data=price_chart.series_data(sticks, price_chart.CANDLE, False), markers=markers,
-            fair=[], mode=price_chart.CANDLE, intraday=False, lines=[], draw_mode=False,
+            data=price_chart.series_data(sticks, price_chart.CANDLE, intraday),
+            markers=markers, fair=[], mode=price_chart.CANDLE, intraday=intraday,
+            lines=[], draw_mode=False,
             theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
                    "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                    "flag": TK.FLAG},
             gutter=PRICE_UNDER, view_key=f"{company}|{span}",
             height=max(PRICE_MIN, TV.area_px(frame["h"]) - PRICE_CHROME),
             fill=False, key=f"td_chart_{slot}")
-        legend = (f'{TV.BAR_WORDS[step]} candles &nbsp;·&nbsp; '
-                  f'<span style="color:var(--up)">▲</span> approval &nbsp;'
-                  f'<span style="color:var(--down)">▼</span> loss of exclusivity')
-        words = price_chart.live_bar_words(live, "1d", over, points)
+        if intraday:
+            legend = f"five-minute candles, the session of {TV.esc(session)}"
+        else:
+            legend = (f'{TV.BAR_WORDS[step]} candles &nbsp;·&nbsp; '
+                      f'<span style="color:var(--up)">▲</span> approval &nbsp;'
+                      f'<span style="color:var(--down)">▼</span> loss of exclusivity')
+        words = price_chart.live_bar_words(live, "5m" if intraday else "1d", over, points)
         if words:
             legend += f" &nbsp;·&nbsp; {TV.esc(words)}"
         st.markdown(f'<div class="byline chart-legend td-legend">{legend}</div>',
                     unsafe_allow_html=True)
         kit.note(TV.esc(price_chart.live_status(live)) + ". "
                  + TV.esc(price_chart.live_note(live))
-                 + "Candles from the book's stored daily history, with the current session "
-                   "from Yahoo's live read laid over them where the stored series does "
-                   "not yet hold that day's close. The live read writes nothing to the "
-                   "book. Intraday bars, the fair value line and why the price moved "
+                 + "Candles from the book's stored history, daily or five-minute, with "
+                   "Yahoo's live read laid over them where the stored series does not yet "
+                   "hold the bar. The live read writes nothing to the book. Other intraday "
+                   "sizes, the fair value line and why the price moved "
                    "are on the Prices tab.")
 
     chart()

@@ -373,3 +373,14 @@ plainer to look at with no suggested questions, and let it be moved like the res
   conversation for the company, and the Ask tab is unchanged.
 - **The default board fits one 1440 by 900 screen**: the price chart (8 by 11 cells) and
   Fundamentals (8 by 6) under it on the left, the Ask box (4 by 17) down the right.
+
+## Five minutes, and news without a figure, 2026-11-24
+
+- **The price chart has a five-minute view**, "5m", first among its choices: the latest
+  session on file in five-minute candles, the book's stored five-minute bars with Yahoo's
+  live ones laid over them (the live bar wins where both have one). Its figures are that
+  session's last, change and range, named by the session's date. Approvals are not marked
+  on it, and it ticks each minute while the session is open, as the daily view does.
+- **Company news has no figure.** It leads with the newest six items as cards, each opening
+  its source, and the rest are in the folded list. The figure by month and source, and
+  the builders behind it, are gone.

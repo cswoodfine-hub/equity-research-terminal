@@ -493,37 +493,25 @@ def _units(svg: str) -> list:
     return re.findall(r'<rect class="unit"[^>]*>', svg)
 
 
-def test_the_news_figure_is_a_year_by_month_and_source_and_says_what_is_older():
-    rows = TV.news_rows(NEWS) + [{"source": "press_ir", "title": "An old release",
-                                  "url": None, "published_at": "2024-03-01"}]
-    svg = TV.news_figure(rows, TODAY, 440)
-    ET.fromstring(svg)
-    assert len(_units(svg)) == 4                        # the 2024 row is off the figure
-    assert TV.news_older(rows, TODAY) == 1
-    for label in ("Company", "8-K", "Pulse (AI)", "Other"):
-        assert f">{label}</text>" in svg
-    assert ">FDA</text>" not in svg
-    assert "Daily pulse (AI summary) · Obesity pricing talks widen" in svg
-    assert TV.news_figure([], TODAY, 440) == ""
-
-
-def test_the_pulse_row_takes_the_review_colour_and_a_label_that_says_a_model_wrote_it():
-    lane = next(l for l in TV.NEWS_LANES if l["key"] == "pulse")
-    assert lane["colour"] == TK.FLAG and "AI" in lane["label"]
+def test_a_pulse_item_is_tinted_as_the_review_colour_and_labelled_as_a_models():
     assert TV.news_lane({"source": "pulse"}) == "pulse"
     assert TV.news_lane({"source": "a_new_feed"}) == "other"
+    assert TV.NEWS_SOURCES["pulse"] == "Daily pulse (AI summary)"
+    theme = (FRONTEND / "theme.py").read_text()
+    assert ".td-lead.td-high, .td-lead.td-pulse {{ --accent: var(--flag); }}" in theme
 
 
-def test_the_newest_three_are_named_and_each_opens_its_source():
+def test_the_newest_are_named_each_opening_its_source_up_to_six():
     markup = TV.news_leads(TV.news_rows(NEWS))
-    assert markup.count('class="td-lead td-') == 3
+    assert markup.count('class="td-lead td-') == 4             # every titled row of four
     assert markup.index("Obesity pricing talks widen") < markup.index("Lilly to present")
     assert 'class="td-lead td-pulse" href="https://example.com/pulse-article"' in markup
     assert "Daily pulse (AI summary)" in markup
     assert '<div class="td-lead td-filing">' in markup          # an 8-K with no address
     assert TV.news_leads([]) == ""
-
-
+    many = [{"source": "press_ir", "title": f"Release {n}", "url": None,
+             "published_at": f"2026-11-{n + 1:02d}"} for n in range(10)]
+    assert TV.news_leads(TV.news_rows({"news": many})).count('class="td-lead td-') == TV.NEWS_LEADS
 
 
 def test_a_figure_is_drawn_near_the_width_its_panel_has():
@@ -759,6 +747,22 @@ def test_the_tiles_are_one_grid_in_the_groups_order_and_escape_what_they_are_giv
     assert TV.tiles_html([]) == "" and TV.tiles_html([("Growth", [])]) == ""
 
 
+def test_the_five_minute_view_is_the_latest_session_on_file_in_time_order():
+    bars = [{"as_of": "2026-11-20 15:55", "close": 10.0}, {"as_of": "2026-11-23 09:35", "close": 12.0},
+            {"as_of": "2026-11-23 09:30", "close": 11.0}, {"as_of": "2026-11-23 09:40", "close": None},
+            {"as_of": "2026-11-23", "close": 9.0}, "not a bar"]
+    assert [b["as_of"] for b in TV.latest_session(bars)] == ["2026-11-23 09:30", "2026-11-23 09:35"]
+    assert TV.latest_session([]) == [] and TV.latest_session(None) == []
+    assert TV.SPAN_CHOICES[0] == TV.INTRADAY == "5m" and TV.DEFAULT_SPAN in TV.SPAN_CHOICES
+
+
+def test_the_session_strip_names_the_session_and_not_a_window():
+    stats = TV.price_stats([{"as_of": "2026-11-23 09:30", "close": 10.0, "low": 9.5, "high": 10.5},
+                            {"as_of": "2026-11-23 09:35", "close": 11.0, "low": 10.0, "high": 11.2}])
+    markup = TV.price_stats_html(stats, "5m", label="2026-11-23")
+    assert "2026-11-23 change" in markup and "+10.0%" in markup and "5m change" not in markup
+
+
 # ------------------------------------------------------------------------- house style
 def test_house_style_on_every_word_the_board_prints():
     words = [p["title"] for p in TV.PANELS] + [p["about"] for p in TV.PANELS]
@@ -770,9 +774,7 @@ def test_house_style_on_every_word_the_board_prints():
     words += list(TV.NEWS_SOURCES.values())
     words.append(_visible(TV.news_html(TV.news_rows(NEWS))) + " " + TV.news_basis([{}] * 50))
     words.append(_visible(TV.left_out_html(["a panel this version does not have: x"])))
-    words.append(_visible(TV.news_figure(TV.news_rows(NEWS), TODAY, 440)))
     words.append(_visible(TV.news_leads(TV.news_rows(NEWS))))
-    words += [lane["label"] for lane in TV.NEWS_LANES]
     words.append(_visible(TV.ask_empty_html("LLY")) + " " + _visible(TV.ask_failed_html(None)))
     words.append(_visible(TV.price_stats_html(TV.price_stats(BARS), "1Y")))
     words.append(_visible(TV.price_stats_html(TV.price_stats([]), "1Y")))

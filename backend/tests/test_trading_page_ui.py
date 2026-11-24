@@ -31,7 +31,13 @@ PRICES = {{"ticker": "LLY", "interval": "1d", "currency": "USD", "last_fetch_at"
            "points": [{{"as_of": (today - dt.timedelta(days=40 - n)).isoformat(),
                         "open": 100.0 + n, "high": 102.0 + n, "low": 99.0 + n,
                         "close": 101.0 + n, "volume": 1000}} for n in range(40)]}}
-LIVE = {{"ok": True, "currency": "USD", "fetched_at": "2026-11-23T15:00:00Z", "bars": {{}},
+FIVE = [{{"as_of": f"{{today.isoformat()}} 09:{{30 + 5 * n:02d}}", "open": 140.0 + n,
+          "high": 141.0 + n, "low": 139.0 + n, "close": 140.5 + n, "volume": 50}}
+         for n in range(5)]
+LIVE = {{"ok": True, "currency": "USD", "fetched_at": "2026-11-23T15:00:00Z",
+         "bars": {{"5m": FIVE[3:] + [{{"as_of": f"{{today.isoformat()}} 09:55", "open": 145.0,
+                                      "high": 146.0, "low": 144.5, "close": 145.5,
+                                      "volume": 9}}]}},
          "live_daily": {{"as_of": today.isoformat(), "open": 141.0, "high": 150.0,
                          "low": 140.0, "close": 149.5, "volume": 10, "complete": False}},
          "market": {{"regular_open": {market_open!r}, "exchange": "NYSE"}}}}
@@ -44,6 +50,9 @@ def fetch(api_base, path, timeout):
         raise urllib.error.URLError("connection refused")
     if path.endswith("/news"):
         return NEWS
+    if path.endswith("/prices?interval=5m"):
+        # Yesterday's last bar and today's first three, as the stored series has them.
+        return {{"points": [{{"as_of": "2026-01-02 15:55", "close": 99.0}}] + FIVE[:3]}}
     if path.endswith("/prices"):
         return PRICES
     if path.endswith("/report"):
@@ -252,11 +261,14 @@ def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     test = _page(layout=_board_of("price", "news", "filings"))
     blocks = [str(m.value) for m in test.markdown]
     figures = [b for b in blocks if 'class="chart-mount stretch td-fig"' in b]
-    assert len(figures) == 2 and all("<svg" in b and 'class="unit"' in b for b in figures)
+    assert len(figures) == 1 and "<svg" in figures[0] and 'class="unit"' in figures[0]
     md = _md(test)
     assert md.count('<details class="note-d td-all">') == 2
     assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_p1]")
-    for panel, figure in zip(("Company news", "Filings"), figures):
+    # Company news leads with its newest items and has no figure; Filings has one.
+    news = md.index("SECTION[Company news|")
+    assert 'class="td-leads"' in md[news:md.index("SECTION[Filings|")]
+    for panel, figure in zip(("Filings",), figures):
         section = md.index(f"SECTION[{panel}|")
         assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
     assert 'class="td-leads"' in md
@@ -576,6 +588,22 @@ def test_a_shorter_window_draws_fewer_bars_and_tells_the_chart_to_refit():
     monthly = test.session_state["charts"]["td_chart_p1"]
     assert 2 <= len(monthly["data"]) <= 3 and "monthly candles" in _md(test)
     assert monthly["data"][-1]["close"] == 149.5
+
+
+def test_five_minutes_is_the_latest_session_with_the_live_bars_laid_over_it():
+    test = _page()
+    test.button_group(key="td_span_p1").set_value("5m").run()
+    assert not test.exception, test.exception
+    chart = test.session_state["charts"]["td_chart_p1"]
+    assert chart["intraday"] is True and chart["mode"] == "Candlestick"
+    assert chart["markers"] == [] and chart["view_key"].endswith("|5m")
+    # Today's five stored and live bars and the live 09:55 one; yesterday is left off.
+    assert len(chart["data"]) == 6 and chart["data"][-1]["close"] == 145.5
+    md = _md(test)
+    assert "five-minute candles, the session of" in md
+    assert "/companies/LLY/prices?interval=5m" in test.session_state["asked"]
+    test.button_group(key="td_span_p1").set_value("1Y").run()
+    assert test.session_state["charts"]["td_chart_p1"]["intraday"] is False
 
 
 def test_the_price_panel_reads_the_history_itself_when_the_page_has_not():

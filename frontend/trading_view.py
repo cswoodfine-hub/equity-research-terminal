@@ -559,55 +559,26 @@ def leads_html(items) -> str:
     return '<div class="td-leads">' + "".join(out) + "</div>"
 
 
-# --- company news: how much, from whom, and the newest ---------------------------------
-NEWS_MONTHS = 12
-NEWS_LANES = (
-    {"key": "company", "label": "Company", "colour": TK.TEXT},
-    {"key": "filing", "label": "8-K", "colour": TK.MUTED},
-    {"key": "fda", "label": "FDA", "colour": TK.FDA},
-    # Amber is "uncurated, look at this": a model's summary of the trade press is that.
-    {"key": "pulse", "label": "Pulse (AI)", "colour": TK.FLAG},
-    {"key": "other", "label": "Other", "colour": TK.RULE_STRONG},
-)
+# --- company news: the newest, and from whom -------------------------------------------
 _NEWS_LANE = {"press_ir": "company", "press_page": "company", "edgar_8k": "filing",
               "fda_press": "fda", "fda_drugs": "fda", "fda_safety": "fda", "pulse": "pulse"}
-_ALWAYS_NEWS = ("company", "filing")
 
 
 def news_lane(row: dict) -> str:
     return _NEWS_LANE.get(str(row.get("source") or ""), "other")
 
 
-def news_figure(rows, today: dt.date, width: int) -> str:
-    """A year of the company's news on a grid of months and sources."""
-    items = [{"date": r.get("published_at"), "lane": news_lane(r),
-              "tip": f'{str(r.get("published_at") or "")[:10]} · '
-                     f'{NEWS_SOURCES.get(str(r.get("source") or ""), r.get("source") or "")}'
-                     f' · {_one_line(r.get("title"))}'}
-             for r in rows or []]
-    used = {it["lane"] for it in items}
-    lanes = [lane for lane in NEWS_LANES
-             if lane["key"] in used or lane["key"] in _ALWAYS_NEWS]
-    return CH.unit_lanes(items, lanes, month_start(today, 1 - NEWS_MONTHS), today,
-                         step="month", width=width, cap=6,
-                         label="company news by month and source")
+NEWS_LEADS = 6
 
 
 def news_leads(rows) -> str:
-    """The newest three, named, each opening its source."""
+    """The newest few, named, each opening its source."""
     return leads_html([
         {"tone": news_lane(r), "date": str(r.get("published_at") or "")[:10],
          "tag": NEWS_SOURCES.get(str(r.get("source") or ""),
                                  r.get("source") or "source not stated"),
          "text": _one_line(r.get("title")), "url": r.get("url")}
-        for r in (rows or [])[:LEADS]])
-
-
-def news_older(rows, today: dt.date) -> int:
-    """How many rows are older than the figure reaches, so it can be said."""
-    start = month_start(today, 1 - NEWS_MONTHS)
-    return sum(1 for r in rows or []
-               if (_day(r.get("published_at")) or start) < start)
+        for r in (rows or [])[:NEWS_LEADS]])
 
 
 # --- price: the window on screen and the figures that describe it -----------------------
@@ -618,6 +589,22 @@ SPAN_DAYS = dict(PRICE_SPANS)
 # 130 candles whatever the window, so a candle is always wide enough to read its body.
 BAR_OF = {"1M": "day", "3M": "day", "6M": "day", "1Y": "week", "5Y": "month"}
 BAR_WORDS = {"day": "daily", "week": "weekly", "month": "monthly"}
+# The intraday view: the latest session in five-minute candles. First among the choices,
+# because it is the one read while a market is open.
+INTRADAY = "5m"
+SPAN_CHOICES = (INTRADAY,) + tuple(name for name, _days in PRICE_SPANS)
+
+
+def latest_session(points) -> list:
+    """The five-minute bars of the latest session on file, in time order. A bar with no
+    close is left out; a session is the calendar date its bars are stamped with."""
+    bars = [p for p in points or [] if isinstance(p, dict) and p.get("close") is not None
+            and len(str(p.get("as_of") or "")) >= 16]
+    if not bars:
+        return []
+    bars.sort(key=lambda p: str(p["as_of"]))
+    day = str(bars[-1]["as_of"])[:10]
+    return [p for p in bars if str(p["as_of"])[:10] == day]
 
 
 def candles(bars, step: str) -> list:
@@ -680,7 +667,7 @@ def _money(value) -> str:
     return NO_DATA if value is None else f"{value:,.2f}"
 
 
-def price_stats_html(stats: dict, span: str) -> str:
+def price_stats_html(stats: dict, span: str, label: str = "") -> str:
     """The strip beside the window's control: the last close, the window's change and its
     range. The change carries its sign and a true minus; a fall takes the down colour and
     the sign says the same."""
@@ -693,9 +680,10 @@ def price_stats_html(stats: dict, span: str) -> str:
     missing = " none" if stats.get("last") is None else ""
     span_range = (f'{_money(stats.get("low"))} to {_money(stats.get("high"))}'
                   if stats.get("low") is not None else NO_DATA)
+    label = label or span
     cells = (("last", _money(stats.get("last")), missing),
-             (f"{span} change", moved, tone),
-             (f"{span} range", span_range, missing))
+             (f"{label} change", moved, tone),
+             (f"{label} range", span_range, missing))
     return ('<div class="stats stats-tight td-stats">' + "".join(
         f'<span class="stat"><span class="k">{esc(k)}</span>'
         f'<span class="v{cls}">{esc(v)}</span></span>' for k, v, cls in cells) + "</div>")
