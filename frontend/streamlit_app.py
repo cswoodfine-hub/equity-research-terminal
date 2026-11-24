@@ -49,6 +49,7 @@ from components import compsval
 from components import prodcards
 import portfolio_cards as PC
 from components import drawchart
+from components import boardgrid
 try:                                    # the drug card's click listener
     from components import drugclick
 except Exception:                       # pragma: no cover - a broken install only
@@ -66,7 +67,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 9:
+if getattr(trading_page, "REVISION", 0) < 10:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -10440,7 +10441,8 @@ def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
 _TRADING_KIT = types.SimpleNamespace(
     section=section, state=state, note=note, changes=_ki_changes, change_row=change_row,
     ask=_ask_tab, draw_chart=drawchart.draw_chart, report_lead=_report_lead,
-    report_landed=_report_landed, snapshot_strip=snapshot_strip)
+    report_landed=_report_landed, snapshot_strip=snapshot_strip,
+    board_grid=boardgrid.board_grid)
 
 
 def _universe_overview(api_base, engine, _engine_name, _covered, _all_changes,

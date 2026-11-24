@@ -14,9 +14,9 @@ import db
 import desk_layout as DL
 import response_cache
 
-BOARD = {"columns": 3, "ask": False, "panels": [
-    {"panel": "price", "ticker": None, "wide": True},
-    {"panel": "news", "ticker": "NVO", "wide": None}]}
+BOARD = {"ask": False, "panels": [
+    {"panel": "price", "ticker": None, "id": "p1", "x": 0, "y": 0, "w": 12, "h": 13},
+    {"panel": "news", "ticker": "NVO", "id": "p2", "x": 0, "y": 13, "w": 6, "h": 9}]}
 
 
 @pytest.fixture(autouse=True)
@@ -35,10 +35,10 @@ def test_a_board_saved_is_the_board_read_back_and_the_one_that_opens_next(boards
     out = DL.save("Readout prep", BOARD)
     assert out["ok"] and out["current"] == "Readout prep"
     assert DL.load()["boards"] == {"Readout prep": BOARD}
-    DL.save("Earnings day", dict(BOARD, columns=1))
+    DL.save("Earnings day", dict(BOARD, ask=True))
     held = DL.load()
     assert list(held["boards"]) == ["Earnings day", "Readout prep"]
-    assert held["current"] == "Earnings day" and held["boards"]["Earnings day"]["columns"] == 1
+    assert held["current"] == "Earnings day" and held["boards"]["Earnings day"]["ask"] is True
     on_disk = json.loads(boards_file.read_text())
     assert on_disk["version"] == 1 and set(on_disk["boards"]) == {"Readout prep", "Earnings day"}
 
@@ -73,12 +73,22 @@ def test_what_is_not_a_board_is_refused(layout, boards_file):
 
 def test_a_board_is_kept_as_its_shape_and_nothing_else_rides_along():
     out = DL.save("A", {"columns": 9, "ask": "yes", "extra": {"x": 1}, "panels": [
-        {"panel": "news", "ticker": "nvo", "wide": "wide", "script": "<b>"},
+        {"panel": "news", "ticker": "nvo", "wide": "wide", "script": "<b>", "id": "p<1>",
+         "x": 2.5, "y": -1, "w": True, "h": "9"},
         {"panel": "Not A Kind"}, {"panel": 7}, "nonsense", {"ticker": "LLY"},
-        {"panel": "price", "ticker": "NOVO-B.CO", "wide": True}]})
-    assert out["boards"]["A"] == {"columns": 2, "ask": True, "panels": [
-        {"panel": "news", "ticker": None, "wide": None},
-        {"panel": "price", "ticker": "NOVO-B.CO", "wide": True}]}
+        {"panel": "price", "ticker": "NOVO-B.CO", "id": "p4", "x": 0, "y": 3, "w": 12,
+         "h": 13}]})
+    assert out["boards"]["A"] == {"ask": True, "panels": [
+        {"panel": "news", "ticker": None},
+        {"panel": "price", "ticker": "NOVO-B.CO", "id": "p4", "x": 0, "y": 3, "w": 12,
+         "h": 13}]}
+
+
+def test_a_board_saved_before_the_grid_keeps_what_says_how_it_was_drawn():
+    out = DL.save("Old", {"columns": 3, "panels": [{"panel": "price", "wide": True},
+                                                   {"panel": "news"}]})
+    assert out["boards"]["Old"] == {"ask": True, "columns": 3, "panels": [
+        {"panel": "price", "ticker": None, "wide": True}, {"panel": "news", "ticker": None}]}
 
 
 def test_a_board_and_the_file_are_both_held_to_a_size():

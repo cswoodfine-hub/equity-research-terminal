@@ -35,9 +35,8 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 9
+REVISION = 10
 
-PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
 CHANGE_LEVELS = ("high", "medium", "low")
@@ -47,7 +46,10 @@ CHANGES_SHOWN = 40
 BESIDE = (2.05, 1)
 ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
 SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
-PRICE_HEIGHT = 300           # the chart in a panel: fixed, so the panels under it stay put
+# What the price panel draws round its chart: the rule, the window's controls, the
+# figures, the legend and the notes. The chart takes the rest of the panel's height.
+PRICE_CHROME = 196
+PRICE_MIN = 140
 LIVE_TIMEOUT_S = 12
 
 
@@ -75,15 +77,18 @@ def clear() -> None:
 
 # --------------------------------------------------------------------------- the panels
 # Each takes the API's address, the company the panel is for, the kit, the panel's rule
-# (label and basis), its slot on the board, the width its figure is drawn at, and what
-# the page has already read for this company (``have``: its change feed and its stored
-# prices, where the company is the top bar's, so those cost the board no read). Each
-# draws its rule first, so the count beside it is the count of what is under it.
+# (label and basis), its id on the board, its frame (the width its figure is drawn at
+# and its height in grid rows), and what the page has already read for this company
+# (``have``: its change feed and its stored prices, where the company is the top bar's,
+# so those cost the board no read). Each draws its rule first, so the count beside it is
+# the count of what is under it.
 #
 # A panel leads with a figure: when and how much, read at a glance. The few items worth
 # naming sit under it, and the whole list is folded beneath, one click away.
-def _body(slot: str):
-    return st.container(height=PANEL_HEIGHT, border=False, key=f"td_body_{slot}")
+def _body(slot: str, frame: dict):
+    """The panel's body, as tall as the panel is made less its rule. Past it the body
+    scrolls, not the page."""
+    return st.container(height=TV.body_px(frame["h"]), border=False, key=f"td_body_{slot}")
 
 
 def _failed(kit, what: str, problem: str) -> None:
@@ -96,7 +101,7 @@ def _figure(svg: str) -> None:
                     unsafe_allow_html=True)
 
 
-def _changes(api_base, company, kit, rule, slot, width, have):
+def _changes(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     feed, problem = have.get("feed"), None
     if feed is None:
@@ -104,14 +109,14 @@ def _changes(api_base, company, kit, rule, slot, width, have):
     today = dt.date.today()
     rows = kit.changes(feed or [], company, today, CHANGE_LEVELS)
     kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot):
+    with _body(slot, frame):
         if problem:
             _failed(kit, "The change feed", problem)
         elif not rows:
             kit.state(f"Nothing detected for {TV.esc(company)} in {TV.CHANGE_DAYS} days",
                       "The book records a change when two refreshes differ. None has.")
         else:
-            _figure(TV.changes_figure(rows, today, width))
+            _figure(TV.changes_figure(rows, today, frame["width"]))
             st.markdown(TV.kinds_html(rows) + TV.changes_leads(rows, company)
                         + TV.fold_html(
                             f"The list: {min(len(rows), CHANGES_SHOWN)} of {len(rows)}, "
@@ -127,13 +132,13 @@ def _changes(api_base, company, kit, rule, slot, width, have):
                      "on the Dated ahead panel.")
 
 
-def _news(api_base, company, kit, rule, slot, width, have):
+def _news(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/news")
     rows = TV.news_rows(payload)
     today = dt.date.today()
     kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot):
+    with _body(slot, frame):
         if problem:
             _failed(kit, "The news", problem)
         elif not rows:
@@ -141,7 +146,7 @@ def _news(api_base, company, kit, rule, slot, width, have):
                       "Company releases, 8-K headlines, the FDA's feeds and the daily "
                       "pulse are read on each refresh. None names this company yet.")
         else:
-            figure = TV.news_figure(rows, today, width)
+            figure = TV.news_figure(rows, today, frame["width"])
             _figure(figure)
             st.markdown(TV.news_leads(rows)
                         + TV.fold_html(f"The list: {TV.news_basis(rows)}",
@@ -161,7 +166,7 @@ def _news(api_base, company, kit, rule, slot, width, have):
                        "catalyst.")
 
 
-def _catalysts(api_base, company, kit, rule, slot, width, have):
+def _catalysts(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     payload, problem = read(
         api_base, f"/catalysts?within_days={CALENDAR_MONTHS * 31}"
@@ -170,14 +175,14 @@ def _catalysts(api_base, company, kit, rule, slot, width, have):
     today = dt.date.today()
     rows = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS, today))
     kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot):
+    with _body(slot, frame):
         if problem:
             _failed(kit, "The calendar", problem)
         elif not rows:
             kit.state(f"Nothing dated for {TV.esc(company)} in the next "
                       f"{CALENDAR_MONTHS} months", calendar_view.SOURCES)
         else:
-            _figure(TV.dated_figure(rows, today, CALENDAR_MONTHS, width))
+            _figure(TV.dated_figure(rows, today, CALENDAR_MONTHS, frame["width"]))
             st.markdown(TV.dated_next(rows, today)
                         + TV.fold_html(f"The list: {TV.dated_basis(rows, CALENDAR_MONTHS)}, "
                                        "soonest first", TV.dated_html(rows)),
@@ -189,13 +194,13 @@ def _catalysts(api_base, company, kit, rule, slot, width, have):
                        "commitment. The odds and the value at stake are on Catalysts.")
 
 
-def _results(api_base, company, kit, rule, slot, width, have):
+def _results(api_base, company, kit, rule, slot, frame, have):
     """The last reported period, drawn by the Financials tab's own builders."""
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/report")
     report = payload if (payload or {}).get("report") else None
     kit.section(label, basis=basis)
-    with _body(slot):
+    with _body(slot, frame):
         if problem:
             _failed(kit, "The report", problem)
         elif not report:
@@ -208,7 +213,7 @@ def _results(api_base, company, kit, rule, slot, width, have):
             kit.report_landed(report)
 
 
-def _trend(api_base, company, kit, rule, slot, width, have):
+def _trend(api_base, company, kit, rule, slot, frame, have):
     """Growth and margin by year as two lines, under the latest period's figures."""
     label, basis = rule
     built, problem = read(
@@ -217,7 +222,7 @@ def _trend(api_base, company, kit, rule, slot, width, have):
     points, snapshot = built.get("trend") or [], built.get("snapshot") or {}
     kit.section(label, basis=" · ".join(part for part in (
         basis, snapshot.get("label"), built.get("currency")) if part))
-    with _body(slot):
+    with _body(slot, frame):
         figure = trend.render(points, "annual")
         if problem:
             _failed(kit, "The statements", problem)
@@ -236,13 +241,13 @@ def _trend(api_base, company, kit, rule, slot, width, have):
                            "Financials.")
 
 
-def _filings(api_base, company, kit, rule, slot, width, have):
+def _filings(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/filings")
     rows = TV.filings_rows(payload)
     today = dt.date.today()
     kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot):
+    with _body(slot, frame):
         if problem:
             _failed(kit, "The filings", problem)
         elif not rows:
@@ -250,7 +255,7 @@ def _filings(api_base, company, kit, rule, slot, width, have):
                       "Filings are read from EDGAR on each refresh. A company outside "
                       "the SEC files none there.")
         else:
-            figure = TV.filings_figure(rows, today, width)
+            figure = TV.filings_figure(rows, today, frame["width"])
             _figure(figure)
             st.markdown(TV.filings_leads(rows)
                         + TV.fold_html(f"The list: {TV.filings_basis(rows)}",
@@ -282,7 +287,7 @@ def live_prices(api_base: str, company: str) -> dict:
                 "live_daily": None, "market": None, "fetched_at": None}
 
 
-def _price(api_base, company, kit, rule, slot, width, have):
+def _price(api_base, company, kit, rule, slot, frame, have):
     """The daily price with the live session over it, at a fixed height.
 
     The same builders as the Prices tab (``price_chart``) in a smaller frame: daily bars
@@ -337,7 +342,8 @@ def _price(api_base, company, kit, rule, slot, width, have):
             theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.GROUND,
                    "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                    "flag": TK.FLAG},
-            gutter=0, view_key=f"{company}|{span}|{view}", height=PRICE_HEIGHT,
+            gutter=0, view_key=f"{company}|{span}|{view}",
+            height=max(PRICE_MIN, TV.area_px(frame["h"]) - PRICE_CHROME),
             fill=False, key=f"td_chart_{slot}")
         legend = (f'<span style="color:var(--up)">▲</span> FDA approval &nbsp;'
                   f'<span style="color:var(--down)">▼</span> loss of exclusivity '
@@ -362,14 +368,17 @@ DRAW = {"price": _price, "changes": _changes, "news": _news, "results": _results
 
 
 # ----------------------------------------------------------------------------- the board
-# The board is one value in the session, ``td_layout``: its panels in order, each with
-# the company it is pinned to if any, how many sit across, and whether the Ask box is
-# beside it. Every control below changes that value through a callback, which Streamlit
-# runs before the page is drawn, so the board is always drawn from the value as it
+# The board is one value in the session, ``td_layout``: its panels, each with an id, the
+# company it is pinned to if any, and its place and size on the grid (trading_view), and
+# whether the Ask box is beside it. Every control below changes that value through a
+# callback, which Streamlit runs before the page is drawn, and a drag on the board comes
+# back as a place to put one panel; so the board is always drawn from the value as it
 # stands. A widget's own state is set from it on every run and is never the record.
 LAYOUT_KEY = "td_layout"
 FOLLOW = "Top bar"
-ARRANGE = [2.4, 2.6, 0.9, 0.6, 0.6, 0.6]     # the arranger's columns, as shares of its width
+ARRANGE = [2.6, 2.8, 0.6, 0.6, 0.6]     # the arranger's columns, as shares of its width
+GRID_KEY = "td_gridctl"                 # the drag and resize frame
+PLACED_KEY = "_td_grid_placed"          # the last placing applied, so none is applied twice
 
 
 def layout() -> dict:
@@ -392,25 +401,21 @@ def _add(kind: str) -> None:
     _keep(new, left_out)
 
 
-def _remove(index: int) -> None:
-    _keep(TV.removed(layout(), index))
+def _remove(pid: str) -> None:
+    _keep(TV.removed(layout(), pid))
 
 
-def _move(index: int, step: int) -> None:
-    _keep(TV.moved(layout(), index, step))
+def _move(pid: str, step: int) -> None:
+    _keep(TV.moved(layout(), pid, step))
 
 
-def _pin(index: int) -> None:
-    chosen = st.session_state.get(f"td_co_{index}", FOLLOW)
-    _keep(TV.changed(layout(), index, ticker=None if chosen == FOLLOW else chosen))
+def _pin(pid: str) -> None:
+    chosen = st.session_state.get(f"td_co_{pid}", FOLLOW)
+    _keep(TV.changed(layout(), pid, ticker=None if chosen == FOLLOW else chosen))
 
 
-def _widen(index: int) -> None:
-    _keep(TV.changed(layout(), index, wide=st.session_state.get(f"td_wide_{index}")))
-
-
-def _across() -> None:
-    _keep(dict(layout(), columns=st.session_state.get("td_columns") or TV.DEFAULT_COLUMNS))
+def _lay_out(columns: int) -> None:
+    _keep(TV.laid_out(layout(), columns))
 
 
 def _beside() -> None:
@@ -419,6 +424,28 @@ def _beside() -> None:
 
 def _reset() -> None:
     _keep(TV.default_layout())
+
+
+def placed(value) -> bool:
+    """Apply a place the reader dragged a panel to, once. True where the board changed.
+
+    The frame sends ``{token, n, id, x, y, w, h}`` and keeps returning it on every later
+    run, so the pair (token, n) that was last applied is kept and the same one is not
+    applied again: a second application would undo nothing, but it would settle the
+    board round a place the reader has since moved away from."""
+    if not isinstance(value, dict):
+        return False
+    stamp = (value.get("token"), value.get("n"))
+    if stamp == st.session_state.get(PLACED_KEY):
+        return False
+    st.session_state[PLACED_KEY] = stamp
+    before = layout()
+    after = TV.place(before, value.get("id"), value.get("x"), value.get("y"),
+                     value.get("w"), value.get("h"))
+    if after["panels"] == before["panels"]:
+        return False
+    _keep(after)
+    return True
 
 
 # --- saved boards ---------------------------------------------------------------------
@@ -559,59 +586,65 @@ def _add_menu(tickers) -> None:
 
 
 def _arrange_menu(board: dict, ticker: str, tickers) -> None:
-    """The board's panels as rows: whose each is, how wide, where it sits, and off."""
+    """The board's panels as rows, in the order they are read: whose each is, a place
+    earlier or later, and off. Dragging does the moving and sizing; this is the way to do
+    it from the keyboard, and to lay the whole board out afresh."""
     panels = board["panels"]
     with st.popover("Arrange", disabled=not panels):
         last = len(panels) - 1
         # The columns are named once, over the rows, so a row is its controls and not a
         # label on each of them.
-        for cell, text in zip(st.columns(ARRANGE), ("Panel", "Company", "Wide", "", "", "")):
+        for cell, text in zip(st.columns(ARRANGE), ("Panel", "Company", "", "", "")):
             cell.markdown(f'<div class="td-group">{text}</div>', unsafe_allow_html=True)
         for i, entry in enumerate(panels):
+            pid = entry["id"]
             options = [FOLLOW] + list(tickers or [])
             if entry.get("ticker") and entry["ticker"] not in options:
                 options.append(entry["ticker"])
-            name, co, wide, up, down, off = st.columns(ARRANGE, vertical_alignment="center")
+            name, co, up, down, off = st.columns(ARRANGE, vertical_alignment="center")
             name.markdown(f'<div class="td-arr">{TV.esc(TV.BY_ID[entry["panel"]]["title"])}'
                           "</div>", unsafe_allow_html=True)
-            _show(f"td_co_{i}", entry.get("ticker") or FOLLOW)
-            co.selectbox("Company", options, key=f"td_co_{i}", label_visibility="collapsed",
-                         on_change=_pin, args=(i,))
-            _show(f"td_wide_{i}", TV.is_wide(entry))
-            wide.toggle("Wide", key=f"td_wide_{i}", on_change=_widen, args=(i,),
-                        label_visibility="collapsed",
-                        help="Across the board's whole width, on a row of its own.")
-            up.button("↑", key=f"td_up_{i}", disabled=i == 0, help="Earlier on the board",
-                      on_click=_move, args=(i, -1))
-            down.button("↓", key=f"td_down_{i}", disabled=i == last,
-                        help="Later on the board", on_click=_move, args=(i, 1))
-            off.button("×", key=f"td_off_{i}", help="Take it off the board",
-                       on_click=_remove, args=(i,))
-        st.button("Back to the default board", key="td_reset", on_click=_reset)
+            _show(f"td_co_{pid}", entry.get("ticker") or FOLLOW)
+            co.selectbox("Company", options, key=f"td_co_{pid}",
+                         label_visibility="collapsed", on_change=_pin, args=(pid,))
+            up.button("↑", key=f"td_up_{pid}", disabled=i == 0, help="Earlier on the board",
+                      on_click=_move, args=(pid, -1))
+            down.button("↓", key=f"td_down_{pid}", disabled=i == last,
+                        help="Later on the board", on_click=_move, args=(pid, 1))
+            off.button("×", key=f"td_off_{pid}", help="Take it off the board",
+                       on_click=_remove, args=(pid,))
+        st.markdown('<div class="td-group">Lay the board out afresh</div>',
+                    unsafe_allow_html=True)
+        with st.container(key="td_relayout", horizontal=True):
+            for n, words in ((1, "One across"), (2, "Two across"), (3, "Three across")):
+                st.button(words, key=f"td_across_{n}", on_click=_lay_out, args=(n,))
+            st.button("The default board", key="td_reset", on_click=_reset)
 
 
 def _controls(api_base: str, board: dict, ticker: str, tickers) -> None:
-    """The row above the board: the saved boards, add a panel, arrange them, how many
-    across, and whether the Ask box sits beside them."""
+    """The row above the board: the saved boards, add a panel, arrange them, and whether
+    the Ask box sits beside them."""
     with st.container(key="td_controls", horizontal=True, vertical_alignment="center"):
         _boards_menu(api_base)
         _add_menu(tickers)
         _arrange_menu(board, ticker, tickers)
-        _show("td_columns", board["columns"])
-        st.segmented_control(
-            "Columns", list(TV.COLUMNS), key="td_columns", on_change=_across,
-            format_func=lambda n: f"{n} across", label_visibility="collapsed",
-            help="How many panels sit side by side.")
         _show("td_ask", board["ask"])
         st.toggle("Ask beside", key="td_ask", on_change=_beside,
                   help="The Ask box in a column beside the board. It is the same "
                        "conversation as the Ask tab's, kept per company.")
+        st.markdown('<div class="byline td-hint">Drag a panel by its heading to move it, '
+                    "and by a corner to size it.</div>", unsafe_allow_html=True)
 
 
 @st.fragment
 def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
     """The controls and the panels. A fragment: a change to the board redraws the board
     alone."""
+    # A drag the reader has just finished. Applied first, so this run draws the board
+    # where it was left; then the board is run once more so the frame is handed the
+    # places it now has.
+    if placed(st.session_state.get(GRID_KEY)):
+        _rerun_board()
     board = layout()
     _controls(api_base, board, ticker, tickers)
     said = st.session_state.pop("td_board_note", None)
@@ -633,16 +666,33 @@ def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
     if not board["panels"]:
         kit.state("Nothing on the board", "Add a panel from the row above.")
         return
-    for r, row in enumerate(TV.pack(board["panels"], board["columns"])):
-        alone = len(row) == 1 and (board["columns"] == 1 or TV.is_wide(row[0]))
-        cells = [st.container()] if alone else st.columns(board["columns"], gap="medium")
-        width = TV.figure_width(1 if alone else board["columns"], board["ask"])
-        for c, entry in enumerate(row):
+    # Where each panel sits, then the frame that lets the reader take hold of them, then
+    # the panels themselves in reading order, which is the order a screen reader meets
+    # them in whatever the grid does with them.
+    st.markdown(TV.grid_css(board["panels"]), unsafe_allow_html=True)
+    value = kit.board_grid(panels=TV.grid_spec(board["panels"]), cols=TV.GRID_COLS,
+                           row_px=TV.ROW_PX, gap_px=TV.GAP_PX,
+                           theme={"up": TK.UP, "rule_strong": TK.RULE_STRONG,
+                                  "muted": TK.MUTED, "panel": TK.PANEL},
+                           key=GRID_KEY)
+    if placed(value):
+        _rerun_board()
+    with st.container(key="td_grid"):
+        for entry in board["panels"]:
             company = TV.company_of(entry, ticker)
-            with cells[c], st.container(key=f"td_panel_{r}_{c}"):
+            frame = {"width": TV.figure_width(entry["w"], board["ask"]), "h": entry["h"]}
+            with st.container(key=f"td_p_{entry['id']}"):
                 DRAW[entry["panel"]](
-                    api_base, company, kit, TV.heading(entry, ticker), f"{r}_{c}", width,
+                    api_base, company, kit, TV.heading(entry, ticker), entry["id"], frame,
                     page if company == ticker else {})
+
+
+def _rerun_board() -> None:
+    """Run the board again, and only the board where Streamlit allows it."""
+    try:
+        st.rerun(scope="fragment")
+    except st.errors.StreamlitAPIException:
+        st.rerun()
 
 
 def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,

@@ -1,4 +1,4 @@
-"""The Trading tab's board: the registry, the packing and the panels' markup.
+"""The Trading tab's board: the registry, the grid and the panels' markup.
 
 Pure functions on plain dicts. No API, no database and no Streamlit is needed, so none of
 this is ever skipped.
@@ -64,14 +64,18 @@ def test_titles_and_groups_are_sentence_case():
 
 
 def test_the_default_board_leads_with_the_price_across_its_whole_width():
-    rows = TV.pack(TV.default_layout()["panels"], 2)
-    assert [[e["panel"] for e in row] for row in rows][0] == ["price"]
-    assert TV.BY_ID["price"]["wide"] is True and TV.BY_ID["price"]["cost"] == "live"
+    panels = TV.default_layout()["panels"]
+    assert (panels[0]["panel"], panels[0]["x"], panels[0]["y"], panels[0]["w"]) == (
+        "price", 0, 0, TV.GRID_COLS)
+    assert [(p["panel"], p["x"], p["w"]) for p in panels[1:3]] == [
+        ("changes", 0, 6), ("news", 6, 6)]
+    assert TV.BY_ID["price"]["cost"] == "live"
 
 
 def test_the_default_board_is_made_of_kinds_that_exist():
     layout = TV.default_layout()
     assert [p["panel"] for p in layout["panels"]] == list(TV.DEFAULT_PANELS)
+    assert [p["id"] for p in layout["panels"]] == ["p1", "p2", "p3", "p4"]
     assert all(p["panel"] in TV.BY_ID for p in layout["panels"])
     assert TV.normalise(layout) == (layout, [])
 
@@ -83,47 +87,140 @@ def test_the_picker_lists_every_kind_once_under_its_group():
     assert groups == [g for g in TV.GROUPS if g in groups]
 
 
-# ----------------------------------------------------------------------------- packing
-def _ids(rows):
-    return [[entry["panel"] for entry in row] for row in rows]
+# -------------------------------------------------------------------------------- the grid
+import itertools  # noqa: E402
+import random  # noqa: E402
 
 
-def test_normal_panels_fill_a_row_left_to_right_in_the_order_given():
-    board = [TV.item("changes"), TV.item("news"), TV.item("catalysts")]
-    assert _ids(TV.pack(board, 2)) == [["changes", "news"], ["catalysts"]]
-    assert _ids(TV.pack(board, 3)) == [["changes", "news", "catalysts"]]
+def _cells(p):
+    return {(x, y) for x in range(p["x"], p["x"] + p["w"]) for y in range(p["y"], p["y"] + p["h"])}
 
 
-def test_a_wide_panel_takes_a_row_to_itself_and_closes_the_row_before_it():
-    board = [TV.item("changes"), TV.item("news", wide=True), TV.item("catalysts"),
-             TV.item("changes", ticker="NVO")]
-    assert _ids(TV.pack(board, 2)) == [["changes"], ["news"], ["catalysts", "changes"]]
+def _sound(panels):
+    """The board's invariants: every panel on the grid at no less than its kind's
+    minimum, no two sharing a cell, none with a hole under the panel above it."""
+    seen = set()
+    for p in panels:
+        size = TV.size_of(p["panel"])
+        assert 0 <= p["x"] and p["x"] + p["w"] <= TV.GRID_COLS, p
+        assert p["w"] >= size["min_w"] and size["min_h"] <= p["h"] <= TV.MAX_H, p
+        assert p["y"] >= 0
+        cells = _cells(p)
+        assert not cells & seen, ("overlap", p)
+        seen |= cells
+    for p in panels:                     # risen: the row above it is taken, or it is at the top
+        if p["y"]:
+            above = {(x, p["y"] - 1) for x in range(p["x"], p["x"] + p["w"])}
+            assert above & seen, ("a hole above", p)
+    assert panels == TV.reading_order(panels)
 
 
-def test_one_column_is_one_panel_a_row():
-    board = [TV.item("changes"), TV.item("news"), TV.item("catalysts")]
-    assert _ids(TV.pack(board, 1)) == [["changes"], ["news"], ["catalysts"]]
+def _board(*specs):
+    """A board from (kind, x, y, w, h) tuples."""
+    return {"ask": True, "panels": [
+        TV.item(kind, id=f"p{n}", x=x, y=y, w=w, h=h)
+        for n, (kind, x, y, w, h) in enumerate(specs, start=1)]}
 
 
-def test_an_empty_board_packs_to_nothing_and_a_bad_column_count_to_the_default():
-    assert TV.pack([], 2) == []
-    assert TV.pack(None, 2) == []
-    board = [TV.item("changes"), TV.item("news"), TV.item("catalysts")]
-    assert TV.pack(board, 7) == TV.pack(board, TV.DEFAULT_COLUMNS)
+def _where(layout):
+    return {p["id"]: (p["x"], p["y"], p["w"], p["h"]) for p in layout["panels"]}
 
 
-def test_a_panel_can_be_made_narrow_or_wide_against_its_kind():
-    assert TV.is_wide(TV.item("news")) is False
-    assert TV.is_wide(TV.item("news", wide=True)) is True
+def test_a_grid_row_and_its_gap_add_up_to_the_heights_a_panel_is_drawn_at():
+    assert TV.area_px(1) == TV.ROW_PX and TV.area_px(9) == 9 * 24 + 8 * 16 == 344
+    assert TV.body_px(9) == 344 - TV.HEAD_PX and TV.body_px(1) == 80
+
+
+def test_the_grid_in_the_stylesheet_is_the_grid_the_model_counts():
+    theme = (FRONTEND / "theme.py").read_text()
+    assert f"grid-template-columns: repeat({TV.GRID_COLS}, minmax(0, 1fr))" in theme
+    assert f"grid-auto-rows: {TV.ROW_PX}px" in theme and f"gap: {TV.GAP_PX}px" in theme
+
+
+def test_a_panel_put_on_another_pushes_it_down_and_the_rest_rise():
+    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("catalysts", 0, 9, 6, 9))
+    moved = TV.place(board, "p3", 6, 0, 6, 9)       # dated ahead onto filings
+    _sound(moved["panels"])
+    assert _where(moved) == {"p1": (0, 0, 6, 9), "p3": (6, 0, 6, 9), "p2": (6, 9, 6, 9)}
+
+
+def test_a_panel_dragged_down_into_empty_space_rises_to_the_first_free_row():
+    board = _board(("news", 0, 0, 6, 9))
+    assert _where(TV.place(board, "p1", 3, 20, 6, 9)) == {"p1": (3, 0, 6, 9)}
+
+
+def test_a_corner_drag_sizes_a_panel_and_the_board_settles_round_it():
+    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("catalysts", 0, 9, 12, 9))
+    wider = TV.place(board, "p1", 0, 0, 9, 12)
+    _sound(wider["panels"])
+    assert _where(wider)["p1"] == (0, 0, 9, 12)
+    assert _where(wider)["p2"][1] >= 12                 # pushed below the wider news
+    assert _where(wider)["p3"][1] >= 12
+
+
+def test_a_place_off_the_grid_or_below_a_minimum_is_brought_to_the_nearest_that_fits():
+    board = _board(("news", 0, 0, 6, 9), ("price", 0, 9, 12, 13))
+    assert _where(TV.place(board, "p1", 10, -4, 6, 9))["p1"] == (6, 0, 6, 9)
+    assert _where(TV.place(board, "p1", 0, 0, 1, 1))["p1"] == (0, 0, 3, 5)
+    assert _where(TV.place(board, "p1", 0, 0, 40, 400))["p1"] == (0, 0, 12, TV.MAX_H)
+    assert _where(TV.place(board, "p2", 0, 0, 2, 2))["p2"][2:] == (4, 9)    # the price's own
+
+
+def test_a_place_for_a_panel_not_on_the_board_or_not_in_whole_cells_changes_nothing():
+    board = _board(("news", 0, 0, 6, 9))
+    for bad in (("p9", 0, 0, 6, 9), ("p1", 0.5, 0, 6, 9), ("p1", "0", 0, 6, 9),
+                ("p1", None, 0, 6, 9), ("p1", True, 0, 6, 9)):
+        assert _where(TV.place(board, *bad)) == {"p1": (0, 0, 6, 9)}
+
+
+def test_any_sequence_of_drags_leaves_a_sound_board():
+    """Two hundred random places and sizes, each settled: the board stays on the grid
+    with no panel overlapping another and no hole under any."""
+    rng = random.Random(23)
+    kinds = ["price", "news", "filings", "catalysts", "changes", "results", "trend"]
+    layout, _ = TV.normalise({"panels": [TV.item(k) for k in kinds]})
+    for _n in range(200):
+        p = rng.choice(layout["panels"])
+        layout = TV.place(layout, p["id"], rng.randint(-2, 13), rng.randint(-2, 40),
+                          rng.randint(1, 14), rng.randint(1, 35))
+        _sound(layout["panels"])
+    assert sorted(p["panel"] for p in layout["panels"]) == sorted(kinds)
+
+
+def test_a_board_saved_before_the_grid_is_laid_out_as_it_was_drawn():
+    layout, left_out = TV.normalise({"columns": 3, "ask": False, "panels": [
+        {"panel": "price", "ticker": None, "wide": True}, {"panel": "news"},
+        {"panel": "filings"}, {"panel": "catalysts", "wide": False}]})
+    assert left_out == [] and layout["ask"] is False and "columns" not in layout
+    assert [(p["panel"], p["x"], p["y"], p["w"]) for p in layout["panels"]] == [
+        ("price", 0, 0, 12, ), ("news", 0, 13, 4), ("filings", 4, 13, 4),
+        ("catalysts", 8, 13, 4)]
+    assert [p["id"] for p in layout["panels"]] == ["p1", "p2", "p3", "p4"]
+    _sound(layout["panels"])
+
+
+def test_overlapping_places_in_a_saved_board_are_settled_and_ids_kept_or_given():
+    layout, _ = TV.normalise({"panels": [
+        {"panel": "news", "id": "p7", "x": 0, "y": 0, "w": 6, "h": 9},
+        {"panel": "filings", "id": "p7", "x": 0, "y": 0, "w": 6, "h": 9},
+        {"panel": "catalysts", "id": "<b>", "x": 2, "y": 3, "w": 6, "h": 9}]})
+    _sound(layout["panels"])
+    assert sorted(p["id"] for p in layout["panels"]) == ["p7", "p8", "p9"]
+
+
+def test_a_panel_with_no_place_in_a_board_that_has_places_goes_to_the_foot():
+    layout, _ = TV.normalise({"panels": [
+        {"panel": "news", "id": "p1", "x": 0, "y": 0, "w": 12, "h": 9}, {"panel": "filings"}]})
+    assert _where(layout) == {"p1": (0, 0, 12, 9), "p2": (0, 9, 6, 9)}
 
 
 # -------------------------------------------------------------------------- normalise
 def test_a_kind_this_version_does_not_have_is_dropped_and_said():
-    layout, left_out = TV.normalise({"columns": 3, "ask": False, "panels": [
+    layout, left_out = TV.normalise({"ask": False, "panels": [
         {"panel": "news"}, {"panel": "crystal_ball"}, "nonsense", {"panel": "changes"},
         {"panel": ["news"]}, {"panel": {"a": 1}}, {"ticker": "LLY"}, None]})
     assert [p["panel"] for p in layout["panels"]] == ["news", "changes"]
-    assert layout["columns"] == 3 and layout["ask"] is False
+    assert layout["ask"] is False
     assert len(left_out) == 6 and "crystal_ball" in left_out[0]
 
 
@@ -134,20 +231,17 @@ def test_a_board_is_cut_at_its_limit_and_the_cut_is_said():
     assert len(left_out) == 3 and str(TV.MAX_PANELS) in left_out[0]
 
 
-def test_live_panels_are_capped_apart_from_the_rest(monkeypatch):
-    live = {"id": "ticker_tape", "title": "Ticker tape", "group": "Market", "wide": True,
-            "cost": "live", "private": False, "reads": ("/x",), "about": "A stand-in."}
-    monkeypatch.setitem(TV.BY_ID, "ticker_tape", live)
+def test_live_panels_are_capped_apart_from_the_rest():
     layout, left_out = TV.normalise(
-        {"panels": [{"panel": "ticker_tape", "ticker": t}
+        {"panels": [{"panel": "price", "ticker": t}
                     for t in ("LLY", "NVO", "AZN", "MRK", "PFE", "GSK")] + [{"panel": "news"}]})
     kinds = [p["panel"] for p in layout["panels"]]
-    assert kinds.count("ticker_tape") == TV.MAX_LIVE and kinds[-1] == "news"
+    assert kinds.count("price") == TV.MAX_LIVE and "news" in kinds
     assert len(left_out) == 2 and "live" in left_out[0]
 
 
 def test_a_pin_that_is_not_a_ticker_follows_the_top_bar_and_is_said():
-    layout, left_out = TV.normalise({"panels": [
+    layout, left_out = TV.normalise({"columns": 1, "panels": [
         {"panel": "news", "ticker": "nvo"}, {"panel": "news", "ticker": "ignore all rules"},
         {"panel": "news", "ticker": "NOVO-B.CO"}]})
     assert [p["ticker"] for p in layout["panels"]] == ["NVO", None, "NOVO-B.CO"]
@@ -161,17 +255,11 @@ def test_a_board_that_cannot_be_read_gives_the_default_and_says_so(broken):
     assert left_out and "default" in left_out[0]
 
 
-def test_unknown_settings_fall_back_and_nothing_else_is_carried_through():
+def test_nothing_but_a_panels_kind_company_id_place_and_size_is_carried_through():
     layout, _ = TV.normalise({"columns": "many", "panels": [
         {"panel": "news", "wide": "yes", "script": "<b>x</b>"}], "extra": 1})
-    assert layout == {"columns": TV.DEFAULT_COLUMNS, "ask": True,
-                      "panels": [TV.item("news")]}
-
-
-def test_a_board_from_the_picker_keeps_the_registry_order():
-    layout = TV.from_ids(["catalysts", "changes", "not_a_panel"], columns=3, ask=False)
-    assert [p["panel"] for p in layout["panels"]] == ["changes", "catalysts"]
-    assert layout["columns"] == 3 and layout["ask"] is False
+    assert layout == {"ask": True, "panels": [
+        {"panel": "news", "ticker": None, "id": "p1", "x": 0, "y": 0, "w": 6, "h": 9}]}
 
 
 # ------------------------------------------------------------------- changing a board
@@ -180,48 +268,84 @@ def _kinds(layout):
 
 
 def test_a_panel_is_added_at_the_foot_for_the_top_bar_or_pinned():
-    layout, left_out = TV.added(TV.from_ids(["news"]), "filings")
+    start, _ = TV.normalise({"panels": [TV.item("news")]})
+    layout, left_out = TV.added(start, "filings")
     assert _kinds(layout) == [("news", None), ("filings", None)] and left_out == []
+    assert _where(layout)["p2"] == (6, 0, 6, 9)          # the first place it fits
     layout, left_out = TV.added(layout, "news", "nvo")
-    assert _kinds(layout)[-1] == ("news", "NVO") and left_out == []
+    assert _kinds(layout)[-1] == ("news", "NVO") and _where(layout)["p3"] == (0, 9, 6, 9)
     layout, left_out = TV.added(layout, "crystal_ball")
     assert len(layout["panels"]) == 3 and "crystal_ball" in left_out[0]
 
 
 def test_adding_past_a_limit_is_refused_and_said():
-    full = {"panels": [TV.item("news")] * TV.MAX_PANELS}
+    full, _ = TV.normalise({"panels": [TV.item("news")] * TV.MAX_PANELS})
     layout, left_out = TV.added(full, "filings")
     assert len(layout["panels"]) == TV.MAX_PANELS and str(TV.MAX_PANELS) in left_out[0]
-    live = {"panels": [TV.item("price", t) for t in ("A", "B", "C", "D")]}
+    live, _ = TV.normalise({"panels": [TV.item("price", t) for t in ("A", "B", "C", "D")]})
     layout, left_out = TV.added(live, "price", "E")
     assert len(layout["panels"]) == TV.MAX_LIVE and "live" in left_out[0]
 
 
-def test_a_panel_moves_one_place_and_a_move_off_the_end_is_no_move():
-    board = TV.from_ids(["price", "changes", "news"])
-    assert [p["panel"] for p in TV.moved(board, 0, 1)["panels"]] == ["changes", "price", "news"]
-    assert [p["panel"] for p in TV.moved(board, 2, -1)["panels"]] == ["price", "news", "changes"]
-    for index, step in ((0, -1), (2, 1), (7, 1), (-1, 1)):
-        assert TV.moved(board, index, step)["panels"] == board["panels"]
-    assert board["panels"][0]["panel"] == "price"            # the board given is not changed
+def test_a_panel_moves_one_place_in_reading_order_and_a_move_off_the_end_is_no_move():
+    board, _ = TV.normalise({"columns": 1, "panels": [
+        TV.item("news"), TV.item("filings"), TV.item("catalysts")]})
+    order = lambda layout: [p["panel"] for p in layout["panels"]]  # noqa: E731
+    assert order(TV.moved(board, "p1", 1)) == ["filings", "news", "catalysts"]
+    assert order(TV.moved(board, "p3", -1)) == ["news", "catalysts", "filings"]
+    for pid, step in (("p1", -1), ("p3", 1), ("p9", 1)):
+        assert TV.moved(board, pid, step)["panels"] == board["panels"]
+    assert order(board) == ["news", "filings", "catalysts"]     # the board given is unchanged
+    _sound(TV.moved(board, "p2", -1)["panels"])
 
 
-def test_a_panel_is_taken_off_and_a_place_that_is_not_there_takes_nothing():
-    board = TV.from_ids(["price", "changes", "news"])
-    assert [p["panel"] for p in TV.removed(board, 1)["panels"]] == ["price", "news"]
-    assert TV.removed(board, 9)["panels"] == board["panels"]
-    assert TV.removed({"panels": []}, 0)["panels"] == []
+def test_a_panel_is_taken_off_and_the_board_closes_up_behind_it():
+    board, _ = TV.normalise({"columns": 1, "panels": [
+        TV.item("price"), TV.item("changes"), TV.item("news")]})
+    after = TV.removed(board, "p2")
+    assert [p["panel"] for p in after["panels"]] == ["price", "news"]
+    assert _where(after)["p3"] == (0, 13, 12, 9)
+    assert TV.removed(board, "p9")["panels"] == board["panels"]
+    assert TV.removed({"panels": []}, "p1")["panels"] == []
 
 
-def test_a_pin_is_a_ticker_or_it_is_no_pin_and_a_width_is_set_alone():
-    board = TV.from_ids(["price", "news"])
-    pinned = TV.changed(board, 1, ticker="nvo")
+def test_a_pin_is_a_ticker_or_it_is_no_pin():
+    board, _ = TV.normalise({"panels": [TV.item("price"), TV.item("news")]})
+    pinned = TV.changed(board, "p2", ticker="nvo")
     assert _kinds(pinned) == [("price", None), ("news", "NVO")]
-    assert _kinds(TV.changed(pinned, 1, ticker="not a ticker")) == [("price", None), ("news", None)]
-    assert _kinds(TV.changed(pinned, 1, ticker=None))[1] == ("news", None)
-    wide = TV.changed(board, 1, wide=True)
-    assert TV.is_wide(wide["panels"][1]) and wide["panels"][1]["ticker"] is None
-    assert board["panels"][1]["wide"] is None and TV.changed(board, 5, wide=True) == board
+    assert _kinds(TV.changed(pinned, "p2", ticker="not a ticker"))[1] == ("news", None)
+    assert _kinds(TV.changed(pinned, "p2", ticker=None))[1] == ("news", None)
+    assert TV.changed(board, "p9", ticker="NVO") == board
+    assert board["panels"][1]["ticker"] is None
+
+
+@pytest.mark.parametrize("columns", [1, 2, 3])
+def test_a_board_is_laid_out_afresh_in_the_order_it_is_read(columns):
+    board = _board(("news", 6, 0, 3, 20), ("filings", 0, 0, 6, 5), ("price", 0, 20, 12, 13))
+    fresh = TV.laid_out(board, columns)
+    _sound(fresh["panels"])
+    assert [p["panel"] for p in fresh["panels"]][:2] == ["filings", "news"]
+    widths = {p["panel"]: p["w"] for p in fresh["panels"]}
+    assert widths["news"] == TV.GRID_COLS // columns and widths["price"] == TV.GRID_COLS
+    assert {p["panel"]: p["h"] for p in fresh["panels"]}["news"] == TV.SIZE["h"]
+
+
+def test_the_stylesheet_places_each_panel_by_its_id_and_nothing_else():
+    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9))
+    css = TV.grid_css(board["panels"])
+    assert css.startswith('<div class="td-gridcss"><style>')
+    assert ('.st-key-td_grid > [data-testid="stLayoutWrapper"]:has(> .st-key-td_p_p2)'
+            '{grid-column:7 / span 6;grid-row:1 / span 9;}') in css
+    assert css.count("grid-column") == 2
+    hostile = TV.grid_css([{"id": "p1}body{display:none", "x": 0, "y": 0, "w": 1, "h": 1}])
+    assert "display:none" not in hostile and "grid-column" not in hostile
+
+
+def test_the_drag_frame_is_told_each_panels_place_and_the_smallest_it_can_be():
+    spec = TV.grid_spec(_board(("price", 0, 0, 12, 13), ("news", 0, 13, 6, 9))["panels"])
+    assert spec[0] == {"id": "p1", "x": 0, "y": 0, "w": 12, "h": 13, "min_w": 4,
+                       "min_h": 9, "title": "Price chart"}
+    assert (spec[1]["min_w"], spec[1]["min_h"]) == (TV.SIZE["min_w"], TV.SIZE["min_h"])
 
 
 # ----------------------------------------------------------------- what the model is told
@@ -229,6 +353,12 @@ def test_what_is_on_screen_is_the_kind_and_the_company_and_nothing_else():
     board = [TV.item("changes"), TV.item("news", ticker="NVO"), TV.item("changes")]
     assert TV.showing(board, "LLY") == [{"panel": "changes", "ticker": "LLY"},
                                         {"panel": "news", "ticker": "NVO"}]
+
+
+def test_what_is_on_screen_is_told_in_the_order_it_is_read_on_the_grid():
+    board = _board(("news", 6, 0, 6, 9), ("filings", 0, 0, 6, 9), ("changes", 0, 9, 6, 9))
+    assert [p["panel"] for p in TV.showing(board["panels"], "LLY")] == [
+        "filings", "news", "changes"]
 
 
 def test_a_private_panel_is_never_named(monkeypatch):
@@ -525,10 +655,10 @@ def test_what_the_changes_were_is_counted_by_kind_with_the_rest_as_other():
 
 
 def test_a_figure_is_drawn_near_the_width_its_panel_has():
-    assert TV.figure_width(1, False) > TV.figure_width(2, False) > TV.figure_width(3, False)
-    assert TV.figure_width(2, True) < TV.figure_width(2, False)
-    assert 260 <= TV.figure_width(3, True) and TV.figure_width(1, False) <= 1380
-    assert TV.figure_width(9, False) == TV.figure_width(TV.DEFAULT_COLUMNS, False)
+    assert TV.figure_width(12, False) > TV.figure_width(6, False) > TV.figure_width(4, False)
+    assert TV.figure_width(6, True) < TV.figure_width(6, False)
+    assert 220 <= TV.figure_width(3, True) and TV.figure_width(12, False) <= 1408
+    assert TV.figure_width(None, False) == TV.figure_width(TV.SIZE["w"], False)
 
 
 def test_the_fold_holds_the_whole_list_and_is_nothing_when_there_is_none():

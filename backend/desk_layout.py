@@ -45,9 +45,24 @@ def clean_name(name) -> str | None:
     return text if _NAME.match(text) else None
 
 
+_ID = re.compile(r"^p[0-9]{1,4}$")
+# A place and a size on the board's grid, in cells: a column, a row, a width, a height.
+# The frontend brings each to what fits its grid; here a value only has to be a whole
+# number in a range no board can need more than.
+_PLACE = {"x": 64, "y": 4000, "w": 64, "h": 64}
+
+
+def _cell(value, most: int):
+    ok = isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= most
+    return value if ok else None
+
+
 def clean_board(layout) -> dict | None:
     """A board reduced to its shape, or None where it is not a board. Nothing is
-    repaired: a panel that is not a kind and a company is left out."""
+    repaired: a panel that is not a kind and a company is left out, and a place that is
+    not a whole number in range is left out for the frontend to fill. A board saved
+    before panels had a place keeps its "columns" and "wide", which say how it was
+    drawn then."""
     if not isinstance(layout, dict) or not isinstance(layout.get("panels"), list):
         return None
     panels = []
@@ -57,13 +72,20 @@ def clean_board(layout) -> dict | None:
         if not _KIND.match(raw["panel"]):
             continue
         ticker = raw.get("ticker")
-        panels.append({
-            "panel": raw["panel"],
-            "ticker": ticker if isinstance(ticker, str) and _TICKER.match(ticker) else None,
-            "wide": raw["wide"] if isinstance(raw.get("wide"), bool) else None})
-    columns = layout.get("columns")
-    return {"columns": columns if columns in (1, 2, 3) else 2,
-            "ask": layout.get("ask") is not False, "panels": panels}
+        entry = {"panel": raw["panel"],
+                 "ticker": ticker if isinstance(ticker, str) and _TICKER.match(ticker) else None}
+        if isinstance(raw.get("id"), str) and _ID.match(raw["id"]):
+            entry["id"] = raw["id"]
+        for key, most in _PLACE.items():
+            if _cell(raw.get(key), most) is not None:
+                entry[key] = raw[key]
+        if isinstance(raw.get("wide"), bool):
+            entry["wide"] = raw["wide"]
+        panels.append(entry)
+    board = {"ask": layout.get("ask") is not False, "panels": panels}
+    if layout.get("columns") in (1, 2, 3):
+        board["columns"] = layout["columns"]
+    return board
 
 
 def load() -> dict:

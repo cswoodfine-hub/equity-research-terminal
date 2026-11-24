@@ -1214,7 +1214,24 @@ details.prof-summary.long[open] > summary {{ display: none; }}
 [class*="st-key-td_body_"] {{ scrollbar-width: thin; padding-right: 0.35rem; }}
 [class*="st-key-td_body_"]::-webkit-scrollbar {{ width: 5px; }}
 [class*="st-key-td_body_"]::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
-[class*="st-key-td_panel_"] {{ margin-bottom: 0.5rem; }}
+/* The board is a grid twelve columns wide and as deep as its panels need, each row
+   24 px with the house's 16 px between rows and columns (trading_view.GRID_COLS,
+   ROW_PX, GAP_PX: the three are one fact, kept in step by a test). Where each panel
+   sits is written per panel by trading_view.grid_css. */
+.st-key-td_grid {{ display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr));
+                  grid-auto-rows: 24px; gap: 16px !important; align-items: stretch; }}
+/* A panel's box is exactly its cells. The app spaces a block holding a segmented
+   control with margins (the price panel holds two), which here would leave the box short
+   of its cells and the handles laid over it out of line. */
+.st-key-td_grid > [data-testid="stLayoutWrapper"] {{ min-width: 0; min-height: 0;
+  margin: 0 !important; align-self: stretch !important; }}
+/* A panel fills its cells and keeps to them: its body scrolls, the panel never grows. */
+[class*="st-key-td_p_"] {{ height: 100%; overflow: hidden; gap: 0.4rem !important; }}
+/* Where the panels sit, and the frame that moves them, take no room of their own. */
+[data-testid="stElementContainer"]:has(.td-gridcss),
+[data-testid="stElementContainer"]:has(iframe[title*="boardgrid"]) {{
+  position: absolute !important; width: 0; height: 0; overflow: hidden; }}
+.td-hint {{ margin: 0; align-self: center; }}
 /* A list on the board runs in a panel that can be a sixth of the page wide (three across,
    beside the Ask box) or all of it (one across). The feed's four columns in a row left the
    headline a few characters at the narrow end, so a row is measured against its own

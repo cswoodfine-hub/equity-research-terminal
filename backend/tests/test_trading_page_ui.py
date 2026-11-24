@@ -104,6 +104,11 @@ trading_page._send = send
 def draw_chart(**kw):
     st.session_state.setdefault("charts", {{}})[kw["key"]] = kw
     st.markdown("CHART[" + kw["key"] + "]")
+def board_grid(**kw):
+    """The drag frame, stood in: it records what it was handed and returns the place a
+    test has put in the session, as the frame returns the reader's last drag."""
+    st.session_state.setdefault("grid_args", []).append(kw)
+    return st.session_state.get("drag")
 
 def section(label, count=None, basis=""):
     st.markdown(f"SECTION[{{label}}|{{count}}|{{basis}}]")
@@ -126,7 +131,7 @@ def snapshot_strip(snapshot):
 kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
                             change_row=change_row, ask=ask, draw_chart=draw_chart,
                             report_lead=report_lead, report_landed=report_landed,
-                            snapshot_strip=snapshot_strip)
+                            snapshot_strip=snapshot_strip, board_grid=board_grid)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
           "significance": "high", "change_type": "status_change"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
@@ -212,7 +217,7 @@ def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     assert len(figures) == 3 and all("<svg" in b and 'class="unit"' in b for b in figures)
     md = _md(test)
     assert md.count('<details class="note-d td-all">') == 3
-    assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_0_0]")
+    assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_p1]")
     for panel, figure in zip(("What changed", "Company news", "Dated ahead"), figures):
         section = md.index(f"SECTION[{panel}|")
         assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
@@ -239,13 +244,14 @@ def test_what_is_on_screen_is_kept_for_the_ask_box_as_kinds_and_tickers_only():
 
 def test_taking_a_panel_off_redraws_the_board_without_it():
     test = _page()
-    test.button(key="td_off_0").click().run()            # the price chart
+    test.button(key="td_off_p1").click().run()           # the price chart
     assert not test.exception, test.exception
-    test.button(key="td_off_0").click().run()            # what changed, now first
+    test.button(key="td_off_p2").click().run()           # what changed
     assert not test.exception, test.exception
-    assert _sections(test) == ["Company news", "Dated ahead"]
+    # The two left rise to the top row, Dated ahead on the left where What changed was.
+    assert _sections(test) == ["Dated ahead", "Company news"]
     assert test.session_state["td_showing"] == [
-        {"panel": "news", "ticker": "LLY"}, {"panel": "catalysts", "ticker": "LLY"}]
+        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "news", "ticker": "LLY"}]
 
 
 def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company():
@@ -264,7 +270,7 @@ def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company()
 
 def test_pinning_a_panel_draws_it_for_that_company_and_the_rest_follow_the_top_bar():
     test = _page()
-    test.selectbox(key="td_co_1").set_value("NVO").run()         # what changed
+    test.selectbox(key="td_co_p2").set_value("NVO").run()        # what changed
     assert not test.exception, test.exception
     md = _md(test)
     assert "SECTION[What changed|1|NVO · pinned]" in md and "A pinned change" in md
@@ -272,7 +278,7 @@ def test_pinning_a_panel_draws_it_for_that_company_and_the_rest_follow_the_top_b
     # The page's own feed is the top bar's company's, so the pinned panel reads its own.
     assert [p for p in test.session_state["asked"] if p.startswith("/changes?ticker=NVO")]
     assert {"panel": "changes", "ticker": "NVO"} in test.session_state["td_showing"]
-    test.selectbox(key="td_co_1").set_value("Top bar").run()
+    test.selectbox(key="td_co_p2").set_value("Top bar").run()
     assert "SECTION[What changed|2|LLY]" in _md(test)
 
 
@@ -281,7 +287,7 @@ def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_
         {"panel": "price", "ticker": None, "wide": False},
         {"panel": "price", "ticker": "NVO", "wide": False}]})
     assert not test.exception, test.exception
-    assert set(test.session_state["charts"]) == {"td_chart_0_0", "td_chart_0_1"}
+    assert set(test.session_state["charts"]) == {"td_chart_p1", "td_chart_p2"}
     assert set(test.session_state["live_asked"]) == {"LLY", "NVO"}
     assert "/companies/NVO/prices" in test.session_state["asked"]
     assert "/companies/LLY/prices" not in test.session_state["asked"]
@@ -290,19 +296,58 @@ def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_
     assert "SECTION[Price chart|None|NVO · pinned · USD" in md
 
 
-def test_a_panel_can_be_moved_and_made_wide_from_the_arranger():
+def test_a_panel_can_be_moved_from_the_arranger_without_a_pointer():
     test = _page(layout=_board_of("news", "filings", "catalysts"))
-    test.button(key="td_down_0").click().run()
+    test.button(key="td_down_p1").click().run()
     assert not test.exception, test.exception
     assert _sections(test) == ["Filings", "Company news", "Dated ahead"]
-    test.button(key="td_up_2").click().run()
-    assert _sections(test) == ["Filings", "Dated ahead", "Company news"]
-    test.toggle(key="td_wide_0").set_value(True).run()
+    test.button(key="td_up_p3").click().run()
     assert not test.exception, test.exception
+    assert _sections(test) == ["Filings", "Dated ahead", "Company news"]
     held = test.session_state["td_layout"]["panels"]
     assert [p["panel"] for p in held] == ["filings", "catalysts", "news"]
-    assert held[0]["wide"] is True
-    assert test.button(key="td_up_0").disabled and test.button(key="td_down_2").disabled
+    assert test.button(key="td_up_p2").disabled and test.button(key="td_down_p1").disabled
+
+
+def test_the_drag_frame_is_handed_every_panels_place_and_the_grids_measure():
+    test = _page()
+    args = test.session_state["grid_args"][-1]
+    assert (args["cols"], args["row_px"], args["gap_px"], args["key"]) == (12, 24, 16,
+                                                                           "td_gridctl")
+    assert [(p["id"], p["x"], p["y"], p["w"], p["h"]) for p in args["panels"]] == [
+        ("p1", 0, 0, 12, 13), ("p2", 0, 13, 6, 9), ("p3", 6, 13, 6, 9), ("p4", 0, 22, 6, 9)]
+    md = _md(test)
+    assert ".st-key-td_p_p3)" in md and "grid-column:7 / span 6;grid-row:14 / span 9;" in md
+
+
+def test_a_panel_dragged_and_dropped_takes_its_new_place_once():
+    test = _page(layout=_board_of("news", "filings", "catalysts"))
+    test.session_state["drag"] = {"token": "t1", "n": 1, "id": "p3", "x": 6, "y": 0,
+                                  "w": 6, "h": 12}
+    test.run()
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Company news", "Dated ahead", "Filings"]
+    where = {p["id"]: (p["x"], p["y"], p["w"], p["h"])
+             for p in test.session_state["td_layout"]["panels"]}
+    assert where == {"p1": (0, 0, 6, 9), "p3": (6, 0, 6, 12), "p2": (6, 12, 6, 9)}
+    assert test.session_state["grid_args"][-1]["panels"][1]["h"] == 12
+    # The frame returns the same drag on every later run. A keyboard move made since
+    # must not be undone by it.
+    test.button(key="td_up_p2").click().run()
+    assert not test.exception, test.exception
+    after = [p["panel"] for p in test.session_state["td_layout"]["panels"]]
+    assert after != ["news", "catalysts", "filings"]
+    test.run()
+    assert [p["panel"] for p in test.session_state["td_layout"]["panels"]] == after
+
+
+def test_a_drag_for_a_panel_no_longer_on_the_board_changes_nothing():
+    test = _page(layout=_board_of("news"))
+    test.session_state["drag"] = {"token": "t1", "n": 1, "id": "p9", "x": 6, "y": 0,
+                                  "w": 6, "h": 9}
+    test.run()
+    assert not test.exception, test.exception
+    assert [(p["id"], p["x"]) for p in test.session_state["td_layout"]["panels"]] == [("p1", 0)]
 
 
 def test_a_fifth_live_chart_is_refused_and_the_reader_is_told():
@@ -322,9 +367,10 @@ def test_a_board_is_saved_by_name_and_only_its_arrangement_is_sent():
     (method, path, body), = test.session_state["writes"]
     assert (method, path) == ("PUT", "/desk/layouts") and body["name"] == "Readout prep"
     assert set(body) == {"name", "layout"}
-    assert set(body["layout"]) == {"columns", "ask", "panels"}
+    assert set(body["layout"]) == {"ask", "panels"}
     assert [p["panel"] for p in body["layout"]["panels"]] == ["news", "filings"]
-    assert all(set(p) == {"panel", "ticker", "wide"} for p in body["layout"]["panels"])
+    assert all(set(p) == {"panel", "ticker", "id", "x", "y", "w", "h"}
+               for p in body["layout"]["panels"])
     assert "Saved as Readout prep. It opens next time." in _md(test)
     assert test.session_state["td_board_name"] == "Readout prep"
 
@@ -397,12 +443,14 @@ def test_an_empty_board_says_what_to_do_next():
     assert test.session_state["td_showing"] == []
 
 
-def test_the_board_draws_at_one_two_and_three_across():
+def test_the_board_is_laid_out_afresh_one_two_or_three_across():
     test = _page()
     for across in (1, 3, 2):
-        test.button_group(key="td_columns").set_value(across).run()
+        test.button(key=f"td_across_{across}").click().run()
         assert not test.exception, test.exception
         assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+        widths = [p["w"] for p in test.session_state["td_layout"]["panels"]]
+        assert widths == [12] + [12 // across] * 3
 
 
 def test_the_ask_box_sits_beside_the_board_in_its_own_place_on_the_page():
@@ -424,9 +472,11 @@ def test_the_ask_box_can_be_put_away_and_the_board_takes_the_width():
 
 def test_the_price_chart_keeps_its_height_and_carries_the_session_still_trading():
     test = _page()
-    assert "CHART[td_chart_0_0]" in _md(test)
-    chart = test.session_state["charts"]["td_chart_0_0"]
-    assert chart["fill"] is False and chart["height"] == 300 and chart["intraday"] is False
+    assert "CHART[td_chart_p1]" in _md(test)
+    chart = test.session_state["charts"]["td_chart_p1"]
+    # The default price panel is 13 rows: 504 px, of which the chart takes all but what
+    # the panel draws round it.
+    assert chart["fill"] is False and chart["height"] == 504 - 196 and chart["intraday"] is False
     assert chart["lines"] == [] and chart["draw_mode"] is False and chart["fair"] == []
     # Forty stored bars and today's session laid over them: the last point is the live one.
     assert len(chart["data"]) == 41 and chart["data"][-1]["value"] == 149.5
@@ -441,29 +491,29 @@ def test_the_price_chart_keeps_its_height_and_carries_the_session_still_trading(
 
 def test_a_shorter_window_draws_fewer_bars_and_tells_the_chart_to_refit():
     test = _page()
-    before = test.session_state["charts"]["td_chart_0_0"]
-    test.button_group(key="td_span_0_0").set_value("1M").run()
+    before = test.session_state["charts"]["td_chart_p1"]
+    test.button_group(key="td_span_p1").set_value("1M").run()
     assert not test.exception, test.exception
-    after = test.session_state["charts"]["td_chart_0_0"]
+    after = test.session_state["charts"]["td_chart_p1"]
     assert len(after["data"]) < len(before["data"]) and after["data"][-1]["value"] == 149.5
     assert after["view_key"] != before["view_key"] and "1M change" in _md(test)
-    test.button_group(key="td_view_0_0").set_value("Candlestick").run()
+    test.button_group(key="td_view_p1").set_value("Candlestick").run()
     assert not test.exception, test.exception
-    candle = test.session_state["charts"]["td_chart_0_0"]
+    candle = test.session_state["charts"]["td_chart_p1"]
     assert candle["mode"] == "Candlestick" and "open" in candle["data"][0]
 
 
 def test_the_price_panel_reads_the_history_itself_when_the_page_has_not():
     test = _page(page_has_prices=False)
     assert "/companies/LLY/prices" in test.session_state["asked"]
-    assert len(test.session_state["charts"]["td_chart_0_0"]["data"]) == 41
+    assert len(test.session_state["charts"]["td_chart_p1"]["data"]) == 41
 
 
 def test_the_price_panel_draws_with_the_market_open_and_with_it_closed():
     for market_open in (True, False):
         test = _page(market_open=market_open)
         assert not test.exception, test.exception
-        assert "CHART[td_chart_0_0]" in _md(test)
+        assert "CHART[td_chart_p1]" in _md(test)
         assert set(test.session_state["live_asked"]) == {"LLY"}
 
 
@@ -565,3 +615,32 @@ def test_the_chart_component_has_a_height_it_keeps():
     # is a few pixels wide, and the bars stayed bunched at the right edge.
     assert "if (state.fill !== false || !chart) return;" in frame
     assert frame.count("refit();") == 2
+
+
+def test_the_drag_frame_draws_only_in_its_own_layer_and_sends_a_place_a_drag_at_a_time():
+    """The frame's script is not run here (node is not installed on every machine), so
+    what it may do is held by reading it: it adds to the page one layer of its own and
+    nothing to what Streamlit draws, it sends a place only on release and marks each with
+    the frame's token and a count, and it takes its layer and listeners away with it."""
+    frame = (FRONTEND / "components" / "boardgrid" / "index.html").read_text()
+    script = frame.split("<script>", 1)[1]
+    # Every element it adds goes into its own layer, and the layer onto the page's body.
+    added = re.findall(r"([\w.]+)\.appendChild\(", script)
+    assert added and set(added) <= {"layer", "doc.body"}, added
+    assert "doc.body.appendChild(layer)" in script
+    assert "insertBefore" not in script and "innerHTML" not in script
+    assert ".remove()" in script and 'addEventListener("pagehide", cleanup)' in script
+    assert script.count("Streamlit.value(") == 1
+    assert "token: TOKEN, n: sent" in script
+    assert 'zIndex: "110"' in script                         # under the top bar's 120
+    wrapper = (FRONTEND / "components" / "boardgrid" / "__init__.py").read_text()
+    assert "default=None" in wrapper and 'declare_component("boardgrid"' in wrapper
+
+
+def test_the_frame_measures_the_grid_the_stylesheet_and_the_model_describe():
+    frame = (FRONTEND / "components" / "boardgrid" / "index.html").read_text()
+    source = (FRONTEND / "trading_page.py").read_text()
+    assert "cols=TV.GRID_COLS" in source and "row_px=TV.ROW_PX" in source
+    assert "gap_px=TV.GAP_PX" in source
+    assert '.querySelector(".st-key-td_grid")' in frame
+    assert '".st-key-td_p_" + id' in frame and 'key=f"td_p_{entry[\'id\']}"' in source

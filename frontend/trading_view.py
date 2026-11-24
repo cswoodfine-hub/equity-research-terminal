@@ -73,13 +73,31 @@ BY_ID = {panel["id"]: panel for panel in PANELS}
 
 MAX_PANELS = 12          # a board past this is a page nobody reads to the end
 MAX_LIVE = 4             # each live price is two Yahoo requests a minute while in session
-COLUMNS = (1, 2, 3)
+COLUMNS = (1, 2, 3)      # "lay out N across", and how a board saved before the grid is read
 DEFAULT_COLUMNS = 2
 # What a reader sees before they have chosen anything.
 DEFAULT_PANELS = ("price", "changes", "news", "catalysts")
 
 # A ticker as the book writes one: LLY, NOVO-B.CO, 4568.T. Anything else is not sent on.
 TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
+PANEL_ID = re.compile(r"^p[0-9]{1,4}$")
+
+# ---------------------------------------------------------------------------- the grid
+# A board is a grid twelve columns wide, as deep as its panels need. A panel has a place
+# (x, y: the column and row of its top left cell) and a size (w, h: columns and rows).
+# The reader moves a panel by its heading and sizes it by a corner; the page sends the
+# new place, and ``place`` settles the rest around it: a panel it lands on is pushed
+# down, and every panel then rises as far as the one above it allows, so the board has
+# no holes and no two panels overlap.
+GRID_COLS = 12
+ROW_PX = 24              # a row's height; the gap is added between rows
+GAP_PX = 16              # between columns and between rows, the house's 16 px
+MAX_H = 30               # rows; a panel taller than this is a page of its own
+MAX_Y = 400              # rows; a place further down is a saved file gone wrong
+HEAD_PX = 46             # a panel's rule and the gap under it, above its body
+# The size a new panel opens at, and the smallest it can be made, in cells.
+SIZES = {"price": {"w": 12, "h": 13, "min_w": 4, "min_h": 9}}
+SIZE = {"w": 6, "h": 9, "min_w": 3, "min_h": 5}
 
 
 def esc(text) -> str:
@@ -92,15 +110,112 @@ def clean_ticker(value):
     return text if TICKER.match(text) else None
 
 
-def item(panel: str, ticker=None, wide=None) -> dict:
-    """One panel on a board. ``ticker`` None follows the top bar; ``wide`` None takes the
-    kind's own width."""
-    return {"panel": panel, "ticker": ticker, "wide": wide}
+def size_of(kind: str) -> dict:
+    return SIZES.get(kind, SIZE)
+
+
+def area_px(h: int) -> int:
+    """How tall a panel of ``h`` rows is on the page."""
+    return h * ROW_PX + (h - 1) * GAP_PX
+
+
+def body_px(h: int) -> int:
+    """How tall a panel's scrolling body is: its area less its rule."""
+    return max(80, area_px(h) - HEAD_PX)
+
+
+def _int(value):
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _clamp(value, low, high):
+    return max(low, min(high, value))
+
+
+def _fit(entry: dict) -> dict:
+    """A panel's size and place made to fit the grid and its kind's minimum."""
+    size = size_of(entry["panel"])
+    w = _clamp(_int(entry.get("w")) or size["w"], size["min_w"], GRID_COLS)
+    h = _clamp(_int(entry.get("h")) or size["h"], size["min_h"], MAX_H)
+    x = _clamp(_int(entry.get("x")) or 0, 0, GRID_COLS - w)
+    y = _clamp(_int(entry.get("y")) or 0, 0, MAX_Y)
+    return dict(entry, x=x, y=y, w=w, h=h)
+
+
+def _overlap(a: dict, b: dict) -> bool:
+    return (a["x"] < b["x"] + b["w"] and b["x"] < a["x"] + a["w"]
+            and a["y"] < b["y"] + b["h"] and b["y"] < a["y"] + a["h"])
+
+
+def reading_order(panels) -> list:
+    """Top to bottom, then left to right: the order a reader meets the panels in, and the
+    order the page lays them out in for a screen reader."""
+    return sorted(panels or [], key=lambda p: (p["y"], p["x"]))
+
+
+def settle(panels, first=None) -> list:
+    """No two panels overlapping and no hole above any of them.
+
+    ``first`` is the id of the panel the reader has just put somewhere: it keeps that
+    place, and a panel in its way is pushed down below it. Then each panel, top first,
+    rises as far as the panels already above it allow.
+    """
+    panels = [_fit(p) for p in panels or []]
+    lead = [p for p in panels if p["id"] == first]
+    rest = reading_order([p for p in panels if p["id"] != first])
+    placed = []
+    for p in lead + rest:
+        while True:
+            hit = [q for q in placed if _overlap(p, q)]
+            if not hit:
+                break
+            p = dict(p, y=max(q["y"] + q["h"] for q in hit))
+        placed.append(p)
+    risen = []
+    for p in reading_order(placed):
+        y = p["y"]
+        while y > 0 and not any(_overlap(dict(p, y=y - 1), q) for q in risen):
+            y -= 1
+        risen.append(dict(p, y=y))
+    return reading_order(risen)
+
+
+def _next_id(panels) -> str:
+    used = [int(p["id"][1:]) for p in panels or [] if PANEL_ID.match(str(p.get("id") or ""))]
+    return f"p{max(used, default=0) + 1}"
+
+
+def item(panel: str, ticker=None, **place) -> dict:
+    """One panel. ``ticker`` None follows the top bar; a place left out is filled in by
+    ``normalise``."""
+    entry = {"panel": panel, "ticker": ticker}
+    entry.update({k: v for k, v in place.items() if k in ("id", "x", "y", "w", "h")})
+    return entry
+
+
+def packed(kinds, columns: int) -> list:
+    """Panels laid out ``columns`` across in the order given, a wide kind on a row of its
+    own. How a board is laid out afresh, and how one saved before the grid is read."""
+    columns = columns if columns in COLUMNS else DEFAULT_COLUMNS
+    span = GRID_COLS // columns
+    out, x, y, row_h = [], 0, 0, 0
+    for entry in kinds:
+        size = size_of(entry["panel"])
+        w = GRID_COLS if entry.get("wide") or size["w"] == GRID_COLS else span
+        h = _int(entry.get("h")) or size["h"]
+        if x + w > GRID_COLS:
+            x, y, row_h = 0, y + row_h, 0
+        out.append(dict({k: v for k, v in entry.items() if k != "wide"},
+                        x=x, y=y, w=w, h=h))
+        x, row_h = x + w, max(row_h, h)
+    return out
 
 
 def default_layout() -> dict:
-    return {"columns": DEFAULT_COLUMNS, "ask": True,
-            "panels": [item(panel) for panel in DEFAULT_PANELS]}
+    panels = packed([item(kind) for kind in DEFAULT_PANELS], DEFAULT_COLUMNS)
+    for n, p in enumerate(panels, start=1):
+        p["id"] = f"p{n}"
+    return {"ask": True, "panels": settle(panels)}
 
 
 def normalise(layout) -> tuple:
@@ -108,15 +223,13 @@ def normalise(layout) -> tuple:
 
     A saved board outlives the code that saved it: a panel kind can be renamed or
     withdrawn, a file can be edited by hand. Nothing unknown is guessed at. It is dropped
-    and the reader is told, so a board never draws a panel it cannot name.
+    and the reader is told, so a board never draws a panel it cannot name. A board saved
+    before panels had a place on the grid is laid out the way it was drawn then.
     """
     left_out = []
     if not isinstance(layout, dict):
         return default_layout(), ["the saved board could not be read, so the default is shown"]
-    columns = layout.get("columns")
-    if columns not in COLUMNS:
-        columns = DEFAULT_COLUMNS
-    kept, live = [], 0
+    kept, live, ids = [], 0, set()
     for raw in layout.get("panels") or []:
         if (not isinstance(raw, dict) or not isinstance(raw.get("panel"), str)
                 or raw["panel"] not in BY_ID):
@@ -137,80 +250,125 @@ def normalise(layout) -> tuple:
         if pinned and not ticker:
             left_out.append(f"{kind['title']}: {str(pinned)[:20]} is not a ticker, so it "
                             "follows the top bar")
-        wide = raw.get("wide") if isinstance(raw.get("wide"), bool) else None
-        kept.append(item(kind["id"], ticker, wide))
-    return {"columns": columns, "ask": layout.get("ask") is not False,
-            "panels": kept}, left_out
+        entry = item(kind["id"], ticker, **{k: raw[k] for k in ("x", "y", "w", "h")
+                                            if _int(raw.get(k)) is not None})
+        pid = raw.get("id")
+        if isinstance(pid, str) and PANEL_ID.match(pid) and pid not in ids:
+            entry["id"] = pid
+            ids.add(pid)
+        if isinstance(raw.get("wide"), bool):
+            entry["wide"] = raw["wide"]
+        kept.append(entry)
+    for entry in kept:
+        if "id" not in entry:
+            entry["id"] = _next_id(kept)
+    placed = [e for e in kept if all(k in e for k in ("x", "y", "w", "h"))]
+    if not placed and kept:
+        kept = packed(kept, layout.get("columns"))
+    else:
+        bottom = max((e["y"] + e["h"] for e in placed), default=0)
+        loose = packed([e for e in kept if e not in placed], DEFAULT_COLUMNS)
+        kept = placed + [dict(e, y=e["y"] + bottom) for e in loose]
+    panels = settle([{k: v for k, v in e.items() if k != "wide"} for e in kept])
+    return {"ask": layout.get("ask") is not False, "panels": panels}, left_out
 
 
-def from_ids(ids, columns=DEFAULT_COLUMNS, ask=True) -> dict:
-    """A board of the named kinds in the registry's order, each following the top bar."""
-    wanted = set(ids or [])
-    return {"columns": columns, "ask": ask,
-            "panels": [item(panel["id"]) for panel in PANELS if panel["id"] in wanted]}
+def _find(panels, pid):
+    return next((n for n, p in enumerate(panels) if p["id"] == pid), None)
+
+
+def place(layout: dict, pid: str, x, y, w, h) -> dict:
+    """The board with one panel put at a place and a size, the rest settled round it. A
+    place off the grid or a size below the kind's minimum is brought to the nearest that
+    fits; an id that is not on the board changes nothing."""
+    panels = [dict(p) for p in (layout or {}).get("panels") or []]
+    n = _find(panels, pid)
+    if n is None or not all(_int(v) is not None for v in (x, y, w, h)):
+        return dict(layout or {}, panels=panels)
+    panels[n] = _fit(dict(panels[n], x=x, y=y, w=w, h=h))
+    return dict(layout, panels=settle(panels, first=pid))
+
+
+def first_free(panels, w: int, h: int) -> tuple:
+    """The first place, reading from the top left, where a panel of ``w`` by ``h`` cells
+    fits without covering another."""
+    bottom = max((p["y"] + p["h"] for p in panels or []), default=0)
+    for y in range(bottom + 1):
+        for x in range(GRID_COLS - w + 1):
+            spot = {"x": x, "y": y, "w": w, "h": h}
+            if not any(_overlap(spot, p) for p in panels or []):
+                return x, y
+    return 0, bottom
 
 
 def added(layout: dict, kind: str, ticker=None) -> tuple:
-    """The board with one more panel at its foot, and why not where it was refused: an
-    unknown kind, a full board, a fifth live chart."""
-    panels = list((layout or {}).get("panels") or []) + [item(kind, ticker)]
-    return normalise(dict(layout or {}, panels=panels))
-
-
-def removed(layout: dict, index: int) -> dict:
+    """The board with one more panel in the first place it fits, and why not where it
+    was refused: an unknown kind, a full board, a fifth live chart."""
     panels = list((layout or {}).get("panels") or [])
-    if 0 <= index < len(panels):
-        del panels[index]
+    size = size_of(kind)
+    x, y = first_free(panels, size["w"], size["h"])
+    entry = item(kind, ticker, id=_next_id(panels), x=x, y=y, w=size["w"], h=size["h"])
+    return normalise(dict(layout or {}, panels=panels + [entry]))
+
+
+def removed(layout: dict, pid: str) -> dict:
+    panels = [p for p in (layout or {}).get("panels") or [] if p["id"] != pid]
+    return dict(layout or {}, panels=settle(panels))
+
+
+def moved(layout: dict, pid: str, step: int) -> dict:
+    """The board with one panel a place earlier (-1) or later (+1) in reading order: it
+    takes the place of the panel before it, or the panel after it takes its place. A move
+    off either end is no move. The keyboard's way to do what a drag does."""
+    order = reading_order((layout or {}).get("panels") or [])
+    n = _find(order, pid)
+    if n is None or not 0 <= n + step < len(order):
+        return dict(layout or {}, panels=order)
+    mover, into = (order[n], order[n - 1]) if step < 0 else (order[n + 1], order[n])
+    return place(dict(layout, panels=order), mover["id"], into["x"], into["y"],
+                 mover["w"], mover["h"])
+
+
+def changed(layout: dict, pid: str, ticker=None) -> dict:
+    """The board with one panel's company set. A company that is not a ticker is no pin:
+    the panel follows the top bar."""
+    panels = [dict(p) for p in (layout or {}).get("panels") or []]
+    n = _find(panels, pid)
+    if n is not None:
+        panels[n]["ticker"] = clean_ticker(ticker)
     return dict(layout or {}, panels=panels)
 
 
-def moved(layout: dict, index: int, step: int) -> dict:
-    """The board with one panel a place earlier (-1) or later (+1). A move off either
-    end is no move."""
-    panels = list((layout or {}).get("panels") or [])
-    to = index + step
-    if 0 <= index < len(panels) and 0 <= to < len(panels):
-        panels[index], panels[to] = panels[to], panels[index]
-    return dict(layout or {}, panels=panels)
+def laid_out(layout: dict, columns: int) -> dict:
+    """The board laid out afresh ``columns`` across, in the order it is read now, each
+    panel at its kind's own height."""
+    order = [item(p["panel"], p.get("ticker"), id=p["id"])
+             for p in reading_order((layout or {}).get("panels") or [])]
+    return dict(layout or {}, panels=settle(packed(order, columns)))
 
 
-def changed(layout: dict, index: int, **fields) -> dict:
-    """The board with one panel's company or width set. A company that is not a ticker
-    is no pin: the panel follows the top bar."""
-    panels = [dict(entry) for entry in (layout or {}).get("panels") or []]
-    if 0 <= index < len(panels):
-        if "ticker" in fields:
-            panels[index]["ticker"] = clean_ticker(fields["ticker"])
-        if "wide" in fields:
-            panels[index]["wide"] = bool(fields["wide"])
-    return dict(layout or {}, panels=panels)
-
-
-def is_wide(entry: dict) -> bool:
-    if isinstance(entry.get("wide"), bool):
-        return entry["wide"]
-    return bool(BY_ID[entry["panel"]]["wide"])
-
-
-def pack(panels, columns: int) -> list:
-    """The board as rows. A wide panel takes a row to itself; the others fill a row left
-    to right in the order given, so the order a reader set is the order they read in."""
-    columns = columns if columns in COLUMNS else DEFAULT_COLUMNS
-    rows, run = [], []
-    for entry in panels or []:
-        if is_wide(entry) or columns == 1:
-            if run:
-                rows.append(run)
-                run = []
-            rows.append([entry])
+def grid_css(panels) -> str:
+    """Where each panel sits on the grid, as a stylesheet. The grid itself is in
+    theme.py; this places each panel's box (Streamlit's wrapper round the panel's keyed
+    container) by its id, so the page draws the board where the reader left it before
+    any script has run."""
+    rules = []
+    for p in panels or []:
+        if not PANEL_ID.match(str(p.get("id") or "")):
             continue
-        run.append(entry)
-        if len(run) == columns:
-            rows.append(run)
-            run = []
-    if run:
-        rows.append(run)
-    return rows
+        rules.append(
+            f'.st-key-td_grid > [data-testid="stLayoutWrapper"]:has(> .st-key-td_p_{p["id"]})'
+            f'{{grid-column:{p["x"] + 1} / span {p["w"]};grid-row:{p["y"] + 1} / span {p["h"]};}}')
+    return '<div class="td-gridcss"><style>' + "".join(rules) + "</style></div>"
+
+
+def grid_spec(panels) -> list:
+    """What the drag and resize frame needs of each panel: its id, place, size and the
+    smallest it can be made."""
+    return [{"id": p["id"], "x": p["x"], "y": p["y"], "w": p["w"], "h": p["h"],
+             "min_w": size_of(p["panel"])["min_w"], "min_h": size_of(p["panel"])["min_h"],
+             "title": BY_ID[p["panel"]]["title"]}
+            for p in panels or []]
 
 
 def company_of(entry: dict, ticker: str) -> str:
@@ -228,10 +386,10 @@ def heading(entry: dict, ticker: str) -> tuple:
 
 def showing(panels, ticker: str) -> list:
     """What is on screen, as the Ask box may be told it: the kind of each panel and its
-    company, and nothing a panel shows. A private panel is left out, because naming it
-    beside a ticker would say the reader holds that stock."""
+    company, in reading order, and nothing a panel shows. A private panel is left out,
+    because naming it beside a ticker would say the reader holds that stock."""
     out, seen = [], set()
-    for entry in panels or []:
+    for entry in reading_order(panels) if all("y" in p for p in panels or []) else panels or []:
         kind = BY_ID.get(entry.get("panel")) if isinstance(entry, dict) else None
         if not kind or kind["private"]:
             continue
@@ -388,12 +546,15 @@ def month_start(day: dt.date, offset: int = 0) -> dt.date:
     return dt.date(index // 12, index % 12 + 1, 1)
 
 
-def figure_width(columns: int, beside: bool) -> int:
-    """About how wide a panel is in pixels on the 1440 px page the app is sized for, so
-    a figure is drawn at the size it is shown and its type is not scaled to a blur."""
-    board = 1408 * (2.05 / 3.05 if beside else 1.0) - (16 if beside else 0)
-    columns = columns if columns in COLUMNS else DEFAULT_COLUMNS
-    return int(max(260, min(1380, (board - 16 * (columns - 1)) / columns - 8)))
+BOARD_PX = 1408                 # the page's width at 1440 px, the width the app is sized for
+
+
+def figure_width(w: int, beside: bool) -> int:
+    """About how wide a panel ``w`` columns wide is in pixels, so a figure is drawn at the
+    size it is shown and its type is not scaled to a blur."""
+    board = BOARD_PX * (2.05 / 3.05) - 16 if beside else BOARD_PX
+    w = _clamp(_int(w) or SIZE["w"], 1, GRID_COLS)
+    return int(max(220, (board + GAP_PX) * w / GRID_COLS - GAP_PX - 8))
 
 
 def fold_html(summary: str, inner: str) -> str:

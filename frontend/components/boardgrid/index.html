@@ -1,0 +1,293 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }</style>
+</head>
+<body>
+<script>
+/* The board's handles: a grip over each panel's heading to move it, and a mark at each
+   corner to size it. They live in a layer of their own in the page above this frame,
+   laid over the panels by measuring them, and the panels themselves are never touched.
+
+   Nothing here decides where a panel ends up. It shows, snapped to the grid, the place
+   and size the pointer asks for, and sends that on release; Python settles the board
+   round it and draws it again, and the next draw brings the handles with it. */
+
+/* ---- Streamlit component protocol (no build step) ---- */
+function post(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type },
+                                          extra || {}), "*");
+}
+const Streamlit = {
+  ready() { post("streamlit:componentReady", { apiVersion: 1 }); },
+  height(h) { post("streamlit:setFrameHeight", { height: h }); },
+  value(v) { post("streamlit:setComponentValue", { value: v, dataType: "json" }); },
+};
+
+const LAYER_ID = "td-grid-layer";
+const GRIP_PX = 30;              /* the heading strip a panel is moved by */
+const CORNER_PX = 14;
+const START_PX = 4;              /* a press that moves less than this is a click */
+const CORNERS = ["nw", "ne", "sw", "se"];
+const TOKEN = Math.random().toString(36).slice(2, 10);
+
+const state = { panels: [], cols: 12, rowPx: 24, gapPx: 16, theme: {} };
+let sent = 0;
+let doc = null, layer = null, ghost = null, drag = null, timer = null;
+const handles = {};             /* id -> {grip, corners: {nw, ...}} */
+
+function parentDoc() {
+  try { return window.parent.document; } catch (e) { return null; }
+}
+
+function css(el, rules) { Object.assign(el.style, rules); return el; }
+
+function gridEl() { return doc && doc.querySelector(".st-key-td_grid"); }
+
+/* The panel's box on the grid: Streamlit's wrapper round its keyed container. */
+function boxEl(id) {
+  const inner = doc && doc.querySelector(".st-key-td_p_" + id);
+  if (!inner) return null;
+  const outer = inner.parentElement;
+  return outer && outer.getAttribute("data-testid") === "stLayoutWrapper" ? outer : inner;
+}
+
+/* The part of the screen the board can be seen in: the main pane, under anything pinned
+   to the top of it. A handle outside it is hidden, so it never sits over the top bar. */
+function visibleArea() {
+  const main = doc.querySelector('[data-testid="stMain"]');
+  const r = main ? main.getBoundingClientRect()
+                 : { left: 0, top: 0, right: window.parent.innerWidth,
+                     bottom: window.parent.innerHeight };
+  let top = r.top;
+  for (const el of doc.querySelectorAll('[data-testid="stHorizontalBlock"]')) {
+    if (getComputedStyle(el).position !== "sticky") continue;
+    const s = el.getBoundingClientRect();
+    if (s.height > 0 && s.top <= r.top + 2) top = Math.max(top, s.bottom);
+  }
+  return { left: r.left, top: top, right: r.right, bottom: r.bottom };
+}
+
+function cellSize(grid) {
+  const g = grid.getBoundingClientRect();
+  const colW = (g.width - state.gapPx * (state.cols - 1)) / state.cols;
+  return { g: g, colW: colW, stepX: colW + state.gapPx, stepY: state.rowPx + state.gapPx };
+}
+
+function rectOf(cell, p) {
+  return { left: cell.g.left + p.x * cell.stepX, top: cell.g.top + p.y * cell.stepY,
+           width: p.w * cell.colW + (p.w - 1) * state.gapPx,
+           height: p.h * state.rowPx + (p.h - 1) * state.gapPx };
+}
+
+function ensureLayer() {
+  doc = parentDoc();
+  if (!doc) return false;
+  const old = doc.getElementById(LAYER_ID);
+  if (old && old !== layer) old.remove();       /* left by a frame that has gone */
+  if (!layer) {
+    layer = css(doc.createElement("div"), { position: "fixed", left: "0", top: "0",
+      width: "0", height: "0", zIndex: "110", pointerEvents: "none" });
+    layer.id = LAYER_ID;
+    ghost = css(doc.createElement("div"), { position: "fixed", display: "none",
+      boxSizing: "border-box", pointerEvents: "none" });
+    layer.appendChild(ghost);
+    doc.body.appendChild(layer);
+  }
+  return true;
+}
+
+function styleGhost() {
+  const t = state.theme;
+  css(ghost, { border: "1px solid " + (t.up || "#4C9A7A"),
+               background: (t.up || "#4C9A7A") + "1F",
+               transition: "left 60ms linear, top 60ms linear, width 60ms linear, height 60ms linear" });
+}
+
+function makeHandles(p) {
+  const t = state.theme;
+  const grip = css(doc.createElement("div"), { position: "fixed", cursor: "grab",
+    pointerEvents: "auto", boxSizing: "border-box", borderTop: "2px solid transparent",
+    transition: "border-color 100ms linear" });
+  grip.title = "Drag to move " + (p.title || "the panel");
+  grip.addEventListener("pointerenter", () => { grip.style.borderTopColor = t.up; });
+  grip.addEventListener("pointerleave", () => {
+    if (!drag) grip.style.borderTopColor = "transparent"; });
+  grip.addEventListener("pointerdown", (e) => begin(e, p.id, "move", grip));
+  layer.appendChild(grip);
+  const corners = {};
+  for (const c of CORNERS) {
+    const el = css(doc.createElement("div"), { position: "fixed", pointerEvents: "auto",
+      width: CORNER_PX + "px", height: CORNER_PX + "px", boxSizing: "border-box",
+      cursor: (c === "nw" || c === "se") ? "nwse-resize" : "nesw-resize",
+      transition: "border-color 100ms linear" });
+    /* An L in the corner, in the rule's colour, the selection green under the pointer. */
+    const side = (c[0] === "n" ? "borderTop" : "borderBottom");
+    const edge = (c[1] === "w" ? "borderLeft" : "borderRight");
+    el.style[side] = "2px solid " + (t.rule_strong || "#2E4249");
+    el.style[edge] = "2px solid " + (t.rule_strong || "#2E4249");
+    el.title = "Drag to size " + (p.title || "the panel");
+    el.addEventListener("pointerenter", () => {
+      el.style[side + "Color"] = t.up; el.style[edge + "Color"] = t.up; });
+    el.addEventListener("pointerleave", () => {
+      el.style[side + "Color"] = t.rule_strong; el.style[edge + "Color"] = t.rule_strong; });
+    el.addEventListener("pointerdown", (e) => begin(e, p.id, c, el));
+    layer.appendChild(el);
+    corners[c] = el;
+  }
+  handles[p.id] = { grip: grip, corners: corners };
+}
+
+function hide(h) {
+  h.grip.style.display = "none";
+  for (const c of CORNERS) h.corners[c].style.display = "none";
+}
+
+/* Lay every handle over its panel, as the panels are on screen now. */
+function sync() {
+  if (!ensureLayer()) return;
+  const ids = new Set(state.panels.map((p) => p.id));
+  for (const id of Object.keys(handles)) {
+    if (!ids.has(id)) {
+      handles[id].grip.remove();
+      for (const c of CORNERS) handles[id].corners[c].remove();
+      delete handles[id];
+    }
+  }
+  for (const p of state.panels) if (!handles[p.id]) makeHandles(p);
+  const area = visibleArea();
+  for (const p of state.panels) {
+    const h = handles[p.id];
+    const box = boxEl(p.id);
+    const r = box && box.getBoundingClientRect();
+    /* A tab that is not open draws its panels at no size: no handles for them. */
+    if (!r || r.width < 2 || r.height < 2 || drag) { if (!drag) hide(h); continue; }
+    const shown = (top, height) => top >= area.top - 1 && top + height <= area.bottom + 1;
+    const gripTop = r.top, gripLeft = r.left + CORNER_PX, gripW = r.width - 2 * CORNER_PX;
+    css(h.grip, { left: gripLeft + "px", top: gripTop + "px", width: gripW + "px",
+                  height: GRIP_PX + "px",
+                  display: shown(gripTop, GRIP_PX) ? "block" : "none" });
+    for (const c of CORNERS) {
+      const left = c[1] === "w" ? r.left : r.right - CORNER_PX;
+      const top = c[0] === "n" ? r.top : r.bottom - CORNER_PX;
+      css(h.corners[c], { left: left + "px", top: top + "px",
+                          display: shown(top, CORNER_PX) ? "block" : "none" });
+    }
+  }
+}
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+/* Where the pointer asks the panel to be, in cells, from where it started. */
+function proposal(e) {
+  const p = drag.from, cell = drag.cell;
+  const dx = Math.round((e.clientX - drag.x0) / cell.stepX);
+  const dy = Math.round((e.clientY - drag.y0) / cell.stepY);
+  const cols = state.cols;
+  if (drag.how === "move") {
+    return { x: clamp(p.x + dx, 0, cols - p.w), y: Math.max(0, p.y + dy), w: p.w, h: p.h };
+  }
+  let x = p.x, y = p.y, w = p.w, h = p.h;
+  if (drag.how[1] === "e") w = clamp(p.w + dx, p.min_w, cols - p.x);
+  if (drag.how[1] === "w") { x = clamp(p.x + dx, 0, p.x + p.w - p.min_w); w = p.w + p.x - x; }
+  if (drag.how[0] === "s") h = Math.max(p.min_h, p.h + dy);
+  if (drag.how[0] === "n") { y = clamp(p.y + dy, 0, p.y + p.h - p.min_h); h = p.h + p.y - y; }
+  return { x: x, y: y, w: w, h: h };
+}
+
+function begin(e, id, how, el) {
+  if (e.button !== 0) return;
+  const grid = gridEl();
+  const from = state.panels.find((p) => p.id === id);
+  if (!grid || !from) return;
+  e.preventDefault();
+  drag = { id: id, how: how, from: from, el: el, x0: e.clientX, y0: e.clientY,
+           cell: cellSize(grid), started: false, to: null, userSelect: doc.body.style.userSelect };
+  try { el.setPointerCapture(e.pointerId); } catch (err) { /* an older browser */ }
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", cancel);
+}
+
+function move(e) {
+  if (!drag) return;
+  if (!drag.started) {
+    if (Math.abs(e.clientX - drag.x0) < START_PX && Math.abs(e.clientY - drag.y0) < START_PX) return;
+    drag.started = true;
+    doc.body.style.userSelect = "none";
+    if (drag.how === "move") drag.el.style.cursor = "grabbing";
+    for (const id of Object.keys(handles)) if (id !== drag.id) hide(handles[id]);
+    styleGhost();
+  }
+  drag.cell = cellSize(gridEl());          /* the page may have scrolled under the drag */
+  drag.to = proposal(e);
+  const r = rectOf(drag.cell, drag.to);
+  css(ghost, { display: "block", left: r.left + "px", top: r.top + "px",
+               width: r.width + "px", height: r.height + "px" });
+}
+
+function finish() {
+  const el = drag.el;
+  el.removeEventListener("pointermove", move);
+  el.removeEventListener("pointerup", end);
+  el.removeEventListener("pointercancel", cancel);
+  if (drag.how === "move") el.style.cursor = "grab";
+  doc.body.style.userSelect = drag.userSelect || "";
+  ghost.style.display = "none";
+  drag = null;
+  /* The pointer left the handle while it was held, so its hover colour is put back here:
+     the handle moves with the panel and may never see the pointer leave. */
+  try { el.dispatchEvent(new doc.defaultView.PointerEvent("pointerleave")); }
+  catch (err) { /* an older browser keeps the colour until the next hover */ }
+  sync();
+}
+
+function end(e) {
+  if (!drag) return;
+  const d = drag;
+  const to = d.started ? (d.to || proposal(e)) : null;
+  finish();
+  if (!to) return;
+  const p = d.from;
+  if (to.x === p.x && to.y === p.y && to.w === p.w && to.h === p.h) return;
+  sent += 1;
+  Streamlit.value({ token: TOKEN, n: sent, id: d.id, x: to.x, y: to.y, w: to.w, h: to.h });
+}
+
+function cancel() { if (drag) finish(); }
+
+function cleanup() {
+  if (timer) clearInterval(timer);
+  timer = null;
+  try { if (doc) doc.removeEventListener("scroll", sync, true); } catch (e) { /* gone */ }
+  try { if (layer) layer.remove(); } catch (e) { /* gone */ }
+  layer = null;
+}
+
+window.addEventListener("message", function (e) {
+  const d = e.data;
+  if (!d || d.type !== "streamlit:render") return;
+  const a = d.args || {};
+  state.panels = a.panels || [];
+  state.cols = a.cols || 12;
+  state.rowPx = a.row_px || 24;
+  state.gapPx = a.gap_px || 16;
+  state.theme = a.theme || {};
+  if (!ensureLayer()) return;
+  /* A frame from an earlier draw of the board may still hold the page's listeners. */
+  try { const prev = window.parent.__tdGridCleanup; if (prev && prev !== cleanup) prev(); }
+  catch (err) { /* that frame has gone, and its listeners with it */ }
+  window.parent.__tdGridCleanup = cleanup;
+  if (!timer) {
+    timer = setInterval(sync, 200);
+    doc.addEventListener("scroll", sync, true);
+  }
+  sync();
+});
+window.addEventListener("pagehide", cleanup);
+Streamlit.ready();
+Streamlit.height(0);
+</script>
+</body>
+</html>

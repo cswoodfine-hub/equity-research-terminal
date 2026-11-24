@@ -338,6 +338,9 @@ no single page connects and every figure it uses is one the book computed.
   database so that a save moves no stamp, and `/desk/` is in the cache's `QUIET_WRITES`.
   A panel leads with a figure and folds its list under it; `charts.unit_lanes` is the
   primitive for dated events on a time grid.
+  The board is a twelve-column grid: a panel has a place and a size in cells, is moved by
+  its heading and sized by its corners through `components/boardgrid`, a frame that
+  draws its handles in a layer of its own and sends the drop to `trading_view.place`.
 
 ### The call log follows the committed record
 

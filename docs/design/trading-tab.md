@@ -254,3 +254,43 @@ Not checked:
   reason. `test_desk_chat.py` pins the prompt and `test_ask_route.py` the route.
 - The price panel's one-minute tick with a market open. It was drawn with New York
   closed, and with the market open only on a stand-in.
+
+## Panels you take hold of, 2026-11-24
+
+Asked for the same day: panels you grab and move, and size by dragging a corner. The plan
+had ruled drag and drop out ("Streamlit has none without a custom component"); this is
+that component.
+
+- **The board is a grid twelve columns wide**, rows of 24 px with the house's 16 px
+  between rows and columns. A panel has a place and a size in cells, kept with the board
+  and saved with it. The page lays the panels out with CSS grid, one rule a panel
+  (`trading_view.grid_css`), so a board draws where it was left before any script runs.
+- **Moving and sizing.** A panel is moved by its heading and sized by any of its four
+  corners. While it is held, an outline snapped to the grid's cells shows where it will
+  land. On release the place goes to Python, and `trading_view.place` settles the board:
+  a panel in the way is pushed down, then every panel rises as far as the one above it
+  allows, so no two overlap and the board has no holes. A panel dragged down into empty
+  space therefore rises to the first free row: the board keeps no gaps.
+- **The frame (`components/boardgrid`) draws only in a layer of its own** laid over the
+  panels by measuring them, and never adds to or changes what Streamlit draws: a script
+  that wrote into Streamlit's own elements would fight its rendering. It is under the
+  page's sticky top bar, hides its handles while the tab is closed, and takes its layer
+  and listeners away when its frame goes.
+- **A drag is applied once.** The frame keeps returning the last drag on every run, so
+  each carries the frame's token and a count, and the last one applied is remembered.
+- **Panels are keyed by an id** (`p1`, `p2`, ...), not by where they sit, so a panel
+  moved keeps its own settings, such as the price chart's window.
+- **A new panel goes in the first place it fits**, reading from the top left.
+- **Arrange keeps a keyboard way** to do what a drag does: a place earlier or later in
+  reading order, and off; and it lays the whole board out afresh one, two or three
+  across. The "N across" control and the "Wide" switch are gone: size is now what the
+  corners set.
+- **A board saved before the grid** opens laid out as it was drawn then.
+- **A panel's height is what it is made.** Each body scrolls inside its panel, and the
+  price chart takes the panel's height less what is drawn round it.
+
+Checked in the copy at 1440 by 900: the price chart shrunk to half width by its bottom
+right corner and the panels under it rose into the free half; Company news moved by its
+heading to the top left and the chart pushed below it; the snapped outline shown
+mid-drag; the bottom left corner dragged to put the chart on the right. The script itself
+is not run by the suite (no `node`); its rules are held by reading it.
