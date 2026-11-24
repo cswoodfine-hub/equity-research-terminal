@@ -66,7 +66,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 6:
+if getattr(trading_page, "REVISION", 0) < 7:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -11600,7 +11600,7 @@ with main:
 
     with _panels["trading"]:
         trading_page.render(api_base, ticker, (company or {}).get("name") or "",
-                            _TRADING_KIT, feed=feed, prices=prices,
+                            _TRADING_KIT, feed=feed, prices=prices, tickers=tickers,
                             historical=bool(asof_state))
 
     # --- Universe: what moved across coverage since you last looked -------

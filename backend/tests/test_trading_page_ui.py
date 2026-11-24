@@ -104,9 +104,13 @@ FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high ch
           "significance": "high", "change_type": "status_change"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
           "significance": "low"}}]
+SEED = {layout!r}
+if SEED is not None and "seeded" not in st.session_state:
+    st.session_state["td_layout"] = SEED
+    st.session_state["seeded"] = True
 trading_page.render("http://api.invalid", "LLY", "Eli Lilly", kit, feed=FEED,
                     prices=PRICES if {page_has_prices!r} else None,
-                    historical={historical!r})
+                    tickers=["LLY", "NVO", "AZN"], historical={historical!r})
 '''
 
 
@@ -134,14 +138,20 @@ def _patch_button_group():
     element_tree.ButtonGroup.indices = property(indices)
 
 
+def _board_of(*kinds):
+    """A saved board of the named kinds, each following the top bar."""
+    return {"columns": 2, "ask": True,
+            "panels": [{"panel": kind, "ticker": None, "wide": None} for kind in kinds]}
+
+
 def _page(fail="", historical=False, market_open=False, page_has_prices=True,
-          has_report=True):
+          has_report=True, layout=None):
     from streamlit.testing.v1 import AppTest
     _patch_button_group()
     test = AppTest.from_string(
         _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical,
                      market_open=market_open, page_has_prices=page_has_prices,
-                     has_report=has_report),
+                     has_report=has_report, layout=layout),
         default_timeout=60)
     test.run()
     assert not test.exception, test.exception
@@ -201,16 +211,90 @@ def test_what_is_on_screen_is_kept_for_the_ask_box_as_kinds_and_tickers_only():
 
 def test_taking_a_panel_off_redraws_the_board_without_it():
     test = _page()
-    test.button_group(key="td_pick").set_value(["news", "catalysts"]).run()
+    test.button(key="td_off_0").click().run()            # the price chart
+    assert not test.exception, test.exception
+    test.button(key="td_off_0").click().run()            # what changed, now first
     assert not test.exception, test.exception
     assert _sections(test) == ["Company news", "Dated ahead"]
     assert test.session_state["td_showing"] == [
         {"panel": "news", "ticker": "LLY"}, {"panel": "catalysts", "ticker": "LLY"}]
 
 
-def test_an_empty_board_says_what_to_do_next():
+def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company():
+    test = _page(layout=_board_of("news"))
+    test.button(key="td_add_filings").click().run()
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Company news", "Filings"]
+    test.selectbox(key="td_add_for").set_value("NVO").run()
+    test.button(key="td_add_news").click().run()
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert "SECTION[Company news|2|NVO · pinned]" in md
+    assert "/companies/NVO/news" in test.session_state["asked"]
+    assert test.session_state["td_showing"][-1] == {"panel": "news", "ticker": "NVO"}
+
+
+def test_pinning_a_panel_draws_it_for_that_company_and_the_rest_follow_the_top_bar():
     test = _page()
-    test.button_group(key="td_pick").set_value([]).run()
+    test.selectbox(key="td_co_1").set_value("NVO").run()         # what changed
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert "SECTION[What changed|1|NVO · pinned]" in md and "A pinned change" in md
+    assert "SECTION[Company news|2|LLY]" in md
+    # The page's own feed is the top bar's company's, so the pinned panel reads its own.
+    assert [p for p in test.session_state["asked"] if p.startswith("/changes?ticker=NVO")]
+    assert {"panel": "changes", "ticker": "NVO"} in test.session_state["td_showing"]
+    test.selectbox(key="td_co_1").set_value("Top bar").run()
+    assert "SECTION[What changed|2|LLY]" in _md(test)
+
+
+def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_read():
+    test = _page(layout={"columns": 2, "ask": False, "panels": [
+        {"panel": "price", "ticker": None, "wide": False},
+        {"panel": "price", "ticker": "NVO", "wide": False}]})
+    assert not test.exception, test.exception
+    assert set(test.session_state["charts"]) == {"td_chart_0_0", "td_chart_0_1"}
+    assert set(test.session_state["live_asked"]) == {"LLY", "NVO"}
+    assert "/companies/NVO/prices" in test.session_state["asked"]
+    assert "/companies/LLY/prices" not in test.session_state["asked"]
+    md = _md(test)
+    assert "SECTION[Price chart|None|LLY · USD" in md
+    assert "SECTION[Price chart|None|NVO · pinned · USD" in md
+
+
+def test_a_panel_can_be_moved_and_made_wide_from_the_arranger():
+    test = _page(layout=_board_of("news", "filings", "catalysts"))
+    test.button(key="td_down_0").click().run()
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Filings", "Company news", "Dated ahead"]
+    test.button(key="td_up_2").click().run()
+    assert _sections(test) == ["Filings", "Dated ahead", "Company news"]
+    test.toggle(key="td_wide_0").set_value(True).run()
+    assert not test.exception, test.exception
+    held = test.session_state["td_layout"]["panels"]
+    assert [p["panel"] for p in held] == ["filings", "catalysts", "news"]
+    assert held[0]["wide"] is True
+    assert test.button(key="td_up_0").disabled and test.button(key="td_down_2").disabled
+
+
+def test_a_fifth_live_chart_is_refused_and_the_reader_is_told():
+    test = _page(layout={"columns": 3, "ask": False, "panels": [
+        {"panel": "price", "ticker": t, "wide": False} for t in ("LLY", "NVO", "AZN", "LLY")]})
+    test.button(key="td_add_price").click().run()
+    assert not test.exception, test.exception
+    assert len(test.session_state["td_layout"]["panels"]) == 4
+    assert "Left off the board: Price chart: a board holds 4 live panels." in _md(test)
+
+
+def test_the_default_board_comes_back_at_a_click():
+    test = _page(layout=_board_of("filings"))
+    test.button(key="td_reset").click().run()
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+
+
+def test_an_empty_board_says_what_to_do_next():
+    test = _page(layout=_board_of())
     assert not test.exception, test.exception
     assert _sections(test) == [] and "STATE[Nothing on the board|" in _md(test)
     assert test.session_state["td_showing"] == []
@@ -297,8 +381,7 @@ FISCAL = ["results", "trend", "filings"]
 
 
 def test_the_fiscal_panels_are_drawn_by_the_financials_tabs_own_builders():
-    test = _page()
-    test.button_group(key="td_pick").set_value(FISCAL).run()
+    test = _page(layout=_board_of(*FISCAL))
     assert not test.exception, test.exception
     md = _md(test)
     assert _sections(test) == ["Latest results", "Growth and margin", "Filings"]
@@ -313,8 +396,7 @@ def test_the_fiscal_panels_are_drawn_by_the_financials_tabs_own_builders():
 
 
 def test_a_company_with_no_report_is_told_what_is_missing_and_shown_no_figure():
-    test = _page(has_report=False)
-    test.button_group(key="td_pick").set_value(["results"]).run()
+    test = _page(has_report=False, layout=_board_of("results"))
     assert not test.exception, test.exception
     md = _md(test)
     assert "STATE[No report on file for LLY|" in md and "no free data" in md

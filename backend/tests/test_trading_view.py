@@ -174,6 +174,56 @@ def test_a_board_from_the_picker_keeps_the_registry_order():
     assert layout["columns"] == 3 and layout["ask"] is False
 
 
+# ------------------------------------------------------------------- changing a board
+def _kinds(layout):
+    return [(p["panel"], p["ticker"]) for p in layout["panels"]]
+
+
+def test_a_panel_is_added_at_the_foot_for_the_top_bar_or_pinned():
+    layout, left_out = TV.added(TV.from_ids(["news"]), "filings")
+    assert _kinds(layout) == [("news", None), ("filings", None)] and left_out == []
+    layout, left_out = TV.added(layout, "news", "nvo")
+    assert _kinds(layout)[-1] == ("news", "NVO") and left_out == []
+    layout, left_out = TV.added(layout, "crystal_ball")
+    assert len(layout["panels"]) == 3 and "crystal_ball" in left_out[0]
+
+
+def test_adding_past_a_limit_is_refused_and_said():
+    full = {"panels": [TV.item("news")] * TV.MAX_PANELS}
+    layout, left_out = TV.added(full, "filings")
+    assert len(layout["panels"]) == TV.MAX_PANELS and str(TV.MAX_PANELS) in left_out[0]
+    live = {"panels": [TV.item("price", t) for t in ("A", "B", "C", "D")]}
+    layout, left_out = TV.added(live, "price", "E")
+    assert len(layout["panels"]) == TV.MAX_LIVE and "live" in left_out[0]
+
+
+def test_a_panel_moves_one_place_and_a_move_off_the_end_is_no_move():
+    board = TV.from_ids(["price", "changes", "news"])
+    assert [p["panel"] for p in TV.moved(board, 0, 1)["panels"]] == ["changes", "price", "news"]
+    assert [p["panel"] for p in TV.moved(board, 2, -1)["panels"]] == ["price", "news", "changes"]
+    for index, step in ((0, -1), (2, 1), (7, 1), (-1, 1)):
+        assert TV.moved(board, index, step)["panels"] == board["panels"]
+    assert board["panels"][0]["panel"] == "price"            # the board given is not changed
+
+
+def test_a_panel_is_taken_off_and_a_place_that_is_not_there_takes_nothing():
+    board = TV.from_ids(["price", "changes", "news"])
+    assert [p["panel"] for p in TV.removed(board, 1)["panels"]] == ["price", "news"]
+    assert TV.removed(board, 9)["panels"] == board["panels"]
+    assert TV.removed({"panels": []}, 0)["panels"] == []
+
+
+def test_a_pin_is_a_ticker_or_it_is_no_pin_and_a_width_is_set_alone():
+    board = TV.from_ids(["price", "news"])
+    pinned = TV.changed(board, 1, ticker="nvo")
+    assert _kinds(pinned) == [("price", None), ("news", "NVO")]
+    assert _kinds(TV.changed(pinned, 1, ticker="not a ticker")) == [("price", None), ("news", None)]
+    assert _kinds(TV.changed(pinned, 1, ticker=None))[1] == ("news", None)
+    wide = TV.changed(board, 1, wide=True)
+    assert TV.is_wide(wide["panels"][1]) and wide["panels"][1]["ticker"] is None
+    assert board["panels"][1]["wide"] is None and TV.changed(board, 5, wide=True) == board
+
+
 # ----------------------------------------------------------------- what the model is told
 def test_what_is_on_screen_is_the_kind_and_the_company_and_nothing_else():
     board = [TV.item("changes"), TV.item("news", ticker="NVO"), TV.item("changes")]

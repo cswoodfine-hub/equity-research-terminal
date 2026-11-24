@@ -33,7 +33,7 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 6
+REVISION = 7
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -360,50 +360,155 @@ DRAW = {"price": _price, "changes": _changes, "news": _news, "results": _results
 
 
 # ----------------------------------------------------------------------------- the board
-def _controls() -> dict:
-    """The row above the board: which panels, how many across, and whether the Ask box
-    sits beside them. The widgets' own keys hold the choice for the session."""
-    kinds = [panel["id"] for panel in TV.PANELS]
+# The board is one value in the session, ``td_layout``: its panels in order, each with
+# the company it is pinned to if any, how many sit across, and whether the Ask box is
+# beside it. Every control below changes that value through a callback, which Streamlit
+# runs before the page is drawn, so the board is always drawn from the value as it
+# stands. A widget's own state is set from it on every run and is never the record.
+LAYOUT_KEY = "td_layout"
+FOLLOW = "Top bar"
+
+
+def layout() -> dict:
+    """The board as it stands, made safe to draw."""
+    held = st.session_state.get(LAYOUT_KEY)
+    clean, _left_out = TV.normalise(held if held is not None else TV.default_layout())
+    st.session_state[LAYOUT_KEY] = clean
+    return clean
+
+
+def _keep(new: dict, left_out=None) -> None:
+    clean, dropped = TV.normalise(new)
+    st.session_state[LAYOUT_KEY] = clean
+    st.session_state["td_left_out"] = list(left_out or []) + dropped
+
+
+def _add(kind: str) -> None:
+    chosen = st.session_state.get("td_add_for", FOLLOW)
+    new, left_out = TV.added(layout(), kind, None if chosen == FOLLOW else chosen)
+    _keep(new, left_out)
+
+
+def _remove(index: int) -> None:
+    _keep(TV.removed(layout(), index))
+
+
+def _move(index: int, step: int) -> None:
+    _keep(TV.moved(layout(), index, step))
+
+
+def _pin(index: int) -> None:
+    chosen = st.session_state.get(f"td_co_{index}", FOLLOW)
+    _keep(TV.changed(layout(), index, ticker=None if chosen == FOLLOW else chosen))
+
+
+def _widen(index: int) -> None:
+    _keep(TV.changed(layout(), index, wide=st.session_state.get(f"td_wide_{index}")))
+
+
+def _across() -> None:
+    _keep(dict(layout(), columns=st.session_state.get("td_columns") or TV.DEFAULT_COLUMNS))
+
+
+def _beside() -> None:
+    _keep(dict(layout(), ask=bool(st.session_state.get("td_ask"))))
+
+
+def _reset() -> None:
+    _keep(TV.default_layout())
+
+
+def _show(key: str, value) -> None:
+    """Set a widget to what the board holds, before the widget is drawn."""
+    st.session_state[key] = value
+
+
+def _add_menu(tickers) -> None:
+    """Every kind of panel, by group, and the company the next one is for."""
+    with st.popover("Add panel"):
+        st.selectbox("For", [FOLLOW] + list(tickers or []), key="td_add_for",
+                     help="The company the panel is drawn for. Top bar follows the "
+                          "company picked at the top of the page; a ticker pins it.")
+        for group, kinds in TV.picker_options():
+            st.markdown(f'<div class="td-group">{TV.esc(group)}</div>',
+                        unsafe_allow_html=True)
+            # Not "td_add_<group>": a group and a kind can share a name (News, news).
+            slug = "".join(ch if ch.isalnum() else "_" for ch in group.lower())
+            with st.container(key=f"td_kinds_{slug}", horizontal=True):
+                for kind in kinds:
+                    st.button(kind["title"], key=f"td_add_{kind['id']}", help=kind["about"],
+                              on_click=_add, args=(kind["id"],))
+
+
+def _arrange_menu(board: dict, ticker: str, tickers) -> None:
+    """The board's panels as rows: whose each is, how wide, where it sits, and off."""
+    panels = board["panels"]
+    with st.popover("Arrange", disabled=not panels):
+        last = len(panels) - 1
+        for i, entry in enumerate(panels):
+            options = [FOLLOW] + list(tickers or [])
+            if entry.get("ticker") and entry["ticker"] not in options:
+                options.append(entry["ticker"])
+            name, co, wide, up, down, off = st.columns([2.6, 2.0, 1.1, 0.6, 0.6, 0.6],
+                                                       vertical_alignment="center")
+            name.markdown(f'<div class="td-arr">{TV.esc(TV.BY_ID[entry["panel"]]["title"])}'
+                          "</div>", unsafe_allow_html=True)
+            _show(f"td_co_{i}", entry.get("ticker") or FOLLOW)
+            co.selectbox("Company", options, key=f"td_co_{i}", label_visibility="collapsed",
+                         on_change=_pin, args=(i,))
+            _show(f"td_wide_{i}", TV.is_wide(entry))
+            wide.toggle("Wide", key=f"td_wide_{i}", on_change=_widen, args=(i,))
+            up.button("↑", key=f"td_up_{i}", disabled=i == 0, help="Earlier on the board",
+                      on_click=_move, args=(i, -1))
+            down.button("↓", key=f"td_down_{i}", disabled=i == last,
+                        help="Later on the board", on_click=_move, args=(i, 1))
+            off.button("×", key=f"td_off_{i}", help="Take it off the board",
+                       on_click=_remove, args=(i,))
+        st.button("Back to the default board", key="td_reset", on_click=_reset)
+
+
+def _controls(board: dict, ticker: str, tickers) -> None:
+    """The row above the board: add a panel, arrange them, how many across, and whether
+    the Ask box sits beside them."""
     with st.container(key="td_controls", horizontal=True, vertical_alignment="center"):
-        picked = st.pills(
-            "Panels", kinds, selection_mode="multi", default=list(TV.DEFAULT_PANELS),
-            format_func=lambda kind: TV.BY_ID[kind]["title"], key="td_pick",
-            label_visibility="collapsed",
-            help="Which panels are on the board. Each is drawn for the company in the "
-                 "top bar.")
-        columns = st.segmented_control(
-            "Columns", list(TV.COLUMNS), default=TV.DEFAULT_COLUMNS, key="td_columns",
+        _add_menu(tickers)
+        _arrange_menu(board, ticker, tickers)
+        _show("td_columns", board["columns"])
+        st.segmented_control(
+            "Columns", list(TV.COLUMNS), key="td_columns", on_change=_across,
             format_func=lambda n: f"{n} across", label_visibility="collapsed",
-            help="How many panels sit side by side.") or TV.DEFAULT_COLUMNS
-        ask = st.toggle(
-            "Ask beside", value=True, key="td_ask",
-            help="The Ask box in a column beside the board. It is the same conversation "
-                 "as the Ask tab's, kept per company.")
-    return TV.from_ids(picked or [], columns=columns, ask=ask)
+            help="How many panels sit side by side.")
+        _show("td_ask", board["ask"])
+        st.toggle("Ask beside", key="td_ask", on_change=_beside,
+                  help="The Ask box in a column beside the board. It is the same "
+                       "conversation as the Ask tab's, kept per company.")
 
 
 @st.fragment
-def _board(api_base: str, ticker: str, kit, page: dict) -> None:
-    """The controls and the panels. A fragment: picking a panel redraws the board alone."""
-    layout, left_out = TV.normalise(_controls())
+def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
+    """The controls and the panels. A fragment: a change to the board redraws the board
+    alone."""
+    board = layout()
+    _controls(board, ticker, tickers)
     # The Ask column is laid out by the page, outside this fragment, so a run of the
     # fragment alone cannot add or remove it. When the switch no longer matches what the
     # page drew, the page is run once to draw it.
-    if layout["ask"] != st.session_state.get("_td_ask_drawn", layout["ask"]):
+    if board["ask"] != st.session_state.get("_td_ask_drawn", board["ask"]):
         st.rerun()
     # What the Ask box may be told is on screen. Kept in the session and read when a
     # question is sent, so it is the board as it stands and not as it stood at the last
     # full run of the page.
-    st.session_state[SHOWING_KEY] = TV.showing(layout["panels"], ticker)
+    st.session_state[SHOWING_KEY] = TV.showing(board["panels"], ticker)
+    left_out = st.session_state.pop("td_left_out", None)
     if left_out:
         st.markdown(TV.left_out_html(left_out), unsafe_allow_html=True)
-    if not layout["panels"]:
-        kit.state("Nothing on the board", "Pick a panel from the row above.")
+    if not board["panels"]:
+        kit.state("Nothing on the board", "Add a panel from the row above.")
         return
-    for r, row in enumerate(TV.pack(layout["panels"], layout["columns"])):
-        alone = len(row) == 1 and (layout["columns"] == 1 or TV.is_wide(row[0]))
-        cells = [st.container()] if alone else st.columns(layout["columns"], gap="medium")
-        width = TV.figure_width(1 if alone else layout["columns"], layout["ask"])
+    for r, row in enumerate(TV.pack(board["panels"], board["columns"])):
+        alone = len(row) == 1 and (board["columns"] == 1 or TV.is_wide(row[0]))
+        cells = [st.container()] if alone else st.columns(board["columns"], gap="medium")
+        width = TV.figure_width(1 if alone else board["columns"], board["ask"])
         for c, entry in enumerate(row):
             company = TV.company_of(entry, ticker)
             with cells[c], st.container(key=f"td_panel_{r}_{c}"):
@@ -413,9 +518,10 @@ def _board(api_base: str, ticker: str, kit, page: dict) -> None:
 
 
 def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,
-           historical: bool = False) -> None:
+           tickers=None, historical: bool = False) -> None:
     """The tab. ``feed`` and ``prices`` are the change feed and the stored daily prices
-    the page already read for this company, so the panels built on them cost no read."""
+    the page already read for this company, so the panels built on them cost no read.
+    ``tickers`` are the companies a panel can be pinned to."""
     if historical:
         kit.state("The board shows the live book",
                   "A date is set in the sidebar, and the board's panels are not rebuilt "
@@ -423,13 +529,13 @@ def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,
         return
     page = {key: value for key, value in (("feed", feed), ("prices", prices))
             if value is not None}
-    beside = st.session_state.get("td_ask", True)
+    beside = layout()["ask"]
     st.session_state["_td_ask_drawn"] = beside
     if not beside:
-        _board(api_base, ticker, kit, page)
+        _board(api_base, ticker, kit, page, tickers)
         return
     board, ask = st.columns(list(BESIDE), gap="medium")
     with board:
-        _board(api_base, ticker, kit, page)
+        _board(api_base, ticker, kit, page, tickers)
     with ask:
         kit.ask(api_base, ticker, name, slot=ASK_SLOT, showing_key=SHOWING_KEY)

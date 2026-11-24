@@ -1294,6 +1294,11 @@ a.td-lead:hover .t {{ color: var(--up); }}
 /* The price panel: its two controls on one line, the window's figures under them. */
 [class*="st-key-td_pricectl_"] {{ margin: 0.1rem 0 0.2rem; }}
 .td-stats {{ margin: 0 0 0.3rem; flex-wrap: wrap; row-gap: 0.2rem; }}
+/* The board's two menus. A group of kinds is a caps label, as a section is; a row of
+   the arranger names its panel in the text colour. */
+.td-group {{ font-family: var(--font-ui); font-size: 9.5px; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--muted); margin: 0.5rem 0 0.1rem; }}
+.td-arr {{ font-family: var(--font-ui); font-size: 12.5px; color: var(--text); }}
 .td-left-out {{ color: var(--flag); margin: 0 0 0.4rem; }}
 [class*="st-key-td_controls"] {{ margin-bottom: 0.2rem; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than

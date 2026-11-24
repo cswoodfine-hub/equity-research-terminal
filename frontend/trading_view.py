@@ -150,6 +150,42 @@ def from_ids(ids, columns=DEFAULT_COLUMNS, ask=True) -> dict:
             "panels": [item(panel["id"]) for panel in PANELS if panel["id"] in wanted]}
 
 
+def added(layout: dict, kind: str, ticker=None) -> tuple:
+    """The board with one more panel at its foot, and why not where it was refused: an
+    unknown kind, a full board, a fifth live chart."""
+    panels = list((layout or {}).get("panels") or []) + [item(kind, ticker)]
+    return normalise(dict(layout or {}, panels=panels))
+
+
+def removed(layout: dict, index: int) -> dict:
+    panels = list((layout or {}).get("panels") or [])
+    if 0 <= index < len(panels):
+        del panels[index]
+    return dict(layout or {}, panels=panels)
+
+
+def moved(layout: dict, index: int, step: int) -> dict:
+    """The board with one panel a place earlier (-1) or later (+1). A move off either
+    end is no move."""
+    panels = list((layout or {}).get("panels") or [])
+    to = index + step
+    if 0 <= index < len(panels) and 0 <= to < len(panels):
+        panels[index], panels[to] = panels[to], panels[index]
+    return dict(layout or {}, panels=panels)
+
+
+def changed(layout: dict, index: int, **fields) -> dict:
+    """The board with one panel's company or width set. A company that is not a ticker
+    is no pin: the panel follows the top bar."""
+    panels = [dict(entry) for entry in (layout or {}).get("panels") or []]
+    if 0 <= index < len(panels):
+        if "ticker" in fields:
+            panels[index]["ticker"] = clean_ticker(fields["ticker"])
+        if "wide" in fields:
+            panels[index]["wide"] = bool(fields["wide"])
+    return dict(layout or {}, panels=panels)
+
+
 def is_wide(entry: dict) -> bool:
     if isinstance(entry.get("wide"), bool):
         return entry["wide"]
