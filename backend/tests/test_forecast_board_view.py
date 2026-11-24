@@ -134,7 +134,7 @@ def test_the_bands_add_up_to_the_company(measure, split, basis):
 
 def test_reported_years_stand_apart_and_cumulative_leaves_them_off():
     board = _board()
-    fig = F.company_figure(board, "revenue", "group", "year", "weighted")
+    fig = F.company_figure(board, "revenue", "none", "year", "weighted")
     assert fig["labels"][:2] == ["2024", "2025"] and fig["split_at"] == 2
     reported = next(b for b in fig["bands"] if b["name"] == "Reported")
     assert reported["values"] == [140.0, 150.0, None, None, None]
@@ -440,3 +440,27 @@ def test_every_block_that_left_the_page_is_one_click_away():
                   "_forecast_editor(", "_change_log(", "_lever_controls(",
                   "_revenue_path(", "_value_bridge("):
         assert layer in bench, layer
+
+
+def test_reported_revenue_splits_by_product_and_still_adds_up_to_the_filed_total():
+    """Revenue is reported by product, so its reported years split as the forecast does:
+    each product's own filed figure, and the rest of the reported total as one band. A
+    year with no product on file is the filed total alone."""
+    board = _board()
+    filed = board["reported"]["revenue"]
+    sold_2025 = sum(v for a in board["assets"] for y, v in (a.get("reported") or {}).items()
+                    if y == 2025)
+    assert sold_2025 > 0
+    for split in ("product", "group"):
+        fig = F.company_figure(board, "revenue", split, "year", "weighted")
+        for i, year in enumerate((2024, 2025)):
+            total = sum(b["values"][i] or 0.0 for b in fig["bands"])
+            assert total == pytest.approx(filed[year]), (split, year)
+        rest = next(b for b in fig["bands"] if b["name"] == F.REPORTED_REST)
+        assert rest["values"][:2] == [140.0, pytest.approx(150.0 - sold_2025)]
+    product = F.company_figure(board, "revenue", "product", "year", "weighted")
+    first = next(b for b in product["bands"] if b["name"] == board["assets"][0]["name"][:20])
+    assert first["values"][1] == board["assets"][0]["reported"].get(2025)
+    # A measure filed for the company alone keeps one reported band.
+    costs = F.company_figure(board, "operating_profit", "product", "year", "weighted")
+    assert any(b["name"] == "Reported" for b in costs["bands"])

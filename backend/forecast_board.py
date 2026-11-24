@@ -331,6 +331,12 @@ def _asset_reported(conn, asset_ids: list, first: int) -> dict:
             f" WHERE asset_id IN ({marks}) AND period = 'FY' AND fiscal_year >= ?"
             f"   AND value IS NOT NULL", [*asset_ids, first]):
         out[row["asset_id"]][row["fiscal_year"]] = _mm(row["value"])
+    # A year a product is printed only by region is the sum of its regions, where the
+    # quoted table line prints it (asset_revenue.regional_totals): GSK's products.
+    import asset_revenue
+    for (aid, year), t in asset_revenue.regional_totals(conn, asset_ids).items():
+        if year >= first and year not in out[aid]:
+            out[aid][year] = _mm(t["value"])
     return out
 
 

@@ -44,6 +44,8 @@ GROUP_NAME = {"marketed": "Products on sale", "lines": "Other revenue lines",
               "pipeline": "Named pipeline", "assumed": "Launches the model assumes"}
 GROUP_ORDER = ("marketed", "lines", "pipeline", "assumed")
 NEW_PLANT = "New plant for added revenue"
+# The part of a reported year's revenue no product's own filed figure carries.
+REPORTED_REST = "Reported, not by product"
 WORKING = "Working capital for growth"
 USE_NAME = {"capex": "Capex", "acquisitions": "Acquisitions",
             "intangibles": "Intangibles bought", "dividends": "Dividends",
@@ -732,34 +734,72 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
                           "values": [-c if ok else None for c, ok in zip(spent, both)]})
         else:
             bands.append({"name": "Reported", "colour": REPORTED_COLOUR, "values": rp(key)})
+        # Revenue is the one measure a filer reports by product, so its reported years
+        # split as the forecast does: each product's own filed revenue, and the rest of
+        # the reported total as one band, named for what it is. Profit, costs and cash
+        # are filed for the company alone and stay one reported band.
+        by_product = (key == "revenue" and split in ("product", "group") and years_r
+                      and any(a.get("reported") for a in board.get("assets") or []))
+        products_r = {}
+        if by_product:
+            for y in years_r:
+                got = [at(a.get("reported"), y) for a in board.get("assets") or []]
+                got = [v for v in got if v is not None]
+                products_r[y] = sum(got) if got else None
+            total_r = rp(key)
+            rest_r = []
+            for y, total in zip(years_r, total_r):
+                sold = products_r.get(y)
+                rest_r.append(total if sold is None or total is None
+                              else max(total - sold, 0.0) or None)
+            bands[0] = {"name": REPORTED_REST, "colour": REPORTED_COLOUR,
+                        "values": rest_r + pad_f}
         if split == "none":
             bands.append({"name": "Forecast", "colour": TK.UP, "values": fc(company.get(key))})
             plant = False                      # the company's line is already net of it
         elif split == "product":
             ranked = [a for a in board.get("assets") or [] if a.get("counted")]
             head = ranked[:TOP_PRODUCTS]
+
+            def filed(assets):
+                """Their reported revenue in each reported year, or the pad."""
+                if not by_product:
+                    return pad_r
+                out = []
+                for y in years_r:
+                    got = [at(a.get("reported"), y) for a in assets]
+                    got = [v for v in got if v is not None]
+                    out.append(sum(got) if got else None)
+                return out
             for i, a in enumerate(head):
                 bands.append({"name": a["name"][:20], "colour": _BASE[i % len(_BASE)],
-                              "values": pad_r + [_asset_year(a, key, y, basis)
-                                                 for y in years_f]})
+                              "values": filed([a]) + [_asset_year(a, key, y, basis)
+                                                      for y in years_f]})
             rest = {}
             for y in years_f:
                 named = sum((at((groups.get(g) or {}).get(key), y) or 0.0)
                             for g in ("marketed", "pipeline"))
                 shown = sum((_asset_year(a, key, y, basis) or 0.0) for a in head)
                 rest[y] = named - shown
-            if len(ranked) > len(head):
-                bands.append({"name": f"{len(ranked) - len(head)} smaller products",
-                              "colour": TK.RULE_STRONG, "values": fc(rest)})
+            others = [a for a in board.get("assets") or [] if a not in head]
+            if len(ranked) > len(head) or (by_product and any(filed(others))):
+                n_others = max(len(ranked) - len(head),
+                               sum(1 for o in others if by_product and o.get("reported")))
+                bands.append({"name": f"{n_others} smaller products",
+                              "colour": TK.RULE_STRONG,
+                              "values": filed(others) + [rest.get(y) for y in years_f]})
             for g in ("lines", "assumed"):
                 bands.append({"name": GROUP_NAME[g], "colour": GROUP_COLOUR[g],
                               "hatched": g == "assumed",
                               "values": fc((groups.get(g) or {}).get(key))})
         else:
             for g in GROUP_ORDER:
+                sold = ([products_r.get(y) for y in years_r] if by_product and g == "marketed"
+                        else pad_r)
                 bands.append({"name": GROUP_NAME[g], "colour": GROUP_COLOUR[g],
                               "hatched": g == "assumed",
-                              "values": fc((groups.get(g) or {}).get(key))})
+                              "values": sold + [at((groups.get(g) or {}).get(key), y)
+                                                for y in years_f]})
         if plant:
             bands.append({"name": NEW_PLANT, "colour": _mix(TK.ORANGE_BOOK, TK.TEXT, 0.35),
                           "values": fc({y: -v for y, v in new_plant.items()})})
