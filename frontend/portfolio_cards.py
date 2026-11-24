@@ -569,8 +569,8 @@ def bars_html(rows) -> str:
     return f'<div class="pb">{"".join(out)}</div>'
 
 
-def trials_html(programme, b, today: dt.date, moved=None) -> str:
-    """A compound's studies as a table, soonest first: when each is due, its phase, its
+def trials_facts_html(programme, b, today: dt.date) -> str:
+    """A compound's dialog head. Its studies follow as a table, soonest first: when each is due, its phase, its
     status, its patients and its registry title, linked. Above them, what the card said,
     with the reason the book has no figure where it has none and the launch floor's
     message where the value carries one."""
@@ -597,12 +597,21 @@ def trials_html(programme, b, today: dt.date, moved=None) -> str:
         facts.append(("value", "not modelled: no assumptions on file"))
     head = "".join(f'<div><span class="k">{esc(k)}</span><span class="v">{v}</span></div>'
                    for k, v in facts)
+    return f'<div class="pt-facts">{head}</div>'
+
+
+def trials_body_html(programme, today: dt.date, moved=None) -> str:
+    """The compound's registry studies under their count, soonest first."""
     studies = programme.get("studies") or []
     body = (studies_table_html(studies, today, moved) if studies else
             '<div class="pt-none">No registered study is bound to this compound.</div>')
     line = studies_line(programme.get("studies"))
-    return (f'<div class="pt-facts">{head}</div>'
-            f'<div class="pt-count">{esc(line)}</div>{body}')
+    return f'<div class="pt-count">{esc(line)}</div>{body}'
+
+
+def trials_html(programme, b, today: dt.date, moved=None) -> str:
+    """The dialog's facts over the compound's studies, as one piece of markup."""
+    return trials_facts_html(programme, b, today) + trials_body_html(programme, today, moved)
 
 
 # --- the marketed card -----------------------------------------------------------------
@@ -707,23 +716,6 @@ def marketed_card_html(d: dict) -> str:
 
 
 # --- a completed study, clicked open -------------------------------------------------------
-# The rows render inside the click list's iframe, which inherits none of the page's CSS.
-COMPLETED_CSS = """
-.ct { display: grid; grid-template-columns: 70px 62px 64px minmax(0, 1fr) auto; gap: 0.6rem;
-      align-items: baseline; font-size: 11.5px; line-height: 1.3; padding: 5px 6px 5px 8px;
-      border-bottom: 1px solid var(--rule); border-left: 2px solid transparent; cursor: pointer; }
-.ct:hover { background: var(--panel-hi); }
-.ct.sel { border-left-color: var(--up); background: var(--panel); }
-.ct .d, .ct .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-                 color: var(--muted); white-space: nowrap; }
-.ct .n { text-align: right; }
-.ct .ph { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
-          color: var(--muted); white-space: nowrap; }
-.ct .t { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ct .r { font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 4px;
-         border: 1px solid var(--rule-strong); color: var(--muted); white-space: nowrap; }
-.ct .r.yes { border-color: var(--up); color: var(--up); }
-"""
 TONE_WORD = {"good": "green", "bad": "red", "neutral": "grey"}
 
 
@@ -748,27 +740,19 @@ def completed_studies(trials, programme=None) -> list:
     return dated + [t for t in out.values() if not t.get("completion_date")]
 
 
-def completed_rows(trials) -> list:
-    """The click list's rows: when each completed, its phase, its participants, its title,
-    and whether results are posted. A study with no NCT number cannot be opened and is
-    left out."""
-    rows = []
-    for t in trials or []:
-        rid = nct_id_number(t.get("nct_id"))
-        if rid is None:
-            continue
-        size = t.get("enrollment")
-        posted = t.get("has_results")
-        tag = ('<span class="r yes">results posted</span>' if posted else
-               '<span class="r">no results posted</span>' if posted is False else
-               '<span class="r">results not checked</span>')
-        rows.append({"id": rid, "html": (
-            f'<div class="ct"><span class="d">{esc(month_text(t.get("completion_date")) or "no date")}</span>'
-            f'<span class="ph">{esc(t.get("phase") or "")}</span>'
-            f'<span class="n">{f"{int(size):,}" if isinstance(size, (int, float)) and size else ""}</span>'
-            f'<span class="t" title="{esc(t.get("title"))}">{esc(t.get("title") or t.get("nct_id"))}</span>'
-            f'{tag}</div>')})
-    return rows
+def completed_label(t) -> str:
+    """A past study as the selector lists it: when it completed, its phase, its
+    participants, its title, and whether the sponsor has posted results."""
+    size = t.get("enrollment")
+    posted = t.get("has_results")
+    tail = ("results posted" if posted else "no results posted" if posted is False
+            else "results not checked")
+    title = str(t.get("title") or t.get("nct_id") or "")
+    title = title if len(title) <= 90 else title[:89].rstrip() + "…"
+    parts = [month_text(t.get("completion_date")) or "no date", t.get("phase") or "",
+             f"{int(size):,} participants" if isinstance(size, (int, float)) and size else "",
+             title, tail]
+    return " · ".join(p for p in parts if p)
 
 
 def _count(v) -> str:

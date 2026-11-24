@@ -863,28 +863,27 @@ def _completed_for(api_base: str, ticker: str, aid) -> list:
 
 
 def _completed_block(api_base: str, ticker: str, trials: list, key: str,
-                     heading: str = "Completed studies") -> None:
-    """Completed studies as a clickable list. A click opens the study under the list: its
-    clinical scorecard, the results in words and the points to weigh, read from what the
-    sponsor posted (``/trials/{nct}/report``). Drawn nothing where there is no study."""
-    rows = PC.completed_rows(trials)
-    if not rows:
+                     heading: str = "Past trials", total: int | None = None) -> None:
+    """A selector of the asset's past studies. Nothing is shown until one is picked; the
+    one picked opens beneath it: its clinical scorecard, the results in words and the
+    points to weigh, read from what the sponsor posted (``/trials/{nct}/report``). Drawn
+    nothing where there is no study."""
+    options = [t for t in trials or [] if PC.nct_id_number(t.get("nct_id")) is not None]
+    if not options:
         return
-    open_key = f"trial_open_{key}"
-    st.markdown(f'<div class="tr-sub">{html_escape(heading)} &middot; {len(rows)} &middot; '
-                'click one for its results</div>', unsafe_allow_html=True)
-    clicked = clicklist.click_list(rows, tokens=_BOOK_TOKENS,
-                                   selected=st.session_state.get(open_key),
-                                   css=PC.COMPLETED_CSS, key=f"ct_list_{key}")
-    # Acted on once a click, as the other lists are: the nonce changes with each click.
-    if (isinstance(clicked, dict)
-            and clicked.get("nonce") != st.session_state.get(f"{open_key}_nonce")):
-        st.session_state[f"{open_key}_nonce"] = clicked.get("nonce")
-        st.session_state[open_key] = clicked.get("id")
-    chosen = st.session_state.get(open_key)
-    if chosen is None or chosen not in {r["id"] for r in rows}:
+    labels = {t["nct_id"]: PC.completed_label(t) for t in options}
+    posted = sum(1 for t in options if t.get("has_results"))
+    shown = (f"latest {len(options)} of {total}" if total and total > len(options)
+             else str(len(options)))
+    st.markdown(f'<div class="tr-sub">{html_escape(heading)} &middot; {shown}'
+                f'{f" &middot; {posted} with results posted" if posted else ""}</div>',
+                unsafe_allow_html=True)
+    nct = st.selectbox("Past trial", list(labels), index=None,
+                       format_func=lambda n: labels[n],
+                       placeholder="Pick a past trial to see its results",
+                       label_visibility="collapsed", key=f"trial_pick_{key}")
+    if not nct:
         return
-    nct = f"NCT{int(chosen):08d}"
     try:
         report = api_get(api_base, f"/trials/{nct}/report")
     except Exception as exc:                                        # noqa: BLE001
@@ -894,9 +893,16 @@ def _completed_block(api_base: str, ticker: str, trials: list, key: str,
 
 
 def _profile_trials(api_base: str, ticker: str, prof: dict, aid, today) -> None:
-    """Every study on the product in two tables: the ones underway, soonest first, and
-    the ones completed with results. The sheet listed the open studies twice, once as
+    """Every study on the product: its past trials as a selector, the one picked opening
+    beneath it, then the ones underway as a table, soonest first. The sheet listed the open studies twice, once as
     titles and once with their status, and their dates a third time as catalysts."""
+    # Past studies first, as a selector: the one picked opens beneath it. The book's list
+    # with whether results are posted where it reads; the profile's own where it does not.
+    done = _completed_for(api_base, ticker, aid) or [
+        {**t, "has_results": None} for t in prof.get("completed_trials") or []]
+    if done:
+        _completed_block(api_base, ticker, done, f"{ticker}_{aid}",
+                         total=prof.get("completed_count"))
     sizes = {t.get("nct_id"): t.get("enrollment") for t in prof.get("trials") or []}
     try:
         open_now = [s for s in (api_get(api_base, f"/companies/{ticker}/post-approval")
@@ -924,15 +930,7 @@ def _profile_trials(api_base: str, ticker: str, prof: dict, aid, today) -> None:
                     '<div class="ps-none">No registered trial is open on this product. '
                     'Lifecycle work is a new indication, a formulation or a post-marketing '
                     'commitment, and not every product has one.</div>', unsafe_allow_html=True)
-    # Completed studies, each opening onto its results. The book's list with whether
-    # results are posted where it reads; the profile's own list where it does not.
-    done = _completed_for(api_base, ticker, aid) or [
-        {**t, "has_results": None} for t in prof.get("completed_trials") or []]
-    if done:
-        count = prof.get("completed_count") or len(done)
-        more = f", the latest {len(done)} shown" if len(done) < count else ""
-        _completed_block(api_base, ticker, done, f"{ticker}_{aid}",
-                         heading=f"Completed{more}")
+
 
 
 def _render_product_profile(api_base, ticker, product, today) -> None:
@@ -5107,14 +5105,16 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
         @st.dialog(str(opened.get("name") or "Compound"), width="large",
                    on_dismiss=lambda: st.session_state.pop(open_key, None))
         def _trials():
-            st.markdown(PC.trials_html(opened, book.get(opened.get("asset_id")), today,
-                                       moved.get(opened.get("asset_id")))
-                        .replace("$", "&#36;"), unsafe_allow_html=True)
-            # The compound's completed studies, each opening onto its results.
             aid = opened.get("asset_id")
+            st.markdown(PC.trials_facts_html(opened, book.get(aid), today)
+                        .replace("$", "&#36;"), unsafe_allow_html=True)
+            # The compound's past studies as a selector under its figures, the one picked
+            # opening beneath it; the studies still running follow.
             _completed_block(api_base, ticker,
                              PC.completed_studies(_completed_for(api_base, ticker, aid), opened),
                              f"{ticker}_{aid}")
+            st.markdown(PC.trials_body_html(opened, today, moved.get(aid))
+                        .replace("$", "&#36;"), unsafe_allow_html=True)
         _trials()
 
 

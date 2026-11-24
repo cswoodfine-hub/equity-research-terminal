@@ -493,7 +493,7 @@ def report(db_path, nct_id: str) -> dict | None:
                                 results_date, readouts)}
 
 
-def completed(db_path, ticker: str, per_asset: int = 10) -> list | None:
+def completed(db_path, ticker: str, per_asset: int = 60) -> list | None:
     """The company's completed studies, each bound to its asset, newest first, at most
     ``per_asset`` an asset, with whether the sponsor has posted results. None for a ticker
     the book does not hold."""

@@ -124,14 +124,13 @@ def test_the_page_draws_the_scorecard_the_summary_and_escapes_the_registry(tmp_p
     assert "—" not in text and not any(re.search(rf"\b{w}\b", text.lower()) for w in BANNED)
 
 
-def test_a_completed_row_is_keyed_by_its_nct_number_and_says_if_results_are_posted():
-    rows = PC.completed_rows([
-        {"nct_id": NCT, "title": "T", "phase": "Phase 3", "completion_date": "2025-03-01",
-         "enrollment": 400, "has_results": True},
-        {"nct_id": "bad", "title": "no id"},
-        {"nct_id": "NCT00000002", "title": "U", "has_results": False}])
-    assert [r["id"] for r in rows] == [1234567, 2]
-    assert "results posted" in rows[0]["html"] and "no results posted" in rows[1]["html"]
+def test_a_past_study_is_listed_with_its_date_phase_size_and_whether_results_are_posted():
+    label = PC.completed_label({"nct_id": NCT, "title": "T", "phase": "Phase 3",
+                                "completion_date": "2025-03-01", "enrollment": 400,
+                                "has_results": True})
+    assert label == "Mar 2025 · Phase 3 · 400 participants · T · results posted"
+    assert PC.completed_label({"nct_id": NCT, "has_results": False}).endswith(
+        "no results posted")
     assert PC.nct_id_number("nct01234567") == 1234567 and PC.nct_id_number("x") is None
 
 
