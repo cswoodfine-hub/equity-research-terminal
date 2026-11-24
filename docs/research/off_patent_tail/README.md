@@ -200,3 +200,43 @@ Lantus Solostar (Sanofi), Kuvan (BioMarin) and Yaz (Bayer). Taking the whole of 
 American cut Yaz by 88% and Remicade by 68%; Yaz is sold round the world and grew 6% last
 year. Each says so on its card, and each will fall once its split is on file
 (`data/region_revenue.csv`).
+
+## The growth before the tail, 2026-11-24
+
+Lantus Solostar carried 2.35 a share of Sanofi with exclusivity gone since 2012 and a
+biosimilar in the US since 2016: its forecast climbed from 1,733mm to 2,445mm and held
+there for ever. Two things did it, and both are fixed.
+
+1. **Its regional split was refused.** Sanofi prints Lantus as 808 (US), 297 (Europe) and
+   628 (rest of the world) of 1,733, and the split is in `data/region_revenue.csv`, but the
+   book has no product revenue row for Lantus to check it against, so the US share the
+   tail falls on was never found. `regional_loe.split` now checks a hand entered split
+   with no worldwide figure against the total its own quoted table line prints: the
+   largest figure in the product's row. The same refusal had kept thirteen GSK splits
+   (Dovato, Trelegy, Benlysta and others) out, each summing to GSK's printed total.
+2. **Its growth faded over the climb.** Sanofi's +6.4% for FY2025 was faded to nil over
+   the ten years measured on drugs climbing to their peak. A product a decade past its
+   cliff is not climbing. `growth_analogues.past_cliff` measures the same thing on the
+   years of growth three or more years after a product's first 20% fall: 9 products, 18
+   years, and the growth ran out in a median 3 years (quartiles 1 to 3; 4 censored
+   because their best year is their latest). The sample is small and says so wherever it
+   is used. The forecast uses it in place of a measured or conventional fade, never an
+   analyst's own, and only where the cliff happened: a generic or biosimilar on the US
+   market, or its launch on file. A product whose term lapsed with nothing copying it
+   (Botox, Orencia, Toujeo) never had a cliff, holds as section two found, and keeps its
+   own fade.
+
+What it moved, value a share:
+
+| Company | Before | After | Change |
+|---|---|---|---|
+| Sanofi | 68.22 | 66.90 | -1.9% |
+| Bayer | 12.45 | 12.32 | -1.1% |
+| AstraZeneca | 181.85 | 181.07 | -0.4% |
+| Johnson & Johnson | 210.35 | 209.84 | -0.2% |
+| GSK | 79.11 | 79.23 | +0.2% |
+
+Lantus went from 2.35 to 1.41 a share: 1,728mm in 2026 falling to 1,399mm by 2035, the US
+share at the biologic tail of 8% a year. Remicade, Crestor, Yaz and Adcirca take the
+three-year fade. GSK's splits move its products both ways, since each region now loses
+exclusivity on its own date. Kuvan still has no split on file.

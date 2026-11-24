@@ -194,6 +194,108 @@ def by_band(observed: list) -> list[dict]:
     return out
 
 
+# --- growth after the cliff ---------------------------------------------------------
+#
+# The fade above is measured on the years before a drug's peak, so it is how long a climb
+# lasts. A product years past its loss of exclusivity is not climbing, and its reported
+# growth is a recovery, a shortage elsewhere or a price rise: Lantus grew 14.6% and 6.4%
+# in its twelfth and thirteenth years off exclusivity, and the climb fade carried the
+# 6.4% for ten years, 41% more revenue before it held flat. The same history file says
+# how long such growth lasted on the products that had it.
+
+# A cliff is the first year after the peak that fell this far.
+CLIFF_FALL = 0.20
+# Growth is counted from this many years after the cliff, where the research on the
+# off-patent tail (docs/research/off_patent_tail) groups a product as settled.
+PAST_CLIFF_AFTER = 3
+
+
+def past_cliff_observations(series: dict) -> list:
+    """Each year of positive growth at least ``PAST_CLIFF_AFTER`` years after a product's
+    cliff: {product, year, growth, climb, fade, censored}. The climb is the best year from
+    then on over that year; it is a lower bound, and censored, where the best year is the
+    last on file, since the product may still be rising."""
+    out = []
+    for product, entry in series.items():
+        years = entry["years"]
+        if len(years) < 3:
+            continue
+        peak = max(years, key=lambda y: years[y])
+        cliff = next((y for y in sorted(years)
+                      if y > peak and y - 1 in years and years[y - 1] > 0
+                      and years[y] / years[y - 1] - 1.0 <= -CLIFF_FALL), None)
+        if cliff is None:
+            continue
+        last = max(years)
+        for year in sorted(years):
+            if (year < cliff + PAST_CLIFF_AFTER or (year - 1) not in years
+                    or years[year - 1] <= 0 or year in entry.get("breaks", ())):
+                continue
+            growth = years[year] / years[year - 1] - 1.0
+            if growth <= 0:
+                continue
+            later = {y: v for y, v in years.items() if y >= year}
+            top = max(later, key=lambda y: later[y])
+            climb = later[top] / years[year]
+            out.append({"product": product, "year": year, "growth": growth,
+                        "climb": climb, "fade": fitted_fade(growth, climb),
+                        "censored": top == last})
+    return out
+
+
+def measure_past_cliff(path=None) -> dict | None:
+    """How long growth lasts on a product past its cliff: each product once, at its
+    median fade, censored where none of its years has been seen to stop, and the
+    Kaplan-Meier quartiles across products. None where fewer than three products have
+    been seen to stop or the median is undetermined, so nothing is put in its place."""
+    observed = past_cliff_observations(load(path))
+    per_product: dict = {}
+    for o in observed:
+        per_product.setdefault(o["product"], []).append(o)
+    values = [(statistics.median(x["fade"] for x in obs), all(x["censored"] for x in obs))
+              for obs in per_product.values()]
+    stopped = sum(1 for _, c in values if not c)
+    curve = kaplan_meier(values)
+    median = km_quantile(curve, 0.5)
+    if stopped < 3 or median is None:
+        return None
+    return {"after_years": PAST_CLIFF_AFTER, "products": sorted(per_product),
+            "n": len(values), "observations": len(observed), "peaked": stopped,
+            "censored": len(values) - stopped, "low": km_quantile(curve, 0.25),
+            "median": median, "high": km_quantile(curve, 0.75)}
+
+
+def past_cliff_source(row: dict, path_name: str = "data/growth_analogues.csv") -> str:
+    """The source text for the past-cliff fade."""
+    high = f"{row['high']:g}" if row.get("high") is not None else "undetermined"
+    return (f"measured from {row['n']} products {row['after_years']} or more years past "
+            f"a fall of {CLIFF_FALL:.0%} after their peak, {row['observations']} years of "
+            f"growth between them: the median growth ran out in {row['median']:g} years "
+            f"(quartiles {row['low']:g} to {high}), each fitted to its own later best in "
+            f"{path_name}. Kaplan-Meier across products, {row['censored']} of them "
+            "censored because their best year is their latest")
+
+
+_PAST_CLIFF_CACHE: dict = {}
+
+
+def past_cliff(path=None) -> dict | None:
+    """``measure_past_cliff`` with its source, held until the file changes."""
+    source = pathlib.Path(path) if path else DATA
+    try:
+        stamp = source.stat().st_mtime
+    except OSError:
+        return None
+    key = (str(source), stamp)
+    if key not in _PAST_CLIFF_CACHE:
+        row = measure_past_cliff(source)
+        if row:
+            row["source"] = past_cliff_source(row)
+        _PAST_CLIFF_CACHE.clear()
+        _PAST_CLIFF_CACHE[key] = row
+    return _PAST_CLIFF_CACHE[key]
+
+
 def measure(path=None) -> dict:
     series = load(path)
     observed, censored = observations(series)

@@ -160,6 +160,27 @@ def load_curated_revenue(conn, path=None) -> int:
     return written
 
 
+_QUOTED_NUMBER = re.compile(r"(?<![\d.,])(\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?(?![\d.,]*%)")
+
+
+def _quoted_total(parts: list, close) -> bool:
+    """Whether every part quotes one table line and the largest figure that line prints
+    is the parts' sum, in the line's own unit (units, thousands, millions or billions).
+    The largest, because a line's total is never smaller than its parts and GSK prints
+    its growth rates with no percent sign: a small product's sum could otherwise match a
+    growth figure. Percentages, where marked, are not figures for this."""
+    quotes = {(r["note"] or "").strip() for r in parts}
+    if len(quotes) != 1 or not next(iter(quotes)):
+        return False
+    total = sum(r["value"] for r in parts)
+    # A quote that carries the table's heading before its row ("... year ended 31
+    # December 2025 | Total | US ... Dovato | 2,678 | ...") is read from the row on.
+    row = next(iter(quotes)).split("...")[-1]
+    printed = [float(m.group(0).replace(",", "")) for m in _QUOTED_NUMBER.finditer(row)]
+    return bool(printed) and any(close(max(printed) * scale, total)
+                                 for scale in (1.0, 1e3, 1e6, 1e9))
+
+
 def split(conn, asset_id: int) -> dict | None:
     """{"year", "total", "parts": [{"region", "member", "value", "source"}]} for the
     latest year whose regional rows partition the product, or None."""
@@ -168,7 +189,7 @@ def split(conn, asset_id: int) -> dict | None:
         " ORDER BY fiscal_year DESC", (asset_id,))]
     for year in years:
         rows = conn.execute(
-            """SELECT member, region, value, source, is_curated FROM asset_revenue_regions
+            """SELECT member, region, value, source, note, is_curated FROM asset_revenue_regions
                 WHERE asset_id = ? AND fiscal_year = ? AND value IS NOT NULL""",
             (asset_id, year)).fetchall()
         # A hand entered split outranks a fetched one for the same year.
@@ -194,7 +215,14 @@ def split(conn, asset_id: int) -> dict | None:
             parts = us + finer
             fits_parent = bool(parent) and close(sum(r["value"] for r in finer), parent[0]["value"])
             fits_world = world is not None and close(sum(r["value"] for r in parts), world)
-            if fits_parent or fits_world:
+            # With no worldwide figure on file, a hand entered split is checked against
+            # the total its own quoted table line prints. Lantus has no product revenue
+            # row in the book, and its split, which Sanofi prints as 808, 297 and 628 of
+            # 1,733, was refused for want of one.
+            fits_quote = (world is None and not parent
+                          and all(r["is_curated"] for r in parts)
+                          and _quoted_total(parts, close))
+            if fits_parent or fits_world or fits_quote:
                 found = parts
         if found is None and parent:
             parts = us + parent

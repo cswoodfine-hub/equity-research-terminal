@@ -533,7 +533,32 @@ def load(conn, asset_id: int, scenario: str = "base") -> dict:
         "launch_ramp": launch_ramp(),
         "erosion_defaults": erosion_defaults(),
         "curve_defaults": curve_defaults(),
+        # How long growth lasts on a product years past its cliff, measured
+        # (growth_analogues.past_cliff), and whether the asset's own fade is the analyst's.
+        # Only a fade that is a convention or the climb measurement gives way to it, and
+        # only where the measured one is shorter.
+        "past_cliff_fade": _past_cliff(),
+        "fade_stated": _fade_stated(merged),
     }
+
+
+def _past_cliff():
+    import growth_analogues
+    return growth_analogues.past_cliff()
+
+
+# Fade rows that are a measurement or a convention rather than somebody's judgement of
+# this product: a shorter measured fade may replace them.
+_FADE_NOT_STATED = ("analogue", "convention")
+
+
+def _fade_stated(merged: dict) -> bool:
+    """Whether the asset's own growth_fade_years row is a judgement rather than the climb
+    measurement growth_analogues wrote or a convention."""
+    row = next((r for (indication_id, _region, key, year), r in merged.items()
+                if indication_id is None and year is None and key == "growth_fade_years"),
+               None)
+    return bool(row) and (row["evidence"] or "") not in _FADE_NOT_STATED
 
 
 def _competitor(conn, asset_id: int):

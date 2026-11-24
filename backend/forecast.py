@@ -994,6 +994,48 @@ def cliff_window(inputs: dict, late_from_year=None) -> int | None:
     return min(found) if found else None
 
 
+def past_cliff_fade(inputs: dict, first_year: int):
+    """(fade years, note) for a product whose loss of exclusivity is at least the
+    measurement's span behind the year its forecast is grown from, or None.
+
+    The climb fade is measured on drugs before their peak. A product a decade off
+    exclusivity is not climbing, and its recent growth runs out in a few years on the
+    products that had any (``growth_analogues.past_cliff``). Only where the asset's fade
+    is not the analyst's own, and only on a loss the record or the statutory default puts
+    in the past: a stated LOE ahead of the forecast is a cliff still to come.
+
+    And only where the cliff happened: a generic or biosimilar is on the US market or its
+    launch is on file. The measurement is of products that fell; a product whose term
+    lapsed with nothing copying it (Botox, Orencia) never had a cliff, and the research
+    on the off-patent tail found such products hold, so its own fade stands."""
+    measured = inputs.get("past_cliff_fade")
+    if not measured or measured.get("median") is None or inputs.get("fade_stated"):
+        return None
+    loe = inputs.get("loe") or {}
+    if not (inputs.get("competitor") or loe.get("observed")):
+        return None
+    year = loe.get("year")
+    known_past = bool(loe.get("in_base")) and year is None
+    if year is None and not known_past:
+        if (inputs.get("scalars") or {}).get("loe_year"):
+            return None
+        defaults = inputs.get("loe_defaults") or {}
+        default = defaults.get(inputs.get("modality") or "") or defaults.get("unknown")
+        approved = inputs.get("approval_year")
+        if not (default and default.get("years_from_launch") and approved):
+            return None
+        year = int(approved) + int(default["years_from_launch"])
+    after = int(measured.get("after_years") or 0)
+    if not known_past and (first_year - 1) - int(year) < after:
+        return None
+    fade = int(math.floor(float(measured["median"]) + 0.5))
+    when = "already past" if known_past else str(int(year))
+    return fade, (f"exclusivity was lost {when}, {after} or more years before the "
+                  f"forecast, so its growth fades over {fade} years, as growth did on "
+                  f"products that far past their cliff ({measured.get('source') or 'measured'}), "
+                  "not over the climb to a peak")
+
+
 # The small-molecule row is measured on oral brands; this one on everything else.
 NON_ORAL_SMALL_MOLECULE = "small molecule (non-oral)"
 
@@ -1158,10 +1200,15 @@ def build(inputs: dict) -> dict:
                 f"grown into it, so the two together reach the published peak rather "
                 f"than passing it")
 
+        fade_years = int(scalars.get("growth_fade_years") or 5)
+        settled = past_cliff_fade(inputs, start) if growth and growth > 0 else None
+        if settled and settled[0] < fade_years:
+            fade_years = settled[0]
+            notes.append(settled[1])
         revenue = grown_revenue(
             base_rev, growth, len(years),
             fade_to=scalars.get("terminal_growth_pct"),
-            fade_years=int(scalars.get("growth_fade_years") or 5),
+            fade_years=fade_years,
             ceiling=ceiling)
         for series in layers.values():
             revenue = [r + l for r, l in zip(revenue, series)]
@@ -1172,8 +1219,7 @@ def build(inputs: dict) -> dict:
         notes.append(
             f"marketed mode: revenue grown from a reported {base_rev:,.0f}mm at "
             f"{growth:+.1%}"
-            + (f", fading to {fade:+.1%} over "
-               f"{int(scalars.get('growth_fade_years') or 5)} years"
+            + (f", fading to {fade:+.1%} over {fade_years} years"
                if fade is not None else " held flat")
             + ", before erosion")
         if ceiling is not None and revenue and max(revenue) >= ceiling - 1e-9:
