@@ -1,4 +1,7 @@
 name: Daily refresh
+# The title each run is listed under, by kind. deploy/trigger_refresh.py and the gate
+# job below both tell a refresh from a pulse pass by it.
+run-name: ${{ (github.event.schedule == '17 9 * * 1-5' || inputs.pulse_only) && 'Daily pulse' || 'Daily refresh' }}
 
 # The differentiator is accumulated snapshot history, and a missed day is a hole no
 # source can backfill. This runs the whole-universe refresh on a schedule and commits
@@ -9,21 +12,21 @@ name: Daily refresh
 
 on:
   schedule:
-    # 06:00 UTC daily, before any market this book quotes has opened. Yahoo's daily
-    # chart carries a bar for today from the opening bell, whose close is the last
-    # trade. This hour was meant to keep that bar out of the snapshot history and did
-    # not: every run from 2026-10-10 to 2026-11-23 began between 10:26 and 18:14 UTC,
-    # because a scheduled runner starts when the host has room. The fetchers now hold
-    # the bar back until its session has closed (backend/market_session.py), so the
-    # record no longer depends on when this fires. The hour stays, since an early run
-    # is still the one that has the day's snapshots in before anyone reads them.
-    - cron: '0 6 * * *'
-    # 10:00 UTC on weekdays: the daily pulse alone, hours after its scheduled run has
-    # pushed the morning's briefing to claude/pulse-feed. The pulse wants the opposite
-    # of what prices want, since its value is the European morning, so it is read by a
-    # pass of its own rather than moving the refresh off 06:00. The 06:00 run still
-    # reads the whole pulse folder, so this pass being missed costs a day, not a file.
-    - cron: '0 10 * * 1-5'
+    # The backup. GitHub creates a scheduled run when it has room, and over the two
+    # weeks to 2026-11-24 it created the 06:00 UTC run between 12:45 and 18:00 UTC and
+    # the 10:00 UTC pulse pass between 17:35 and 21:57; the job started the minute it
+    # was created each time. So the runs are started on time from the analyst's Mac by
+    # workflow_dispatch (deploy/trigger_refresh.py, at 06:00 and 10:00 London time), and
+    # these fire for a day the Mac is off. The gate job skips one whose kind has already
+    # run today. A late run cannot file an intraday price as a close: the fetchers hold
+    # back a bar until its session has closed (backend/market_session.py).
+    #
+    # Past the hour, not on it, since GitHub names the top of the hour as its busiest.
+    # The pulse pass reads the morning briefing the daily pulse commits to
+    # claude/pulse-feed; the refresh still reads the whole pulse folder, so a missed
+    # pulse pass costs a day, not a file.
+    - cron: '17 4 * * *'
+    - cron: '17 9 * * 1-5'
   workflow_dispatch:
     inputs:
       force_all:
@@ -44,14 +47,49 @@ permissions:
   contents: write        # to commit the refreshed history back
 
 jobs:
+  # A scheduled run whose kind has already succeeded today, or is queued or running, is
+  # skipped: it is GitHub's late copy of a run the Mac already started. A run asked for
+  # by hand or by the Mac always goes ahead.
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ (github.event.schedule == '17 9 * * 1-5' || inputs.pulse_only) && 'Daily pulse' || 'Daily refresh' }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          today="$(date -u +%F)"
+          done_today="$(gh run list -R "$GITHUB_REPOSITORY" --workflow refresh.yml --limit 30 \
+            --json databaseId,displayTitle,conclusion,status,createdAt \
+            --jq "[.[] | select(.databaseId != ${{ github.run_id }})
+                       | select(.displayTitle == \"$TITLE\")
+                       | select(.createdAt[0:10] == \"$today\")
+                       | select(.conclusion == \"success\" or .status != \"completed\")] | length")"
+          if [ "${done_today:-0}" -gt 0 ]; then
+            echo "$TITLE has already run or is running today; this scheduled copy is skipped."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   refresh:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     env:
       # Which of the two schedules fired, as one flag the steps below read. A pulse pass
       # reuses every step around the refresh itself: it restores the published database,
       # merges the committed history, reads the pulse folder, exports, publishes and
       # commits exactly as the full run does. Only the fetching is skipped.
-      PULSE_ONLY: ${{ github.event.schedule == '0 10 * * 1-5' || inputs.pulse_only }}
+      PULSE_ONLY: ${{ github.event.schedule == '17 9 * * 1-5' || inputs.pulse_only }}
       # EDGAR blocks requests without a real identifier. Set this repo secret.
       SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
       # The key the readers run on: Anthropic, on its Haiku model, and on nothing else

@@ -25,7 +25,8 @@ ER Tool/
   streamlit_cloud_app.py    # the API and the UI in one process, for Streamlit Cloud
   githooks/pre-push         # runs make verify before anything leaves the machine
   .github/workflows/refresh.yml   # the daily refresh and the weekday pulse pass
-  deploy/                   # a launchd job for a local 06:00 refresh; its paths are absolute
+  deploy/                   # trigger_refresh.py starts the GitHub refresh on time from the Mac;
+                            # install_trigger.sh installs it. The older local-refresh plist is unused
   backend/
     main.py                 # FastAPI app, routes
     db.py                   # connection, schema init, migrations
@@ -215,6 +216,14 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   UTC on weekdays that restores, reads the branch into `ER_PULSE_DIR`, runs
   `backend/pulse_refresh.py` and publishes, fetching no source. The 06:00 run still
   reads the whole pulse folder, so a missed pass costs a day, not a file.
+- GitHub creates scheduled runs late: over the two weeks to 2026-11-24 the 06:00 UTC
+  refresh was created between 12:45 and 18:00 UTC and the 10:00 pulse pass between 17:35
+  and 21:57, each starting the minute it was created. So the analyst's Mac starts both on
+  time with `workflow_dispatch` (`deploy/trigger_refresh.py`, launchd at 06:00 and 10:00
+  London time, token in the login keychain under `novatalis-lens-dispatch`), and the
+  schedule (now `17 4 * * *` and `17 9 * * 1-5`) is the backup. The workflow's gate job
+  skips a scheduled run whose kind has already run that day, and the trigger sends nothing
+  where GitHub has.
 - That pass opens no `refresh_runs` row on purpose: `/runs/latest` is what the top bar
   reads for "last refresh", and a pulse pass that opened one would have the terminal
   date the universe to the morning's briefing.
