@@ -81,11 +81,56 @@ def _dedupe_key(row) -> tuple:
     return (row.get("fiscal_year"), head, round(row.get("value") or 0.0, 2))
 
 
+REGIONAL_SOURCE = "annual report table, the sum of its regions"
+
+
+def regional_totals(conn, asset_ids) -> dict:
+    """{(asset id, fiscal year): {"value", "unit", "note"}}: a product's year as the sum
+    of its hand-entered regions, where no full-year figure is filed for it.
+
+    GSK prints its products only in a table split US, Europe and International, and those
+    rows were entered as regions and never as a total, so the revenue ring drew 79% of
+    GSK's turnover as attributed to nothing and Shingrix's card said it earned nothing.
+    The sum is taken only where every part is hand-entered from one quoted table line
+    and the line itself prints the sum as its largest figure, the check the regional
+    split already makes (``regional_loe._quoted_total``). A year with a full-year figure
+    on file keeps that figure; nothing here is added to it."""
+    import regional_loe
+    ids = [a for a in dict.fromkeys(asset_ids or []) if a is not None]
+    if not ids:
+        return {}
+    marks = ",".join("?" * len(ids))
+    filed = {(r["asset_id"], r["fiscal_year"]) for r in conn.execute(
+        f"SELECT asset_id, fiscal_year FROM asset_revenue WHERE period = 'FY'"
+        f" AND asset_id IN ({marks})", ids)}
+    groups: dict = {}
+    for r in conn.execute(
+            f"SELECT asset_id, fiscal_year, region, value, unit, note, is_curated"
+            f" FROM asset_revenue_regions WHERE asset_id IN ({marks})", ids):
+        groups.setdefault((r["asset_id"], r["fiscal_year"], r["unit"]), []).append(dict(r))
+
+    def close(a, b):
+        return abs(a - b) <= regional_loe._PARTITION_TOLERANCE * abs(b)
+    out = {}
+    for (aid, year, unit), parts in groups.items():
+        if (aid, year) in filed or (aid, year) in out:
+            continue
+        if any(p["value"] is None or not p["is_curated"] for p in parts):
+            continue
+        if not regional_loe._quoted_total(parts, close):
+            continue
+        out[(aid, year)] = {"value": sum(p["value"] for p in parts), "unit": unit,
+                            "note": (parts[0]["note"] or "").strip()}
+    return out
+
+
 def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
     """Every curated figure for one company, newest fiscal year first.
 
     One row per product per year: see _dedupe_key for what counts as the same product
     filed twice, and why summing them was overstating the base every share is struck on.
+    A year a product reports only by region is the sum of its regions, where the quoted
+    table line prints that sum (``regional_totals``), with no id since nothing was filed.
     """
     conn = db.get_connection(db_path)
     try:
@@ -102,8 +147,19 @@ def list_revenue(db_path=None, ticker: str = "") -> list[dict]:
             """,
             (company_id,),
         )]
+        assets = {r["id"]: dict(r) for r in conn.execute(
+            "SELECT id, brand_name, generic_name, internal_code, modality FROM assets"
+            " WHERE owner_company_id = ?", (company_id,))}
+        summed = regional_totals(conn, list(assets))
     finally:
         conn.close()
+    for (aid, year), t in summed.items():
+        a = assets[aid]
+        rows.append({"id": None, "asset_id": aid, "fiscal_year": year, "value": t["value"],
+                     "unit": t["unit"], "source": REGIONAL_SOURCE, "note": t["note"],
+                     "brand_name": a["brand_name"], "generic_name": a["generic_name"],
+                     "internal_code": a["internal_code"], "modality": a["modality"]})
+    rows.sort(key=lambda r: (-r["fiscal_year"], -(r["value"] or 0)))
 
     # The fullest telling of the name wins. Where two spellings are the same length,
     # "Opdivo Ovantig" against "Opdivo Qvantig", one is a mis-transcription and nothing

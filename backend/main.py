@@ -694,8 +694,17 @@ def company_approvals(ticker: str) -> dict:
         # selling it" and "no free source breaks it out" and they need opposite
         # responses (backend/shelf.py).
         standing = shelf_module.states_for(conn, [r["asset_id"] for r in rows])
+        # A product the filer prints only by region carries the sum of its regions
+        # where the quoted table line prints it, so its card is not left blank.
+        summed = asset_revenue_module.regional_totals(conn, [r["asset_id"] for r in rows])
     finally:
         conn.close()
+    for r in rows:
+        later = max(((year, t) for (aid, year), t in summed.items()
+                     if aid == r["asset_id"]), default=None, key=lambda yt: yt[0])
+        if later and (r.get("revenue_year") is None or later[0] > r["revenue_year"]):
+            r["revenue"], r["revenue_unit"] = later[1]["value"], later[1]["unit"]
+            r["revenue_year"] = later[0]
     # Merge the biologic 12-year floor into the latest expiry, the same rule loe_detail
     # uses, so the two views agree; keep the earliest expiry for the patent range.
     rates = fx_module.latest_usd_rates(None)
