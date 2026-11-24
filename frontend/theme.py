@@ -134,6 +134,14 @@ _CATALYSTS_CSS = (_ASSETS / "catalysts.css").read_text()
 _DRUGCARD_CSS = (_ASSETS / "drugcard.css").read_text()
 
 
+# The ring's key rows each light their own wedge: one pair of rules a row, for as many
+# areas as a company's pipeline spans (the registry's twelve and a few spare).
+_APIE_KEY_HOVER = "\n".join(
+    f'.apie:has(.kr[data-i="{i}"]:hover) .s[data-i="{i}"] path {{ opacity: 1; }}\n'
+    f'.apie:has(.kr[data-i="{i}"]:hover) .s[data-i="{i}"] .ct {{ opacity: 1; }}'
+    for i in range(16))
+
+
 def css() -> str:
     """Scoped stylesheet: tokens, fonts, shell, and every component class."""
     tokens_root = _TOKENS_CSS.replace("/* Design tokens. Mirrored in "
@@ -1898,6 +1906,48 @@ a.td-lead:hover .t {{ color: var(--up); }}
 table.pt-tbl td.t a {{ color: var(--text); text-decoration: underline;
   text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}
 table.pt-tbl td.t a:hover {{ text-decoration-color: var(--up); }}
+/* A study whose registry date moved says under the date what it was. */
+table.pt-tbl td.d .was {{ display: block; font-size: 10px; color: var(--flag); }}
+
+/* The pipeline's compounds by disease area: a ring with its key beside it. Hovering a
+   wedge or a row of the key dims the others and puts that area's count and phases in the
+   middle of the ring, where the total stands when nothing is hovered. CSS only, so the
+   ring is markdown like every other chart here. */
+.apie {{ display: flex; flex-direction: column; align-items: center; gap: 10px; }}
+.apie svg {{ display: block; overflow: visible; }}
+.apie .s path {{ stroke: var(--ground); stroke-width: 2px; transition: opacity 90ms linear; }}
+.apie text {{ pointer-events: none; text-anchor: middle; font-family: var(--font-ui); }}
+.apie text.n {{ font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+               fill: var(--text); }}
+.apie text.a {{ font-size: 10.5px; fill: var(--text); }}
+.apie text.b {{ font-size: 8.5px; fill: var(--muted); }}
+.apie .c0 text.a {{ fill: var(--muted); }}
+.apie .ct, .apie .c0 {{ transition: opacity 90ms linear; }}
+.apie .ct {{ opacity: 0; }}
+.apie svg:has(.s:hover) .s:not(:hover) path,
+.apie:has(.kr:hover) .s path {{ opacity: 0.25; }}
+.apie .s:hover .ct {{ opacity: 1; }}
+.apie svg:has(.s:hover) .c0, .apie:has(.kr:hover) .c0 {{ opacity: 0; }}
+{_APIE_KEY_HOVER}
+/* The line above and below the pipeline's card grid: what is shown, and what the grid
+   could not place. */
+.pipe-line {{ font-size: 11px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }}
+/* The card grid scrolls in place, sized to the window so the whole side is one screen:
+   the window less the top bar, the tabs, the figures and the filters above the grid.
+   Streamlit sizes the grid's wrapper by its flex basis, so that is what is set. */
+div:has(> [class*="st-key-pipe_grid_"]) {{
+  flex: 0 0 max(300px, calc(100vh - 415px)) !important;
+  height: max(300px, calc(100vh - 415px)) !important; }}
+[class*="st-key-pipe_grid_"] {{ height: 100% !important; }}
+.apie-key {{ width: 100%; display: flex; flex-direction: column; gap: 1px; }}
+.apie-key .kr {{ display: flex; align-items: center; gap: 7px; font-size: 11.5px;
+                padding: 2px 4px; border-radius: 2px; cursor: default; }}
+.apie-key .kr:hover {{ background: var(--panel); }}
+.apie-key .kr i {{ flex: 0 0 auto; width: 9px; height: 9px; border-radius: 2px; }}
+.apie-key .kr .l {{ flex: 1 1 auto; color: var(--text); overflow: hidden;
+                   text-overflow: ellipsis; white-space: nowrap; }}
+.apie-key .kr .c {{ font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+                   color: var(--muted); }}
 table.pt-tbl td.t span {{ display: block; font-family: var(--font-mono); font-size: 10.5px;
   color: var(--muted); margin-top: 2px; }}
 /* A link on a section's rule reads as part of the rule until the pointer is on it. */
@@ -2092,11 +2142,6 @@ section[data-testid="stSidebar"] .block-container {{ padding-top: 1.2rem; }}
 
 /* Radios and pills follow the same quiet square language. */
 .stRadio [role="radiogroup"] label, .stPills [data-baseweb] {{ border-radius: var(--radius); }}
-
-/* The area and phase pills sit under the therapeutic area chart, which draws to the
-   edge of its container. Without a gap the first row of chips met the last bar. */
-[class*="st-key-area_pills_"] {{ margin-top: 1.15rem; }}
-[class*="st-key-phase_pills_"] {{ margin-top: 0.2rem; }}
 
 /* Quality floor: focus must be visible, and motion is opt-out. */
 *:focus-visible {{ outline: 2px solid var(--text); outline-offset: 1px; }}

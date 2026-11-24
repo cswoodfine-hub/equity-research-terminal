@@ -102,6 +102,37 @@
   .pc-next .far.late { color: var(--flag); }
   .pc-fs { display: flex; gap: 20px; margin-top: 8px; }
   .pc-f { display: flex; flex-direction: column; }
+  /* The book on one line: the odds as a chip in its band's colour, the value a share in
+     small type at the right. Green from even odds, amber from one in five, red below. */
+  .pc-book { display: flex; align-items: center; gap: 6px; margin-top: 9px; }
+  .pc-book .k { line-height: 1; }
+  .pc-book .odds { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+                   font-size: 11px; font-weight: 600; padding: 1px 5px; border-radius: 2px;
+                   border: 1px solid currentColor; }
+  .pc-book .odds.hi { color: var(--up);
+                      background: color-mix(in srgb, var(--up) 14%, transparent); }
+  .pc-book .odds.mid { color: var(--flag);
+                       background: color-mix(in srgb, var(--flag) 14%, transparent); }
+  .pc-book .odds.lo { color: var(--down);
+                      background: color-mix(in srgb, var(--down) 14%, transparent); }
+  .pc-book .sv { margin-left: auto; font-family: var(--font-mono); font-size: 11px;
+                 font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+  .pc-book .sv em { font-style: normal; font-family: var(--font-ui); font-size: 9.5px;
+                    color: var(--muted); margin-left: 3px; }
+  /* A value whose launch year falls before the earliest approval the evidence allows. */
+  .pc-book .lf { text-decoration: underline; text-decoration-thickness: 1px;
+                 text-underline-offset: 2px; }
+  .pc-book .lf.red { text-decoration-color: var(--down); }
+  .pc-book .lf.amber { text-decoration-color: var(--flag); }
+  /* A study date the registry moved: later in the flag colour, earlier muted. */
+  .pc-moved { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 7px;
+              margin-top: 6px; }
+  .pc-moved .k { flex: 0 0 100%; }
+  .pc-moved .v { font-size: 11px; }
+  .pc-moved .far { font-family: var(--font-mono); font-size: 10px; }
+  .pc-moved.later .far { color: var(--flag); }
+  .pc-moved.earlier .far { color: var(--muted); }
+  .pc-moved .more { font-size: 10px; color: var(--muted); }
 
   /* Where the FDA says the product stands, shown only when that is not "on sale": the
      expected state on a marketed card is selling, and a chip on all 448 of them would

@@ -13,7 +13,7 @@ of the book on 6 October 2026 (``fixtures/gates_ui``, trimmed to what the builde
 - the company view's next-gate table (AZN, two gates that cost more than they are worth);
 - the Catalysts tab's At stake rows (``_stake_*``): LLY's ten derived stakes, VRTX's stated
   Casgevy row beside two derived ones;
-- the Pipeline tab's value cell (``_prog_value_cell``) and the launch floor's flag it shares
+- the pipeline card's value (``portfolio_cards``) and the launch floor's flag it shares
   with Key insights (``_launch_*``).
 
 Nothing here starts Streamlit or calls the API, bar the one AppTest check at the foot, which
@@ -68,7 +68,7 @@ def view():
         if name.startswith(PREFIXES) or name in SHARED:
             keep.append(node)
             names.add(name)
-    assert {"_gate_summary", "_stake_row_html", "_prog_value_cell", "_launch_flagged"} <= names
+    assert {"_gate_summary", "_stake_row_html", "_launch_flagged"} <= names
     # The renderers draw with Streamlit; they are read here only to check what they call.
     space = {"html": html, "re": re, "T": theme}
     exec(compile(ast.Module(body=keep, type_ignores=[]), str(APP), "exec"), space)
@@ -130,26 +130,30 @@ def test_the_css_draws_red_with_the_down_token_and_amber_with_the_flag_token():
     assert ".u-flagged.amber { text-decoration-color: var(--flag); }" in css
 
 
-# --- the Pipeline tab's value cell -----------------------------------------------------------
-def test_the_pipeline_value_cell_carries_the_flag_and_nothing_for_a_part_year(view):
-    cell = view["_prog_value_cell"]
-    verdict = load("LLY_forecast-verdict")
-    valued = {m["asset_id"]: m.get("per_share") for m in verdict["modelled"]}
-    launch = {m["asset_id"]: m.get("launch") for m in verdict["modelled"]}
-    red = cell(1499, valued, {}, {}, launch[1499])              # Lepodisiran
-    assert '<span class="u-flagged red" title="2027 in the model' in red
-    assert ">2.03</span></span>" in red
-    assert cell(1514, valued, {}, {}, launch[1514]) == (       # Eloralintide, clear
-        '<span class="prog-v" title="rNPV a share, counted in the company total">5.02</span>')
-    amgn = load("AMGN_forecast-verdict")["modelled"]
-    maritide = next(m for m in amgn if m["asset_id"] == 1623)
-    assert maritide["launch"]["status"] == "part_year"
-    assert "u-flagged" not in cell(1623, {1623: maritide["per_share"]}, {}, {},
-                                   maritide["launch"])
-    # The other three states are unchanged and never flagged.
-    assert "held *" in cell(7, {}, {7: None}, {}, {"flag": "red"})
-    assert ">needs</span>" in cell(8, {}, {}, {8: ["peak"]}, {"flag": "red"})
-    assert "&mdash;" in cell(9, {}, {}, {}, {"flag": "red"})
+# --- the pipeline card's value -----------------------------------------------------------
+def test_the_pipeline_card_carries_the_flag_and_nothing_for_a_part_year(view):
+    import datetime as dt
+
+    import portfolio_cards as PC
+    today = dt.date(2026, 10, 6)
+    book = PC.book_from_verdict(load("LLY_forecast-verdict"))
+    prog = {"name": "x", "phase": "Phase 3", "areas": [], "studies": []}
+    red = PC.pipeline_card_html({**prog, "asset_id": 1499}, book[1499], today)   # Lepodisiran
+    assert '<span class="lf red" title="2027 in the model' in red
+    assert ">2.03</span><em>a share</em>" in red
+    clear = PC.pipeline_card_html({**prog, "asset_id": 1514}, book[1514], today)  # Eloralintide
+    assert "lf " not in clear and ">5.02<em>a share</em>" in clear
+    amgn = PC.book_from_verdict(load("AMGN_forecast-verdict"))
+    assert amgn[1623]["launch"]["status"] == "part_year"                         # MariTide
+    assert 'class="lf' not in PC.pipeline_card_html({**prog, "asset_id": 1623}, amgn[1623], today)
+    # The card reads the floor the way the other tabs do.
+    for launch in (book[1499]["launch"], book[1514]["launch"], amgn[1623]["launch"],
+                   {"flag": "amber"}, None):
+        assert PC.launch_tone(launch) == view["_launch_flag"](launch)
+    # The other three states are never flagged.
+    for b in ({"state": "held", "per_share": None, "launch": {"flag": "red"}},
+              {"state": "refused", "missing": ["peak"], "launch": {"flag": "red"}}, None):
+        assert 'class="lf' not in PC.pipeline_card_html({**prog, "asset_id": 7}, b, today)
 
 
 # --- the Forecast tab: the Next gate block --------------------------------------------------

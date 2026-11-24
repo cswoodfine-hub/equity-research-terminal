@@ -312,3 +312,128 @@ def test_names_from_a_source_are_escaped_and_the_copy_keeps_house_style():
         PC.trials_html(_programme(), None, TODAY)))
     assert "—" not in visible                             # no em dash
     assert not any(word in visible.lower() for word in BANNED)
+
+
+# --- the book on one line: odds by band, value in small type ----------------------------
+def test_the_odds_take_their_bands_colour_and_the_value_is_small():
+    assert [PC.odds_band(p) for p in (0.875, 0.5, 0.49, 0.2, 0.19, 0.0, None)] == \
+        ["hi", "hi", "mid", "mid", "lo", "lo", ""]
+    card = PC.pipeline_card_html(_programme(), PC.book_from_verdict(_verdict())[7], TODAY)
+    assert '<span class="odds hi" title="' in card and ">88%</span>" in card
+    assert '<span class="sv" title="20.78 a share if the next gate passes, 0.00 if it fails.">' \
+           '20.34<em>a share</em></span>' in card
+    assert "v strong" not in card                       # the large figure is gone
+    early = PC.pipeline_card_html(_programme(), {**PC.book_from_verdict(_verdict())[7],
+                                                 "pos": 0.12}, TODAY)
+    assert '<span class="odds lo"' in early and ">12%</span>" in early
+
+
+def test_the_foot_names_the_registrys_next_date_where_the_gate_leads_the_card():
+    valued = PC.pipeline_card_html(_programme(), PC.book_from_verdict(_verdict())[7], TODAY)
+    assert "1,850 patients · next study Jan 2027" in _text(valued)
+    # With no gate the registry's date leads the card already, so it is not said twice.
+    unread = PC.pipeline_card_html(_programme(), None, TODAY)
+    assert "next study Jan 2027" not in _text(unread)
+
+
+# --- completion dates that moved, on the card ------------------------------------------------
+SLIPS = [{"nct": "NCT00000001", "was": "2026-03", "now": "2026-08-27", "days": 179, "moves": 1},
+         {"nct": "NCT00000003", "was": "2028-06", "now": "2028-04-01", "days": -61, "moves": 2},
+         {"nct": "NCT99999999", "was": "2027-01", "now": "2027-06", "days": 151, "moves": 1}]
+TRIALS = [{"nct_id": "NCT00000001", "asset_id": 7, "phase": "Phase 3"},
+          {"nct_id": "NCT00000003", "asset_id": 7, "phase": "Phase 3"},
+          {"nct_id": "NCT99999999", "asset_id": None, "phase": "Phase 1"}]
+
+
+def test_a_moved_date_is_bound_to_its_compound_the_largest_first():
+    moved = PC.moved_by_asset(SLIPS, TRIALS)
+    assert list(moved) == [7]                            # a study bound to nothing has no card
+    assert [r["nct"] for r in moved[7]] == ["NCT00000001", "NCT00000003"]
+    assert moved[7][0]["phase"] == "Phase 3"
+    assert PC.moved_by_asset([], TRIALS) == {} and PC.moved_by_asset(SLIPS, None) == {}
+
+
+def test_the_card_says_the_largest_move_and_the_tooltip_says_every_one():
+    moved = PC.moved_by_asset(SLIPS, TRIALS)[7]
+    card = PC.pipeline_card_html(_programme(), None, TODAY, moved)
+    text = _text(card)
+    assert "date moved Mar 2026 → Aug 2026 +5 mo +1 more" in text
+    assert 'class="pc-moved later"' in card
+    assert "NCT00000003 (Phase 3): Jun 2028 to Apr 2028 over 2 moves" in card
+    assert "A registry estimate, not a result date." in card
+    earlier = PC.pipeline_card_html(_programme(), None, TODAY, moved[1:])
+    assert 'class="pc-moved earlier"' in earlier and f"{PC.MINUS}2 mo" in _text(earlier)
+    assert "pc-moved" not in PC.pipeline_card_html(_programme(), None, TODAY)
+    # A marketed product's study carries the same line.
+    assert "date moved" in _text(PC.marketed_card_html(_marketed(moved=moved)))
+
+
+def test_the_dialog_says_under_a_moved_date_what_it_was():
+    moved = PC.moved_by_asset(SLIPS, TRIALS)[7]
+    markup = PC.trials_html(_programme(), None, TODAY, moved)
+    assert markup.count('class="was"') == 2 and ">was Mar 2026</span>" in markup
+    assert 'class="was"' not in PC.trials_html(_programme(), None, TODAY)
+
+
+def test_the_dialog_says_why_the_book_has_no_figure():
+    say = {None: "not modelled: no assumptions on file",
+           9: "not valued: the forecast lacks therapy_mode, wacc",
+           8: "0.50 a share, held"}
+    book = PC.book_from_verdict(_verdict())
+    for aid, words in say.items():
+        assert words in _text(PC.trials_html(_programme(), book.get(aid), TODAY))
+
+
+# --- the disease areas, as a ring ------------------------------------------------------------
+def _group(p):
+    return p.get("phase") or "unphased"
+
+
+def test_a_compound_is_counted_once_under_its_lead_area():
+    progs = [_programme(), _programme(asset_id=8, phase="Phase 1"),
+             _programme(asset_id=9, areas=["Oncology"], phase="Phase 2"),
+             _programme(asset_id=10, areas=[])]
+    rows = PC.area_counts(progs, _group)
+    assert rows == [("Metabolic", 2, {"Phase 3": 1, "Phase 1": 1}),
+                    ("Oncology", 1, {"Phase 2": 1}), (PC.NO_AREA, 1, {"Phase 3": 1})]
+    assert sum(n for _a, n, _p in rows) == len(progs)
+
+
+def test_the_ring_has_a_wedge_and_a_key_row_an_area_and_the_total_in_the_middle():
+    rows = [("Metabolic", 3, {"Phase 3": 1, "Phase 1": 2}), ("Oncology", 1, {"Phase 2": 1})]
+    markup = PC.area_pie_html(rows, {"Metabolic": "#111111", "Oncology": "#222222"},
+                              order=["Phase 3", "Phase 2", "Phase 1"])
+    assert markup.count('<g class="s"') == 2 and markup.count('class="kr"') == 2
+    assert '<g class="c0"><text class="n"' in markup and ">4</text>" in markup
+    # The hover readout: the count, the area and how it stands by phase.
+    assert ">3</text>" in markup and ">Metabolic</text>" in markup
+    assert ">1 Ph 3 · 2 Ph 1</text>" in markup
+    assert "<title>Metabolic: 3 compounds (75%). 1 Ph 3 · 2 Ph 1</title>" in markup
+    assert 'data-i="1"' in markup and "background:#222222" in markup
+    assert PC.area_pie_html([], {}) == "" and PC.area_pie_html([("A", 0, {})], {}) == ""
+    # One area is a whole ring, drawn as two halves.
+    whole = PC.area_pie_html([("Oncology", 5, {"Phase 1": 5})], {})
+    assert whole.count(" Z") == 2
+
+
+def test_the_key_hover_rules_cover_every_row_the_ring_can_draw():
+    import importlib
+    theme = importlib.import_module("theme")
+    css = theme.css()
+    assert '.apie:has(.kr[data-i="15"]:hover) .s[data-i="15"] path { opacity: 1; }' in css
+    assert "{{" not in css.split(".apie {")[1].split(".apie-key")[0]
+
+
+def test_the_ring_and_the_moved_line_keep_house_style():
+    visible = " ".join(_text(m) for m in (
+        PC.area_pie_html([("Metabolic", 3, {"Phase 3": 3})], {}),
+        PC.pipeline_card_html(_programme(), None, TODAY, PC.moved_by_asset(SLIPS, TRIALS)[7]),
+        PC.ODDS_TIP))
+    assert "—" not in visible and not any(w in visible.lower() for w in BANNED)
+
+
+def test_a_move_inside_one_month_is_said_in_days_to_the_day():
+    row = [{"nct": "NCT1", "was": "2029-02-01", "now": "2029-02-28", "days": 27, "moves": 1}]
+    text = _text(PC.pipeline_card_html(_programme(), None, TODAY, row))
+    assert "1 Feb 2029 → 28 Feb 2029 +27 days" in text
+    assert PC.day_text("2029-02") == "Feb 2029" and PC.day_text("") == ""

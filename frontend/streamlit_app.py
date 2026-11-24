@@ -4833,15 +4833,26 @@ def _pipe_group(p: dict) -> str:
     return p.get("phase") or "unphased"
 
 
-def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict) -> None:
-    """The Portfolio tab's pipeline side: the compounds in development as cards, one phase
-    at a time, each opening onto its own studies.
+# The card grid's own height on the Pipeline side, in pixels. The grid scrolls inside it,
+# so the side reads as one screen: the ring, the filters and the first rows of cards are
+# in view together, and a long pipeline scrolls in place rather than the page.
+_PIPE_CARDS_H = 560
+
+
+def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict,
+                        moved: dict | None = None, unbound: list | None = None) -> None:
+    """The Portfolio tab's pipeline side on one screen: the compounds by disease area as a
+    ring at the left, and the compounds in development as cards at the right, one phase at
+    a time, each opening onto its own studies.
 
     The compounds are the programmes list's own (``/programmes``) and the odds and values are
     the forecast's (``PC.book_from_verdict``), so nothing here is a second reading of
-    either. A phase is picked from a row of pills, as an area is on the marketed side:
-    Lilly has fifty-five compounds in Phase 1, and one grid of all eighty-eight would be
-    most of them, in the order nobody reads a pipeline in.
+    either. Each card carries what the programmes list and the moved dates used to say
+    beneath it: the trials and their next due date, the value or why there is none, and
+    any study date the registry moved (``/changes``, bound to the compound through
+    ``/trials``). A phase is picked from a row of pills, as an area is on the marketed
+    side: Lilly has fifty-five compounds in Phase 1, and one grid of all eighty-eight
+    would be most of them, in the order nobody reads a pipeline in.
     """
     today = dt.date.today()
     if not programmes:
@@ -4850,7 +4861,6 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
               "to pull the registry and bind them.")
         return
     summary = PC.pipeline_summary(programmes, book, today)
-    section(f"{ticker} pipeline", f"{summary['n']} compounds &middot; click one for its trials")
     nxt = summary["next"]
     st.markdown(
         '<div class="pos">'
@@ -4869,45 +4879,76 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
         f'<span class="sub">{html_escape(nxt[1]) if nxt else "no dated study ahead"}</span></div>'
         '</div>', unsafe_allow_html=True)
 
-    groups: dict = {}
-    for p in programmes:
-        groups.setdefault(_pipe_group(p), []).append(p)
-    order = [g for g in _PIPE_PHASES + FILING_STAGES + ["named in the filing"] if g in groups]
-    order += [g for g in groups if g not in order]
-    labels = {g: f"{g} ({len(groups[g])})" for g in order}
-    picked = st.pills("Phase", [labels[g] for g in order], default=labels[order[0]],
-                      key=f"pipe_phase_{ticker}", label_visibility="collapsed")
-    chosen = next((g for g in order if labels[g] == picked), order[0])
-    shown = groups[chosen]
-    # The areas of the phase that is open, as a second row only where there is more than
-    # one to choose between. None picked is all of them.
-    areas: dict = {}
-    for p in shown:
-        for a in (p.get("areas") or [])[:1] or ["Area not stated"]:
+    moved = moved or {}
+    unbound = unbound or []
+
+    ring_col, cards_col = st.columns([1, 3.4], gap="medium")
+    with ring_col:
+        rows = PC.area_counts(programmes, _pipe_group)
+        colours = area_colours([a for a, _n, _ph in rows if a != PC.NO_AREA])
+        colours[PC.NO_AREA] = TK.RULE_STRONG
+        st.markdown('<div class="subhead">By disease area<span>hover for the count</span>'
+                    '</div>', unsafe_allow_html=True)
+        st.markdown(PC.area_pie_html(rows, colours, _PIPE_PHASES + FILING_STAGES, AREA_SHORT),
+                    unsafe_allow_html=True)
+
+    with cards_col:
+        groups: dict = {}
+        for p in programmes:
+            groups.setdefault(_pipe_group(p), []).append(p)
+        order = [g for g in _PIPE_PHASES + FILING_STAGES + ["named in the filing"] if g in groups]
+        order += [g for g in groups if g not in order]
+        labels = {g: f"{g} ({len(groups[g])})" for g in order}
+        picked = st.pills("Phase", [labels[g] for g in order], default=labels[order[0]],
+                          key=f"pipe_phase_{ticker}", label_visibility="collapsed")
+        chosen = next((g for g in order if labels[g] == picked), order[0])
+        shown = groups[chosen]
+        # The areas of the phase that is open, as a second row only where there is more
+        # than one to choose between. None picked is all of them. An area is a compound's
+        # lead area, as the ring counts it.
+        areas: dict = {}
+        for p in shown:
+            a = PC.lead_area(p)
             areas[a] = areas.get(a, 0) + 1
-    area = None
-    if len(areas) > 1:
-        a_labels = {a: f"{a} ({n})" for a, n in sorted(areas.items(), key=lambda kv: (-kv[1], kv[0]))}
-        a_picked = st.pills("Disease area", list(a_labels.values()), default=None,
-                            key=f"pipe_area_{ticker}_{re.sub(r'[^a-z0-9]+', '_', chosen.lower())}",
-                            label_visibility="collapsed")
-        area = next((a for a, label in a_labels.items() if label == a_picked), None)
-        if area:
-            shown = [p for p in shown
-                     if ((p.get("areas") or [])[:1] or ["Area not stated"])[0] == area]
-    worth = [(book.get(p.get("asset_id")) or {}).get("per_share") for p in shown
-             if (book.get(p.get("asset_id")) or {}).get("state") == "valued"]
-    worth = [v for v in worth if v is not None]
-    section(chosen + (f", {area}" if area else ""),
-            f"{len(shown)}" + (f" &middot; {len(worth)} valued at {T.num(sum(worth), 2)} a share"
-                               if worth else ""))
-    open_key = f"pipe_open_{ticker}"
-    clicked = prodcards.product_cards(
-        [{"asset_id": p.get("asset_id"),
-          "html": PC.pipeline_card_html(p, book.get(p.get("asset_id")), today)}
-         for p in PC.pipeline_order(shown, book)],
-        tokens=_CARD_TOKENS, selected=st.session_state.get(open_key),
-        key=f"pipe_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', (chosen + ' ' + (area or '')).lower())}")
+        area = None
+        if len(areas) > 1:
+            a_labels = {a: f"{a} ({n})" for a, n in sorted(areas.items(), key=lambda kv: (-kv[1], kv[0]))}
+            a_picked = st.pills("Disease area", list(a_labels.values()), default=None,
+                                key=f"pipe_area_{ticker}_{re.sub(r'[^a-z0-9]+', '_', chosen.lower())}",
+                                label_visibility="collapsed")
+            area = next((a for a, label in a_labels.items() if label == a_picked), None)
+            if area:
+                shown = [p for p in shown if PC.lead_area(p) == area]
+        worth = [(book.get(p.get("asset_id")) or {}).get("per_share") for p in shown
+                 if (book.get(p.get("asset_id")) or {}).get("state") == "valued"]
+        worth = [v for v in worth if v is not None]
+        n_moved = sum(1 for p in shown if moved.get(p.get("asset_id")))
+        line = " &middot; ".join(x for x in (
+            html_escape(chosen + (f", {area}" if area else "")),
+            f"{len(shown)} compound{'' if len(shown) == 1 else 's'}",
+            f"{len(worth)} valued at {T.num(sum(worth), 2)} a share" if worth else "",
+            f"{n_moved} with a study date moved in the last {DV.SLIP_DAYS} days"
+            if n_moved else "",
+            "click a card for its trials") if x)
+        st.markdown(f'<div class="pipe-line">{line}</div>', unsafe_allow_html=True)
+        open_key = f"pipe_open_{ticker}"
+        with st.container(height=_PIPE_CARDS_H, border=False, key=f"pipe_grid_{ticker}"):
+            clicked = prodcards.product_cards(
+                [{"asset_id": p.get("asset_id"),
+                  "html": PC.pipeline_card_html(p, book.get(p.get("asset_id")), today,
+                                                moved.get(p.get("asset_id")))}
+                 for p in PC.pipeline_order(shown, book)],
+                tokens=_CARD_TOKENS, selected=st.session_state.get(open_key),
+                key=f"pipe_cards_{ticker}_{re.sub(r'[^a-z0-9]+', '_', (chosen + ' ' + (area or '')).lower())}")
+        if unbound:
+            # A moved study bound to no compound or product has no card to sit on, so it is
+            # named here rather than dropped.
+            st.markdown(
+                f'<div class="pipe-line" title="{html_escape(PC._moved_tip(unbound))}">'
+                f'{len(unbound)} more study date{"" if len(unbound) == 1 else "s"} moved in '
+                f'the last {DV.SLIP_DAYS} days on studies bound to no compound: '
+                f'{html_escape(", ".join(r["nct"] for r in unbound))}</div>',
+                unsafe_allow_html=True)
     # Acted on once: the nonce changes with each click, so a rerun for any other reason
     # does not reopen a dialog that was closed.
     if isinstance(clicked, dict) and clicked.get("nonce") != st.session_state.get("pipe_click_nonce"):
@@ -4920,35 +4961,10 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
         @st.dialog(str(opened.get("name") or "Compound"), width="large",
                    on_dismiss=lambda: st.session_state.pop(open_key, None))
         def _trials():
-            st.markdown(PC.trials_html(opened, book.get(opened.get("asset_id")), today)
+            st.markdown(PC.trials_html(opened, book.get(opened.get("asset_id")), today,
+                                       moved.get(opened.get("asset_id")))
                         .replace("$", "&#36;"), unsafe_allow_html=True)
         _trials()
-
-
-def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
-                     launch: dict = None) -> str:
-    """The programmes list's rightmost column: what the compound is worth a share, or why not.
-
-    Four states, and the difference between the last two is the point. "no forecast"
-    means nobody has written the assumptions. The refused row means they were written,
-    the engine read them and stopped on a named gap, which is a piece of work with a next
-    step attached rather than an absence. A valued figure whose launch year falls before
-    the earliest approval the evidence allows is underlined, red or amber, with the
-    floor's message as its tooltip; a part year is information and carries nothing.
-    """
-    if asset_id in valued:
-        figure = _launch_flagged(T.num(valued[asset_id] or 0, 2), launch)
-        return (f'<span class="prog-v" title="rNPV a share, counted in the '
-                f'company total">{figure}</span>')
-    if asset_id in held:
-        figure = T.num(held[asset_id] or 0, 2) if held[asset_id] else "held"
-        return (f'<span class="prog-v off" title="built on a placeholder curve, '
-                f'so it is shown and not counted">{figure} *</span>')
-    if asset_id in blocked:
-        want = ", ".join(str(x) for x in blocked[asset_id][:6]) or "inputs"
-        return (f'<span class="prog-v off" title="the engine stopped on: '
-                f'{html_escape(want)}">needs</span>')
-    return '<span class="prog-v off" title="no assumptions on file">&mdash;</span>'
 
 
 # --- Catalysts: At stake (comps-valuation.md section 12) -------------------------------
@@ -10268,38 +10284,6 @@ def _coverage_view(api_base: str) -> None:
 # The week's counted record on the Universe tab used to carry these for the whole group.
 # A slip is a fact about a study and an expiry a fact about a product, so each is read
 # where the company's studies and products are, both on the Portfolio tab.
-def _slips_block(feed: list, ticker: str, trials: list | None = None) -> None:
-    """Completion dates that slipped, drawn as each study's old date to its new one, each
-    study named by the drug and phase the registry maps it to where it has them."""
-    rows = DV.slip_rows(feed, dt.date.today())
-    known = {t.get("nct_id"): t for t in trials or []}
-
-    def label(r):
-        t = known.get(r["nct"]) or {}
-        phase = (t.get("phase") or "").replace("Phase ", "Ph ").replace("/Phase ", "/")
-        parts = [p for p in (t.get("asset_name"), phase, r["nct"]) if p]
-        return " · ".join(parts) + (f" ×{r['moves']}" if r["moves"] > 1 else "")
-    if not rows:
-        return
-    later = [r for r in rows if r["days"] > 0]
-    section("Completion dates that moved",
-            count=(f"{len(later)} later, {len(rows) - len(later)} earlier"
-                   if len(later) < len(rows) else f"{len(rows)} slipped"),
-            basis=f"last {DV.SLIP_DAYS} days")
-    R.show(CH.dumbbell(
-        [{"label": label(r),
-          "start": DV.first_day(r["was"]).toordinal(), "end": DV.first_day(r["now"]).toordinal()}
-         for r in rows],
-        1100, 34 + 22 * len(rows),
-        tick_fmt=lambda v: dt.date.fromordinal(int(v)).strftime("%b %Y")),
-        css_class="chart-mount stretch")
-    note("Each study's estimated primary completion as the registry stated it before (open "
-         "dot) and after (filled), seen in the last " + str(DV.SLIP_DAYS) + " days. A study "
-         "moved more than once is taken from its first date to its last (×n). A move of a "
-         "date that had already passed is a correction and is left out. These are "
-         "registry estimates, not result dates.")
-
-
 def _loe_soon_block(feed: list) -> None:
     """Patents and exclusivities ending soon, on a time axis from today."""
     today = dt.date.today()
@@ -11614,8 +11598,8 @@ with main:
     _sells = _stage != "clinical"
     _wanted = [("universe", "Universe"), ("insights", "Key insights"),
                ("prices", "Prices"), ("financials", "Financials")]
-    # There is no Trials tab: the registry's studies, by area and by compound, read under
-    # the compound cards on the Portfolio tab's Pipeline side (_trials_section).
+    # There is no Trials tab: the registry's studies read on the compound cards of the
+    # Portfolio tab's Pipeline side, and in full in the dialog each card opens.
     # Every company has a Portfolio: what it sells and what it is developing, as assets. It
     # was offered only where something was sold, because it held marketed products alone
     # and drew three empty charts for a developer. It opens on the pipeline there now.
@@ -12390,342 +12374,6 @@ with main:
 
 
 
-    # The registry's studies, drawn under the compound cards on the Portfolio tab's
-    # Pipeline side. They were a Trials tab of their own, a second place to read the same
-    # pipeline from; the compounds and the studies behind them now read in one place.
-    def _trials_section():
-        # --- Therapeutic areas: click a band to reveal its trials ---
-        # Development trials drive the bars and the "in development" count. Two kinds of
-        # work carry a development phase but are not new development, so they are pulled
-        # out and flagged rather than counted in it: Phase 4, which runs after approval,
-        # and long-term follow-up, extension and rollover studies, which follow a product
-        # through the rest of its life. Each is a distinct muted cap on the bar and a
-        # tagged pill, so they can be read without inflating the pipeline.
-        every = api_get(api_base, f"/companies/{ticker}/trials")["trials"]
-        LIFECYCLE = {"Phase 4": "post-approval", "Follow-up": "follow-up"}
-
-        def _bucket(t):
-            """The pill and segment a trial belongs to: its development phase, or the
-            lifecycle bucket that takes it out of development."""
-            if t["phase"] in POST_APPROVAL:
-                return "Phase 4"
-            if t.get("follow_up"):
-                return "Follow-up"
-            return PHASE_MERGE.get(t["phase"], t["phase"])
-
-        # A marketed product running a new-indication trial is not a compound in
-        # development: Zepbound and Verzenio are products, and counting them here made
-        # the chart say 91 where the programme list below said 78. Their trials belong
-        # to the product, and the Portfolio tab is where they read.
-        # A marketed product running a new-indication trial is not a compound in
-        # development: Zepbound and Verzenio are products, and counting their studies
-        # here made the chart say 91 compounds where the programme list below said 78.
-        # Their trials belong to the product, and the product fact sheet is where they
-        # read. One set of compounds now drives the bars, the pills and the list.
-        every = [t for t in every if not t.get("asset_is_marketed")]
-        dev = [t for t in every if _bucket(t) in DISPLAY_PHASES]
-        post = [t for t in every if _bucket(t) == "Phase 4"]
-        followup = [t for t in every if _bucket(t) == "Follow-up"]
-
-        # The count lives under the programme list, which is where it can be checked
-        # against the compounds it counts. Saying it twice invited the two to disagree.
-        # The chart is built here and drawn under "By area" below. It is a summary of
-        # the list, and a summary that costs three quarters of the first screen buys
-        # its space from the thing it summarises.
-        _area_chart = None
-        # Defined before the branch: the programme list below reads these, and a company
-        # with no trials draws no pills to set them.
-        area_pick: list = []
-        phase_pick: list = []
-        if not every:
-            state(f"No trials on file for {ticker}",
-                  "Press Refresh all in the top bar to pull ClinicalTrials.gov, "
-                  "or pick another company in the sidebar.")
-        else:
-            # A compound is placed once per area, at the furthest phase it has reached
-            # there, which is how a pipeline is read: a molecule in Phase 3 and still
-            # running its Phase 1 work is a Phase 3 asset, counted once. Counting every
-            # study instead made an area look larger for being run in more pieces.
-            PHASE_RANK = {ph: i for i, ph in enumerate(
-                list(DISPLAY_PHASES) + list(LIFECYCLE))}
-
-            furthest: dict = {}
-            for t in every:
-                if not t.get("asset_id"):
-                    continue           # no compound to attribute it to
-                key = (t["area"], t["asset_id"])
-                bucket = _bucket(t)
-                if key not in furthest or PHASE_RANK.get(bucket, -1) > PHASE_RANK.get(
-                        furthest[key], -1):
-                    furthest[key] = bucket
-
-            bucket_area = Counter((area, bucket)
-                                  for (area, _asset), bucket in furthest.items())
-            all_area = Counter(area for (area, _asset) in furthest)
-            dev_area = Counter(area for (area, _asset), bucket in furthest.items()
-                               if bucket in DISPLAY_PHASES)
-            # Bars keep development order and shape; an area with only lifecycle work
-            # falls to the end, so an approved product with no active development is
-            # still on the chart and selectable.
-            order = [a for a, _ in dev_area.most_common()]
-            order += [a for a in all_area if a not in dev_area]
-            counts = dict(all_area)
-
-            # The selection is read before the chart is drawn, so the bars can dim,
-            # but the chips are rendered after it: the chart is what tells you which
-            # area to pick, so it comes first and the controls sit under it with the
-            # phase pills, as one band of filters rather than two split around it.
-            chosen = st.session_state.get(f"area_pills_{ticker}") or []
-
-            # Stacked by phase so the shape of an area reads at a glance: one that is
-            # all Phase 1 is a different proposition from one carrying Phase 3, even
-            # at the same trial count. The phase ramp brightens toward market, so an
-            # area's proximity to approval reads directly. Past the ramp, Phase 4 and
-            # follow-up sit in the muted colour, flagged as lifecycle rather than
-            # coloured as the next rung. Selecting dims the rest to the hairline colour
-            # rather than fading opacity, which kept the segments legible.
-            stack_rows = []
-            for area in order:
-                dimmed = bool(chosen) and area not in chosen
-                segments = []
-                for ph in DISPLAY_PHASES:
-                    count = bucket_area.get((area, ph), 0)
-                    if not count:
-                        continue
-                    segments.append({
-                        "name": f"{ph}, {count} compound{'s' if count != 1 else ''}",
-                        "value": count,
-                        "colour": TK.RULE if dimmed else TK.PHASE_RAMP[ph]})
-                for life, tag in LIFECYCLE.items():
-                    count = bucket_area.get((area, life), 0)
-                    if not count:
-                        continue
-                    segments.append({
-                        "name": f"{life}, {count} compound{'s' if count != 1 else ''}, {tag}",
-                        "value": count,
-                        "colour": TK.RULE if dimmed else TK.MUTED})
-                stack_rows.append({"label": area_label(area), "segments": segments})
-            legend = [(p, TK.PHASE_RAMP[p]) for p in DISPLAY_PHASES]
-            tags = [t for t, has in (("Phase 4", post), ("follow-up", followup)) if has]
-            if tags:
-                legend.append((" and ".join(tags) + ", post-development", TK.MUTED))
-            # Sized for the column it sits in rather than the page it used to span.
-            _area_chart = CH.stacked_bar(
-                stack_rows, 560, max(170, 30 * len(order) + 30),
-                value_fmt=lambda v: f"{v:.0f}", legend=legend)
-
-            # Pills stay plain labels: rewriting a pill's own label as it is selected made
-            # its highlight take two clicks. The count for what is selected shows in a line
-            # beneath instead, so a number still appears only once something is highlighted.
-            # The return value is captured, not just the session key, so the programmes
-            # list below filters on the same pick in the same run rather than a rerun
-            # behind. Keyed per company, since one company's areas are not another's.
-            area_pick = st.pills(
-                "Therapeutic area", order, selection_mode="multi",
-                key=f"area_pills_{ticker}", label_visibility="collapsed") or []
-
-            # Phase narrows the compound list the same way area does, so both pill rows
-            # act on one thing. Phase 4 and Follow-up join the pills only when the company
-            # has any. Labels stay plain for the same reason as the areas; the count for
-            # what is picked shows beneath.
-            bucket_counts = Counter(_bucket(t) for t in every)
-            phase_options = list(DISPLAY_PHASES)
-            if post:
-                phase_options.append("Phase 4")
-            if followup:
-                phase_options.append("Follow-up")
-            phase_pick = st.pills(
-                "Phase", phase_options, selection_mode="multi",
-                key=f"phase_pills_{ticker}", label_visibility="collapsed") or []
-
-
-        # Side by side, because the chart is read against the list rather than instead
-        # of it: the areas say what the company is, the rows say what it holds, and an
-        # analyst scanning one wants the other in view. Stacked, the chart pushed the
-        # first compound three quarters of the way down the screen; behind a tab it was
-        # out of sight exactly when it was useful. In a column it is neither.
-        _chart_col, _list_col = st.columns([1, 1.6], gap="medium")
-        if _area_chart:
-            with _chart_col:
-                section(f"{ticker} by therapeutic area")
-                R.show(_area_chart)
-        with _list_col:
-            # --- Programmes: the compounds behind the studies -------------------
-            # A trial list answers what is running; this answers what is being developed.
-            # Each row is a compound the company is trialling but does not yet sell, bound to
-            # its studies through the intervention names the registry publishes.
-            programmes = api_get(api_base,
-                                 f"/companies/{ticker}/programmes").get("programmes") or []
-            phase_order = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1",
-                           "Phase 4", "unphased"]
-
-            # The pills above drive this list, so the spotlight on the chart and the compounds
-            # underneath are one selection rather than two controls saying different things.
-            # Area matches every area a compound is studied in, not just the one most of its
-            # trials sit in; phase matches the furthest it has reached, which is the heading
-            # it sits under. What the filter left shows in the section count, so clicking a
-            # pill adds no line of its own.
-            # What each compound is worth, so the pipeline reads as a book of value and not
-            # only a list of studies. The forecast tab already computes this; without it here
-            # a compound modelled at two dollars a share and one nobody has valued look the
-            # same, which is the opposite of what the list is for. Cached for thirty seconds
-            # like every other call, so opening both tabs computes it once. A forecast that
-            # cannot be built must never take the pipeline down with it.
-            try:
-                _v = api_get(api_base, f"/companies/{ticker}/forecast-verdict")
-            except Exception:
-                _v = {}
-            _shares = _v.get("diluted_shares") or 0
-            valued = {m["asset_id"]: m.get("per_share")
-                      for m in (_v.get("modelled") or []) if m.get("asset_id")}
-            # Shown and not counted: the engine ran it on a placeholder curve, so the figure
-            # exists but the company total deliberately excludes it. Marked, never hidden.
-            held = {m["asset_id"]: (m.get("rnpv_share") or 0) * 1e6 / _shares if _shares
-                    else None for m in (_v.get("placeholders") or []) if m.get("asset_id")}
-            blocked = {m["asset_id"]: (m.get("missing") or [])
-                       for m in (_v.get("refused") or []) if m.get("asset_id")}
-
-            # The launch floor of each valued line, so a launch year the registry and the
-            # FDA clock rule out is flagged on the figure it feeds.
-            launches = {m["asset_id"]: m.get("launch")
-                        for m in (_v.get("modelled") or []) if m.get("asset_id")}
-
-            def _value_cell(asset_id) -> str:
-                return _prog_value_cell(asset_id, valued, held, blocked,
-                                        launches.get(asset_id))
-
-            total_programmes = len(programmes)
-            if area_pick:
-                programmes = [p for p in programmes
-                              if set(p.get("areas") or []) & set(area_pick)]
-            if phase_pick:
-                programmes = [p for p in programmes if p.get("phase") in phase_pick]
-
-            def _group_of(p):
-                if p.get("source") == "filing":
-                    return p.get("stage") or "named in the filing"
-                return p.get("phase") or "unphased"
-
-            shown_counts = " · ".join(
-                f'{n} {ph}' for ph, n in
-                ((ph, sum(1 for p in programmes if _group_of(p) == ph))
-                 for ph in phase_order + FILING_STAGES + ["named in the filing"]) if n)
-            count = (f"{len(programmes)} of {total_programmes} compounds"
-                     if len(programmes) != total_programmes
-                     else f"{total_programmes} compounds")
-            # The value of what is shown, not of the whole pipeline, so the figure agrees
-            # with the rows under it when a pill is filtering the list.
-            _shown_value = sum(valued.get(p.get("asset_id")) or 0 for p in programmes)
-            _shown_n = sum(1 for p in programmes if valued.get(p.get("asset_id")))
-            value_txt = (f" · {_shown_n} valued at {T.num(_shown_value, 2)} a share"
-                         if _shown_n else "")
-            section("Programmes in development",
-                    count + (f" · {shown_counts}" if shown_counts else "") + value_txt)
-
-            # Grouped by the furthest phase each compound has reached, most advanced first,
-            # and every phase is shown: early work is most of a pipeline by count, and a
-            # Phase 1 programme is the part an analyst is being paid to find early.
-            # A programme with no registered trial is grouped by the stage its filing states,
-            # under a heading of its own. Never mixed in with a phase: a phase is a study that
-            # exists and a stage is a sentence, and putting "IND cleared" in the Phase 1 group
-            # would be reading the sentence as the study.
-            by_phase: dict = {}
-            for p in programmes:
-                by_phase.setdefault(_group_of(p), []).append(p)
-            phase_order = phase_order + [s for s in FILING_STAGES if s in by_phase] + [
-                "named in the filing"]
-            if not programmes:
-                state(f"No unapproved compounds mapped for {ticker}",
-                      "Programmes are derived from the drug each trial names. Press Refresh "
-                      "all to pull the registry and bind them.")
-            else:
-                # Not named html: at the top level of the script that name is the html module,
-                # and a list in its place broke every later caller of html.unescape and html.escape.
-                progs_html = ['<div class="progs">']
-                for ph in phase_order:
-                    group = by_phase.get(ph)
-                    if not group:
-                        continue
-                    # Late phase open, early phase folded. Most of a pipeline by count is
-                    # Phase 1, and for Lilly that is 43 rows of internal codes between the
-                    # reader and the end of the list. The count stays on every heading, so
-                    # a folded group still says how large it is, and opening one is a click
-                    # against the browser rather than a rerun. A phase the pills asked for
-                    # is open whatever its stage, because asking for it is the request to
-                    # read it, and a short list is left open in full.
-                    _worth_here = [valued[p["asset_id"]] for p in group
-                                   if p.get("asset_id") in valued
-                                   and valued[p["asset_id"]] is not None]
-                    # Open where there is money in it. Folding is for the bulk nobody
-                    # reads, and a compound carrying a forecast is the opposite of that:
-                    # hiding its figure behind a click is hiding the one number on the
-                    # row worth crossing the page for.
-                    opened = " open" if (ph in ("Phase 3", "Phase 2/3")
-                                         or ph in phase_pick
-                                         or _worth_here
-                                         or len(programmes) <= 12) else ""
-                    # What the group is worth, on the heading. Folding hid the value
-                    # column behind a click, which is the one thing on the row nobody
-                    # should have to ask for twice: a folded phase now says how many
-                    # compounds it holds, how many of them carry a forecast, and what
-                    # they come to a share, so the money is readable shut.
-                    _sum = (f'<span class="prog-gv">&middot; {len(_worth_here)} valued '
-                            f'&middot; {T.num(sum(_worth_here), 2)}</span>'
-                            if _worth_here else "")
-                    progs_html.append(f'<details class="prog-g"{opened}>'
-                                f'<summary class="prog-h">{html_escape(ph)}'
-                                f'<span>{len(group)}{_sum}</span></summary>')
-                    for p in group:
-                        due = (p.get("next_readout") or "")[:10]
-                        # A native disclosure, so a programme opens onto its own studies
-                        # without a widget and without a rerun.
-                        studies = []
-                        for s in p.get("studies") or []:
-                            title = (s.get("title") or "").strip()
-                            title = title if len(title) <= 84 else title[:83].rstrip() + "…"
-                            studies.append(
-                                f'<div class="prog-s" title="{html_escape(s.get("title") or "")}">'
-                                f'<span class="d">{html_escape((s.get("due") or "")[:10] or "no date")}</span>'
-                                f'<span class="ph">{html_escape(s.get("phase") or "")}</span>'
-                                f'<a href="https://clinicaltrials.gov/study/{html_escape(s.get("nct_id") or "")}"'
-                                f' target="_blank" rel="noopener">{html_escape(title)}</a>'
-                                f'<span class="st">{html_escape(s.get("area") or "")}'
-                                f' · {html_escape(s.get("status") or "")}</span>'
-                                f'</div>')
-                        # The lead area, with a count when the compound spans more, so a
-                        # programme being developed across indications reads as one.
-                        areas = p.get("areas") or []
-                        area_txt = (f'{areas[0]}' if areas else "")
-                        if len(areas) > 1:
-                            area_txt += f' +{len(areas) - 1}'
-                        if p.get("source") == "filing":
-                            # No study to open, so the disclosure holds the sentence it was
-                            # read from and the filing that carried it. A reader who doubts
-                            # the row can check it without leaving the page.
-                            studies = [
-                                f'<div class="prog-s prog-ev">'
-                                f'<span class="d">{html_escape(p.get("form_type") or "")} '
-                                f'{html_escape((p.get("filed_date") or "")[:10])}</span>'
-                                f'<span class="q">{html_escape(p.get("evidence") or "")}</span>'
-                                f'</div>']
-                            area_txt = p.get("indication") or ""
-                        progs_html.append(
-                            f'<details class="prog"><summary>'
-                            f'<span class="prog-n">{html_escape(p.get("name") or "")}</span>'
-                            f'<span class="prog-a" title="{html_escape(", ".join(areas))}">'
-                            f'{html_escape(area_txt)}</span>'
-                            f'<span class="prog-t">'
-                            f'{"filing" if p.get("source") == "filing" else str(p.get("trials", 0)) + " trials"}'
-                            f'</span>'
-                            f'<span class="prog-d">{html_escape(due or "no date")}</span>'
-                            f'{_value_cell(p.get("asset_id"))}'
-                            f'</summary>{"".join(studies)}</details>')
-                    progs_html.append("</details>")
-                progs_html.append("</div>")
-                st.markdown("".join(progs_html), unsafe_allow_html=True)
-        _slips_block(feed, ticker, every)
-
-
     # --- Portfolio -------------------------------------------------------
     if portfolio_tab is not None:
         with portfolio_tab:
@@ -12753,6 +12401,15 @@ with main:
                         api_get(api_base, f"/companies/{ticker}/forecast-verdict"))
                 except Exception:
                     _book = {}
+                # The study dates the registry moved, put on the card of the compound or
+                # product each study is bound to. A read of the studies that fails leaves
+                # the cards without them rather than the tab.
+                try:
+                    _trials = api_get(api_base, f"/companies/{ticker}/trials").get("trials") or []
+                except Exception:                                   # noqa: BLE001
+                    _trials = []
+                _slips = DV.slip_rows(feed or [], dt.date.today())
+                _moved = PC.moved_by_asset(_slips, _trials)
                 _opens_on = "Marketed" if approvals else "Pipeline"
                 # Keyed as a Financials control so it takes that row's look: one row of
                 # choices, each named by the key beside it.
@@ -12762,8 +12419,9 @@ with main:
                         "Assets", ["Marketed", "Pipeline"], default=_opens_on,
                         label_visibility="collapsed", key=f"pf_side_{ticker}") or _opens_on
                 if _side == "Pipeline":
-                    _portfolio_pipeline(api_base, ticker, _programmes, _book)
-                    _trials_section()
+                    _bound = {m["nct"] for rows in _moved.values() for m in rows}
+                    _portfolio_pipeline(api_base, ticker, _programmes, _book, _moved,
+                                        [r for r in _slips if r["nct"] not in _bound])
                     return
                 # Revenue-mix data fetched once here: the donut renders above the product cards
                 # (inside the else), and the product-revenue list below reuses these rows.
@@ -13248,7 +12906,8 @@ with main:
                                 "earliest_left": (max(ey - today.year, 0) if is_range else None),
                                 "near": near and not lapsed, "note": note, "note_tip": note_tip,
                                 "value": (valued.get("per_share")
-                                          if valued.get("state") == "valued" else None)})
+                                          if valued.get("state") == "valued" else None),
+                                "moved": _moved.get(aid) if aid is not None else None})
 
                         prods_sorted = sorted(prods, key=lambda p: (-(p.get("revenue") or 0),
                                                                     _loe_year(p) or 9999))
