@@ -5,10 +5,14 @@ Streamlit lays the panels out on a CSS grid (``trading_view.grid_css``) and has 
 drag one. This is a frame of no height whose script works on the page that holds it,
 which it can reach because a component's frame is served from the page's own origin
 (``universe_page.click_pending_tab`` and ``covnav`` reach it the same way). It draws its
-handles in a layer of its own laid over the panels, and never touches the elements
-Streamlit draws, so nothing it does can upset the page's own rendering. While the reader
-drags, an outline shows the place and size the panel will take, snapped to the grid's
-cells. On release it sends that place, and Python settles the board round it
+handles in a layer of its own laid over the panels.
+
+While a panel is held the board is laid out live: the frame settles it by Python's own
+rule (``trading_view.settle``, copied line for line) and sets each panel's place on the
+grid in the page, so the panel grows, shrinks and moves under the pointer, the others
+make way, and every panel's content reflows as it goes. That place on the grid is the
+one thing it ever sets on what Streamlit draws, and it takes it away once Python's own
+draw of the board is in. On release it sends the place, and Python settles the board
 (``trading_view.place``) and draws it again.
 """
 
@@ -18,7 +22,7 @@ from pathlib import Path
 
 import streamlit.components.v1 as components
 
-REVISION = 1
+REVISION = 2
 _DIR = Path(__file__).resolve().parent
 _component = components.declare_component("boardgrid", path=str(_DIR))
 

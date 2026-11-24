@@ -1227,6 +1227,12 @@ details.prof-summary.long[open] > summary {{ display: none; }}
   margin: 0 !important; align-self: stretch !important; }}
 /* A panel fills its cells and keeps to them: its body scrolls, the panel never grows. */
 [class*="st-key-td_p_"] {{ height: 100%; overflow: hidden; gap: 0.4rem !important; }}
+/* A panel's body takes the height left under its rule, whatever the panel is sized to,
+   and follows it while a corner is dragged. Python gives the body a height from the
+   panel's rows; that is the first draw, and this is every size after it. */
+[class*="st-key-td_p_"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-td_body_"]) {{
+  flex: 1 1 0 !important; min-height: 0 !important; height: auto !important; }}
+[class*="st-key-td_body_"] {{ height: 100% !important; max-height: none !important; }}
 /* Where the panels sit, and the frame that moves them, take no room of their own. */
 [data-testid="stElementContainer"]:has(.td-gridcss),
 [data-testid="stElementContainer"]:has(iframe[title*="boardgrid"]) {{

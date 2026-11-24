@@ -653,11 +653,13 @@ def test_the_chart_component_has_a_height_it_keeps():
     frame = (component / "index.html").read_text()
     assert "fill: bool = True" in wrapper and "fill=fill" in wrapper
     assert "state.fill = a.fill !== false;" in frame
-    assert "if (state.fill === false) return floor;" in frame
+    # In a panel it takes the panel's height, never the window's.
+    assert "if (state.fill === false) return panelHeight(floor, gutter);" in frame
     # Fitted again when its width changes, and only in a panel: drawn in a hidden tab it
     # is a few pixels wide, and the bars stayed bunched at the right edge.
     assert "if (state.fill !== false || !chart) return;" in frame
-    assert frame.count("refit();") == 2
+    # On each draw, on a window resize, and when its panel is sized by a corner.
+    assert frame.count("refit();") == 3
 
 
 def test_the_drag_frame_draws_only_in_its_own_layer_and_sends_a_place_a_drag_at_a_time():
@@ -678,6 +680,46 @@ def test_the_drag_frame_draws_only_in_its_own_layer_and_sends_a_place_a_drag_at_
     assert 'zIndex: "110"' in script                         # under the top bar's 120
     wrapper = (FRONTEND / "components" / "boardgrid" / "__init__.py").read_text()
     assert "default=None" in wrapper and 'declare_component("boardgrid"' in wrapper
+
+
+def test_while_a_panel_is_held_the_frame_sets_only_where_each_panel_sits_and_undoes_it():
+    """The live layout is the one thing the frame sets on what Streamlit draws: a
+    panel's place on the grid. Every way a drag can end takes it away again."""
+    script = (FRONTEND / "components" / "boardgrid" / "index.html").read_text()
+    script = script.split("<script>", 1)[1]
+    set_on_boxes = set(re.findall(r"box\.style\.(\w+)\s*=", script))
+    assert set_on_boxes == {"gridColumn", "gridRow"}
+    body = lambda name: script.split(f"function {name}(", 1)[1].split("\nfunction ", 1)[0]  # noqa: E731
+    assert "clearPreview()" in body("cancel") and "clearPreview()" in body("cleanup")
+    assert body("end").count("clearPreview()") == 2          # a drag that changed nothing
+    assert "clearAfterDraw = true" in body("end")
+    assert "setTimeout(clearPreview" in script               # after Python's draw is in
+
+
+def test_the_frames_preview_settles_the_board_by_the_same_rule_as_python():
+    """The script is not run here, so its copy of settle is held to Python's by shape:
+    the one placed first, the rest in reading order pushed below what they hit, then
+    each risen as far as the panels above allow."""
+    script = (FRONTEND / "components" / "boardgrid" / "index.html").read_text()
+    settle = script.split("function settle(", 1)[1].split("\nfunction ", 1)[0]
+    assert "list.filter((p) => p.id === first)" in settle
+    assert "readingOrder(list.filter((p) => p.id !== first))" in settle
+    assert "p.y = Math.max.apply(null, hit.map((q) => q.y + q.h));" in settle
+    assert "while (y > 0 && !risen.some(" in settle
+    order = script.split("function readingOrder(", 1)[1].split("\n}", 1)[0]
+    assert "(a.y - b.y) || (a.x - b.x)" in order
+
+
+def test_a_panels_body_and_chart_follow_its_size_and_not_only_its_first_draw():
+    theme = (FRONTEND / "theme.py").read_text()
+    assert ':has(> [class*="st-key-td_body_"])' in theme and "flex: 1 1 0 !important" in theme
+    assert '[class*="st-key-td_body_"] {{ height: 100% !important;' in theme
+    chart = (FRONTEND / "components" / "drawchart" / "index.html").read_text()
+    assert "if (state.fill === false) return panelHeight(floor, gutter);" in chart
+    assert "frame.closest('[class*=\"st-key-td_p_\"]')" in chart
+    assert "window.parent.ResizeObserver" in chart and "panelWatch.observe(panel)" in chart
+    page = (FRONTEND / "trading_page.py").read_text()
+    assert "gutter=PRICE_UNDER" in page
 
 
 def test_the_frame_measures_the_grid_the_stylesheet_and_the_model_describe():

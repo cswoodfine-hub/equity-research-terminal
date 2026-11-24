@@ -326,3 +326,28 @@ move a price. Changed:
   Company news, Filings, Latest results and Growth and margin stay in Add panel.
 - **A heavy read that fails is held for half a minute**, so a cold book does not make
   every click wait for the street's estimates again.
+
+## Content that follows the panel, 2026-11-24
+
+Asked for the same day: a panel's content should resize as the panel is dragged.
+
+- **The board is laid out live while a panel is held.** The frame settles the board by
+  Python's own rule, copied line for line into its script, and sets each panel's place
+  on the grid in the page as the pointer moves: the held panel grows, shrinks or moves
+  under the pointer, the panels round it make way, and every panel's content reflows as
+  it goes. On release the place goes to Python, which settles the board itself; the live
+  places are taken away a frame after Python's draw is in, so nothing jumps back. A drag
+  that changes nothing, or is cancelled, takes them away at once. This is the one thing
+  the frame sets on what Streamlit draws, and a test reads its script to hold it there.
+- **A panel's body fills its panel at any size.** Python sets the body's height from the
+  panel's rows on the first draw; a stylesheet rule makes it take whatever height is left
+  under the rule after that, so the body follows the panel during a drag and not only on
+  the next draw. Figures were already drawn to their panel's width.
+- **The price chart follows its panel's height.** In a panel the chart takes the panel's
+  height below it, less the legend and notes under it, and watches the panel's size, so
+  it grows and shrinks with the drag. On the Prices tab it still fills the window.
+
+Checked in the copy: the price chart's corner dragged from 12 by 13 cells to 6 by 10, the
+chart redrawn at that size mid-drag and Fundamentals moved up under it before release;
+after release Python's layout matched and the live places were cleared. The scripts are
+not run by the suite; their rules are held by reading them.

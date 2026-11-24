@@ -36,7 +36,7 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 11
+REVISION = 12
 
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
@@ -50,6 +50,7 @@ SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for
 # and its figures, the legend and the notes. The chart takes the rest of the panel.
 PRICE_CHROME = 128
 PRICE_MIN = 140
+PRICE_UNDER = 44               # the legend and the notes' handle, under the chart
 HEAVY_TIMEOUT_S = 8            # a read that runs the forecast, waited for this long
 LIVE_TIMEOUT_S = 12
 
@@ -410,7 +411,7 @@ def _price(api_base, company, kit, rule, slot, frame, have):
             theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
                    "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                    "flag": TK.FLAG},
-            gutter=0, view_key=f"{company}|{span}",
+            gutter=PRICE_UNDER, view_key=f"{company}|{span}",
             height=max(PRICE_MIN, TV.area_px(frame["h"]) - PRICE_CHROME),
             fill=False, key=f"td_chart_{slot}")
         legend = (f'{TV.BAR_WORDS[step]} candles &nbsp;·&nbsp; '

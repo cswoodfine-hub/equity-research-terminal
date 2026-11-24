@@ -79,7 +79,7 @@ function availableHeight() {
      rendered correctly and was never seen. */
   const gutter = state.gutter || BOTTOM_GUTTER;
   const floor = state.minHeight || 560;
-  if (state.fill === false) return floor;
+  if (state.fill === false) return panelHeight(floor, gutter);
   try {
     const frame = window.frameElement;
     if (!frame) return floor;
@@ -90,6 +90,53 @@ function availableHeight() {
     return floor;                /* cross-origin, or no parent to measure */
   }
 }
+
+/* A chart that is one panel of the Trading tab's board takes the height its panel has
+   below it, less the legend under it, and follows the panel as the reader sizes it by a
+   corner: the panel's own size is watched, so the chart grows and shrinks with the drag
+   and not a moment after it. A chart in no such panel keeps the height Python gave. */
+const PANEL_MIN = 120;
+let panelWatch = null;
+
+function panelOf() {
+  try {
+    const frame = window.frameElement;
+    return frame ? frame.closest('[class*="st-key-td_p_"]') : null;
+  } catch (e) { return null; }
+}
+
+function panelHeight(floor, gutter) {
+  const panel = panelOf();
+  if (!panel) return floor;
+  try {
+    const box = panel.getBoundingClientRect();
+    if (box.height < 2) return floor;            /* a tab not open draws it at no size */
+    const top = window.frameElement.getBoundingClientRect().top;
+    return Math.max(PANEL_MIN, Math.round(box.bottom - top - gutter));
+  } catch (e) { return floor; }
+}
+
+function watchPanel() {
+  if (panelWatch || state.fill !== false) return;
+  const panel = panelOf();
+  if (!panel) return;
+  const Watch = window.parent.ResizeObserver || window.ResizeObserver;
+  if (!Watch) return;
+  panelWatch = new Watch(function () {
+    if (!chart) return;
+    const h = availableHeight();
+    if (h === state.height) return;
+    state.height = h;
+    chart.applyOptions({ width: chartEl.clientWidth, height: h });
+    refit();
+    sizeCanvas();
+    Streamlit.height(h + 2);
+  });
+  panelWatch.observe(panel);
+}
+window.addEventListener("pagehide", function () {
+  if (panelWatch) { panelWatch.disconnect(); panelWatch = null; }
+});
 
 function build() {
   const th = state.theme;
@@ -174,6 +221,7 @@ function render() {
             horzLines: { color: state.theme.rule } },
   });
   refit();
+  watchPanel();
   canvas.style.pointerEvents = state.draw ? "auto" : "none";   // else the chart pans
   canvas.style.cursor = state.draw ? "crosshair" : "default";
   hintEl.style.color = state.theme.muted || "#7E9098";

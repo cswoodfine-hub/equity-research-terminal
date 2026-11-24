@@ -10,9 +10,13 @@
    corner to size it. They live in a layer of their own in the page above this frame,
    laid over the panels by measuring them, and the panels themselves are never touched.
 
-   Nothing here decides where a panel ends up. It shows, snapped to the grid, the place
-   and size the pointer asks for, and sends that on release; Python settles the board
-   round it and draws it again, and the next draw brings the handles with it. */
+   While a panel is held, the board is laid out live: the panel takes, snapped to the
+   grid, the place and size the pointer asks for, the panels round it move out of its
+   way, and every panel's content reflows to its new size as it goes. That layout is a
+   preview, made by setting each panel's place on the grid in the page (settle, below, is
+   trading_view.settle line for line). On release the place goes to Python, which settles
+   the board itself and draws it again; the preview is taken away once that draw is in,
+   so the board does not jump back in between. */
 
 /* ---- Streamlit component protocol (no build step) ---- */
 function post(type, extra) {
@@ -179,6 +183,61 @@ function sync() {
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
+/* ---- the preview: trading_view.settle, line for line ---- */
+function overlap(a, b) {
+  return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+}
+function readingOrder(list) {
+  return list.slice().sort((a, b) => (a.y - b.y) || (a.x - b.x));
+}
+function settle(list, first) {
+  const lead = list.filter((p) => p.id === first);
+  const rest = readingOrder(list.filter((p) => p.id !== first));
+  const placed = [];
+  for (let p of lead.concat(rest)) {
+    p = Object.assign({}, p);
+    for (;;) {
+      const hit = placed.filter((q) => overlap(p, q));
+      if (!hit.length) break;
+      p.y = Math.max.apply(null, hit.map((q) => q.y + q.h));
+    }
+    placed.push(p);
+  }
+  const risen = [];
+  for (const p of readingOrder(placed)) {
+    let y = p.y;
+    while (y > 0 && !risen.some((q) => overlap(Object.assign({}, p, { y: y - 1 }), q))) y -= 1;
+    risen.push(Object.assign({}, p, { y: y }));
+  }
+  return risen;
+}
+
+const moved = new Set();            /* the panels' boxes given a place by the preview */
+let previewKey = "", clearAfterDraw = false;
+
+function preview(to) {
+  const key = [to.x, to.y, to.w, to.h].join(",");
+  if (key === previewKey) return;
+  previewKey = key;
+  const list = state.panels.map((p) => p.id === drag.id ? Object.assign({}, p, to) : p);
+  for (const p of settle(list, drag.id)) {
+    const box = boxEl(p.id);
+    if (!box) continue;
+    box.style.gridColumn = (p.x + 1) + " / span " + p.w;
+    box.style.gridRow = (p.y + 1) + " / span " + p.h;
+    moved.add(box);
+  }
+}
+
+/* Give the boxes back to the page's own stylesheet. */
+function clearPreview() {
+  for (const box of moved) {
+    try { box.style.gridColumn = ""; box.style.gridRow = ""; } catch (e) { /* gone */ }
+  }
+  moved.clear();
+  previewKey = "";
+}
+
 /* Where the pointer asks the panel to be, in cells, from where it started. */
 function proposal(e) {
   const p = drag.from, cell = drag.cell;
@@ -222,6 +281,7 @@ function move(e) {
   }
   drag.cell = cellSize(gridEl());          /* the page may have scrolled under the drag */
   drag.to = proposal(e);
+  preview(drag.to);
   const r = rectOf(drag.cell, drag.to);
   css(ghost, { display: "block", left: r.left + "px", top: r.top + "px",
                width: r.width + "px", height: r.height + "px" });
@@ -248,16 +308,19 @@ function end(e) {
   const d = drag;
   const to = d.started ? (d.to || proposal(e)) : null;
   finish();
-  if (!to) return;
+  if (!to) { clearPreview(); return; }
   const p = d.from;
-  if (to.x === p.x && to.y === p.y && to.w === p.w && to.h === p.h) return;
+  if (to.x === p.x && to.y === p.y && to.w === p.w && to.h === p.h) { clearPreview(); return; }
+  /* The preview stands until Python's draw of the board is in. */
+  clearAfterDraw = true;
   sent += 1;
   Streamlit.value({ token: TOKEN, n: sent, id: d.id, x: to.x, y: to.y, w: to.w, h: to.h });
 }
 
-function cancel() { if (drag) finish(); }
+function cancel() { if (drag) { finish(); clearPreview(); } }
 
 function cleanup() {
+  clearPreview();
   if (timer) clearInterval(timer);
   timer = null;
   try { if (doc) doc.removeEventListener("scroll", sync, true); } catch (e) { /* gone */ }
@@ -275,6 +338,12 @@ window.addEventListener("message", function (e) {
   state.gapPx = a.gap_px || 16;
   state.theme = a.theme || {};
   if (!ensureLayer()) return;
+  /* A new draw of the board after a drop: the page's stylesheet now places the panels
+     where the preview had them, so the preview is taken away a frame later. */
+  if (clearAfterDraw) {
+    clearAfterDraw = false;
+    setTimeout(clearPreview, 120);
+  }
   /* A frame from an earlier draw of the board may still hold the page's listeners. */
   try { const prev = window.parent.__tdGridCleanup; if (prev && prev !== cleanup) prev(); }
   catch (err) { /* that frame has gone, and its listeners with it */ }
