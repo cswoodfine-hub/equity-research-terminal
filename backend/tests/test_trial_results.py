@@ -148,3 +148,25 @@ def test_a_late_study_is_asked_before_an_early_one_however_recent(tmp_path):
     conn.close()
     # A study with no phase stated (observational, device) is not asked.
     assert due == ["NCT00000013", "NCT00000011", "NCT00000012"]
+
+
+def test_a_posted_study_is_asked_again_once_a_year_and_an_unposted_one_every_90_days(tmp_path):
+    """Posted results are stored and rarely change, so they are re-read once a year for a
+    correction; a study with nothing posted is re-asked at 90 days, to find a posting."""
+    path = str(tmp_path / "tr.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Lilly')")
+    conn.execute("INSERT INTO assets (id, owner_company_id, generic_name) VALUES (1, 1, 'Omvoh')")
+    asked = (("NCT00000021", 1, 120), ("NCT00000022", 1, 400),
+             ("NCT00000023", 0, 120), ("NCT00000024", 0, 30))
+    for nct, posted, days_ago in asked:
+        conn.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, asset_id,"
+                     " phase, completion_date) VALUES (?, 1, 1, 'Phase 3', '2024-01-01')",
+                     (nct,))
+        conn.execute("INSERT INTO trial_result_fetches (nct_id, has_results, fetched_at)"
+                     " VALUES (?, ?, datetime('now', ?))", (nct, posted, f"-{days_ago} days"))
+    conn.commit()
+    due = TR.TrialResultsFetcher("LLY", path).due(conn)
+    conn.close()
+    assert sorted(due) == ["NCT00000022", "NCT00000023"]

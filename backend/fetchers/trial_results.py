@@ -22,8 +22,10 @@ Run for the big pharma companies only, on their studies of every phase mapped to
 asset: Phase 2 and later first, newest completion first, then Phase 1 and Phase 4, so the
 studies the odds and the clinical scorecard read are never queued behind early work. A
 Phase 1 study is not required to post results and few do; a Phase 4 study often does. A
-study is asked once and again only when it is 90 days stale, since posted results rarely
-change; the registry is asked in batches of 20 by NCT id.
+study with nothing posted is asked again when it is 90 days stale, which is how a new
+posting is found; one whose results are posted and stored is asked again once a year,
+for a correction, since posted results rarely change. The registry is asked in batches
+of 20 by NCT id.
 """
 
 from __future__ import annotations
@@ -41,6 +43,11 @@ import contact
 SOURCE = "trial_results"
 TTL_SECONDS = 24 * 60 * 60
 REFETCH_DAYS = 90
+# A study whose results are posted and stored is asked again once a year, for a sponsor's
+# correction: posted results rarely change, and asking every 90 days spent most of a
+# night's cap re-reading what the book already holds. A study with nothing posted is
+# still asked every REFETCH_DAYS, which is how a new posting is found.
+POSTED_REFETCH_DAYS = 365
 BATCH = 20
 MAX_STUDIES_PER_RUN = 1500      # a first run over a large sponsor finishes over several nights
 SECONDARY_KEPT = 10
@@ -226,7 +233,8 @@ class TrialResultsFetcher(BaseFetcher):
 
     def due(self, conn) -> list[str]:
         """The company's studies to ask about: of any phase, mapped to an asset, never
-        asked or asked more than REFETCH_DAYS ago. Phase 2 and later first, then Phase 1
+        asked, asked more than REFETCH_DAYS ago with nothing posted, or more than
+        POSTED_REFETCH_DAYS ago with results posted. Phase 2 and later first, then Phase 1
         and Phase 4, each newest completion first, so the cap on a run never leaves a late
         study waiting behind an early one."""
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
@@ -252,10 +260,11 @@ class TrialResultsFetcher(BaseFetcher):
                        AND UPPER(REPLACE(overall_status, ' ', '_')) IN ({states}))
                  WHERE nct_id NOT IN (
                     SELECT nct_id FROM trial_result_fetches
-                     WHERE fetched_at >= datetime('now', ?))
+                     WHERE fetched_at >= datetime('now', CASE WHEN has_results = 1
+                                                              THEN ? ELSE ? END))
                  GROUP BY nct_id ORDER BY early, done DESC""",
             (*LATE, company["id"], *PHASES, *LATE, company["id"], *PHASES, *POSTABLE,
-             f"-{REFETCH_DAYS} days")).fetchall()
+             f"-{POSTED_REFETCH_DAYS} days", f"-{REFETCH_DAYS} days")).fetchall()
         return [r["nct_id"] for r in rows][:MAX_STUDIES_PER_RUN]
 
     def fetch(self) -> dict:
