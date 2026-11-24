@@ -6,11 +6,17 @@ trials that read out and what they measured, and every one of those is completed
 therefore absent.
 
 This asks the same registry a different question, keeps the answer in its own table so
-nothing that counts the pipeline can pick it up, and stores only studies the registry
-marks as having results, since a completed study with nothing posted says nothing that
-can be read. Sorted newest first and capped per company, so a sponsor with two thousand
-finished studies costs a bounded number of requests and the most recent are always the
-ones on file.
+nothing that counts the pipeline can pick it up, and stores the studies the registry
+marks as having results. Sorted newest first and capped per company, so a sponsor with
+two thousand finished studies costs a bounded number of requests and the most recent are
+always the ones on file.
+
+It also stores the studies that completed in the last RECENT_DAYS with nothing posted
+yet. A sponsor posts results about a year after completion, and that year is when the
+company announces the result: a study that had left the running list and was not yet on
+this one had no place in the book, so ATTAIN-OSA, IDEAL, Tranquillo and the dazodalibep
+and enicepatide studies were each announced with nothing for the release to tie to. The
+study's own name (its acronym) is kept too, since that is how a release names it.
 """
 
 from __future__ import annotations
@@ -36,6 +42,10 @@ TTL_SECONDS = 24 * 60 * 60
 STUDIES_URL = ctgov.STUDIES_URL
 PAGE_SIZE = 500
 MAX_PAGES = 4               # 2000 studies per sponsor, newest first
+# How far back a completed study with no results posted is kept, and how many pages of
+# them are read: a sponsor's last two years of completions, results or not.
+RECENT_DAYS = 730
+RECENT_PAGES = 2
 _TIMEOUT_S = 60
 _POLITE_SLEEP_S = 0.3
 _USER_AGENT = contact.product_agent()
@@ -43,6 +53,7 @@ _USER_AGENT = contact.product_agent()
 FIELDS = "|".join((
     "protocolSection.identificationModule.nctId",
     "protocolSection.identificationModule.briefTitle",
+    "protocolSection.identificationModule.acronym",
     "protocolSection.designModule.phases",
     "protocolSection.statusModule.completionDateStruct",
     "protocolSection.designModule.enrollmentInfo",
@@ -71,6 +82,7 @@ def parse_studies(payload: dict) -> list[dict]:
         rows.append({
             "nct_id": nct_id,
             "title": ident.get("briefTitle"),
+            "acronym": (ident.get("acronym") or "").strip() or None,
             "phase": _phase(design.get("phases")),
             "conditions": json.dumps(
                 (section.get("conditionsModule") or {}).get("conditions") or []),
@@ -85,6 +97,12 @@ def parse_studies(payload: dict) -> list[dict]:
             "lead_sponsor": _lead_sponsor(study),
         })
     return rows
+
+
+def _completed_on(study: dict) -> str | None:
+    """The completion date the registry states for a study, or None."""
+    return (((study.get("protocolSection") or {}).get("statusModule") or {})
+            .get("completionDateStruct") or {}).get("date")
 
 
 def _lead_sponsor(study: dict) -> str | None:
@@ -140,9 +158,10 @@ class TrialsCompletedFetcher(BaseFetcher):
         errors = []
         for index, sponsor in enumerate(own + acquired):
             is_own = index < len(own)
+            verify = (own_names, []) if is_own else ([], acquired)
             try:
-                studies.extend(self._studies_for(
-                    sponsor, (own_names, []) if is_own else ([], acquired)))
+                studies.extend(self._studies_for(sponsor, verify))
+                studies.extend(self._studies_for(sponsor, verify, recent=True))
             except Exception as exc:
                 if is_own:
                     raise          # the company's own sponsor failing is a real failure
@@ -150,11 +169,15 @@ class TrialsCompletedFetcher(BaseFetcher):
         return {"studies": studies, "company_id": company["id"],
                 "sponsor_errors": errors}
 
-    def _studies_for(self, sponsor: str, verify_against) -> list:
+    def _studies_for(self, sponsor: str, verify_against, recent: bool = False) -> list:
         """One sponsor's completed studies, kept only where the registry's own lead
-        sponsor belongs to ``verify_against``, an (own names, acquired names) pair."""
+        sponsor belongs to ``verify_against``, an (own names, acquired names) pair.
+        With ``recent``, the ones with no results posted that completed in the last
+        RECENT_DAYS instead of the ones with results."""
+        import datetime as dt
+        since = (dt.date.today() - dt.timedelta(days=RECENT_DAYS)).isoformat()
         studies, token = [], None
-        for _page in range(MAX_PAGES):
+        for _page in range(RECENT_PAGES if recent else MAX_PAGES):
             params = {
                 # The lead sponsor, by the registry's own name for the company. Its
                 # legal name returns almost nothing: AstraZeneca PLC found zero
@@ -163,7 +186,7 @@ class TrialsCompletedFetcher(BaseFetcher):
                 # on is not filed as its own record.
                 "query.lead": sponsor,
                 "filter.overallStatus": "COMPLETED",
-                "aggFilters": "results:with",
+                "aggFilters": "results:without" if recent else "results:with",
                 "fields": FIELDS,
                 "pageSize": PAGE_SIZE,
                 "sort": "CompletionDate:desc",
@@ -175,11 +198,14 @@ class TrialsCompletedFetcher(BaseFetcher):
                 headers={"User-Agent": _USER_AGENT})
             with urllib.request.urlopen(request, timeout=_TIMEOUT_S) as response:
                 payload = json.loads(response.read().decode("utf-8"))
-            found = [s for s in payload.get("studies") or []
+            page = payload.get("studies") or []
+            found = [s for s in page
                      if sponsor_attribution.belongs(_lead_sponsor(s), *verify_against)]
+            if recent:
+                found = [s for s in found if str(_completed_on(s) or "") >= since]
             studies.extend(found)
             token = payload.get("nextPageToken")
-            if not token:
+            if not token or (recent and page and str(_completed_on(page[-1]) or "") < since):
                 break
             time.sleep(_POLITE_SLEEP_S)
         return studies
@@ -255,8 +281,8 @@ class TrialsCompletedFetcher(BaseFetcher):
                     INSERT INTO completed_trials
                         (nct_id, sponsor_company_id, asset_id, title, phase, conditions,
                          completion_date, enrollment, primary_outcome, lead_sponsor,
-                         fetched_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                         acronym, fetched_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                     ON CONFLICT(nct_id) DO UPDATE SET
                         sponsor_company_id = excluded.sponsor_company_id,
                         asset_id = excluded.asset_id, title = excluded.title,
@@ -265,12 +291,13 @@ class TrialsCompletedFetcher(BaseFetcher):
                         enrollment = excluded.enrollment,
                         primary_outcome = excluded.primary_outcome,
                         lead_sponsor = excluded.lead_sponsor,
+                        acronym = COALESCE(excluded.acronym, completed_trials.acronym),
                         fetched_at = datetime('now')
                     """,
                     (row["nct_id"], row["sponsor_company_id"], row["asset_id"],
                      row["title"], row["phase"], row["conditions"],
                      row["completion_date"], row["enrollment"],
-                     row["primary_outcome"], row.get("lead_sponsor")))
+                     row["primary_outcome"], row.get("lead_sponsor"), row.get("acronym")))
                 # The drugs are stored, not just matched and thrown away. A name that
                 # matches nothing today matches once the cleaner improves, and without
                 # the names on file the only way to try again is to fetch it all again.

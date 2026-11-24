@@ -49,7 +49,9 @@ Everything else is held, never guessed, in ``readout_reports`` with its reason:
                          which resolves when openFDA lists it;
   ``on_file``            an approval the approvals table already carries;
   ``no_gate``            an approval in a use no decision on the book is waiting on: a
-                         label widened for a marketed product, which decides no gate;
+                         label widened for a marketed product, which decides no gate; or
+                         a result tied to a completed study with no readout on the
+                         calendar, kept against the study and closing nothing;
   ``set_aside``          a person has read it and ruled it decides no gate
                          (``data/set_aside_reports.csv``, with the reason and source).
 
@@ -76,6 +78,7 @@ SET_ASIDE_CSV = DATA / "set_aside_reports.csv"
 DAYS = 45                 # how far back a press report is read, and the block shows
 FILING_DAYS = 730         # how far back a labelled filing or release is tied to a study
 FEED_DAYS = 45            # a readout older than this is recorded, not announced as new
+COMPLETED_DAYS = 1095     # a completed study this recent is one a release can be about
 APPROVAL_DAYS = 60        # an approval row this close to an approval headline is the same event
 STEP_THE_MODEL = True     # step the priced gate as the one-click resolve does
 
@@ -273,6 +276,20 @@ def studies(conn, curated: dict | None = None) -> list:
             "phase": r["phase"], "asset_id": r["asset_id"], "asset": r["asset"],
             "company_id": r["company_id"], "ticker": r["ticker"], "catalysts": []})
         s["catalysts"].append({"id": r["catalyst_id"], "status": r["status"]})
+    # Completed studies too, the ones a release in the window can be about: a study that
+    # finished has left the pipeline fetch, and where it had no readout on the calendar it
+    # was not in this index at all, so its result tied to nothing. It carries no
+    # catalyst, so a result tied to it is kept against the study and closes nothing.
+    for r in conn.execute(
+            f"""SELECT ct.nct_id, ct.title, ct.acronym, ct.phase, ct.asset_id,
+                       ct.sponsor_company_id AS company_id, co.ticker,
+                       COALESCE(a.brand_name, a.generic_name, a.internal_code) AS asset
+                  FROM completed_trials ct
+                  JOIN companies co ON co.id = ct.sponsor_company_id
+                  JOIN assets a ON a.id = ct.asset_id
+                 WHERE ct.completion_date >= date('now', '-{COMPLETED_DAYS} days')
+                 ORDER BY ct.nct_id"""):
+        out.setdefault(r["nct_id"], {**dict(r), "catalysts": []})
     for s in out.values():
         s["names"] = names_of(s, curated)
     return list(out.values())
@@ -302,6 +319,40 @@ def named(text: str | None, company_id, index: list) -> list:
         if len(hits) == 1 and hits[0]["nct_id"] not in taken:
             out.append((hits[0], "study name"))
     return out
+
+
+def _same_drug(study: dict, drug) -> bool:
+    a, d = (study.get("asset") or "").lower(), (drug or "").lower()
+    return bool(a and d) and (a in d or d in a or a.split()[0] == d.split()[0])
+
+
+def lead_tie(row: dict, index: list) -> list:
+    """The study a release's opening names, where it names exactly one of the company's
+    studies of the drug the result is about, by registry number or by name. The quote
+    and the headline often name only the drug; the opening says which study ("in
+    TRANSCEND-T2D-2, a Phase 3 trial"). Two studies named, or one of another drug, and
+    it ties to none: a release that reports one study and mentions a second is not read
+    as reporting both."""
+    hits = [(s, how) for s, how in named(row.get("lead"), row["company_id"], index)
+            if _same_drug(s, row.get("drug"))]
+    if len(hits) != 1:
+        return []
+    # Counted again without regard to case before trusting one: a plain-word name is
+    # matched case-sensitively so it is not read as a word, and "TRANQUILLO 2 and
+    # TRANQUILLO" then found only the first of the two studies the release reports.
+    lead = (row.get("lead") or "").lower()
+    named_any = {s["nct_id"] for s in index
+                 if s["company_id"] == row["company_id"] and _same_drug(s, row.get("drug"))
+                 and (s["nct_id"].lower() in lead
+                      or any(re.search(r"(?<![\w\-])" + re.escape(n.lower()) + r"(?![\w]|[ \-]?\d)",
+                                       lead)
+                             # The registry's own acronym too, even one too plain to tie
+                             # by ("Tranquillo"): this only ever refuses a tie.
+                             for n in [*s["names"], s.get("acronym") or ""] if len(n) >= 4))}
+    if len(named_any) > 1:
+        return []
+    study, how = hits[0]
+    return [(study, f"{how} in the release's opening")]
 
 
 def label(study: dict) -> str:
@@ -365,7 +416,8 @@ def labelled_rows(conn, since: str) -> list:
     only that the study exists."""
     out = []
     for r in conn.execute(
-            """SELECT accession, company_id, outcome, event_date, quote, source_url, source
+            """SELECT accession, company_id, outcome, event_date, quote, source_url, source,
+                      drug, lead
                  FROM trial_readouts
                 WHERE outcome IN ('positive', 'negative') AND event_date >= ?
                   AND COALESCE(source, '') <> 'registry' ORDER BY event_date""", (since,)):
@@ -449,6 +501,12 @@ def land(db_path, study: dict, outcome: str, event_date: str, sentence: str, url
     basis = ("a result the company posted, tied to this study by its name or registry "
              "number, with the outcome stated in the source's own words")
     out = {"state": "landed", "catalyst_id": None, "effect": None, "new": False}
+    if not study["catalysts"]:
+        # A completed study with no readout on the calendar: the result is tied to it
+        # and kept, and closes nothing, since nothing on the book was waiting on it.
+        return {**out, "state": "no_gate",
+                "reason": (f"it reports {label(study)}, which has no readout on the "
+                           "calendar to close; the result is kept against the study")}
     for cat in study["catalysts"]:
         out["catalyst_id"] = cat["id"]
         if cat["status"] == outcome:
@@ -594,6 +652,10 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                    AND COALESCE(cat.status, 'pending') IN ('pending', 'unknown')""")]
         for p in posted:
             p["primary"] = posted_primary(conn, p["nct_id"])
+        # Each release's opening, by its address, for a headline that names only the drug.
+        leads = {r["source_url"]: dict(r) for r in conn.execute(
+            "SELECT source_url, company_id, drug, lead FROM trial_readouts"
+            " WHERE lead IS NOT NULL AND source_url IS NOT NULL")}
     finally:
         conn.close()
     ruled = set_aside(set_aside_path)
@@ -614,6 +676,8 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
             effect=got["effect"], _new=got["new"], _study=study))
 
     # 1. Results the extractors labelled from a filing or a release body.
+    tied_urls: dict = {}       # a release tied to a study, and the study
+    step_one: set = set()      # the releases tied here, through a labelled result
     for r in rows:
         if any(e.startswith(f"readout {r['accession']}:") or (r["source_url"] or "\0") in e
                for e in spent):
@@ -625,8 +689,14 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                 if study["nct_id"] not in seen:
                     seen.add(study["nct_id"])
                     tied.append((study, how))
+        if not tied:
+            tied = lead_tie(r, index)
+        if tied and r["source_url"]:
+            tied_urls[r["source_url"]] = label(tied[0][0])
+            step_one.add(r["source_url"])
         for study, how in tied:
-            if all(c["status"] in announced_readouts.OUTCOMES for c in study["catalysts"]):
+            if study["catalysts"] and all(
+                    c["status"] in announced_readouts.OUTCOMES for c in study["catalysts"]):
                 continue
             if PART.search(" ".join(p or "" for p in r["parts"])):
                 reports.append(dict(
@@ -641,9 +711,12 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                     r["source_url"], "filing" if not r["source"] else r["source"],
                     str(r["accession"]))
 
-    # 2. Press headlines.
+    # 2. Press headlines. A release the step above tied through its body is reported
+    #    there; its headline is not reported a second time as naming no study.
     for item in press:
         text, cid, url = item["headline"] or "", item["company_id"], item["url"]
+        if url and url in tied_urls and url in step_one:
+            continue
         base = dict(source_key=url or text, company_id=cid, source="press", url=url,
                     published_at=item["published"], sentence=text)
         if auto_resolve.ANNOUNCEMENT.search(text):
@@ -653,6 +726,13 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
         tied = named(text, cid, index)
         outcome, words = (None, None) if approval else outcome_of(text)
         asset_id, shown = _asset_named(text, assets.get(cid))
+        if not tied and not approval and asset_id and url in leads:
+            # The headline names the drug and no study; the release's opening may name
+            # the one study it reports.
+            tied = lead_tie({**leads[url], "company_id": cid,
+                             "drug": leads[url]["drug"] or shown}, index)
+        if tied and url:
+            tied_urls.setdefault(url, label(tied[0][0]))
         if approval:
             if asset_id is not None:
                 reports.append({**base, "kind": "approval", "asset_id": asset_id,
@@ -672,7 +752,8 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                         url or text)
         elif tied and RESULT_WORDS.search(text):
             for study, how in tied:
-                if all(c["status"] in announced_readouts.OUTCOMES for c in study["catalysts"]):
+                if study["catalysts"] and all(
+                    c["status"] in announced_readouts.OUTCOMES for c in study["catalysts"]):
                     continue
                 reports.append({**base, "kind": "readout", "asset_id": study["asset_id"],
                                 "nct_id": study["nct_id"], "tied_by": how,
@@ -718,6 +799,14 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
             counts["set_aside"] += rep["state"] == "set_aside"
             counts["on_file"] += rep["state"] in ("on_file", "no_gate")
             _report(conn, today, **rep)
+        # A headline held earlier as naming no study, whose release has since been tied,
+        # by its headline or its body, is settled with the study it was tied to.
+        for url, study in tied_urls.items():
+            conn.execute(
+                "UPDATE readout_reports SET state = 'on_file', reason = ?, updated_at = ?"
+                " WHERE source_key = ? AND nct_id IS NULL AND state = 'not_tied'",
+                (f"the release was tied to {study}", today.isoformat(),
+                 url))
         counts["settled"] = _settle_closed(conn, today)
         counts["held"] = max(0, counts["held"] - counts["settled"])
         conn.commit()

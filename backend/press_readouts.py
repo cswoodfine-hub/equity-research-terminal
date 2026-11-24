@@ -46,7 +46,49 @@ _SHELL_CHARS = 1_500
 # improved progression-free survival" is a result; "met" alone is not.
 TITLE_HINT = re.compile(
     r"phase (?:3|iii|2|ii)\b|top-?line|primary endpoint|met (?:its|the|all)|did not meet|"
-    r"failed to meet|significantly (?:improv|reduc|increas)|superiority|statistically", re.I)
+    r"failed to meet|significantly (?:improv|reduc|increas)|superiority|statistically"
+    # A head-to-head win said as a comparison: "delivered greater A1C reduction and more
+    # than double the weight loss of Ozempic" announced TRANSCEND-T2D-2 and passed none
+    # of the words above, so the release was never read.
+    r"|head-to-head|\bgreater (?:\w+ ){0,3}(?:reduction|weight loss|improvement)"
+    r"|\bmore (?:than (?:double|twice|triple) )?(?:the )?weight loss\b|\bsuperior\b"
+    r"|\boutperform", re.I)
+# Where a release's opening ends: its "About" sections, which list the programme's other
+# studies and would name more than the one reported. A page read as flat text has no
+# line breaks, so "About" followed by a capitalised name counts too, past the first
+# paragraphs.
+_ABOUT = re.compile(r"\n\s*(?:#+\s*|\*\*)?About\b|\bAbout (?=[A-Z0-9])")
+LEAD_CHARS = 4000
+_LEAD_MIN = 400
+
+
+QUOTE_BACK = 1500
+
+
+def lead_of(document: str, anchors=(), quote: str | None = None) -> str:
+    """The opening of a release, past the site's navigation, up to its first "About"
+    section, at most LEAD_CHARS. It starts QUOTE_BACK characters before the result
+    sentence the classifier quoted, where the page holds it, since the study is named in
+    the paragraphs around the result; else where the headline (or the drug's name) first
+    appears. A page's own title sits above its menus, so the quote is the surer start."""
+    text = document or ""
+    low = text.lower()
+    start, floor = 0, _LEAD_MIN
+    head = " ".join(str(quote or "").split())[:60].lower()
+    if len(head) >= 20 and head in low:
+        anchors = ()
+        start = max(0, low.index(head) - QUOTE_BACK)
+        # The opening runs at least to the result: an "About" in the menus above it is
+        # not the end of the release.
+        floor = max(_LEAD_MIN, low.index(head) - start + len(head))
+    for anchor in anchors:
+        anchor = " ".join(str(anchor or "").split())[:60].lower()
+        if len(anchor) >= 4 and anchor in low:
+            start = low.index(anchor)
+            break
+    text = text[start:]
+    cut = next((m for m in _ABOUT.finditer(text) if m.start() >= floor), None)
+    return (text[:cut.start()] if cut else text)[:LEAD_CHARS]
 
 
 def key(news_id: int) -> str:
@@ -104,20 +146,21 @@ def _duplicate_of(conn, company_id, result: dict, day: str):
     return None
 
 
-def _store(conn, row: dict, result: dict | None, duplicate: str | None) -> None:
+def _store(conn, row: dict, result: dict | None, duplicate: str | None,
+           lead: str | None = None) -> None:
     outcome = "duplicate" if duplicate else (result["outcome"] if result else "none")
     conn.execute(
         """INSERT INTO trial_readouts
                (accession, company_id, drug, phase, outcome, event_date, quote, source_url,
-                source, read_from)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'release')
+                source, read_from, lead)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'release', ?)
            ON CONFLICT(accession) DO NOTHING""",
         (key(row["id"]), row["company_id"],
          result["drug"] if result else None, result["phase"] if result else None,
          outcome, str(row["filed_date"])[:10],
          (f"duplicate of {duplicate}: " if duplicate else "") + (result["quote"] if result else "")
          if result else None,
-         row["url"], SOURCE))
+         row["url"], SOURCE, lead))
 
 
 def extract(db_path=None, limit: int = MAX_PER_RUN, today=None, get=None) -> dict:
@@ -146,7 +189,9 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None, get=None) -> dic
         conn = db.get_connection(db_path)
         try:
             duplicate = _duplicate_of(conn, row["company_id"], result, row["filed_date"]) if result else None
-            _store(conn, row, result, duplicate)
+            _store(conn, row, result, duplicate,
+                   lead_of(document, (row.get("title"), (result or {}).get("drug")),
+                           (result or {}).get("quote")))
             conn.commit()
         finally:
             conn.close()
@@ -160,3 +205,40 @@ def extract(db_path=None, limit: int = MAX_PER_RUN, today=None, get=None) -> dic
         time.sleep(0.5)
     return {"status": "ok", "read": read, "positive": pos, "negative": neg,
             "duplicate": dup, "errors": errors}
+
+
+def fill_leads(db_path=None, get=None, limit: int = 60, days: int = 120) -> dict:
+    """Fetch the opening of each release a result was read from before the opening was
+    kept, newest first: the page alone, no model. A page that does not answer is left
+    for the next run."""
+    get = get or _get
+    since = (dt.date.today() - dt.timedelta(days=days)).isoformat()
+    conn = db.get_connection(db_path)
+    try:
+        rows = [dict(r) for r in conn.execute(
+            """SELECT t.accession, t.source_url, t.drug, t.quote, n.title FROM trial_readouts t
+                 LEFT JOIN news n ON 'news:' || n.id = t.accession
+                WHERE t.source = ? AND t.lead IS NULL
+                  AND t.outcome IN ('positive', 'negative', 'none')
+                  AND t.source_url IS NOT NULL AND t.event_date >= ?
+                ORDER BY t.event_date DESC LIMIT ?""", (SOURCE, since, limit))]
+    finally:
+        conn.close()
+    filled, errors = 0, []
+    for r in rows:
+        try:
+            lead = lead_of(get(r["source_url"])[:pdufa._MAX_CHARS], (r["title"], r["drug"]),
+                           r["quote"])
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{r['accession']}: {exc}")
+            continue
+        conn = db.get_connection(db_path)
+        try:
+            conn.execute("UPDATE trial_readouts SET lead = ? WHERE accession = ?",
+                         (lead, r["accession"]))
+            conn.commit()
+        finally:
+            conn.close()
+        filled += 1
+        time.sleep(0.3)
+    return {"filled": filled, "errors": errors}

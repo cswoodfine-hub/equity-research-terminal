@@ -565,6 +565,12 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
         trial_reads["study_names"] = landed_readouts.fill_names(db_path)
     except Exception as exc:  # noqa: BLE001
         trial_reads["study_names"] = {"errors": [str(exc)]}
+    # The opening of each release read before openings were kept, which names the study
+    # the result is about; the page alone, no model.
+    try:
+        trial_reads["release_leads"] = press_readouts.fill_leads(db_path)
+    except Exception as exc:  # noqa: BLE001
+        trial_reads["release_leads"] = {"errors": [str(exc)]}
     mapped["landed_readouts"] = landed_readouts.run(db_path, refresh_run_id=run_id)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     # Derived readouts run after the trial fetch and before the diff, so a completion
@@ -908,6 +914,12 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
         trial_reads["study_names"] = landed_readouts.fill_names(db_path)
     except Exception as exc:  # noqa: BLE001
         trial_reads["study_names"] = {"errors": [str(exc)]}
+    # The opening of each release read before openings were kept, which names the study
+    # the result is about; the page alone, no model.
+    try:
+        trial_reads["release_leads"] = press_readouts.fill_leads(db_path)
+    except Exception as exc:  # noqa: BLE001
+        trial_reads["release_leads"] = {"errors": [str(exc)]}
     mapped["landed_readouts"] = landed_readouts.run(db_path, refresh_run_id=run_id)
     mapped["catalyst_outcomes"] = catalyst_outcomes.resolve(db_path)
     readouts = catalysts.derive_readouts(db_path)
