@@ -65,7 +65,9 @@ NEVER_PATHS = ("/health", "/runs/latest", "/as-of",
                # not the book.
                "/ask",
                # The watch's status is the timer's own state, in this process.
-               "/watch")
+               "/watch",
+               # The Trading tab's saved boards are read straight after a write to them.
+               "/desk/")
 # The positioning read is short interest and an options chain, which move with the market
 # and not with the book, so no stamp of the book can say when it is out of date.
 # The live price read is Yahoo's bars as they stand this minute. It keeps its own hold
@@ -82,7 +84,10 @@ QUIET_WRITES = ("/theses",
                 # that does write moves the database's own stamp, which is what every
                 # cached read is held against. Clearing here as well would empty the
                 # cache for a look that found the book as it was.
-                "/watch")
+                "/watch",
+                # A saved board is the reader's arrangement of panels, in a file beside
+                # the book (desk_layout.py). It changes no figure any read is made from.
+                "/desk/")
 MAX_ENTRIES = 3000
 # A stale entry is recomputed at most this often, so a writer that commits every few
 # seconds cannot keep the book recomputing in a loop.

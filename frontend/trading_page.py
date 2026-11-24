@@ -12,7 +12,9 @@ Two rules the page is built around:
   to nothing. Every read goes through one reader held for a minute (``_fetch``), and the
   board is a fragment: a click on it redraws the board and not the other tabs.
 - The board reads. It has no control that writes to the book, places an order or reaches
-  the broker, and ``test_trading_page_ui.py`` reads this file to hold it there.
+  the broker, and ``test_trading_page_ui.py`` reads this file to hold it there. Its one
+  write is its own arrangement, saved by name through ``/desk/layouts`` to a file beside
+  the book.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 7
+REVISION = 8
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -418,6 +420,121 @@ def _reset() -> None:
     _keep(TV.default_layout())
 
 
+# --- saved boards ---------------------------------------------------------------------
+BOARDS_KEY = "td_boards"     # the saved boards as the API gave them, read once a session
+NAME_KEY = "td_board_name"   # the saved board that is open, if the board is one
+BOARDS_PATH = "/desk/layouts"
+
+
+def _send(api_base: str, method: str, path: str, body=None) -> dict:
+    """The board's one kind of write: its own arrangement, to ``/desk/layouts``. Raises
+    on a failure, with the API's reason where it gave one."""
+    request = urllib.request.Request(
+        api_base.rstrip("/") + path, method=method,
+        data=json.dumps(body).encode("utf-8") if body is not None else None,
+        headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(request, timeout=15) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = json.loads(exc.read().decode("utf-8")).get("detail")
+        except (ValueError, OSError):
+            detail = None
+        raise OSError(str(detail or f"the API answered {exc.code}")) from exc
+
+
+def boards(api_base: str) -> dict:
+    """The saved boards, read once a session and kept. An API that does not answer, or
+    one from before boards could be saved, is no boards and the reason."""
+    held = st.session_state.get(BOARDS_KEY)
+    if held is None:
+        try:
+            with urllib.request.urlopen(api_base.rstrip("/") + BOARDS_PATH,
+                                        timeout=LIVE_TIMEOUT_S) as resp:
+                held = json.loads(resp.read().decode("utf-8"))
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            held = {"boards": {}, "current": None,
+                    "problem": f"Boards cannot be saved or opened: {str(exc).rstrip('.')}."}
+        st.session_state[BOARDS_KEY] = held
+    return held
+
+
+def _open_first(api_base: str) -> None:
+    """On the first run of a session, the board that was open last time."""
+    if LAYOUT_KEY in st.session_state:
+        return
+    held = boards(api_base)
+    current = held.get("current")
+    if current and current in (held.get("boards") or {}):
+        _keep(held["boards"][current])
+        st.session_state[NAME_KEY] = current
+
+
+def _open(api_base: str) -> None:
+    name = st.session_state.get("td_open")
+    held = boards(api_base).get("boards") or {}
+    if name in held:
+        _keep(held[name])
+        st.session_state[NAME_KEY] = name
+        st.session_state["td_board_note"] = f"Opened {name}."
+
+
+def _save(api_base: str) -> None:
+    name = " ".join(str(st.session_state.get("td_save_name") or "").split())
+    if not name:
+        st.session_state["td_board_note"] = "Give the board a name to save it."
+        return
+    try:
+        st.session_state[BOARDS_KEY] = _send(api_base, "PUT", BOARDS_PATH,
+                                             {"name": name, "layout": layout()})
+        st.session_state[NAME_KEY] = name
+        st.session_state["td_board_note"] = f"Saved as {name}. It opens next time."
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        st.session_state["td_board_note"] = f"Not saved: {str(exc).rstrip('.')}."
+
+
+def _delete(api_base: str) -> None:
+    name = st.session_state.get(NAME_KEY)
+    if not name:
+        return
+    try:
+        st.session_state[BOARDS_KEY] = _send(
+            api_base, "DELETE", f"{BOARDS_PATH}/{urllib.parse.quote(name)}")
+        st.session_state[NAME_KEY] = None
+        st.session_state["td_board_note"] = (f"Deleted {name}. The panels on screen "
+                                             "are as they were.")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        st.session_state["td_board_note"] = f"Not deleted: {str(exc).rstrip('.')}."
+
+
+def _boards_menu(api_base: str) -> None:
+    """Open a saved board, save this one under a name, or delete the one that is open."""
+    held = boards(api_base)
+    names = sorted(held.get("boards") or {})
+    open_name = st.session_state.get(NAME_KEY)
+    with st.popover(f"Board: {open_name}" if open_name else "Boards"):
+        if held.get("problem"):
+            st.markdown(f'<div class="byline td-left-out">{TV.esc(held["problem"])}</div>',
+                        unsafe_allow_html=True)
+            return
+        if names:
+            _show("td_open", open_name if open_name in names else None)
+            st.selectbox("Open a saved board", names, index=None, key="td_open",
+                         placeholder="Pick one", on_change=_open, args=(api_base,))
+        if "td_save_name" not in st.session_state:
+            st.session_state["td_save_name"] = open_name or ""
+        st.text_input("Save this board as", key="td_save_name", max_chars=40,
+                      placeholder="Readout prep")
+        with st.container(key="td_board_buttons", horizontal=True):
+            st.button("Save", key="td_save", on_click=_save, args=(api_base,))
+            st.button("Delete", key="td_delete", disabled=not open_name,
+                      on_click=_delete, args=(api_base,),
+                      help="Forget the saved board that is open. The panels stay up.")
+        st.markdown('<div class="byline">Kept on this machine, in a file beside the book. '
+                    "Saving changes nothing in the book.</div>", unsafe_allow_html=True)
+
+
 def _show(key: str, value) -> None:
     """Set a widget to what the board holds, before the widget is drawn."""
     st.session_state[key] = value
@@ -467,10 +584,11 @@ def _arrange_menu(board: dict, ticker: str, tickers) -> None:
         st.button("Back to the default board", key="td_reset", on_click=_reset)
 
 
-def _controls(board: dict, ticker: str, tickers) -> None:
-    """The row above the board: add a panel, arrange them, how many across, and whether
-    the Ask box sits beside them."""
+def _controls(api_base: str, board: dict, ticker: str, tickers) -> None:
+    """The row above the board: the saved boards, add a panel, arrange them, how many
+    across, and whether the Ask box sits beside them."""
     with st.container(key="td_controls", horizontal=True, vertical_alignment="center"):
+        _boards_menu(api_base)
         _add_menu(tickers)
         _arrange_menu(board, ticker, tickers)
         _show("td_columns", board["columns"])
@@ -489,7 +607,11 @@ def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
     """The controls and the panels. A fragment: a change to the board redraws the board
     alone."""
     board = layout()
-    _controls(board, ticker, tickers)
+    _controls(api_base, board, ticker, tickers)
+    said = st.session_state.pop("td_board_note", None)
+    if said:
+        st.markdown(f'<div class="byline td-said">{TV.esc(said)}</div>',
+                    unsafe_allow_html=True)
     # The Ask column is laid out by the page, outside this fragment, so a run of the
     # fragment alone cannot add or remove it. When the switch no longer matches what the
     # page drew, the page is run once to draw it.
@@ -529,6 +651,7 @@ def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,
         return
     page = {key: value for key, value in (("feed", feed), ("prices", prices))
             if value is not None}
+    _open_first(api_base)
     beside = layout()["ask"]
     st.session_state["_td_ask_drawn"] = beside
     if not beside:

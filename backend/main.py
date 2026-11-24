@@ -26,6 +26,7 @@ import backtest as backtest_module
 import base_rates as base_rates_module
 import comparable_readouts as comparable_readouts_module
 import desk_chat
+import desk_layout
 import event_calendar as event_calendar_module
 import holders as holders_module
 import insiders as insiders_module
@@ -2205,6 +2206,36 @@ def ask(body: AskIn, request: Request) -> dict:
         body.question, history=body.history,
         context={"ticker": body.ticker, "name": body.name, "showing": body.showing},
         fetch=desk_chat.api_fetch(str(request.base_url)))
+
+
+class BoardIn(BaseModel):
+    name: str
+    layout: dict
+
+
+@app.get("/desk/layouts")
+def desk_layouts() -> dict:
+    """The Trading tab's saved boards, and which one opens. Kept on this machine, beside
+    the book and not in it (desk_layout.py)."""
+    return desk_layout.load()
+
+
+@app.put("/desk/layouts")
+def desk_layouts_save(body: BoardIn) -> dict:
+    """Keep a board under a name. Changes nothing the book computes, so it clears no
+    held read (response_cache.QUIET_WRITES)."""
+    out = desk_layout.save(body.name, body.layout)
+    if not out["ok"]:
+        raise HTTPException(status_code=422, detail=out["reason"])
+    return out
+
+
+@app.delete("/desk/layouts/{name}")
+def desk_layouts_delete(name: str) -> dict:
+    out = desk_layout.remove(name)
+    if not out["ok"]:
+        raise HTTPException(status_code=422, detail=out["reason"])
+    return out
 
 
 class ThesisIn(BaseModel):

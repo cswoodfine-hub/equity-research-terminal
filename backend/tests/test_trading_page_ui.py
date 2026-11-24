@@ -74,6 +74,33 @@ def live_prices(api_base, company):
     st.session_state.setdefault("live_asked", []).append(company)
     return LIVE
 trading_page.live_prices = live_prices
+# The saved boards, stood in: a store in the session behind the same two calls.
+SAVED = st.session_state.setdefault("saved", {saved!r})
+def boards_read(api_base):
+    if {boards_fail!r}:
+        return {{"boards": {{}}, "current": None,
+                 "problem": "Boards cannot be saved or opened: HTTP Error 404: Not Found."}}
+    st.session_state.setdefault("boards_read", []).append(1)
+    return dict(SAVED, problem=None)
+def send(api_base, method, path, body=None):
+    st.session_state.setdefault("writes", []).append((method, path, body))
+    if method == "PUT":
+        if body["name"] == "refuse me":
+            raise OSError("That name is not one a board can take.")
+        SAVED["boards"][body["name"]] = body["layout"]
+        SAVED["current"] = body["name"]
+    else:
+        SAVED["boards"].pop(urllib.parse.unquote(path.rsplit("/", 1)[1]), None)
+        SAVED["current"] = None
+    return dict(SAVED, problem=None)
+import urllib.parse
+real_boards = trading_page.boards
+def boards(api_base):
+    if trading_page.BOARDS_KEY not in st.session_state:
+        st.session_state[trading_page.BOARDS_KEY] = boards_read(api_base)
+    return st.session_state[trading_page.BOARDS_KEY]
+trading_page.boards = boards
+trading_page._send = send
 def draw_chart(**kw):
     st.session_state.setdefault("charts", {{}})[kw["key"]] = kw
     st.markdown("CHART[" + kw["key"] + "]")
@@ -145,13 +172,14 @@ def _board_of(*kinds):
 
 
 def _page(fail="", historical=False, market_open=False, page_has_prices=True,
-          has_report=True, layout=None):
+          has_report=True, layout=None, saved=None, boards_fail=False):
     from streamlit.testing.v1 import AppTest
     _patch_button_group()
     test = AppTest.from_string(
         _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical,
                      market_open=market_open, page_has_prices=page_has_prices,
-                     has_report=has_report, layout=layout),
+                     has_report=has_report, layout=layout, boards_fail=boards_fail,
+                     saved=saved or {"boards": {}, "current": None}),
         default_timeout=60)
     test.run()
     assert not test.exception, test.exception
@@ -284,6 +312,75 @@ def test_a_fifth_live_chart_is_refused_and_the_reader_is_told():
     assert not test.exception, test.exception
     assert len(test.session_state["td_layout"]["panels"]) == 4
     assert "Left off the board: Price chart: a board holds 4 live panels." in _md(test)
+
+
+def test_a_board_is_saved_by_name_and_only_its_arrangement_is_sent():
+    test = _page(layout=_board_of("news", "filings"))
+    test.text_input(key="td_save_name").set_value("Readout prep").run()
+    test.button(key="td_save").click().run()
+    assert not test.exception, test.exception
+    (method, path, body), = test.session_state["writes"]
+    assert (method, path) == ("PUT", "/desk/layouts") and body["name"] == "Readout prep"
+    assert set(body) == {"name", "layout"}
+    assert set(body["layout"]) == {"columns", "ask", "panels"}
+    assert [p["panel"] for p in body["layout"]["panels"]] == ["news", "filings"]
+    assert all(set(p) == {"panel", "ticker", "wide"} for p in body["layout"]["panels"])
+    assert "Saved as Readout prep. It opens next time." in _md(test)
+    assert test.session_state["td_board_name"] == "Readout prep"
+
+
+def test_the_board_that_was_open_last_time_opens_on_the_next_visit():
+    saved = {"boards": {"Earnings day": _board_of("results", "filings"),
+                        "Other": _board_of("news")}, "current": "Earnings day"}
+    test = _page(saved=saved)
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Latest results", "Filings"]
+    assert test.session_state["td_board_name"] == "Earnings day"
+    assert len(test.session_state["boards_read"]) == 1         # read once, not on each run
+    test.selectbox(key="td_open").set_value("Other").run()
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Company news"] and "Opened Other." in _md(test)
+    assert len(test.session_state["boards_read"]) == 1
+
+
+def test_a_saved_board_with_a_kind_this_version_lacks_opens_without_it_and_says_so():
+    saved = {"boards": {"Old": {"columns": 2, "ask": True, "panels": [
+        {"panel": "news"}, {"panel": "crystal_ball"}]}}, "current": "Old"}
+    test = _page(saved=saved)
+    assert not test.exception, test.exception
+    assert _sections(test) == ["Company news"]
+    assert "Left off the board: a panel this version does not have: crystal_ball." in _md(test)
+
+
+def test_deleting_the_open_board_forgets_it_and_leaves_the_panels_up():
+    saved = {"boards": {"Earnings day": _board_of("results")}, "current": "Earnings day"}
+    test = _page(saved=saved)
+    test.button(key="td_delete").click().run()
+    assert not test.exception, test.exception
+    assert test.session_state["writes"] == [("DELETE", "/desk/layouts/Earnings%20day", None)]
+    assert _sections(test) == ["Latest results"] and "Deleted Earnings day." in _md(test)
+    assert test.session_state["td_board_name"] is None
+    assert test.button(key="td_delete").disabled
+
+
+def test_a_save_the_api_refuses_is_said_and_a_save_with_no_name_asks_for_one():
+    test = _page()
+    test.button(key="td_save").click().run()
+    assert "Give the board a name to save it." in _md(test)
+    assert "writes" not in test.session_state
+    test.text_input(key="td_save_name").set_value("refuse me").run()
+    test.button(key="td_save").click().run()
+    assert not test.exception, test.exception
+    assert "Not saved: That name is not one a board can take." in _md(test)
+    assert "td_board_name" not in test.session_state
+
+
+def test_an_api_that_cannot_keep_boards_is_said_and_the_board_still_draws():
+    test = _page(boards_fail=True)
+    assert not test.exception, test.exception
+    assert "Boards cannot be saved or opened" in _md(test)
+    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+    assert not [b for b in test.button if b.key == "td_save"]
 
 
 def test_the_default_board_comes_back_at_a_click():
@@ -432,10 +529,24 @@ def test_the_page_module_only_reads():
     """Every request it builds is a GET: no body, no method, and no write route named."""
     import ast
     source = (FRONTEND / "trading_page.py").read_text()
-    assert "Request(" not in source
-    opened = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)
+    tree = ast.parse(source)
+    # One place builds a request that can carry a body: _send, the board saving its own
+    # arrangement. Every other call is urlopen on an address, which is a GET.
+    built = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+             and getattr(node.func, "attr", "") == "Request"]
+    assert len(built) == 1
+    sender = next(node for node in tree.body
+                  if isinstance(node, ast.FunctionDef) and node.name == "_send")
+    assert built[0] in list(ast.walk(sender))
+    sent = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+            and getattr(node.func, "id", "") == "_send"]
+    assert len(sent) == 2
+    for call in sent:                        # a PUT and a DELETE, both to the boards
+        assert call.args[1].value in ("PUT", "DELETE")
+        assert "BOARDS_PATH" in ast.unparse(call.args[2])
+    assert 'BOARDS_PATH = "/desk/layouts"' in source
+    opened = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
               and getattr(node.func, "attr", "") == "urlopen"]
-    assert len(opened) == 2
     for call in opened:
         assert len(call.args) == 1 and {kw.arg for kw in call.keywords} == {"timeout"}
     assert "broker_t212" not in source and "fetchers" not in source
