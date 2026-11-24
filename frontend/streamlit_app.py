@@ -12383,8 +12383,9 @@ with main:
             @st.fragment
             def _portfolio_tab():
                 # The marker gives this tab the spacing of one laid out at the page's
-                # full width. It is named for the rail such a tab used to drop.
-                st.markdown('<span class="no-rail"></span>', unsafe_allow_html=True)
+                # full width. It is named for the rail such a tab used to drop. The second
+                # class lets the stylesheet start the tab directly under the tab row.
+                st.markdown('<span class="no-rail pf-top"></span>', unsafe_allow_html=True)
                 approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
                 # The two kinds of asset, one at a time. Stacked, eighty-eight compounds
                 # would stand under forty-four products and never be reached. Each side is

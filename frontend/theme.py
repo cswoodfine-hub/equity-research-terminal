@@ -1929,6 +1929,17 @@ table.pt-tbl td.d .was {{ display: block; font-size: 10px; color: var(--flag); }
 .apie .s:hover .ct {{ opacity: 1; }}
 .apie svg:has(.s:hover) .c0, .apie:has(.kr:hover) .c0 {{ opacity: 0; }}
 {_APIE_KEY_HOVER}
+/* The Portfolio tab starts directly under the tab row. Its marker takes no row, and the
+   air the stylesheet gives every block holding a row of buttons (the tab's own wrapper,
+   the Assets row, the pipeline's columns) is taken out here, where the rows follow one
+   another tightly. */
+[data-testid="stElementContainer"]:has(.pf-top) {{ display: none; }}
+[data-baseweb="tab-panel"]:has(.pf-top) [data-testid="stLayoutWrapper"] {{
+  margin-top: 0 !important; margin-bottom: 0 !important; }}
+[data-baseweb="tab-panel"]:has(.pf-top)
+  [class*="st-key-fin_ctl_pf_"] [data-testid="stElementContainer"] {{
+  margin-top: 0 !important; margin-bottom: 0 !important; }}
+[data-baseweb="tab-panel"]:has(.pf-top) .pos {{ padding: 0 0 0.25rem; }}
 /* The line above and below the pipeline's card grid: what is shown, and what the grid
    could not place. */
 .pipe-line {{ font-size: 11px; color: var(--muted); margin: 0 0 6px; line-height: 1.4; }}
@@ -1936,8 +1947,8 @@ table.pt-tbl td.d .was {{ display: block; font-size: 10px; color: var(--flag); }
    the window less the top bar, the tabs, the figures and the filters above the grid.
    Streamlit sizes the grid's wrapper by its flex basis, so that is what is set. */
 div:has(> [class*="st-key-pipe_grid_"]) {{
-  flex: 0 0 max(300px, calc(100vh - 415px)) !important;
-  height: max(300px, calc(100vh - 415px)) !important; }}
+  flex: 0 0 max(300px, calc(100vh - 360px)) !important;
+  height: max(300px, calc(100vh - 360px)) !important; }}
 [class*="st-key-pipe_grid_"] {{ height: 100% !important; }}
 .apie-key {{ width: 100%; display: flex; flex-direction: column; gap: 1px; }}
 .apie-key .kr {{ display: flex; align-items: center; gap: 7px; font-size: 11.5px;
