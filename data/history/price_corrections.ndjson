@@ -3930,3 +3930,11 @@
 {"found_at": "2026-11-24 10:39:42", "id": 3930, "kind": "gate_call", "price_date": "2026-11-20", "recorded": 527.6898803710938, "ref_key": "VRTX|2026-11-20|936|423", "settled": 515.02001953125, "ticker": "VRTX"}
 {"found_at": "2026-11-24 10:39:42", "id": 3931, "kind": "gate_call", "price_date": "2026-11-20", "recorded": 527.6898803710938, "ref_key": "VRTX|2026-11-20|567|61", "settled": 515.02001953125, "ticker": "VRTX"}
 {"found_at": "2026-11-24 10:39:42", "id": 3932, "kind": "gate_call", "price_date": "2026-11-20", "recorded": 527.6898803710938, "ref_key": "VRTX|2026-11-20|565|3302", "settled": 515.02001953125, "ticker": "VRTX"}
+{"found_at": "2026-11-24 14:15:30", "id": 3933, "kind": "gate_call", "price_date": "2026-11-05", "recorded": 278.30999755859375, "ref_key": "JNJ|2026-11-05|983|4033", "settled": 272.32000732421875, "ticker": "JNJ"}
+{"found_at": "2026-11-24 14:15:30", "id": 3934, "kind": "gate_call", "price_date": "2026-11-09", "recorded": 278.9700012207031, "ref_key": "JNJ|2026-11-09|983|4061", "settled": 282.1099853515625, "ticker": "JNJ"}
+{"found_at": "2026-11-24 14:15:30", "id": 3935, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 280.8999938964844, "ref_key": "JNJ|2026-11-17|983|4033", "settled": 278.70001220703125, "ticker": "JNJ"}
+{"found_at": "2026-11-24 14:15:30", "id": 3936, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 159.1699981689453, "ref_key": "NVS|2026-11-17|1023|4041", "settled": 159.1300048828125, "ticker": "NVS"}
+{"found_at": "2026-11-24 14:15:30", "id": 3937, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 159.1699981689453, "ref_key": "NVS|2026-11-17|1056|4041", "settled": 159.1300048828125, "ticker": "NVS"}
+{"found_at": "2026-11-24 14:15:30", "id": 3938, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 266.3500061035156, "ref_key": "JNJ|2026-11-19|983|4033", "settled": 267.1400146484375, "ticker": "JNJ"}
+{"found_at": "2026-11-24 14:15:30", "id": 3939, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1023|4041", "settled": 151.22000122070312, "ticker": "NVS"}
+{"found_at": "2026-11-24 14:15:30", "id": 3940, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1056|4041", "settled": 151.22000122070312, "ticker": "NVS"}
