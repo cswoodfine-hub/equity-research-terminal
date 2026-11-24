@@ -27,6 +27,7 @@ DATED = [{{"expected_date": ahead, "catalyst_type": "readout", "date_confidence"
            "title": "Phase 3 readout of a study", "source_url": None}}]
 # Forty daily bars ending yesterday, and a session still trading today.
 PRICES = {{"ticker": "LLY", "interval": "1d", "currency": "USD", "last_fetch_at": None,
+           "latest": {{"as_of": "2026-11-20", "close": 149.0}},
            "points": [{{"as_of": (today - dt.timedelta(days=40 - n)).isoformat(),
                         "open": 100.0 + n, "high": 102.0 + n, "low": 99.0 + n,
                         "close": 101.0 + n, "volume": 1000}} for n in range(40)]}}
@@ -66,7 +67,23 @@ def fetch(api_base, path, timeout):
         return DATED
     if path.startswith("/changes?"):
         return [{{"ticker": "NVO", "date": today.isoformat(), "headline": "NVO a pinned change",
-                  "significance": "high"}}]
+                  "significance": "high", "change_type": "press_deal"}}]
+    if path.endswith("/street"):
+        return {{"rows": [{{"metric": "EPS", "period": f"FY{{today.year}}",
+                            "street": {{"value": 10.0, "note": "8 estimates"}}}},
+                           {{"metric": "PriceTarget", "period": "12M",
+                            "street": {{"value": 160.0, "note": "5 buy, 1 hold"}}}}]}}
+    if path.endswith("/cashflow"):
+        return {{"fiscal_year": 2025, "fcf": 9.0e9, "fcf_margin": 0.14,
+                 "net_debt_ebitda": 1.4, "net_debt": 4.4e10, "currency": "USD"}}
+    if path.endswith("/runway"):
+        return {{"runway_months": None}}
+    if path.endswith("/relative"):
+        return {{"benchmark": "XLV", "windows": {{"3m": {{"relative_pct": 0.06,
+                 "company_pct": 0.08, "benchmark_pct": 0.02, "covers_window": True}}}}}}
+    if path == "/screen":
+        return [{{"ticker": "LLY", "revenue": 6.5e10, "revenue_growth": 0.45,
+                  "net_margin": 0.32, "loe_share_5y": 0.21, "currency": "USD"}}]
     raise AssertionError("a read the board was not expected to make: " + path)
 fetch.clear = lambda: None
 trading_page._fetch = fetch
@@ -133,7 +150,7 @@ kit = types.SimpleNamespace(section=section, state=state, note=note, changes=cha
                             report_lead=report_lead, report_landed=report_landed,
                             snapshot_strip=snapshot_strip, board_grid=board_grid)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
-          "significance": "high", "change_type": "status_change"}},
+          "significance": "high", "change_type": "press_approval"}},
         {{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a low change",
           "significance": "low"}}]
 SEED = {layout!r}
@@ -202,23 +219,40 @@ def _sections(test) -> list:
 def test_the_default_board_draws_its_panels_for_the_top_bars_company():
     test = _page()
     md = _md(test)
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
-    assert "SECTION[What changed|2|LLY]" in md and "A high change" in md
-    assert "SECTION[Company news|2|LLY]" in md and "Daily pulse (AI summary)" in md
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+    # Material only: the approval, and not the low-rated trial status that rode with it.
+    assert "SECTION[Material changes|1|LLY]" in md and "A high change" in md
+    assert "A low change" not in md
     assert "SECTION[Dated ahead|1|LLY]" in md and "Phase 3 readout of a study" in md
+    assert "SECTION[Fundamentals|None|LLY · USD]" in md and 'class="tiles td-ftiles"' in md
+
+
+def test_the_fundamentals_are_the_reads_own_figures_and_say_where_one_is_missing():
+    test = _page()
+    md = _md(test)
+    tiles = md[md.index('class="tiles td-ftiles"'):]
+    # Revenue and margin from the year (the stand-in report has no filed quarter), the
+    # street's EPS and target, the close over the street's EPS, cash, leverage, exclusivity
+    # and the price against its sector.
+    for text in ("65.0bn", "+45.0% on a year", "32.0%", "Street EPS FY", "10.00",
+                 "Street target", "160.00", "Price over street EPS", "14.9", "9.0bn",
+                 "14.0% of revenue", "1.4", "21.0%", "Against XLV, 3m", "+6.0 pts",
+                 "+7.4% on the close"):
+        assert text in tiles, text
+    assert "Cash runway" not in tiles                     # no runway in the read, no tile
 
 
 def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     """A panel is not a list. The figure comes first, the named items next, and the
     rows are there for whoever opens the fold."""
-    test = _page()
+    test = _page(layout=_board_of("price", "changes", "news", "catalysts"))
     blocks = [str(m.value) for m in test.markdown]
     figures = [b for b in blocks if 'class="chart-mount stretch td-fig"' in b]
     assert len(figures) == 3 and all("<svg" in b and 'class="unit"' in b for b in figures)
     md = _md(test)
     assert md.count('<details class="note-d td-all">') == 3
     assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_p1]")
-    for panel, figure in zip(("What changed", "Company news", "Dated ahead"), figures):
+    for panel, figure in zip(("Material changes", "Company news", "Dated ahead"), figures):
         section = md.index(f"SECTION[{panel}|")
         assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
     assert 'class="td-leads"' in md and 'class="tiles td-next"' in md
@@ -230,28 +264,32 @@ def test_what_the_page_has_already_read_is_used_and_not_read_a_second_time():
     asked = test.session_state["asked"]
     assert not [path for path in asked if path.startswith("/changes")]
     assert "/companies/LLY/prices" not in asked
-    assert sorted(set(asked)) == sorted({"/companies/LLY/news", "/companies/LLY/approvals",
-                                         next(p for p in asked if p.startswith("/catalysts?"))})
+    assert sorted(set(asked)) == sorted({
+        "/companies/LLY/approvals", "/companies/LLY/report", "/companies/LLY/street",
+        "/companies/LLY/cashflow", "/companies/LLY/runway", "/companies/LLY/relative",
+        "/screen", next(p for p in asked if p.startswith("/catalysts?"))})
     assert "ticker=LLY" in next(p for p in asked if p.startswith("/catalysts?"))
 
 
 def test_what_is_on_screen_is_kept_for_the_ask_box_as_kinds_and_tickers_only():
     test = _page()
     assert test.session_state["td_showing"] == [
-        {"panel": "price", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"},
-        {"panel": "news", "ticker": "LLY"}, {"panel": "catalysts", "ticker": "LLY"}]
+        {"panel": "price", "ticker": "LLY"}, {"panel": "fundamentals", "ticker": "LLY"},
+        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"}]
 
 
 def test_taking_a_panel_off_redraws_the_board_without_it():
     test = _page()
     test.button(key="td_off_p1").click().run()           # the price chart
     assert not test.exception, test.exception
-    test.button(key="td_off_p2").click().run()           # what changed
+    test.button(key="td_off_p2").click().run()           # the fundamentals
     assert not test.exception, test.exception
-    # The two left rise to the top row, Dated ahead on the left where What changed was.
-    assert _sections(test) == ["Dated ahead", "Company news"]
+    # The two left rise to the top row, side by side as they were.
+    assert _sections(test) == ["Dated ahead", "Material changes"]
+    assert [(p["id"], p["y"]) for p in test.session_state["td_layout"]["panels"]] == [
+        ("p3", 0), ("p4", 0)]
     assert test.session_state["td_showing"] == [
-        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "news", "ticker": "LLY"}]
+        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"}]
 
 
 def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company():
@@ -270,16 +308,16 @@ def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company()
 
 def test_pinning_a_panel_draws_it_for_that_company_and_the_rest_follow_the_top_bar():
     test = _page()
-    test.selectbox(key="td_co_p2").set_value("NVO").run()        # what changed
+    test.selectbox(key="td_co_p4").set_value("NVO").run()        # material changes
     assert not test.exception, test.exception
     md = _md(test)
-    assert "SECTION[What changed|1|NVO · pinned]" in md and "A pinned change" in md
-    assert "SECTION[Company news|2|LLY]" in md
+    assert "SECTION[Material changes|1|NVO · pinned]" in md and "A pinned change" in md
+    assert "SECTION[Dated ahead|1|LLY]" in md
     # The page's own feed is the top bar's company's, so the pinned panel reads its own.
     assert [p for p in test.session_state["asked"] if p.startswith("/changes?ticker=NVO")]
     assert {"panel": "changes", "ticker": "NVO"} in test.session_state["td_showing"]
-    test.selectbox(key="td_co_p2").set_value("Top bar").run()
-    assert "SECTION[What changed|2|LLY]" in _md(test)
+    test.selectbox(key="td_co_p4").set_value("Top bar").run()
+    assert "SECTION[Material changes|1|LLY]" in _md(test)
 
 
 def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_read():
@@ -315,9 +353,9 @@ def test_the_drag_frame_is_handed_every_panels_place_and_the_grids_measure():
     assert (args["cols"], args["row_px"], args["gap_px"], args["key"]) == (12, 24, 16,
                                                                            "td_gridctl")
     assert [(p["id"], p["x"], p["y"], p["w"], p["h"]) for p in args["panels"]] == [
-        ("p1", 0, 0, 12, 13), ("p2", 0, 13, 6, 9), ("p3", 6, 13, 6, 9), ("p4", 0, 22, 6, 9)]
+        ("p1", 0, 0, 12, 13), ("p2", 0, 13, 12, 7), ("p3", 0, 20, 6, 9), ("p4", 6, 20, 6, 9)]
     md = _md(test)
-    assert ".st-key-td_p_p3)" in md and "grid-column:7 / span 6;grid-row:14 / span 9;" in md
+    assert ".st-key-td_p_p4)" in md and "grid-column:7 / span 6;grid-row:21 / span 9;" in md
 
 
 def test_a_panel_dragged_and_dropped_takes_its_new_place_once():
@@ -425,7 +463,7 @@ def test_an_api_that_cannot_keep_boards_is_said_and_the_board_still_draws():
     test = _page(boards_fail=True)
     assert not test.exception, test.exception
     assert "Boards cannot be saved or opened" in _md(test)
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
     assert not [b for b in test.button if b.key == "td_save"]
 
 
@@ -433,7 +471,7 @@ def test_the_default_board_comes_back_at_a_click():
     test = _page(layout=_board_of("filings"))
     test.button(key="td_reset").click().run()
     assert not test.exception, test.exception
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
 
 
 def test_an_empty_board_says_what_to_do_next():
@@ -448,9 +486,9 @@ def test_the_board_is_laid_out_afresh_one_two_or_three_across():
     for across in (1, 3, 2):
         test.button(key=f"td_across_{across}").click().run()
         assert not test.exception, test.exception
-        assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+        assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
         widths = [p["w"] for p in test.session_state["td_layout"]["panels"]]
-        assert widths == [12] + [12 // across] * 3
+        assert widths == [12, 12] + [12 // across] * 2
 
 
 def test_the_ask_box_sits_beside_the_board_in_its_own_place_on_the_page():
@@ -464,7 +502,7 @@ def test_the_ask_box_can_be_put_away_and_the_board_takes_the_width():
     test.toggle(key="td_ask").set_value(False).run()
     assert not test.exception, test.exception
     assert "ASK[" not in _md(test)
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
     test.toggle(key="td_ask").set_value(True).run()
     assert not test.exception, test.exception
     assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
@@ -476,15 +514,18 @@ def test_the_price_chart_keeps_its_height_and_carries_the_session_still_trading(
     chart = test.session_state["charts"]["td_chart_p1"]
     # The default price panel is 13 rows: 504 px, of which the chart takes all but what
     # the panel draws round it.
-    assert chart["fill"] is False and chart["height"] == 504 - 196 and chart["intraday"] is False
+    assert chart["fill"] is False and chart["height"] == 504 - 128 and chart["intraday"] is False
     assert chart["lines"] == [] and chart["draw_mode"] is False and chart["fair"] == []
-    # Forty stored bars and today's session laid over them: the last point is the live one.
-    assert len(chart["data"]) == 41 and chart["data"][-1]["value"] == 149.5
-    assert chart["data"][-2]["value"] == 140.0
+    assert chart["mode"] == "Candlestick"
+    # Forty stored days and today's session laid over them, a candle a day on the six
+    # months it opens on: the last candle is the live one.
+    assert len(chart["data"]) == 41 and chart["data"][-1]["close"] == 149.5
+    assert chart["data"][-1]["open"] == 141.0 and chart["data"][-2]["close"] == 140.0
     assert len(chart["markers"]) == 1                 # the approval; the LOE is off the view
     md = _md(test)
-    assert "SECTION[Price chart|None|LLY · USD" in md
-    assert "149.50" in md and "1Y change" in md and "+48.0%" in md
+    assert "SECTION[Price chart|None|LLY · USD]" in md
+    assert "149.50" in md and "6M change" in md and "+48.0%" in md
+    assert "daily candles" in md
     assert "is live: the session so far" in md and "not a close" in md
     assert "writes nothing to the book" in md
 
@@ -495,12 +536,14 @@ def test_a_shorter_window_draws_fewer_bars_and_tells_the_chart_to_refit():
     test.button_group(key="td_span_p1").set_value("1M").run()
     assert not test.exception, test.exception
     after = test.session_state["charts"]["td_chart_p1"]
-    assert len(after["data"]) < len(before["data"]) and after["data"][-1]["value"] == 149.5
+    assert len(after["data"]) < len(before["data"]) and after["data"][-1]["close"] == 149.5
     assert after["view_key"] != before["view_key"] and "1M change" in _md(test)
-    test.button_group(key="td_view_p1").set_value("Candlestick").run()
+    # Five years is a candle a month: the forty days are two or three of them.
+    test.button_group(key="td_span_p1").set_value("5Y").run()
     assert not test.exception, test.exception
-    candle = test.session_state["charts"]["td_chart_p1"]
-    assert candle["mode"] == "Candlestick" and "open" in candle["data"][0]
+    monthly = test.session_state["charts"]["td_chart_p1"]
+    assert 2 <= len(monthly["data"]) <= 3 and "monthly candles" in _md(test)
+    assert monthly["data"][-1]["close"] == 149.5
 
 
 def test_the_price_panel_reads_the_history_itself_when_the_page_has_not():
@@ -521,7 +564,7 @@ def test_with_no_price_history_the_panel_says_so_and_draws_no_chart():
     test = _page(fail="/prices", page_has_prices=False)
     md = _md(test)
     assert "STATE[The price history did not load|" in md and "CHART[" not in md
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
 
 
 FISCAL = ["results", "trend", "filings"]
@@ -551,11 +594,11 @@ def test_a_company_with_no_report_is_told_what_is_missing_and_shown_no_figure():
 
 
 def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():
-    test = _page(fail="/news")
+    test = _page(fail="/catalysts")
     md = _md(test)
-    assert _sections(test) == ["Price chart", "What changed", "Company news", "Dated ahead"]
-    assert "STATE[The news did not load|" in md and "|True]" in md
-    assert "A high change" in md and "Phase 3 readout of a study" in md
+    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+    assert "STATE[The calendar did not load|" in md and "|True]" in md
+    assert "A high change" in md and "CHART[td_chart_p1]" in md
 
 
 def test_with_a_date_set_the_board_says_it_is_the_live_book_and_reads_nothing():

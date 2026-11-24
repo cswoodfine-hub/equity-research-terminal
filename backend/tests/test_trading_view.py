@@ -30,9 +30,14 @@ def _visible(markup: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", markup))).strip()
 
 
+# The street's own count of its ratings, quoted as the source gives it beside its target.
+# It is the street's word, not the board's, and the board says nothing of the kind itself.
+STREET_COUNT = re.compile(r"\b\d+ buy, \d+ hold, \d+ sell\b")
+
+
 def _house_style(text: str) -> None:
     assert EM_DASH not in text, text[:200]
-    low = text.lower()
+    low = STREET_COUNT.sub(" ", text).lower()
     found = [w for w in BANNED + ADVICE if re.search(rf"\b{w}\b", low)]
     assert not found, (found, text[:200])
 
@@ -65,10 +70,9 @@ def test_titles_and_groups_are_sentence_case():
 
 def test_the_default_board_leads_with_the_price_across_its_whole_width():
     panels = TV.default_layout()["panels"]
-    assert (panels[0]["panel"], panels[0]["x"], panels[0]["y"], panels[0]["w"]) == (
-        "price", 0, 0, TV.GRID_COLS)
-    assert [(p["panel"], p["x"], p["w"]) for p in panels[1:3]] == [
-        ("changes", 0, 6), ("news", 6, 6)]
+    assert [(p["panel"], p["x"], p["y"], p["w"], p["h"]) for p in panels] == [
+        ("price", 0, 0, 12, 13), ("fundamentals", 0, 13, 12, 7),
+        ("catalysts", 0, 20, 6, 9), ("changes", 6, 20, 6, 9)]
     assert TV.BY_ID["price"]["cost"] == "live"
 
 
@@ -163,7 +167,7 @@ def test_a_place_off_the_grid_or_below_a_minimum_is_brought_to_the_nearest_that_
     assert _where(TV.place(board, "p1", 10, -4, 6, 9))["p1"] == (6, 0, 6, 9)
     assert _where(TV.place(board, "p1", 0, 0, 1, 1))["p1"] == (0, 0, 3, 5)
     assert _where(TV.place(board, "p1", 0, 0, 40, 400))["p1"] == (0, 0, 12, TV.MAX_H)
-    assert _where(TV.place(board, "p2", 0, 0, 2, 2))["p2"][2:] == (4, 9)    # the price's own
+    assert _where(TV.place(board, "p2", 0, 0, 2, 2))["p2"][2:] == (4, 8)    # the price's own
 
 
 def test_a_place_for_a_panel_not_on_the_board_or_not_in_whole_cells_changes_nothing():
@@ -344,7 +348,7 @@ def test_the_stylesheet_places_each_panel_by_its_id_and_nothing_else():
 def test_the_drag_frame_is_told_each_panels_place_and_the_smallest_it_can_be():
     spec = TV.grid_spec(_board(("price", 0, 0, 12, 13), ("news", 0, 13, 6, 9))["panels"])
     assert spec[0] == {"id": "p1", "x": 0, "y": 0, "w": 12, "h": 13, "min_w": 4,
-                       "min_h": 9, "title": "Price chart"}
+                       "min_h": 8, "title": "Price chart"}
     assert (spec[1]["min_w"], spec[1]["min_h"]) == (TV.SIZE["min_w"], TV.SIZE["min_h"])
 
 
@@ -554,17 +558,25 @@ def test_the_dated_figure_draws_one_square_an_event_inside_the_window():
     svg = TV.dated_figure(TV.dated_rows(AHEAD), TODAY, 24, 440)
     ET.fromstring(svg)
     assert len(_units(svg)) == 5                       # the 2031 row is past the window
-    for label in ("Phase 3", "Phase 2", "Phase 1", "Decision", "Other"):
+    for label in ("Phase 3", "Phase 2", "Decision", "Other"):
         assert f">{label}</text>" in svg
+    assert ">Phase 1</text>" not in svg                 # a row only where there is an event
     assert "Dec 2026 · data readout · Phase 3, a study of another" in svg
     assert "10 Jan 2027 · PDUFA · FDA decision on a filing" in svg
 
 
-def test_the_three_phase_rows_are_drawn_even_when_empty_and_the_rest_only_when_used():
-    svg = TV.dated_figure([AHEAD[0]], TODAY, 24, 440)
-    assert ">Phase 3</text>" in svg and ">Phase 1</text>" in svg
-    assert ">Decision</text>" not in svg and ">Other</text>" not in svg
+def test_a_row_is_drawn_only_for_a_phase_with_something_dated():
+    svg = TV.dated_figure([AHEAD[1]], TODAY, 24, 440)
+    assert ">Phase 3</text>" in svg and ">Phase 2</text>" not in svg
     assert TV.dated_figure([], TODAY, 24, 440) == ""
+
+
+def test_what_moves_a_price_is_a_phase_3_readout_or_a_decision_else_phase_2():
+    rows = TV.dated_rows(AHEAD)
+    assert [TV.dated_lane(r) for r in TV.moving(rows)] == ["p3", "decision", "p3"]
+    early = [r for r in rows if TV.dated_lane(r) in ("p2", "other")]
+    assert [TV.dated_lane(r) for r in TV.moving(early)] == ["p2", "p2"]
+    assert TV.moving([AHEAD[4]]) == [] and TV.moving(None) == []
 
 
 def test_the_nearest_events_are_named_with_the_later_phase_first_in_a_month():
@@ -711,7 +723,7 @@ def test_the_price_strip_signs_a_fall_with_a_true_minus_and_prints_a_gap_as_a_ga
     down = TV.price_stats_html(TV.price_stats(falling), "1Y")
     assert "\u221250.0%" in down and 'class="v risk"' in down and "-50" not in down
     blank = TV.price_stats_html(TV.price_stats([]), "1Y")
-    assert blank.count(TV.NO_DATA) == 4 and ">0" not in blank and "0.00" not in blank
+    assert blank.count(TV.NO_DATA) == 3 and ">0" not in blank and "0.00" not in blank
 
 
 def test_an_approval_with_no_name_or_no_date_is_not_an_event():
@@ -778,6 +790,160 @@ def test_the_newest_filings_are_named_and_open_on_edgar_where_the_address_is_on_
     assert TV.filings_html([]) == "" and TV.filings_basis([]) == ""
 
 
+def test_a_week_or_a_month_of_days_is_one_candle_and_nothing_is_made_up():
+    days = [{"as_of": "2026-11-02", "open": 10.0, "high": 12.0, "low": 9.0, "close": 11.0,
+             "volume": 5},
+            {"as_of": "2026-11-03", "open": 11.0, "high": 15.0, "low": 10.0, "close": 14.0,
+             "volume": 7},
+            {"as_of": "2026-11-10", "open": 14.0, "high": 14.5, "low": None, "close": 13.0,
+             "volume": None},
+            {"as_of": "2026-12-01", "open": 13.0, "high": 13.5, "low": 12.0, "close": 12.5},
+            {"as_of": "2026-12-02", "close": None}]
+    weeks = TV.candles(days, "week")
+    assert [(c["as_of"], c["open"], c["high"], c["low"], c["close"], c["volume"])
+            for c in weeks] == [("2026-11-02", 10.0, 15.0, 9.0, 14.0, 12),
+                                ("2026-11-10", 14.0, 14.5, None, 13.0, None),
+                                ("2026-12-01", 13.0, 13.5, 12.0, 12.5, None)]
+    months = TV.candles(days, "month")
+    assert [(c["as_of"], c["low"], c["close"]) for c in months] == [
+        ("2026-11-02", None, 13.0), ("2026-12-01", 12.0, 12.5)]    # a missing low stays missing
+    assert TV.candles(days, "day") == days[:4] and TV.candles(None, "week") == []
+    assert set(TV.BAR_OF.values()) <= set(TV.BAR_WORDS)
+
+
+@pytest.mark.parametrize("row,moves", [
+    ({"change_type": "press_data_readout", "significance": "high"}, True),
+    ({"change_type": "efficacy_supplement", "significance": "high"}, True),
+    ({"kind": "loe", "change_type": "loe", "significance": "medium"}, True),
+    ({"change_type": "pulse_earnings", "significance": "medium"}, True),
+    ({"change_type": "revenue_restatement", "significance": "high"}, False),
+    ({"change_type": "new_filing", "significance": "high"}, False),
+    ({"change_type": "risk_factors_change", "significance": "high"}, False),
+    ({"change_type": "date_slip", "significance": "medium"}, False),
+    ({"change_type": "date_slip", "significance": "high"}, True),
+    ({"change_type": "leadership_change", "significance": "low"}, False),
+    ({"change_type": "status_change", "headline": "X trial: status Recruiting -> Completed"}, False),
+    ({"change_type": "status_change", "headline": "X trial: status Recruiting -> Terminated"}, True),
+    ("not a row", False)])
+def test_a_change_is_material_only_where_it_is_of_a_kind_that_moves_a_price(row, moves):
+    assert TV.material(row) is moves
+
+
+def test_material_changes_are_the_companys_own_in_the_window_newest_first_and_once():
+    feed = [{"ticker": "LLY", "date": "2026-11-20", "headline": "LLY approved",
+             "change_type": "press_approval", "significance": "high"},
+            {"ticker": "LLY", "date": "2026-11-20 09:00", "headline": "LLY  approved",
+             "change_type": "press_approval", "significance": "high"},
+            {"ticker": "LLY", "date": "2026-11-22", "headline": "LLY restated",
+             "change_type": "revenue_restatement", "significance": "high"},
+            {"ticker": "NVO", "date": "2026-11-21", "headline": "NVO deal",
+             "change_type": "press_deal", "significance": "high"},
+            {"ticker": "LLY", "date": "2031-01-01", "headline": "LLY exclusivity ends",
+             "kind": "loe", "change_type": "loe", "significance": "medium"},
+            {"ticker": "LLY", "date": "2026-07-01", "headline": "LLY old deal",
+             "change_type": "press_deal", "significance": "high"},
+            {"ticker": "LLY", "date": "2026-11-01", "headline": "LLY results",
+             "change_type": "pulse_earnings", "significance": "medium"}]
+    rows = TV.material_changes(feed, "LLY", TODAY)
+    assert [" ".join(r["headline"].split()) for r in rows] == ["LLY approved", "LLY results"]
+
+
+def test_the_material_changes_figure_draws_a_row_only_for_a_rating_that_has_one():
+    rows = [{"date": "2026-11-20", "significance": "high", "change_type": "press_approval",
+             "headline": "approved"}]
+    svg = TV.changes_figure(rows, TODAY, 440)
+    assert ">High</text>" in svg and ">Low</text>" not in svg and len(_units(svg)) == 1
+
+
+REPORT = {"report": {"label": "Q3 26"},
+          "filed": {"revenue": 24.397e9, "revenue_growth": 0.3861, "net_margin": 0.2644,
+                    "net_income_growth": -0.05, "currency": "USD"},
+          "street": {"eps": 7.48, "consensus_eps": 5.38, "surprise_pct": 39.03, "result": "beat"},
+          "day": {"session": "2026-10-29", "move": 0.0663, "abnormal": 0.0645,
+                  "benchmark": "XBI"},
+          "guidance": [{"metric": "Revenue", "label": "FY2026 revenue", "value": 91.5e9,
+                        "change": 0.064, "direction": "raised", "as_of": "2026-10-29"}]}
+STREET = {"rows": [
+    {"metric": "EPS", "period": "FY2025", "street": {"value": 22.0}},
+    {"metric": "EPS", "period": "FY2026", "street": {"value": 35.73, "note": "8 estimates, per share"}},
+    {"metric": "EPS", "period": "FY2027", "street": {"value": 50.97}},
+    {"metric": "PriceTarget", "period": "12M",
+     "street": {"value": 1523.61, "currency": "USD", "note": "22 buy, 1 hold, 1 sell; per share"}}]}
+
+
+def _tiles(groups):
+    return {t["k"]: t for _g, tiles in groups for t in tiles}
+
+
+def test_the_fundamentals_lead_with_the_quarter_the_outlook_and_the_balance_sheet():
+    groups = TV.fundamentals(
+        TODAY, report=REPORT, street=STREET,
+        cash={"fiscal_year": 2025, "fcf": 8.972e9, "fcf_margin": 0.1377,
+              "net_debt_ebitda": 1.408, "net_debt": 4.46e10},
+        runway={"runway_months": 9.5, "available": 3.0e8, "cash_as_of": "2026-09-30"},
+        screen={"loe_share_5y": 0.21},
+        relative={"benchmark": "XLV", "windows": {
+            "3m": {"relative_pct": 0.0619, "company_pct": 0.0803, "benchmark_pct": 0.0184,
+                   "covers_window": True},
+            "1y": {"relative_pct": -0.02, "company_pct": 0.1, "benchmark_pct": 0.12,
+                   "covers_window": False}}},
+        close=1347.11, price_currency="USD")
+    assert [g for g, _t in groups] == ["Growth", "Outlook", "Valuation and balance sheet",
+                                      "The price"]
+    t = _tiles(groups)
+    assert (t["Revenue, Q3 26"]["v"], t["Revenue, Q3 26"]["d"]) == ("24.4bn", "+38.6% on a year")
+    assert t["Net margin"]["v"] == "26.4%" and t["Net margin"]["tone"] == "down"
+    assert (t["EPS against street"]["v"], t["EPS against street"]["d"],
+            t["EPS against street"]["tone"]) == ("7.48", "+39.0% on 5.38", "up")
+    assert t["Day of results"]["d"] == "+6.5% on XBI"
+    assert (t["Guidance, FY2026 revenue"]["v"], t["Guidance, FY2026 revenue"]["d"]) == (
+        "91.5bn", "raised +6.4%")
+    eps = t[f"Street EPS FY{TODAY.year}"]
+    assert eps["v"] == "35.73" and eps["d"] == "+42.7% in FY2027" and eps["n"] == "8 estimates"
+    assert t["Street target"]["d"] == "+13.1% on the close"
+    assert t["Street target"]["n"] == "22 buy, 1 hold, 1 sell"
+    assert t["Price over street EPS"]["v"] == "37.7\u00d7"
+    assert t["Free cash flow FY2025"]["d"] == "13.8% of revenue"
+    assert t["Cash runway"]["v"] == "9.5 months" and t["Cash runway"]["tone"] == "down"
+    assert t["Revenue at LOE, 5 years"]["v"] == "21.0%"
+    assert t["Against XLV, 3m"]["v"] == "+6.2 pts"
+    assert "Against XLV, 1y" not in t                    # the year is not covered: left off
+
+
+def test_with_no_report_the_year_stands_in_and_optional_tiles_are_left_out():
+    groups = TV.fundamentals(TODAY, screen={"revenue": 6.5e10, "revenue_growth": None,
+                                             "net_margin": None})
+    t = _tiles(groups)
+    assert [g for g, _t in groups] == ["Growth"]
+    assert t["Revenue, last year"]["v"] == "65.0bn" and t["Revenue, last year"]["d"] == ""
+    assert t["Net margin, last year"]["v"] == TV.NO_DATA
+    assert "0.0%" not in TV.tiles_html(groups)
+
+
+def test_a_ratio_across_currencies_is_not_drawn():
+    groups = TV.fundamentals(TODAY, street=STREET, close=200.0, price_currency="DKK")
+    t = _tiles(groups)
+    assert "Price over street EPS" not in t
+    assert t["Street target"]["d"] == ""                 # target in USD, the close in DKK
+
+
+def test_money_and_percentages_carry_a_true_minus_and_never_print_a_gap_as_nought():
+    assert TV.money(2.4397e10) == "24.4bn" and TV.money(6.12e8) == "612m"
+    assert TV.money(-3.0e9) == "\u22123.0bn" and TV.money(None) == TV.NO_DATA
+    assert TV.money(float("nan")) == TV.NO_DATA and TV.money(True) == TV.NO_DATA
+    assert TV.pct(-0.052) == "\u22125.2%" and TV.pct(0.1, signed=False) == "10.0%"
+    assert TV.pct(None) == TV.NO_DATA
+
+
+def test_the_tiles_are_one_grid_in_the_groups_order_and_escape_what_they_are_given():
+    markup = TV.tiles_html([("Growth", [TV.tile("<b>Revenue</b>", "1.0bn", "+1.0%", "up")]),
+                            ("Outlook", [TV.tile("Target", TV.NO_DATA)])])
+    assert markup.count('class="tiles td-ftiles"') == 1
+    assert "<b>" not in markup and 'class="d up"' in markup and 'class="v none"' in markup
+    assert markup.index("Revenue") < markup.index("Target")
+    assert TV.tiles_html([]) == "" and TV.tiles_html([("Growth", [])]) == ""
+
+
 # ------------------------------------------------------------------------- house style
 def test_house_style_on_every_word_the_board_prints():
     words = [p["title"] for p in TV.PANELS] + [p["about"] for p in TV.PANELS]
@@ -802,6 +968,13 @@ def test_house_style_on_every_word_the_board_prints():
     words += [TV.dated_wait(r, TODAY) for r in AHEAD] + [TV.dated_when(r) for r in AHEAD]
     words.append(_visible(TV.price_stats_html(TV.price_stats(BARS), "1Y")))
     words.append(_visible(TV.price_stats_html(TV.price_stats([]), "1Y")))
+    groups = TV.fundamentals(TODAY, report=REPORT, street=STREET, close=1347.11,
+                             price_currency="USD", cash={"fiscal_year": 2025, "fcf": 1e9,
+                                                         "fcf_margin": 0.1, "net_debt_ebitda": 1.0},
+                             runway={"runway_months": 5.0, "available": 1e8,
+                                     "cash_as_of": "2026-09-30"}, screen={"loe_share_5y": 0.3})
+    words.append(_visible(TV.tiles_html(groups)))
+    words += [g for g, _t in groups] + list(TV.BAR_WORDS.values())
     filed = TV.filings_rows(FILED)
     words.append(_visible(TV.filings_figure(filed, TODAY, 440)) + " "
                  + _visible(TV.filings_leads(filed)) + " " + TV.filings_basis(filed))

@@ -1308,9 +1308,33 @@ a.td-lead:hover .t {{ color: var(--up); }}
                            border-bottom: 1px dotted var(--rule-strong); }}
 .note-d.td-all > summary:hover, .note-d.td-all[open] > summary {{ color: var(--text); }}
 .note-d.td-all[open] > summary {{ margin-bottom: 0.3rem; }}
-/* The price panel: its two controls on one line, the window's figures under them. */
-[class*="st-key-td_pricectl_"] {{ margin: 0.1rem 0 0.2rem; }}
-.td-stats {{ margin: 0 0 0.3rem; flex-wrap: wrap; row-gap: 0.2rem; }}
+/* The price panel: the window's control and its figures on one line. The control is a
+   row of five two-character choices, so it is drawn at the height of a chip and not of a
+   form control; the figures beside it are set small and in a line. */
+[data-testid="stLayoutWrapper"]:has(> [class*="st-key-td_pricectl_"]) {{ margin: 0 !important; }}
+[class*="st-key-td_pricectl_"] {{ flex-wrap: wrap; row-gap: 0.2rem; column-gap: 1rem !important; }}
+[class*="st-key-td_pricectl_"] [data-testid="stButtonGroup"] button {{
+  min-height: 22px !important; height: 22px; padding: 0 0.5rem !important;
+  font-size: 10.5px !important; font-family: var(--font-mono); }}
+[class*="st-key-td_pricectl_"] [data-testid="stElementContainer"] {{ width: auto !important; }}
+.td-stats {{ margin: 0; flex-wrap: wrap; gap: 0.2rem 1.1rem; }}
+.td-stats .stat .k {{ font-size: 9.5px; }}
+.td-stats .stat .v {{ font-size: 0.92rem; }}
+.td-legend {{ margin-top: 0; }}
+/* Fundamentals: one grid of tiles that wraps to the panel's width, seven across on a
+   panel the board's width. */
+.tiles.td-ftiles {{ grid-template-columns: repeat(auto-fill, minmax(9.4rem, 1fr));
+                   margin: 0.1rem 0 0; border-top: 0; }}
+/* A tile keeps to its cell: a label too long for it ends in an ellipsis, and the whole
+   label is the tile's hover. */
+.tiles.td-ftiles > div {{ border-bottom: 1px solid var(--rule); padding-left: 0.7rem;
+                         min-width: 0; overflow: hidden; }}
+.tiles.td-ftiles .k, .tiles.td-ftiles .n {{ white-space: nowrap; overflow: hidden;
+                                          text-overflow: ellipsis; }}
+.tiles.td-ftiles .row {{ column-gap: 0.4rem; }}
+.tiles.td-ftiles .v {{ font-size: 1.05rem; }}
+.tiles.td-ftiles .d {{ font-size: 10.5px; }}
+.tiles.td-ftiles .n {{ font-size: 10px; margin-top: 2px; }}
 /* The board's two menus. A group of kinds is a caps label, as a section is; a row of
    the arranger names its panel in the text colour. */
 .td-group {{ font-family: var(--font-ui); font-size: 9.5px; letter-spacing: 0.08em;

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,21 +36,21 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 10
+REVISION = 11
 
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
-CHANGE_LEVELS = ("high", "medium", "low")
 CHANGES_SHOWN = 40
 # The board against the Ask column beside it: about two thirds to one, which leaves the
 # box the measure its answers are set at and the board room for two panels across.
 BESIDE = (2.05, 1)
 ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
 SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
-# What the price panel draws round its chart: the rule, the window's controls, the
-# figures, the legend and the notes. The chart takes the rest of the panel's height.
-PRICE_CHROME = 196
+# What the price panel draws round its chart: the rule, the line of the window's control
+# and its figures, the legend and the notes. The chart takes the rest of the panel.
+PRICE_CHROME = 128
 PRICE_MIN = 140
+HEAVY_TIMEOUT_S = 8            # a read that runs the forecast, waited for this long
 LIVE_TIMEOUT_S = 12
 
 
@@ -61,13 +62,26 @@ def _fetch(api_base: str, path: str, timeout: int):
         return json.loads(resp.read().decode("utf-8"))
 
 
+FAIL_HOLD_S = 30
+
+
 def read(api_base: str, path: str, timeout: int = 30) -> tuple:
     """(the payload, None), or (None, why it could not be read). Never raises: a panel
-    whose read fails says so in its own space and the rest of the board still draws."""
+    whose read fails says so in its own space and the rest of the board still draws.
+
+    A failure is held for half a minute. A heavy read on a cold book (the street's view
+    runs the forecast) can take a minute or two; asked again on every click it would
+    stack one wait behind another, and the API finishes the first one regardless."""
+    held = st.session_state.setdefault("_td_failed", {})
+    failed = held.get((api_base, path))
+    if failed and time.monotonic() - failed[0] < FAIL_HOLD_S:
+        return None, failed[1]
     try:
         return _fetch(api_base, path, timeout), None
     except (urllib.error.URLError, OSError, ValueError) as exc:
-        return None, str(exc).rstrip(".")
+        reason = str(exc).rstrip(".")
+        held[(api_base, path)] = (time.monotonic(), reason)
+        return None, reason
 
 
 def clear() -> None:
@@ -107,14 +121,15 @@ def _changes(api_base, company, kit, rule, slot, frame, have):
     if feed is None:
         feed, problem = read(api_base, f"/changes?ticker={urllib.parse.quote(company)}")
     today = dt.date.today()
-    rows = kit.changes(feed or [], company, today, CHANGE_LEVELS)
+    rows = TV.material_changes(feed or [], company, today)
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot, frame):
         if problem:
             _failed(kit, "The change feed", problem)
         elif not rows:
-            kit.state(f"Nothing detected for {TV.esc(company)} in {TV.CHANGE_DAYS} days",
-                      "The book records a change when two refreshes differ. None has.")
+            kit.state(f"Nothing material for {TV.esc(company)} in {TV.CHANGE_DAYS} days",
+                      "No readout, approval, result, deal, financing or exclusivity "
+                      "change was detected. The rest of the feed is on Universe.")
         else:
             _figure(TV.changes_figure(rows, today, frame["width"]))
             st.markdown(TV.kinds_html(rows) + TV.changes_leads(rows, company)
@@ -125,11 +140,13 @@ def _changes(api_base, company, kit, rule, slot, frame, have):
                             + "".join(kit.change_row(it) for it in rows[:CHANGES_SHOWN])
                             + "</div>"),
                         unsafe_allow_html=True)
-            kit.note(f"A square is one change the book detected between two refreshes, on "
-                     f"the day it was detected and in the row of its rating, over "
-                     f"{TV.CHANGE_DAYS} days. Hover a square for what it was. The three "
-                     "named are the highest rated, newest first. What is dated ahead is "
-                     "on the Dated ahead panel.")
+            kit.note(f"A square is one material change, in the week it was detected and the "
+                     f"row of its rating, over {TV.CHANGE_DAYS} days. Material means a "
+                     "readout, an approval or a regulatory step, a result, a deal or a "
+                     "financing, a trial stopped or changed, a leader named, or "
+                     "exclusivity; a restated revenue line, an indexed filing or a "
+                     "registry date are left out. The three named are the highest rated, "
+                     "newest first.")
 
 
 def _news(api_base, company, kit, rule, slot, frame, have):
@@ -173,25 +190,29 @@ def _catalysts(api_base, company, kit, rule, slot, frame, have):
                   f"&ticker={urllib.parse.quote(company)}")
     listed = payload if isinstance(payload, list) else []
     today = dt.date.today()
-    rows = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS, today))
+    every = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS, today))
+    rows = TV.moving(every)
     kit.section(label, count=len(rows) if rows else None, basis=basis)
     with _body(slot, frame):
         if problem:
             _failed(kit, "The calendar", problem)
         elif not rows:
             kit.state(f"Nothing dated for {TV.esc(company)} in the next "
-                      f"{CALENDAR_MONTHS} months", calendar_view.SOURCES)
+                      f"{CALENDAR_MONTHS} months that moves a price",
+                      "No Phase 3 readout or regulatory decision, and no Phase 2 readout, "
+                      "is dated. " + calendar_view.SOURCES)
         else:
             _figure(TV.dated_figure(rows, today, CALENDAR_MONTHS, frame["width"]))
             st.markdown(TV.dated_next(rows, today)
                         + TV.fold_html(f"The list: {TV.dated_basis(rows, CALENDAR_MONTHS)}, "
                                        "soonest first", TV.dated_html(rows)),
                         unsafe_allow_html=True)
-            kit.note("A square is one dated event, in its month and in the row of its "
-                     "phase, which is read from the start of its registry title. "
-                     + calendar_view.caption(listed, CALENDAR_MONTHS, today)
-                     + " A date here is the registry's or the filing's, not a "
-                       "commitment. The odds and the value at stake are on Catalysts.")
+            kit.note(f"The {len(rows)} of {len(every)} dated events that move a price: "
+                     "Phase 3 readouts and regulatory decisions, or the Phase 2 readouts "
+                     "where there are none. A square is one, in its month and the row of "
+                     "its phase, read from the start of its registry title. A date here is "
+                     "the registry's or the filing's, not a commitment. Every dated event, "
+                     "with the odds and the value at stake, is on Catalysts.")
 
 
 def _results(api_base, company, kit, rule, slot, frame, have):
@@ -273,6 +294,49 @@ def _filings(api_base, company, kit, rule, slot, frame, have):
                      + "The three named are the newest, and each opens on EDGAR.")
 
 
+def _fundamentals(api_base, company, kit, rule, slot, frame, have):
+    """The figures a price is set on, as tiles: growth, the outlook, valuation and the
+    balance sheet, and the price against its sector. Every figure is a read's own."""
+    label, basis = rule
+    q = urllib.parse.quote(company)
+    report, _p1 = read(api_base, f"/companies/{q}/report")
+    street, street_problem = read(api_base, f"/companies/{q}/street", HEAVY_TIMEOUT_S)
+    cash, _p2 = read(api_base, f"/companies/{q}/cashflow")
+    runway, _p3 = read(api_base, f"/companies/{q}/runway")
+    relative, _p4 = read(api_base, f"/companies/{q}/relative")
+    screen, _p5 = read(api_base, "/screen")
+    prices = have.get("prices")
+    if prices is None:
+        prices, _p6 = read(api_base, f"/companies/{q}/prices")
+    latest = (prices or {}).get("latest") or {}
+    row = next((r for r in screen or [] if isinstance(r, dict) and r.get("ticker") == company),
+               None)
+    groups = TV.fundamentals(dt.date.today(), report=report, street=street, cash=cash,
+                             runway=runway, screen=row, relative=relative,
+                             close=latest.get("close"),
+                             price_currency=(prices or {}).get("currency"))
+    currency = ((report or {}).get("filed") or {}).get("currency") or (cash or {}).get(
+        "currency") or (row or {}).get("currency")
+    kit.section(label, basis=" · ".join(part for part in (basis, currency) if part))
+    with _body(slot, frame):
+        markup = TV.tiles_html(groups)
+        if not markup:
+            kit.state(f"No fundamentals on file for {TV.esc(company)}",
+                      "Filed results, the street's estimates and the cash flow statement "
+                      f"are read on each refresh. For this company they are {TV.NO_DATA}.")
+            return
+        st.markdown(markup, unsafe_allow_html=True)
+        kit.note("Growth is the last reported quarter against the same quarter a year "
+                 "before, and EPS against the street is the street's own count. The "
+                 "outlook is the company's latest guidance and the street's consensus and "
+                 "12 month target; price to street EPS is the last close over the street's "
+                 "EPS for this fiscal year. Free cash flow and leverage are the last full "
+                 "year. Against the sector is the price's move less the sector fund's."
+                 + (" The street's estimates did not load and are left off: "
+                    f"{TV.esc(street_problem)}. The book may still be working them out; "
+                    "they are tried again in half a minute." if street_problem else ""))
+
+
 def live_prices(api_base: str, company: str) -> dict:
     """Yahoo's live read for one company, or the reason there is none. Never raises, and
     never held here: the API holds the answer for about a minute and writes nothing, so
@@ -290,9 +354,9 @@ def live_prices(api_base: str, company: str) -> dict:
 def _price(api_base, company, kit, rule, slot, frame, have):
     """The daily price with the live session over it, at a fixed height.
 
-    The same builders as the Prices tab (``price_chart``) in a smaller frame: daily bars
-    only, a window, line or candle, and the approvals marked. The intraday views, the
-    fair value line and why it moved stay on the Prices tab, which is their page.
+    The same builders as the Prices tab (``price_chart``) in a smaller frame: candles, a
+    day, a week or a month each by the window, and the approvals marked. The intraday
+    views, the fair value line and why it moved stay on the Prices tab, their page.
     """
     label, basis = rule
     # The timer belongs to the chart alone, so a tick redraws one chart and not the
@@ -308,19 +372,11 @@ def _price(api_base, company, kit, rule, slot, frame, have):
         stored = stored or {}
         live = live_prices(api_base, company)
         kit.section(label, basis=" · ".join(part for part in (
-            basis, stored.get("currency") or live.get("currency"),
-            price_chart.live_status(live)) if part))
-        with st.container(key=f"td_pricectl_{slot}", horizontal=True,
-                          vertical_alignment="center"):
-            span = st.segmented_control(
-                "Window", [name for name, _days in TV.PRICE_SPANS], default=TV.DEFAULT_SPAN,
-                key=f"td_span_{slot}", label_visibility="collapsed") or TV.DEFAULT_SPAN
-            view = st.segmented_control(
-                "View", [price_chart.LINE, price_chart.CANDLE], default=price_chart.LINE,
-                key=f"td_view_{slot}", label_visibility="collapsed") or price_chart.LINE
+            basis, stored.get("currency") or live.get("currency")) if part))
         points = stored.get("points") or []
         over = ([live["live_daily"]] if price_chart.live_daily_applies(
             points, live.get("live_daily"), stored.get("last_fetch_at")) else [])
+        span = st.session_state.get(f"td_span_{slot}") or TV.DEFAULT_SPAN
         bars = TV.price_window(price_chart.merge_live(points, over), span)
         if problem:
             _failed(kit, "The price history", problem)
@@ -331,30 +387,43 @@ def _price(api_base, company, kit, rule, slot, frame, have):
                       "The live read returned no bar to draw in the meantime: "
                       f"{TV.esc(str(live.get('reason') or TV.NO_DATA))}.")
             return
-        st.markdown(TV.price_stats_html(TV.price_stats(bars), span), unsafe_allow_html=True)
+        # The window and what it shows on one line: a control a few characters wide, and
+        # the last close, the window's change and its range beside it.
+        with st.container(key=f"td_pricectl_{slot}", horizontal=True,
+                          vertical_alignment="center", gap="small"):
+            st.segmented_control(
+                "Window", [name for name, _days in TV.PRICE_SPANS], default=TV.DEFAULT_SPAN,
+                key=f"td_span_{slot}", label_visibility="collapsed",
+                help="How far back the chart reaches. A candle is a day up to six "
+                     "months, a week for a year and a month for five.")
+            st.markdown(TV.price_stats_html(TV.price_stats(bars), span),
+                        unsafe_allow_html=True)
+        step = TV.BAR_OF.get(span, "day")
+        sticks = TV.candles(bars, step)
         approvals, _problem = read(
             api_base, f"/companies/{urllib.parse.quote(company)}/approvals")
         markers = price_chart.event_markers(
-            bars, TV.price_events((approvals or {}).get("approvals")), False)
+            sticks, TV.price_events((approvals or {}).get("approvals")), False)
         kit.draw_chart(
-            data=price_chart.series_data(bars, view, False), markers=markers, fair=[],
-            mode=view, intraday=False, lines=[], draw_mode=False,
-            theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.GROUND,
+            data=price_chart.series_data(sticks, price_chart.CANDLE, False), markers=markers,
+            fair=[], mode=price_chart.CANDLE, intraday=False, lines=[], draw_mode=False,
+            theme={"ground": TK.GROUND, "muted": TK.MUTED, "rule": TK.RULE_FAINT,
                    "rule_strong": TK.RULE_STRONG, "up": TK.UP, "down": TK.DOWN,
                    "flag": TK.FLAG},
-            gutter=0, view_key=f"{company}|{span}|{view}",
+            gutter=0, view_key=f"{company}|{span}",
             height=max(PRICE_MIN, TV.area_px(frame["h"]) - PRICE_CHROME),
             fill=False, key=f"td_chart_{slot}")
-        legend = (f'<span style="color:var(--up)">▲</span> FDA approval &nbsp;'
-                  f'<span style="color:var(--down)">▼</span> loss of exclusivity '
-                  f'&nbsp;·&nbsp; {len(markers)} on this view')
+        legend = (f'{TV.BAR_WORDS[step]} candles &nbsp;·&nbsp; '
+                  f'<span style="color:var(--up)">▲</span> approval &nbsp;'
+                  f'<span style="color:var(--down)">▼</span> loss of exclusivity')
         words = price_chart.live_bar_words(live, "1d", over, points)
         if words:
             legend += f" &nbsp;·&nbsp; {TV.esc(words)}"
-        st.markdown(f'<div class="byline chart-legend">{legend}</div>',
+        st.markdown(f'<div class="byline chart-legend td-legend">{legend}</div>',
                     unsafe_allow_html=True)
-        kit.note(TV.esc(price_chart.live_note(live))
-                 + "Daily bars from the book's stored history, with the current session "
+        kit.note(TV.esc(price_chart.live_status(live)) + ". "
+                 + TV.esc(price_chart.live_note(live))
+                 + "Candles from the book's stored daily history, with the current session "
                    "from Yahoo's live read laid over them where the stored series does "
                    "not yet hold that day's close. The live read writes nothing to the "
                    "book. Intraday bars, the fair value line and why the price moved "
@@ -363,7 +432,8 @@ def _price(api_base, company, kit, rule, slot, frame, have):
     chart()
 
 
-DRAW = {"price": _price, "changes": _changes, "news": _news, "results": _results,
+DRAW = {"price": _price, "fundamentals": _fundamentals, "changes": _changes,
+        "news": _news, "results": _results,
         "trend": _trend, "filings": _filings, "catalysts": _catalysts}
 
 

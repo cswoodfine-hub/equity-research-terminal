@@ -294,3 +294,35 @@ right corner and the panels under it rose into the free half; Company news moved
 heading to the top left and the chart pushed below it; the snapped outline shown
 mid-drag; the bottom left corner dragged to put the chart on the right. The script itself
 is not run by the suite (no `node`); its rules are held by reading it.
+
+## What a reader wants to see, 2026-11-24
+
+The reader found the board hard to use: the price chart's controls took more room than
+the chart, the chart was a line, and the other panels were full of records that do not
+move a price. Changed:
+
+- **The price chart is candles**, a day a candle up to six months, a week for a year and a
+  month for five (`trading_view.candles`), so a candle's body can always be read. It opens
+  on six months. The line-or-candle switch is gone, and the window is a row of five
+  two-letter choices the height of a chip, on one line with the last close, the window's
+  change and its range. The live status moves from the rule into the notes.
+- **A Fundamentals panel** opens second, the board's width: one grid of tiles, the figure
+  first and large. Growth (the last quarter's revenue and its growth, net margin, EPS
+  against the street, the move on the day it reported), the outlook (revenue guidance and
+  whether it was raised, the street's EPS for this year and the growth to the next, the
+  street's target against the close with its rating count as the street gives it),
+  valuation and the balance sheet (the close over the street's EPS, free cash flow and its
+  margin, net debt to EBITDA, runway where it is counted, revenue losing exclusivity
+  within five years), and the price against its sector fund. Every figure is a read's
+  own, or a ratio of two named on its tile; a ratio across currencies is not drawn; an
+  optional tile with no figure is left out.
+- **Material changes** replaces What changed: only readouts, approvals and regulatory
+  steps, results, deals and financings, a trial stopped or redesigned, a leader named, and
+  exclusivity, over 90 days by week (`trading_view.material`). Revenue lines restated,
+  filings indexed and registry dates nudged, most of the feed, are left to Universe.
+- **Dated ahead** shows the events that move a price: Phase 3 readouts and regulatory
+  decisions, or the Phase 2 readouts where there are none (`trading_view.moving`).
+- **The default board** is the price chart, Fundamentals, Dated ahead and Material changes.
+  Company news, Filings, Latest results and Growth and margin stay in Add panel.
+- **A heavy read that fails is held for half a minute**, so a cold book does not make
+  every click wait for the street's estimates again.

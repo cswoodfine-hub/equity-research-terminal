@@ -48,9 +48,15 @@ PANELS = (
      "reads": ("/companies/{ticker}/prices", "/companies/{ticker}/prices/live",
                "/companies/{ticker}/approvals"),
      "about": "The daily price with Yahoo's live read over it, and approvals marked."},
-    {"id": "changes", "title": "What changed", "group": "News", "wide": False,
+    {"id": "fundamentals", "title": "Fundamentals", "group": "Fiscal", "wide": True,
+     "cost": "heavy", "private": False,
+     "reads": ("/companies/{ticker}/report", "/companies/{ticker}/street",
+               "/companies/{ticker}/cashflow", "/companies/{ticker}/runway",
+               "/companies/{ticker}/relative", "/screen"),
+     "about": "The figures a price is set on: growth, the street's view, valuation, cash."},
+    {"id": "changes", "title": "Material changes", "group": "News", "wide": False,
      "cost": "free", "private": False, "reads": ("/changes?ticker={ticker}",),
-     "about": "What the book detected changing in the last 30 days, by day and rating."},
+     "about": "Readouts, approvals, results, deals and exclusivity, over 90 days."},
     {"id": "news", "title": "Company news", "group": "News", "wide": False,
      "cost": "light", "private": False, "reads": ("/companies/{ticker}/news",),
      "about": "Releases, 8-K headlines and the daily pulse's items, by month and source."},
@@ -67,7 +73,7 @@ PANELS = (
     {"id": "catalysts", "title": "Dated ahead", "group": "Catalysts", "wide": False,
      "cost": "light", "private": False,
      "reads": ("/catalysts?within_days={days}&ticker={ticker}",),
-     "about": "Every dated catalyst in the next 24 months, by month and phase."},
+     "about": "The readouts and decisions that move a price, over the next 24 months."},
 )
 BY_ID = {panel["id"]: panel for panel in PANELS}
 
@@ -76,7 +82,7 @@ MAX_LIVE = 4             # each live price is two Yahoo requests a minute while 
 COLUMNS = (1, 2, 3)      # "lay out N across", and how a board saved before the grid is read
 DEFAULT_COLUMNS = 2
 # What a reader sees before they have chosen anything.
-DEFAULT_PANELS = ("price", "changes", "news", "catalysts")
+DEFAULT_PANELS = ("price", "fundamentals", "catalysts", "changes")
 
 # A ticker as the book writes one: LLY, NOVO-B.CO, 4568.T. Anything else is not sent on.
 TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
@@ -96,7 +102,8 @@ MAX_H = 30               # rows; a panel taller than this is a page of its own
 MAX_Y = 400              # rows; a place further down is a saved file gone wrong
 HEAD_PX = 46             # a panel's rule and the gap under it, above its body
 # The size a new panel opens at, and the smallest it can be made, in cells.
-SIZES = {"price": {"w": 12, "h": 13, "min_w": 4, "min_h": 9}}
+SIZES = {"price": {"w": 12, "h": 13, "min_w": 4, "min_h": 8},
+         "fundamentals": {"w": 12, "h": 7, "min_w": 4, "min_h": 4}}
 SIZE = {"w": 6, "h": 9, "min_w": 3, "min_h": 5}
 
 
@@ -642,6 +649,14 @@ def dated_wait(row: dict, today: dt.date) -> str:
     return "today" if days <= 0 else "tomorrow" if days == 1 else f"in {days} days"
 
 
+def moving(rows) -> list:
+    """The dated events that move a price: Phase 3 readouts and regulatory decisions. A
+    company with neither ahead keeps its Phase 2 readouts, which are then its catalysts."""
+    rows = list(rows or [])
+    lead = [r for r in rows if dated_lane(r) in ("p3", "decision")]
+    return lead or [r for r in rows if dated_lane(r) == "p2"]
+
+
 def dated_figure(rows, today: dt.date, months: int, width: int) -> str:
     """What is dated ahead on a grid of months and phases, a square an event."""
     items = [{"date": _day(r.get("expected_date")), "lane": dated_lane(r),
@@ -650,8 +665,7 @@ def dated_figure(rows, today: dt.date, months: int, width: int) -> str:
                   _one_line(r.get("title"))) if part)}
              for r in rows or []]
     used = {it["lane"] for it in items}
-    lanes = [lane for lane in DATED_LANES
-             if lane["key"] in used or lane["key"] in _ALWAYS_DATED]
+    lanes = [lane for lane in DATED_LANES if lane["key"] in used]
     return CH.unit_lanes(items, lanes, month_start(today), month_start(today, months - 1),
                          step="month", width=width, cap=5,
                          label="dated events ahead by month and phase")
@@ -727,7 +741,35 @@ def news_older(rows, today: dt.date) -> int:
 
 
 # --- what changed: how much, how material, and the ones to read -------------------------
-CHANGE_DAYS = 30
+CHANGE_DAYS = 90
+# The kinds of change that move a price: a readout, an approval or a regulatory step, a
+# result, a deal or a financing, a change to a trial's phase or endpoint, a leader leaving,
+# exclusivity. The rest of the feed is the book keeping its records straight (a revenue
+# line restated, a filing indexed, a registry date nudged) and is left to the Universe tab.
+MATERIAL = {"press_data_readout", "readout_landed", "pulse_readout", "data readout",
+            "efficacy_supplement", "press_approval", "new_approval", "pulse_approval",
+            "press_regulatory", "pulse_regulatory", "PDUFA", "regulatory decision",
+            "press_deal", "pulse_deal", "pulse_earnings", "press_results",
+            "pulse_financing", "pulse_restructuring", "phase_advance", "phase_regress",
+            "endpoint_change", "design_change", "loe", "payer_access", "material event"}
+# Material only at the top rating: a leader named, a Phase 3 date slipping a quarter.
+MATERIAL_IF_HIGH = {"leadership_change", "date_slip"}
+_STOPPED = re.compile(r"->\s*(Terminated|Suspended|Withdrawn)\b", re.I)
+
+
+def material(row) -> bool:
+    """Whether a detected change is of a kind that moves a price."""
+    if not isinstance(row, dict):
+        return False
+    kind = str(row.get("change_type") or row.get("kind") or "")
+    if kind in MATERIAL:
+        return True
+    if kind in MATERIAL_IF_HIGH and row.get("significance") == "high":
+        return True
+    # A trial stopped is news; a trial finishing on schedule is the registry catching up.
+    return kind == "status_change" and bool(_STOPPED.search(str(row.get("headline") or "")))
+
+
 CHANGE_LANES = (
     # Amber is the app's "material change" and is spent on the top rating alone.
     {"key": "high", "label": "High", "colour": TK.FLAG},
@@ -742,15 +784,35 @@ def change_kind(row: dict) -> str:
     return _one_line(str(row.get("change_type") or row.get("kind") or "").replace("_", " "))
 
 
+def material_changes(feed, ticker: str, today: dt.date, days: int = CHANGE_DAYS) -> list:
+    """The company's material changes in the last ``days``, newest first, each once. A
+    change dated ahead of today (an expiry the book knows is coming) is not a change yet."""
+    since = (today - dt.timedelta(days=days - 1)).isoformat()
+    until = today.isoformat()
+    rows = [r for r in feed or [] if isinstance(r, dict) and material(r)
+            and (r.get("ticker") or "") == ticker
+            and since <= str(r.get("date") or "")[:10] <= until]
+    rows.sort(key=lambda r: str(r.get("date") or ""), reverse=True)
+    seen, kept = set(), []
+    for r in rows:
+        key = (str(r.get("date") or "")[:10], _one_line(r.get("headline")).lower())
+        if key not in seen:
+            seen.add(key)
+            kept.append(r)
+    return kept
+
+
 def changes_figure(rows, today: dt.date, width: int) -> str:
     """Thirty days of detected changes on a grid of days and ratings."""
     items = [{"date": r.get("date"), "lane": r.get("significance"),
               "tip": f'{str(r.get("date") or "")[:10]} · {change_kind(r)} · '
                      f'{_one_line(r.get("headline"))}'}
              for r in rows or []]
-    return CH.unit_lanes(items, CHANGE_LANES, today - dt.timedelta(days=CHANGE_DAYS - 1),
-                         today, step="day", width=width, cap=6,
-                         label="detected changes by day and rating")
+    used = {it["lane"] for it in items}
+    lanes = [lane for lane in CHANGE_LANES if lane["key"] in used]
+    return CH.unit_lanes(items, lanes, today - dt.timedelta(days=CHANGE_DAYS - 1),
+                         today, step="week", width=width, cap=6,
+                         label="material changes by week and rating")
 
 
 def changes_leads(rows, ticker: str = "") -> str:
@@ -789,8 +851,42 @@ def kinds_html(rows, shown: int = 6) -> str:
 
 # --- price: the window on screen and the figures that describe it -----------------------
 PRICE_SPANS = (("1M", 31), ("3M", 92), ("6M", 183), ("1Y", 365), ("5Y", 1826))
-DEFAULT_SPAN = "1Y"
+DEFAULT_SPAN = "6M"
 SPAN_DAYS = dict(PRICE_SPANS)
+# A candle a day up to six months, a week for a year and a month for five: about 25 to
+# 130 candles whatever the window, so a candle is always wide enough to read its body.
+BAR_OF = {"1M": "day", "3M": "day", "6M": "day", "1Y": "week", "5Y": "month"}
+BAR_WORDS = {"day": "daily", "week": "weekly", "month": "monthly"}
+
+
+def candles(bars, step: str) -> list:
+    """Daily bars as candles of a day, a week or a month: the first open, the highest
+    high, the lowest low, the last close and the volume added up. A candle is dated by its
+    first session. A bar with no close is left out; a candle missing an open, a high or a
+    low takes none rather than one made up."""
+    if step == "day":
+        return [b for b in bars or [] if b.get("close") is not None]
+    out, key = [], None
+    for b in bars or []:
+        d = _day(b.get("as_of"))
+        if d is None or b.get("close") is None:
+            continue
+        k = d.isocalendar()[:2] if step == "week" else (d.year, d.month)
+        if k != key:
+            key = k
+            out.append({"as_of": str(b["as_of"])[:10], "open": b.get("open"),
+                        "high": b.get("high"), "low": b.get("low"), "close": b["close"],
+                        "volume": b.get("volume")})
+            continue
+        c = out[-1]
+        c["close"] = b["close"]
+        c["high"] = (None if c["high"] is None or b.get("high") is None
+                     else max(c["high"], b["high"]))
+        c["low"] = (None if c["low"] is None or b.get("low") is None
+                    else min(c["low"], b["low"]))
+        c["volume"] = ((c["volume"] or 0) + (b.get("volume") or 0)
+                       if c["volume"] is not None or b.get("volume") is not None else None)
+    return out
 
 
 def price_window(points, span: str) -> list:
@@ -824,9 +920,9 @@ def _money(value) -> str:
 
 
 def price_stats_html(stats: dict, span: str) -> str:
-    """The strip above the chart: last, as of, the window's change and its range. The
-    change carries its sign and a true minus; a fall takes the down colour and the sign
-    says the same."""
+    """The strip beside the window's control: the last close, the window's change and its
+    range. The change carries its sign and a true minus; a fall takes the down colour and
+    the sign says the same."""
     change = stats.get("change")
     if change is None:
         moved, tone = NO_DATA, " none"
@@ -837,7 +933,6 @@ def price_stats_html(stats: dict, span: str) -> str:
     span_range = (f'{_money(stats.get("low"))} to {_money(stats.get("high"))}'
                   if stats.get("low") is not None else NO_DATA)
     cells = (("last", _money(stats.get("last")), missing),
-             ("as of", stats.get("as_of") or NO_DATA, missing),
              (f"{span} change", moved, tone),
              (f"{span} range", span_range, missing))
     return ('<div class="stats stats-tight td-stats">' + "".join(
@@ -942,3 +1037,201 @@ def filings_basis(rows) -> str:
 def filings_older(rows, today: dt.date) -> int:
     start = month_start(today, 1 - FILING_MONTHS)
     return sum(1 for r in rows or [] if (_day(r.get("filed_date")) or start) < start)
+
+
+# --- fundamentals: the figures a price is set on ---------------------------------------
+def _num(value):
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) \
+        and value == value else None
+
+
+def money(value) -> str:
+    """A sum in its reporting currency's units: 24.4bn, 612m. Nothing is a dash."""
+    value = _num(value)
+    if value is None:
+        return NO_DATA
+    sign, value = ("\u2212" if value < 0 else ""), abs(value)
+    if value >= 1e9:
+        return f"{sign}{value / 1e9:,.1f}bn"
+    if value >= 1e6:
+        return f"{sign}{value / 1e6:,.0f}m"
+    return f"{sign}{value:,.0f}"
+
+
+def pct(value, digits: int = 1, signed: bool = True) -> str:
+    """A fraction as a percentage with a true minus: 0.386 is +38.6%."""
+    value = _num(value)
+    if value is None:
+        return NO_DATA
+    sign = ("+" if value >= 0 else "\u2212") if signed else ("\u2212" if value < 0 else "")
+    return f"{sign}{abs(value) * 100:.{digits}f}%"
+
+
+def _tone(value):
+    value = _num(value)
+    return None if value is None or value == 0 else ("up" if value > 0 else "down")
+
+
+def tile(k: str, v: str, d: str = "", tone=None, n: str = "", tip: str = "") -> dict:
+    return {"k": k, "v": v, "d": d, "tone": tone, "n": n, "tip": tip}
+
+
+def _street_rows(street) -> dict:
+    """The street read's rows by (metric, period)."""
+    out = {}
+    for r in (street or {}).get("rows") or []:
+        if isinstance(r, dict):
+            out[(r.get("metric"), str(r.get("period") or ""))] = r
+    return out
+
+
+def _street_value(row):
+    s = (row or {}).get("street") if isinstance((row or {}).get("street"), dict) else None
+    return _num((s or {}).get("value")), s or {}
+
+
+def forward_eps(street, today: dt.date) -> list:
+    """The street's EPS by fiscal year from this one on: [(year, value, note)]."""
+    out = []
+    for (metric, period), row in _street_rows(street).items():
+        year = re.match(r"^FY(\d{4})$", period)
+        if metric != "EPS" or not year or int(year.group(1)) < today.year:
+            continue
+        value, s = _street_value(row)
+        if value is not None:
+            out.append((int(year.group(1)), value, str(s.get("note") or "")))
+    return sorted(out)
+
+
+def fundamentals(today: dt.date, report=None, street=None, cash=None, runway=None,
+                 screen=None, relative=None, close=None, price_currency=None) -> list:
+    """The board's fundamentals as groups of tiles: [(group, [tile])]. Every figure is a
+    read's own or a ratio of two of them, said as such; a figure no read gives is left out
+    of an optional tile and printed as "no free data" in a core one."""
+    groups = []
+    rep = (report or {}).get("report") and report or {}
+    filed = rep.get("filed") or {}
+    beat = rep.get("street") or {}
+    screen = screen or {}
+
+    # Growth: the last reported quarter, or the last year where no report is on file.
+    if filed:
+        label = rep["report"].get("label") or filed.get("label") or "last period"
+        g = [tile(f"Revenue, {label}", money(filed.get("revenue")),
+                  f"{pct(filed.get('revenue_growth'))} on a year"
+                  if _num(filed.get("revenue_growth")) is not None else "",
+                  _tone(filed.get("revenue_growth"))),
+             tile("Net margin", pct(filed.get("net_margin"), signed=False),
+                  f"net income {pct(filed.get('net_income_growth'))} on a year"
+                  if _num(filed.get("net_income_growth")) is not None else "",
+                  _tone(filed.get("net_income_growth")))]
+        if _num(beat.get("eps")) is not None:
+            g.append(tile("EPS against street", f"{beat['eps']:,.2f}",
+                          f"{pct((beat.get('surprise_pct') or 0) / 100)} on "
+                          f"{beat.get('consensus_eps'):,.2f}"
+                          if _num(beat.get("consensus_eps")) is not None
+                          and _num(beat.get("surprise_pct")) is not None else "",
+                          {"beat": "up", "miss": "down"}.get(beat.get("result")),
+                          n=str(beat.get("result") or "")))
+        day = rep.get("day") or {}
+        if _num(day.get("move")) is not None:
+            g.append(tile("Day of results", pct(day["move"]),
+                          f"{pct(day.get('abnormal'))} on {day.get('benchmark')}"
+                          if _num(day.get("abnormal")) is not None else "",
+                          _tone(day["move"]), n=str(day.get("session") or "")))
+    else:
+        g = [tile("Revenue, last year", money(screen.get("revenue")),
+                  f"{pct(screen.get('revenue_growth'))} on a year"
+                  if _num(screen.get("revenue_growth")) is not None else "",
+                  _tone(screen.get("revenue_growth"))),
+             tile("Net margin, last year", pct(screen.get("net_margin"), signed=False))]
+    groups.append(("Growth", g))
+
+    # Outlook: what the company says, what the street expects, where the street prices it.
+    o = []
+    for guide in rep.get("guidance") or []:
+        if guide.get("metric") == "Revenue" and _num(guide.get("value")) is not None:
+            o.append(tile(f"Guidance, {guide.get('label') or 'revenue'}", money(guide["value"]),
+                          f"{guide.get('direction') or 'set'} "
+                          f"{pct(guide.get('change'))}" if _num(guide.get("change")) is not None
+                          else str(guide.get("direction") or ""),
+                          _tone(guide.get("change")), n=f"as of {guide.get('as_of')}"))
+            break
+    eps = forward_eps(street, today)
+    if eps:
+        year, value, note = eps[0]
+        after = eps[1] if len(eps) > 1 else None
+        grows = (after[1] / value - 1) if after and value > 0 else None
+        o.append(tile(f"Street EPS FY{year}", f"{value:,.2f}",
+                      f"{pct(grows)} in FY{after[0]}" if grows is not None else "",
+                      _tone(grows), n=note.split(",")[0]))
+    target_row = _street_rows(street).get(("PriceTarget", "12M"))
+    target, ts = _street_value(target_row)
+    if target is not None:
+        up = (target / close - 1) if _num(close) and ts.get("currency") in (None, price_currency) \
+            else None
+        o.append(tile("Street target", f"{target:,.2f}",
+                      f"{pct(up)} on the close" if up is not None else "", _tone(up),
+                      n=str(ts.get("note") or "").split(";")[0]))
+    if o:
+        groups.append(("Outlook", o))
+
+    # Valuation and the balance sheet.
+    vb = []
+    if eps and _num(close) and eps[0][1] > 0 and price_currency in (None, "USD"):
+        vb.append(tile("Price over street EPS", f"{close / eps[0][1]:.1f}\u00d7",
+                       n=f"on FY{eps[0][0]}"))
+    cash = cash or {}
+    if _num(cash.get("fcf")) is not None:
+        vb.append(tile(f"Free cash flow FY{cash.get('fiscal_year')}", money(cash["fcf"]),
+                       f"{pct(cash.get('fcf_margin'), signed=False)} of revenue"
+                       if _num(cash.get("fcf_margin")) is not None else "",
+                       _tone(cash["fcf"]) if cash["fcf"] < 0 else None))
+    if _num(cash.get("net_debt_ebitda")) is not None:
+        vb.append(tile("Net debt to EBITDA", f"{cash['net_debt_ebitda']:.1f}\u00d7",
+                       n=f"net debt {money(cash.get('net_debt'))}"))
+    run = runway or {}
+    if _num(run.get("runway_months")) is not None:
+        vb.append(tile("Cash runway", f"{run['runway_months']:.1f} months",
+                       n=f"{money(run.get('available'))} at {run.get('cash_as_of')}",
+                       tone="down" if run["runway_months"] < 12 else None))
+    if _num(screen.get("loe_share_5y")) is not None:
+        vb.append(tile("Revenue at LOE, 5 years", pct(screen["loe_share_5y"], signed=False),
+                       n="loses exclusivity by then", tone="down" if screen["loe_share_5y"] >= 0.25
+                       else None))
+    if vb:
+        groups.append(("Valuation and balance sheet", vb))
+
+    # The price against the sector.
+    windows = (relative or {}).get("windows") or {}
+    rel = [tile(f"Against {relative.get('benchmark')}, {label}",
+                f"{'+' if w['relative_pct'] >= 0 else chr(0x2212)}"
+                f"{abs(w['relative_pct']) * 100:.1f} pts",
+                f"{pct(w.get('company_pct'))} on {pct(w.get('benchmark_pct'))}",
+                _tone(w["relative_pct"]))
+           for key, label in (("3m", "3m"), ("1y", "1y"))
+           for w in [windows.get(key) or {}]
+           if _num(w.get("relative_pct")) is not None and w.get("covers_window")]
+    if rel:
+        groups.append(("The price", rel))
+    return groups
+
+
+def tiles_html(groups) -> str:
+    """The tiles in one grid, in the groups' order (growth, the outlook, valuation and the
+    balance sheet, the price), which is also the order they are read in: the figure first
+    and large, the change beside it in its colour with its sign, a note under it. A grid
+    of their own each, the groups were twice as tall for the same figures."""
+    cells = []
+    for _group, tiles in groups or []:
+        for t in tiles or []:
+            none = " none" if t["v"] == NO_DATA else ""
+            tone = f' {t["tone"]}' if t.get("tone") in ("up", "down") else ""
+            tip = f' title="{esc(t["tip"] or t["k"])}"' if t.get("tip") else f' title="{esc(t["k"])}"'
+            cells.append(f'<div{tip}><span class="k">{esc(t["k"])}</span>'
+                         f'<div class="row"><span class="v{none}">{esc(t["v"])}</span>'
+                         + (f'<span class="d{tone}">{esc(t["d"])}</span>' if t.get("d") else "")
+                         + "</div>"
+                         + (f'<span class="n">{esc(t["n"])}</span>' if t.get("n") else "")
+                         + "</div>")
+    return f'<div class="tiles td-ftiles">{"".join(cells)}</div>' if cells else ""
