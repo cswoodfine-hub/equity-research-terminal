@@ -377,6 +377,24 @@ def test_a_labelled_result_lands_on_the_study_its_sentence_names(tmp_path):
     assert _status(conn)[434] in ("pending", "unknown")
 
 
+@pytest.mark.parametrize("how", ["labelled", "headline"])
+def test_a_result_about_one_part_of_a_study_lands_nowhere(tmp_path, how):
+    """AMETHYST: Part A met while the Phase 3 part stayed blinded, and the sentence names
+    the study. It closed the whole study's readout as met."""
+    said = "TroFuse-015 Part A met its primary endpoint"
+    if how == "labelled":
+        path, conn = _one(tmp_path, "Merck Announces Quarterly Dividend")
+        _labelled(conn, "A-9", said + ".")
+    else:
+        path, conn = _one(tmp_path, said)
+    L.run(path, today=TODAY, step=False, set_aside_path=NONE)
+    rep = _reports(conn)["MRK"]
+    assert _status(conn)[1462] == "pending"
+    assert (rep["state"], rep["nct_id"], rep["outcome"]) == ("set_aside", "NCT06356311", "met")
+    assert "one part of a study" in rep["reason"]
+    assert L.block(path, "MRK", today=TODAY)["reported"] == []
+
+
 def test_a_labelled_result_that_names_no_study_lands_nowhere(tmp_path):
     """The stored body lists the programme's other studies; a name down there says only
     that the study exists."""

@@ -119,6 +119,16 @@ RETOLD = re.compile(
     r"|\b(?:two|three|four|five|\d+)-year\b|\blong-term\b|\bfull (?:results|data)\b", re.I)
 
 
+# A result about one part of a study registered in parts. AMETHYST is one registry
+# entry with a Phase 2 part and a Phase 3 part; Biogen announced Part A met its endpoint
+# in March 2026 while the Phase 3 part stayed blinded, and the sentence names the study,
+# so it closed the whole study's readout as met. A part is not the study: the readout on
+# the calendar is the part still running, and nothing here can tell which part that is.
+PART = re.compile(r"\bPart\s+(?:[A-D]|[1-4])\b")
+PART_REASON = ("it reports one part of a study registered in parts, and the readout on the "
+               "calendar is the study as a whole, so it is kept on file and lands nowhere")
+
+
 def outcome_of(text: str | None) -> tuple:
     """(met | missed | None, the words that said so). A headline announcing an event to
     come states no outcome, whatever else it contains."""
@@ -618,6 +628,15 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
         for study, how in tied:
             if all(c["status"] in announced_readouts.OUTCOMES for c in study["catalysts"]):
                 continue
+            if PART.search(" ".join(p or "" for p in r["parts"])):
+                reports.append(dict(
+                    source_key=str(r["accession"]), company_id=study["company_id"],
+                    source="filing" if not r["source"] else r["source"], kind="readout",
+                    url=r["source_url"], published_at=str(r["event_date"])[:10],
+                    sentence=r["quote"] or "", asset_id=study["asset_id"],
+                    nct_id=study["nct_id"], tied_by=how, outcome=outcome,
+                    state="set_aside", reason=PART_REASON))
+                continue
             landing(study, how, outcome, None, str(r["event_date"])[:10], r["quote"] or "",
                     r["source_url"], "filing" if not r["source"] else r["source"],
                     str(r["accession"]))
@@ -641,6 +660,12 @@ def run(db_path=None, today: dt.date | None = None, days: int = DAYS, step: bool
                                             shown)})
         elif RETOLD.search(text) and not outcome:
             continue
+        elif tied and outcome and PART.search(text):
+            for study, how in tied:
+                reports.append({**base, "kind": "readout", "asset_id": study["asset_id"],
+                                "nct_id": study["nct_id"], "tied_by": how, "outcome": outcome,
+                                "matched_words": words, "state": "set_aside",
+                                "reason": PART_REASON})
         elif tied and outcome:
             for study, how in tied:
                 landing(study, how, outcome, words, item["published"], text, url, "press",
