@@ -67,7 +67,7 @@ if getattr(compsval, "REVISION", 0) < 5:
     compsval = importlib.reload(compsval)
 if getattr(FB, "REVISION", 0) < 7:
     FB = importlib.reload(FB)
-if getattr(trading_page, "REVISION", 0) < 12:
+if getattr(trading_page, "REVISION", 0) < 13:
     trading_page = importlib.reload(trading_page)
 
 # Overridable so run.sh can point a frontend at whichever API port it started.
@@ -10437,10 +10437,10 @@ def api_post_body(base: str, path: str, body: dict, timeout: int = 300):
 
 # The house's own builders, handed to the Trading tab's page module so a panel on the board
 # reads as the page it was lifted from: the section rule, the state block, the folded
-# note, the change feed's filter and row, the price chart's frame, and the Ask box itself.
+# note, the Ask box's sending and its list of reads, and the price chart's frame.
 _TRADING_KIT = types.SimpleNamespace(
-    section=section, state=state, note=note, changes=_ki_changes, change_row=change_row,
-    ask=_ask_tab, draw_chart=drawchart.draw_chart, report_lead=_report_lead,
+    section=section, state=state, note=note, ask_send=_ask_send, ask_reads=_ask_reads_html,
+    draw_chart=drawchart.draw_chart, report_lead=_report_lead,
     report_landed=_report_landed, snapshot_strip=snapshot_strip,
     board_grid=boardgrid.board_grid)
 

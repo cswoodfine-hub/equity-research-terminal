@@ -68,18 +68,18 @@ def test_titles_and_groups_are_sentence_case():
         assert not rest, label
 
 
-def test_the_default_board_leads_with_the_price_across_its_whole_width():
+def test_the_default_board_is_the_price_the_fundamentals_and_the_ask_box_on_one_screen():
     panels = TV.default_layout()["panels"]
     assert [(p["panel"], p["x"], p["y"], p["w"], p["h"]) for p in panels] == [
-        ("price", 0, 0, 12, 13), ("fundamentals", 0, 13, 12, 7),
-        ("catalysts", 0, 20, 6, 9), ("changes", 6, 20, 6, 9)]
+        ("price", 0, 0, 8, 11), ("ask", 8, 0, 4, 17), ("fundamentals", 0, 11, 8, 6)]
+    assert TV.area_px(17) <= 714                         # under the bar of a 900 px screen
     assert TV.BY_ID["price"]["cost"] == "live"
 
 
 def test_the_default_board_is_made_of_kinds_that_exist():
     layout = TV.default_layout()
-    assert [p["panel"] for p in layout["panels"]] == list(TV.DEFAULT_PANELS)
-    assert [p["id"] for p in layout["panels"]] == ["p1", "p2", "p3", "p4"]
+    assert sorted(p["panel"] for p in layout["panels"]) == sorted(TV.DEFAULT_PANELS)
+    assert sorted(p["id"] for p in layout["panels"]) == ["p1", "p2", "p3"]
     assert all(p["panel"] in TV.BY_ID for p in layout["panels"])
     assert TV.normalise(layout) == (layout, [])
 
@@ -121,7 +121,7 @@ def _sound(panels):
 
 def _board(*specs):
     """A board from (kind, x, y, w, h) tuples."""
-    return {"ask": True, "panels": [
+    return {"panels": [
         TV.item(kind, id=f"p{n}", x=x, y=y, w=w, h=h)
         for n, (kind, x, y, w, h) in enumerate(specs, start=1)]}
 
@@ -142,7 +142,7 @@ def test_the_grid_in_the_stylesheet_is_the_grid_the_model_counts():
 
 
 def test_a_panel_put_on_another_pushes_it_down_and_the_rest_rise():
-    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("catalysts", 0, 9, 6, 9))
+    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("results", 0, 9, 6, 9))
     moved = TV.place(board, "p3", 6, 0, 6, 9)       # dated ahead onto filings
     _sound(moved["panels"])
     assert _where(moved) == {"p1": (0, 0, 6, 9), "p3": (6, 0, 6, 9), "p2": (6, 9, 6, 9)}
@@ -154,7 +154,7 @@ def test_a_panel_dragged_down_into_empty_space_rises_to_the_first_free_row():
 
 
 def test_a_corner_drag_sizes_a_panel_and_the_board_settles_round_it():
-    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("catalysts", 0, 9, 12, 9))
+    board = _board(("news", 0, 0, 6, 9), ("filings", 6, 0, 6, 9), ("results", 0, 9, 12, 9))
     wider = TV.place(board, "p1", 0, 0, 9, 12)
     _sound(wider["panels"])
     assert _where(wider)["p1"] == (0, 0, 9, 12)
@@ -181,7 +181,7 @@ def test_any_sequence_of_drags_leaves_a_sound_board():
     """Two hundred random places and sizes, each settled: the board stays on the grid
     with no panel overlapping another and no hole under any."""
     rng = random.Random(23)
-    kinds = ["price", "news", "filings", "catalysts", "changes", "results", "trend"]
+    kinds = ["price", "news", "filings", "results", "trend", "results", "trend"]
     layout, _ = TV.normalise({"panels": [TV.item(k) for k in kinds]})
     for _n in range(200):
         p = rng.choice(layout["panels"])
@@ -194,11 +194,11 @@ def test_any_sequence_of_drags_leaves_a_sound_board():
 def test_a_board_saved_before_the_grid_is_laid_out_as_it_was_drawn():
     layout, left_out = TV.normalise({"columns": 3, "ask": False, "panels": [
         {"panel": "price", "ticker": None, "wide": True}, {"panel": "news"},
-        {"panel": "filings"}, {"panel": "catalysts", "wide": False}]})
-    assert left_out == [] and layout["ask"] is False and "columns" not in layout
+        {"panel": "filings"}, {"panel": "results", "wide": False}]})
+    assert left_out == [] and set(layout) == {"panels"}
     assert [(p["panel"], p["x"], p["y"], p["w"]) for p in layout["panels"]] == [
-        ("price", 0, 0, 12, ), ("news", 0, 13, 4), ("filings", 4, 13, 4),
-        ("catalysts", 8, 13, 4)]
+        ("price", 0, 0, 12, ), ("news", 0, 11, 4), ("filings", 4, 11, 4),
+        ("results", 8, 11, 4)]
     assert [p["id"] for p in layout["panels"]] == ["p1", "p2", "p3", "p4"]
     _sound(layout["panels"])
 
@@ -207,7 +207,7 @@ def test_overlapping_places_in_a_saved_board_are_settled_and_ids_kept_or_given()
     layout, _ = TV.normalise({"panels": [
         {"panel": "news", "id": "p7", "x": 0, "y": 0, "w": 6, "h": 9},
         {"panel": "filings", "id": "p7", "x": 0, "y": 0, "w": 6, "h": 9},
-        {"panel": "catalysts", "id": "<b>", "x": 2, "y": 3, "w": 6, "h": 9}]})
+        {"panel": "results", "id": "<b>", "x": 2, "y": 3, "w": 6, "h": 9}]})
     _sound(layout["panels"])
     assert sorted(p["id"] for p in layout["panels"]) == ["p7", "p8", "p9"]
 
@@ -220,11 +220,10 @@ def test_a_panel_with_no_place_in_a_board_that_has_places_goes_to_the_foot():
 
 # -------------------------------------------------------------------------- normalise
 def test_a_kind_this_version_does_not_have_is_dropped_and_said():
-    layout, left_out = TV.normalise({"ask": False, "panels": [
-        {"panel": "news"}, {"panel": "crystal_ball"}, "nonsense", {"panel": "changes"},
+    layout, left_out = TV.normalise({"panels": [
+        {"panel": "news"}, {"panel": "crystal_ball"}, "nonsense", {"panel": "trend"},
         {"panel": ["news"]}, {"panel": {"a": 1}}, {"ticker": "LLY"}, None]})
-    assert [p["panel"] for p in layout["panels"]] == ["news", "changes"]
-    assert layout["ask"] is False
+    assert [p["panel"] for p in layout["panels"]] == ["news", "trend"]
     assert len(left_out) == 6 and "crystal_ball" in left_out[0]
 
 
@@ -262,7 +261,7 @@ def test_a_board_that_cannot_be_read_gives_the_default_and_says_so(broken):
 def test_nothing_but_a_panels_kind_company_id_place_and_size_is_carried_through():
     layout, _ = TV.normalise({"columns": "many", "panels": [
         {"panel": "news", "wide": "yes", "script": "<b>x</b>"}], "extra": 1})
-    assert layout == {"ask": True, "panels": [
+    assert layout == {"panels": [
         {"panel": "news", "ticker": None, "id": "p1", "x": 0, "y": 0, "w": 6, "h": 9}]}
 
 
@@ -293,22 +292,22 @@ def test_adding_past_a_limit_is_refused_and_said():
 
 def test_a_panel_moves_one_place_in_reading_order_and_a_move_off_the_end_is_no_move():
     board, _ = TV.normalise({"columns": 1, "panels": [
-        TV.item("news"), TV.item("filings"), TV.item("catalysts")]})
+        TV.item("news"), TV.item("filings"), TV.item("results")]})
     order = lambda layout: [p["panel"] for p in layout["panels"]]  # noqa: E731
-    assert order(TV.moved(board, "p1", 1)) == ["filings", "news", "catalysts"]
-    assert order(TV.moved(board, "p3", -1)) == ["news", "catalysts", "filings"]
+    assert order(TV.moved(board, "p1", 1)) == ["filings", "news", "results"]
+    assert order(TV.moved(board, "p3", -1)) == ["news", "results", "filings"]
     for pid, step in (("p1", -1), ("p3", 1), ("p9", 1)):
         assert TV.moved(board, pid, step)["panels"] == board["panels"]
-    assert order(board) == ["news", "filings", "catalysts"]     # the board given is unchanged
+    assert order(board) == ["news", "filings", "results"]     # the board given is unchanged
     _sound(TV.moved(board, "p2", -1)["panels"])
 
 
 def test_a_panel_is_taken_off_and_the_board_closes_up_behind_it():
     board, _ = TV.normalise({"columns": 1, "panels": [
-        TV.item("price"), TV.item("changes"), TV.item("news")]})
+        TV.item("price"), TV.item("trend"), TV.item("news")]})
     after = TV.removed(board, "p2")
     assert [p["panel"] for p in after["panels"]] == ["price", "news"]
-    assert _where(after)["p3"] == (0, 13, 12, 9)
+    assert _where(after)["p3"] == (0, 11, 12, 9)
     assert TV.removed(board, "p9")["panels"] == board["panels"]
     assert TV.removed({"panels": []}, "p1")["panels"] == []
 
@@ -354,15 +353,15 @@ def test_the_drag_frame_is_told_each_panels_place_and_the_smallest_it_can_be():
 
 # ----------------------------------------------------------------- what the model is told
 def test_what_is_on_screen_is_the_kind_and_the_company_and_nothing_else():
-    board = [TV.item("changes"), TV.item("news", ticker="NVO"), TV.item("changes")]
-    assert TV.showing(board, "LLY") == [{"panel": "changes", "ticker": "LLY"},
+    board = [TV.item("trend"), TV.item("news", ticker="NVO"), TV.item("trend")]
+    assert TV.showing(board, "LLY") == [{"panel": "trend", "ticker": "LLY"},
                                         {"panel": "news", "ticker": "NVO"}]
 
 
 def test_what_is_on_screen_is_told_in_the_order_it_is_read_on_the_grid():
-    board = _board(("news", 6, 0, 6, 9), ("filings", 0, 0, 6, 9), ("changes", 0, 9, 6, 9))
+    board = _board(("news", 6, 0, 6, 9), ("filings", 0, 0, 6, 9), ("trend", 0, 9, 6, 9))
     assert [p["panel"] for p in TV.showing(board["panels"], "LLY")] == [
-        "filings", "news", "changes"]
+        "filings", "news", "trend"]
 
 
 def test_a_private_panel_is_never_named(monkeypatch):
@@ -372,6 +371,29 @@ def test_a_private_panel_is_never_named(monkeypatch):
     monkeypatch.setitem(TV.BY_ID, "position", mine)
     board = [TV.item("position"), TV.item("news"), TV.item("position", ticker="NVO")]
     assert TV.showing(board, "LLY") == [{"panel": "news", "ticker": "LLY"}]
+
+
+def test_the_ask_box_is_a_panel_but_never_named_as_one_on_screen():
+    board = [TV.item("ask"), TV.item("news")]
+    assert TV.showing(board, "LLY") == [{"panel": "news", "ticker": "LLY"}]
+
+
+def test_a_board_holds_one_ask_box_and_says_so():
+    layout, left_out = TV.normalise({"panels": [TV.item("ask"), TV.item("ask", "NVO")]})
+    assert [p["panel"] for p in layout["panels"]] == ["ask"]
+    assert left_out == ["Ask the book: a board holds one"]
+    _again, refused = TV.added(layout, "ask")
+    assert refused == ["Ask the book: a board holds one"]
+
+
+def test_the_ask_box_opens_on_one_line_and_suggests_no_question():
+    empty = TV.ask_empty_html("LLY")
+    assert "Ask about LLY, or anything in the book." in empty
+    assert "?" not in _visible(empty) and "button" not in empty
+    assert TV.ask_question_html("  Is it\n funded?  ") == '<div class="td-ask-q">Is it funded?</div>'
+    assert "<b>" not in TV.ask_question_html("<b>x</b>")
+    assert "No answer: the model returned nothing" in TV.ask_failed_html(None)
+    assert "<script>" not in TV.ask_failed_html("<script>")
 
 
 def test_a_company_that_is_not_a_ticker_is_not_passed_on():
@@ -442,43 +464,6 @@ def test_the_news_list_is_cut_at_its_limit_and_the_basis_says_so():
     assert TV.news_basis(many[:3]) == "3 of 3, newest first"
 
 
-DATED = [
-    {"expected_date": "2027-03-01", "catalyst_type": "readout", "date_confidence": "month",
-     "title": "Phase 3 study of a drug against placebo", "source_url":
-     "https://clinicaltrials.gov/study/NCT01234567"},
-    {"expected_date": "2026-12-15", "catalyst_type": "pdufa", "date_confidence": "day",
-     "title": "FDA decision on a filing", "source_url": None},
-    {"expected_date": None, "catalyst_type": "readout", "title": "No date at all"},
-    {"expected_date": "2027-01-10", "catalyst_type": None, "date_confidence": "day",
-     "title": "", "source_url": "ftp://not-the-web"}]
-
-
-def test_what_is_dated_ahead_is_soonest_first_and_an_undated_row_is_left_out():
-    rows = TV.dated_rows(DATED)
-    assert [r["expected_date"] for r in rows] == ["2026-12-15", "2027-01-10", "2027-03-01"]
-    assert TV.dated_rows(None) == [] and TV.dated_html([]) == ""
-
-
-def test_a_month_with_no_day_is_shown_as_the_month_and_never_as_its_first():
-    markup = TV.dated_html(TV.dated_rows(DATED))
-    assert '<span class="d">2027-03</span>' in markup and "2027-03-01" not in markup
-    assert markup.count("month only") == 1
-    assert '<span class="d">2026-12-15</span>' in markup
-
-
-def test_a_dated_row_says_what_the_source_left_blank_and_never_fills_it():
-    markup = TV.dated_html(TV.dated_rows(DATED))
-    assert "untitled in the source" in markup and "kind not stated" in markup
-    assert 'href="https://clinicaltrials.gov/study/NCT01234567"' in markup
-    assert "ftp://" not in markup
-
-
-def test_the_dated_basis_counts_what_is_shown_against_what_there_is():
-    rows = TV.dated_rows(DATED)
-    assert TV.dated_basis(rows, 24) == "3 in 24 months"
-    many = [dict(DATED[1], expected_date=f"2027-{n % 12 + 1:02d}-01") for n in range(70)]
-    assert TV.dated_basis(many, 24) == f"{TV.DATED_SHOWN} of 70 in 24 months"
-    assert TV.dated_basis([], 24) == ""
 
 
 def test_markup_escapes_what_it_is_given():
@@ -486,9 +471,6 @@ def test_markup_escapes_what_it_is_given():
              "url": 'https://example.com/"><script>', "published_at": "<i>"}]
     markup = TV.news_html(rows)
     assert "<script>" not in markup and "<b>x</b>" not in markup and "<i>" not in markup
-    dated = TV.dated_html([{"expected_date": "2027-01-01", "title": "<img src=x>",
-                            "catalyst_type": "<u>"}])
-    assert "<img" not in dated and "<u>" not in dated
     assert "<b>" not in TV.left_out_html(["<b>bold</b>"])
 
 
@@ -505,87 +487,10 @@ import xml.etree.ElementTree as ET  # noqa: E402
 from components import tokens as TK  # noqa: E402
 
 TODAY = dt.date(2026, 11, 23)
-AHEAD = [
-    {"expected_date": "2026-12", "catalyst_type": "data readout", "date_confidence": "month",
-     "title": "Phase 2, a study of one drug", "source_url": None},
-    {"expected_date": "2026-12", "catalyst_type": "data readout", "date_confidence": "month",
-     "title": "Phase 3, a study of another", "source_url": None},
-    {"expected_date": "2027-01-10", "catalyst_type": "PDUFA", "date_confidence": "day",
-     "title": "FDA decision on a filing", "source_url": None},
-    {"expected_date": "2027-06-15", "catalyst_type": "data readout",
-     "date_confidence": "estimated", "title": "Phase 1/2, a first study", "source_url": None},
-    {"expected_date": "2027-09", "catalyst_type": "data readout",
-     "title": "A study with no phase in its title"},
-    {"expected_date": "2031-01-01", "catalyst_type": "data readout",
-     "title": "Phase 3, far past the window"}]
 
 
 def _units(svg: str) -> list:
     return re.findall(r'<rect class="unit"[^>]*>', svg)
-
-
-def test_a_month_given_with_no_day_is_read_as_its_month():
-    """The calendar stores a month-only readout as "2026-12". It is a date, in December,
-    and it is never printed with a day."""
-    row = AHEAD[0]
-    assert TV.dated_when(row) == "Dec 2026" and TV.dated_wait(row, TODAY) == "next month"
-    assert TV.dated_when(dict(row, date_confidence=None)) == "Dec 2026"
-    assert TV.dated_when(AHEAD[2]) == "10 Jan 2027"
-    assert TV.dated_wait(AHEAD[2], TODAY) == "in 48 days"
-    assert TV.dated_when({"expected_date": "sometime"}) == TV.NO_DATA
-    markup = TV.dated_html(TV.dated_rows(AHEAD))
-    assert '<span class="d">2026-12</span>' in markup and "2026-12-01" not in markup
-
-
-@pytest.mark.parametrize("row,wait", [
-    ({"expected_date": "2026-11", "date_confidence": "month"}, "this month"),
-    ({"expected_date": "2027-02", "date_confidence": "month"}, "in 3 months"),
-    ({"expected_date": "2026-11-23"}, "today"), ({"expected_date": "2026-11-24"}, "tomorrow"),
-    ({"expected_date": None}, "")])
-def test_how_far_off_is_counted_in_the_unit_the_date_is_given_in(row, wait):
-    assert TV.dated_wait(row, TODAY) == wait
-
-
-def test_a_readout_sits_in_the_row_of_the_phase_its_title_starts_with():
-    lanes = [TV.dated_lane(r) for r in AHEAD]
-    assert lanes == ["p2", "p3", "decision", "p2", "other", "p3"]
-    assert TV.dated_lane({"title": "A Phase 3 study, named late"}) == "other"
-    assert TV.dated_lane({"title": "Phase 2/3, seamless"}) == "p3"
-    assert TV.dated_lane({"title": "Phase 1, first in human"}) == "p1"
-
-
-def test_the_dated_figure_draws_one_square_an_event_inside_the_window():
-    svg = TV.dated_figure(TV.dated_rows(AHEAD), TODAY, 24, 440)
-    ET.fromstring(svg)
-    assert len(_units(svg)) == 5                       # the 2031 row is past the window
-    for label in ("Phase 3", "Phase 2", "Decision", "Other"):
-        assert f">{label}</text>" in svg
-    assert ">Phase 1</text>" not in svg                 # a row only where there is an event
-    assert "Dec 2026 · data readout · Phase 3, a study of another" in svg
-    assert "10 Jan 2027 · PDUFA · FDA decision on a filing" in svg
-
-
-def test_a_row_is_drawn_only_for_a_phase_with_something_dated():
-    svg = TV.dated_figure([AHEAD[1]], TODAY, 24, 440)
-    assert ">Phase 3</text>" in svg and ">Phase 2</text>" not in svg
-    assert TV.dated_figure([], TODAY, 24, 440) == ""
-
-
-def test_what_moves_a_price_is_a_phase_3_readout_or_a_decision_else_phase_2():
-    rows = TV.dated_rows(AHEAD)
-    assert [TV.dated_lane(r) for r in TV.moving(rows)] == ["p3", "decision", "p3"]
-    early = [r for r in rows if TV.dated_lane(r) in ("p2", "other")]
-    assert [TV.dated_lane(r) for r in TV.moving(early)] == ["p2", "p2"]
-    assert TV.moving([AHEAD[4]]) == [] and TV.moving(None) == []
-
-
-def test_the_nearest_events_are_named_with_the_later_phase_first_in_a_month():
-    markup = TV.dated_next(TV.dated_rows(AHEAD), TODAY)
-    order = re.findall(r'<span class="n">([^<]+)</span>', markup)
-    assert order == ["Phase 3, a study of another", "Phase 2, a study of one drug",
-                     "FDA decision on a filing"]
-    assert markup.count('class="v"') == TV.LEADS and "next month" in markup
-    assert TV.dated_next([], TODAY) == ""
 
 
 def test_the_news_figure_is_a_year_by_month_and_source_and_says_what_is_older():
@@ -619,58 +524,12 @@ def test_the_newest_three_are_named_and_each_opens_its_source():
     assert TV.news_leads([]) == ""
 
 
-CHANGES = [
-    {"date": "2026-11-21 17:15:48", "significance": "high", "change_type":
-     "efficacy_supplement", "headline": "LLY efficacy supplement: a drug approved",
-     "reason": "efficacy supplement"},
-    {"date": "2026-11-23", "significance": "medium", "change_type": "date_slip",
-     "headline": "LLY trial NCT0001: primary completion slips"},
-    {"date": "2026-11-23", "significance": "medium", "change_type": "date_slip",
-     "headline": "LLY trial NCT0002: primary completion slips"},
-    {"date": "2026-11-10", "significance": "low", "change_type": "status_change",
-     "headline": "LLY trial NCT0003: status Recruiting"},
-    {"date": "2026-11-22", "significance": "high", "kind": "loe",
-     "headline": "LLY a newer high one"}]
-
-
-def test_the_changes_figure_is_thirty_days_by_day_and_rating():
-    svg = TV.changes_figure(CHANGES, TODAY, 440)
-    ET.fromstring(svg)
-    assert len(_units(svg)) == 5
-    for label in ("High", "Medium", "Low"):
-        assert f">{label}</text>" in svg
-    high = [u for u in _units(svg) if f'fill="{TK.FLAG}"' in u]
-    assert len(high) == 2
-    assert "2026-11-21 · efficacy supplement · LLY efficacy supplement: a drug approved" in svg
-    assert TV.changes_figure([], TODAY, 440) == ""
-
-
-def test_the_three_changes_to_read_are_the_highest_rated_then_the_newest():
-    markup = TV.changes_leads(CHANGES, "LLY")
-    texts = re.findall(r'<span class="t">([^<]+)</span>', markup)
-    assert texts == ["A newer high one", "Efficacy supplement: a drug approved",
-                     "Trial NCT0001: primary completion slips"]
-    assert markup.count("td-high") == 2 and markup.count("td-medium") == 1
-    assert '<span class="k">loe</span>' in markup
-    assert 'title="efficacy supplement"' in markup
-
-
-def test_what_the_changes_were_is_counted_by_kind_with_the_rest_as_other():
-    markup = TV.kinds_html(CHANGES)
-    assert re.findall(r"<b>(\d+)</b>([a-z ]+)<", markup) == [
-        ("2", "date slip"), ("1", "efficacy supplement"), ("1", "loe"),
-        ("1", "status change")]
-    cut = TV.kinds_html(CHANGES, shown=2)
-    assert re.findall(r"<b>(\d+)</b>([a-z ]+)<", cut) == [
-        ("2", "date slip"), ("1", "efficacy supplement"), ("2", "other")]
-    assert TV.kinds_html([]) == "" and "_" not in TV.kinds_html(CHANGES)
 
 
 def test_a_figure_is_drawn_near_the_width_its_panel_has():
-    assert TV.figure_width(12, False) > TV.figure_width(6, False) > TV.figure_width(4, False)
-    assert TV.figure_width(6, True) < TV.figure_width(6, False)
-    assert 220 <= TV.figure_width(3, True) and TV.figure_width(12, False) <= 1408
-    assert TV.figure_width(None, False) == TV.figure_width(TV.SIZE["w"], False)
+    assert TV.figure_width(12) > TV.figure_width(6) > TV.figure_width(4)
+    assert 220 <= TV.figure_width(1) and TV.figure_width(12) <= 1408
+    assert TV.figure_width(None) == TV.figure_width(TV.SIZE["w"])
 
 
 def test_the_fold_holds_the_whole_list_and_is_nothing_when_there_is_none():
@@ -811,50 +670,6 @@ def test_a_week_or_a_month_of_days_is_one_candle_and_nothing_is_made_up():
     assert set(TV.BAR_OF.values()) <= set(TV.BAR_WORDS)
 
 
-@pytest.mark.parametrize("row,moves", [
-    ({"change_type": "press_data_readout", "significance": "high"}, True),
-    ({"change_type": "efficacy_supplement", "significance": "high"}, True),
-    ({"kind": "loe", "change_type": "loe", "significance": "medium"}, True),
-    ({"change_type": "pulse_earnings", "significance": "medium"}, True),
-    ({"change_type": "revenue_restatement", "significance": "high"}, False),
-    ({"change_type": "new_filing", "significance": "high"}, False),
-    ({"change_type": "risk_factors_change", "significance": "high"}, False),
-    ({"change_type": "date_slip", "significance": "medium"}, False),
-    ({"change_type": "date_slip", "significance": "high"}, True),
-    ({"change_type": "leadership_change", "significance": "low"}, False),
-    ({"change_type": "status_change", "headline": "X trial: status Recruiting -> Completed"}, False),
-    ({"change_type": "status_change", "headline": "X trial: status Recruiting -> Terminated"}, True),
-    ("not a row", False)])
-def test_a_change_is_material_only_where_it_is_of_a_kind_that_moves_a_price(row, moves):
-    assert TV.material(row) is moves
-
-
-def test_material_changes_are_the_companys_own_in_the_window_newest_first_and_once():
-    feed = [{"ticker": "LLY", "date": "2026-11-20", "headline": "LLY approved",
-             "change_type": "press_approval", "significance": "high"},
-            {"ticker": "LLY", "date": "2026-11-20 09:00", "headline": "LLY  approved",
-             "change_type": "press_approval", "significance": "high"},
-            {"ticker": "LLY", "date": "2026-11-22", "headline": "LLY restated",
-             "change_type": "revenue_restatement", "significance": "high"},
-            {"ticker": "NVO", "date": "2026-11-21", "headline": "NVO deal",
-             "change_type": "press_deal", "significance": "high"},
-            {"ticker": "LLY", "date": "2031-01-01", "headline": "LLY exclusivity ends",
-             "kind": "loe", "change_type": "loe", "significance": "medium"},
-            {"ticker": "LLY", "date": "2026-07-01", "headline": "LLY old deal",
-             "change_type": "press_deal", "significance": "high"},
-            {"ticker": "LLY", "date": "2026-11-01", "headline": "LLY results",
-             "change_type": "pulse_earnings", "significance": "medium"}]
-    rows = TV.material_changes(feed, "LLY", TODAY)
-    assert [" ".join(r["headline"].split()) for r in rows] == ["LLY approved", "LLY results"]
-
-
-def test_the_material_changes_figure_draws_a_row_only_for_a_rating_that_has_one():
-    rows = [{"date": "2026-11-20", "significance": "high", "change_type": "press_approval",
-             "headline": "approved"}]
-    svg = TV.changes_figure(rows, TODAY, 440)
-    assert ">High</text>" in svg and ">Low</text>" not in svg and len(_units(svg)) == 1
-
-
 REPORT = {"report": {"label": "Q3 26"},
           "filed": {"revenue": 24.397e9, "revenue_growth": 0.3861, "net_margin": 0.2644,
                     "net_income_growth": -0.05, "currency": "USD"},
@@ -954,18 +769,11 @@ def test_house_style_on_every_word_the_board_prints():
     words += list(TV.heading(TV.item("news", ticker="NVO"), "LLY"))
     words += list(TV.NEWS_SOURCES.values())
     words.append(_visible(TV.news_html(TV.news_rows(NEWS))) + " " + TV.news_basis([{}] * 50))
-    words.append(_visible(TV.dated_html(TV.dated_rows(DATED))) + " " + TV.dated_basis([{}] * 70, 24))
     words.append(_visible(TV.left_out_html(["a panel this version does not have: x"])))
-    rows = TV.dated_rows(AHEAD)
-    words.append(_visible(TV.dated_figure(rows, TODAY, 24, 440)))
-    words.append(_visible(TV.dated_next(rows, TODAY)))
     words.append(_visible(TV.news_figure(TV.news_rows(NEWS), TODAY, 440)))
     words.append(_visible(TV.news_leads(TV.news_rows(NEWS))))
-    words.append(_visible(TV.changes_figure(CHANGES, TODAY, 440)))
-    words.append(_visible(TV.changes_leads(CHANGES, "LLY")) + " " + _visible(TV.kinds_html(CHANGES)))
-    words += [lane["label"] for lanes in (TV.DATED_LANES, TV.NEWS_LANES, TV.CHANGE_LANES)
-              for lane in lanes]
-    words += [TV.dated_wait(r, TODAY) for r in AHEAD] + [TV.dated_when(r) for r in AHEAD]
+    words += [lane["label"] for lane in TV.NEWS_LANES]
+    words.append(_visible(TV.ask_empty_html("LLY")) + " " + _visible(TV.ask_failed_html(None)))
     words.append(_visible(TV.price_stats_html(TV.price_stats(BARS), "1Y")))
     words.append(_visible(TV.price_stats_html(TV.price_stats([]), "1Y")))
     groups = TV.fundamentals(TODAY, report=REPORT, street=STREET, close=1347.11,

@@ -68,6 +68,8 @@ def fetch(api_base, path, timeout):
     if path.startswith("/changes?"):
         return [{{"ticker": "NVO", "date": today.isoformat(), "headline": "NVO a pinned change",
                   "significance": "high", "change_type": "press_deal"}}]
+    if path == "/ask/status":
+        return {{"ready": {ask_ready!r}, "model": "stand-in"}}
     if path.endswith("/street"):
         return {{"rows": [{{"metric": "EPS", "period": f"FY{{today.year}}",
                             "street": {{"value": 10.0, "note": "8 estimates"}}}},
@@ -133,20 +135,23 @@ def state(title, detail, error=False):
     st.markdown(f"STATE[{{title}}|{{detail}}|{{error}}]")
 def note(text):
     st.markdown(f"NOTE[{{text}}]")
-def changes(feed, ticker, today, levels):
-    return [it for it in feed if it.get("ticker") == ticker and it.get("significance") in levels]
-def change_row(item):
-    return f"<div class='fitem'>{{item['headline']}}</div>"
-def ask(api_base, ticker, name, slot="", showing_key=""):
-    st.markdown(f"ASK[{{ticker}}|{{name}}|{{slot}}|{{showing_key}}]")
+def ask_send(api_base, ticker, name, key, question, showing_key=""):
+    st.session_state.setdefault("sent", []).append(
+        {{"ticker": ticker, "name": name, "key": key, "question": question,
+          "showing": st.session_state.get(showing_key)}})
+    st.session_state.setdefault(key, []).append(
+        {{"q": question, "ok": {ask_ok!r}, "answer": "It holds $1,134m in cash.",
+          "reason": "the model failed", "steps": [{{"title": "Runway", "ok": True}}]}})
+def ask_reads(steps):
+    return "<details class='ask-reads'>READS[" + str(len(steps)) + "]</details>"
 def report_lead(report):
     st.markdown("LEAD[" + report["report"]["period"] + "]")
 def report_landed(report):
     st.markdown("LANDED[" + report["verdict"] + "]")
 def snapshot_strip(snapshot):
     return "<div class='tiles'>STRIP[" + snapshot["label"] + "]</div>"
-kit = types.SimpleNamespace(section=section, state=state, note=note, changes=changes,
-                            change_row=change_row, ask=ask, draw_chart=draw_chart,
+kit = types.SimpleNamespace(section=section, state=state, note=note, ask_send=ask_send,
+                            ask_reads=ask_reads, draw_chart=draw_chart,
                             report_lead=report_lead, report_landed=report_landed,
                             snapshot_strip=snapshot_strip, board_grid=board_grid)
 FEED = [{{"ticker": "LLY", "date": today.isoformat(), "headline": "LLY a high change",
@@ -194,13 +199,15 @@ def _board_of(*kinds):
 
 
 def _page(fail="", historical=False, market_open=False, page_has_prices=True,
-          has_report=True, layout=None, saved=None, boards_fail=False):
+          has_report=True, layout=None, saved=None, boards_fail=False, ask_ready=True,
+          ask_ok=True):
     from streamlit.testing.v1 import AppTest
     _patch_button_group()
     test = AppTest.from_string(
         _PAGE.format(frontend=str(FRONTEND), fail=fail, historical=historical,
                      market_open=market_open, page_has_prices=page_has_prices,
                      has_report=has_report, layout=layout, boards_fail=boards_fail,
+                     ask_ready=ask_ready, ask_ok=ask_ok,
                      saved=saved or {"boards": {}, "current": None}),
         default_timeout=60)
     test.run()
@@ -219,12 +226,9 @@ def _sections(test) -> list:
 def test_the_default_board_draws_its_panels_for_the_top_bars_company():
     test = _page()
     md = _md(test)
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
-    # Material only: the approval, and not the low-rated trial status that rode with it.
-    assert "SECTION[Material changes|1|LLY]" in md and "A high change" in md
-    assert "A low change" not in md
-    assert "SECTION[Dated ahead|1|LLY]" in md and "Phase 3 readout of a study" in md
+    assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
     assert "SECTION[Fundamentals|None|LLY · USD]" in md and 'class="tiles td-ftiles"' in md
+    assert "SECTION[Ask the book|None|LLY]" in md and "CHART[td_chart_p1]" in md
 
 
 def test_the_fundamentals_are_the_reads_own_figures_and_say_where_one_is_missing():
@@ -245,18 +249,17 @@ def test_the_fundamentals_are_the_reads_own_figures_and_say_where_one_is_missing
 def test_each_panel_leads_with_a_figure_and_folds_its_list_under_it():
     """A panel is not a list. The figure comes first, the named items next, and the
     rows are there for whoever opens the fold."""
-    test = _page(layout=_board_of("price", "changes", "news", "catalysts"))
+    test = _page(layout=_board_of("price", "news", "filings"))
     blocks = [str(m.value) for m in test.markdown]
     figures = [b for b in blocks if 'class="chart-mount stretch td-fig"' in b]
-    assert len(figures) == 3 and all("<svg" in b and 'class="unit"' in b for b in figures)
+    assert len(figures) == 2 and all("<svg" in b and 'class="unit"' in b for b in figures)
     md = _md(test)
-    assert md.count('<details class="note-d td-all">') == 3
+    assert md.count('<details class="note-d td-all">') == 2
     assert md.index("SECTION[Price chart|") < md.index("CHART[td_chart_p1]")
-    for panel, figure in zip(("Material changes", "Company news", "Dated ahead"), figures):
+    for panel, figure in zip(("Company news", "Filings"), figures):
         section = md.index(f"SECTION[{panel}|")
         assert section < md.index(figure) < md.index('<details class="note-d td-all">', section)
-    assert 'class="td-leads"' in md and 'class="tiles td-next"' in md
-    assert 'class="td-kinds"' in md
+    assert 'class="td-leads"' in md
 
 
 def test_what_the_page_has_already_read_is_used_and_not_read_a_second_time():
@@ -267,15 +270,13 @@ def test_what_the_page_has_already_read_is_used_and_not_read_a_second_time():
     assert sorted(set(asked)) == sorted({
         "/companies/LLY/approvals", "/companies/LLY/report", "/companies/LLY/street",
         "/companies/LLY/cashflow", "/companies/LLY/runway", "/companies/LLY/relative",
-        "/screen", next(p for p in asked if p.startswith("/catalysts?"))})
-    assert "ticker=LLY" in next(p for p in asked if p.startswith("/catalysts?"))
+        "/screen", "/ask/status"})
 
 
 def test_what_is_on_screen_is_kept_for_the_ask_box_as_kinds_and_tickers_only():
     test = _page()
     assert test.session_state["td_showing"] == [
-        {"panel": "price", "ticker": "LLY"}, {"panel": "fundamentals", "ticker": "LLY"},
-        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"}]
+        {"panel": "price", "ticker": "LLY"}, {"panel": "fundamentals", "ticker": "LLY"}]
 
 
 def test_taking_a_panel_off_redraws_the_board_without_it():
@@ -284,12 +285,9 @@ def test_taking_a_panel_off_redraws_the_board_without_it():
     assert not test.exception, test.exception
     test.button(key="td_off_p2").click().run()           # the fundamentals
     assert not test.exception, test.exception
-    # The two left rise to the top row, side by side as they were.
-    assert _sections(test) == ["Dated ahead", "Material changes"]
-    assert [(p["id"], p["y"]) for p in test.session_state["td_layout"]["panels"]] == [
-        ("p3", 0), ("p4", 0)]
-    assert test.session_state["td_showing"] == [
-        {"panel": "catalysts", "ticker": "LLY"}, {"panel": "changes", "ticker": "LLY"}]
+    assert _sections(test) == ["Ask the book"]
+    assert [(p["id"], p["y"]) for p in test.session_state["td_layout"]["panels"]] == [("p3", 0)]
+    assert test.session_state["td_showing"] == []
 
 
 def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company():
@@ -307,17 +305,15 @@ def test_a_panel_is_added_from_the_menu_for_the_top_bar_or_pinned_to_a_company()
 
 
 def test_pinning_a_panel_draws_it_for_that_company_and_the_rest_follow_the_top_bar():
-    test = _page()
-    test.selectbox(key="td_co_p4").set_value("NVO").run()        # material changes
+    test = _page(layout=_board_of("news", "filings"))
+    test.selectbox(key="td_co_p1").set_value("NVO").run()
     assert not test.exception, test.exception
     md = _md(test)
-    assert "SECTION[Material changes|1|NVO · pinned]" in md and "A pinned change" in md
-    assert "SECTION[Dated ahead|1|LLY]" in md
-    # The page's own feed is the top bar's company's, so the pinned panel reads its own.
-    assert [p for p in test.session_state["asked"] if p.startswith("/changes?ticker=NVO")]
-    assert {"panel": "changes", "ticker": "NVO"} in test.session_state["td_showing"]
-    test.selectbox(key="td_co_p4").set_value("Top bar").run()
-    assert "SECTION[Material changes|1|LLY]" in _md(test)
+    assert "SECTION[Company news|2|NVO · pinned]" in md and "SECTION[Filings|2|LLY]" in md
+    assert "/companies/NVO/news" in test.session_state["asked"]
+    assert {"panel": "news", "ticker": "NVO"} in test.session_state["td_showing"]
+    test.selectbox(key="td_co_p1").set_value("Top bar").run()
+    assert "SECTION[Company news|2|LLY]" in _md(test)
 
 
 def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_read():
@@ -335,15 +331,15 @@ def test_two_companies_prices_sit_side_by_side_each_with_its_own_chart_and_live_
 
 
 def test_a_panel_can_be_moved_from_the_arranger_without_a_pointer():
-    test = _page(layout=_board_of("news", "filings", "catalysts"))
+    test = _page(layout=_board_of("news", "filings", "trend"))
     test.button(key="td_down_p1").click().run()
     assert not test.exception, test.exception
-    assert _sections(test) == ["Filings", "Company news", "Dated ahead"]
+    assert _sections(test) == ["Filings", "Company news", "Growth and margin"]
     test.button(key="td_up_p3").click().run()
     assert not test.exception, test.exception
-    assert _sections(test) == ["Filings", "Dated ahead", "Company news"]
+    assert _sections(test) == ["Filings", "Growth and margin", "Company news"]
     held = test.session_state["td_layout"]["panels"]
-    assert [p["panel"] for p in held] == ["filings", "catalysts", "news"]
+    assert [p["panel"] for p in held] == ["filings", "trend", "news"]
     assert test.button(key="td_up_p2").disabled and test.button(key="td_down_p1").disabled
 
 
@@ -353,18 +349,18 @@ def test_the_drag_frame_is_handed_every_panels_place_and_the_grids_measure():
     assert (args["cols"], args["row_px"], args["gap_px"], args["key"]) == (12, 24, 16,
                                                                            "td_gridctl")
     assert [(p["id"], p["x"], p["y"], p["w"], p["h"]) for p in args["panels"]] == [
-        ("p1", 0, 0, 12, 13), ("p2", 0, 13, 12, 7), ("p3", 0, 20, 6, 9), ("p4", 6, 20, 6, 9)]
+        ("p1", 0, 0, 8, 11), ("p3", 8, 0, 4, 17), ("p2", 0, 11, 8, 6)]
     md = _md(test)
-    assert ".st-key-td_p_p4)" in md and "grid-column:7 / span 6;grid-row:21 / span 9;" in md
+    assert ".st-key-td_p_p3)" in md and "grid-column:9 / span 4;grid-row:1 / span 17;" in md
 
 
 def test_a_panel_dragged_and_dropped_takes_its_new_place_once():
-    test = _page(layout=_board_of("news", "filings", "catalysts"))
+    test = _page(layout=_board_of("news", "filings", "trend"))
     test.session_state["drag"] = {"token": "t1", "n": 1, "id": "p3", "x": 6, "y": 0,
                                   "w": 6, "h": 12}
     test.run()
     assert not test.exception, test.exception
-    assert _sections(test) == ["Company news", "Dated ahead", "Filings"]
+    assert _sections(test) == ["Company news", "Growth and margin", "Filings"]
     where = {p["id"]: (p["x"], p["y"], p["w"], p["h"])
              for p in test.session_state["td_layout"]["panels"]}
     assert where == {"p1": (0, 0, 6, 9), "p3": (6, 0, 6, 12), "p2": (6, 12, 6, 9)}
@@ -374,7 +370,7 @@ def test_a_panel_dragged_and_dropped_takes_its_new_place_once():
     test.button(key="td_up_p2").click().run()
     assert not test.exception, test.exception
     after = [p["panel"] for p in test.session_state["td_layout"]["panels"]]
-    assert after != ["news", "catalysts", "filings"]
+    assert after != ["news", "trend", "filings"]
     test.run()
     assert [p["panel"] for p in test.session_state["td_layout"]["panels"]] == after
 
@@ -405,7 +401,7 @@ def test_a_board_is_saved_by_name_and_only_its_arrangement_is_sent():
     (method, path, body), = test.session_state["writes"]
     assert (method, path) == ("PUT", "/desk/layouts") and body["name"] == "Readout prep"
     assert set(body) == {"name", "layout"}
-    assert set(body["layout"]) == {"ask", "panels"}
+    assert set(body["layout"]) == {"panels"}
     assert [p["panel"] for p in body["layout"]["panels"]] == ["news", "filings"]
     assert all(set(p) == {"panel", "ticker", "id", "x", "y", "w", "h"}
                for p in body["layout"]["panels"])
@@ -463,7 +459,7 @@ def test_an_api_that_cannot_keep_boards_is_said_and_the_board_still_draws():
     test = _page(boards_fail=True)
     assert not test.exception, test.exception
     assert "Boards cannot be saved or opened" in _md(test)
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+    assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
     assert not [b for b in test.button if b.key == "td_save"]
 
 
@@ -471,7 +467,7 @@ def test_the_default_board_comes_back_at_a_click():
     test = _page(layout=_board_of("filings"))
     test.button(key="td_reset").click().run()
     assert not test.exception, test.exception
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+    assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
 
 
 def test_an_empty_board_says_what_to_do_next():
@@ -486,35 +482,71 @@ def test_the_board_is_laid_out_afresh_one_two_or_three_across():
     for across in (1, 3, 2):
         test.button(key=f"td_across_{across}").click().run()
         assert not test.exception, test.exception
-        assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+        assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
         widths = [p["w"] for p in test.session_state["td_layout"]["panels"]]
-        assert widths == [12, 12] + [12 // across] * 2
+        assert widths == [12, 12 // across, 12]
 
 
-def test_the_ask_box_sits_beside_the_board_in_its_own_place_on_the_page():
+def test_the_ask_box_is_a_panel_that_opens_on_a_blank_box_and_suggests_nothing():
     test = _page()
-    assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
-    assert len(test.columns) >= 2
+    md = _md(test)
+    assert "Ask about LLY, or anything in the book." in md
+    assert not [b for b in test.button if "start" in (b.key or "")]
+    assert [c.key for c in test.chat_input] == ["td_input_p3"]
+    assert not [b for b in test.button if b.key == "td_clear_p3"]      # nothing to clear
+    assert "td_ans_" not in md
 
 
-def test_the_ask_box_can_be_put_away_and_the_board_takes_the_width():
+def test_a_question_asked_on_the_board_goes_with_the_open_panels_and_its_answer_shows():
     test = _page()
-    test.toggle(key="td_ask").set_value(False).run()
+    test.chat_input(key="td_input_p3").set_value("Is it funded?").run()
     assert not test.exception, test.exception
-    assert "ASK[" not in _md(test)
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
-    test.toggle(key="td_ask").set_value(True).run()
+    (sent,) = test.session_state["sent"]
+    assert (sent["ticker"], sent["name"], sent["key"], sent["question"]) == (
+        "LLY", "Eli Lilly", "ask_turns_LLY", "Is it funded?")
+    # The open panels, by kind and company; the box itself is not one of them.
+    assert sent["showing"] == [{"panel": "price", "ticker": "LLY"},
+                               {"panel": "fundamentals", "ticker": "LLY"}]
+    md = _md(test)
+    assert '<div class="td-ask-q">Is it funded?</div>' in md
+    assert "It holds \\$1,134m in cash." in md and "READS[1]" in md
+    assert "Ask about LLY, or anything" not in md
+    test.button(key="td_clear_p3").click().run()
     assert not test.exception, test.exception
-    assert _md(test).count("ASK[LLY|Eli Lilly|td_|td_showing]") == 1
+    assert test.session_state["ask_turns_LLY"] == []
+    assert "Ask about LLY, or anything in the book." in _md(test)
+
+
+def test_the_board_shows_the_ask_tabs_conversation_and_a_failed_answer_says_why():
+    test = _page(ask_ok=False)
+    test.chat_input(key="td_input_p3").set_value("What changed?").run()
+    assert not test.exception, test.exception
+    md = _md(test)
+    assert "No answer: the model failed" in md and "td-ask-fail" in md
+
+
+def test_with_no_model_key_the_ask_panel_says_so_and_offers_no_box():
+    test = _page(ask_ready=False)
+    md = _md(test)
+    assert "STATE[No model key is set|" in md and not list(test.chat_input)
+    assert "CHART[td_chart_p1]" in md
+
+
+def test_a_board_holds_one_ask_box():
+    test = _page()
+    test.button(key="td_add_ask").click().run()
+    assert not test.exception, test.exception
+    assert [p["panel"] for p in test.session_state["td_layout"]["panels"]].count("ask") == 1
+    assert "Ask the book: a board holds one" in _md(test)
 
 
 def test_the_price_chart_keeps_its_height_and_carries_the_session_still_trading():
     test = _page()
     assert "CHART[td_chart_p1]" in _md(test)
     chart = test.session_state["charts"]["td_chart_p1"]
-    # The default price panel is 13 rows: 504 px, of which the chart takes all but what
+    # The default price panel is 11 rows: 424 px, of which the chart takes all but what
     # the panel draws round it.
-    assert chart["fill"] is False and chart["height"] == 504 - 128 and chart["intraday"] is False
+    assert chart["fill"] is False and chart["height"] == 424 - 128 and chart["intraday"] is False
     assert chart["lines"] == [] and chart["draw_mode"] is False and chart["fair"] == []
     assert chart["mode"] == "Candlestick"
     # Forty stored days and today's session laid over them, a candle a day on the six
@@ -564,7 +596,7 @@ def test_with_no_price_history_the_panel_says_so_and_draws_no_chart():
     test = _page(fail="/prices", page_has_prices=False)
     md = _md(test)
     assert "STATE[The price history did not load|" in md and "CHART[" not in md
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
+    assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
 
 
 FISCAL = ["results", "trend", "filings"]
@@ -594,11 +626,11 @@ def test_a_company_with_no_report_is_told_what_is_missing_and_shown_no_figure():
 
 
 def test_a_read_that_fails_is_said_in_its_own_panel_and_the_rest_still_draw():
-    test = _page(fail="/catalysts")
+    test = _page(fail="/ask/status")
     md = _md(test)
-    assert _sections(test) == ["Price chart", "Fundamentals", "Dated ahead", "Material changes"]
-    assert "STATE[The calendar did not load|" in md and "|True]" in md
-    assert "A high change" in md and "CHART[td_chart_p1]" in md
+    assert _sections(test) == ["Price chart", "Ask the book", "Fundamentals"]
+    assert "STATE[The Ask box did not load|" in md and "|True]" in md
+    assert "CHART[td_chart_p1]" in md and 'class="tiles td-ftiles"' in md
 
 
 def test_with_a_date_set_the_board_says_it_is_the_live_book_and_reads_nothing():

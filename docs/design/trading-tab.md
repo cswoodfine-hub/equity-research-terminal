@@ -351,3 +351,25 @@ Checked in the copy: the price chart's corner dragged from 12 by 13 cells to 6 b
 chart redrawn at that size mid-drag and Fundamentals moved up under it before release;
 after release Python's layout matched and the live places were cleared. The scripts are
 not run by the suite; their rules are held by reading them.
+
+## The Ask box as a panel, and two panels gone, 2026-11-24
+
+Asked for the same day: take Dated ahead and Material changes away, make the Ask box
+plainer to look at with no suggested questions, and let it be moved like the rest.
+
+- **Dated ahead and Material changes are gone**, from the default board and from Add
+  panel, with the builders and tests only they used. A board saved with either opens
+  without it and says so. Every dated event is still on Catalysts and the change feed on
+  Universe.
+- **The Ask box is a panel**, "Ask the book", moved and sized like any other. The column
+  beside the board and its switch are gone, and the board takes the page's width. One
+  box a board; it is never named to the model as a panel on screen.
+- **It opens on a blank box and one line** saying what it is for; the three suggested
+  questions are gone. A question sits right-aligned on the raised tone, the answer is
+  prose under a green rail with what it was read from folded under it, a failed answer
+  has a red rail and the reason. The conversation scrolls inside the panel with the
+  newest at its foot (the drag frame keeps it scrolled there), and the box sits square at
+  the bottom with Clear beside it once there is something to clear. It is the Ask tab's
+  conversation for the company, and the Ask tab is unchanged.
+- **The default board fits one 1440 by 900 screen**: the price chart (8 by 11 cells) and
+  Fundamentals (8 by 6) under it on the left, the Ask box (4 by 17) down the right.

@@ -82,7 +82,7 @@ def clean_board(layout) -> dict | None:
         if isinstance(raw.get("wide"), bool):
             entry["wide"] = raw["wide"]
         panels.append(entry)
-    board = {"ask": layout.get("ask") is not False, "panels": panels}
+    board = {"panels": panels}
     if layout.get("columns") in (1, 2, 3):
         board["columns"] = layout["columns"]
     return board

@@ -54,9 +54,6 @@ PANELS = (
                "/companies/{ticker}/cashflow", "/companies/{ticker}/runway",
                "/companies/{ticker}/relative", "/screen"),
      "about": "The figures a price is set on: growth, the street's view, valuation, cash."},
-    {"id": "changes", "title": "Material changes", "group": "News", "wide": False,
-     "cost": "free", "private": False, "reads": ("/changes?ticker={ticker}",),
-     "about": "Readouts, approvals, results, deals and exclusivity, over 90 days."},
     {"id": "news", "title": "Company news", "group": "News", "wide": False,
      "cost": "light", "private": False, "reads": ("/companies/{ticker}/news",),
      "about": "Releases, 8-K headlines and the daily pulse's items, by month and source."},
@@ -70,10 +67,9 @@ PANELS = (
     {"id": "filings", "title": "Filings", "group": "Fiscal", "wide": False,
      "cost": "light", "private": False, "reads": ("/companies/{ticker}/filings",),
      "about": "Two years of filings by month and form, the newest opening on EDGAR."},
-    {"id": "catalysts", "title": "Dated ahead", "group": "Catalysts", "wide": False,
-     "cost": "light", "private": False,
-     "reads": ("/catalysts?within_days={days}&ticker={ticker}",),
-     "about": "The readouts and decisions that move a price, over the next 24 months."},
+    {"id": "ask", "title": "Ask the book", "group": "Free-form", "wide": False,
+     "cost": "light", "private": False, "reads": ("/ask/status",),
+     "about": "A question about the company or the book, answered from the book's reads."},
 )
 BY_ID = {panel["id"]: panel for panel in PANELS}
 
@@ -82,7 +78,8 @@ MAX_LIVE = 4             # each live price is two Yahoo requests a minute while 
 COLUMNS = (1, 2, 3)      # "lay out N across", and how a board saved before the grid is read
 DEFAULT_COLUMNS = 2
 # What a reader sees before they have chosen anything.
-DEFAULT_PANELS = ("price", "fundamentals", "catalysts", "changes")
+DEFAULT_PANELS = ("price", "fundamentals", "ask")
+ASK = "ask"              # the Ask box as a panel: one a board, and never named to the model
 
 # A ticker as the book writes one: LLY, NOVO-B.CO, 4568.T. Anything else is not sent on.
 TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
@@ -102,8 +99,10 @@ MAX_H = 30               # rows; a panel taller than this is a page of its own
 MAX_Y = 400              # rows; a place further down is a saved file gone wrong
 HEAD_PX = 46             # a panel's rule and the gap under it, above its body
 # The size a new panel opens at, and the smallest it can be made, in cells.
-SIZES = {"price": {"w": 12, "h": 13, "min_w": 4, "min_h": 8},
-         "fundamentals": {"w": 12, "h": 7, "min_w": 4, "min_h": 4}}
+# The defaults fit one 1440 by 900 screen under the app's bar: 17 rows is 664 px.
+SIZES = {"price": {"w": 12, "h": 11, "min_w": 4, "min_h": 8},
+         "fundamentals": {"w": 12, "h": 6, "min_w": 4, "min_h": 4},
+         "ask": {"w": 4, "h": 17, "min_w": 3, "min_h": 8}}
 SIZE = {"w": 6, "h": 9, "min_w": 3, "min_h": 5}
 
 
@@ -219,10 +218,12 @@ def packed(kinds, columns: int) -> list:
 
 
 def default_layout() -> dict:
-    panels = packed([item(kind) for kind in DEFAULT_PANELS], DEFAULT_COLUMNS)
-    for n, p in enumerate(panels, start=1):
-        p["id"] = f"p{n}"
-    return {"ask": True, "panels": settle(panels)}
+    """The price and the fundamentals under it on the left two thirds, the Ask box down
+    the right: the board as it was drawn when the box sat in a column of its own."""
+    return {"panels": settle([
+        item("price", id="p1", x=0, y=0, w=8, h=11),
+        item("fundamentals", id="p2", x=0, y=11, w=8, h=6),
+        item(ASK, id="p3", x=8, y=0, w=4, h=17)])}
 
 
 def normalise(layout) -> tuple:
@@ -244,6 +245,9 @@ def normalise(layout) -> tuple:
             left_out.append(f"a panel this version does not have: {str(name)[:40]}")
             continue
         kind = BY_ID[raw["panel"]]
+        if kind["id"] == ASK and any(e["panel"] == ASK for e in kept):
+            left_out.append(f"{kind['title']}: a board holds one")
+            continue
         if len(kept) >= MAX_PANELS:
             left_out.append(f"{kind['title']}: a board holds {MAX_PANELS} panels")
             continue
@@ -277,7 +281,7 @@ def normalise(layout) -> tuple:
         loose = packed([e for e in kept if e not in placed], DEFAULT_COLUMNS)
         kept = placed + [dict(e, y=e["y"] + bottom) for e in loose]
     panels = settle([{k: v for k, v in e.items() if k != "wide"} for e in kept])
-    return {"ask": layout.get("ask") is not False, "panels": panels}, left_out
+    return {"panels": panels}, left_out
 
 
 def _find(panels, pid):
@@ -398,7 +402,7 @@ def showing(panels, ticker: str) -> list:
     out, seen = [], set()
     for entry in reading_order(panels) if all("y" in p for p in panels or []) else panels or []:
         kind = BY_ID.get(entry.get("panel")) if isinstance(entry, dict) else None
-        if not kind or kind["private"]:
+        if not kind or kind["private"] or kind["id"] == ASK:
             continue
         pair = (kind["id"], company_of(entry, ticker))
         if pair not in seen and clean_ticker(pair[1]):
@@ -427,7 +431,6 @@ NEWS_SOURCES = {
     "pulse": "Daily pulse (AI summary)",
 }
 NEWS_SHOWN = 40
-DATED_SHOWN = 60
 
 
 def _link(url) -> str:
@@ -477,41 +480,6 @@ def news_html(rows) -> str:
     return '<div class="feed td-list">' + "".join(lines) + "</div>"
 
 
-def dated_rows(catalysts) -> list:
-    """The dated events ahead, soonest first. A row with no date is not a dated event."""
-    rows = [c for c in (catalysts or []) if isinstance(c, dict) and c.get("expected_date")]
-    return sorted(rows, key=lambda c: str(c["expected_date"]))
-
-
-def dated_html(rows) -> str:
-    """What is dated ahead, one line an event: the date, the event, how exactly it is
-    dated, and what kind it is. A month the registry gives with no day is shown as the
-    month and marked, never as the first of it."""
-    if not rows:
-        return ""
-    lines = []
-    for c in rows[:DATED_SHOWN]:
-        when = str(c.get("expected_date") or "")
-        month_only = _month_only(c)
-        title = re.sub(r"\s+", " ", str(c.get("title") or "")).strip()
-        lines.append(_row(when[:7] if month_only else when[:10],
-                          title or "untitled in the source",
-                          c.get("catalyst_type") or "kind not stated",
-                          url=c.get("source_url"),
-                          why="month only" if month_only else "",
-                          hover=title))
-    return '<div class="feed td-list">' + "".join(lines) + "</div>"
-
-
-def dated_basis(rows, months: int) -> str:
-    total = len(rows)
-    if not total:
-        return ""
-    shown = min(DATED_SHOWN, total)
-    return (f"{total} in {months} months" if shown == total
-            else f"{shown} of {total} in {months} months")
-
-
 def left_out_html(left_out) -> str:
     """What a saved board asked for and did not get, said once above the panels."""
     if not left_out:
@@ -556,12 +524,11 @@ def month_start(day: dt.date, offset: int = 0) -> dt.date:
 BOARD_PX = 1408                 # the page's width at 1440 px, the width the app is sized for
 
 
-def figure_width(w: int, beside: bool) -> int:
+def figure_width(w: int) -> int:
     """About how wide a panel ``w`` columns wide is in pixels, so a figure is drawn at the
     size it is shown and its type is not scaled to a blur."""
-    board = BOARD_PX * (2.05 / 3.05) - 16 if beside else BOARD_PX
     w = _clamp(_int(w) or SIZE["w"], 1, GRID_COLS)
-    return int(max(220, (board + GAP_PX) * w / GRID_COLS - GAP_PX - 8))
+    return int(max(220, (BOARD_PX + GAP_PX) * w / GRID_COLS - GAP_PX - 8))
 
 
 def fold_html(summary: str, inner: str) -> str:
@@ -590,103 +557,6 @@ def leads_html(items) -> str:
                    f'<span class="t">{esc(it.get("text"))}</span>'
                    f'{"</a>" if link else "</div>"}')
     return '<div class="td-leads">' + "".join(out) + "</div>"
-
-
-# --- dated ahead: when, and at what phase ----------------------------------------------
-# The phase a readout is at, read from the start of its registry title ("Phase 3, a study
-# of ..."), which is where the calendar's derivation writes it. A seamless phase sits at
-# the phase it reaches, as everywhere in the app. A regulatory date is a decision.
-_PHASE = re.compile(r"^\s*Phase\s+(1/2|2/3|1|2|3)\b", re.I)
-_PHASE_LANE = {"1": "p1", "1/2": "p2", "2": "p2", "2/3": "p3", "3": "p3"}
-_DECISION = ("pdufa", "fda", "decision", "adcomm", "advisory", "regulatory", "approval")
-DATED_LANES = (
-    {"key": "p3", "label": "Phase 3", "colour": TK.PHASE_RAMP["Phase 3"]},
-    {"key": "p2", "label": "Phase 2", "colour": TK.PHASE_RAMP["Phase 2"]},
-    {"key": "p1", "label": "Phase 1", "colour": TK.PHASE_RAMP["Phase 1"]},
-    {"key": "decision", "label": "Decision", "colour": TK.PHASE_RAMP["filed"]},
-    {"key": "other", "label": "Other", "colour": TK.MUTED},
-)
-_ALWAYS_DATED = ("p3", "p2", "p1")       # an empty Phase 3 lane is a finding
-_LANE_RANK = {lane["key"]: n for n, lane in enumerate(DATED_LANES)}
-
-
-def dated_lane(row: dict) -> str:
-    kind = str(row.get("catalyst_type") or "").lower()
-    if any(word in kind for word in _DECISION):
-        return "decision"
-    found = _PHASE.match(str(row.get("title") or ""))
-    return _PHASE_LANE[found.group(1)] if found else "other"
-
-
-def _month_only(row: dict) -> bool:
-    """Whether the source dates this to a month and no day: it says so, or the date it
-    gives has no day in it."""
-    return ((row.get("date_confidence") or "") == "month"
-            or bool(_MONTH_DATE.match(str(row.get("expected_date") or "").strip())))
-
-
-def dated_when(row: dict) -> str:
-    """The date as far as the source gives it: "15 Dec 2026", or "Dec 2026" where the
-    registry gives a month and no day."""
-    d = _day(row.get("expected_date"))
-    if d is None:
-        return NO_DATA
-    month = f"{MONTHS[d.month - 1]} {d.year}"
-    return month if _month_only(row) else f"{d.day} {month}"
-
-
-def dated_wait(row: dict, today: dt.date) -> str:
-    """How far off, in the unit the date is given in. A month with no day is counted in
-    months: a count of days to the first of it would be a day nobody published."""
-    d = _day(row.get("expected_date"))
-    if d is None:
-        return ""
-    if _month_only(row):
-        months = (d.year - today.year) * 12 + d.month - today.month
-        return ("this month" if months <= 0 else "next month" if months == 1
-                else f"in {months} months")
-    days = (d - today).days
-    return "today" if days <= 0 else "tomorrow" if days == 1 else f"in {days} days"
-
-
-def moving(rows) -> list:
-    """The dated events that move a price: Phase 3 readouts and regulatory decisions. A
-    company with neither ahead keeps its Phase 2 readouts, which are then its catalysts."""
-    rows = list(rows or [])
-    lead = [r for r in rows if dated_lane(r) in ("p3", "decision")]
-    return lead or [r for r in rows if dated_lane(r) == "p2"]
-
-
-def dated_figure(rows, today: dt.date, months: int, width: int) -> str:
-    """What is dated ahead on a grid of months and phases, a square an event."""
-    items = [{"date": _day(r.get("expected_date")), "lane": dated_lane(r),
-              "tip": " · ".join(part for part in (
-                  dated_when(r), _one_line(r.get("catalyst_type")),
-                  _one_line(r.get("title"))) if part)}
-             for r in rows or []]
-    used = {it["lane"] for it in items}
-    lanes = [lane for lane in DATED_LANES if lane["key"] in used]
-    return CH.unit_lanes(items, lanes, month_start(today), month_start(today, months - 1),
-                         step="month", width=width, cap=5,
-                         label="dated events ahead by month and phase")
-
-
-def dated_next(rows, today: dt.date) -> str:
-    """The nearest events, named: how far off, the date, and what it is. Within one
-    period the later phase leads, since that is the one a reader came for."""
-    ahead = sorted(rows or [], key=lambda r: (str(r.get("expected_date") or "")[:7]
-                                              if _month_only(r)
-                                              else str(r.get("expected_date") or ""),
-                                              _LANE_RANK[dated_lane(r)]))
-    if not ahead:
-        return ""
-    cells = []
-    for r in ahead[:LEADS]:
-        title = _one_line(r.get("title")) or "untitled in the source"
-        cells.append(f'<div title="{esc(title)}"><span class="k">{esc(dated_wait(r, today))}'
-                     f'</span><div class="row"><span class="v">{esc(dated_when(r))}</span>'
-                     f'</div><span class="n">{esc(title)}</span></div>')
-    return '<div class="tiles td-next">' + "".join(cells) + "</div>"
 
 
 # --- company news: how much, from whom, and the newest ---------------------------------
@@ -738,115 +608,6 @@ def news_older(rows, today: dt.date) -> int:
     start = month_start(today, 1 - NEWS_MONTHS)
     return sum(1 for r in rows or []
                if (_day(r.get("published_at")) or start) < start)
-
-
-# --- what changed: how much, how material, and the ones to read -------------------------
-CHANGE_DAYS = 90
-# The kinds of change that move a price: a readout, an approval or a regulatory step, a
-# result, a deal or a financing, a change to a trial's phase or endpoint, a leader leaving,
-# exclusivity. The rest of the feed is the book keeping its records straight (a revenue
-# line restated, a filing indexed, a registry date nudged) and is left to the Universe tab.
-MATERIAL = {"press_data_readout", "readout_landed", "pulse_readout", "data readout",
-            "efficacy_supplement", "press_approval", "new_approval", "pulse_approval",
-            "press_regulatory", "pulse_regulatory", "PDUFA", "regulatory decision",
-            "press_deal", "pulse_deal", "pulse_earnings", "press_results",
-            "pulse_financing", "pulse_restructuring", "phase_advance", "phase_regress",
-            "endpoint_change", "design_change", "loe", "payer_access", "material event"}
-# Material only at the top rating: a leader named, a Phase 3 date slipping a quarter.
-MATERIAL_IF_HIGH = {"leadership_change", "date_slip"}
-_STOPPED = re.compile(r"->\s*(Terminated|Suspended|Withdrawn)\b", re.I)
-
-
-def material(row) -> bool:
-    """Whether a detected change is of a kind that moves a price."""
-    if not isinstance(row, dict):
-        return False
-    kind = str(row.get("change_type") or row.get("kind") or "")
-    if kind in MATERIAL:
-        return True
-    if kind in MATERIAL_IF_HIGH and row.get("significance") == "high":
-        return True
-    # A trial stopped is news; a trial finishing on schedule is the registry catching up.
-    return kind == "status_change" and bool(_STOPPED.search(str(row.get("headline") or "")))
-
-
-CHANGE_LANES = (
-    # Amber is the app's "material change" and is spent on the top rating alone.
-    {"key": "high", "label": "High", "colour": TK.FLAG},
-    {"key": "medium", "label": "Medium", "colour": TK.TEXT},
-    {"key": "low", "label": "Low", "colour": TK.MUTED},
-)
-_RATING = {lane["key"]: n for n, lane in enumerate(CHANGE_LANES)}
-
-
-def change_kind(row: dict) -> str:
-    """The kind of change in words: "date slip", not "date_slip"."""
-    return _one_line(str(row.get("change_type") or row.get("kind") or "").replace("_", " "))
-
-
-def material_changes(feed, ticker: str, today: dt.date, days: int = CHANGE_DAYS) -> list:
-    """The company's material changes in the last ``days``, newest first, each once. A
-    change dated ahead of today (an expiry the book knows is coming) is not a change yet."""
-    since = (today - dt.timedelta(days=days - 1)).isoformat()
-    until = today.isoformat()
-    rows = [r for r in feed or [] if isinstance(r, dict) and material(r)
-            and (r.get("ticker") or "") == ticker
-            and since <= str(r.get("date") or "")[:10] <= until]
-    rows.sort(key=lambda r: str(r.get("date") or ""), reverse=True)
-    seen, kept = set(), []
-    for r in rows:
-        key = (str(r.get("date") or "")[:10], _one_line(r.get("headline")).lower())
-        if key not in seen:
-            seen.add(key)
-            kept.append(r)
-    return kept
-
-
-def changes_figure(rows, today: dt.date, width: int) -> str:
-    """Thirty days of detected changes on a grid of days and ratings."""
-    items = [{"date": r.get("date"), "lane": r.get("significance"),
-              "tip": f'{str(r.get("date") or "")[:10]} · {change_kind(r)} · '
-                     f'{_one_line(r.get("headline"))}'}
-             for r in rows or []]
-    used = {it["lane"] for it in items}
-    lanes = [lane for lane in CHANGE_LANES if lane["key"] in used]
-    return CH.unit_lanes(items, lanes, today - dt.timedelta(days=CHANGE_DAYS - 1),
-                         today, step="week", width=width, cap=6,
-                         label="material changes by week and rating")
-
-
-def changes_leads(rows, ticker: str = "") -> str:
-    """The three to read: the highest rated, newest first."""
-    ranked = sorted(rows or [], key=lambda r: str(r.get("date") or ""), reverse=True)
-    ranked.sort(key=lambda r: _RATING.get(r.get("significance"), len(_RATING)))
-    out = []
-    for r in ranked[:LEADS]:
-        text = _one_line(r.get("headline"))
-        if ticker and text.startswith(ticker + " "):
-            text = text[len(ticker) + 1:]
-        out.append({"tone": r.get("significance"), "tag": change_kind(r) or "change",
-                    "date": str(r.get("date") or "")[:10],
-                    "text": text[:1].upper() + text[1:], "url": r.get("url"),
-                    "hover": _one_line(r.get("reason"))})
-    return leads_html(out)
-
-
-def kinds_html(rows, shown: int = 6) -> str:
-    """What the changes were, counted by kind, the commonest first."""
-    counts: dict = {}
-    for r in rows or []:
-        kind = change_kind(r)
-        if kind:
-            counts[kind] = counts.get(kind, 0) + 1
-    if not counts:
-        return ""
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
-    cells = [f'<span class="td-kind"><b>{n}</b>{esc(kind)}</span>'
-             for kind, n in ranked[:shown]]
-    rest = sum(n for _kind, n in ranked[shown:])
-    if rest:
-        cells.append(f'<span class="td-kind"><b>{rest}</b>other</span>')
-    return '<div class="td-kinds">' + "".join(cells) + "</div>"
 
 
 # --- price: the window on screen and the figures that describe it -----------------------
@@ -1235,3 +996,21 @@ def tiles_html(groups) -> str:
                          + (f'<span class="n">{esc(t["n"])}</span>' if t.get("n") else "")
                          + "</div>")
     return f'<div class="tiles td-ftiles">{"".join(cells)}</div>' if cells else ""
+
+
+# --- the Ask box ------------------------------------------------------------------------
+def ask_empty_html(company: str) -> str:
+    """What the box opens on: no suggested questions, one line on what it is for."""
+    return ('<div class="td-ask-empty"><div class="t">Ask about '
+            f'{esc(company)}, or anything in the book.</div><div class="d">Every figure '
+            "in an answer is read from the book, and the reads are listed under it."
+            "</div></div>")
+
+
+def ask_question_html(question) -> str:
+    return f'<div class="td-ask-q">{esc(_one_line(question))}</div>'
+
+
+def ask_failed_html(reason) -> str:
+    return ('<div class="td-ask-fail">No answer: '
+            f'{esc(_one_line(reason) or "the model returned nothing")}</div>')

@@ -99,9 +99,9 @@ def house_style(text: str) -> str:
 # model has to ask for, and this would tell it unasked. The frontend's registry
 # (frontend/trading_view.PANELS) is held to this list by a test.
 ON_SCREEN = {"price": "Price chart", "fundamentals": "Fundamentals",
-             "changes": "Material changes", "news": "Company news",
+             "news": "Company news",
              "results": "Latest results", "trend": "Growth and margin",
-             "filings": "Filings", "catalysts": "Dated ahead"}
+             "filings": "Filings"}
 ON_SCREEN_MAX = 12
 _PANEL_TICKER = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,11}$")
 

@@ -148,9 +148,20 @@ function hide(h) {
   for (const c of CORNERS) h.corners[c].style.display = "none";
 }
 
+/* An Ask panel's conversation is kept scrolled to its foot, where the newest answer is:
+   when one grows, it is scrolled to the end. A scroll position is all it sets there. */
+const chatHeights = new WeakMap();
+function followChats() {
+  for (const chat of doc.querySelectorAll('[class*="st-key-td_chat_"]')) {
+    const h = chat.scrollHeight;
+    if (chatHeights.get(chat) !== h) { chatHeights.set(chat, h); chat.scrollTop = h; }
+  }
+}
+
 /* Lay every handle over its panel, as the panels are on screen now. */
 function sync() {
   if (!ensureLayer()) return;
+  followChats();
   const ids = new Set(state.panels.map((p) => p.id));
   for (const id of Object.keys(handles)) {
     if (!ids.has(id)) {

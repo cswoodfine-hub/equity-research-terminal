@@ -1350,6 +1350,53 @@ a.td-lead:hover .t {{ color: var(--up); }}
    popover's own width left the company two letters. */
 [data-testid="stPopoverBody"]:has(.td-arr) {{ min-width: 33rem; }}
 .td-said {{ color: var(--text); margin: 0 0 0.4rem; }}
+/* The Ask box as a panel. A conversation, set quietly: the question right-aligned on the
+   raised tone, the answer as prose under a green rail that says it is the book's, what
+   it was read from folded under that. The transcript scrolls inside the panel with the
+   newest at its foot, and the box sits square at the bottom. No suggested questions. */
+/* The box is drawn as a fragment of its own, which Streamlit wraps in a block of its own,
+   so the block, and the conversation inside it, are each told to take the height left. */
+[class*="st-key-td_p_"] > [data-testid="stLayoutWrapper"]:has([class*="st-key-td_chat_"]),
+[class*="st-key-td_p_"] [data-testid="stLayoutWrapper"]:has(> [class*="st-key-td_chat_"]) {{
+  flex: 1 1 0 !important; min-height: 0 !important; height: auto !important; }}
+[class*="st-key-td_p_"] > [data-testid="stLayoutWrapper"]:has([class*="st-key-td_chat_"])
+  > [data-testid="stVerticalBlock"] {{ min-height: 0; gap: 0.4rem; }}
+[class*="st-key-td_chat_"] {{ height: 100%; overflow-y: auto; scrollbar-width: thin;
+                             gap: 0.35rem !important; padding: 0.2rem 0.35rem 0.4rem 0; }}
+[class*="st-key-td_chat_"]::-webkit-scrollbar {{ width: 5px; }}
+[class*="st-key-td_chat_"]::-webkit-scrollbar-thumb {{ background: var(--rule-strong); }}
+[class*="st-key-td_chat_"]:has(.td-ask-empty) {{ justify-content: center; }}
+.td-ask-empty {{ padding: 1rem 0.6rem; text-align: center; }}
+.td-ask-empty .t {{ font-family: var(--font-ui); font-size: 13.5px; color: var(--text); }}
+.td-ask-empty .d {{ font-family: var(--font-ui); font-size: 11.5px; color: var(--muted);
+                   margin-top: 0.35rem; line-height: 1.45; }}
+.td-ask-q {{ margin: 0.7rem 0 0.15rem auto; width: fit-content; max-width: 88%;
+            padding: 0.38rem 0.65rem; background: var(--panel); border: 1px solid var(--rule);
+            border-radius: 2px; font-family: var(--font-ui); font-size: 12.5px;
+            line-height: 1.4; color: var(--text); }}
+[class*="st-key-td_ans_"] {{ border-left: 2px solid var(--up); padding-left: 0.7rem; }}
+[class*="st-key-td_ans_"] [data-testid="stMarkdownContainer"] {{
+  font-family: var(--font-ui); font-size: 13px; line-height: 1.55; color: var(--text); }}
+[class*="st-key-td_ans_"] [data-testid="stMarkdownContainer"] p {{ margin: 0 0 0.5rem; }}
+[class*="st-key-td_ans_"] [data-testid="stMarkdownContainer"] ul {{ margin: 0 0 0.5rem;
+                                                                   padding-left: 1.1rem; }}
+[class*="st-key-td_chat_"] .ask-reads {{ margin: 0 0 0.2rem 0.85rem; max-width: none; }}
+.td-ask-fail {{ border-left: 2px solid var(--down); padding: 0.2rem 0 0.2rem 0.7rem;
+               font-family: var(--font-ui); font-size: 12.5px; color: var(--text); }}
+[class*="st-key-td_askbox_"] {{ margin-top: 0.15rem; }}
+[class*="st-key-td_askbox_"] [data-testid="stChatInput"] > div {{
+  border-radius: var(--radius) !important; border: 1px solid var(--rule-strong) !important;
+  background: var(--panel) !important; box-shadow: none !important; }}
+[class*="st-key-td_askbox_"] [data-testid="stChatInput"] > div:focus-within {{
+  border-color: var(--muted) !important; }}
+[class*="st-key-td_askbox_"] [data-testid="stChatInputTextArea"] {{
+  font-family: var(--font-ui); font-size: 13px; color: var(--text); caret-color: var(--text); }}
+[class*="st-key-td_askbox_"] [data-testid="stChatInputTextArea"]::placeholder {{
+  color: var(--muted); opacity: 1; }}
+[class*="st-key-td_askbox_"] [data-testid="stChatInputSubmitButton"] {{
+  border-radius: var(--radius) !important; color: var(--muted); }}
+[class*="st-key-td_askbox_"] .stButton button {{ font-size: 11px; color: var(--muted);
+                                                 padding: 0 0.3rem; min-height: 0; }}
 .td-left-out {{ color: var(--flag); margin: 0 0 0.4rem; }}
 [class*="st-key-td_controls"] {{ margin-bottom: 0.2rem; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than

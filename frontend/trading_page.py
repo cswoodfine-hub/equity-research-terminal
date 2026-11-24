@@ -28,7 +28,6 @@ import urllib.request
 
 import streamlit as st
 
-import calendar_view
 import price_chart
 import trading_view as TV
 import trend
@@ -36,15 +35,9 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 12
+REVISION = 13
 
-CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
 HOLD_SECONDS = 60
-CHANGES_SHOWN = 40
-# The board against the Ask column beside it: about two thirds to one, which leaves the
-# box the measure its answers are set at and the board room for two panels across.
-BESIDE = (2.05, 1)
-ASK_SLOT = "td_"             # the Ask box's second place on the page (see _ask_tab)
 SHOWING_KEY = "td_showing"   # where the session holds what is on the board, for the box
 # What the price panel draws round its chart: the rule, the line of the window's control
 # and its figures, the legend and the notes. The chart takes the rest of the panel.
@@ -116,40 +109,6 @@ def _figure(svg: str) -> None:
                     unsafe_allow_html=True)
 
 
-def _changes(api_base, company, kit, rule, slot, frame, have):
-    label, basis = rule
-    feed, problem = have.get("feed"), None
-    if feed is None:
-        feed, problem = read(api_base, f"/changes?ticker={urllib.parse.quote(company)}")
-    today = dt.date.today()
-    rows = TV.material_changes(feed or [], company, today)
-    kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot, frame):
-        if problem:
-            _failed(kit, "The change feed", problem)
-        elif not rows:
-            kit.state(f"Nothing material for {TV.esc(company)} in {TV.CHANGE_DAYS} days",
-                      "No readout, approval, result, deal, financing or exclusivity "
-                      "change was detected. The rest of the feed is on Universe.")
-        else:
-            _figure(TV.changes_figure(rows, today, frame["width"]))
-            st.markdown(TV.kinds_html(rows) + TV.changes_leads(rows, company)
-                        + TV.fold_html(
-                            f"The list: {min(len(rows), CHANGES_SHOWN)} of {len(rows)}, "
-                            "newest first",
-                            '<div class="feed td-list">'
-                            + "".join(kit.change_row(it) for it in rows[:CHANGES_SHOWN])
-                            + "</div>"),
-                        unsafe_allow_html=True)
-            kit.note(f"A square is one material change, in the week it was detected and the "
-                     f"row of its rating, over {TV.CHANGE_DAYS} days. Material means a "
-                     "readout, an approval or a regulatory step, a result, a deal or a "
-                     "financing, a trial stopped or changed, a leader named, or "
-                     "exclusivity; a restated revenue line, an indexed filing or a "
-                     "registry date are left out. The three named are the highest rated, "
-                     "newest first.")
-
-
 def _news(api_base, company, kit, rule, slot, frame, have):
     label, basis = rule
     payload, problem = read(api_base, f"/companies/{urllib.parse.quote(company)}/news")
@@ -182,38 +141,6 @@ def _news(api_base, company, kit, rule, slot, frame, have):
                        "(AI) is the daily pulse, a model's summary of the trade press that "
                        "links the article it summarises; it moves no value, deal term or "
                        "catalyst.")
-
-
-def _catalysts(api_base, company, kit, rule, slot, frame, have):
-    label, basis = rule
-    payload, problem = read(
-        api_base, f"/catalysts?within_days={CALENDAR_MONTHS * 31}"
-                  f"&ticker={urllib.parse.quote(company)}")
-    listed = payload if isinstance(payload, list) else []
-    today = dt.date.today()
-    every = TV.dated_rows(calendar_view.within(listed, CALENDAR_MONTHS, today))
-    rows = TV.moving(every)
-    kit.section(label, count=len(rows) if rows else None, basis=basis)
-    with _body(slot, frame):
-        if problem:
-            _failed(kit, "The calendar", problem)
-        elif not rows:
-            kit.state(f"Nothing dated for {TV.esc(company)} in the next "
-                      f"{CALENDAR_MONTHS} months that moves a price",
-                      "No Phase 3 readout or regulatory decision, and no Phase 2 readout, "
-                      "is dated. " + calendar_view.SOURCES)
-        else:
-            _figure(TV.dated_figure(rows, today, CALENDAR_MONTHS, frame["width"]))
-            st.markdown(TV.dated_next(rows, today)
-                        + TV.fold_html(f"The list: {TV.dated_basis(rows, CALENDAR_MONTHS)}, "
-                                       "soonest first", TV.dated_html(rows)),
-                        unsafe_allow_html=True)
-            kit.note(f"The {len(rows)} of {len(every)} dated events that move a price: "
-                     "Phase 3 readouts and regulatory decisions, or the Phase 2 readouts "
-                     "where there are none. A square is one, in its month and the row of "
-                     "its phase, read from the start of its registry title. A date here is "
-                     "the registry's or the filing's, not a commitment. Every dated event, "
-                     "with the odds and the value at stake, is on Catalysts.")
 
 
 def _results(api_base, company, kit, rule, slot, frame, have):
@@ -433,9 +360,76 @@ def _price(api_base, company, kit, rule, slot, frame, have):
     chart()
 
 
-DRAW = {"price": _price, "fundamentals": _fundamentals, "changes": _changes,
-        "news": _news, "results": _results,
-        "trend": _trend, "filings": _filings, "catalysts": _catalysts}
+def _ask(api_base, company, kit, rule, slot, frame, have):
+    """The Ask box as a panel: a question about the company or the book, answered by a
+    model that reads the book through the desk tools.
+
+    One conversation a company, the same as the Ask tab's. The transcript scrolls inside
+    the panel, the newest at the foot, and the box sits under it. Nothing is suggested:
+    the panel opens on a blank box and one line saying what it is for. Drawn as a fragment
+    of its own, so asking redraws the conversation and not the board."""
+    label, basis = rule
+
+    @st.fragment
+    def box():
+        status, problem = read(api_base, "/ask/status")
+        kit.section(label, basis=basis)
+        if problem or not (status or {}).get("ready"):
+            with _body(slot, frame):
+                kit.state("No model key is set" if not problem else "The Ask box did not load",
+                          "The Ask box is answered by a language model reading the book. Set "
+                          "GEMINI_API_KEY, GROQ_API_KEY or ANTHROPIC_API_KEY in .env and "
+                          "restart the API. Every other panel works without one."
+                          if not problem else TV.esc(problem), error=bool(problem))
+            return
+        key = f"ask_turns_{company}"
+        turns = st.session_state.setdefault(key, [])
+        pending = st.session_state.pop(f"td_pending_{slot}", None)
+        with st.container(key=f"td_chat_{slot}", border=False):
+            if not turns and not pending:
+                st.markdown(TV.ask_empty_html(company), unsafe_allow_html=True)
+            for i, turn in enumerate(turns):
+                st.markdown(TV.ask_question_html(turn.get("q")), unsafe_allow_html=True)
+                if turn.get("ok"):
+                    with st.container(key=f"td_ans_{slot}_{i}"):
+                        # A pair of dollar signs is mathematics to Streamlit's markdown.
+                        st.markdown(str(turn.get("answer") or "").replace("$", "\\$"))
+                else:
+                    st.markdown(TV.ask_failed_html(turn.get("reason")),
+                                unsafe_allow_html=True)
+                st.markdown(kit.ask_reads(turn.get("steps") or []), unsafe_allow_html=True)
+            if pending:
+                st.markdown(TV.ask_question_html(pending), unsafe_allow_html=True)
+                with st.spinner("Reading the book"):
+                    kit.ask_send(api_base, company, have.get("name") or "", key, pending,
+                                 SHOWING_KEY)
+                _rerun_board()
+        with st.container(key=f"td_askbox_{slot}", horizontal=True,
+                          vertical_alignment="center", gap="small"):
+            typed = st.chat_input(f"Ask about {company} or anything in the book",
+                                  key=f"td_input_{slot}")
+            if turns:
+                st.button("Clear", key=f"td_clear_{slot}", type="tertiary",
+                          on_click=_clear_turns, args=(key,),
+                          help="Start the conversation about this company again.")
+        if typed:
+            st.session_state[f"td_pending_{slot}"] = typed
+            _rerun_board()
+        kit.note("A language model answers from the book's own reads and lists each one "
+                 "under its answer. It values nothing and changes nothing; the figures are "
+                 f"the book's. Research, not advice. Model: {TV.esc(status.get('model'))}. "
+                 "It is told which panels are open on the board, by name, and not what "
+                 "they show. The conversation is the Ask tab's too.")
+
+    box()
+
+
+def _clear_turns(key: str) -> None:
+    st.session_state[key] = []
+
+
+DRAW = {"price": _price, "fundamentals": _fundamentals, "news": _news, "results": _results,
+        "trend": _trend, "filings": _filings, "ask": _ask}
 
 
 # ----------------------------------------------------------------------------- the board
@@ -487,10 +481,6 @@ def _pin(pid: str) -> None:
 
 def _lay_out(columns: int) -> None:
     _keep(TV.laid_out(layout(), columns))
-
-
-def _beside() -> None:
-    _keep(dict(layout(), ask=bool(st.session_state.get("td_ask"))))
 
 
 def _reset() -> None:
@@ -693,22 +683,17 @@ def _arrange_menu(board: dict, ticker: str, tickers) -> None:
 
 
 def _controls(api_base: str, board: dict, ticker: str, tickers) -> None:
-    """The row above the board: the saved boards, add a panel, arrange them, and whether
-    the Ask box sits beside them."""
+    """The row above the board: the saved boards, add a panel, and arrange them."""
     with st.container(key="td_controls", horizontal=True, vertical_alignment="center"):
         _boards_menu(api_base)
         _add_menu(tickers)
         _arrange_menu(board, ticker, tickers)
-        _show("td_ask", board["ask"])
-        st.toggle("Ask beside", key="td_ask", on_change=_beside,
-                  help="The Ask box in a column beside the board. It is the same "
-                       "conversation as the Ask tab's, kept per company.")
         st.markdown('<div class="byline td-hint">Drag a panel by its heading to move it, '
                     "and by a corner to size it.</div>", unsafe_allow_html=True)
 
 
 @st.fragment
-def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
+def _board(api_base: str, ticker: str, kit, page: dict, tickers, name: str = "") -> None:
     """The controls and the panels. A fragment: a change to the board redraws the board
     alone."""
     # A drag the reader has just finished. Applied first, so this run draws the board
@@ -722,11 +707,6 @@ def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
     if said:
         st.markdown(f'<div class="byline td-said">{TV.esc(said)}</div>',
                     unsafe_allow_html=True)
-    # The Ask column is laid out by the page, outside this fragment, so a run of the
-    # fragment alone cannot add or remove it. When the switch no longer matches what the
-    # page drew, the page is run once to draw it.
-    if board["ask"] != st.session_state.get("_td_ask_drawn", board["ask"]):
-        st.rerun()
     # What the Ask box may be told is on screen. Kept in the session and read when a
     # question is sent, so it is the board as it stands and not as it stood at the last
     # full run of the page.
@@ -751,15 +731,16 @@ def _board(api_base: str, ticker: str, kit, page: dict, tickers) -> None:
     with st.container(key="td_grid"):
         for entry in board["panels"]:
             company = TV.company_of(entry, ticker)
-            frame = {"width": TV.figure_width(entry["w"], board["ask"]), "h": entry["h"]}
+            frame = {"width": TV.figure_width(entry["w"]), "h": entry["h"]}
             with st.container(key=f"td_p_{entry['id']}"):
                 DRAW[entry["panel"]](
                     api_base, company, kit, TV.heading(entry, ticker), entry["id"], frame,
-                    page if company == ticker else {})
+                    dict(page, name=name) if company == ticker else {})
 
 
 def _rerun_board() -> None:
-    """Run the board again, and only the board where Streamlit allows it."""
+    """Run the fragment this is called from again, the board or the Ask box, and only it
+    where Streamlit allows that; in a run of the whole page it runs the page."""
     try:
         st.rerun(scope="fragment")
     except st.errors.StreamlitAPIException:
@@ -779,13 +760,4 @@ def render(api_base: str, ticker: str, name: str, kit, feed=None, prices=None,
     page = {key: value for key, value in (("feed", feed), ("prices", prices))
             if value is not None}
     _open_first(api_base)
-    beside = layout()["ask"]
-    st.session_state["_td_ask_drawn"] = beside
-    if not beside:
-        _board(api_base, ticker, kit, page, tickers)
-        return
-    board, ask = st.columns(list(BESIDE), gap="medium")
-    with board:
-        _board(api_base, ticker, kit, page, tickers)
-    with ask:
-        kit.ask(api_base, ticker, name, slot=ASK_SLOT, showing_key=SHOWING_KEY)
+    _board(api_base, ticker, kit, page, tickers, name)
