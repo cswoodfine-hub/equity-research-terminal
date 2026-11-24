@@ -42,7 +42,7 @@ import math
 import re
 
 from components import tokens as TK
-from theme import MINUS
+from theme import MINUS, categorical
 from trend import _domain, _runs
 
 MONO = "IBM Plex Mono, ui-monospace, Menlo, monospace"
@@ -63,14 +63,13 @@ CAPTION = 16          # a band's own caption line
 LABELS = 18           # the period row under a band
 LEVEL_ROW = 20        # net debt, printed
 
-# What each segment is drawn in. Hue is spent on meaning already held elsewhere in the
-# terminal: green is the measured, positive figure, and violet is the pipeline, which is
-# what R&D and a bought programme both are. Everything else is a neutral, and every
-# segment is named beside the latest period, so no colour is the only signal.
-#
-# The neutrals step from light at the foot of a stack to dark under what was kept. The
-# remainder used the hairline colour at first, which is two steps off the page's own
-# ground: the largest block of a Lilly quarter read as a gap in its column.
+# What each segment is drawn in. Green is the measured, positive figure and violet is the
+# pipeline, which is what R&D and a bought programme both are, as everywhere in the
+# terminal. The rest were neutrals stepping from grey to the hairline colour, and the
+# figure read as one grey slab with a violet stripe; they are now the cool end of the
+# validated categorical palette (``theme.categorical``), blue and teal, alternating up a
+# stack so no two neighbours share a hue, and every segment is named beside the latest
+# period, so no colour is the only signal.
 #
 # There are two remainders, one above a line of the income statement and one below it.
 # One was drawn at first, named "Tax and other", and Vertex's quarter to June 2024
@@ -79,21 +78,22 @@ LEVEL_ROW = 20        # net debt, printed
 # with quarterly revenue do. Lilly, Merck, Pfizer, J&J, Bristol and Biogen do not, and
 # are split at income before tax, so the upper remainder there holds interest as well
 # and is named for less. A period has one upper remainder or the other, never both,
-# which is why the two share a fill.
-#
-# The lower remainder is light again and breaks the ladder on purpose. A step darker
-# than the upper one, which is where the ladder put it, is the hairline's colour once
-# more, and on a Lilly quarter the tax read as a gap between the costs and the profit.
-COSTS = (("cogs", "Cost of sales", TK.MUTED, 1.0),
+# which is why the two share a fill: the blue at a lighter weight. The lower remainder
+# is the teal at that weight, so the tax never reads as a gap between the costs and the
+# profit.
+_PALETTE = categorical(8)
+BLUE, TEAL = _PALETTE[2], _PALETTE[1]
+REMAINDER = (BLUE, 0.45)
+COSTS = (("cogs", "Cost of sales", BLUE, 1.0),
          ("rd", "R&D", TK.PURPLE_BOOK, 1.0),
-         ("sga", "SG&A", TK.MUTED, 0.5),
-         ("opex_other", "Other operating", TK.RULE_STRONG, 1.0),
-         ("pretax_other", "Other costs", TK.RULE_STRONG, 1.0),
-         ("other", "Tax and other", TK.MUTED, 0.75))
-USES = (("capex", "Capital expenditure", TK.MUTED, 1.0),
+         ("sga", "SG&A", TEAL, 1.0),
+         ("opex_other", "Other operating", *REMAINDER),
+         ("pretax_other", "Other costs", *REMAINDER),
+         ("other", "Tax and other", TEAL, 0.45))
+USES = (("capex", "Capital expenditure", BLUE, 1.0),
         ("acquisitions", "Acquisitions", TK.PURPLE_BOOK, 1.0),
-        ("buybacks", "Buybacks", TK.MUTED, 0.5),
-        ("dividends", "Dividends", TK.RULE_STRONG, 1.0))
+        ("buybacks", "Buybacks", TEAL, 1.0),
+        ("dividends", "Dividends", TEAL, 0.45))
 
 _MONTHS = {"3M": 3, "6M": 6, "9M": 9, "12M": 12}
 

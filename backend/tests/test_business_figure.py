@@ -107,7 +107,7 @@ def test_the_remainder_is_split_at_operating_income_where_the_filer_tags_it():
     assert rows["Q4 25"]["other"] == -4e9 + 5e9
 
     drawn = business.render(data, "USD", "income")
-    block = f'fill="{business.TK.RULE_STRONG}" fill-opacity="1.0"'
+    block = f'fill="{business.REMAINDER[0]}" fill-opacity="{business.REMAINDER[1]}"'
     # A segment in each of the four periods, and its name beside the latest.
     assert drawn.count(block) == 5
     assert ">Other operating<" in drawn and ">Tax and other<" in drawn
@@ -145,7 +145,7 @@ def test_a_gain_in_operations_draws_no_segment_and_is_still_printed():
     latest = data["periods"][-1]
     assert latest["opex_other"] == -5e9 and latest["other"] == 15e9
     drawn = business.render(data, "USD", "income")
-    block = f'fill="{business.TK.RULE_STRONG}" fill-opacity="1.0"'
+    block = f'fill="{business.REMAINDER[0]}" fill-opacity="{business.REMAINDER[1]}"'
     assert drawn.count(block) == 3            # the three other periods, none beside the latest
     assert f">{business.MINUS}5.00<" in drawn  # the period's readout still says it
 
