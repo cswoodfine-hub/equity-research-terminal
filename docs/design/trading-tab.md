@@ -168,55 +168,89 @@ Not offered as panels:
 6. Working notes are left out until where to keep them is settled. Not the database: a
    write there moves the stamp every valuation is held against.
 
-## What was built, 2026-11-23
+## What was built, 2026-11-23 and 24
 
-Steps 1 to 5, on branch `claude/trading-tab`. Steps 6 to 15 are not built.
+Steps 1 to 9, on branch `claude/trading-tab`. Steps 10 to 15 are not built.
 
-The tab sits beside Ask. The board holds three kinds of panel, What changed, Company news
-and Dated ahead, picked from a row of pills and laid out one, two or three across for the
-company in the top bar. The Ask box sits in a column beside it, with a switch to put it
-away, and a question asked there goes with the names of the open panels.
+The tab sits beside Ask. A board holds up to twelve panels of seven kinds: Price chart,
+What changed, Company news, Latest results, Growth and margin, Filings and Dated ahead.
+Three menus sit above it. Boards saves the board on screen under a name, opens a saved
+one and deletes the open one. Add panel lists the kinds by group and takes the company
+the panel is for. Arrange is the board as rows: whose each panel is, whether it takes the
+full width, a place earlier or later, and off. The Ask box sits in a column beside the
+board, and a question asked there goes with the names of the open panels.
 
-Measured on Lilly at 1440 by 900: two across beside the Ask box shows the first row of
-two panels whole and about half of the next; three across shows all three. A panel's body
-is 340 px and scrolls inside itself. The board's two reads of the API (`/news` and
-`/catalysts`) each answer in about a millisecond from the response cache, and the board
-holds each for a minute, so a full run of the page with the board hidden adds no read
-within the minute and two short ones after it.
+Measured on Lilly at 1440 by 900, two across beside the Ask box: the price chart across
+the board's width, and the top half of the row under it. A panel's body is 340 px and
+scrolls inside itself; the price chart is 300 px and does not grow. The board's reads of
+the API each answer in about a millisecond from the response cache, and the board holds
+each for a minute, so a full run of the page with the board hidden adds no read within
+the minute. The live price is the exception: it is asked on every run, of an API that
+holds its answer for about 55 seconds.
 
 Decisions taken while building:
 
-- **Dated ahead is a list, not the Catalysts tab's month grid.** The grid is built for
-  the page's full width and a panel has half of it or less. The list is one line an
-  event, soonest first, and a month the registry gives with no day is shown as the month
-  and marked "month only", never as the first of it.
-- **A list is measured against its own panel.** Three across beside the Ask box left a
-  headline a few characters wide in the feed's four columns. A narrow row is the date and
-  the headline, with the qualifier and the tag on a line under them; from about 35rem it
-  is the feed's columns. This is a container query on the panel's body.
+- **A panel leads with a figure, not a list.** The first board was three lists of dated
+  rows and the reader asked for something better to look at. What is dated, said, filed
+  or changed is drawn on a time grid first (`charts.unit_lanes`: a row a lane, a column a
+  period, a square an event), the few items that matter are named under it, and the
+  whole list is folded beneath, one click away. A lane with nothing in it is still drawn,
+  because an empty Phase 3 row is a finding.
+- **What each figure is.** Dated ahead: 24 months by month, a row a phase in the phase
+  ramp's colours. Company news: a year by month, a row a source. Filings: two years by
+  month, a row a form, annual filled and quarterly an outline. What changed: 30 days by
+  day, a row a rating, the review amber on the top rating alone.
+- **A phase is read from the start of the registry title** ("Phase 3, a study of ..."),
+  which is where the calendar's derivation writes it. A row whose title does not start
+  with one sits in Other; nothing is guessed.
+- **A month-only date is a month.** The calendar stores such a readout as "2026-12". It
+  was being dropped as no date at all. It is placed in its month and never printed with
+  a day, and how far off it is is counted in months.
+- **The pulse takes the review amber** and the label "Pulse (AI)", since amber is the
+  app's "uncurated, look at this" and a model's summary of the trade press is that.
+- **The price panel is a second composition of the Prices tab's builders, and the Prices
+  tab is untouched.** The plan had its closure cut out into a shared function. The logic
+  already lives in `price_chart.py`; what would have been shared is glue, at the cost of
+  a refactor of a page that works. The panel is daily bars only, with a window and line
+  or candle. The intraday views, the fair value line and why the price moved stay on
+  the Prices tab.
+- **The chart component has a height it keeps** (`fill=False`), and a fixed-height chart
+  fits its bars again when its width changes. Drawn in a hidden tab it is a few pixels
+  wide, and the bars stayed bunched at the right edge when the tab was shown.
+- **The board is one value in the session and no widget is the record.** Every control
+  changes it through a callback, which runs before the page is drawn, and each widget is
+  set from the board on every run. A row of the arranger is keyed by its place, and a
+  place holds a different panel after a move.
+- **The API holds a board's shape and the frontend knows the kinds.** A board saved by
+  another version opens without the panels this one lacks and says which.
+- **The open board's name is not in the address.** The plan had `?board=`. The board
+  that opens next time is remembered with the boards, which is what was asked for.
+- **A list is measured against its own panel**, by a container query on the panel's
+  body: narrow, a row is the date and the headline with the qualifier under them.
 - **A panel is a section, not a card.** A rule and a caps label from the house's own
-  `section`, with the company in the basis tag. The design system has no cards.
+  `section`, with the company in the basis tag and "pinned" where it is.
 - **A private panel is never named to the model**, whatever `CHAT_ALLOW_PORTFOLIO` says.
   The plan had the switch let it through. The switch offers a tool the model has to ask
-  for; naming a holdings panel beside a ticker would tell it unasked. So `desk_chat`'s
-  list holds no private panel at all, and a test holds that list to the frontend's.
-- **What is on screen is read when the question is sent**, from the session, not passed
-  when the box is drawn. The board and the box are separate fragments, and a value
-  passed at draw time would be the board as it stood at the last full run of the page.
-- **The Ask box's slot goes after the part of each key the stylesheet matches**
-  (`ask_box_td_LLY`, not `td_ask_box_LLY`), so the second box takes the same styles with
-  no change to `theme.py`.
-- **The registry lists only what is built.** The picker offers what works; the table
-  above is the plan for the rest.
+  for; naming a holdings panel beside a ticker would tell it unasked.
+- **What is on screen is read when the question is sent**, from the session, since the
+  board and the box are separate fragments.
 - **The board's held reads are cleared through `api_get.clear`**, the call every handler
-  that changes the book already makes. It did nothing since the page stopped caching;
-  now it drops the board's minute of reads.
+  that changes the book already makes.
 
-Not checked yet:
+Not in this version:
 
-- The whole suite (`make verify`). Another session's suite was running, and one heavy
-  thing runs at a time. The eight test files this work touches pass: 129 tests.
-- A question asked end to end against a model with the board's sentence in the prompt.
-  The copy's page was run against the API of the real checkout, which does not have the
-  new field and ignores it. `test_desk_chat.py` pins the prompt and `test_ask_route.py`
-  the route.
+- Cash and runway. Its block on Financials makes an unheld read of its own on every run
+  of the page, which is what the board is built to avoid.
+- The book's view, positioning, your record, the second set of panels and the desk read
+  (steps 10 to 14), and the standing line from `/signals`.
+- Working notes.
+
+Not checked:
+
+- Saving a board end to end in the running app. The copy's page was run against the API
+  of the real checkout, which has no `/desk/layouts`, and the Boards menu says so there.
+  The routes are tested through the app's own test client and the menu on stand-ins.
+- A question asked of a model with the board's sentence in the prompt, for the same
+  reason. `test_desk_chat.py` pins the prompt and `test_ask_route.py` the route.
+- The price panel's one-minute tick with a market open. It was drawn with New York
+  closed, and with the market open only on a stand-in.

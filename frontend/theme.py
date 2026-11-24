@@ -1299,6 +1299,10 @@ a.td-lead:hover .t {{ color: var(--up); }}
 .td-group {{ font-family: var(--font-ui); font-size: 9.5px; letter-spacing: 0.08em;
             text-transform: uppercase; color: var(--muted); margin: 0.5rem 0 0.1rem; }}
 .td-arr {{ font-family: var(--font-ui); font-size: 12.5px; color: var(--text); }}
+/* The arranger is six columns wide, a name, a company and four controls, and a
+   popover's own width left the company two letters. */
+[data-testid="stPopoverBody"]:has(.td-arr) {{ min-width: 33rem; }}
+.td-said {{ color: var(--text); margin: 0 0 0.4rem; }}
 .td-left-out {{ color: var(--flag); margin: 0 0 0.4rem; }}
 [class*="st-key-td_controls"] {{ margin-bottom: 0.2rem; }}
 /* The engine's own account of what it decided, one line per judgement. Read rather than

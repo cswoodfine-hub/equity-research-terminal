@@ -68,6 +68,7 @@ ER Tool/
     mcp_tools.py            # the desk tools: the book's reads shaped for a model to call
     thesis_log.py           # dated, falsifiable reads, appended to ledger/theses.ndjson
     desk_chat.py            # the Ask tab: a question answered from the desk tools' reads
+    desk_layout.py          # the Trading tab's saved boards, kept on this machine
     call_sync.py            # append the call log's missing days from data/history
     insiders.py, holders.py # Form 4 dealing and 13F holders, read from the book
     positioning.py          # short interest, options, insiders, holders: side by side
@@ -331,7 +332,12 @@ no single page connects and every figure it uses is one the book computed.
   API already has. Asked from beside the board, a question goes with the kind and company
   of each open panel and never with what a panel shows; `desk_chat.ON_SCREEN` is the list
   the model is named them from, and a panel built on the reader's holdings is not in it.
-  The board reads only: no order, no broker action, no write to the book.
+  The board reads only: no order, no broker action, no write to the book. Its one
+  write is its own arrangement, saved by name through `/desk/layouts` to
+  `backend/cache/trading_layouts.json` (`desk_layout.py`), outside `data/` and the
+  database so that a save moves no stamp, and `/desk/` is in the cache's `QUIET_WRITES`.
+  A panel leads with a figure and folds its list under it; `charts.unit_lanes` is the
+  primitive for dated events on a time grid.
 
 ### The call log follows the committed record
 

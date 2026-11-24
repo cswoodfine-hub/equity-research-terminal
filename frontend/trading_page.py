@@ -35,7 +35,7 @@ from components import tokens as TK
 
 # Bumped when the page's calls change: a server running from a worktree does not
 # re-import a module under a dot-directory, so streamlit_app reloads one behind this.
-REVISION = 8
+REVISION = 9
 
 PANEL_HEIGHT = 340           # a panel's body; past it the panel scrolls, not the page
 CALENDAR_MONTHS = 24         # the span a readout calendar is read over, as on Catalysts
@@ -369,6 +369,7 @@ DRAW = {"price": _price, "changes": _changes, "news": _news, "results": _results
 # stands. A widget's own state is set from it on every run and is never the record.
 LAYOUT_KEY = "td_layout"
 FOLLOW = "Top bar"
+ARRANGE = [2.4, 2.6, 0.9, 0.6, 0.6, 0.6]     # the arranger's columns, as shares of its width
 
 
 def layout() -> dict:
@@ -562,19 +563,24 @@ def _arrange_menu(board: dict, ticker: str, tickers) -> None:
     panels = board["panels"]
     with st.popover("Arrange", disabled=not panels):
         last = len(panels) - 1
+        # The columns are named once, over the rows, so a row is its controls and not a
+        # label on each of them.
+        for cell, text in zip(st.columns(ARRANGE), ("Panel", "Company", "Wide", "", "", "")):
+            cell.markdown(f'<div class="td-group">{text}</div>', unsafe_allow_html=True)
         for i, entry in enumerate(panels):
             options = [FOLLOW] + list(tickers or [])
             if entry.get("ticker") and entry["ticker"] not in options:
                 options.append(entry["ticker"])
-            name, co, wide, up, down, off = st.columns([2.6, 2.0, 1.1, 0.6, 0.6, 0.6],
-                                                       vertical_alignment="center")
+            name, co, wide, up, down, off = st.columns(ARRANGE, vertical_alignment="center")
             name.markdown(f'<div class="td-arr">{TV.esc(TV.BY_ID[entry["panel"]]["title"])}'
                           "</div>", unsafe_allow_html=True)
             _show(f"td_co_{i}", entry.get("ticker") or FOLLOW)
             co.selectbox("Company", options, key=f"td_co_{i}", label_visibility="collapsed",
                          on_change=_pin, args=(i,))
             _show(f"td_wide_{i}", TV.is_wide(entry))
-            wide.toggle("Wide", key=f"td_wide_{i}", on_change=_widen, args=(i,))
+            wide.toggle("Wide", key=f"td_wide_{i}", on_change=_widen, args=(i,),
+                        label_visibility="collapsed",
+                        help="Across the board's whole width, on a row of its own.")
             up.button("↑", key=f"td_up_{i}", disabled=i == 0, help="Earlier on the board",
                       on_click=_move, args=(i, -1))
             down.button("↓", key=f"td_down_{i}", disabled=i == last,
