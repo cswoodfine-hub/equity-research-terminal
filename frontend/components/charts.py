@@ -2658,3 +2658,34 @@ def unit_lanes(items: Sequence[dict], lanes: Sequence[dict], start, end,
                    f'<title>today, {now.isoformat()}</title></line>')
     out.append("</svg>")
     return "".join(out)
+
+
+def countdown_rows(rows: Sequence[dict], window_days: int, width: int = 520) -> str:
+    """Dates ending inside a window, one row each, soonest first. Each row:
+    {label, days, date_text, note?}. A bar runs from the label for the days left, on a
+    scale of the whole window, so a short bar is an end that is close; the date and the
+    days left are printed beside it, so the bar is never the only signal."""
+    usable = [r for r in rows if r.get("days") is not None and r["days"] >= 0]
+    if not usable or window_days <= 0:
+        return ""
+    pad_l, pad_r, row_h, top = 150, 132, 22, 6
+    height = top + row_h * len(usable) + 4
+    x0, x1 = pad_l, width - pad_r
+    out = [_svg_open(width, height, "dates ending soon")]
+    for i, r in enumerate(usable):
+        cy = top + row_h * i + row_h / 2
+        tip = f'<title>{_esc(r.get("label"))}: {_esc(r.get("note") or "")}</title>'
+        out.append(f'<g>{tip}')
+        out.append(_text(pad_l - 8, cy + 3.5, _short_label(str(r.get("label") or ""), 22),
+                         10, TK.TEXT, "end"))
+        out.append(f'<line x1="{x0}" y1="{cy:.1f}" x2="{x1}" y2="{cy:.1f}"'
+                   f' stroke="{TK.RULE}"/>')
+        w = (x1 - x0) * min(r["days"], window_days) / window_days
+        out.append(f'<rect x="{x0}" y="{cy - 4:.1f}" width="{max(w, 2):.1f}" height="8"'
+                   f' rx="2" fill="{TK.ORANGE_BOOK}"/>')
+        when = "today" if r["days"] == 0 else f'in {r["days"]}d'
+        out.append(_text(x1 + 8, cy + 3.5, f'{r.get("date_text") or ""} · {when}', 9.5,
+                         TK.MUTED, "start", MONO))
+        out.append("</g>")
+    out.append("</svg>")
+    return "".join(out)

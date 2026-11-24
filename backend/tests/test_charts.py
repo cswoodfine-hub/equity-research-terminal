@@ -637,3 +637,14 @@ def test_unit_lanes_takes_every_colour_from_a_token():
                and v.startswith("#")} | {c.upper() for c in tokens.PHASE_RAMP.values()}
     used = {c.upper() for c in re.findall(r"#[0-9A-Fa-f]{6}", svg)}
     assert used <= allowed
+
+
+def test_countdown_rows_draws_the_days_left_and_says_them():
+    svg = charts.countdown_rows([
+        {"label": "Janumet Xr", "days": 0, "date_text": "24 Nov 2026", "note": "patent"},
+        {"label": "Gardasil 9", "days": 16, "date_text": "10 Dec 2026", "note": "exclusivity"},
+        {"label": "Gone", "days": -3, "date_text": "21 Nov 2026"}], 60)
+    assert svg.count("<rect") == 2 and "Gone" not in svg
+    assert "24 Nov 2026 · today" in svg and "10 Dec 2026 · in 16d" in svg
+    assert "<title>Gardasil 9: exclusivity</title>" in svg
+    assert charts.countdown_rows([], 60) == ""

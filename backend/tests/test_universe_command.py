@@ -341,12 +341,12 @@ def wk():
 def test_the_week_is_ranked_by_kind_in_the_stated_order(wk):
     """Deals with a value, the rate move, Phase 3 results, deals with none, Phase 2
     results, label expansions, the next firm FDA date, notices and results dates are
-    ranked; the counted record (slips, filings, labels, Phase 3 completions due and
-    exclusivity ending) follows unranked, for the sector news."""
+    ranked; the counted record (filings, labels and Phase 3 completions due) follows
+    unranked, for the sector news. Slips and exclusivities ending are not in the week."""
     items = wk["items"]
     assert [i["kind"] for i in items] == [
         "deal", "market", "readout", "deal", "readout2", "approval", "regulatory",
-        "notice", "earnings", "slips", "filing", "labels", "due", "loe"]
+        "notice", "earnings", "filing", "labels", "due"]
     ranked = [i for i in items if not i.get("record")]
     assert [i["rank"] for i in ranked] == list(range(1, len(ranked) + 1))
     assert all(i["kind"] in uc.RECORD_KINDS and "rank" not in i
@@ -471,15 +471,11 @@ def test_routine_filings_are_left_out_and_counted(wk):
                    for x in grid[t][k])
 
 
-def test_the_slips_are_the_groups_and_a_study_moved_twice_is_one(wk):
-    s = next(i for i in wk["items"] if i["kind"] == "slips")
-    assert s["fig"] == "33" and s["n_high"] == 7
-    assert s["head"].startswith("33 trial completion dates slipped, 7 of them Phase 3 by "
-                                "more than 30 days; the longest, NVS NCT06133972, by 48 months")
-    assert s["rows"][0][0] == "NVS NCT06133972"
-    twice = next(v for k, v in s["rows"] if k == "ROG NCT05296798")
-    assert twice.endswith("moved 2 times") and twice.startswith("8 months")
-    assert s["mini"]["rows"][0] == ["NVS", 1456]
+def test_slips_and_exclusivities_ending_are_a_companys_and_not_the_weeks(wk):
+    """They are read on the company's Trials and Portfolio tabs; the grid still counts a
+    slip as a change of the week."""
+    assert not any(i["kind"] in ("slips", "loe") for i in wk["items"])
+    assert wk["block"]["kinds"]["slip"] > 0
     # A month-only date counts from its month's first day and the span is in months.
     one = uc._slip({"ticker": "X", "headline": "X trial NCT00000009: primary completion "
                                                 "2027-03 -> 2027-11", "date": "2026-10-01"})
@@ -519,9 +515,6 @@ def test_the_look_ahead_items_keep_their_windows(wk):
               and TODAY.isoformat() <= e["date"] <= end]
     assert due["fig"] == str(len(picked)) == "10"
     assert due["note"] == "Estimated primary completion dates from the registry, not result dates."
-    loe = next(i for i in wk["items"] if i["kind"] == "loe")
-    assert loe["fig"] == "6" and loe["head"].startswith("6 patents and exclusivities end by 5 Dec")
-    assert all(TODAY.isoformat() <= d <= "2026-12-05" for d in loe["mini"]["dates"])
 
 
 def test_a_results_call_reads_its_day_and_a_notice_is_never_a_result(wk):

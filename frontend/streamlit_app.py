@@ -39,6 +39,7 @@ import theme as T
 import trading_page
 import business as business_figure
 import trend as trend_module
+import dates_view as DV
 import universe_cc
 import universe_page
 from components import charts as CH
@@ -10264,6 +10265,62 @@ def _coverage_view(api_base: str) -> None:
          "rather than a gap, and the reason is the column beside it.")
 
 
+# --- Slips and exclusivities, per company --------------------------------
+# The week's counted record on the Universe tab used to carry these for the whole group.
+# A slip is a fact about a study and an expiry a fact about a product, so each is read
+# where the company's studies and products are: the Trials tab and the Portfolio tab.
+def _slips_block(feed: list, ticker: str, trials: list | None = None) -> None:
+    """Completion dates that slipped, drawn as each study's old date to its new one, each
+    study named by the drug and phase the registry maps it to where it has them."""
+    rows = DV.slip_rows(feed, dt.date.today())
+    known = {t.get("nct_id"): t for t in trials or []}
+
+    def label(r):
+        t = known.get(r["nct"]) or {}
+        phase = (t.get("phase") or "").replace("Phase ", "Ph ").replace("/Phase ", "/")
+        parts = [p for p in (t.get("asset_name"), phase, r["nct"]) if p]
+        return " · ".join(parts) + (f" ×{r['moves']}" if r["moves"] > 1 else "")
+    if not rows:
+        return
+    later = [r for r in rows if r["days"] > 0]
+    section("Completion dates that moved",
+            count=(f"{len(later)} later, {len(rows) - len(later)} earlier"
+                   if len(later) < len(rows) else f"{len(rows)} slipped"),
+            basis=f"last {DV.SLIP_DAYS} days")
+    R.show(CH.dumbbell(
+        [{"label": label(r),
+          "start": DV.first_day(r["was"]).toordinal(), "end": DV.first_day(r["now"]).toordinal()}
+         for r in rows],
+        1100, 34 + 22 * len(rows),
+        tick_fmt=lambda v: dt.date.fromordinal(int(v)).strftime("%b %Y")),
+        css_class="chart-mount stretch")
+    note("Each study's estimated primary completion as the registry stated it before (open "
+         "dot) and after (filled), seen in the last " + str(DV.SLIP_DAYS) + " days. A study "
+         "moved more than once is taken from its first date to its last (×n). A move of a "
+         "date that had already passed is a correction and is left out. These are "
+         "registry estimates, not result dates.")
+
+
+def _loe_soon_block(feed: list) -> None:
+    """Patents and exclusivities ending soon, on a time axis from today."""
+    today = dt.date.today()
+    rows = DV.loe_soon(feed, today)
+    if not rows:
+        return
+    section("Ending soon", count=f"{len(rows)} listed", basis=f"next {DV.LOE_SOON_DAYS} days")
+    R.show(CH.countdown_rows(
+        [{"label": e["brand"], "note": e["what"],
+          "days": (dt.date.fromisoformat(e["date"]) - today).days,
+          "date_text": dt.date.fromisoformat(e["date"]).strftime("%-d %b %Y")}
+         for e in rows], DV.LOE_SOON_DAYS),
+        css_class="chart-mount")
+    note("Each listed patent or exclusivity that ends in the next " + str(DV.LOE_SOON_DAYS)
+         + " days, as the Orange and Purple Books list it; the bar is the days left, "
+         "and a hover names what ends. A listed date is not always the "
+         "date a generic can launch: the chart below places each product at the date its "
+         "valuation runs on.")
+
+
 def _record_html(items: list) -> str:
     """The week's counted record from the book's own sources (slips, filings, labels,
     what is due, exclusivities ending), one line a kind: the count in a few words, the
@@ -10313,8 +10370,10 @@ def _pulse_panel(api_base: str, week: dict | None = None) -> None:
             basis=("the book's record and the " if record else "")
             + (got.get("label") or "Daily pulse (AI summary)"))
     st.markdown(markup, unsafe_allow_html=True)
-    note(("The record is counted from the book's own sources: registry dates, filings, "
-          "labels and the Orange and Purple Books. " if record else "")
+    note(("The record is counted from the book's own sources: filings, labels and the "
+          "registry's Phase 3 completion dates. Slipped completion dates are on each "
+          "company's Trials tab and exclusivities ending on its Portfolio tab. "
+          if record else "")
          + "The pulse is a scheduled Claude run that reads the trade press each weekday "
          "morning and ranks what it finds in three tiers; each item links the article it "
          "summarises. It is a summary, not a source: nothing in it moves a value, a deal "
@@ -12708,6 +12767,7 @@ with main:
                     progs_html.append("</details>")
                 progs_html.append("</div>")
                 st.markdown("".join(progs_html), unsafe_allow_html=True)
+        _slips_block(feed, ticker, every)
 
 
     # --- Portfolio -------------------------------------------------------
@@ -13040,6 +13100,7 @@ with main:
 
 
                         with _pf["Exclusivity"]:
+                            _loe_soon_block(feed)
                             # Loss of exclusivity by year. Two cuts of the same expiries. The count
                             # cliff shows every product with a published expiry, so nothing is hidden by
                             # the free-data revenue gap. The revenue chart below weights only the few

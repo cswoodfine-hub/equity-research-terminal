@@ -664,7 +664,7 @@ def test_the_ranked_feed_leads_with_the_pulse_and_leaves_the_record_to_sector_ne
     """A pulse item ranks with its day move and says it is an AI summary; the counted
     record (marked ``record``) is not ranked and not counted in the feed's head."""
     p = copy.deepcopy(payload)
-    record_kinds = ("slips", "filing", "labels", "due", "loe")
+    record_kinds = ("filing", "labels", "due")
     news = [i for i in p["week_items"] if i["kind"] not in record_kinds]
     record = [dict(i, record=True) for i in p["week_items"] if i["kind"] in record_kinds]
     pulse = {"kind": "pulse", "tag": "deal", "pulse_kind": "deal", "pulse": True,

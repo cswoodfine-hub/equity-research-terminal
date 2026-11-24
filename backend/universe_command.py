@@ -76,8 +76,9 @@ MARKET_LABEL = "S&P 500"
 WEEK_ITEMS = 16
 # The week's counted record: what the book's own sources changed, each kind one item.
 # These are kept off the ranked feed, which is for the week's headlines, and are drawn
-# with the sector news instead.
-RECORD_KINDS = ("slips", "filing", "labels", "due", "loe")
+# with the sector news instead. Slipped completion dates and exclusivities ending are a
+# company's, read on its Trials and Portfolio tabs, and are not in the week.
+RECORD_KINDS = ("filing", "labels", "due")
 # The daily pulse's own label, carried by every item read from it.
 PULSE_LABEL = "Daily pulse (AI summary)"
 # A pulse headline and the book's own item are one story when they share a company and a
@@ -105,9 +106,6 @@ MOVE_ITEMS = 3
 TARGET_MIN = 0.05           # a consensus target moved this much is a change of view
 SHORT_DAYS = 16             # a settlement this recent was published this week or last
 FINANCING_ITEMS = 3
-LOE_DAYS = 60
-# The slips item lists this many of the week's longest high slips in its rows.
-SLIP_ROWS = 6
 # A filing no reader opens: the voting-rights and share-admission notices and a bare cover
 # form ("6-K: FORM 6-K", "6-K: 6-K"). Left out of the ranked feed and the grid, and
 # counted, so the page can say how many it dropped.
@@ -968,17 +966,15 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
        figure, each folding in its filings.
     5. Phase 2 results.
     6. The week's label expansions (efficacy supplements), one item.
-    7. The week's trial completion slips across the group, one item: the count of studies
-       whose date slipped, the longest high slips (a Phase 3 moved more than 30 days)
-       named, the rest counted. A study moved twice in the week is one slip, first date
-       to last.
     8. The next firm FDA date inside 30 days.
     9. Notices that data will be presented.
     10. Results dates the companies announced, the call's day read from the text.
     11. Filings a reader would open: not routine and not folded into a deal, one item.
     12. US labels revised, one item.
     13. Phase 3 primary completions estimated inside DUE_DAYS, one item.
-    14. Listed patents and exclusivities ending inside LOE_DAYS, one item.
+
+    There is no item 7 or 14: completion dates that slipped and exclusivities ending are
+    a company's, read on its Trials and Portfolio tabs.
 
     Every item carries ``verbatim`` (its head is the source's own words), its own figure
     and date.
@@ -986,8 +982,8 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
     The ranked feed is the week's headlines: the daily pulse's sector-moving items lead
     (_pulse_items), each replaced by the book's own item of the same story where there is
     one (_with_pulse), then the rules above in order without the counted record. At most
-    WEEK_ITEMS are kept, ranked from 1. The counted record (RECORD_KINDS: items 7 and 11
-    to 14) follows them unranked, each marked ``record``, and is drawn with the sector
+    WEEK_ITEMS are kept, ranked from 1. The counted record (RECORD_KINDS: items 11
+    to 13) follows them unranked, each marked ``record``, and is drawn with the sector
     news."""
     since = (today - dt.timedelta(days=NEWS_DAYS)).isoformat()
     closes = src.get("closes") or {}
@@ -1158,56 +1154,6 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                           "rows": rows_ + [["Seen", _iso(max(_iso(r.get("date")) for r in supps))]],
                           "url": None, "src": "/changes (efficacy_supplement)"})
 
-    # 7. The week's slips across the group, a study moved twice taken first date to last.
-    studies: dict = {}
-    for r in rows:
-        if r.get("change_type") != "date_slip":
-            continue
-        s = _slip(r)
-        if not s:
-            continue
-        k = (s["ticker"], s["nct"])
-        if k not in studies:
-            studies[k] = s
-            continue
-        o = studies[k]
-        was = min((o["was"], s["was"]), key=lambda v: _first_day(v))
-        now = max((o["now"], s["now"]), key=lambda v: _first_day(v))
-        studies[k] = {**o, "was": was, "now": now,
-                      "days": (_first_day(now) - _first_day(was)).days,
-                      "month": len(was) == 7 or len(now) == 7, "high": o["high"] or s["high"],
-                      "seen": max(o["seen"], s["seen"]), "moves": o["moves"] + 1}
-    if studies:
-        trials = src.get("trials") or {}
-        all_ = sorted(studies.values(), key=lambda s: (not s["high"], -s["days"]))
-        high = [s for s in all_ if s["high"]]
-        lead = high or all_
-        top = lead[0]
-        n, k = len(all_), len(high)
-        head = (f"{n} trial completion date{'' if n == 1 else 's'} slipped, "
-                + (f"{k} of them Phase 3 by more than 30 days; the longest, "
-                   f"{top['ticker']} {top['nct']}, by {_span(top)}" if k else
-                   "none a Phase 3 by more than 30 days"))
-        shown = lead[:SLIP_ROWS]
-        rows_ = []
-        for s in shown:
-            ph = (trials.get(s["nct"]) or {}).get("phase")
-            rows_.append([f"{s['ticker']} {s['nct']}",
-                          f"{_span(s)}, {_dlong(s['was'])} to {_dlong(s['now'])}"
-                          + (f", {ph}" if ph else "")
-                          + (f", moved {s['moves']} times" if s["moves"] > 1 else "")])
-        if n > len(shown):
-            rows_.append(["The rest", f"{n - len(shown)} more, earlier phases or a Phase 3 "
-                                      f"by 30 days or less" if high else
-                                      f"{n - len(shown)} more"])
-        items.append({"kind": "slips", "tag": "slips", "verbatim": False,
-                      "tickers": list(dict.fromkeys(s["ticker"] for s in lead[:3])),
-                      "head": head, "fig": str(n), "fig_sub": "slipped",
-                      "n_high": k, "date": max(s["seen"] for s in all_),
-                      "mini": {"type": "slipbars",
-                               "rows": [[s["ticker"], s["days"]] for s in lead[:3]]},
-                      "rows": rows_, "url": None, "src": "/changes (date_slip)"})
-
     # 8. The next firm FDA date inside 30 days.
     end30 = today + dt.timedelta(days=30)
     firm = [e for e in events if e["firm"] and e["regulatory"] and not e["month"]
@@ -1328,29 +1274,6 @@ def _week_items(src: dict, companies: dict, events: list, today: dt.date,
                       "note": "Estimated primary completion dates from the registry, not "
                               "result dates.",
                       "url": None, "src": "/catalysts (ClinicalTrials.gov)"})
-
-    # 14. Listed patents and exclusivities ending inside LOE_DAYS.
-    end_loe = today + dt.timedelta(days=LOE_DAYS)
-    loe = sorted([r for r in feed if r.get("change_type") == "loe"
-                  and r.get("ticker") in companies and _date(r.get("date"))
-                  and today <= _date(r.get("date")) <= end_loe],
-                 key=lambda r: (r.get("date") or "", r.get("ticker") or ""))
-    if loe:
-        def what(r):
-            return re.sub(r"^LOE: ", "", _strip_ticker(r.get("headline"), r["ticker"]))
-        first = re.sub(r" \((?:NDA|BLA|ANDA)\d+\).*$", "", what(loe[0]))
-        n = len(loe)
-        items.append({"kind": "loe", "tag": "LOE", "verbatim": False,
-                      "tickers": list(dict.fromkeys(r["ticker"] for r in loe)),
-                      "head": (f"{n} patent{'' if n == 1 else 's'} and exclusivities end by "
-                               f"{_dshort(end_loe.isoformat())}, {first} first on "
-                               f"{_dshort(loe[0].get('date'))}"),
-                      "fig": str(n), "fig_sub": f"in {LOE_DAYS} days",
-                      "date": _iso(loe[0].get("date")),
-                      "mini": {"type": "dates", "dates": [_iso(r.get("date")) for r in loe],
-                               "a": today.isoformat(), "b": end_loe.isoformat()},
-                      "rows": [[f"{_dshort(r.get('date'))} {r['ticker']}", what(r)] for r in loe],
-                      "url": None, "src": "/changes (loe, Orange and Purple Books)"})
 
     # The headlines lead: the pulse's sector-moving items, each standing in for the book's
     # own item of the same story where there is one, then the rest of the book's news in
