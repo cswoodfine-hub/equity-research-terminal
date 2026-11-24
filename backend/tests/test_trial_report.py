@@ -29,8 +29,10 @@ def _db(tmp_path, *, p_value="<0.001", control="Placebo", drug_serious=12,
     c.execute("INSERT INTO completed_trials (nct_id, sponsor_company_id, asset_id, title, phase,"
               " completion_date, enrollment) VALUES (?, 1, 5, 'A <b>study</b> of examplatide',"
               " 'Phase 3', '2025-03-01', 400)", (NCT,))
-    c.execute("INSERT INTO trial_result_fetches (nct_id, has_results, results_date, fetched_at)"
-              " VALUES (?, ?, '2025-09-01', '2025-10-01')", (NCT, int(results)))
+    if results is not None:                     # None: the fetcher never asked
+        c.execute("INSERT INTO trial_result_fetches (nct_id, has_results, results_date,"
+                  " fetched_at) VALUES (?, ?, '2025-09-01', '2025-10-01')",
+                  (NCT, int(results)))
     arms = (("OG000", control, 10.0), ("OG001", "Examplatide 10 mg", 25.0))
     for gid, title, value in arms:
         c.execute("INSERT INTO trial_result_outcomes (nct_id, outcome_index, outcome_type, title,"
@@ -144,3 +146,16 @@ def test_a_compounds_completed_studies_join_the_registrys_finished_ones_newest_f
 @pytest.mark.parametrize("words", [TR._factors.__doc__ or "", TR.__doc__])
 def test_the_modules_own_words_keep_house_style(words):
     assert "—" not in words and not any(re.search(rf"\b{w}\b", words.lower()) for w in BANNED)
+
+
+def test_a_study_the_fetcher_never_asked_is_unread_not_unposted(tmp_path):
+    path = _db(tmp_path, results=None)
+    r = TR.report(path, NCT)
+    assert r["fetched"] is False
+    assert _card(r)["Primary endpoint"]["verdict"] == "results not fetched"
+    assert "Phase 2 and later" in r["summary"] and "no results are posted" not in r["summary"]
+    assert not any("no results are posted" in f for f in r["factors"])
+    assert TR.completed(path, "EX")[0]["has_results"] is None
+    assert PC.completed_label({"nct_id": NCT, "has_results": None}).endswith(
+        "results not fetched")
+    assert "results not fetched" in PC.trial_report_html(r)

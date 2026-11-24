@@ -31,6 +31,12 @@ SMALL_STUDY = 100
 LARGE_STUDY = 300
 EVENTS_KEPT = 6
 RATIO_WORDS = ("ratio",)
+# What a study the results fetcher has never asked reads as. The fetcher asks the registry
+# for Phase 2 and later studies only, so a Phase 1 or Phase 4 study, or a late one it has
+# not reached yet, is not known to have nothing posted: it is unread.
+NOT_FETCHED = ("Not fetched: the book reads posted results for Phase 2 and later studies "
+               "and has not asked the registry about this one. Its registry page may "
+               "hold results.")
 
 
 def _pct(affected, at_risk):
@@ -187,12 +193,15 @@ def _value_text(row: dict) -> str:
 
 # --- the scorecard -------------------------------------------------------------------------
 def _card(primary: list, comp: dict | None, comps: list, safety: list, study: dict,
-          roles: dict, has_results: bool) -> list:
+          roles: dict, has_results: bool, fetched: bool = True) -> list:
     """Five rows, each {k, verdict, tone, text}: the primary endpoint, the size of the
     effect, serious adverse events, stopping for adverse events, and the evidence the study
     is. Tone is "good", "bad" or "neutral" by the rule named in the row."""
     rows = []
-    if not has_results:
+    if not fetched:
+        rows.append({"k": "Primary endpoint", "verdict": "results not fetched",
+                     "tone": "neutral", "text": NOT_FETCHED})
+    elif not has_results:
         rows.append({"k": "Primary endpoint", "verdict": "no results posted", "tone": "neutral",
                      "text": "The sponsor has not posted results to the registry."})
     else:
@@ -299,13 +308,15 @@ def _card(primary: list, comp: dict | None, comps: list, safety: list, study: di
 
 # --- the words -----------------------------------------------------------------------------
 def _summary(study: dict, primary: list, comp: dict | None, has_results: bool,
-             roles: dict) -> str:
+             roles: dict, fetched: bool = True) -> str:
     n = study.get("enrollment")
     head = (f"{study.get('phase') or 'A study'} of {n:,} participants" if n
             else f"{study.get('phase') or 'A study'}")
     when = study.get("primary_completion_date") or study.get("completion_date")
     head += f", {str(study.get('status') or '').lower() or 'status not stated'}"
     head += f", primary completion {_month(when)}." if when else "."
+    if not fetched:
+        return head + " " + NOT_FETCHED
     if not has_results:
         return head + " No results are posted to the registry yet."
     if not primary:
@@ -335,7 +346,8 @@ def _summary(study: dict, primary: list, comp: dict | None, has_results: bool,
 
 
 def _factors(study: dict, primary: list, comp: dict | None, comps: list, safety: list,
-             roles: dict, has_results: bool, results_date, readouts: list) -> list:
+             roles: dict, has_results: bool, results_date, readouts: list,
+             fetched: bool = True) -> list:
     out = []
     status = str(study.get("status") or "").lower()
     if "terminated" in status:
@@ -371,7 +383,7 @@ def _factors(study: dict, primary: list, comp: dict | None, comps: list, safety:
         if lag is not None and lag > 12:
             out.append(f"Results were posted {lag} months after primary completion, past "
                        "the registry's twelve-month rule.")
-    elif not has_results and done:
+    elif fetched and not has_results and done:
         lag = _months_between(done, dt.date.today().isoformat())
         if lag is not None and lag > 12:
             out.append(f"Primary completion was {lag} months ago and no results are posted.")
@@ -411,6 +423,7 @@ def report(db_path, nct_id: str) -> dict | None:
         t = dict(t)
         fetch = conn.execute("SELECT has_results, results_date FROM trial_result_fetches"
                              " WHERE nct_id = ?", (nct,)).fetchone()
+        fetched = fetch is not None
         has_results = bool(fetch and fetch["has_results"])
         results_date = fetch["results_date"] if fetch else None
         outcomes = [dict(r) for r in conn.execute(
@@ -483,20 +496,23 @@ def report(db_path, nct_id: str) -> dict | None:
             "arms": [{"group_title": a["group_title"], "role": safety_roles.get(a["group_id"]),
                       "pct": rates.get(a["group_id"])} for a in safety_arms]}
            for (term, serious), rates in ranked[:EVENTS_KEPT]]
-    return {"study": study, "has_results": has_results, "results_date": results_date,
+    return {"study": study, "fetched": fetched, "has_results": has_results,
+            "results_date": results_date,
             "arms": [{**a, "role": roles.get(a["group_id"])} for a in arms],
             "primary": primary, "comparison": comp, "comparisons": comps,
             "safety": safety, "events": top, "readouts": readouts,
-            "scorecard": _card(primary, comp, comps, safety, study, roles, has_results),
-            "summary": _summary(study, primary, comp, has_results, roles),
+            "scorecard": _card(primary, comp, comps, safety, study, roles, has_results,
+                               fetched),
+            "summary": _summary(study, primary, comp, has_results, roles, fetched),
             "factors": _factors(study, primary, comp, comps, safety, roles, has_results,
-                                results_date, readouts)}
+                                results_date, readouts, fetched)}
 
 
 def completed(db_path, ticker: str, per_asset: int = 60) -> list | None:
     """The company's completed studies, each bound to its asset, newest first, at most
-    ``per_asset`` an asset, with whether the sponsor has posted results. None for a ticker
-    the book does not hold."""
+    ``per_asset`` an asset, with whether the sponsor has posted results: True, False, or
+    None where the results fetcher has never asked. None for a ticker the book does not
+    hold."""
     conn = db.get_connection(db_path)
     try:
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
@@ -505,7 +521,8 @@ def completed(db_path, ticker: str, per_asset: int = 60) -> list | None:
             return None
         rows = [dict(r) for r in conn.execute(
             "SELECT ct.nct_id, ct.asset_id, ct.title, ct.phase, ct.completion_date,"
-            " ct.enrollment, ct.primary_outcome, COALESCE(f.has_results, 0) AS has_results"
+            " ct.enrollment, ct.primary_outcome,"
+            " CASE WHEN f.nct_id IS NULL THEN NULL ELSE f.has_results END AS has_results"
             " FROM completed_trials ct"
             " LEFT JOIN trial_result_fetches f ON f.nct_id = ct.nct_id"
             " WHERE ct.sponsor_company_id = ? AND ct.asset_id IS NOT NULL"
@@ -517,5 +534,7 @@ def completed(db_path, ticker: str, per_asset: int = 60) -> list | None:
     for r in rows:
         kept[r["asset_id"]] = kept.get(r["asset_id"], 0) + 1
         if kept[r["asset_id"]] <= per_asset:
-            out.append({**r, "has_results": bool(r["has_results"])})
+            # None for a study the results fetcher has never asked, never False.
+            out.append({**r, "has_results": (None if r["has_results"] is None
+                                              else bool(r["has_results"]))})
     return out

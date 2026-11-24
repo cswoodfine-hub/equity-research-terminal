@@ -746,7 +746,7 @@ def completed_label(t) -> str:
     size = t.get("enrollment")
     posted = t.get("has_results")
     tail = ("results posted" if posted else "no results posted" if posted is False
-            else "results not checked")
+            else "results not fetched")
     title = str(t.get("title") or t.get("nct_id") or "")
     title = title if len(title) <= 90 else title[:89].rstrip() + "…"
     parts = [month_text(t.get("completion_date")) or "no date", t.get("phase") or "",
@@ -783,7 +783,8 @@ def trial_report_html(r: dict) -> str:
              f'primary completion {month_text(s.get("primary_completion_date"))}'
              if s.get("primary_completion_date") else None,
              f'results posted {month_text(r.get("results_date"))}' if r.get("results_date") else
-             ("no results posted" if not r.get("has_results") else None)]
+             ("results not fetched" if r.get("fetched") is False else
+              "no results posted" if not r.get("has_results") else None)]
     link = (f'<a href="https://clinicaltrials.gov/study/{esc(nct)}?tab=results" target="_blank" '
             f'rel="noopener">{esc(nct)} on the registry</a>')
     head = (f'<div class="tr-title">{esc(s.get("title") or nct)}</div>'
