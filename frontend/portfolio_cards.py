@@ -704,3 +704,188 @@ def marketed_card_html(d: dict) -> str:
             f'<div class="pc-loe" title="{esc(d.get("loe_tip"))}"><span class="k">{esc(d.get("loe_label"))}</span>'
             f'<span class="v{" near" if d.get("near") else ""}">{esc(d.get("loe_text"))}</span>{run}</div>'
             f'{note}{_moved_html(d.get("moved"))}<div class="pc-foot">{foot}</div></div>')
+
+
+# --- a completed study, clicked open -------------------------------------------------------
+# The rows render inside the click list's iframe, which inherits none of the page's CSS.
+COMPLETED_CSS = """
+.ct { display: grid; grid-template-columns: 70px 62px 64px minmax(0, 1fr) auto; gap: 0.6rem;
+      align-items: baseline; font-size: 11.5px; line-height: 1.3; padding: 5px 6px 5px 8px;
+      border-bottom: 1px solid var(--rule); border-left: 2px solid transparent; cursor: pointer; }
+.ct:hover { background: var(--panel-hi); }
+.ct.sel { border-left-color: var(--up); background: var(--panel); }
+.ct .d, .ct .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+                 color: var(--muted); white-space: nowrap; }
+.ct .n { text-align: right; }
+.ct .ph { font-size: 9.5px; letter-spacing: 0.05em; text-transform: uppercase;
+          color: var(--muted); white-space: nowrap; }
+.ct .t { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct .r { font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 4px;
+         border: 1px solid var(--rule-strong); color: var(--muted); white-space: nowrap; }
+.ct .r.yes { border-color: var(--up); color: var(--up); }
+"""
+TONE_WORD = {"good": "green", "bad": "red", "neutral": "grey"}
+
+
+def nct_id_number(nct) -> int | None:
+    """The number in an NCT id, the id a clicked row returns."""
+    m = re.fullmatch(r"NCT(\d{8})", str(nct or "").strip().upper())
+    return int(m[1]) if m else None
+
+
+def completed_studies(trials, programme=None) -> list:
+    """A compound's completed studies: the book's completed studies of it and any of its
+    registry studies whose status is completed or terminated, each once, newest first."""
+    out = {t["nct_id"]: dict(t) for t in trials or [] if t.get("nct_id")}
+    for s in (programme or {}).get("studies") or []:
+        status = str(s.get("status") or "").strip().lower()
+        if s.get("nct_id") and status in ("completed", "terminated") and s["nct_id"] not in out:
+            out[s["nct_id"]] = {"nct_id": s["nct_id"], "title": s.get("title"),
+                                "phase": s.get("phase"), "completion_date": s.get("due"),
+                                "enrollment": s.get("enrollment"), "has_results": None}
+    dated = sorted((t for t in out.values() if t.get("completion_date")),
+                   key=lambda t: str(t["completion_date"]), reverse=True)
+    return dated + [t for t in out.values() if not t.get("completion_date")]
+
+
+def completed_rows(trials) -> list:
+    """The click list's rows: when each completed, its phase, its participants, its title,
+    and whether results are posted. A study with no NCT number cannot be opened and is
+    left out."""
+    rows = []
+    for t in trials or []:
+        rid = nct_id_number(t.get("nct_id"))
+        if rid is None:
+            continue
+        size = t.get("enrollment")
+        posted = t.get("has_results")
+        tag = ('<span class="r yes">results posted</span>' if posted else
+               '<span class="r">no results posted</span>' if posted is False else
+               '<span class="r">results not checked</span>')
+        rows.append({"id": rid, "html": (
+            f'<div class="ct"><span class="d">{esc(month_text(t.get("completion_date")) or "no date")}</span>'
+            f'<span class="ph">{esc(t.get("phase") or "")}</span>'
+            f'<span class="n">{f"{int(size):,}" if isinstance(size, (int, float)) and size else ""}</span>'
+            f'<span class="t" title="{esc(t.get("title"))}">{esc(t.get("title") or t.get("nct_id"))}</span>'
+            f'{tag}</div>')})
+    return rows
+
+
+def _count(v) -> str:
+    return f"{int(v):,}" if isinstance(v, (int, float)) and v else ""
+
+
+def _pct_text(v) -> str:
+    return NO_DATA if v is None else f"{v:.1f}%"
+
+
+def _role_tag(role) -> str:
+    if role in ("placebo", "control", "comparator"):
+        return f' <span class="tr-role ref">{esc(role)}</span>'
+    if role == "drug":
+        return ' <span class="tr-role">drug</span>'
+    return ""
+
+
+def trial_report_html(r: dict) -> str:
+    """A completed study read from what its sponsor posted (``/trials/{nct}/report``): the
+    scorecard, the results in words, the primary endpoint by arm with every comparison,
+    safety by arm with the commonest adverse events, the company's own words on it, and
+    the points to weigh. Every figure is the payload's own."""
+    s = r.get("study") or {}
+    nct = s.get("nct_id") or ""
+    facts = [s.get("phase"), f'{s["enrollment"]:,} participants' if s.get("enrollment") else None,
+             (s.get("status") or "").lower() or None,
+             f'primary completion {month_text(s.get("primary_completion_date"))}'
+             if s.get("primary_completion_date") else None,
+             f'results posted {month_text(r.get("results_date"))}' if r.get("results_date") else
+             ("no results posted" if not r.get("has_results") else None)]
+    link = (f'<a href="https://clinicaltrials.gov/study/{esc(nct)}?tab=results" target="_blank" '
+            f'rel="noopener">{esc(nct)} on the registry</a>')
+    head = (f'<div class="tr-title">{esc(s.get("title") or nct)}</div>'
+            f'<div class="tr-head">{esc(" · ".join(x for x in facts if x))} · {link}</div>')
+    card = "".join(
+        f'<div class="tr-row {esc(c.get("tone") or "neutral")}" title="{esc(TONE_WORD.get(c.get("tone"), ""))}">'
+        f'<i></i><span class="k">{esc(c.get("k"))}</span>'
+        f'<span class="v">{esc(c.get("verdict"))}</span>'
+        f'<span class="t">{esc(c.get("text"))}</span></div>' for c in r.get("scorecard") or [])
+    parts = [head, f'<div class="tr-sub">Clinical scorecard</div><div class="tr-card">{card}</div>',
+             f'<div class="tr-sub">Summary of the results</div><p class="tr-sum">{esc(r.get("summary"))}</p>']
+    left = []
+    primary = r.get("primary") or []
+    titles = {}
+    if primary:
+        p = primary[0]
+        for row in p.get("rows") or []:
+            titles[row.get("group_id")] = row.get("group_title")
+        body = "".join(
+            f'<tr><td>{esc(row.get("group_title"))}{_role_tag(row.get("role"))}'
+            f'{" · " + esc(row["category"]) if row.get("category") else ""}</td>'
+            f'<td class="n">{esc(num(row["value"]) if row.get("value") is not None else (row.get("value_text") or NO_DATA))}</td>'
+            f'<td class="n">{esc(num(row["spread"]) if row.get("spread") is not None else "")}</td>'
+            f'<td class="n">{_count(row.get("n"))}</td></tr>'
+            for row in p.get("rows") or [])
+        left.append(f'<div class="tr-sub">Primary endpoint</div>'
+                    f'<div class="tr-what">{esc(p.get("title"))}'
+                    f'{" · " + esc(p["time_frame"]) if p.get("time_frame") else ""}'
+                    f'{" · " + esc(p["unit"]) if p.get("unit") else ""}</div>'
+                    '<table class="pt-tbl tr-tbl"><thead><tr><th>Arm</th><th class="n">Value</th>'
+                    '<th class="n">Spread</th><th class="n">Analysed</th></tr></thead>'
+                    f'<tbody>{body}</tbody></table>')
+        comps = r.get("comparisons") or []
+        if comps:
+            crow = "".join(
+                f'<tr><td>{esc(" against ".join(str(titles.get(g, g)) for g in c.get("groups") or []))}</td>'
+                f'<td>{esc(c.get("param_type") or "")}</td>'
+                f'<td class="n">{esc(num(c.get("value")) if c.get("value") is not None else NO_DATA)}</td>'
+                f'<td class="n">{esc(num(c["lo"]) + " to " + num(c["hi"]) if c.get("lo") is not None and c.get("hi") is not None else "")}</td>'
+                f'<td class="n">{esc(c.get("p_value") or "not posted")}</td></tr>' for c in comps)
+            left.append('<div class="tr-sub">The sponsor\'s comparisons</div>'
+                        '<table class="pt-tbl tr-tbl"><thead><tr><th>Arms</th><th>Measure</th>'
+                        '<th class="n">Estimate</th><th class="n">Interval</th><th class="n">p</th>'
+                        f'</tr></thead><tbody>{crow}</tbody></table>')
+    right = []
+    safety = r.get("safety") or []
+    if safety:
+        srow = "".join(
+            f'<tr><td>{esc(x.get("group_title"))}{_role_tag(x.get("role"))}</td>'
+            f'<td class="n">{esc(_pct_text(x.get("serious_pct")))}</td>'
+            f'<td class="n">{esc(_pct_text(x.get("withdrawn_pct")))}</td>'
+            f'<td class="n">{esc(str(x["deaths"]) if x.get("deaths") is not None else NO_DATA)}</td>'
+            f'<td class="n">{_count(x.get("at_risk"))}</td></tr>'
+            for x in safety)
+        right.append('<div class="tr-sub">Safety by arm</div>'
+                     '<table class="pt-tbl tr-tbl"><thead><tr><th>Arm</th>'
+                     '<th class="n">Serious AEs</th><th class="n">Stopped for AE</th>'
+                     '<th class="n">Deaths</th><th class="n">At risk</th></tr></thead>'
+                     f'<tbody>{srow}</tbody></table>')
+    events = r.get("events") or []
+    if events:
+        arms = [a.get("group_title") for a in (events[0].get("arms") or [])]
+        erow = "".join(
+            f'<tr><td>{esc(e.get("term"))}{" (serious)" if e.get("serious") else ""}</td>'
+            + "".join(f'<td class="n">{esc(_pct_text(a.get("pct")))}</td>' for a in e.get("arms") or [])
+            + "</tr>" for e in events)
+        right.append('<div class="tr-sub">Commonest adverse events</div>'
+                     '<table class="pt-tbl tr-tbl"><thead><tr><th>Event</th>'
+                     + "".join(f'<th class="n" title="{esc(a)}">{esc(_short_arm(a))}</th>' for a in arms)
+                     + f'</tr></thead><tbody>{erow}</tbody></table>')
+    if left or right:
+        parts.append(f'<div class="tr-two"><div>{"".join(left)}</div><div>{"".join(right)}</div></div>')
+    said = r.get("readouts") or []
+    if said:
+        quotes = "".join(
+            f'<div class="tr-q">“{esc(q.get("sentence"))}”<span>{esc(q.get("source") or "")}'
+            f'{" · " + esc(month_text(q.get("date"))) if q.get("date") else ""}'
+            f'{" · read as " + esc(q["outcome"]) if q.get("outcome") else ""}</span></div>'
+            for q in said[:3])
+        parts.append(f'<div class="tr-sub">In the company\'s words</div>{quotes}')
+    factors = "".join(f"<li>{esc(f)}</li>" for f in r.get("factors") or [])
+    parts.append(f'<div class="tr-sub">Points to weigh</div><ul class="tr-factors">{factors}</ul>')
+    return f'<div class="tr">{"".join(parts)}</div>'
+
+
+def _short_arm(title) -> str:
+    """An arm's title cut to a column head; the full title is the head's tooltip."""
+    text = str(title or "")
+    return text if len(text) <= 18 else text[:17].rstrip() + "…"

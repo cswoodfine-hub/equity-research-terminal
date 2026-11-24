@@ -852,6 +852,47 @@ def _profile_revenue(api_base: str, ticker: str, prof: dict, aid) -> None:
     _payer_row(prof)
 
 
+def _completed_for(api_base: str, ticker: str, aid) -> list:
+    """The company's completed studies of one asset, with whether results are posted, or
+    none where the read fails."""
+    try:
+        rows = api_get(api_base, f"/companies/{ticker}/completed-trials").get("trials") or []
+    except Exception:                                               # noqa: BLE001
+        return []
+    return [t for t in rows if t.get("asset_id") == aid]
+
+
+def _completed_block(api_base: str, ticker: str, trials: list, key: str,
+                     heading: str = "Completed studies") -> None:
+    """Completed studies as a clickable list. A click opens the study under the list: its
+    clinical scorecard, the results in words and the points to weigh, read from what the
+    sponsor posted (``/trials/{nct}/report``). Drawn nothing where there is no study."""
+    rows = PC.completed_rows(trials)
+    if not rows:
+        return
+    open_key = f"trial_open_{key}"
+    st.markdown(f'<div class="tr-sub">{html_escape(heading)} &middot; {len(rows)} &middot; '
+                'click one for its results</div>', unsafe_allow_html=True)
+    clicked = clicklist.click_list(rows, tokens=_BOOK_TOKENS,
+                                   selected=st.session_state.get(open_key),
+                                   css=PC.COMPLETED_CSS, key=f"ct_list_{key}")
+    # Acted on once a click, as the other lists are: the nonce changes with each click.
+    if (isinstance(clicked, dict)
+            and clicked.get("nonce") != st.session_state.get(f"{open_key}_nonce")):
+        st.session_state[f"{open_key}_nonce"] = clicked.get("nonce")
+        st.session_state[open_key] = clicked.get("id")
+    chosen = st.session_state.get(open_key)
+    if chosen is None or chosen not in {r["id"] for r in rows}:
+        return
+    nct = f"NCT{int(chosen):08d}"
+    try:
+        report = api_get(api_base, f"/trials/{nct}/report")
+    except Exception as exc:                                        # noqa: BLE001
+        state(f"{nct} did not load", f"the API did not answer: {exc}", error=True)
+        return
+    st.markdown(PC.trial_report_html(report).replace("$", "&#36;"), unsafe_allow_html=True)
+
+
 def _profile_trials(api_base: str, ticker: str, prof: dict, aid, today) -> None:
     """Every study on the product in two tables: the ones underway, soonest first, and
     the ones completed with results. The sheet listed the open studies twice, once as
@@ -883,13 +924,15 @@ def _profile_trials(api_base: str, ticker: str, prof: dict, aid, today) -> None:
                     '<div class="ps-none">No registered trial is open on this product. '
                     'Lifecycle work is a new indication, a formulation or a post-marketing '
                     'commitment, and not every product has one.</div>', unsafe_allow_html=True)
-    done = prof.get("completed_trials") or []
+    # Completed studies, each opening onto its results. The book's list with whether
+    # results are posted where it reads; the profile's own list where it does not.
+    done = _completed_for(api_base, ticker, aid) or [
+        {**t, "has_results": None} for t in prof.get("completed_trials") or []]
     if done:
         count = prof.get("completed_count") or len(done)
-        more = f" &middot; the latest {len(done)} shown" if len(done) < count else ""
-        st.markdown(f'<div class="ps"><div class="prof-sub">completed with results &middot; '
-                    f'{count}{more}</div></div>' + PC.completed_table_html(done),
-                    unsafe_allow_html=True)
+        more = f", the latest {len(done)} shown" if len(done) < count else ""
+        _completed_block(api_base, ticker, done, f"{ticker}_{aid}",
+                         heading=f"Completed{more}")
 
 
 def _render_product_profile(api_base, ticker, product, today) -> None:
@@ -2562,13 +2605,82 @@ def _mix_hex(a: str, b: str, t: float) -> str:
     return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb))
 
 
-def _revenue_build(v: dict) -> None:
+def _revenue_or_none(api_base: str, ticker: str):
+    """The company's product revenue rows, or None where the read fails: the build then
+    draws its past as the reported line alone."""
+    try:
+        return api_get(api_base, f"/companies/{ticker}/revenue")
+    except Exception:                                               # noqa: BLE001
+        return None
+
+
+# How many years of reported product revenue the build draws before its forecast.
+_BUILD_HISTORY = 6
+
+
+def _build_palette() -> tuple:
+    """The build's colours: seven token colours, then the same seven lightened toward the
+    text colour, fourteen products told apart with no colour from outside the palette; and
+    the greys a revenue line no asset carries is drawn in."""
+    base = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
+            TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
+    palette = base + [_mix_hex(c, TK.TEXT, 0.45) for c in base]
+    greys = [_mix_hex(TK.MUTED, TK.GROUND, f) for f in (0.0, 0.25, 0.45, 0.6, 0.15, 0.35)]
+    return palette, greys
+
+
+def _build_ranked(v: dict) -> tuple:
+    """(the named products, the rest) of the build, most valuable first."""
+    ranked = sorted(v.get("modelled") or [], key=lambda m: -(m.get("rnpv_share") or 0))
+    return ranked[:_BUILD_TOP], ranked[_BUILD_TOP:]
+
+
+def _build_colours(v: dict) -> dict:
+    """{asset id: colour} of the build's named products, so another chart of the same
+    products (the Portfolio tab's revenue ring) draws each in the colour the build does."""
+    palette, _greys = _build_palette()
+    head, _rest = _build_ranked(v or {})
+    return {m.get("asset_id"): palette[i % len(palette)]
+            for i, m in enumerate(head) if m.get("asset_id") is not None}
+
+
+def _build_history(revenue: dict | None, before: int) -> tuple:
+    """(years, {(asset id, year): revenue in millions}, {year: company total in millions})
+    of the reported product revenue before the forecast's first year, the last
+    ``_BUILD_HISTORY`` years with a company total or a product on file. The rows and the
+    total are the revenue call's own (``/revenue``), in one currency, so the bars and the
+    total are drawn in the currency the forecast is built in. A total in another unit
+    than the rows is left out rather than drawn against them."""
+    revenue = revenue or {}
+    rows = [r for r in revenue.get("rows") or []
+            if r.get("value") is not None and int(r["fiscal_year"]) < before]
+    units = {r.get("unit") for r in rows}
+    by_asset: dict = {}
+    for r in rows:
+        key = (r.get("asset_id"), int(r["fiscal_year"]))
+        by_asset[key] = by_asset.get(key, 0.0) + r["value"] / 1e6
+    totals = {}
+    for year, t in (revenue.get("company_revenue") or {}).items():
+        if (int(year) < before and t.get("value") is not None
+                and (not units or t.get("unit") in units)):
+            totals[int(year)] = t["value"] / 1e6
+    years = sorted({y for _a, y in by_asset} | set(totals))[-_BUILD_HISTORY:]
+    return years, by_asset, totals
+
+
+def _revenue_build(v: dict, revenue: dict | None = None) -> None:
     """History running into forecast, stacked by what produces it.
 
     The first chart in any sell-side model. Every modelled asset is a band, every
     revenue line no asset carries is a band, an asset drawn on a placeholder curve is
-    hatched so it is seen and not believed, and the reported figures sit over the top
-    as the line the bands have to meet.
+    hatched so it is seen and not believed, and the reported total sits over the top as
+    the line the bands have to meet.
+
+    The years before the forecast are bars too: each product's reported revenue (the
+    revenue call's rows, ``revenue``) in its own colour, and what the company reports that
+    no product row accounts for as one grey band, so a past bar stands as high as the
+    reported total and shows which products made it. A year with no product on file is
+    all grey; nothing is spread over products the filings do not break out.
 
     Fourteen bands are named and the rest are one. A build of forty-three named bands was
     a legend of forty-three names over a chart nobody could read; drawn across the whole
@@ -2582,45 +2694,79 @@ def _revenue_build(v: dict) -> None:
     """
     modelled = v.get("modelled") or []
     streams = v.get("streams") or []
-    history = [(int(r["fiscal_year"]), r["value"]) for r in v.get("reported_revenue") or []
-               if r.get("value") is not None]
     if not modelled and not streams:
         return
     forecast_years = sorted({y for m in modelled for y in m.get("years") or []}
                             | {y for s in streams for y in s.get("years") or []})
     if not forecast_years:
         return
-    hist_years = [y for y, _ in history if y < forecast_years[0]][-4:]
+    first = forecast_years[0]
+    history = [(int(r["fiscal_year"]), r["value"]) for r in v.get("reported_revenue") or []
+               if r.get("value") is not None]
+    hist_years, by_asset, totals = _build_history(revenue, first)
+    if not hist_years:
+        # No product revenue on file: the reported total alone, as a line, as before.
+        hist_years = [y for y, _ in history if y < first][-4:]
+        totals = {}
     years = hist_years + forecast_years
     labels = [str(y) for y in years]
+    palette, greys = _build_palette()
+    head, rest = _build_ranked(v)
 
-    base = [TK.UP, TK.PURPLE_BOOK, TK.ORANGE_BOOK, TK.FLAG, TK.DOWN,
-            TK.PHASE_RAMP["Phase 2"], TK.PHASE_RAMP["Phase 3"]]
-    # Seven token colours, then the same seven lightened toward the text colour: fourteen
-    # products each told apart, with no colour from outside the palette.
-    palette = base + [_mix_hex(c, TK.TEXT, 0.45) for c in base]
-    greys = [_mix_hex(TK.MUTED, TK.GROUND, f) for f in (0.0, 0.25, 0.45, 0.6, 0.15, 0.35)]
-    ranked = sorted(modelled, key=lambda m: -(m.get("rnpv_share") or 0))
-    head, rest = ranked[:_BUILD_TOP], ranked[_BUILD_TOP:]
-    series = []
+    def past(assets, y):
+        """The reported revenue of ``assets`` in a past year at the company's share, or
+        None where none of them has a figure on file."""
+        got = [by_asset[(m.get("asset_id"), y)] * (m.get("share") or 1.0) for m in assets
+               if (m.get("asset_id"), y) in by_asset]
+        return sum(got) if got else None
+
+    series, drawn = [], {y: 0.0 for y in hist_years}
     for i, m in enumerate(head):
         by_year = dict(zip(m.get("years") or [], m.get("revenue_share") or []))
+        values = []
+        for y in years:
+            if y in drawn:
+                value = past([m], y)
+                drawn[y] += value or 0.0
+            else:
+                value = by_year.get(y)
+            values.append(value)
         series.append({"name": m["name"][:22], "colour": palette[i % len(palette)],
-                       "hatched": not m.get("counted", True),
-                       "values": [by_year.get(y) for y in years]})
+                       "hatched": not m.get("counted", True), "values": values})
     if rest:
         other = {}
         for m in rest:
             for y, value in zip(m.get("years") or [], m.get("revenue_share") or []):
                 other[y] = other.get(y, 0.0) + (value or 0.0)
+        values = []
+        for y in years:
+            if y in drawn:
+                value = past(rest, y)
+                drawn[y] += value or 0.0
+            else:
+                value = other.get(y)
+            values.append(value)
         series.append({"name": f"{len(rest)} smaller products", "colour": TK.RULE_STRONG,
-                       "values": [other.get(y) for y in years]})
+                       "values": values})
     for j, s in enumerate(streams):
         by_year = dict(zip(s.get("years") or [], s.get("revenue") or []))
         series.append({"name": s["line"][:24], "colour": greys[j % len(greys)],
                        "values": [by_year.get(y) for y in years]})
-    ref_by_year = dict(history)
-    section("Revenue build", basis=f"{_mm()} · reported over modelled")
+    if totals:
+        # What the company reports that no product row carries, in the past years only.
+        gap = [max(totals[y] - drawn[y], 0.0) if y in totals and y in drawn else None
+               for y in years]
+        if any(gap):
+            # A solid grey of its own: it is reported revenue, so not hatched as a
+            # placeholder is, but no product row says whose.
+            series.append({"name": "not attributed by product",
+                           "colour": _mix_hex(TK.MUTED, TK.GROUND, 0.5),
+                           "values": [g or None for g in gap]})
+        ref_by_year = totals
+    else:
+        ref_by_year = dict(history)
+    section("Revenue build", basis=f"{_mm()} · reported to FY{first - 1}, modelled from "
+                                   f"FY{first}")
     R.show(CH.stacked_columns(
         labels, series, 1500, 420, value_fmt=lambda x: f"{x:,.0f}",
         reference={"name": "reported", "colour": TK.TEXT,
@@ -4329,7 +4475,7 @@ def _book(api_base: str, ticker: str, selected):
                     unsafe_allow_html=True)
         if sotp.get("marketed", {}).get("per_share") is not None:
             _revenue_split(sotp)
-    _revenue_build(v)
+    _revenue_build(v, _revenue_or_none(api_base, ticker))
 
     list_col, bench_col = st.columns([1, 1.5], gap="medium")
     with list_col:
@@ -4964,6 +5110,11 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
             st.markdown(PC.trials_html(opened, book.get(opened.get("asset_id")), today,
                                        moved.get(opened.get("asset_id")))
                         .replace("$", "&#36;"), unsafe_allow_html=True)
+            # The compound's completed studies, each opening onto its results.
+            aid = opened.get("asset_id")
+            _completed_block(api_base, ticker,
+                             PC.completed_studies(_completed_for(api_base, ticker, aid), opened),
+                             f"{ticker}_{aid}")
         _trials()
 
 
@@ -6693,7 +6844,7 @@ def _fc_more(api_base: str, ticker: str, key: str) -> None:
                 return
             sotp = v.get("sotp") or {}
             if key == "build":
-                _revenue_build(v)
+                _revenue_build(v, _revenue_or_none(api_base, ticker))
                 return
             headline = (v.get("note") or {}).get("headline")
             if headline:
@@ -12588,10 +12739,9 @@ with main:
                                 except (urllib.error.URLError, OSError):
                                     _bv = None
                                 if _bv and _bv.get("ok"):
-                                    _revenue_build(_bv)
+                                    _revenue_build(_bv, revenue_payload)
 
                                 section("Revenue mix", f"FY{mix_year}")
-                                ramp = list(reversed(T.ordinal_ramp(max(len(mix_drivers), 2))))
 
                                 def _slice_href(row):
                                     """The fact sheet for the product a wedge measures.
@@ -12605,10 +12755,19 @@ with main:
                                     return (f"?ticker={urllib.parse.quote(ticker)}"
                                             f"&product={aid}")
 
+                                # Each product in the colour the build above draws it in, so the
+                                # ring and the build read as one key. A product the build does
+                                # not name (it folds into its smaller products) takes a grey of
+                                # its own, lightest for the largest.
+                                _bc = _build_colours(_bv if _bv and _bv.get("ok") else {})
+                                _spare = iter([_mix_hex(TK.MUTED, TK.GROUND, f)
+                                               for f in (0.0, 0.2, 0.35, 0.5, 0.6, 0.1, 0.28, 0.42)
+                                               ] * 4)
                                 slices = [{"label": p["brand_name"] or p["generic_name"] or "unnamed",
-                                           "value": p["value"], "colour": ramp[i % len(ramp)],
+                                           "value": p["value"],
+                                           "colour": _bc.get(p.get("asset_id")) or next(_spare),
                                            "href": _slice_href(p)}
-                                          for i, p in enumerate(mix_drivers)]
+                                          for p in mix_drivers]
                                 if mix_tail:
                                     slices.append({"label": f"{len(mix_tail)} smaller products",
                                                    "value": sum(p["value"] for p in mix_tail),

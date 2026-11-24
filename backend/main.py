@@ -64,6 +64,7 @@ import pending_acquisitions
 import forecast_history as forecast_history_module
 import forecast_view as forecast_view_module
 import trial_readouts as trial_readouts_module
+import trial_report as trial_report_module
 import universe_command as universe_command_module
 import valuation as valuation_module
 import financials_view as financials_view_module
@@ -481,6 +482,27 @@ def post_approval(ticker: str) -> dict:
     """Trials still running on drugs this company already sells."""
     return {"ticker": ticker.upper(),
             "studies": pipeline_module.post_approval_studies(ticker=ticker)}
+
+
+@app.get("/companies/{ticker}/completed-trials")
+def company_completed_trials(ticker: str) -> dict:
+    """The company's completed studies, by asset, newest first, with whether results are
+    posted: what a click on a completed study opens the report of."""
+    rows = trial_report_module.completed(None, ticker)
+    if rows is None:
+        raise HTTPException(status_code=404, detail=f"unknown ticker {ticker.upper()}")
+    return {"ticker": ticker.upper(), "trials": rows}
+
+
+@app.get("/trials/{nct_id}/report")
+def trial_report(nct_id: str) -> dict:
+    """One study read from what its sponsor posted: a scorecard of five reading rules, the
+    results in words, and the points to weigh, with every arm, the safety table and the
+    company's own words on it. Nothing is estimated."""
+    got = trial_report_module.report(None, nct_id)
+    if got is None:
+        raise HTTPException(status_code=404, detail=f"no study {nct_id}")
+    return got
 
 
 @app.get("/companies/{ticker}/programmes")

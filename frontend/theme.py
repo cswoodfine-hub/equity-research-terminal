@@ -1929,6 +1929,41 @@ table.pt-tbl td.d .was {{ display: block; font-size: 10px; color: var(--flag); }
 .apie .s:hover .ct {{ opacity: 1; }}
 .apie svg:has(.s:hover) .c0, .apie:has(.kr:hover) .c0 {{ opacity: 0; }}
 {_APIE_KEY_HOVER}
+/* A completed study clicked open: its clinical scorecard (five rows, each a coloured
+   mark, the rule's name, its reading and the figures it read), the results in words, the
+   arms and safety side by side, the company's words and the points to weigh. */
+.tr {{ margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule-strong); }}
+.tr-title {{ font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }}
+.tr-head {{ font-size: 11px; color: var(--muted); margin: 3px 0 4px; }}
+.tr-head a {{ color: var(--muted); text-decoration: underline;
+             text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }}
+.tr-sub {{ font-size: 9.5px; letter-spacing: 0.06em; text-transform: uppercase;
+          color: var(--muted); margin: 14px 0 5px; }}
+.tr-card {{ display: flex; flex-direction: column; }}
+.tr-row {{ display: grid; grid-template-columns: 10px 170px 230px minmax(0, 1fr);
+          gap: 0.7rem; align-items: baseline; padding: 5px 0;
+          border-bottom: 1px solid var(--rule); font-size: 12px; }}
+.tr-row i {{ width: 8px; height: 8px; border-radius: 2px; background: var(--muted);
+            align-self: center; }}
+.tr-row.good i {{ background: var(--up); }}
+.tr-row.bad i {{ background: var(--down); }}
+.tr-row.good .v {{ color: var(--up); }}
+.tr-row.bad .v {{ color: var(--down); }}
+.tr-row .k {{ color: var(--text); }}
+.tr-row .v {{ font-family: var(--font-mono); font-size: 11.5px; color: var(--text); }}
+.tr-row .t {{ color: var(--muted); font-size: 11px; }}
+.tr-sum {{ font-size: 12.5px; line-height: 1.55; color: var(--text); margin: 0; }}
+.tr-two {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }}
+.tr-what {{ font-size: 11px; color: var(--muted); margin-bottom: 4px; }}
+.tr-role {{ font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase;
+           padding: 0 3px; border: 1px solid var(--rule-strong); color: var(--muted); }}
+.tr-role.ref {{ border-color: var(--flag); color: var(--flag); }}
+.tr-q {{ font-size: 12px; line-height: 1.45; color: var(--text); padding: 4px 0 6px 10px;
+        border-left: 2px solid var(--rule-strong); margin-bottom: 6px; }}
+.tr-q span {{ display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; }}
+.tr-factors {{ margin: 0; padding-left: 1.1rem; font-size: 12px; line-height: 1.5;
+              color: var(--text); }}
+.tr-factors li {{ margin-bottom: 3px; }}
 /* The Portfolio tab starts directly under the tab row. Its marker takes no row, and the
    air the stylesheet gives every block holding a row of buttons (the tab's own wrapper,
    the Assets row, the pipeline's columns) is taken out here, where the rows follow one
