@@ -4827,7 +4827,7 @@ _PIPE_PHASES = ["Phase 3", "Phase 2/3", "Phase 2", "Phase 1/2", "Phase 1", "Phas
 def _pipe_group(p: dict) -> str:
     """The heading a compound sits under: the furthest phase it has reached, or for one
     named in a filing with no registered study, the stage the filing states. The same
-    rule as the Trials tab's list, so the two never file a compound differently."""
+    rule as the programmes list under it, so the two never file a compound differently."""
     if p.get("source") == "filing":
         return p.get("stage") or "named in the filing"
     return p.get("phase") or "unphased"
@@ -4837,7 +4837,7 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
     """The Portfolio tab's pipeline side: the compounds in development as cards, one phase
     at a time, each opening onto its own studies.
 
-    The compounds are the Trials tab's own (``/programmes``) and the odds and values are
+    The compounds are the programmes list's own (``/programmes``) and the odds and values are
     the forecast's (``PC.book_from_verdict``), so nothing here is a second reading of
     either. A phase is picked from a row of pills, as an area is on the marketed side:
     Lilly has fifty-five compounds in Phase 1, and one grid of all eighty-eight would be
@@ -4927,7 +4927,7 @@ def _portfolio_pipeline(api_base: str, ticker: str, programmes: list, book: dict
 
 def _prog_value_cell(asset_id, valued: dict, held: dict, blocked: dict,
                      launch: dict = None) -> str:
-    """The Trials tab's rightmost column: what the compound is worth a share, or why not.
+    """The programmes list's rightmost column: what the compound is worth a share, or why not.
 
     Four states, and the difference between the last two is the point. "no forecast"
     means nobody has written the assumptions. The refused row means they were written,
@@ -10267,7 +10267,7 @@ def _coverage_view(api_base: str) -> None:
 # --- Slips and exclusivities, per company --------------------------------
 # The week's counted record on the Universe tab used to carry these for the whole group.
 # A slip is a fact about a study and an expiry a fact about a product, so each is read
-# where the company's studies and products are: the Trials tab and the Portfolio tab.
+# where the company's studies and products are, both on the Portfolio tab.
 def _slips_block(feed: list, ticker: str, trials: list | None = None) -> None:
     """Completion dates that slipped, drawn as each study's old date to its new one, each
     study named by the drug and phase the registry maps it to where it has them."""
@@ -11613,11 +11613,9 @@ with main:
     _stage = (company or {}).get("stage") or "unknown"
     _sells = _stage != "clinical"
     _wanted = [("universe", "Universe"), ("insights", "Key insights"),
-               ("prices", "Prices"), ("financials", "Financials"),
-               # Named for what it lists. It was "Pipeline", and the pipeline as a set of
-               # assets is the Portfolio tab's to show; this one is the registry's
-               # studies, by area and by compound.
-               ("pipeline", "Trials")]
+               ("prices", "Prices"), ("financials", "Financials")]
+    # There is no Trials tab: the registry's studies, by area and by compound, read under
+    # the compound cards on the Portfolio tab's Pipeline side (_trials_section).
     # Every company has a Portfolio: what it sells and what it is developing, as assets. It
     # was offered only where something was sold, because it held marketed products alone
     # and drew three empty charts for a developer. It opens on the pipeline there now.
@@ -11645,7 +11643,6 @@ with main:
     insights_tab = _panels["insights"]
     prices_tab = _panels["prices"]
     financials_tab = _panels["financials"]
-    pipeline_tab = _panels["pipeline"]
     catalysts_tab = _panels["catalysts"]
     forecast_tab = _panels["forecast"]
     themes_tab = _panels.get("themes")
@@ -12393,7 +12390,10 @@ with main:
 
 
 
-    with pipeline_tab:
+    # The registry's studies, drawn under the compound cards on the Portfolio tab's
+    # Pipeline side. They were a Trials tab of their own, a second place to read the same
+    # pipeline from; the compounds and the studies behind them now read in one place.
+    def _trials_section():
         # --- Therapeutic areas: click a band to reveal its trials ---
         # Development trials drive the bars and the "in development" count. Two kinds of
         # work carry a development phase but are not new development, so they are pulled
@@ -12740,7 +12740,7 @@ with main:
                 approvals = api_get(api_base, f"/companies/{ticker}/approvals")["approvals"]
                 # The two kinds of asset, one at a time. Stacked, eighty-eight compounds
                 # would stand under forty-four products and never be reached. Each side is
-                # read from where it already lives: the compounds are the Trials tab's and
+                # read from where it already lives: the compounds are the programmes list's and
                 # the values the forecast's, and a read of either that fails leaves that
                 # part out rather than the tab.
                 try:
@@ -12763,6 +12763,7 @@ with main:
                         label_visibility="collapsed", key=f"pf_side_{ticker}") or _opens_on
                 if _side == "Pipeline":
                     _portfolio_pipeline(api_base, ticker, _programmes, _book)
+                    _trials_section()
                     return
                 # Revenue-mix data fetched once here: the donut renders above the product cards
                 # (inside the else), and the product-revenue list below reuses these rows.

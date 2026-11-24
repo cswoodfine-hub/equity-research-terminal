@@ -2,8 +2,8 @@
 at a glance.
 
 A card was three label and value lines, the same three on all forty-four of a large
-company's products, and a compound in development had no card at all: it was a row of the
-Trials tab. Both are cards here and each draws the two things its kind is judged on.
+company's products, and a compound in development had no card at all: it was a row of a
+list of studies. Both are cards here and each draws the two things its kind is judged on.
 
 A marketed product is what it earns and how long it is protected. The revenue stands
 with its share of the company's tagged revenue and, where more than one year is on file,

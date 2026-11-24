@@ -1,8 +1,8 @@
 """Dates that moved and dates that end, for one company: pure, no Streamlit.
 
 A slipped completion date is a fact about a study and an expiry a fact about a product,
-so they are read on the company's Trials and Portfolio tabs rather than in the Universe
-tab's week. Both read the company's change feed (``/changes?ticker=``)."""
+so they are read on the company's Portfolio tab rather than in the Universe tab's
+week. Both read the company's change feed (``/changes?ticker=``)."""
 
 from __future__ import annotations
 
