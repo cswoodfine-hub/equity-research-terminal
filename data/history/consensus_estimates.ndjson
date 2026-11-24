@@ -1195,3 +1195,4 @@
 {"as_of": "2026-11-23", "company_id": 24, "currency": "USD", "fx_basis": null, "high": -0.4, "id": 1195, "low": -0.59, "metric": "EPS", "note": "5 estimates, per US-listed share", "period": "FY2026", "source": "nasdaq", "value": -0.47}
 {"as_of": "2026-11-23", "company_id": 24, "currency": "USD", "fx_basis": null, "high": -0.25, "id": 1196, "low": -0.42, "metric": "EPS", "note": "3 estimates, per US-listed share", "period": "FY2028", "source": "nasdaq", "value": -0.36}
 {"as_of": "2026-11-23", "company_id": 4, "currency": "USD", "fx_basis": null, "high": 3.18, "id": 1197, "low": 2.75, "metric": "EPS", "note": "9 estimates, per US-listed share", "period": "FY2027", "source": "nasdaq", "value": 2.97}
+{"as_of": "2026-11-24", "company_id": 72, "currency": "USD", "fx_basis": null, "high": 1201.0, "id": 1198, "low": 478.0, "metric": "PriceTarget", "note": "15 buy, 0 hold, 0 sell; per US-listed share", "period": "12M", "source": "nasdaq", "value": 740.53}
