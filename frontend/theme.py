@@ -514,7 +514,6 @@ h3 {{ font-size: 0.9rem; }}
   text-decoration: none; }}
 .pulse-tier {{ display: inline-block; min-width: 18px; font-size: 9.5px;
   color: var(--muted); margin-right: 4px; }}
-.pulse-item .rec-h {{ font-size: 12.5px; font-weight: 600; color: var(--text); }}
 .pulse-meta {{ font-size: 10.5px; color: var(--muted); padding-left: 22px; }}
 details.pt-more {{ margin: 0.15rem 0 0.35rem; }}
 details.pt-more > summary {{ list-style: none; cursor: pointer; font-size: 10px;

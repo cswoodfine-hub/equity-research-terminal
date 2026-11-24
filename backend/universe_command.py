@@ -81,6 +81,8 @@ WEEK_ITEMS = 16
 RECORD_KINDS = ("filing", "labels", "due")
 # The daily pulse's own label, carried by every item read from it.
 PULSE_LABEL = "Daily pulse (AI summary)"
+# The sector news view reads the pulse's briefings of this many days.
+SECTOR_DAYS = 14
 # A pulse headline and the book's own item are one story when they share a company and a
 # kind and are dated this many days apart or fewer.
 PULSE_MATCH_DAYS = 4
@@ -551,6 +553,8 @@ def read_sources(ticker: str, today: dt.date | None = None, db_path=None,
         src["deal_rows"] = _deal_rows(conn, cohort,
                                       (today - dt.timedelta(days=2 * NEWS_DAYS)).isoformat())
         src["pulse"] = _pulse_leads(conn, (today - dt.timedelta(days=NEWS_DAYS)).isoformat())
+        src["pulse_recent"] = _pulse_recent(
+            conn, (today - dt.timedelta(days=SECTOR_DAYS)).isoformat())
         if engine in FOCUS_ENGINES:
             src["focus"] = _focus_reads(conn, db_path, cohort, today, src["catalysts"])
     finally:
@@ -1302,6 +1306,39 @@ def _pulse_leads(conn, since: str) -> list:
     return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
+def _pulse_recent(conn, since: str) -> dict:
+    """Every pulse item of briefings since ``since`` and each briefing's opening read,
+    newest briefing first and by tier within it, for the sector news view."""
+    try:
+        cur = conn.execute(
+            "SELECT pulse_date, tier, kind, headline, detail, url, published_at, companies,"
+            " tickers FROM pulse_items WHERE pulse_date >= ?"
+            " ORDER BY pulse_date DESC, COALESCE(tier, 4), id", (since,))
+        cols = [c[0] for c in cur.description]
+        items = [dict(zip(cols, r)) for r in cur.fetchall()]
+        reads = {r[0]: r[1] for r in conn.execute(
+            "SELECT pulse_date, read FROM pulse_reads WHERE pulse_date >= ?", (since,))}
+    except Exception:                       # a book from before the pulse tables
+        return {"items": [], "reads": {}}
+    for it in items:
+        try:
+            it["companies"] = [c for c in json.loads(it.get("companies") or "[]") if c]
+        except ValueError:
+            it["companies"] = []
+        it["tickers"] = [t for t in (it.get("tickers") or "").split(",") if t]
+    return {"items": items, "reads": reads}
+
+
+def _sector(src: dict, since: str) -> dict:
+    """The sector news view: the pulse's items of SECTOR_DAYS, without the sector-moving
+    items of the week, which lead the ranked feed."""
+    recent = src.get("pulse_recent") or {}
+    items = [i for i in recent.get("items") or []
+             if not (i.get("tier") == 1 and (i.get("pulse_date") or "") >= since)]
+    return {"label": PULSE_LABEL, "days": SECTOR_DAYS, "items": items,
+            "reads": recent.get("reads") or {}}
+
+
 def _pulse_items(src: dict, companies: dict, move) -> list:
     """The pulse's sector-moving items as ranked items. One is kept when it names a
     company of this group, or names no company the book covers at all (a policy or market
@@ -1379,6 +1416,7 @@ def _with_pulse(pulse: list, news: list, companies: dict) -> list:
         item = news[hit]
         item["rows"] = list(item.get("rows") or []) + [[PULSE_LABEL, p["head"]]]
         item["pulse_url"] = p.get("url")
+        item["pulse_head"] = p["head"]
         lead.append(item)
     return lead + [it for i, it in enumerate(news) if i not in used]
 
@@ -1929,6 +1967,7 @@ def assemble(src: dict, ticker: str, window: str = DEFAULT_WINDOW,
         "week": _week_block(src, companies, events, today, week_rows, week_items,
                             out["tickers"]),
         "week_since": since,
+        "sector": _sector(src, since),
         "lanes": {"start": f"{today.year}-01-01", "end": lane_end.isoformat(),
                   "events": lane_events, "approvals": approvals},
         "markets": mk,

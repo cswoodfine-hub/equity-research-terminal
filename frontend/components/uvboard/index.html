@@ -75,7 +75,12 @@ window.addEventListener("message", function (e) {
   copyFontFaces();
   document.getElementById("band").textContent = a.css || "";
   const b = document.getElementById("b");
+  // The news block's view (ranked or sector news) is a radio in the markup; a redraw
+  // keeps the one the reader chose.
+  const kept = b.querySelector("input.uw-vr:checked");
+  const keptId = kept && kept.id;
   b.innerHTML = a.markup || "";
+  if (keptId) { const el = document.getElementById(keptId); if (el) el.checked = true; }
   b.querySelectorAll("[data-ticker]").forEach(function (el) {
     el.setAttribute("tabindex", "0");
     el.setAttribute("role", "button");

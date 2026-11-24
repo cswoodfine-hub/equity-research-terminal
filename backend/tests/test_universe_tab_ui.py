@@ -661,26 +661,64 @@ def test_the_ranked_feed_runs_from_one_at_one_size_and_names_what_it_leaves(payl
 
 
 def test_the_ranked_feed_leads_with_the_pulse_and_leaves_the_record_to_sector_news(payload):
-    """A pulse item ranks with its day move and says it is an AI summary; the counted
-    record (marked ``record``) is not ranked and not counted in the feed's head."""
+    """A pulse item ranks with its day move, its headline cut to the facts and its card
+    saying it is an AI summary; the counted record is not ranked but is the head of the
+    sector news view, which shares the block and is switched by the head's labels."""
     p = copy.deepcopy(payload)
     record_kinds = ("filing", "labels", "due")
     news = [i for i in p["week_items"] if i["kind"] not in record_kinds]
     record = [dict(i, record=True) for i in p["week_items"] if i["kind"] in record_kinds]
     pulse = {"kind": "pulse", "tag": "deal", "pulse_kind": "deal", "pulse": True,
              "tickers": ["AZN"], "verbatim": False, "date": p["today"],
-             "head": "AstraZeneca agrees to buy a biotech for $5bn in cash, its largest yet",
+             "head": "AstraZeneca agrees to buy a biotech for ~$5bn in cash, its largest yet",
              "fig_move": 0.021, "mini": {}, "rows": [["Briefing", p["today"]]],
              "url": "https://example.com/a", "src": "Daily pulse (AI summary)"}
     p["week_items"] = [pulse] + news + record
+    p["sector"] = {"label": "Daily pulse (AI summary)", "days": 14, "reads": {p["today"]: "A read."},
+                   "items": [{"pulse_date": p["today"], "tier": 2, "kind": "financing",
+                              "headline": "Neobe raises about $6.8m seed (lead investor)",
+                              "detail": "For bacteria.", "url": "https://example.com/b",
+                              "tickers": [], "companies": ["Neobe"]}]}
     rk = UC.ranked_html(p)
-    assert re.search(r'<span class="n">1</span><div class="bd"><div class="h">AstraZeneca agrees '
-                     r'to buy a biotech for \$5bn in cash</div>', rk)
-    assert "an AI summary of the trade press, not a source" in rk
-    assert "+2.1%" in rk
-    assert f"of {1 + len(news)}" in rk
-    assert record and not any(html.escape(UC.brief(it)) in rk for it in record)
+    ranked, sector = rk.split('<div class="uw-sec">')
+    assert re.search(r'<span class="n">1</span><div class="bd"><div class="h">AstraZeneca to buy '
+                     r'a biotech for \$5bn</div>', ranked)
+    assert "an AI summary of the trade press, not a source" in ranked
+    assert "+2.1%" in ranked and f"of {1 + len(news)}" in ranked
+    assert record and not any(html.escape(UC.brief(it)) in ranked for it in record)
+    # The sector view: the record first, then the briefing, each line cut to the facts.
+    assert all(html.escape(UC.brief(it)) in sector for it in record)
+    assert "Neobe raises $6.8m seed" in sector and 'href="https://example.com/b"' in sector
+    assert 'title="Neobe raises about $6.8m seed (lead investor). For bacteria."' in sector
+    assert 'for="uw-v-rk"' in rk and 'for="uw-v-sn"' in rk and 'id="uw-v-rk" class="uw-vr" checked' in rk
     _house_style(_visible(rk))
+
+
+def test_a_pulse_headline_is_cut_to_who_what_and_the_figure():
+    cases = {
+        ("Sanofi agrees to buy Insmed for ~$41bn in cash ($175/share)", "deal"):
+            "Sanofi to buy Insmed for $41bn",
+        ("Roche: FDA approves Wilserdly (giredestrant) as adjuvant monotherapy in ER+/HER2- "
+         "stage I-III breast cancer", "approval"): "Roche: Wilserdly approved",
+        ("Novartis: Leqvio (inclisiran) meets primary MACE endpoint in Phase 3 ORION-4 "
+         "(established ASCVD)", "readout"):
+            "Novartis: Leqvio hits primary MACE endpoint in Ph3 ORION-4",
+        ("Summit Therapeutics / Akeso: FDA rejects ivonescimab (PD-1xVEGF) in EGFRm NSCLC "
+         "after TKI", "rejection"): "Summit / Akeso: ivonescimab rejected in EGFRm NSCLC",
+        ("Lilly buys stealth biotech Calytrix Bio for up to $1.5bn: its 14th acquisition "
+         "of 2026", "deal"): "Lilly buys stealth biotech Calytrix Bio, up to $1.5bn",
+        ("Helus Pharma: first psilocybin-class Phase 3 win in adjunctive MDD (HLP003, "
+         "APPROACH)", "readout"): "Helus: first psilocybin-class Ph3 win in adjunctive MDD",
+        ("Ritzey Therapeutics launches with $112.5m Series A (Intra-Cellular founder)",
+         "financing"): "Ritzey launches with $112.5m Series A",
+    }
+    for (head, kind), want in cases.items():
+        assert UC.pulse_brief(head, kind) == want
+        assert len(want.split()) <= UC.PULSE_WORDS
+    # A figure is added back only for a deal or a raise.
+    assert "$10bn" not in UC.pulse_brief("Vertex's unit is cutting 78 roles, mainly corporate "
+                                         "functions, two months after the $10bn deal closed",
+                                         "restructuring")
 
 
 def test_the_source_words_are_the_sources_and_the_rest_is_house_style(payload):

@@ -566,6 +566,40 @@ div[role="dialog"]:has(.uv-dg) [data-testid="stHorizontalBlock"]:has(button) {
   line-height: 1.3; }
 .uw-mr .n { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
 .uw-mr .f { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-align: right; }
+/* The news block's two views share one space: the head's labels are radio labels, so the
+   switch needs no round trip. The sector view is as tall as the ranked columns and
+   scrolls inside them. */
+.uw-vr { position: absolute; opacity: 0; pointer-events: none; }
+.uw-vt { display: flex; gap: 14px; align-items: baseline; }
+.uw-vt label { cursor: pointer; color: var(--muted) !important; padding-bottom: 2px;
+  border-bottom: 2px solid transparent; }
+.uw-vt label:hover { color: var(--text) !important; }
+#uw-v-rk:checked ~ .uw-rkh label[for="uw-v-rk"],
+#uw-v-sn:checked ~ .uw-rkh label[for="uw-v-sn"] { color: var(--text) !important;
+  border-bottom-color: var(--text); }
+.uw-rkh .c-sn, .uw-sec { display: none; }
+#uw-v-sn:checked ~ .uw-rkh .c-rk, #uw-v-sn:checked ~ .uw-rkc,
+#uw-v-sn:checked ~ .uv-empty { display: none; }
+#uw-v-sn:checked ~ .uw-rkh .c-sn { display: flex; }
+#uw-v-sn:checked ~ .uw-sec { display: block; }
+.uw-sec { height: 330px; overflow-y: auto; padding-right: 4px; }
+.uw-sec .sc { column-count: 2; column-gap: 28px; }
+.uw-sd { break-after: avoid; margin: 8px 0 2px; font-family: var(--font-mono); font-size: 10px;
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.uw-sd:first-child { margin-top: 4px; }
+.uw-sd .rd { border-bottom: 1px dotted var(--rule-strong); cursor: help; text-transform: none;
+  letter-spacing: 0; }
+.uw-sr { break-inside: avoid; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto;
+  column-gap: 8px; align-items: baseline; padding: 3px 0; border-top: 1px solid var(--rule);
+  font-size: 12px; line-height: 1.35; }
+.uw-sr .t { font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.uw-sr .h { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text); font-weight: 600; }
+.uw-sr .h a { color: inherit; text-decoration: none; }
+.uw-sr .h a:hover { text-decoration: underline; }
+.uw-sr .o { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden;
+  max-width: 120px; text-overflow: ellipsis; }
+.uw-sn { margin-top: 8px; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
 .uw-rkc { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   column-gap: 28px; }
 .uw-it { display: grid; grid-template-columns: 14px minmax(0, 1fr) 100px 62px; column-gap: 10px;

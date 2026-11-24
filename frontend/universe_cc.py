@@ -1930,6 +1930,62 @@ _DEAL_KINDS = (("acqui", "acquisition"), ("merger", "merger"), ("equity investme
 _QUARTER = {"first": "Q1", "second": "Q2", "third": "Q3", "fourth": "Q4"}
 
 
+# A pulse headline cut to its essential facts: who, what, and the figure. Each rule only
+# shortens or swaps a word for a shorter one of the same meaning; nothing is added that
+# the headline does not say.
+_PB_SWAPS = (
+    (r"\s*\([^)]*\)", ""), (r"\s*\[[^]]*\]", ""),
+    (r"\bagrees to (?:buy|acquire)\b", "to buy"), (r"\bto acquire\b", "to buy"),
+    (r"\bacquires\b", "buys"), (r"\bas much as ", ""),
+    (r"\bwins FDA approval for ([\w-]+)", r"\1 approved"),
+    (r"\bFDA (?:grants )?(?:full )?approves? (?:to )?([\w-]+)", r"\1 approved"),
+    (r"\bFDA grants full approval to ([\w-]+)", r"\1 approved"),
+    (r"\bFDA rejects ([\w-]+)", r"\1 rejected"),
+    (r"\b(approved) as [^,;]*", r"\1"),
+    (r"\bmeets\b", "hits"), (r"\bPhase (\d[a-c]?)\b", r"Ph\1"),
+    (r"\b(?:about|roughly|approximately|reportedly) ", ""), (r"~", ""),
+    (r" in cash\b", ""), (r"\bbillion\b", "bn"), (r"\bmillion\b", "m"),
+    (r" (?:Therapeutics|Pharmaceuticals|Biosciences|Pharma|Medicines)\b", ""),
+)
+_PB_CUT = re.compile(r"; | — | and will |, (?=its |first |the |which |with |plus |as |after "
+                     r"|and )")
+# A colon after the opening words names the subject ("Roche: ..."); one further in starts
+# a gloss ("... for up to $1.5bn: its 14th acquisition"), which is cut.
+_PB_GLOSS = re.compile(r": (?=its |the |first )")
+_PB_TAIL = {"in", "for", "to", "the", "a", "an", "of", "with", "and", "as", "at", "on",
+            "by", "ahead", "after", "from", "its", "vs", "into", "plus", "up", "worth",
+            "valued", "will"}
+_PB_MONEY = re.compile(r"(?:up to )?[$€£]\d+(?:[.,]\d+)*\s?(?:bn|m)\b")
+# The kinds whose figure is the fact: a deal's value, the money raised.
+_PB_PRICED = ("deal", "financing", "ipo")
+PULSE_WORDS = 9
+
+
+def pulse_brief(head, kind=None):
+    """A pulse headline in its essential facts, at most PULSE_WORDS words: "Sanofi to buy
+    Insmed for $41bn", "Roche: Wilserdly approved", "Novartis: Leqvio hits primary MACE
+    endpoint in Ph3 ORION-4". A deal's or a raise's figure the cut would drop is kept
+    at the end."""
+    text = head or ""
+    for pat, rep in _PB_SWAPS:
+        text = re.sub(pat, rep, text)
+    text = _PB_CUT.split(text)[0]
+    for m in _PB_GLOSS.finditer(text):
+        if m.start() > 24:
+            text = text[:m.start()]
+            break
+    text = re.sub(r"\s+", " ", text).strip(" ,;:")
+    words = text.split()
+    short = words[:PULSE_WORDS]
+    while len(short) > 3 and short[-1].strip(",:") in _PB_TAIL:
+        short.pop()
+    out = " ".join(short).strip(" ,;:")
+    money = _PB_MONEY.findall(text) if kind in _PB_PRICED else []
+    if money and money[0] not in out:
+        out += f", {money[0]}"
+    return out
+
+
 def brief(it):
     """A ranked item in a few words, built only from its own fields by a rule for its
     kind: "Summit stake and collaboration", "Giredestrant Phase 3 result", "33 trial dates
@@ -1938,9 +1994,9 @@ def brief(it):
     head = it.get("head") or ""
     fig = it.get("fig")
     if kind == "pulse":
-        bare = re.sub(r"\s*\([^)]*\)", "", head)
-        words = re.split(r"; |[,:] (?=first|its|the)", bare)[0].split()
-        return " ".join(words[:10]) + (" …" if len(words) > 10 else "")
+        return pulse_brief(head, it.get("pulse_kind"))
+    if it.get("pulse_head"):
+        return pulse_brief(it["pulse_head"], kind)
     if kind == "deal":
         party = (it.get("terms") or {}).get("counterparty")
         if not party:
@@ -2032,7 +2088,8 @@ def ranked_html(p, start=1, rows=RANK_ROWS):
     """"This week, ranked": the feed from rank ``start``, two columns of
     ``rows``, read down the first and then the second. Each item has its kind, its
     tickers, its headline, its small chart and its figure; a hover or a click opens its
-    detail. The ranks the column has no room for are one hover away in the head."""
+    detail. The ranks the column has no room for are one hover away in the head. The
+    head's second label switches the same space to the sector news (sector_html)."""
     items = [i for i in p.get("week_items") or [] if not i.get("record")]
     shown = items[start - 1:start - 1 + 2 * rows]
     rest = items[start - 1 + 2 * rows:]
@@ -2041,8 +2098,7 @@ def ranked_html(p, start=1, rows=RANK_ROWS):
     if not shown:
         body = ('<div class="uv-empty">Nothing material across the group in the last seven '
                 'days.</div>')
-        return (f'<section class="uw-rk"><div class="uw-rkh"><span class="lbl">This week, '
-                f'ranked</span><span class="c">{esc(span)}</span></div>{body}</section>')
+        return _news_shell(p, esc(span), body)
     cols = [shown[:rows], shown[rows:]]
     html_cols = "".join(
         f'<div class="col">{"".join(_rank_row(p, it, start + ci * rows + i) for i, it in enumerate(c))}</div>'
@@ -2062,9 +2118,77 @@ def ranked_html(p, start=1, rows=RANK_ROWS):
                 f'{lines}</div></span>')
     last = start - 1 + len(shown)
     count = f"{span} · {start} to {last} of {len(items)}" if span else f"{start} to {last} of {len(items)}"
-    return (f'<section class="uw-rk"><div class="uw-rkh"><span class="lbl">This week, ranked'
-            f'</span><span class="c">{esc(count)}{more}</span></div>'
-            f'<div class="uw-rkc">{html_cols}</div></section>')
+    return _news_shell(p, f"{esc(count)}{more}", f'<div class="uw-rkc">{html_cols}</div>')
+
+
+def _news_shell(p, ranked_count, ranked_body):
+    """The news block's head and its two views, switched by the head's labels with no
+    round trip: the ranked week, and the sector news in the same space."""
+    sec = p.get("sector") or {}
+    record = [i for i in p.get("week_items") or [] if i.get("record")]
+    n_sec = len(sec.get("items") or []) + len(record)
+    return (f'<section class="uw-rk">'
+            f'<input type="radio" name="uw-view" id="uw-v-rk" class="uw-vr" checked>'
+            f'<input type="radio" name="uw-view" id="uw-v-sn" class="uw-vr">'
+            f'<div class="uw-rkh"><span class="uw-vt">'
+            f'<label for="uw-v-rk" class="lbl">This week, ranked</label>'
+            f'<label for="uw-v-sn" class="lbl">Sector news</label></span>'
+            f'<span class="c c-rk">{ranked_count}</span>'
+            f'<span class="c c-sn">{esc(sec.get("label") or "Daily pulse (AI summary)")}'
+            f' · {n_sec} items</span></div>'
+            f'{ranked_body}<div class="uw-sec">{sector_html(p, record)}</div></section>')
+
+
+_TIERS = {1: "T1", 2: "T2", 3: "T3"}
+
+
+def sector_html(p, record=None):
+    """The sector news: the book's counted record of the week (filings, labels, readouts
+    due), then the daily pulse's briefings, newest first, each item in its essential
+    facts with the full headline, its detail and its link a hover away. The pulse is an AI
+    summary of the trade press and every line says so; nothing in it moves a value."""
+    record = record if record is not None else [
+        i for i in p.get("week_items") or [] if i.get("record")]
+    sec = p.get("sector") or {}
+    out = []
+    if record:
+        rows = "".join(
+            f'<div class="uw-sr" title="{esc(it.get("head") or "")}">'
+            f'<span class="t">{esc(str(it.get("fig") or ""))}</span>'
+            f'<span class="h">{esc(brief(it))}</span>'
+            f'{_tk_marks(p, it.get("tickers") or [], 3)}</div>' for it in record)
+        out.append(f'<div class="uw-sd">The book\'s record this week</div>{rows}')
+    by_day: dict = {}
+    for it in sec.get("items") or []:
+        by_day.setdefault(it.get("pulse_date") or "", []).append(it)
+    reads = sec.get("reads") or {}
+    for day in sorted(by_day, reverse=True):
+        rows = []
+        for it in by_day[day]:
+            tip = it.get("headline") or ""
+            if it.get("detail"):
+                tip += ". " + it["detail"]
+            named = it.get("tickers") or []
+            who = (_tk_marks(p, named, 3) if named else
+                   f'<span class="o">{esc(", ".join((it.get("companies") or [])[:2]))}</span>')
+            link = (f'<a href="{esc(it["url"])}" target="_blank" rel="noopener">'
+                    f'{esc(pulse_brief(it.get("headline"), it.get("kind")))}</a>'
+                    if it.get("url") else esc(pulse_brief(it.get("headline"), it.get("kind"))))
+            rows.append(f'<div class="uw-sr" title="{esc(tip)}">'
+                        f'<span class="t">{_TIERS.get(it.get("tier"), "")}</span>'
+                        f'<span class="h">{link}</span>{who}</div>')
+        read = reads.get(day)
+        head = (f'<div class="uw-sd" title="{esc(read)}">{esc(dlong(day))} · '
+                f'{len(rows)} item{"" if len(rows) == 1 else "s"}'
+                + (' · <span class="rd">the read ▾</span>' if read else "") + "</div>")
+        out.append(head + "".join(rows))
+    if not out:
+        return '<div class="uv-empty">No sector news on file for the last two weeks.</div>'
+    return (f'<div class="sc">{"".join(out)}</div>'
+            '<div class="uw-sn">The pulse is a scheduled Claude run that reads the trade press '
+            'each weekday morning and ranks what it finds in three tiers; a hover gives the '
+            'whole headline and a click opens the article. It is a summary, not a source: '
+            'nothing in it moves a value, a deal term or a catalyst.</div>')
 
 
 # ----------------------------------------------------------------------- the company board
