@@ -120,6 +120,17 @@ def reported(conn, company_id: int, first: int, last: int) -> dict:
                             else abs(_mm(r["value"]))) for y, r in series.items()}
     ocf = out["operating_cash_flow"]
     out["free_cash_flow"] = {y: ocf[y] - out["capex"][y] for y in ocf if y in out["capex"]}
+    # Every product's filed revenue added up, the ones the forecast does not model too
+    # (Humalog, Alimta, Cialis at Lilly): what the products account for of a reported
+    # year, so the part no product figure carries is drawn as that and no larger.
+    ids = [r["id"] for r in conn.execute(
+        "SELECT id FROM assets WHERE owner_company_id = ?", (company_id,))]
+    sold: dict = {}
+    for by_year in _asset_reported(conn, ids, first).values():
+        for year, value in by_year.items():
+            if first <= year <= last and value is not None:
+                sold[year] = sold.get(year, 0.0) + value
+    out["product_revenue"] = sold
     return out
 
 

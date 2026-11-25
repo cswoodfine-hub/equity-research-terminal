@@ -464,3 +464,22 @@ def test_reported_revenue_splits_by_product_and_still_adds_up_to_the_filed_total
     # A measure filed for the company alone keeps one reported band.
     costs = F.company_figure(board, "operating_profit", "product", "year", "weighted")
     assert any(b["name"] == "Reported" for b in costs["bands"])
+
+
+def test_products_the_forecast_does_not_model_are_a_band_of_their_own_in_reported_years():
+    """Humalog and Cialis earn revenue the filings name and carry no model, so they are
+    neither one of the modelled products nor revenue no product accounts for."""
+    board = _board()
+    sold_2025 = sum(v for a in board["assets"] for y, v in (a.get("reported") or {}).items()
+                    if y == 2025)
+    assert 150.0 - sold_2025 > 10.0
+    board["reported"]["product_revenue"] = {2024: 60.0, 2025: sold_2025 + 10.0}
+    fig = F.company_figure(board, "revenue", "product", "year", "weighted")
+    unmodelled = next(b for b in fig["bands"] if b["name"] == F.UNMODELLED)
+    rest = next(b for b in fig["bands"] if b["name"] == F.REPORTED_REST)
+    assert unmodelled["values"][:2] == [60.0, pytest.approx(10.0)]
+    assert rest["values"][:2] == [80.0, pytest.approx(150.0 - sold_2025 - 10.0)]
+    assert unmodelled["values"][2:] == [None] * (len(fig["labels"]) - 2)
+    for i, year in enumerate((2024, 2025)):
+        assert sum(b["values"][i] or 0.0 for b in fig["bands"]) == pytest.approx(
+            board["reported"]["revenue"][year])

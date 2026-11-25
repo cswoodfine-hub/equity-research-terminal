@@ -46,6 +46,9 @@ GROUP_ORDER = ("marketed", "lines", "pipeline", "assumed")
 NEW_PLANT = "New plant for added revenue"
 # The part of a reported year's revenue no product's own filed figure carries.
 REPORTED_REST = "Reported, not by product"
+# Products with filed revenue the forecast does not model: off patent, sold off, or too
+# small to carry a model. Reported years only, since nothing models them forward.
+UNMODELLED = "Products not in the forecast"
 WORKING = "Working capital for growth"
 USE_NAME = {"capex": "Capex", "acquisitions": "Acquisitions",
             "intangibles": "Intangibles bought", "dividends": "Dividends",
@@ -75,6 +78,7 @@ USE_COLOUR = {"capex": TK.ORANGE_BOOK, "acquisitions": TK.PURPLE_BOOK,
 _BASE = [TK.UP, TK.PURPLE_BOOK, TK.FLAG, TK.FDA, TK.DOWN, TK.FDA_BIO,
          TK.PHASE_RAMP["Phase 2"], _mix(TK.UP, TK.TEXT, 0.5)]
 REPORTED_COLOUR = _mix(TK.MUTED, TK.GROUND, 0.15)
+UNMODELLED_COLOUR = _mix(TK.FDA, TK.GROUND, 0.45)
 
 
 # ------------------------------------------------------------------------ small tools
@@ -749,13 +753,21 @@ def company_figure(board: dict, measure: str = "revenue", split: str = "group",
                 got = [v for v in got if v is not None]
                 products_r[y] = sum(got) if got else None
             total_r = rp(key)
-            rest_r = []
-            for y, total in zip(years_r, total_r):
+            # Every product's filed revenue, the ones the forecast does not model too;
+            # where the board does not carry it, the modelled products' alone.
+            every = [max(at(reported.get("product_revenue"), y) or 0.0, products_r.get(y) or 0.0)
+                     or None for y in years_r]
+            rest_r, unmodelled = [], []
+            for y, total, all_sold in zip(years_r, total_r, every):
                 sold = products_r.get(y)
-                rest_r.append(total if sold is None or total is None
-                              else max(total - sold, 0.0) or None)
+                unmodelled.append(None if all_sold is None
+                                  else (all_sold - (sold or 0.0)) or None)
+                rest_r.append(total if all_sold is None or total is None
+                              else max(total - all_sold, 0.0) or None)
             bands[0] = {"name": REPORTED_REST, "colour": REPORTED_COLOUR,
                         "values": rest_r + pad_f}
+            bands.insert(1, {"name": UNMODELLED, "colour": UNMODELLED_COLOUR,
+                             "values": unmodelled + pad_f})
         if split == "none":
             bands.append({"name": "Forecast", "colour": TK.UP, "values": fc(company.get(key))})
             plant = False                      # the company's line is already net of it
