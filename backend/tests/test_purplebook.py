@@ -243,3 +243,165 @@ def test_a_later_bla_for_the_same_molecule_keeps_the_first_licensure_clock():
     assert _floor(by_code["BLA125514"])["expiry_date"] == "2026-09-04"
     assert _floor(by_code["BLA761999"])["expiry_date"] == "2026-09-04"
     assert _floor(by_code["BLA761888"])["expiry_date"] == "2037-09-19"
+
+
+# --- the licences only an application number can date -------------------
+# Real rows of the October 2026 release, cut to eleven BLAs. On 2026-11-25 fourteen marketed
+# products the registers had created stood without an approval, every one of them in
+# this file with a date, and the brand match reached none.
+LICENCES = Path(__file__).parent / "fixtures" / "purplebook_licences_2026-10.csv"
+
+
+def _coded(conn, company_id, code, brand=None, generic=None):
+    conn.execute(
+        "INSERT INTO assets (owner_company_id, brand_name, generic_name, internal_code,"
+        " is_marketed) VALUES (?, ?, ?, ?, 1)", (company_id, brand, generic, code))
+    return conn.execute("SELECT MAX(id) FROM assets").fetchone()[0]
+
+
+def _approval(conn, asset_id):
+    return conn.execute(
+        "SELECT application_number, approval_date, marketing_status, source"
+        "  FROM approvals WHERE asset_id = ?", (asset_id,)).fetchone()
+
+
+def _book(tmp_path):
+    import db
+
+    path = str(tmp_path / "pb.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (id, ticker, name) VALUES (1, 'X', 'X plc')")
+    return conn
+
+
+def test_parse_licensures_keeps_a_licence_with_no_proprietary_name():
+    """The file prints "N/A" or nothing where a product was never given a brand. Merck's
+    black widow antivenin has been licensed since 1936 and has none."""
+    from fetchers.exclusivity_purplebook import parse_licensures
+
+    rows = {r["application_number"]: r for r in parse_licensures(LICENCES.read_text())
+            if not r["brand"]}
+    assert rows["BLA101062"]["approval_date"] == "1936-02-13"
+    assert rows["BLA101062"]["generic"] == "Antivenin (Latrodectus mactans)"
+    assert rows["BLA101084"]["approval_date"] == "1959-01-02"     # printed as "N/A"
+
+
+def test_parse_licensures_says_whether_the_licence_is_still_sold():
+    from fetchers.exclusivity_purplebook import parse_licensures
+
+    rows = {(r["application_number"], (r["brand"] or "").upper()): r
+            for r in parse_licensures(LICENCES.read_text())}
+    assert rows[("BLA101062", "")]["marketing_status"] == "Prescription"
+    # Discontinued and the licence given up.
+    assert rows[("BLA103924", "MENOMUNE-A")]["marketing_status"] == "Discontinued"
+    # "Rx" beside "Voluntarily Revoked": a licence given up is not on sale.
+    assert rows[("BLA103913", "")]["marketing_status"] == "Discontinued"
+    # One presentation discontinued and one not is a product still sold.
+    assert rows[("BLA125326", "KESIMPTA")]["marketing_status"] == "Prescription"
+    assert rows[("BLA125326", "ARZERRA")]["marketing_status"] == "Discontinued"
+
+
+def test_attach_licensures_dates_an_unbranded_product_by_its_application(tmp_path):
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    antivenin = _coded(conn, 1, "BLA101062", generic="Antivenin (Latrodectus mactans)")
+    toxoid = _coded(conn, 1, "BLA103913", generic="Tetanus Toxoid Adsorbed")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LICENCES.read_text()))
+    assert got == {"written": 2, "ambiguous": 0, "unmatched": 0}
+    assert tuple(_approval(conn, antivenin)) == (
+        "BLA101062", "1936-02-13", "Prescription", "purple_book")
+    assert tuple(_approval(conn, toxoid)) == (
+        "BLA103913", "1999-12-09", "Discontinued", "purple_book")
+    conn.close()
+
+
+def test_attach_licensures_separates_two_brands_that_share_a_key(tmp_path):
+    """Menomune-A and Menomune-A/C both reduce to MENOMUNE-A, and "PegIntron/ Rebetol
+    Combo Pack" reduces to PegIntron's own name, so the brand match called all three
+    ambiguous. Each asset holds its own BLA."""
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    a = _coded(conn, 1, "BLA103924", brand="Menomune-A")
+    ac = _coded(conn, 1, "BLA103925", brand="Menomune-A/C")
+    combo = _coded(conn, 1, "BLA125196", brand="PegIntron/ Rebetol Combo Pack")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LICENCES.read_text()))
+    assert got["written"] == 3 and got["ambiguous"] == 0
+    assert _approval(conn, a)["application_number"] == "BLA103924"
+    assert _approval(conn, ac)["application_number"] == "BLA103925"
+    assert tuple(_approval(conn, combo))[:3] == ("BLA125196", "2008-06-13", "Discontinued")
+    conn.close()
+
+
+def test_attach_licensures_takes_the_application_over_a_brand_two_blas_share(tmp_path):
+    """The file prints "Humalog" under BLA020563 and under BLA205747, the U-200 pen. The
+    asset is the first, says so, and takes that licence's 1996 date. An asset with the
+    same brand and no application is still refused."""
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    humalog = _coded(conn, 1, "BLA020563", brand="Humalog")
+    unplaced = _coded(conn, 1, None, brand="Humalog")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LICENCES.read_text()))
+    assert got == {"written": 1, "ambiguous": 1, "unmatched": 0}
+    assert tuple(_approval(conn, humalog))[:3] == ("BLA020563", "1996-06-14", "Prescription")
+    assert _approval(conn, unplaced) is None
+    conn.close()
+
+
+def test_attach_licensures_reads_an_application_written_without_its_zeros(tmp_path):
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    humalog = _coded(conn, 1, "BLA20563", brand="Humalog")
+    conn.commit()
+
+    assert attach_licensures(conn, parse_licensures(LICENCES.read_text()))["written"] == 1
+    assert _approval(conn, humalog)["approval_date"] == "1996-06-14"
+    conn.close()
+
+
+def test_attach_licensures_dates_the_product_and_not_the_application_it_shares(tmp_path):
+    """BLA125326 is Arzerra, licensed in 2009, and Kesimpta, licensed under it in 2020.
+    The number alone dates neither: the brand picks the row, and an asset on that
+    application under a name the file does not print is refused."""
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    kesimpta = _coded(conn, 1, "BLA125326", brand="Kesimpta")
+    arzerra = _coded(conn, 1, "BLA125326", brand="Arzerra")
+    unnamed = _coded(conn, 1, "BLA125326", generic="ofatumumab")
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LICENCES.read_text()))
+    assert got == {"written": 2, "ambiguous": 1, "unmatched": 0}
+    assert _approval(conn, kesimpta)["approval_date"] == "2020-08-20"
+    assert _approval(conn, arzerra)["approval_date"] == "2009-10-26"
+    assert _approval(conn, unnamed) is None
+    conn.close()
+
+
+def test_attach_licensures_refuses_a_lone_licence_that_names_another_product(tmp_path):
+    """One licence on the application is not enough when its name is a different
+    product's. BLA103924 is Menomune-A; an asset on that number called something else is
+    left without a date and not given Menomune's."""
+    from fetchers.exclusivity_purplebook import attach_licensures, parse_licensures
+
+    conn = _book(tmp_path)
+    other = _coded(conn, 1, "BLA103924", brand="Typhim Vi")
+    same = _coded(conn, 1, "BLA208583", brand="Xultophy")       # the file: Xultophy 100/3.6
+    conn.commit()
+
+    got = attach_licensures(conn, parse_licensures(LICENCES.read_text()))
+    assert got == {"written": 1, "ambiguous": 1, "unmatched": 0}
+    assert _approval(conn, other) is None
+    assert tuple(_approval(conn, same))[:3] == ("BLA208583", "2016-11-21", "Prescription")
+    conn.close()
