@@ -106,7 +106,7 @@ from fetchers.press_ir import PressIrFetcher
 from fetchers.press_page import PressPageFetcher
 from fetchers.prices import (FiveMinuteBarsFetcher, HourlyBarsFetcher,
                              IntradayPricesFetcher, PricesFetcher)
-from fetchers.product_revenue_sec import ProductRevenueFetcher
+from fetchers.product_revenue_sec import ProductRevenueFetcher, ProductRevenueHistoryFetcher
 from fetchers.pharmacology import PharmacologyFetcher
 from fetchers.trial_results import TrialResultsFetcher
 from fetchers.trials_completed import TrialsCompletedFetcher
@@ -218,7 +218,8 @@ def _universe_fetchers(db_path):
     sets, which say who held each company's shares at the last quarter end)."""
     return [OrangeBookFetcher(db_path), PurpleBookFetcher(db_path),
             EuMedicinesFetcher(db_path), PmdaApprovalsFetcher(db_path),
-            ProductRevenueFetcher(db_path), FxEcbFetcher(db_path),
+            ProductRevenueFetcher(db_path), ProductRevenueHistoryFetcher(db_path),
+            FxEcbFetcher(db_path),
             NewsFdaFetcher(db_path), PulseNewsFetcher(db_path), AdCommFetcher(db_path),
             ParagraphIvFetcher(db_path), PteFetcher(db_path),
             UseCodesFetcher(db_path),

@@ -2773,7 +2773,8 @@ def _revenue_build(v: dict, revenue: dict | None = None) -> None:
     R.show(CH.stacked_columns(
         labels, series, 1500, 420, value_fmt=lambda x: f"{x:,.0f}",
         reference={"name": "reported", "colour": TK.TEXT,
-                   "values": [ref_by_year.get(y) for y in years]}),
+                   "values": [ref_by_year.get(y) for y in years]},
+        split_at=len(hist_years) or None),
         css_class="chart-mount stretch")
 
 

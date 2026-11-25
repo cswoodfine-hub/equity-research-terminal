@@ -68,6 +68,13 @@ NOT_A_PRODUCT = {
     # revenue by segment, not by product.
     "livestock", "companionanimals", "animalhealth", "otherpharmaceutical",
     "pharmaceutical", "otherproductsandservices", "othersales",
+    # Therapeutic areas. Lilly's reports filed before 2021 tag Endocrinology, 12.8bn in
+    # 2019, beside the products it is the sum of, and the year read as double counted.
+    "endocrinology", "oncology", "immunology", "neuroscience", "cardiovascular",
+    "diabetes", "diabetesandobesity", "cardiometabolic", "cardiometabolichealth",
+    "respiratory", "inflammation", "hematology", "haematology", "virology", "neurology",
+    "rarediseases", "raredisease", "specialtycare", "primarycare", "generalmedicines",
+    "vaccines", "biopharmaceuticals", "infectiousdiseases", "obesity",
 }
 
 # The note every row this fetcher creates carries, which is how the cleanup below knows
@@ -212,7 +219,11 @@ def _not_products() -> dict:
 
 
 def display_name(member: str) -> str:
-    """The product name to show, with any revenue-type prefix taken off the front."""
+    """The product name to show, with any revenue-type prefix taken off the front, and the
+    XBRL "Member" suffix a filer sometimes leaves on: Lilly's report filed in 2023 tags
+    Trulicity as TrulicityMember, which matched no product."""
+    if len(member or "") > len("Member") + 3 and member.endswith("Member"):
+        member = member[:-len("Member")]
     lowered = _norm(member)
     curated = _curated_names().get(lowered)
     if curated:
@@ -653,11 +664,16 @@ class ProductRevenueFetcher(BaseFetcher):
 
     def fetch(self) -> list[dict]:
         """Latest annual filing per company, with its product revenue lines."""
+        return self._annual_rows(quarters_back(self.quarters))
+
+    def _annual_rows(self, quarters: list) -> list[dict]:
+        """The first annual filing per company in ``quarters`` (newest first), with every
+        fiscal year of product revenue it carries."""
         ciks = self._company_ciks()
         found: dict[str, dict] = {}          # ticker -> {adsh, ddate, quarter}
         payload: list[dict] = []
 
-        for quarter in quarters_back(self.quarters):
+        for quarter in quarters:
             path = self._cached_zip(quarter)
             if path is None:
                 continue
@@ -877,6 +893,81 @@ class ProductRevenueFetcher(BaseFetcher):
         return RefreshResult(self.source, written, list(self._errors), False, 0,
                              notes=list(self._notes))
 
+
+
+# Annual reports filed in these years each carry three fiscal years of product revenue,
+# so between them they reach FY2014 to FY2022: the reports filed in 2023 hold FY2020 to
+# FY2022, in 2020 FY2017 to FY2019, in 2017 FY2014 to FY2016. Read newest first.
+HISTORY_FILED = (2023, 2020, 2017)
+HISTORY_TTL_SECONDS = 365 * 24 * 60 * 60     # what was filed years ago does not change
+HISTORY_NOTE = "read from an earlier annual report"
+
+
+class ProductRevenueHistoryFetcher(ProductRevenueFetcher):
+    """Product revenue before the latest three years, from earlier annual reports.
+
+    The latest annual report gives three years, so the book held a product's revenue
+    from FY2023 only and the company over time drew every earlier year as one block.
+    This reads the reports filed in HISTORY_FILED, once a year. It only adds: a year
+    already on file keeps its figure, so a later report's restatement stands, and a hand
+    entered figure is never touched. It only fills products already in the book: a
+    product a company no longer sells is not made an asset from its old revenue, which
+    stays in the company's unattributed remainder.
+    """
+
+    source = "product_revenue_history"
+    ttl_seconds = HISTORY_TTL_SECONDS
+
+    def fetch(self) -> list[dict]:
+        rows: list[dict] = []
+        for year in HISTORY_FILED:
+            rows += self._annual_rows([f"{year}q2", f"{year}q1"])
+        return rows
+
+    def upsert(self, rows: list[dict]) -> RefreshResult:
+        conn = db.get_connection(self.db_path)
+        written = 0
+        try:
+            assets = {}
+            for row in conn.execute(
+                    "SELECT a.id, a.brand_name, c.ticker FROM assets a"
+                    "  JOIN companies c ON c.id = a.owner_company_id"
+                    " WHERE a.brand_name IS NOT NULL AND a.brand_name <> ''"):
+                assets[(row["ticker"], _norm(row["brand_name"]))] = row["id"]
+            rows = self._drop_double_counted(conn, drop_groupings(rows))
+            for row in rows:
+                asset_id = next((assets[(row["ticker"], key)]
+                                 for key in (_norm(row["member"]),
+                                             _norm(display_name(row["member"])))
+                                 if (row["ticker"], key) in assets), None)
+                if asset_id is None:
+                    continue
+                note = f'{row["form"]} {row["adsh"]}, {HISTORY_NOTE}'
+                cur = conn.execute(
+                    """INSERT INTO asset_revenue
+                           (asset_id, fiscal_year, period, value, unit, source, note,
+                            is_curated)
+                       VALUES (?, ?, 'FY', ?, ?, ?, ?, 0)
+                       ON CONFLICT(asset_id, fiscal_year, period) DO NOTHING""",
+                    (asset_id, row["fiscal_year"], row["value"],
+                     row.get("unit") or "USD", SEC_SOURCE, note))
+                if not cur.rowcount:
+                    continue
+                for member, value in (row.get("geography") or {}).items():
+                    conn.execute(
+                        """INSERT INTO asset_revenue_regions
+                               (asset_id, fiscal_year, member, region, value, unit,
+                                source, note, is_curated)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
+                           ON CONFLICT(asset_id, fiscal_year, member) DO NOTHING""",
+                        (asset_id, row["fiscal_year"], member, region_code(member), value,
+                         row.get("unit") or "USD", SEC_SOURCE, note))
+                written += 1
+            conn.commit()
+        finally:
+            conn.close()
+        return RefreshResult(self.source, written, list(self._errors), False, 0,
+                             notes=list(self._notes))
 
 
 def _referencing_tables(conn) -> list:

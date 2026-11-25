@@ -254,8 +254,10 @@ def columns(x_labels: list, bands: list, *, width: int = 820, height: int = 330,
         out.append(CH._text(pad_l - 6, y(t) + 3.2, fmt(t), 9, TK.MUTED, "end", CH.MONO))
     if split_at and 0 < split_at < n:
         sx = pad_l + slot * split_at
+        # In the muted colour, not the hairline's: on the dark ground the hairline was
+        # too faint to read as where the figures stop being filed and start being modelled.
         out.append(f'<line x1="{sx:.1f}" y1="{top - 12}" x2="{sx:.1f}" y2="{floor}"'
-                   f' stroke="{TK.RULE_STRONG}" stroke-width="1" stroke-dasharray="3,3"/>')
+                   f' stroke="{TK.MUTED}" stroke-width="1.2" stroke-dasharray="4,3"/>')
         out.append(CH._text(sx - 5, top - 4, "reported", 8.5, TK.MUTED, "end", CH.MONO))
         out.append(CH._text(sx + 5, top - 4, "forecast", 8.5, TK.MUTED, "start", CH.MONO))
     if rule_at and 0 < rule_at[0] < n:

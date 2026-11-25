@@ -648,3 +648,15 @@ def test_countdown_rows_draws_the_days_left_and_says_them():
     assert "24 Nov 2026 · today" in svg and "10 Dec 2026 · in 16d" in svg
     assert "<title>Gardasil 9: exclusivity</title>" in svg
     assert charts.countdown_rows([], 60) == ""
+
+
+def test_stacked_columns_draw_a_dashed_rule_where_the_forecast_begins():
+    from components import charts as C
+    series = [{"name": "A", "colour": "#111111", "values": [1.0, 2.0, 3.0, 4.0]}]
+    split = C.stacked_columns(["2024", "2025", "2026", "2027"], series, split_at=2)
+    assert split.count('class="split"') == 1 and 'stroke-dasharray="4,3"' in split
+    assert ">reported<" in split and ">forecast<" in split
+    # No rule where every column is reported, or every one forecast.
+    for at in (None, 0, 4):
+        assert 'class="split"' not in C.stacked_columns(["a", "b", "c", "d"], series,
+                                                        split_at=at)

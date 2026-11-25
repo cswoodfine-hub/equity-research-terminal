@@ -448,7 +448,8 @@ def stacked_bar(rows: Sequence[dict], width: int = 760, height: int = 260,
 def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
                     width: int = 900, height: int = 300,
                     value_fmt: Callable[[float], str] = None,
-                    reference: Optional[dict] = None) -> str:
+                    reference: Optional[dict] = None,
+                    split_at: Optional[int] = None) -> str:
     """Vertical stacked columns, one per x, with an optional reference line over them.
 
     The company revenue build: each series is a band, {name, values, colour, hatched?},
@@ -456,7 +457,9 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
     line with a dot per point, for the history the forecast has to meet. A null in a
     series is a gap in that band, never a zero; a null in the reference breaks the line.
     A hatched band is one the caller wants seen and not believed, which is how an asset
-    on a placeholder curve is drawn.
+    on a placeholder curve is drawn. ``split_at`` is the first forecast column: a dashed
+    rule stands before it, "reported" on its left and "forecast" on its right, so what
+    was filed and what is modelled are not read as one series.
     """
     value_fmt = value_fmt or (lambda v: _fmt(v, 0))
     pad_l, pad_r, top, bottom = 58, 16, 12, 24
@@ -523,6 +526,13 @@ def stacked_columns(x_labels: Sequence[str], series: Sequence[dict],
                              MONO))
         if shown:
             out.append(_text(cx, floor + 15, label, 9.5, TK.MUTED, "middle", MONO))
+    if split_at and 0 < split_at < n:
+        sx = pad_l + slot * split_at
+        out.append(f'<line x1="{sx:.1f}" y1="{top + legend_h - 2:.1f}" x2="{sx:.1f}"'
+                   f' y2="{floor}" stroke="{TK.MUTED}" stroke-width="1.2"'
+                   f' stroke-dasharray="4,3" class="split"/>')
+        out.append(_text(sx - 5, top + legend_h + 8, "reported", 9, TK.MUTED, "end", MONO))
+        out.append(_text(sx + 5, top + legend_h + 8, "forecast", 9, TK.MUTED, "start", MONO))
     if reference:
         xs = lambda i: pad_l + slot * i + slot / 2
         _polyline_runs(out, ref_vals, xs, y, reference["colour"], 1.8)
