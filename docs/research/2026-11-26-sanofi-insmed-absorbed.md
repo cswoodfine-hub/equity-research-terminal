@@ -5,14 +5,16 @@ book was changed for this note. The Insmed assets were added to a scratch copy o
 
 ## The answer
 
-- The book has not absorbed Insmed. It holds no Insmed product and no pending deal row,
-  so none of Sanofi's recorded value comes from the acquisition.
+- Until 2026-11-26 the book had not absorbed Insmed. It held no Insmed product and no
+  pending deal row, so none of Sanofi's recorded value came from the acquisition.
 - Sanofi's recorded fair value moved from $68.17 to $66.99 per ADR on the day after the
   announcement, for reasons that have nothing to do with Insmed.
-- Absorbed on the book's own method, the three Insmed assets add $1.31 to $3.48 per
-  ADR. The price paid is $16.81 per ADR. Net, the deal takes $13.33 to $15.50 per ADR off
-  Sanofi's value.
-- The market read it the other way: the ADR rose from $46.77 to $54.39 in two sessions.
+- As built on 2026-11-26 (Part 4), the three Insmed assets add $4.19 per ADR and Sanofi's
+  fair value goes from $67.01 to $71.34. The price paid is $16.81 per ADR and stays out
+  of the valuation by the book's rule. Net of it the figure is $54.53, against a close
+  of $54.39.
+- The market read the deal as worth more than that: the ADR rose from $46.77 to $54.39
+  in two sessions.
 
 ## Part 1. What moved, and why
 
@@ -61,7 +63,10 @@ Paris-share target against the ADR. Not verified.
 | TPIP Phase 3 | PALM-PAH NCT07481981 and PALM-ILD NCT07179380, primary completion December 2028 | ClinicalTrials.gov, read 2026-11-26 |
 | Arikayce label expansion | sNDA under priority review, target action date 2027-01-28 | 8-K 0001140361-26-041097 |
 
-## Part 3. The effect, on the book's own method
+## Part 3. First pass, in a scratch copy
+
+Kept as the record of the first run. It charged royalties as a cost at the top of the
+stated range, which Part 4 does not.
 
 Method. Each asset was built the way the book builds one: Sanofi's company cost rows
 copied from an existing Sanofi small molecule, the product rows from the facts above,
@@ -124,23 +129,102 @@ The earlier report on `claude/magical-brahmagupta-kn5sjw` reached $7.3bn for the
 assets on the book's method and a base loss of $13.93 per ADR. This run is independent
 of it and lands in the same place.
 
-## What it would take to make this live
+## Part 4. As built, 2026-11-26
 
-Not done. Each needs a decision first.
+The analyst's decisions of 2026-11-26: hold the three assets in Sanofi's name while the
+deal is pending, add the deal to the precedent register, and settle the two open
+questions from the book's own conventions.
 
-1. Hold the assets in Sanofi's name while the deal is pending. Rows in
-   `data/marketed_additions.csv` for Brinsupri and Arikayce, a pipeline row for TPIP,
-   three rows in `data/pending_acquisitions.csv`, and three seed files under
-   `data/assumptions/`. The pending register's own rule applies: a row comes out when
-   Insmed files its Item 2.01.
-2. Choose the Brinsupri case. The floor is the convention where no ceiling has a year.
-   Insmed's peak is named and dated but carries no year, so the 2034 arrival is a
-   judgement and would be labelled as one.
-3. Decide whether an acquired product should carry the acquirer's full cost ratios. It
-   is the largest single driver here and it is a rule of the book, not of this deal.
-4. Add the deal to `data/precedent_transactions.csv`. At $41.0bn against trailing
-   revenue of about $1,520mm it would be the richest multiple in the register and would
-   move the precedents lens for every company.
+### What was decided
+
+1. Cost. An acquired product carries the acquirer's cost ratios, as every product in a
+   company's book does. No exception is made. No filer has published a margin or a
+   synergy for the combination. Insmed's own ratios describe a company spending ahead of
+   a launch: SG&A 59.5% and R&D 54.9% of revenue in the nine months to 2026-09-30. And
+   Sanofi's ratios are re-struck from its filed lines each year, so they describe the
+   combined company once Insmed is consolidated.
+2. Brinsupri. The published peak with the book's measured time to reach one. Insmed's
+   "more than $7 billion" is taken at its lower bound. It carries no year, so the year
+   is the launch year plus the nine years the average launch takes to peak
+   (`data/launch_ramp.csv`, 41 products): 2034. The growth rate is solved to arrive
+   there, 42.3% fading to nought. The flat run rate was rejected as the base because a
+   named, dated peak exists, which is the case the floor convention is not for.
+3. Royalties follow the book's rule: netted through the economics share at the bottom
+   of the stated range. 7% for AstraZeneca on Brinsupri, 4% for PARI on Arikayce.
+
+### What was built
+
+- `data/pending_acquisitions.csv`: three rows, one an asset.
+- `backend/acquired_sponsors.py`: a pending row now tells the trial and approval fetchers
+  to read the target as the acquirer's. Before this the only route was a headline the
+  deals table trusted, and for this deal it held a rumour and a counterparty parsed as
+  "Is Just What". That phrase is now refused as a company name.
+- `data/loe_link.csv`: the two NDAs, so the Orange Book attaches their patents.
+- `data/disclosed_loe.csv`: TPIP's issued compound patents, 2034-10-24.
+- `data/assumptions/`: `sny_brinsupri.csv`, `sny_arikayce_kit.csv`,
+  `sny_treprostinil_palmitil.csv`.
+- `data/precedent_transactions.csv`: Sanofi and Insmed, $40,398mm of enterprise value on
+  $1,520mm of trailing revenue, 26.6 times.
+
+### What arrived, on a local copy of the 2026-11-26 book
+
+Sanofi's trials, approvals and labels were fetched again with the pending rows in place,
+then the Orange Book, then the seeds.
+
+- Arikayce Kit (NDA207356, approved 2018-09-28) and Brinsupri (NDA217673, approved
+  2025-08-12), created by the approvals fetch.
+- Treprostinil Palmitil, derived from eight Insmed studies now filed under Sanofi, four
+  of them Phase 3. The engine placed its odds itself: 45.5%, the published Phase 3
+  cardiovascular rate.
+- Patents from the Orange Book: Brinsupri's drug substance patent 9,522,894 to
+  2035-03-12; Arikayce's latest to 2035-05-15.
+
+| Asset | rNPV, Sanofi's share | Per ADR | Peak | Exclusivity |
+|---|---|---|---|---|
+| Brinsupri | EUR 7,219mm | $3.24 | EUR 6,401mm in 2034 | 2035, drug substance patent |
+| Arikayce Kit | EUR 1,113mm | $0.50 | EUR 600mm in 2035 | 2035, patent |
+| Treprostinil Palmitil | EUR 1,010mm | $0.45 | EUR 5,487mm in 2039 | 2034, issued compound patents |
+| Together | EUR 9,342mm | $4.19 | | |
+
+| Sanofi, per ADR | |
+|---|---|
+| Fair value before | $67.01 |
+| Fair value with Insmed held | $71.34 |
+| Range | $62.62 to $82.60 |
+| Price paid, not in the valuation | $16.81 |
+| Fair value less the price paid | $54.53 |
+| Close of 2026-11-25 | $54.39 |
+
+The three assets are $10.2bn, a quarter of the $41.0bn paid.
+
+### What would have to be true, on the built assets
+
+| Costs charged | Share of the price covered |
+|---|---|
+| Sanofi's full cost ratios, as built | 25% |
+| No added R&D charge | 39% |
+| No added R&D or SG&A | 56% |
+| Cost of goods, royalty and tax only | 68% |
+| As built, with Brinsupri to 2039 and TPIP to 2041 | 35% |
+| Cost of goods, royalty and tax only, and those longer dates | 96% |
+
+### Two things the conventions hide
+
+- The royalty. The economics share takes 7% off Brinsupri's value. A 7% royalty charged
+  on sales takes 16% off at Sanofi's margins, and a mid-teens royalty 44%. The book nets
+  every royalty this way; Brinsupri is the largest product it applies to.
+- The precedents lens. With this deal it reads thirteen transactions. For Sanofi its
+  midpoint moves from $120.28 to $126.16 per ADR. It moves for every company the lens
+  covers.
+
+### After merging
+
+The assets arrive at the next daily refresh. The Orange Book is read weekly, and until
+it is read Brinsupri would carry the default exclusivity of fourteen years from
+approval, 2039, and be overstated. Run the refresh workflow once with `force_all` to
+read everything at once.
+
+The rows come out when Insmed files its Item 2.01, or if the deal breaks.
 
 ## Limits
 
