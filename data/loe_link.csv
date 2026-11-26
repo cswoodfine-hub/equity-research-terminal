@@ -95,3 +95,5 @@ AZN,Seloken,NDA019962,"metoprolol succinate is Toprol-XL in the US, an NDA Astra
 JNJ,Prezista / Prezcobix / Rezolsta / Symtuza,NDA202895,"Prezista's later NDA, the one the asset on file carries; the original NDA021976 is folded into it"
 PFE,Zithromax Zmax,NDA050710,"azithromycin; Zithromax's NDA, approved 1995; the Orange Book lists nothing live"
 BIIB,FAMPYRA,NDA022250,"fampridine is Acorda's Ampyra in the US, approved 2010; Biogen sells it ex-US. The patents were held invalid in 2018 and the book lists nothing live"
+SNY,Brinsupri,NDA217673,"Insmed's NDA. Held for Sanofi while the acquisition agreed on 2026-11-23 is pending (data/pending_acquisitions.csv); the row comes out with those if the deal does not close, and becomes unnecessary once INSMED is among Sanofi's applicant names",
+SNY,Arikayce Kit,NDA207356,"Insmed's NDA, held for Sanofi on the same terms as Brinsupri above",

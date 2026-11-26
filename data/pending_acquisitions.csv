@@ -13,4 +13,15 @@
 #
 # A row comes out when the target files its Item 2.01. Keyed by the acquirer's ticker and
 # the asset's name in the book. Empty is the normal state.
+#
+# A row also tells the fetchers to read the target as the acquirer's. The trial and
+# approval fetches ask the registry and openFDA for the target by the name in this file
+# (backend/acquired_sponsors.py), so its products and studies arrive without waiting for a
+# headline the deals table can trust. Name the target in full, as it registers its
+# studies: "Insmed Incorporated", not "Insmed", since one short word is refused as too
+# loose to search with. The Orange Book attaches patents by applicant, so each approved
+# product also needs its application in data/loe_link.csv until the deal closes.
 acquirer,asset,target,announced,terms,basis
+SNY,Brinsupri,Insmed Incorporated,2026-11-23,"$175.00 a share in cash, about $41.0bn in total","Insmed Incorporated 8-K 0001140361-26-045364 (filed 2026-11-24): Item 1.01, the Agreement and Plan of Merger of 2026-11-23, and no Item 2.01. Outside date 2027-08-23, extendable to 2028-02-23"
+SNY,Arikayce Kit,Insmed Incorporated,2026-11-23,"$175.00 a share in cash, about $41.0bn in total","Insmed Incorporated 8-K 0001140361-26-045364 (filed 2026-11-24): Item 1.01, the Agreement and Plan of Merger of 2026-11-23, and no Item 2.01. Outside date 2027-08-23, extendable to 2028-02-23"
+SNY,Treprostinil Palmitil,Insmed Incorporated,2026-11-23,"$175.00 a share in cash, about $41.0bn in total","Insmed Incorporated 8-K 0001140361-26-045364 (filed 2026-11-24): Item 1.01, the Agreement and Plan of Merger of 2026-11-23, and no Item 2.01. Outside date 2027-08-23, extendable to 2028-02-23"
