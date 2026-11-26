@@ -34,6 +34,7 @@ import re
 import company_names
 import ctgov
 import db
+import pending_acquisitions
 
 # How far back to look. An old acquisition has had its registry records moved across, so
 # asking for it costs a request and returns the acquirer's own studies twice.
@@ -48,6 +49,11 @@ _HEADLINE_WORDS = {
     "to", "and", "with", "for", "in", "on", "as", "by", "after", "ahead", "adding",
     "expand", "further", "strengthen", "advance", "boost", "maximize", "maximise",
     "potentially", "best", "class", "deal", "buy", "buyout", "stake", "shares",
+    # "Sanofi's Deal To Buy Biotech Firm Is Just What The Doctor Ordered" (2026-11-24)
+    # arrived with the counterparty "Is Just What", which named Sanofi first, carried no
+    # rumour word and was three words long, so every guard passed it and the registry
+    # was asked for a sponsor of that name.
+    "is", "just", "what",
 }
 MAX_WORDS = 4          # a company name is short; a headline is not
 
@@ -174,8 +180,27 @@ def _trusted(row, names) -> bool:
     return names_acquirer(row["quote"], names, row["counterparty"])
 
 
-def for_company(db_path=None, ticker: str = "", today=None) -> list:
-    """Every company this one has acquired recently, by the name it traded under."""
+def _held_pending(ticker: str, pending_path=None) -> list:
+    """The companies whose products the book holds in this one's name before the deal
+    has closed (``data/pending_acquisitions.csv``).
+
+    A row there is the decision already taken and written down with its filing, so it
+    needs no headline to vouch for it. It still has to be a name a registry can be
+    searched with, which is why the register names the target in full.
+
+    Sanofi agreed to buy Insmed on 2026-11-23. The headline the deals table kept was a
+    report from four days earlier that Sanofi was "considering a deal", which the rumour
+    guard refuses, and the day's own headline parsed its counterparty as "Is Just What".
+    So for three days the book showed the deal as news and held none of Insmed's
+    products or studies.
+    """
+    return [r["target"] for r in pending_acquisitions.for_company(ticker, pending_path)
+            if _plausible(r["target"])]
+
+
+def for_company(db_path=None, ticker: str = "", today=None, pending_path=None) -> list:
+    """Every company this one has acquired recently, by the name it traded under, and
+    every company it has agreed to buy whose products the book already holds for it."""
     conn = db.get_connection(db_path)
     try:
         names = own_names(conn, ticker)
@@ -184,7 +209,7 @@ def for_company(db_path=None, ticker: str = "", today=None) -> list:
         conn.close()
     found = [r["counterparty"].strip() for r in rows
              if _plausible(r["counterparty"]) and _trusted(r, names)]
-    return sorted(dict.fromkeys(found))
+    return sorted(dict.fromkeys(found + _held_pending(ticker, pending_path)))
 
 
 def _searched_before(conn, ticker: str, today=None) -> list:

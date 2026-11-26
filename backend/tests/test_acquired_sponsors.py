@@ -67,6 +67,8 @@ def test_a_headline_fragment_is_not_a_sponsor():
     assert not acquired_sponsors._plausible("OURO MEDICINES TO FURTHER EXPAND")
     assert not acquired_sponsors._plausible("Tubulis Adding Potentially Best-in-Class")
     assert not acquired_sponsors._plausible("Arcellx Ahead")
+    # "Sanofi's Deal To Buy Biotech Firm Is Just What The Doctor Ordered", 2026-11-24.
+    assert not acquired_sponsors._plausible("Is Just What")
     # Real names still pass, commas and all.
     assert acquired_sponsors._plausible("Arcellx, Inc.")
     assert acquired_sponsors._plausible("Centessa Pharmaceuticals")
@@ -175,3 +177,36 @@ def test_a_rumour_is_not_an_acquisition():
 def test_a_city_is_not_the_company_bought():
     """'AstraZeneca buys St. Louis vaccine startup Omniose' stored 'St. Louis'."""
     assert not acquired_sponsors._plausible("St. Louis")
+
+
+def test_a_deal_held_as_pending_is_searched_without_a_headline(tmp_path):
+    """Sanofi and Insmed, 2026-11-23. The deals table held a rumour ("considering a
+    deal") and a headline whose counterparty parsed as "Is Just What", so no headline
+    vouched for the acquisition. The pending register does: a row there is the decision
+    to hold the target's products in the acquirer's name."""
+    path = str(tmp_path / "acq.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.execute("INSERT INTO companies (ticker, name) VALUES ('SNY', 'Sanofi')")
+    cid = conn.execute("SELECT id FROM companies").fetchone()["id"]
+    conn.execute(
+        "INSERT INTO deals (company_id, deal_type, counterparty, event_date, quote)"
+        " VALUES (?, 'acquisition', 'Insmed', '2026-11-19',"
+        " 'Sanofi considering a deal to acquire Insmed, according to report')", (cid,))
+    conn.commit()
+    conn.close()
+    pending = tmp_path / "pending.csv"
+    pending.write_text(
+        "acquirer,asset,target,announced,terms,basis\n"
+        "SNY,Brinsupri,Insmed Incorporated,2026-11-23,$175.00 a share in cash,an Item 1.01\n"
+        "SNY,Arikayce Kit,Insmed Incorporated,2026-11-23,$175.00 a share in cash,an Item 1.01\n"
+        # One short word is still not a name a registry can be searched with.
+        "SNY,Somedrug,Engage,2026-11-23,terms,basis\n")
+    empty = tmp_path / "none.csv"
+    empty.write_text("acquirer,asset,target,announced,terms,basis\n")
+
+    assert acquired_sponsors.for_company(path, "SNY", pending_path=empty) == []
+    assert acquired_sponsors.for_company(path, "SNY", pending_path=pending) == [
+        "Insmed Incorporated"]
+    # Another company's pending deal is not this one's.
+    assert acquired_sponsors.for_company(path, "LLY", pending_path=pending) == []

@@ -192,6 +192,22 @@ Confirm every endpoint against its live docs before relying on it. The specifics
   the headline is stored verbatim as the quote.
 - A deal value is announced consideration, milestones included. It is never the cash in
   the cash flow statement, which is why the column is `announced_value`.
+- An acquisition agreed and not completed is held in the acquirer's name by rows in
+  `data/pending_acquisitions.csv`, one an asset, each citing the Item 1.01. A row does
+  two things. It puts the sentence on the asset's and the company's forecast notes that
+  the deal is pending and the price paid is not in the valuation. And it tells the trial
+  and approval fetchers to read the target as the acquirer's
+  (`acquired_sponsors.for_company`), because the deals table cannot always vouch for a
+  deal: for Sanofi and Insmed it held a rumour and a headline whose counterparty parsed
+  as "Is Just What". Name the target as it registers its studies. Each approved product
+  also needs its application in `data/loe_link.csv`, since the Orange Book attaches
+  patents by applicant, and a seed file under `data/assumptions/` to be valued. The rows
+  come out when the target files its Item 2.01, or when the deal breaks.
+- A bought product carries the acquirer's cost ratios, like every product in that
+  company's book, and the seed says what that costs. Decided on 2026-11-26 for Insmed:
+  no filer publishes a margin for the combination, the target's own ratios describe a
+  company spending ahead of a launch, and the acquirer's are re-struck from its filed
+  lines each year.
 
 ### Orange Book patents
 
