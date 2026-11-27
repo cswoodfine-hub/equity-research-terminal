@@ -9,11 +9,11 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 LLY,Taltz,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 LLY,Taltz,,US,base,base_revenue,,3563.0,,mm USD,"LLY FY2025 reported product revenue, from the annual report product axis (sec_fsds)",the anchor
-LLY,Taltz,,US,base,revenue_growth_pct,,0.092945,,"annual, near term","the same product axis a year earlier: 3,563 against 3,260 a year before, both in USD from the SEC financial statement data sets, tagged in the same filing",the last reported year over the one before it
+LLY,Taltz,,US,base,revenue_growth_pct,,-0.073814,,"annual, near term","the 2026 the filed quarters imply against the FY2025 reported 3,563mm: the nine months of 2026 as reported, 2,444mm, and the fourth quarter at the third quarter's pace, 856mm, 3,300mm. Lilly's third-quarter 2026 results (8-K exhibit 0000059478-26-000104, filed 2026-10-29) and the 10-Q for the quarter to 2026-09-30 (0000059478-26-000108), Note 2","replaces the 9.29% of FY2025 over FY2024, which put 2026 at 3,894mm against the 3,300mm the quarters support: Taltz fell 5% in the quarter and 3% in the nine months; the rate fades to nought over the fade years below"
 LLY,Taltz,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
-LLY,Taltz,,US,base,growth_fade_years,,10,,years,"measured from 36 drugs that grew 0% to 10% a year: the median took 10 years of fading growth to reach its peak revenue (quartiles 2.5 to 17.5), each fitted to its own climb in data/growth_analogues.csv. Kaplan-Meier across drugs, 14 of them censored because they are still near their best or lost exclusivity at their peak",
+LLY,Taltz,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, the row lly_trulicity.csv carries for a falling product",the 0% to 10% climb band measured on data/growth_analogues.csv no longer applies to a product whose filed quarters fall
 LLY,Taltz,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
-LLY,Taltz,,US,base,forecast_years,,10,,years,set to run past the 2028 loss of exclusivity,
+LLY,Taltz,,US,base,forecast_years,,10,,years,set to run past the 2028 loss of exclusivity,set to run past the 2030 loss of exclusivity the engine resolves: Lilly's FY2025 10-K (0000059478-26-000013) states the U.S. compound patent to 2030 (data/disclosed_loe.csv). Until 2026-11-27 this note said 2028
 LLY,Taltz,,US,base,pos,,1.0,,,approved and selling,"stated, because no development phase applies"
 LLY,Taltz,,US,base,cogs_pct,,0.1696,,share of revenue,"LLY FY2025, from the filed lines",
 LLY,Taltz,,US,base,sga_pct,,0.1702,,share of revenue,"LLY FY2025, from the filed lines",
