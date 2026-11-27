@@ -975,6 +975,7 @@ def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
     errors: list = []
     seen: dict = {}
     try:
+        cleared = clear_misread_terms(conn)
         pending = conn.execute(
             "SELECT id, company_id, counterparty, event_date FROM deals"
             "  WHERE headline_usd IS NULL AND counterparty IS NOT NULL"
@@ -1007,7 +1008,7 @@ def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
             for accession, text in texts:
                 if head.lower() not in (text or "").lower():
                     continue
-                terms = deal_terms.parse(text)
+                terms = deal_terms.parse(text, party=head)
                 size = deal_terms.headline(terms)
                 if size is None:
                     continue
@@ -1025,7 +1026,38 @@ def enrich(db_path=None, limit: int = MAX_LIVE_LOOKUPS, get=None) -> dict:
         conn.commit()
     finally:
         conn.close()
-    return {"filled": filled, "fetched": looked_up, "errors": errors}
+    return {"filled": filled, "fetched": looked_up, "errors": errors,
+            "cleared": cleared}
+
+
+def clear_misread_terms(conn) -> int:
+    """Unfill every parsed terms row whose evidence sentence names no part of the party,
+    so the next pass reads it again under the rule ``deal_terms.parse`` now applies.
+
+    Until 2026-11-27 the parser took figures from anywhere in a document that mentioned
+    the party. Lilly's earnings releases name each acquisition in a bullet, so nine
+    acquisitions carried Boehringer Ingelheim's Jardiance milestone or the guidance raise
+    as their terms, and a filled ``headline_usd`` kept them from ever being read again.
+    A curated row is an analyst's and is left alone. Returns the rows cleared.
+    """
+    cleared = 0
+    rows = conn.execute(
+        "SELECT id, counterparty, terms_evidence FROM deals"
+        "  WHERE headline_usd IS NOT NULL AND terms_source IS NOT NULL"
+        "    AND COALESCE(is_curated, 0) = 0").fetchall()
+    for row in rows:
+        words = deal_terms.party_words(party_head(row["counterparty"]))
+        evidence = (row["terms_evidence"] or "").lower()
+        if words and any(re.search(r"\b" + re.escape(w), evidence) for w in words):
+            continue
+        conn.execute(
+            "UPDATE deals SET upfront_usd = NULL, equity_usd = NULL, milestones_usd = NULL,"
+            "  option_usd = NULL, total_usd = NULL, headline_usd = NULL,"
+            "  terms_evidence = NULL, terms_source = NULL WHERE id = ?", (row["id"],))
+        cleared += 1
+    if cleared:
+        conn.commit()
+    return cleared
 
 
 def prune_parties(db_path=None) -> dict:

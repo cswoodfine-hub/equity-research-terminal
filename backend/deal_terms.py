@@ -66,6 +66,51 @@ _NOT_A_TERM = re.compile(
 
 FIELDS = ("upfront", "equity", "milestones", "option", "total")
 
+# Words that are half of every company name and so name nobody. A party is found in a
+# document by the words that are its own: "Sail" of Sail Biomedicines, "Ajax" of Ajax
+# Therapeutics, Inc.
+_GENERIC_PARTY_WORDS = {
+    "biotech", "biotechnology", "biotechnologies", "pharma", "pharmaceutical",
+    "pharmaceuticals", "bio", "biosciences", "bioscience", "biopharma", "therapeutics",
+    "sciences", "science", "medicines", "medicine", "laboratories", "labs", "health",
+    "holdings", "group", "inc", "corp", "corporation", "co", "company", "plc", "ltd",
+    "limited", "llc", "the", "sa", "ag", "nv", "and",
+}
+# How far from a figure the party may be named: in the figure's own sentence or the one
+# before it. A release names the party and then states what it pays in the next
+# sentence ("...option to acquire Sail for $2.58 billion. Under the terms of the
+# agreements, Johnson & Johnson would make total initial payments of $785 million").
+# An earnings release names the target in a business development bullet and states its
+# own milestones, charges and guidance several sentences on, and those are not terms.
+PARTY_SENTENCES = 1
+
+
+def party_words(party: str | None) -> list[str]:
+    """The words of a party's name that are its own, lower case."""
+    words = re.split(r"[\s,\.\-]+", (party or "").lower())
+    return [w for w in words if len(w) >= 3 and w not in _GENERIC_PARTY_WORDS]
+
+
+def _sentence_index(body: str) -> list[tuple[int, int]]:
+    """(start, end) of each sentence, split where ``_terms_sentence`` splits."""
+    spans, start = [], 0
+    for match in re.finditer(r"\. ", body):
+        spans.append((start, match.end()))
+        start = match.end()
+    spans.append((start, len(body)))
+    return spans
+
+
+def _named_near(body: str, position: int, words: list[str],
+                sentences: list[tuple[int, int]]) -> bool:
+    """Whether one of the party's own words appears in the sentence holding
+    ``position`` or in the PARTY_SENTENCES before it."""
+    for i, (start, end) in enumerate(sentences):
+        if start <= position < end:
+            scope = body[sentences[max(0, i - PARTY_SENTENCES)][0]: end].lower()
+            return any(re.search(r"\b" + re.escape(w), scope) for w in words)
+    return False
+
 # The words a filing uses when it is stating the whole size of the deal at once.
 _TOTAL = re.compile(r"total (?:deal |transaction |consideration )?value|"
                     r"total potential (?:value|consideration)|"
@@ -140,11 +185,17 @@ def _bind(body: str, figures: list) -> list:
     return bound
 
 
-def parse(text: str) -> dict:
+def parse(text: str, party: str | None = None) -> dict:
     """{upfront, equity, milestones, option, total, evidence} in USD, any of them None.
 
     ``evidence`` is the sentence the figures were read from, so a reader who does not
     believe "465m of the 785m is equity" can see the clause that said it.
+
+    With ``party``, a figure counts only where the party is named in its sentence or
+    the one before (``PARTY_SENTENCES``). Lilly files no 8-K for an acquisition, so the
+    only exhibit within days of the headline is the earnings release, which names the
+    target in a bullet and, pages later, a sales milestone paid by Boehringer Ingelheim
+    and a guidance raise: nine Lilly acquisitions were stored with those as their terms.
     """
     out = {field: None for field in FIELDS}
     out["evidence"] = None
@@ -153,6 +204,13 @@ def parse(text: str) -> dict:
         return out
 
     figures = _figures(body)
+    words = party_words(party)
+    if party is not None and not words:
+        return out                      # a party with no name of its own binds nothing
+    if words:
+        sentences = _sentence_index(body)
+        figures = [(position, amount) for position, amount in figures
+                   if _named_near(body, position, words, sentences)]
     # Nearest binding first, so where two role words reach the same figure the closer one
     # owns it: "additional contingent payments of $140 million if certain development
     # milestones are achieved" is one amount described twice.
@@ -179,7 +237,24 @@ def parse(text: str) -> dict:
         if _TOTAL.search(around) and (out["total"] is None or amount > out["total"]):
             out["total"] = amount
             out["evidence"] = out["evidence"] or _terms_sentence(body, position)
+    if words and out["evidence"]:
+        out["evidence"] = _evidence_naming(body, out["evidence"], words, sentences)
     return out
+
+
+def _evidence_naming(body: str, evidence: str, words: list[str],
+                     sentences: list[tuple[int, int]]) -> str:
+    """The evidence with the sentence that names the party in front of it, where the
+    figures' own sentence does not. The stored sentence then always says whose terms
+    these are, and ``deals.clear_misread_terms`` can hold every row to that."""
+    low = evidence.lower()
+    if any(re.search(r"\b" + re.escape(w), low) for w in words):
+        return evidence
+    at = body.find(evidence)
+    for i, (start, end) in enumerate(sentences):
+        if start <= at < end and i > 0:
+            return body[sentences[max(0, i - PARTY_SENTENCES)][0]: end].strip()
+    return evidence
 
 
 def _terms_sentence(body: str, at: int) -> str | None:

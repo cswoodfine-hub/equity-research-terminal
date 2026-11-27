@@ -87,3 +87,48 @@ def test_upfront_and_milestones_add_to_the_up_to_figure_when_there_is_no_option(
 def test_empty_text_is_empty_terms():
     terms = deal_terms.parse("")
     assert all(terms[f] is None for f in deal_terms.FIELDS)
+
+
+# --- whose terms these are --------------------------------------------------------------
+
+# Lilly's first-quarter 2026 release (8-K exhibit 0000059478-26-000043), the sentences the
+# old parser read as the terms of four acquisitions. Lilly files no 8-K for an
+# acquisition, so this is the only exhibit within days of the headline.
+LILLY_Q1 = (
+    "Business development activity included the agreements to acquire Orna Therapeutics, "
+    "Centessa Pharmaceuticals plc., Kelonia Therapeutics, and Ajax Therapeutics. "
+    "Company announces planned Investment Community Meeting for December 7, 2026 "
+    "INDIANAPOLIS, April 30, 2026 - Eli Lilly and Company (NYSE: LLY) today announced its "
+    "financial results for the first quarter of 2026 and provided updated 2026 financial "
+    "guidance. \"2026 is off to a strong start, we delivered 56% revenue growth in the "
+    "first quarter and raised our full-year revenue guidance by $2 billion,\" said David "
+    "A. Ricks, Lilly chair and CEO. A key milestone was the U.S. FDA approval of Foundayo. "
+    "Revenue included a $200.0 million sales-based milestone payment for Jardiance "
+    "associated with the company's collaboration with Boehringer Ingelheim.")
+
+
+def test_a_figure_counts_only_where_the_party_is_named_beside_it():
+    """An earnings release names the target in a bullet and states its own milestones
+    and guidance pages later. Four Lilly acquisitions carried the $2 billion guidance
+    raise as their milestones until this rule."""
+    for party in ("Ajax Therapeutics", "Orna Therapeutics", "Centessa Pharmaceuticals"):
+        terms = deal_terms.parse(LILLY_Q1, party=party)
+        assert deal_terms.headline(terms) is None, party
+
+
+def test_the_party_may_be_named_in_the_sentence_before_the_figures():
+    """A release states the party and then what it pays: "option to acquire Sail for
+    $2.58 billion. Under the terms of the agreements, ... $785 million"."""
+    terms = deal_terms.parse(SAIL, party="Sail Biomedicines")
+    assert terms["upfront"] == 785e6 and terms["option"] == 2.58e9
+    # and the evidence then names the party, so a later check can hold it to that
+    assert "sail" in terms["evidence"].lower()
+
+
+def test_a_party_with_no_name_of_its_own_binds_nothing():
+    assert deal_terms.party_words("Therapeutics, Inc.") == []
+    assert deal_terms.headline(deal_terms.parse(SAIL, party="Therapeutics, Inc.")) is None
+
+
+def test_without_a_party_the_parser_reads_as_before():
+    assert deal_terms.headline(deal_terms.parse(LILLY_Q1)) == 200e6
