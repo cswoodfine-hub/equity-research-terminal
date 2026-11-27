@@ -39,6 +39,14 @@ What the columns mean, because a single "value" would be wrong whichever it pick
                     registry's lead sponsor begins with a name it was given
 
 A figure the filer has not stated is left empty, never estimated.
+
+A row whose ``status`` is ``not an acquisition`` is the other kind of correction. The
+headline parser read an option, a licence, a rumour, a voucher, a property, an analyst's
+buy rating or another company's deal as this company's acquisition, and the row names
+the party the table holds, says in ``note`` what it actually was, and ``load`` removes the
+headline rows for it and writes nothing. The parser has since been taught each shape
+(fetchers/deals_news.py), so the row is the record of the misread and the guard against
+an old feed item coming back.
 """
 
 from __future__ import annotations
@@ -59,6 +67,7 @@ FIELDS = ("ticker", "target", "asset", "event_date", "status", "accounting",
 # and still be the same deal. Lilly's Centessa deal was agreed on 2026-03-31, recapped
 # in the Q1 release on 2026-04-30 and completed on 2026-06-24: three rows, one deal.
 FOLD_DAYS = 200
+NOT_AN_ACQUISITION = "not an acquisition"
 _ACCESSION = re.compile(r"^\d{10}-\d{2}-\d{6}$")
 
 
@@ -103,8 +112,9 @@ def _within(a: str, b: str, days: int) -> bool:
 
 
 def load(conn, path=None) -> dict:
-    """Write the register into ``deals``. {"written", "updated", "folded", "skipped"}."""
-    out = {"written": 0, "updated": 0, "folded": 0, "skipped": []}
+    """Write the register into ``deals``.
+    {"written", "updated", "folded", "removed", "skipped"}."""
+    out = {"written": 0, "updated": 0, "folded": 0, "removed": 0, "skipped": []}
     for r in rows(path):
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
                                (r["ticker"].upper(),)).fetchone()
@@ -112,6 +122,18 @@ def load(conn, path=None) -> dict:
             out["skipped"].append(f"{r['ticker']} {r['target']}: no such company")
             continue
         cid = company["id"]
+        if r["status"].lower() == NOT_AN_ACQUISITION:
+            # The headline rows for a party that was never bought go; a curated row
+            # is an analyst's and stays.
+            for x in conn.execute(
+                    "SELECT id, counterparty, event_date FROM deals"
+                    " WHERE company_id = ? AND deal_type = 'acquisition'"
+                    "   AND counterparty IS NOT NULL AND is_curated = 0", (cid,)):
+                if (same_target(x["counterparty"], r["target"])
+                        and _within(x["event_date"] or "", r["event_date"], FOLD_DAYS)):
+                    conn.execute("DELETE FROM deals WHERE id = ?", (x["id"],))
+                    out["removed"] += 1
+            continue
         upfront, contingent, total = (_musd(r["upfront_musd"]), _musd(r["contingent_musd"]),
                                       _musd(r["total_musd"]))
         if total is None and upfront is not None and contingent is not None:

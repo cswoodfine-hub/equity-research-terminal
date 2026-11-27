@@ -89,7 +89,7 @@ def test_loading_twice_updates_the_one_row(tmp_path):
     db_file, conn, cid = _book(tmp_path)
     acquisitions.load(conn, _ledger(tmp_path))
     out = acquisitions.load(conn, _ledger(tmp_path))
-    assert out == {"written": 0, "updated": 1, "folded": 0, "skipped": []}
+    assert out == {"written": 0, "updated": 1, "folded": 0, "removed": 0, "skipped": []}
     assert conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == 1
 
 
@@ -146,3 +146,25 @@ def test_the_register_on_file_reads_and_every_row_cites_a_source():
     with pathlib.Path(acquisitions.DATA).open(newline="", encoding="utf-8") as handle:
         lines = [line for line in handle if not line.lstrip().startswith("#")]
     assert list(csv.DictReader(lines))
+
+
+def test_a_row_that_is_not_an_acquisition_removes_the_headline_rows_and_writes_none(tmp_path):
+    """"AstraZeneca said to offer $10B to acquire Rhythm" was a report; the table held it
+    three times under three spellings. The ledger row names it and the rows go."""
+    db_file, conn, cid = _book(tmp_path)
+    for party in ("Rhythm", "Rhythm Pharma", "Rhythm Pharmaceuticals"):
+        _headline(conn, cid, party, "2026-11-05")
+    _headline(conn, cid, "Rhythm Pharmaceuticals", "2024-01-01")      # another time
+    conn.execute("INSERT INTO deals (company_id, deal_type, counterparty, event_date,"
+                 "  quote, is_curated) VALUES (?, 'acquisition', 'Rhythm Pharmaceuticals',"
+                 "  '2026-11-06', 'an analyst wrote this', 1)", (cid,))
+    conn.commit()
+    ledger = _ledger(tmp_path, "LLY,Rhythm Pharmaceuticals,,2026-11-05,not an acquisition,"
+                               ",,,,,,,,,a press report of an offer; no agreement filed\n")
+    out = acquisitions.load(conn, ledger)
+    assert out["removed"] == 3 and out["written"] == 0
+    left = conn.execute("SELECT counterparty, event_date, is_curated FROM deals"
+                        " ORDER BY event_date").fetchall()
+    assert [(r["counterparty"], r["event_date"], r["is_curated"]) for r in left] == [
+        ("Rhythm Pharmaceuticals", "2024-01-01", 0),
+        ("Rhythm Pharmaceuticals", "2026-11-06", 1)]
