@@ -7,10 +7,6 @@ closed it, and what stays open with the reason.
 
 Branch `claude/lilly-coverage-gaps-stufah`, continuing the Lilly work. Nothing to `main`.
 
-Draft of 2026-11-27 21:45 UTC: Part 1 is final; Part 2's counts marked [FINAL] are filled
-in once the GILD, GSK, JNJ, NVO, NVS, PFE, RARE, RCKT, ROG, RVMD, SNY, UTHR and VRTX rows
-are read, which the usage limit interrupted.
-
 ## 1. Arm names: 44 rows, 44 closed
 
 A derived pipeline row takes the shortest intervention name a study used, and the registry
@@ -59,7 +55,7 @@ onto the product. The row had been created by the comparator arm of LY4057996's 
 (NCT06945406), where insulin lispro is the control, so a comparator arm of a Lilly product
 in a Lilly study now lands on the product rather than standing as a programme.
 
-## 2. Acquisition rows without terms: 147 read, [FINAL] closed
+## 2. Acquisition rows without terms: 147 read, 147 closed
 
 The reading (`acquisitions.without_terms`) lists acquisition rows in `deals` within five
 years that carry no figure. On the published book: 147 rows across 36 companies, from
@@ -145,17 +141,40 @@ or the announcement's words. On this book those are: Omniose (AstraZeneca, terms
 disclosed), Targenomix (Bayer, not stated), Attralus (Bayer, "financial details not
 disclosed", an asset purchase of two radiotracers), CureVac (BioNTech, consideration in
 euros: 12,075,629 ADSs at EUR 1,001.1m fair value), Adverum (Lilly, per-share terms only,
-no aggregate in a Lilly filing), Modifi Biosciences (Merck, figures from the target's
-release; no Merck filing names it).
+no aggregate in a Lilly filing), Atraverse (J&J, undisclosed), Sironax (Novartis, an
+option exercised with no figure in the Q3 release), Insmed (Sanofi, agreed on 2026-11-23 at
+$175.00 a share, about $41.0bn equity value, with no Sanofi filing yet; the pending register
+carries it). Eight rows in all. Two more carry a figure only from an announcement: Modifi
+Biosciences (Merck; the target's release, since no Merck filing names it) and Chimagen's
+second deal (GSK; "up to $750 million" with no upfront stated). Each is a row a reader can
+open and see what the filing says.
 
 ### 2d. Counts
 
 | Reading | Published book | After |
 |---|---|---|
-| Acquisition rows without terms, five years | 147 across 36 companies | [FINAL] |
-| Ledger rows | 24 (Lilly) | [FINAL] |
-| Headline and filing rows folded into a ledger row | 0 | [FINAL] |
-| Headline rows removed as not an acquisition or misread | 0 | [FINAL] |
+| Acquisition rows without terms, five years | 147 across 36 companies | 0 |
+| Ledger rows | 24 (Lilly) | 141 (36 companies) |
+| of which real acquisitions with a filed or announced figure | 24 | 101 |
+| of which real acquisitions whose filer states no figure or a non-US one | 0 | 8 |
+| of which not an acquisition or a misread headline | 0 | 32 |
+| Headline and filing rows folded into a ledger row | 0 | 124 |
+| Headline rows removed as not an acquisition or misread | 0 | 34 |
+| Curated acquisition rows in the deals table | 24 | 109 |
+
+The one measured pass fetched 198 documents from EDGAR, roche.com, bayer.com and the trade
+press into a working folder, and every quote in the ledger was checked as a substring of
+the document it cites before the row was written. The documents are not committed.
+
+Things learned on the way that are not in the rows: GSK's Nuvalent deal (June to July 2026,
+$9.6bn net of cash) was a completed business combination the book held as a $10.6bn
+headline; Novartis India's purchase of Pfizer's Minipress trademark was made after
+ChrysCapital took control of Novartis India, so it is another company's deal; Avidity's
+lead asset was impaired by $1.94bn within seven months of Novartis closing; Excellergy's
+headline "$2bn upfront" was $0.9bn upfront and up to $1.1bn more; BioMarin discontinued
+Inozyme's BMN 401 in August 2026; Merck's Cidara and Terns deals, like all its
+acquisitions in the period, were accounted as asset acquisitions, so their upfront figures
+are IPR&D charges and not cash net of cash acquired, which each note says.
 
 ## 3. Sources
 
