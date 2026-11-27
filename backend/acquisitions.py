@@ -32,6 +32,11 @@ What the columns mean, because a single "value" would be wrong whichever it pick
   total_musd        upfront plus contingent where both are known, else the "up to"
                     figure the announcement stated
   announced_value   the words of the announcement, kept verbatim ("up to $2.5 billion")
+  sponsor_names     the names the target registers its studies under where they are not
+                    the target's own, pipe-separated: AtaiBeckley's are under "Beckley
+                    Psytech Limited" and Ventyx's under "Zomagen Biosciences Ltd.", and
+                    the trial fetch keeps an acquired sponsor's study only where the
+                    registry's lead sponsor begins with a name it was given
 
 A figure the filer has not stated is left empty, never estimated.
 """
@@ -49,7 +54,7 @@ import deal_terms
 DATA = db.BACKEND_DIR.parent / "data" / "acquisitions.csv"
 FIELDS = ("ticker", "target", "asset", "event_date", "status", "accounting",
           "upfront_musd", "contingent_musd", "total_musd", "announced_value",
-          "phase", "source", "quote", "note")
+          "phase", "sponsor_names", "source", "quote", "note")
 # How far from the ledger's date a headline or filing row for the same target may sit
 # and still be the same deal. Lilly's Centessa deal was agreed on 2026-03-31, recapped
 # in the Q1 release on 2026-04-30 and completed on 2026-06-24: three rows, one deal.
@@ -159,6 +164,17 @@ def load(conn, path=None) -> dict:
             conn.execute("DELETE FROM deals WHERE id = ?", (other["id"],))
             out["folded"] += 1
     conn.commit()
+    return out
+
+
+def sponsor_names(ticker: str, path=None) -> list[str]:
+    """The registry names of this company's targets that differ from the targets' own,
+    for ``acquired_sponsors.for_company``."""
+    out: list[str] = []
+    for r in rows(path):
+        if r["ticker"].upper() != (ticker or "").upper():
+            continue
+        out.extend(n.strip() for n in r["sponsor_names"].split("|") if n.strip())
     return out
 
 

@@ -12,7 +12,7 @@ import seed
 
 HEADER = ",".join(acquisitions.FIELDS) + "\n"
 CENTESSA = ("LLY,Centessa Pharmaceuticals plc,ORX750,2026-06-24,completed,"
-            "business combination,5958,1542,,,Phase 2,0000059478-26-000108,"
+            "business combination,5958,1542,,,Phase 2,,0000059478-26-000108,"
             "\"Cash consideration paid, net of cash acquired | $ 5,958 ... Contingent "
             "consideration | $ 1,542\",agreed 2026-03-31\n")
 
@@ -95,7 +95,7 @@ def test_loading_twice_updates_the_one_row(tmp_path):
 
 def test_an_unfiled_deal_carries_only_what_was_announced(tmp_path):
     body = ("LLY,Merida Biosciences Inc.,MER511,2026-10-01,completed,not yet filed,,,2900,"
-            "\"up to $2.9 billion in aggregate\",Phase 1,0000059478-26-000108,"
+            "\"up to $2.9 billion in aggregate\",Phase 1,,0000059478-26-000108,"
             "\"In October 2026, we acquired Merida\",\n")
     db_file, conn, cid = _book(tmp_path)
     acquisitions.load(conn, _ledger(tmp_path, body))
@@ -109,6 +109,18 @@ def test_same_target_reads_through_suffixes_and_hyphens():
     assert acquisitions.same_target("Centessa", "Centessa Pharmaceuticals plc.")
     assert not acquisitions.same_target("Orna Therapeutics", "Ajax Therapeutics, Inc.")
     assert not acquisitions.same_target("Therapeutics, Inc.", "Ajax Therapeutics")
+
+
+def test_the_names_a_target_registers_under_reach_the_sponsor_list(tmp_path):
+    """AtaiBeckley's studies sit under Beckley Psytech Limited and Ventyx's under Zomagen
+    Biosciences Ltd.; a fetch that searched only the targets' own names found neither."""
+    body = ("LLY,AtaiBeckley Inc.,BPL-003,2026-09-01,completed,asset acquisition,2610,1000,"
+            "3800,,Phase 2,Beckley Psytech Limited|Zomagen Biosciences Ltd.,"
+            "0000059478-26-000108,q,\n")
+    path = _ledger(tmp_path, body)
+    assert acquisitions.sponsor_names("LLY", path) == ["Beckley Psytech Limited",
+                                                       "Zomagen Biosciences Ltd."]
+    assert acquisitions.sponsor_names("JNJ", path) == []
 
 
 def test_rows_without_terms_are_named(tmp_path):

@@ -30,8 +30,23 @@ def _seed(tmp_path):
 
 def test_only_recent_acquisitions_are_searched(tmp_path):
     names = acquired_sponsors.for_company(_seed(tmp_path), "LLY",
-                                          today=__import__("datetime").date(2026, 7, 27))
+                                          today=__import__("datetime").date(2026, 7, 27),
+                                          ledger_path=tmp_path / "no_ledger.csv")
     assert names == ["Centessa Pharmaceuticals", "Verve Therapeutics"]
+
+
+def test_the_ledger_adds_the_names_a_target_registers_under(tmp_path):
+    """AtaiBeckley's studies are Beckley Psytech Limited's on the registry."""
+    ledger = tmp_path / "acquisitions.csv"
+    ledger.write_text(
+        "ticker,target,asset,event_date,status,accounting,upfront_musd,contingent_musd,"
+        "total_musd,announced_value,phase,sponsor_names,source,quote,note\n"
+        "LLY,AtaiBeckley Inc.,BPL-003,2026-09-01,completed,asset acquisition,2610,,,,"
+        "Phase 2,Beckley Psytech Limited,0000059478-26-000108,q,\n")
+    names = acquired_sponsors.for_company(_seed(tmp_path), "LLY",
+                                          today=__import__("datetime").date(2026, 7, 27),
+                                          ledger_path=ledger)
+    assert "Beckley Psytech Limited" in names
 
 
 def test_a_name_must_be_specific_enough_to_search_with():
@@ -205,8 +220,11 @@ def test_a_deal_held_as_pending_is_searched_without_a_headline(tmp_path):
     empty = tmp_path / "none.csv"
     empty.write_text("acquirer,asset,target,announced,terms,basis\n")
 
-    assert acquired_sponsors.for_company(path, "SNY", pending_path=empty) == []
-    assert acquired_sponsors.for_company(path, "SNY", pending_path=pending) == [
+    assert acquired_sponsors.for_company(path, "SNY", pending_path=empty,
+                                         ledger_path=empty) == []
+    assert acquired_sponsors.for_company(path, "SNY", pending_path=pending,
+                                         ledger_path=empty) == [
         "Insmed Incorporated"]
     # Another company's pending deal is not this one's.
-    assert acquired_sponsors.for_company(path, "LLY", pending_path=pending) == []
+    assert acquired_sponsors.for_company(path, "LLY", pending_path=pending,
+                                         ledger_path=empty) == []
