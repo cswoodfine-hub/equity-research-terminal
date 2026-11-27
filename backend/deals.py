@@ -478,7 +478,10 @@ _NOT_A_PARTY_WORD = re.compile(
     r"\b(?:program(?:me)?|inhibitor|antibod(?:y|ies)|candidate|compound|molecule|"
     r"asset|portfolio|pipeline|licen[sc]e|application|rights?|royalt(?:y|ies)|campus|"
     r"headquarters|facility|facilities|plant|building|stake|shares?|option|"
-    r"agreement|collaboration|partnership)\b", re.I)
+    r"agreement|collaboration|partnership|vouchers?|brands?)\b", re.I)
+# A compound code on its own: "TQC3721", "SPR2015", "STX-478". The thing bought, not
+# the party that sold it.
+_COMPOUND_CODE = re.compile(r"^[A-Za-z]{1,6}-?\d{3,}[A-Za-z]?$")
 
 # A single word that is a place, a public body or an ordinary noun. These reach the field
 # when a headline's name runs on in lower case and the capital-letter match stops early:
@@ -539,6 +542,8 @@ def is_party(name: str) -> bool:
     if len(words) == 1 and words[0].strip(".").lower() in _NOT_A_PARTY_ALONE:
         return False
     if _NOT_A_PARTY_WORD.search(name):
+        return False
+    if len(words) == 1 and _COMPOUND_CODE.match(words[0]):
         return False
     # A phrase of ordinary words with no corporate marker is a description, not a name.
     if _ORGANISATION.search(name):

@@ -455,7 +455,6 @@ def test_a_nationality_alone_names_no_party():
     ("Merck, Protillion Launch AI Drug Discovery Collaboration with Up-to-$510M in Milestone"
      " Payments", {"Merck"}),
     ("Roche Strikes $2.3B Nurix Deal for BTK Degrader", {"Roche"}),
-    ("Gilead acquires German ADC specialist Tubulis in US$5bn deal", {"Gilead"}),
     ("Novo Nordisk Buys Time With Nanexa Deal and US Job Cuts as Shares Stay Under Pressure",
      {"Novo Nordisk"}),
     ("Vertex spending $10B to buy San Diego biotech in largest-ever acquisition", {"Vertex"}),
@@ -520,3 +519,115 @@ def test_the_feed_keeps_only_the_companys_own_deals(tmp_path):
         {"companies": [{"id": cid, "ticker": "AZN", "name": "AstraZeneca PLC"}],
          "feeds": {"AZN": AZN_FEED.read_text()}, "errors": []})
     assert sorted(r["counterparty"] for r in rows) == ["EsoBiotec", "Neogene Therapeutics"]
+
+
+# --- the 2026-11-27 universe pass -------------------------------------------------
+# Every headline below sat in the deals table as an acquisition with no terms when the
+# book's gap reading first ran across the universe. Each is real, publisher and all.
+
+def _names(*names):
+    return set(names)
+
+
+def test_refuses_an_analysts_buy_and_a_report_of_talks():
+    for headline, names in (
+            ("Capricor Therapeutics’ Buy Thesis Ahead Of Deramiocel PDUFA Date (NASDAQ:CAPR)",
+             _names("Capricor Therapeutics", "CAPR", "Capricor")),
+            ("Structure Therapeutics (GPCR) Is A Hidden Biotech Multibagger Stock To Buy Now",
+             _names("Structure Therapeutics", "GPCR", "Structure")),
+            ("Iovance: I'm Switching From Sell To Buy Despite Likely Approval For Rival Drug",
+             _names("Iovance Biotherapeutics", "IOVA", "Iovance")),
+            ("Iovance Biotherapeutics: Positioned For Multi-Year Growth, Buy The Pullback (NASDAQ:IOVA)",
+             _names("Iovance Biotherapeutics", "IOVA", "Iovance")),
+            ("Iovance: Buy Now Before Many Growth Catalysts Kick In (NASDAQ:IOVA)",
+             _names("Iovance Biotherapeutics", "IOVA", "Iovance")),
+            ("Intellia Therapeutics: Full Trial Enrollment Wows Market - Underlines Buy Thesis (NTLA)",
+             _names("Intellia Therapeutics", "NTLA", "Intellia")),
+            ("SLS, IBRX And IOVA Join Merck And Lilly On BlackRock’s Q3 Buy List — A Vanguard Unit Adds All Of Them Too",
+             _names("Merck & Co., Inc.", "MRK", "Merck")),
+            ("AstraZeneca said to offer $10B to acquire Rhythm, analysts whisper of a bidding war",
+             _names("AstraZeneca PLC", "AZN", "AstraZeneca")),
+            ("Sanofi considering a deal to acquire Insmed, according to report",
+             _names("Sanofi", "SNY")),
+            ("Sanofi’s Deal To Buy Biotech Firm Is Just What The Doctor Ordered",
+             _names("Sanofi", "SNY")),
+    ):
+        assert parse_deal(headline, names) is None, headline
+
+
+def test_refuses_an_option_a_lapsed_right_a_cancelled_purchase_and_a_voucher():
+    for headline, names in (
+            ("AbbVie sinks talons into KRAS with right to buy Kestrel for up to $1.45B",
+             _names("AbbVie Inc.", "ABBV", "AbbVie")),
+            ("Gilead will not buy Tizona after paying $300M for the right to do so",
+             _names("Gilead Sciences, Inc.", "GILD", "Gilead")),
+            ("J&J Partners With Sail Biomedicines on In Vivo CAR-T for Autoimmune Disease, Holds Option to Acquire",
+             _names("Johnson & Johnson", "JNJ", "J&J")),
+            ("United Therapeutics cancels plans to buy Hackett Hill property from Manchester",
+             _names("United Therapeutics Corporation", "UTHR", "United Therapeutics")),
+            ("Arrowhead Pharmaceuticals Acquires FDA Priority Review Voucher",
+             _names("Arrowhead Pharmaceuticals, Inc.", "ARWR", "Arrowhead")),
+            ("BioNTech Offloads Roche Costs and Buys FDA Speed, Even as a Dutch Court Finds a GSK Patent Infringed - ad-hoc-news.de",
+             _names("BioNTech SE", "BNTX", "BioNTech")),
+    ):
+        assert parse_deal(headline, names) is None, headline
+
+
+def test_a_compound_or_its_rights_is_not_a_counterparty():
+    """The thing bought is named and the seller is not: no party, so no row. Where the
+    seller follows "from", the seller is the party whatever the case of the word."""
+    for headline, names in (
+            ("AstraZeneca Buys TQC3721 Rights for $2.1B", _names("AstraZeneca PLC", "AZN", "AstraZeneca")),
+            ("Merck Acquires SPR2015 in $2.13 Billion Licensing Deal | PharmExec",
+             _names("Merck & Co., Inc.", "MRK", "Merck")),
+            ("Biogen Acquires Felzartamab Rights for $850M", _names("Biogen Inc.", "BIIB", "Biogen")),
+            ("Neurocrine to acquire Prader-Will drug in $2.9B Soleno buyout",
+             _names("Neurocrine Biosciences, Inc.", "NBIX", "Neurocrine")),
+            ("BioMarin Inks $490M Deal to Buy Rare Bone Disease Treatment",
+             _names("BioMarin Pharmaceutical Inc.", "BMRN", "BioMarin")),
+    ):
+        assert parse_deal(headline, names) is None, headline
+    deal = parse_deal("Axsome Therapeutics to Acquire Sunosi from Jazz Pharmaceuticals",
+                      _names("Axsome Therapeutics, Inc.", "AXSM", "Axsome"))
+    assert deal["counterparty"] == "Jazz Pharmaceuticals"
+    deal = parse_deal("Gilead to buy PepStar's inflammation drug program in $1.28 billion deal",
+                      _names("Gilead Sciences, Inc.", "GILD", "Gilead"))
+    assert deal["counterparty"] == "PepStar"
+
+
+def test_reads_the_party_past_a_place_or_a_description():
+    for headline, names, party in (
+            ("Lantheus to acquire PET agent developer Life Molecular Imaging for up to $750M",
+             _names("Lantheus Holdings, Inc.", "LNTH", "Lantheus"), "Life Molecular Imaging"),
+            ("Adaptimmune to acquire Boston-area cell therapy company TCR² Therapeutics",
+             _names("Adaptimmune Therapeutics plc", "ADAPY", "Adaptimmune"), "TCR² Therapeutics"),
+            ("US mRNA player Arcturus buys Belgian biotech MyNeo",
+             _names("Arcturus Therapeutics Holdings Inc.", "ARCT", "Arcturus"), "MyNeo"),
+            ("Johnson & Johnson to Acquire Austin's Ollin Biosciences",
+             _names("Johnson & Johnson", "JNJ"), "Ollin Biosciences"),
+            ("AstraZeneca buys St. Louis vaccine startup Omniose",
+             _names("AstraZeneca PLC", "AZN", "AstraZeneca"), "Omniose"),
+            ("Merck acquires Yale-spinout Modifi Bio in $1.3B deal",
+             _names("Merck & Co., Inc.", "MRK", "Merck"), "Modifi Bio"),
+            ("BioMarin to Buy Rare-Disease Biotech Amicus Therapeutics for $4.8 Billion",
+             _names("BioMarin Pharmaceutical Inc.", "BMRN", "BioMarin"), "Amicus Therapeutics"),
+            ("Incyte to Buy Vega Therapeutics For Up to $2 Billion",
+             _names("Incyte Corporation", "INCY", "Incyte"), "Vega Therapeutics"),
+            ("Gilead to buy PepStar Therapeutics' Oral Inflammation Drug Program",
+             _names("Gilead Sciences, Inc.", "GILD", "Gilead"), "PepStar Therapeutics"),
+            # Refused until 2026-11-27 because its capitals named nobody; the description
+            # now leads to the party.
+            ("Gilead acquires German ADC specialist Tubulis in US$5bn deal",
+             _names("Gilead"), "Tubulis"),
+    ):
+        deal = parse_deal(headline, names)
+        assert deal and deal["counterparty"] == party, (headline, deal)
+
+
+def test_another_company_that_shares_the_name_is_not_this_company():
+    from fetchers.deals_news import NOT_THIS_COMPANY, not_this_company
+    assert not_this_company("MRK", "Germany's Merck buys Silence Therapeutics in $1.3 billion RNA drug deal")
+    assert not_this_company("MRK", "Merck KGaA to acquire SpringWorks Therapeutics")
+    assert not not_this_company("MRK", "Merck to buy Terns in $6.7B bet on a ‘differentiated’ leukemia drug")
+    assert not not_this_company("LLY", "Germany's Merck buys Silence Therapeutics")
+    assert "MRK" in NOT_THIS_COMPANY
