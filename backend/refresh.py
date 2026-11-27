@@ -30,6 +30,7 @@ import financings
 import assumptions as assumptions_module
 import regional_loe
 import acquired_sponsors
+import acquisitions
 import retained_programmes
 import company_lines
 import indication_mapping
@@ -544,6 +545,13 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
+    # The acquisition ledger, from the acquirer's own 10-Qs (data/acquisitions.csv):
+    # after the parser, so the curated row is the one the duplicates fold into.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["acquisitions"] = acquisitions.load(_conn)["written"]
+    finally:
+        _conn.close()
     # What became of the catalysts whose dates have passed, read back from the approvals
     # and the announced readouts, before the derivation below withdraws a derived row
     # whose date is behind it. Resolving first is what turns the calendar into a record.
@@ -900,6 +908,13 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
+    # The acquisition ledger, from the acquirer's own 10-Qs (data/acquisitions.csv):
+    # after the parser, so the curated row is the one the duplicates fold into.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["acquisitions"] = acquisitions.load(_conn)["written"]
+    finally:
+        _conn.close()
     trial_reads = _read(calls, "trial_readouts", trial_readouts.extract, db_path)
     trial_reads["reread"] = _read(calls, "trial_readouts.reread",
                                   trial_readouts.reread, db_path)
