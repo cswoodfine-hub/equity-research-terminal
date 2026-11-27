@@ -4308,3 +4308,10 @@
 {"found_at": "2026-11-26 06:23:04", "id": 4308, "kind": "gate_call", "price_date": "2026-11-18", "recorded": 156.8699951171875, "ref_key": "NVS|2026-11-18|1056|4092", "settled": 155.2100067138672, "ticker": "NVS"}
 {"found_at": "2026-11-26 06:23:04", "id": 4309, "kind": "gate_call", "price_date": "2026-11-20", "recorded": 152.0749969482422, "ref_key": "NVS|2026-11-20|1023|4092", "settled": 150.47000122070312, "ticker": "NVS"}
 {"found_at": "2026-11-26 06:23:04", "id": 4310, "kind": "gate_call", "price_date": "2026-11-20", "recorded": 152.0749969482422, "ref_key": "NVS|2026-11-20|1056|4092", "settled": 150.47000122070312, "ticker": "NVS"}
+{"found_at": "2026-11-27 06:24:09", "id": 4311, "kind": "gate_call", "price_date": "2026-11-05", "recorded": 278.30999755859375, "ref_key": "JNJ|2026-11-05|983|4119", "settled": 272.32000732421875, "ticker": "JNJ"}
+{"found_at": "2026-11-27 06:24:09", "id": 4312, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 280.8999938964844, "ref_key": "JNJ|2026-11-17|983|4119", "settled": 278.70001220703125, "ticker": "JNJ"}
+{"found_at": "2026-11-27 06:24:09", "id": 4313, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 159.1699981689453, "ref_key": "NVS|2026-11-17|1023|4126", "settled": 159.1300048828125, "ticker": "NVS"}
+{"found_at": "2026-11-27 06:24:09", "id": 4314, "kind": "gate_call", "price_date": "2026-11-17", "recorded": 159.1699981689453, "ref_key": "NVS|2026-11-17|1056|4126", "settled": 159.1300048828125, "ticker": "NVS"}
+{"found_at": "2026-11-27 06:24:09", "id": 4315, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 266.3500061035156, "ref_key": "JNJ|2026-11-19|983|4119", "settled": 267.1400146484375, "ticker": "JNJ"}
+{"found_at": "2026-11-27 06:24:09", "id": 4316, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1023|4126", "settled": 151.22000122070312, "ticker": "NVS"}
+{"found_at": "2026-11-27 06:24:09", "id": 4317, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1056|4126", "settled": 151.22000122070312, "ticker": "NVS"}
