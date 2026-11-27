@@ -1,0 +1,102 @@
+# Seed files whose forecast_years note states a loss-of-exclusivity year the engine does
+# not resolve (backend/tests/test_seed_notes_loe.py holds the list to this file, so it
+# cannot grow unnoticed; shrink it by correcting the note, or the register the engine
+# reads where the engine is wrong, and removing the line).
+#
+# Measured 2026-11-27 on the published book of that day: 98 of 210 notes disagreed. The
+# five Lilly notes were corrected the same day (Mounjaro 2041 against the 2036 compound
+# patent, Zepbound 2039 against 2036, Taltz 2028 against 2030, Trulicity 2026 against
+# 2027, Jardiance "no exclusivity on file" against 2029). The 93 below are the rest, each
+# with the year stated and the year the engine resolved that day; a difference can be
+# the note's or the engine's, and each wants a reading before it is settled.
+abbv_qulipta.csv    # note 2043, engine 2035
+abbv_rinvoq.csv    # note 2038, engine 2036
+abbv_skyrizi.csv    # note 2034, engine 2033
+abbv_ubrelvy.csv    # note 2041, engine 2033
+abbv_venclexta.csv    # note 2033, engine 2032
+abbv_vraylar.csv    # note 2030, engine 2029
+amgn_blincyto.csv    # note 2031, engine 2030
+amgn_kyprolis.csv    # note 2041, engine 2028
+amgn_lumakras.csv    # note 2040, engine 2038
+amgn_otezla.csv    # note 2034, engine 2028
+amgn_parsabiv.csv    # note 2026, engine 2031
+amgn_prolia.csv    # note 2022, engine 2025
+amgn_repatha.csv    # note 2028, engine 2029
+amgn_tezspire.csv    # note 2033, engine 2034
+argx_vyvgart.csv    # note 2033, engine 2036
+autl_aucatzyl.csv    # note 2027, engine 2036
+axsm_auvelity.csv    # note 2043, engine 2038
+axsm_sunosi.csv    # note 2038, engine 2040
+azn_calquence.csv    # note 2036, engine 2032
+azn_koselugo.csv    # note 2032, engine 2028
+azn_lynparza.csv    # note 2041, engine 2027
+azn_saphnelo.csv    # note 2038, engine 2033
+azn_tagrisso.csv    # note 2042, engine 2032
+azn_truqap.csv    # note 2033, engine 2030
+biib_plegridy.csv    # note 2026, engine 2027
+biib_skyclarys.csv    # note 2033, engine 2037
+biib_spinraza.csv    # note 2036, engine 2030
+biib_tecfidera.csv    # note 2035, engine 2020
+bmy_abraxane.csv    # note 2034, engine None
+bmy_eliquis.csv    # note 2031, engine 2028
+bmy_krazati.csv    # note 2043, engine 2037
+bmy_opdivo.csv    # note 2031, engine 2028
+bmy_revlimid.csv    # note 2028, engine 2026
+bmy_sotyktu.csv    # note 2043, engine 2033
+bmy_sprycel.csv    # note 2026, engine 2024
+bmy_zeposia.csv    # note 2038, engine 2033
+gild_descovy.csv    # note 2036, engine 2031
+gild_genvoya.csv    # note 2033, engine 2032
+gild_odefsey.csv    # note 2033, engine 2032
+gild_veklury.csv    # note 2041, engine 2036
+gild_vemlidy.csv    # note 2033, engine 2031
+gsk_anoro_ellipta.csv    # note 2030, engine 2027
+gsk_cabenuva_kit.csv    # note 2040, engine 2031
+gsk_dovato.csv    # note 2031, engine 2028
+gsk_exdensur.csv    # note 2038, engine 2037
+gsk_juluca.csv    # note 2038, engine 2028
+gsk_nucala.csv    # note 2031, engine 2027
+gsk_ojjaara.csv    # note 2040, engine 2035
+gsk_penmenvy.csv    # note 2026, engine 2037
+gsk_tivicay.csv    # note 2030, engine 2028
+gsk_trelegy_ellipta.csv    # note 2031, engine 2027
+gsk_triumeq.csv    # note 2030, engine 2028
+gsk_zejula.csv    # note 2039, engine 2031
+incy_niktimvo.csv    # note 2026, engine 2036
+ions_dawnzera_autoinjector.csv    # note 2027, engine 2035
+ions_tryngolza_autoinjector.csv    # note 2027, engine 2034
+jnj_darzalex.csv    # note 2027, engine 2029
+jnj_erleada.csv    # note 2041, engine 2033
+jnj_stelara.csv    # note 2028, engine None
+jnj_tremfya.csv    # note 2029, engine 2031
+jnj_xarelto.csv    # note 2034, engine 2025
+krys_vyjuvek.csv    # note 2035, engine 2036
+mrk_belsomra.csv    # note 2033, engine 2029
+mrk_bridion.csv    # note 2028, engine 2026
+mrk_capvaxive.csv    # note 2036, engine 2038
+mrk_delstrigo.csv    # note 2036, engine 2032
+mrk_janumet.csv    # note 2029, engine 2026
+mrk_januvia.csv    # note 2027, engine 2026
+mrk_prevymis.csv    # note 2031, engine 2029
+mrk_welireg.csv    # note 2042, engine 2034
+nvo_ozempic.csv    # note 2039, engine 2031
+nvo_saxenda.csv    # note 2037, engine 2023
+nvo_tresiba.csv    # note 2027, engine 2029
+nvo_victoza.csv    # note 2037, engine 2024
+nvo_wegovy.csv    # note 2039, engine 2031
+nvs_cosentyx.csv    # note 2035, engine 2029
+nvs_entresto.csv    # note 2036, engine 2025
+nvs_pluvicto.csv    # note 2041, engine 2036
+nvs_rhapsido.csv    # note 2034, engine 2043
+nvs_tasigna.csv    # note 2032, engine 2025
+nvs_zolgensma.csv    # note 2031, engine 2033
+pfe_abrysvo.csv    # note 2035, engine 2036
+pfe_elrexfio.csv    # note 2035, engine 2036
+pfe_ibrance.csv    # note 2037, engine 2027
+pfe_lorbrena.csv    # note 2038, engine 2033
+pfe_talzenna.csv    # note 2031, engine 2029
+pfe_xeljanz.csv    # note 2028, engine 2026
+regn_libtayo.csv    # note 2030, engine 2035
+sny_aubagio.csv    # note 2034, engine 2023
+sny_qfitlia.csv    # note 2027, engine 2033
+vrtx_alyftrek.csv    # note 2040, engine 2039
