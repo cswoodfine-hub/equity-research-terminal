@@ -64,10 +64,18 @@ FIELDS = ("ticker", "target", "asset", "event_date", "status", "accounting",
           "upfront_musd", "contingent_musd", "total_musd", "announced_value",
           "phase", "sponsor_names", "source", "quote", "note")
 # How far from the ledger's date a headline or filing row for the same target may sit
-# and still be the same deal. Lilly's Centessa deal was agreed on 2026-03-31, recapped
-# in the Q1 release on 2026-04-30 and completed on 2026-06-24: three rows, one deal.
+# and still be the same deal, where the ledger holds more than one deal with that
+# target. Lilly's Centessa deal was agreed on 2026-03-31, recapped in the Q1 release on
+# 2026-04-30 and completed on 2026-06-24: three rows, one deal. Where the ledger holds
+# one deal with a target the date is not consulted: Amgen agreed Horizon on 2022-12-12
+# and closed on 2023-10-06, and a wire re-ran Incyte's 2022 Villaris deal in 2024.
 FOLD_DAYS = 200
 NOT_AN_ACQUISITION = "not an acquisition"
+# The same removal for a headline whose party is not a company at all: "St. Louis",
+# "Boston-area", "Vega To Add Late Stage". The deal is real and has its own row; this
+# row names the stray spelling so it goes.
+MISREAD = "misread"
+REMOVED = (NOT_AN_ACQUISITION, MISREAD)
 _ACCESSION = re.compile(r"^\d{10}-\d{2}-\d{6}$")
 
 
@@ -115,22 +123,31 @@ def load(conn, path=None) -> dict:
     """Write the register into ``deals``.
     {"written", "updated", "folded", "removed", "skipped"}."""
     out = {"written": 0, "updated": 0, "folded": 0, "removed": 0, "skipped": []}
-    for r in rows(path):
+    ledger = rows(path)
+
+    def same_deal(row, other_date: str) -> bool:
+        """Whether a table row dated ``other_date`` for ``row``'s target is this deal:
+        always, where the ledger holds one deal with the target; within the window
+        where it holds several."""
+        repeats = [x for x in ledger if x is not row and x["ticker"].upper() == row["ticker"].upper()
+                   and same_target(x["target"], row["target"])]
+        return not repeats or _within(other_date or "", row["event_date"], FOLD_DAYS)
+
+    for r in ledger:
         company = conn.execute("SELECT id FROM companies WHERE ticker = ?",
                                (r["ticker"].upper(),)).fetchone()
         if company is None:
             out["skipped"].append(f"{r['ticker']} {r['target']}: no such company")
             continue
         cid = company["id"]
-        if r["status"].lower() == NOT_AN_ACQUISITION:
-            # The headline rows for a party that was never bought go; a curated row
-            # is an analyst's and stays.
+        if r["status"].lower() in REMOVED:
+            # The headline rows for a party that was never bought, or that is not a
+            # party at all, go; a curated row is an analyst's and stays.
             for x in conn.execute(
                     "SELECT id, counterparty, event_date FROM deals"
                     " WHERE company_id = ? AND deal_type = 'acquisition'"
                     "   AND counterparty IS NOT NULL AND is_curated = 0", (cid,)):
-                if (same_target(x["counterparty"], r["target"])
-                        and _within(x["event_date"] or "", r["event_date"], FOLD_DAYS)):
+                if same_target(x["counterparty"], r["target"]) and same_deal(r, x["event_date"]):
                     conn.execute("DELETE FROM deals WHERE id = ?", (x["id"],))
                     out["removed"] += 1
             continue
@@ -147,8 +164,7 @@ def load(conn, path=None) -> dict:
             "SELECT id, is_curated, event_date, counterparty, article_url, source_url"
             "  FROM deals WHERE company_id = ? AND deal_type = 'acquisition'"
             "    AND counterparty IS NOT NULL", (cid,))
-            if same_target(x["counterparty"], r["target"])
-            and _within(x["event_date"] or "", r["event_date"], FOLD_DAYS)]
+            if same_target(x["counterparty"], r["target"]) and same_deal(r, x["event_date"])]
         curated = [x for x in existing if x["is_curated"]]
         others = [x for x in existing if not x["is_curated"]]
         # The headline's link is worth keeping on the curated row: it is how a reader

@@ -162,9 +162,49 @@ def test_a_row_that_is_not_an_acquisition_removes_the_headline_rows_and_writes_n
     ledger = _ledger(tmp_path, "LLY,Rhythm Pharmaceuticals,,2026-11-05,not an acquisition,"
                                ",,,,,,,,,a press report of an offer; no agreement filed\n")
     out = acquisitions.load(conn, ledger)
-    assert out["removed"] == 3 and out["written"] == 0
+    # The one ledger row for the target removes every uncurated spelling of it,
+    # whatever its date; the analyst's curated row stays.
+    assert out["removed"] == 4 and out["written"] == 0
     left = conn.execute("SELECT counterparty, event_date, is_curated FROM deals"
                         " ORDER BY event_date").fetchall()
     assert [(r["counterparty"], r["event_date"], r["is_curated"]) for r in left] == [
-        ("Rhythm Pharmaceuticals", "2024-01-01", 0),
         ("Rhythm Pharmaceuticals", "2026-11-06", 1)]
+
+
+def test_a_lone_deal_with_a_target_folds_its_rows_whatever_their_date(tmp_path):
+    """Amgen agreed Horizon on 2022-12-12 and closed on 2023-10-06; a wire re-ran
+    Incyte's 2022 Villaris deal in 2024. One ledger row, one target: the date is not
+    what makes it the same deal."""
+    db_file, conn, cid = _book(tmp_path)
+    _headline(conn, cid, "HORIZON THERAPEUTICS", "2022-12-12")
+    _headline(conn, cid, "Horizon", "2024-06-01")
+    ledger = _ledger(tmp_path, "LLY,Horizon Therapeutics plc,,2023-10-06,completed,"
+                               "business combination,27800,,,,,,0000318154-24-000011,q,\n")
+    out = acquisitions.load(conn, ledger)
+    assert out["written"] == 1 and out["folded"] == 2
+    assert conn.execute("SELECT COUNT(*) FROM deals").fetchone()[0] == 1
+
+
+def test_a_repeated_target_folds_only_within_the_window(tmp_path):
+    db_file, conn, cid = _book(tmp_path)
+    _headline(conn, cid, "Ellodi", "2026-11-09")
+    _headline(conn, cid, "Ellodi", "2022-03-01")
+    ledger = _ledger(tmp_path,
+                     "LLY,Ellodi Pharmaceuticals,,2026-11-06,completed,,20,60,80,,,,acc,q,\n"
+                     "LLY,Ellodi Pharmaceuticals,,2022-02-15,completed,,5,,5,,,,acc2,q2,\n")
+    out = acquisitions.load(conn, ledger)
+    assert out["written"] == 2 and out["folded"] == 2
+    dates = sorted(r[0] for r in conn.execute("SELECT event_date FROM deals"))
+    assert dates == ["2022-02-15", "2026-11-06"]
+
+
+def test_a_misread_row_removes_the_stray_spelling(tmp_path):
+    db_file, conn, cid = _book(tmp_path)
+    _headline(conn, cid, "St. Louis", "2026-11-10")
+    _headline(conn, cid, "Omniose", "2026-11-10")
+    ledger = _ledger(tmp_path,
+                     "LLY,St. Louis,,2026-11-10,misread,,,,,,,,,,the Omniose headline\n"
+                     "LLY,Omniose,,2026-11-10,completed,not yet filed,,,,,,,https://x,q,\n")
+    out = acquisitions.load(conn, ledger)
+    assert out["removed"] == 1 and out["written"] == 1 and out["folded"] == 1
+    assert [r[0] for r in conn.execute("SELECT counterparty FROM deals")] == ["Omniose"]
