@@ -574,3 +574,62 @@ def test_a_folded_programme_is_split_out_by_a_curated_row(tmp_path):
                        " ON a.id = m.asset_id WHERE m.nct_id = 'NCT05821959'").fetchone()
     assert got[0] == "AK-OTOF"
     conn.close()
+
+
+# --- a name that reads as a study's arm ------------------------------------------------
+
+def test_a_dose_a_route_a_tracer_and_an_arm_label_read_as_arms():
+    """The four Lilly rows that stood in the pipeline as programmes on 2026-11-27."""
+    assert tm.reads_as_arm("120 mg LY2784544") == ["dose"]
+    assert tm.reads_as_arm("Amezosvatein Antigen Low Dose Arm B") == ["arm"]
+    assert tm.reads_as_arm("[¹⁴C]-LY4515100 IV") == ["route", "tracer"]
+    assert tm.reads_as_arm("LY3016859 ISA") == ["arm"]
+    assert tm.reads_as_arm("LY4515100 via SAD") == ["arm"]
+
+
+def test_a_therapeutic_radionuclide_and_a_combination_read_as_compounds():
+    for name in ("[Lu-177]-PNT2002", "[Ac-225]-PSMA-62 (mCRPC)", "Tersolisib",
+                 "ABBV-383 (Etentamig)", "Balcinrenone/dapagliflozin",
+                 "Fluzone® High-Dose (HD) influenza vaccine", "mazdutide"):
+        assert tm.reads_as_arm(name) == [], name
+
+
+def test_the_derivation_prefers_a_spelling_that_is_not_an_arm(tmp_path):
+    """Two arms of one study, one spelled as the molecule: the programme takes the
+    molecule's name, however much longer it is."""
+    path = str(tmp_path / "arms.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.executescript("""
+        INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly');
+        INSERT INTO trials (nct_id, sponsor_company_id, phase, overall_status) VALUES
+               ('NCT05304351', 1, 'Phase 2', 'Recruiting');
+        INSERT INTO trial_interventions (nct_id, name, kind) VALUES
+               ('NCT05304351', 'Amezosvatein Low Dose Arm B', 'BIOLOGICAL'),
+               ('NCT05304351', 'Amezosvatein High Dose Arm A', 'BIOLOGICAL'),
+               ('NCT05304351', 'Amezosvatein (adjuvanted recombinant)', 'BIOLOGICAL');
+    """)
+    conn.commit()
+    out = tm.derive_pipeline_assets(path)
+    names = [r[0] for r in conn.execute("SELECT generic_name FROM assets")]
+    conn.close()
+    assert names == ["Amezosvatein (adjuvanted recombinant)"]
+    assert out["arm_names"] == []
+
+
+def test_a_programme_every_spelling_of_which_is_an_arm_is_reported(tmp_path):
+    path = str(tmp_path / "arms2.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.executescript("""
+        INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly');
+        INSERT INTO trials (nct_id, sponsor_company_id, phase, overall_status) VALUES
+               ('NCT01594723', 1, 'Phase 2', 'Active not recruiting');
+        INSERT INTO trial_interventions (nct_id, name, kind) VALUES
+               ('NCT01594723', '120 mg LY2784544', 'DRUG');
+    """)
+    conn.commit()
+    out = tm.derive_pipeline_assets(path)
+    assert out == {"created": 1, "arm_names": ["120 mg LY2784544"]}
+    assert [a["name"] for a in tm.arm_named_assets(conn, "LLY")] == ["120 mg LY2784544"]
+    conn.close()

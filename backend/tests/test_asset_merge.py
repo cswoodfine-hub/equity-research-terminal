@@ -874,3 +874,26 @@ def test_a_capsid_is_not_a_development_code():
     import asset_merge
     assert "AAVANC80" not in asset_merge.development_codes(
         "AAVAnc80-hOTOF via Akouos Delivery Device")
+
+
+def test_the_code_pass_keeps_the_row_whose_name_is_a_compound(tmp_path):
+    """The radiolabel arm had the more trials and survived, and the programme took the
+    arm's name; the row named for the compound survives now whatever the trial count."""
+    path = str(tmp_path / "survivor.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.executescript("""
+        INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly');
+        INSERT INTO assets (id, owner_company_id, generic_name, is_marketed) VALUES
+               (10, 1, '[14C]-LY4515100 IV', 0),
+               (11, 1, 'LY4515100 via SAD', 0),
+               (12, 1, 'LY4515100', 0);
+        INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase, overall_status) VALUES
+               ('NCT07339722', 10, 1, 'Phase 1', 'Recruiting'),
+               ('NCT07867327', 10, 1, 'Phase 1', 'Recruiting'),
+               ('NCT07511816', 12, 1, 'Phase 2', 'Recruiting');
+    """)
+    conn.commit()
+    found = asset_merge.find_code_duplicates(conn, 1)
+    conn.close()
+    assert found == [(12, [10, 11], "LY4515100")]

@@ -113,6 +113,64 @@ FORM_WORDS = {
 }
 UNIT_WORDS = {"mg", "mcg", "ug", "g", "ml", "l", "iu", "u", "kg", "mg/kg", "percent"}
 
+# A name that reads as a study's arm rather than a compound: a dose with its unit, a
+# route, a tracer label, or the words a protocol labels its arms with. The derivation
+# keeps the shortest spelling a study used, and where every spelling is an arm label the
+# programme itself takes the label's name: "120 mg LY2784544", "Amezosvatein Antigen Low
+# Dose Arm B", "[14C]-LY4515100 IV" and "LY3016859 ISA" all stood in Lilly's pipeline as
+# programmes. A therapeutic radionuclide is the drug and is not a tracer: [Lu-177]-PNT2002
+# and [Ac-225]-PSMA-62 read as compounds.
+_ARM_DOSE = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:mg|mcg|ug|\u00b5g|\u03bcg|g|ml|iu|%)(?:\s*/\s*(?:kg|m2|ml|day))?\b",
+    re.I)
+_ARM_ROUTE = re.compile(
+    r"(?<![\w-])(?:iv|sc|im|po|per os|intravenous(?:ly)?|subcutaneous(?:ly)?|"
+    r"intramuscular(?:ly)?|intravitreal|intrathecal|oral solution|oral suspension|"
+    r"infusion)(?![\w-])", re.I)
+_ARM_TRACER = re.compile(r"\[?\s*(?:14c|\u00b9\u2074c|c-14|carbon-14|3h|tritium)\s*\]?", re.I)
+_ARM_WORDS = re.compile(
+    r"\b(?:arm [a-z0-9]|cohort [a-z0-9]|cohorts? \d|part [a-z0-9]\b|isa|dose [a-z0-9]\b|"
+    r"low dose|high dose|medium dose|mid dose|single dose|multiple dose|approved dose|"
+    r"dosing|titration|escalation|test product|stage \d|phase \d dose|sad|mad|via)\b",
+    re.I)
+
+
+def reads_as_arm(name: str) -> list[str]:
+    """Why a name reads as a study's arm rather than a compound: any of "dose", "route",
+    "tracer" and "arm", or an empty list where it reads as a compound."""
+    text = name or ""
+    why = []
+    if _ARM_DOSE.search(text):
+        why.append("dose")
+    if _ARM_ROUTE.search(text):
+        why.append("route")
+    if _ARM_TRACER.search(text):
+        why.append("tracer")
+    if _ARM_WORDS.search(text):
+        why.append("arm")
+    return why
+
+
+def arm_named_assets(conn, ticker: str | None = None) -> list[dict]:
+    """{ticker, asset_id, name, reads_as} for every unmarketed asset whose name reads as
+    an arm: the queue data/programme_names.csv is fed from."""
+    query = """SELECT a.id, c.ticker,
+                      COALESCE(a.generic_name, a.brand_name, a.internal_code) AS name
+                 FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                WHERE COALESCE(a.is_marketed, 0) = 0
+                  AND NOT EXISTS (SELECT 1 FROM approvals x WHERE x.asset_id = a.id)"""
+    params: list = []
+    if ticker:
+        query += " AND c.ticker = ?"
+        params.append(ticker.upper())
+    out = []
+    for row in conn.execute(query + " ORDER BY c.ticker, a.id", params):
+        why = reads_as_arm(row["name"])
+        if why:
+            out.append({"ticker": row["ticker"], "asset_id": row["id"],
+                        "name": row["name"], "reads_as": why})
+    return out
+
 
 def normalise(text: str) -> str:
     """A name reduced for matching: lowercase, punctuation to spaces, collapsed."""
@@ -379,21 +437,28 @@ def derive_pipeline_assets(db_path=None) -> dict:
             entry["trials"].add(row["nct_id"])
 
         created = 0
+        arm_names: list = []
         for key, entry in groups.items():
             if key in marketed or any(aliases(n) & marketed for n in entry["names"]):
                 continue                       # someone's marketed drug, so a comparator
             if len(entry["sponsors"]) > 1:
                 continue                       # a shared backbone, not one programme
-            display = min(entry["names"], key=lambda n: (len(n), n))
+            # The shortest spelling that reads as a compound; where every spelling reads
+            # as an arm, the shortest of those, and the row is reported so a person can
+            # name the programme (data/programme_names.csv).
+            display = min(entry["names"],
+                          key=lambda n: (bool(reads_as_arm(n)), len(n), n))
             conn.execute(
                 "INSERT INTO assets (owner_company_id, generic_name, is_marketed)"
                 "  VALUES (?, ?, 0)", (next(iter(entry["sponsors"])), display))
             created += 1
+            if reads_as_arm(display):
+                arm_names.append(display)
             marketed.add(key)                  # so a later spelling does not duplicate it
         conn.commit()
     finally:
         conn.close()
-    return {"created": created}
+    return {"created": created, "arm_names": arm_names}
 
 
 def prune_orphan_pipeline_assets(db_path=None) -> dict:
