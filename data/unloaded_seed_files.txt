@@ -65,7 +65,6 @@ jnj_abiomed.csv
 jnj_iti_1284.csv
 jnj_surgical.csv
 lly_ixo_vec.csv
-lly_ly4515100_via_sad.csv
 mrk_cd388_injection.csv
 mrk_efinopegdutide.csv
 nvs_tour006_20_mg.csv
