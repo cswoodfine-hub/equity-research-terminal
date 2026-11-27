@@ -213,6 +213,21 @@ disagreed with the engine; the 91 outside Lilly are listed in
 - `test_asset_merge.py::test_a_split_model_is_named_in_the_alias_map`: two AstraZeneca
   strays (`Dapagliflozin 10 mg/day (oral)`, `Ticagrelor + Aspirin`) are unnamed on the
   pristine book too. Both are arm names the new rule now reports.
+- `test_future_pipeline.py::test_launches_are_held_to_the_room_the_book_leaves`: the room
+  left comes out at −2.2e−16 and the test asks for 0.0 exactly. Fails on the base commit
+  with the pristine book. A rounding guard in the test, not in the rule.
+- `test_landscape_score.py::test_the_book_guard[Carcinoma, Non-Small-Cell Lung]`: the
+  book now lists Pembrolizumab against non-small-cell lung cancer and the guard's expected
+  set does not. Fails on the base commit with the pristine book; the expected set is older
+  than the book.
+- `test_press_ir.py::test_the_agent_still_carries_the_project_name`: the request headers
+  carry no `From` where `CONTACT_EMAIL` is not set in the environment. Fails on the base
+  commit here; passes on a machine whose `.env` sets it.
+- The live Streamlit tests (`test_universe_tab_ui`, `test_scorecard_consistency`) time out
+  at 300 seconds when the API's valuation cache is cold. One cold Lilly valuation takes 65
+  seconds in a fresh process on this container, on the base commit and on this branch
+  alike (65.5 against 66.3 seconds), and the suite's own page loads pile several onto the
+  API at once. Warmed first, they pass. Not from this work.
 
 ## Sources
 
