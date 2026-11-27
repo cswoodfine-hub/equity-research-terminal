@@ -218,14 +218,21 @@ def sponsor_names(ticker: str, path=None) -> list[str]:
 
 def without_terms(conn, ticker: str | None = None, within_days: int = 1825,
                   today=None) -> list[dict]:
-    """Acquisition rows that carry no terms: no figure parsed, none curated. The read
-    the run's health summary reports, so a bought company with no ledger row is named."""
+    """Acquisition rows nobody has read the terms of: no figure parsed, and no ledger
+    row that looked. A curated row whose filer states no figure (Omniose, Targenomix) or
+    states it in another currency (CureVac, in euros) carries the ledger's note or the
+    announcement's words and is not a gap: the terms have been looked for and the filing
+    says what it says. The read the run's health summary reports, so a bought company
+    with no ledger row is named."""
     today = today or dt.date.today()
     cutoff = (today - dt.timedelta(days=within_days)).isoformat()
     query = """SELECT c.ticker, d.counterparty, d.event_date, d.announced_value
                  FROM deals d JOIN companies c ON c.id = d.company_id
                 WHERE d.deal_type = 'acquisition' AND d.counterparty IS NOT NULL
-                  AND d.headline_usd IS NULL AND COALESCE(d.event_date, '') >= ?"""
+                  AND d.headline_usd IS NULL AND COALESCE(d.event_date, '') >= ?
+                  AND NOT (d.is_curated = 1 AND (d.terms_evidence IS NOT NULL
+                                                 OR d.announced_value IS NOT NULL
+                                                 OR d.rationale IS NOT NULL))"""
     params: list = [cutoff]
     if ticker:
         query += " AND c.ticker = ?"

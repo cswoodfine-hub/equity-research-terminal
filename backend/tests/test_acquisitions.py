@@ -213,3 +213,17 @@ def test_a_misread_row_removes_the_stray_spelling(tmp_path):
     out = acquisitions.load(conn, ledger)
     assert out["removed"] == 1 and out["written"] == 1 and out["folded"] == 1
     assert [r[0] for r in conn.execute("SELECT counterparty FROM deals")] == ["Omniose"]
+
+
+def test_a_ledger_row_whose_filer_states_no_figure_is_not_a_gap(tmp_path):
+    """Omniose's terms are undisclosed and CureVac's are in euros. The ledger row says
+    so; a reader who has looked is not the same as nobody having looked."""
+    db_file, conn, cid = _book(tmp_path)
+    _headline(conn, cid, "Omniose", "2026-11-10")
+    _headline(conn, cid, "Nobody Looked Inc.", "2026-10-01")
+    ledger = _ledger(tmp_path, "LLY,Omniose,,2026-11-10,announced,not yet filed,,,,,,,"
+                               "https://example.org/release,\"now a wholly owned subsidiary\","
+                               "Terms not disclosed.\n")
+    acquisitions.load(conn, ledger)
+    left = acquisitions.without_terms(conn, today=__import__("datetime").date(2026, 11, 27))
+    assert [r["counterparty"] for r in left] == ["Nobody Looked Inc."]
