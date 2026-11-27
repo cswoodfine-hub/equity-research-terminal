@@ -31,6 +31,7 @@ import assumptions as assumptions_module
 import regional_loe
 import acquired_sponsors
 import acquisitions
+import book_gaps
 import retained_programmes
 import company_lines
 import indication_mapping
@@ -344,6 +345,13 @@ def _health(db_path, run_id: int, sources, quiet, calls: dict, outputs: dict) ->
         _started_at(db_path, run_id), sources, quiet, calls, llm.provider(),
         job_started_at=os.getenv("ER_JOB_STARTED_AT"), no_model=llm.reader_gap())
     run_health.mark_failed_readers(health, outputs)
+    # What the book leaves unvalued, measured on every run (book_gaps): bought assets
+    # with no forecast, late-stage assets the engine refuses, anchors behind the latest
+    # filed quarter. A courtesy read: a failure here is noted and never fails the run.
+    try:
+        health = run_health.with_gaps(health, book_gaps.summary(db_path))
+    except Exception as exc:                                       # noqa: BLE001
+        health["gaps_error"] = f"{type(exc).__name__}: {exc}"[:300]
     return health
 
 

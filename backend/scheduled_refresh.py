@@ -185,6 +185,10 @@ def run(refresh_fn=None, db_path=None) -> int:
         health = detail.get("health") if isinstance(detail, dict) else None
         if isinstance(health, dict) and health.get("line"):
             _log(f"run {result.get('id')} health {health['line']}")
+        # What the book leaves unvalued (book_gaps), on its own line under the health.
+        gaps = health.get("gaps") if isinstance(health, dict) else None
+        if isinstance(gaps, dict) and gaps.get("line"):
+            _log(f"run {result.get('id')} gaps {gaps['line']}")
         if status in ("complete", "partial"):
             _record_calls(db_path, result.get("id"))
             _record_corrections(db_path)

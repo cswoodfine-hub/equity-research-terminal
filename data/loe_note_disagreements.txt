@@ -6,7 +6,7 @@
 # Measured 2026-11-27 on the published book of that day: 98 of 210 notes disagreed. The
 # five Lilly notes were corrected the same day (Mounjaro 2041 against the 2036 compound
 # patent, Zepbound 2039 against 2036, Taltz 2028 against 2030, Trulicity 2026 against
-# 2027, Jardiance "no exclusivity on file" against 2029). The 93 below are the rest, each
+# 2027, Jardiance "no exclusivity on file" against 2029). The 91 below are the rest, each
 # with the year stated and the year the engine resolved that day; a difference can be
 # the note's or the engine's, and each wants a reading before it is settled.
 abbv_qulipta.csv    # note 2043, engine 2035
