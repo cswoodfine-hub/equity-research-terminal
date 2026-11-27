@@ -136,6 +136,11 @@ def test_the_register_on_file_reads_and_every_row_cites_a_source():
     rows = acquisitions.rows()
     assert rows, "data/acquisitions.csv holds no rows"
     for r in rows:
+        if r["status"] in acquisitions.REMOVED:
+            # A misread or a non-acquisition names no filing; its note says what it was.
+            assert r["note"], r["target"]
+            assert not any(r[c] for c in ("upfront_musd", "contingent_musd", "total_musd"))
+            continue
         assert r["source"], r["target"]
         assert r["status"] in ("completed", "agreed", "announced"), r["target"]
         assert r["quote"], r["target"]
