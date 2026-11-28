@@ -28,3 +28,5 @@ RARE,Crysvita,US,revenue_growth_pct,0.060291,the row predates the seed ledger fo
 RARE,Dojolvi,US,revenue_growth_pct,0.09375,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
 RARE,Evkeeza,US,revenue_growth_pct,0.372881,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
 RARE,Mepsevii,US,revenue_growth_pct,0.0,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+AMGN,Krystexxa,US,growth_fade_years,10,"the fade measured for the 0% to 10% band, written when the rate was +8.6%; the rate re-struck on the nine months of 2026 is +11.4%, in the 10% to 25% band, whose measured fade is 5 years (2026-11-28)"
+RARE,Dojolvi,US,growth_fade_years,10,"the fade measured for the 0% to 10% band, written when the rate was +9.4%; the rate re-struck on the nine months of 2026 is +17.2%, in the 10% to 25% band, whose measured fade is 5 years (2026-11-28)"

@@ -1958,8 +1958,20 @@ def company_rollup(db_path, ticker: str):
                       "revenue_share": [v * share for v in revenue]})
     # Streams: lines the company reports that no asset carries, run through the same
     # engine as a marketed product. They count in full; a stream is the company's own.
+    #
+    # Unless a product model carries it. A line is written for revenue no asset holds,
+    # and the asset often arrives later: Elahere and Livdelzi each had a line and then a
+    # seed file, and on 2026-11-28 both were being valued twice, $690mm and $706mm of
+    # base revenue counted as a product and again as a line. The product model wins and
+    # the line is named with the reason, so the file can be trimmed.
     streams, stream_refused = [], []
+    modelled = {(line.get("name") or "").strip().lower() for line in lines}
     for entry in stream_inputs:
+        if (entry["line"] or "").strip().lower() in modelled:
+            stream_refused.append({"line": entry["line"], "missing": [
+                "carried by the product model of the same name, so the line is not "
+                "counted a second time"]})
+            continue
         built = company_lines.build(entry)
         if not built["ok"]:
             stream_refused.append({"line": built["line"], "missing": built["missing"]})
