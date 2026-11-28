@@ -759,6 +759,31 @@ def test_a_register_naming_the_other_product_does_not_rename_the_asset(tmp_path)
     conn.close()
 
 
+def test_a_register_naming_a_presentation_does_not_rename_a_reported_line(tmp_path):
+    """The weekly register pass of 2026-11-28. Johnson & Johnson reports "Rybrevant /
+    Lazcluze" as one line, the asset is named for it and jnj_rybrevant_lazcluze.csv binds
+    by that name. The Purple Book's "Rybrevant Faspro" shares a first word, passed the
+    same-family test and was written over it, as "Nurtec Odt", "Vijoice" and "Simponi"
+    were over three more, and four seed files loaded nothing."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    line = _asset(conn, "LLY", brand="Rybrevant / Lazcluze", marketed=1, code="BLA761210")
+    conn.commit()
+    assert assets_util.upsert_asset(conn, company, "BLA761210", "Rybrevant Faspro",
+                                    "Amivantamab And Hyaluronidase-Lpuj", "biologic") == line
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (line,)).fetchone()[0] == "Rybrevant / Lazcluze"
+    # A row with no name is still given one.
+    bare = _asset(conn, "LLY", generic="Rimegepant", marketed=1, code="NDA212728")
+    conn.commit()
+    assert assets_util.upsert_asset(conn, company, "NDA212728", "Nurtec Odt",
+                                    "Rimegepant Sulfate", "small molecule") == bare
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (bare,)).fetchone()[0] == "Nurtec Odt"
+    conn.close()
+
+
 def test_with_both_products_on_file_each_register_row_finds_its_own(tmp_path):
     """Once the application's two products are two assets, a row naming one of them goes
     to that one, not to whichever has the lower id."""

@@ -128,7 +128,17 @@ def upsert_asset(conn, company_id, internal_code, brand, generic, modality,
         # withdrawn from sale, with Kesimpta's revenue and forecast still on the row.
         # Kesimpta was then created a second time and the revenue stood in the book
         # twice.
-        named = brand if same_brand_family(row[1], brand) else None
+        #
+        # Nor to a presentation's. A product the filing reports as one line is named for
+        # that line ("Rybrevant / Lazcluze", "Nurtec ODT / Vydura", "Piqray Vijoice",
+        # "Simponi Simponi Aria") and its seed file binds by that name. The same-family
+        # test passed "Rybrevant Faspro" over the first of those, so the weekly register
+        # pass of 2026-11-28 renamed all four and their seed files loaded nothing. Only
+        # an empty name is filled and only the same name is tidied.
+        held_name = (row[1] or "").strip()
+        tidy = bool((brand or "").strip()) and (
+            not held_name or brand_family(held_name)[1] == brand_family(brand)[1])
+        named = brand if tidy else None
         conn.execute(
             """
             UPDATE assets
