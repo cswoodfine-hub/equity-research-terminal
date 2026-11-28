@@ -100,3 +100,11 @@ regn_libtayo.csv    # note 2030, engine 2035
 sny_aubagio.csv    # note 2034, engine 2023
 sny_qfitlia.csv    # note 2027, engine 2033
 vrtx_alyftrek.csv    # note 2040, engine 2039
+#
+# Measured 2026-11-28 on the published book of that day. Insmed's two products, held in
+# Sanofi's name while the acquisition is pending: each note states 2035 from Insmed's
+# 10-K and the engine resolves no year, because the Orange Book has attached no listing
+# or exclusivity to either row yet (their applications are in data/loe_link.csv). The
+# lines come out when the listings attach and the engine resolves a year.
+sny_arikayce_kit.csv    # note 2035, engine none
+sny_brinsupri.csv    # note 2035, engine none
