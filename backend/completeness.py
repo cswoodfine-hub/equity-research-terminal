@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import datetime as dt
 
+import book_gaps
 import db
 
 # A guidance figure older than this is reported as stale. Companies guide on a quarterly
@@ -93,6 +94,9 @@ def build(db_path=None, today=None, use_cache: bool = False) -> dict:
             guidance = {"ok": True, "gap_pct": split.get("gap_pct"),
                         "as_of": str(read) if read else None, "age_days": age,
                         "stale": bool(age is not None and age > GUIDANCE_STALE_DAYS)}
+            # How far outside the guided range the model sits, and whether that is
+            # more than a quarter's drift (book_gaps.GUIDANCE_DISTANCE).
+            guidance.update(book_gaps.guidance_flag(split) or {})
 
         # The state in one word, so a list of seventy-five can be read at a glance. The
         # order is the order the work goes in: a company with no products modelled is a
@@ -121,6 +125,10 @@ def build(db_path=None, today=None, use_cache: bool = False) -> dict:
 
     priced = [r for r in rows if r.get("equity_per_share") is not None]
     guided = [r for r in rows if (r.get("guidance") or {}).get("ok")]
+    try:
+        gaps = book_gaps.summary(db_path, today=today)
+    except Exception as exc:                                       # noqa: BLE001
+        gaps = {"error": f"{type(exc).__name__}: {exc}"[:300]}
     out = {
         "as_of": str(today),
         "rows": rows,
@@ -136,7 +144,11 @@ def build(db_path=None, today=None, use_cache: bool = False) -> dict:
                                            for r in rows),
             "guidance_rows": len(guided),
             "guidance_stale": sum(1 for r in guided if r["guidance"].get("stale")),
+            "guidance_flagged": sum(1 for r in guided if r["guidance"].get("flagged")),
         },
+        # What the book leaves unvalued, by company (book_gaps): the same reads the
+        # run's health summary carries, here beside the coverage they sit under.
+        "gaps": gaps,
         "cached_seconds": 0,
     }
     if use_cache:

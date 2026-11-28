@@ -35,6 +35,7 @@ import company_names
 import ctgov
 import db
 import pending_acquisitions
+import acquisitions
 
 # How far back to look. An old acquisition has had its registry records moved across, so
 # asking for it costs a request and returns the acquirer's own studies twice.
@@ -198,9 +199,12 @@ def _held_pending(ticker: str, pending_path=None) -> list:
             if _plausible(r["target"])]
 
 
-def for_company(db_path=None, ticker: str = "", today=None, pending_path=None) -> list:
-    """Every company this one has acquired recently, by the name it traded under, and
-    every company it has agreed to buy whose products the book already holds for it."""
+def for_company(db_path=None, ticker: str = "", today=None, pending_path=None,
+                ledger_path=None) -> list:
+    """Every company this one has acquired recently, by the name it traded under, the
+    names its targets register their studies under (``ledger_path``, the acquisition
+    ledger), and every company it has agreed to buy whose products the book already
+    holds for it."""
     conn = db.get_connection(db_path)
     try:
         names = own_names(conn, ticker)
@@ -209,7 +213,11 @@ def for_company(db_path=None, ticker: str = "", today=None, pending_path=None) -
         conn.close()
     found = [r["counterparty"].strip() for r in rows
              if _plausible(r["counterparty"]) and _trusted(r, names)]
-    return sorted(dict.fromkeys(found + _held_pending(ticker, pending_path)))
+    # The names a bought company registers its studies under where they are not its own
+    # (data/acquisitions.csv): Beckley Psytech's for AtaiBeckley, Zomagen's for Ventyx.
+    registered = [n for n in acquisitions.sponsor_names(ticker, ledger_path)
+                  if _plausible(n)]
+    return sorted(dict.fromkeys(found + registered + _held_pending(ticker, pending_path)))
 
 
 def _searched_before(conn, ticker: str, today=None) -> list:

@@ -170,11 +170,21 @@ def save(conn, company_id: int, line: str, incoming: list[dict],
 
 
 def load_seeds(conn, directory=None) -> dict:
-    """Load every CSV under data/company_lines/. Bootstraps and never overwrites."""
+    """Load every CSV under data/company_lines/. Bootstraps, and corrects.
+
+    Until 2026-11-27 this only inserted, and nothing else writes a line: the terminal has
+    no edit path for company lines, so the file is the one record. An anchor re-struck in
+    the file therefore never reached a book that already held the line, and the nightly
+    run restores yesterday's book, so Lilly's five lines sat on their first-half anchors
+    for as long as the file said otherwise. A row whose value, text, unit, source or note
+    differs from the file's is now brought into line with it; the evidence grade and its
+    review flag are left alone, since those are the reviewer's. Returns counts, with
+    ``corrected`` for the rows moved.
+    """
     source_dir = pathlib.Path(directory) if directory else SEED_DIR
-    written = skipped = 0
+    written = skipped = corrected = 0
     if not source_dir.exists():
-        return {"written": 0, "skipped": 0}
+        return {"written": 0, "skipped": 0, "corrected": 0}
     for path in sorted(source_dir.glob("*.csv")):
         with path.open(newline="", encoding="utf-8") as handle:
             lines = [line for line in handle if not line.lstrip().startswith("#")]
@@ -187,12 +197,26 @@ def load_seeds(conn, directory=None) -> dict:
                 skipped += 1
                 continue
             scenario = (row.get("scenario") or "base").strip() or "base"
-            if conn.execute(
-                    "SELECT 1 FROM company_lines WHERE company_id = ? AND line = ?"
-                    "  AND scenario = ? AND key = ?",
-                    (company["id"], line, scenario, key)).fetchone():
-                continue
             value = (row.get("value") or "").strip()
+            held = conn.execute(
+                "SELECT value, text_value, unit, source, note FROM company_lines"
+                " WHERE company_id = ? AND line = ? AND scenario = ? AND key = ?",
+                (company["id"], line, scenario, key)).fetchone()
+            if held is not None:
+                wanted = (float(value) if value else None,
+                          (row.get("text_value") or "").strip() or None,
+                          row.get("unit") or None, row.get("source") or None,
+                          row.get("note") or None)
+                have = (held["value"], held["text_value"], held["unit"] or None,
+                        held["source"] or None, held["note"] or None)
+                if wanted != have:
+                    conn.execute(
+                        "UPDATE company_lines SET value = ?, text_value = ?, unit = ?,"
+                        "  source = ?, note = ?, updated_at = datetime('now')"
+                        " WHERE company_id = ? AND line = ? AND scenario = ? AND key = ?",
+                        wanted + (company["id"], line, scenario, key))
+                    corrected += 1
+                continue
             stated = (row.get("evidence") or "").strip().lower() or None
             if stated is not None and stated not in evidence.GRADES:
                 raise ValueError(f"'{stated}' is not an evidence grade ({path.name})")
@@ -207,4 +231,4 @@ def load_seeds(conn, directory=None) -> dict:
                  1 if stated else 0))
             written += 1
     conn.commit()
-    return {"written": written, "skipped": skipped}
+    return {"written": written, "skipped": skipped, "corrected": corrected}

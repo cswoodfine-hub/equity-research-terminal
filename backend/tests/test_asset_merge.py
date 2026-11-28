@@ -759,6 +759,31 @@ def test_a_register_naming_the_other_product_does_not_rename_the_asset(tmp_path)
     conn.close()
 
 
+def test_a_register_naming_a_presentation_does_not_rename_a_reported_line(tmp_path):
+    """The weekly register pass of 2026-11-28. Johnson & Johnson reports "Rybrevant /
+    Lazcluze" as one line, the asset is named for it and jnj_rybrevant_lazcluze.csv binds
+    by that name. The Purple Book's "Rybrevant Faspro" shares a first word, passed the
+    same-family test and was written over it, as "Nurtec Odt", "Vijoice" and "Simponi"
+    were over three more, and four seed files loaded nothing."""
+    import assets_util
+    path, conn = _seed(tmp_path)
+    company = conn.execute("SELECT id FROM companies WHERE ticker='LLY'").fetchone()[0]
+    line = _asset(conn, "LLY", brand="Rybrevant / Lazcluze", marketed=1, code="BLA761210")
+    conn.commit()
+    assert assets_util.upsert_asset(conn, company, "BLA761210", "Rybrevant Faspro",
+                                    "Amivantamab And Hyaluronidase-Lpuj", "biologic") == line
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (line,)).fetchone()[0] == "Rybrevant / Lazcluze"
+    # A row with no name is still given one.
+    bare = _asset(conn, "LLY", generic="Rimegepant", marketed=1, code="NDA212728")
+    conn.commit()
+    assert assets_util.upsert_asset(conn, company, "NDA212728", "Nurtec Odt",
+                                    "Rimegepant Sulfate", "small molecule") == bare
+    assert conn.execute("SELECT brand_name FROM assets WHERE id = ?",
+                        (bare,)).fetchone()[0] == "Nurtec Odt"
+    conn.close()
+
+
 def test_with_both_products_on_file_each_register_row_finds_its_own(tmp_path):
     """Once the application's two products are two assets, a row naming one of them goes
     to that one, not to whichever has the lower id."""
@@ -874,3 +899,26 @@ def test_a_capsid_is_not_a_development_code():
     import asset_merge
     assert "AAVANC80" not in asset_merge.development_codes(
         "AAVAnc80-hOTOF via Akouos Delivery Device")
+
+
+def test_the_code_pass_keeps_the_row_whose_name_is_a_compound(tmp_path):
+    """The radiolabel arm had the more trials and survived, and the programme took the
+    arm's name; the row named for the compound survives now whatever the trial count."""
+    path = str(tmp_path / "survivor.db")
+    db.init(path)
+    conn = db.get_connection(path)
+    conn.executescript("""
+        INSERT INTO companies (id, ticker, name) VALUES (1, 'LLY', 'Eli Lilly');
+        INSERT INTO assets (id, owner_company_id, generic_name, is_marketed) VALUES
+               (10, 1, '[14C]-LY4515100 IV', 0),
+               (11, 1, 'LY4515100 via SAD', 0),
+               (12, 1, 'LY4515100', 0);
+        INSERT INTO trials (nct_id, asset_id, sponsor_company_id, phase, overall_status) VALUES
+               ('NCT07339722', 10, 1, 'Phase 1', 'Recruiting'),
+               ('NCT07867327', 10, 1, 'Phase 1', 'Recruiting'),
+               ('NCT07511816', 12, 1, 'Phase 2', 'Recruiting');
+    """)
+    conn.commit()
+    found = asset_merge.find_code_duplicates(conn, 1)
+    conn.close()
+    assert found == [(12, [10, 11], "LY4515100")]

@@ -430,7 +430,10 @@ def test_the_agent_still_carries_the_project_name():
     from fetchers import press_ir
 
     assert "NovatalisResearch" in press_ir.USER_AGENT
-    assert press_ir.HEADERS["From"] == press_ir.CONTACT
+    # From carries the contact address where .env gives one and is left off where it
+    # does not (a fresh clone, a hosted runner): never an empty or made-up address.
+    assert press_ir.HEADERS.get("From") == press_ir.CONTACT
+    assert press_ir.CONTACT is None or "@" in press_ir.CONTACT
 
 
 # --- routes round a challenged investor site --------------------------------

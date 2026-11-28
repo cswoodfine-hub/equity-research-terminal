@@ -1,0 +1,31 @@
+# Anchors read against a filed quarter and left as they are, each with the reason.
+#
+# backend/book_gaps.stale_anchors names a marketed seed or a company line whose anchor
+# cites a quarter older than the company's latest filed one. Some cannot be re-struck:
+# the company stopped printing the row, restated the line, or the figure carries a
+# one-off. A row here says the anchor was read against the quarter named and why it
+# stands; the reading leaves it out until the company files a later quarter, when it is
+# read again.
+ticker,kind,name,reviewed_quarter,reason
+ABBV,seed,Lumigan,2026-09-30,"AbbVie's Q3 2026 10-Q (0001551152-26-000037) and earnings exhibit no longer print this row; it sits inside All other or Other Neuroscience, so no filed figure exists to re-strike on"
+ABBV,seed,Ozurdex,2026-09-30,"AbbVie's Q3 2026 10-Q (0001551152-26-000037) and earnings exhibit no longer print this row; it sits inside All other or Other Neuroscience, so no filed figure exists to re-strike on"
+ABBV,seed,Combigan,2026-09-30,"AbbVie's Q3 2026 10-Q (0001551152-26-000037) and earnings exhibit no longer print this row; it sits inside All other or Other Neuroscience, so no filed figure exists to re-strike on"
+ABBV,line,All other,2026-09-30,"AbbVie's Q3 2026 table no longer prints the eye care rows; All other now holds them, so its nine months are not on the FY2025 base's composition"
+ABBV,line,Duodopa,2026-09-30,"AbbVie's Q3 2026 10-Q (0001551152-26-000037) and earnings exhibit no longer print this row; it sits inside All other or Other Neuroscience, so no filed figure exists to re-strike on"
+ABBV,line,Other Eye Care,2026-09-30,"AbbVie's Q3 2026 10-Q (0001551152-26-000037) and earnings exhibit no longer print this row; it sits inside All other or Other Neuroscience, so no filed figure exists to re-strike on"
+ABBV,line,Other Neuroscience,2026-09-30,"Duodopa is no longer printed and sits inside Other Neuroscience, so the nine months are not on the base's composition"
+AMGN,line,Other revenues,2026-09-30,"The 10-Q prints Other revenues gross of BeOne and no BeOne line, so the anchor's residual cannot be re-struck from the Q3 documents"
+BIIB,line,Contract manufacturing,2026-09-30,Held at its level by judgement because it follows batch timing; the nine months (605.5mm against 648.8mm) do not change that
+GILD,line,"Royalty, contract and other",2026-09-30,"The nine months carry one-off intellectual property revenue in both years ($400mm in Q3 2025, $156mm in Q2 2026), so neither a pace nor a year-on-year rate describes the line"
+IONS,seed,Dawnzera (Autoinjector),2026-09-30,"The growth row is tied to Ionis's unchanged 2026 guidance of $110 to 120mm, which the nine months plus a third-quarter fourth quarter (116mm) now meets; re-anchoring needs a view on 2027 that no filing gives"
+JNJ,line,Innovative Medicine other,2026-09-27,A residual of the segment less 21 tagged products; the Q3 segment figure alone does not give it
+JNJ,line,MedTech,2026-09-27,A residual of the segment less Abiomed and surgery lines; the Q3 segment figure alone does not give it
+PFE,line,All other Hospital,2026-09-27,"Pfizer moved off-patent sterile injectables and biosimilars into a new Hospital and Biosimilars portfolio in Q1 2026 and restated the 2025 comparatives, so the nine months are not on the FY2025 base's classification"
+PFE,line,All other Oncology,2026-09-27,"Pfizer moved off-patent sterile injectables and biosimilars into a new Hospital and Biosimilars portfolio in Q1 2026 and restated the 2025 comparatives, so the nine months are not on the FY2025 base's classification"
+PFE,line,All other Primary Care,2026-09-27,"Pfizer moved off-patent sterile injectables and biosimilars into a new Hospital and Biosimilars portfolio in Q1 2026 and restated the 2025 comparatives, so the nine months are not on the FY2025 base's classification"
+PFE,line,All other Specialty Care,2026-09-27,"Pfizer moved off-patent sterile injectables and biosimilars into a new Hospital and Biosimilars portfolio in Q1 2026 and restated the 2025 comparatives, so the nine months are not on the FY2025 base's classification"
+RARE,seed,Setrusumab,2026-09-30,Not marketed; no revenue line
+SRPT,seed,Amondys 45,2026-09-30,"Sarepta prints only the PMO group in Q3 2026, not the three products"
+SRPT,seed,Exondys 51,2026-09-30,"Sarepta prints only the PMO group in Q3 2026, not the three products"
+SRPT,seed,Vyondys 53,2026-09-30,"Sarepta prints only the PMO group in Q3 2026, not the three products"
+VRTX,line,Other revenues,2026-09-30,Nil in 2026 as before; the row already carries -100%

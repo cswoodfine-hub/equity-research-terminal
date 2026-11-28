@@ -9,7 +9,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BMY,Revlimid,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 BMY,Revlimid,,US,base,base_revenue,,2951.0,,mm USD,"BMY FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-BMY,Revlimid,,US,base,revenue_growth_pct,,-0.564262,,"annual, near term","the halves already on file from the 8-K earnings exhibits: $773mm in the first half of 2026 against $1,774mm in the first half of 2025","the halves, which is the most recent full comparison on file"
+BMY,Revlimid,,US,base,revenue_growth_pct,,-0.541933,,"annual, near term","Bristol Myers Squibb's Exhibit 99.1, 'PRODUCT REVENUES FOR THE THREE MONTHS ENDED SEPTEMBER 30, 2026 AND 2025' and 'PRODUCT REVENUES FOR THE NINE MONTHS ENDED SEPTEMBER 30, 2026 AND 2025' (Unaudited, dollars in millions); the same figures are in the 10-Q (0000014272-26-000024) table 'disaggregation of revenue by product and region' (0000014272-26-000022, filed 2026-10-29), the 'Revlimid' row: $1,076mm in the nine months of 2026 against $2,349mm in the nine months of 2025 (third quarter $303mm against $575mm)","the nine months, which is the most recent full comparison on file; re-struck 2026-11-27 from -0.5643 on the first halves"
 BMY,Revlimid,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 BMY,Revlimid,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
 BMY,Revlimid,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,

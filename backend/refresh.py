@@ -30,6 +30,8 @@ import financings
 import assumptions as assumptions_module
 import regional_loe
 import acquired_sponsors
+import acquisitions
+import book_gaps
 import retained_programmes
 import company_lines
 import indication_mapping
@@ -343,6 +345,13 @@ def _health(db_path, run_id: int, sources, quiet, calls: dict, outputs: dict) ->
         _started_at(db_path, run_id), sources, quiet, calls, llm.provider(),
         job_started_at=os.getenv("ER_JOB_STARTED_AT"), no_model=llm.reader_gap())
     run_health.mark_failed_readers(health, outputs)
+    # What the book leaves unvalued, measured on every run (book_gaps): bought assets
+    # with no forecast, late-stage assets the engine refuses, anchors behind the latest
+    # filed quarter. A courtesy read: a failure here is noted and never fails the run.
+    try:
+        health = run_health.with_gaps(health, book_gaps.summary(db_path))
+    except Exception as exc:                                       # noqa: BLE001
+        health["gaps_error"] = f"{type(exc).__name__}: {exc}"[:300]
     return health
 
 
@@ -544,6 +553,13 @@ def _run_refresh(db_path, ticker: str, run_id: int) -> dict:
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
+    # The acquisition ledger, from the acquirer's own 10-Qs (data/acquisitions.csv):
+    # after the parser, so the curated row is the one the duplicates fold into.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["acquisitions"] = acquisitions.load(_conn)["written"]
+    finally:
+        _conn.close()
     # What became of the catalysts whose dates have passed, read back from the approvals
     # and the announced readouts, before the derivation below withdraws a derived row
     # whose date is behind it. Resolving first is what turns the calendar into a record.
@@ -900,6 +916,13 @@ def _run_refresh_all(db_path, force: bool, run_id: int) -> dict:
     # company's page, so the table is cleared of them before the terms are read.
     mapped["deal_parties"] = deals.prune_parties(db_path)["dropped"]
     mapped["deal_terms"] = _read(calls, "deal_terms", deals.enrich, db_path)["filled"]
+    # The acquisition ledger, from the acquirer's own 10-Qs (data/acquisitions.csv):
+    # after the parser, so the curated row is the one the duplicates fold into.
+    _conn = db.get_connection(db_path)
+    try:
+        mapped["acquisitions"] = acquisitions.load(_conn)["written"]
+    finally:
+        _conn.close()
     trial_reads = _read(calls, "trial_readouts", trial_readouts.extract, db_path)
     trial_reads["reread"] = _read(calls, "trial_readouts.reread",
                                   trial_readouts.reread, db_path)

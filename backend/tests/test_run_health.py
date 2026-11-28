@@ -10,6 +10,7 @@ import json
 
 import db
 import refresh
+import run_health
 
 
 def _book(tmp_path, history):
@@ -82,3 +83,20 @@ def test_the_run_being_scored_is_not_its_own_baseline(tmp_path):
     conn.commit(); conn.close()
     quiet = refresh.went_quiet(path, {"purple_book": _agg(0)}, run_id=mine)
     assert quiet and quiet[0]["last_rows"] == 412
+
+
+# --- what the book leaves unvalued rides beside the run's health -----------------------
+
+def test_the_gaps_block_rides_in_the_detail_and_on_the_line():
+    source = {"source": "prices", "rows_fetched": 75, "ran": 75, "skipped_ttl": 0,
+              "errors": [], "notes": []}
+    health = run_health.summarise("2026-11-23 06:05:00", [source], [], {}, "groq")
+    gaps = {"line": "bought and unvalued: LLY 1; acquisitions with no terms: none; "
+                    "late-stage and unmodelled: LLY 1; stale anchors: none",
+            "bought_unvalued": [{"ticker": "LLY"}], "deals_without_terms": [],
+            "late_stage_unmodelled": [{"ticker": "LLY"}], "stale_anchors": []}
+    out = run_health.with_gaps(health, gaps)
+    assert out["gaps"] is gaps
+    assert out["line"] == health["line"]       # the health line says what the run did
+    assert out["abnormal"] is False            # a gap in the book is not a fault in the run
+    assert run_health.with_gaps(health, None) == health

@@ -17,7 +17,7 @@
 # carries, so the products and these lines together are the company's own P&L.
 ticker,line,scenario,key,value,text_value,unit,source,note
 GILD,Yeztugo,base,base_revenue,150.0,,mm USD,"Gilead's 2026 proxy statement (0001308179-26-000106): ""$150 MILLION / 2025 Sales / Yeztugo"", rounded as printed; the 10-K holds it inside Other HIV","lenacapavir for HIV prevention, approved in June 2025"
-GILD,Yeztugo,base,revenue_growth_pct,5.186667,,"annual, near term","to the latest run rate in 2026, the engine's own convention (the latest quarter annualised): 232 in Q2 2026 (Q2 2026 10-Q, 0000882095-26-000031), 928 a year, against 150",held there from 2027: no peak is modelled
+GILD,Yeztugo,base,revenue_growth_pct,5.713333,,"annual, near term","the 2026 the filed quarters imply against the FY2025 150mm: the nine months of 2026 as reported, 702mm, and the fourth quarter at the third quarter's pace, 305mm, 1,007mm. Gilead's 10-Q Note 2 Revenues, 'Disaggregation of Revenues' table, HIV (0000882095-26-000039, filed 2026-10-30)","the nine months, the most recent comparison on file; re-struck 2026-11-27 from +5.186667"
 GILD,Yeztugo,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
 GILD,Yeztugo,base,growth_fade_years,1,,years,one year: the rate carries 2025 to the latest run rate and stops,
 GILD,Yeztugo,base,forecast_start_year,2026,,year,the year after the last reported full year,
@@ -37,7 +37,7 @@ GILD,Yeztugo,base,beta,0.62,,,"computed from 261 weekly returns vs S&P 500, 2021
 GILD,Yeztugo,base,cost_of_debt,0.056,,,"ICE BofA A-rated US corporate effective yield (FRED BAMLC0A3CAEY), 2026-09-16: 5.60%. Refreshed with the data (fetchers/rates_fred.py), so the rate a valuation uses is the one the market last quoted rather than the one it was written on",
 GILD,Yeztugo,base,debt_weight,0.123183,,,"filed TotalDebt of 26,246mm USD at 2026-06-30 over debt plus market capitalisation",
 GILD,Livdelzi,base,base_revenue,373.0,,mm USD,"Gilead's 2026 proxy statement (0001308179-26-000106): ""$373 MILLION / 2025 Sales / Livdelzi"", rounded as printed; the 10-K holds it inside Other Liver Disease","seladelpar for primary biliary cholangitis, approved in August 2024"
-GILD,Livdelzi,base,revenue_growth_pct,0.608579,,"annual, near term","to the latest run rate in 2026, the engine's own convention (a half annualised where no quarter is given): 300 in the first half of 2026 (Q2 2026 10-Q, 0000882095-26-000031), 600 a year, against 373",held there from 2027: no peak is modelled
+GILD,Livdelzi,base,revenue_growth_pct,0.892761,,"annual, near term","the 2026 the filed quarters imply against the FY2025 373mm: the nine months of 2026 as reported, 503mm, and the fourth quarter at the third quarter's pace, 203mm, 706mm. Gilead's 10-Q Note 2 Revenues, 'Disaggregation of Revenues' table, Liver Disease (0000882095-26-000039, filed 2026-10-30)","the nine months, the most recent comparison on file; re-struck 2026-11-27 from +0.608579"
 GILD,Livdelzi,base,terminal_growth_pct,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,"faded to flat: a collection of products does not renew itself, the launch line does that"
 GILD,Livdelzi,base,growth_fade_years,1,,years,one year: the rate carries 2025 to the latest run rate and stops,
 GILD,Livdelzi,base,forecast_start_year,2026,,year,the year after the last reported full year,

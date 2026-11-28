@@ -47,7 +47,6 @@ import re
 
 import assets_util
 import programme_alias
-import trial_mapping
 import db
 import trial_mapping
 
@@ -508,8 +507,12 @@ def find_code_duplicates(conn, company_id: int) -> list[tuple]:
     """(survivor_id, [loser_ids], code) for each group of derived rows sharing a code.
 
     Only rows carrying exactly one code take part, so a combination or a dual name is left
-    alone. The survivor is the row with the most trials, then the longer name, since a name
-    that carries both the INN and the code says more than the code alone.
+    alone. The survivor is a row whose name reads as a compound before one whose name
+    reads as a study's arm (``trial_mapping.reads_as_arm``), then the row with the most
+    trials, then the longer name, since a name that carries both the INN and the code
+    says more than the code alone. Until 2026-11-27 the trial count came first, and
+    "[14C]-LY4515100 IV", a mass-balance arm with two Phase 1s, survived over
+    "LY4515100 via SAD" and took the programme's name.
     """
     groups: dict = {}
     for row in conn.execute(
@@ -528,7 +531,9 @@ def find_code_duplicates(conn, company_id: int) -> list[tuple]:
         isotopes = {i for i in (_isotope(_blob(r)) for r in rows) if i}
         if len(isotopes) > 1:
             continue
-        ranked = sorted(rows, key=lambda r: (-r["trials"], -len(_blob(r)), r["id"]))
+        ranked = sorted(rows, key=lambda r: (bool(trial_mapping.reads_as_arm(
+            r["generic_name"] or r["brand_name"] or "")), -r["trials"], -len(_blob(r)),
+            r["id"]))
         out.append((ranked[0]["id"], [r["id"] for r in ranked[1:]], code))
     return out
 

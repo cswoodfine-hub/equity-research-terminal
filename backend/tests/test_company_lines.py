@@ -145,7 +145,10 @@ def test_save_refuses_a_key_a_line_cannot_carry(tmp_path):
     conn.close()
 
 
-def test_seeds_bootstrap_and_never_overwrite(tmp_path):
+def test_seeds_bootstrap_and_the_file_corrects_a_row_it_disagrees_with(tmp_path):
+    """Nothing but the file writes a company line, so a row the book holds at one figure
+    while the file says another is the file's to correct. Lilly's five lines sat on
+    first-half anchors from 2026-10-29 because the loader only inserted."""
     path = _seed(tmp_path, reported=12_000)
     seeds = tmp_path / "seeds"
     seeds.mkdir()
@@ -155,10 +158,13 @@ def test_seeds_bootstrap_and_never_overwrite(tmp_path):
         "VRTX,Milestones,base,base_revenue,40,,mm USD,seed,\n")
     conn = db.get_connection(path)
     got = company_lines.load_seeds(conn, seeds)
-    assert got == {"written": 1, "skipped": 0}
+    assert got["written"] == 1 and got["corrected"] >= 1
     by_line = {e["line"]: e["scalars"]["base_revenue"] for e in company_lines.load(conn, 1)}
-    assert by_line["Royalties"] == 500                # the row on file wins
+    assert by_line["Royalties"] == 999                # the file wins
     assert by_line["Milestones"] == 40
+    # and a second load, with nothing changed, moves nothing
+    again = company_lines.load_seeds(conn, seeds)
+    assert again["written"] == 0 and again["corrected"] == 0
     conn.close()
 
 

@@ -203,3 +203,18 @@ def mark_failed_readers(health: dict, outputs: dict) -> None:
             entry["status"] = "failed"
         entry["model_failed"] = (f"every one of {count['calls']} model calls failed: "
                                  f"{count.get('error')}")
+
+
+def with_gaps(health: dict, gaps: dict | None) -> dict:
+    """The run's health with what the book leaves unvalued beside it (``book_gaps``).
+
+    A gap is not a fault in the run, so it never makes a run abnormal and never changes
+    the health line: the summary says what the book is missing where the run says what
+    it fetched. The block rides in the detail as ``gaps`` with a line of its own, which
+    the job log prints under the health line.
+    """
+    if not gaps:
+        return health
+    out = dict(health)
+    out["gaps"] = gaps
+    return out
