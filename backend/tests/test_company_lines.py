@@ -122,6 +122,33 @@ def test_a_stream_is_in_the_revenue_build(tmp_path):
     assert combined[2026] == pytest.approx(10_000 * 1.02 + 500)
 
 
+def test_a_line_named_for_a_valued_product_is_not_counted_twice(tmp_path):
+    """Elahere and Livdelzi on 2026-11-28: each had a company line, written when no
+    asset carried it, and then a seed file of its own, and both were valued. The product
+    model wins; the line is named with the reason. A line whose product is on file but
+    not valued (Yeztugo, refused for want of a growth rate) still counts."""
+    path = _seed(tmp_path, reported=12_000)
+    conn = db.get_connection(path)
+    rows = [{"key": "base_revenue", "value": 700, "source": "test"},
+            {"key": "revenue_growth_pct", "value": 0.0, "source": "test"},
+            {"key": "wacc", "value": 0.08, "source": "test"},
+            {"key": "forecast_start_year", "value": 2026, "source": "test"},
+            {"key": "forecast_years", "value": 5, "source": "test"},
+            {"key": "cogs_pct", "value": 0.0, "source": "test"},
+            {"key": "sga_pct", "value": 0.0, "source": "test"},
+            {"key": "rd_pct", "value": 0.0, "source": "test"},
+            {"key": "tax_rate", "value": 0.2, "source": "test"}]
+    company_lines.save(conn, 1, "trikafta", rows)      # the valued product, any case
+    company_lines.save(conn, 1, "Kalydeco", rows)      # on file, no model of its own
+    conn.commit()
+    conn.close()
+    rollup = forecast_view.company_rollup(path, "VRTX")
+    assert sorted(s["line"] for s in rollup["streams"]) == ["Kalydeco", "Royalties"]
+    assert [r["line"] for r in rollup["stream_refused"]] == ["trikafta"]
+    assert "not counted a second time" in rollup["stream_refused"][0]["missing"][0]
+    assert dict(rollup["combined"])[2026] == pytest.approx(10_000 * 1.02 + 500 + 700)
+
+
 def test_a_placeholder_asset_is_drawn_and_not_counted(tmp_path):
     path = _seed(tmp_path, reported=12_000, placeholder_asset=True)
     v = forecast_view.company_verdict(path, "VRTX")
