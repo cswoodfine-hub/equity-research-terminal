@@ -31,7 +31,7 @@ AZN,AZD5335,biologic,"PubMed 42694955: 'AZD5335, a recent clinically tested FRal
 AZN,AZD6234,small molecule,"AstraZeneca pipeline page (astrazeneca.com/our-therapy-areas/pipeline.html), row 'AZD6234 (lenbelintide)', molecule size 'Small molecule'; WHO proposed INN list 133 gives lenbelintide as a 37-residue lipidated amylin analogue peptide"
 AZN,AZD6793,small molecule,"ClinicalTrials.gov NCT07082738 (AstraZeneca), official title: 'the Efficacy and Safety of AZD6793 Tablets in Adult Participants With Moderate to Very Severe Chronic Obstructive Pulmonary Disease'"
 AZN,AZD7798,biologic,"AstraZeneca pipeline page (astrazeneca.com/our-therapy-areas/pipeline.html), row 'AZD7798', molecule size 'Large molecule', described as a humanised monoclonal antibody targeting a T-cell subset"
-AZN,AZD8965 low dose,small molecule,ClinicalTrials.gov NCT06502379 (AstraZeneca): 'AZD8965 will be administered orally'; NCT07652658 is the phase 2b trial the low dose arm belongs to
+AZN,AZD8965,small molecule,ClinicalTrials.gov NCT06502379 (AstraZeneca): 'AZD8965 will be administered orally'; NCT07652658 is the phase 2b trial the low dose arm belongs to
 AZN,Balcinrenone/dapagliflozin,small molecule,"PubMed 41218621: 'the novel MRA balcinrenone combined with the SGLT2 inhibitor dapagliflozin', dosed orally as balcinrenone 15 mg plus dapagliflozin 10 mg; dapagliflozin is Drugs@FDA NDA202293 (FARXIGA)"
 AZN,Breztri,small molecule,"Drugs@FDA NDA212122, BREZTRI AEROSPHERE (budesonide, glycopyrronium, formoterol fumarate)"
 AZN,Ceralasertib,small molecule,"AstraZeneca press release (astrazeneca.com, LATIFY update): 'Ceralasertib is an oral, potent and selective inhibitor of the ATR kinase'"
@@ -48,7 +48,7 @@ BAYN,Glucobay,small molecule,"Drugs@FDA NDA020482, PRECOSE (acarbose), Bayer; Gl
 BAYN,Xarelto,small molecule,"Drugs@FDA NDA022406, XARELTO (rivaroxaban)"
 BEAM,BEAM-101,cell therapy,ClinicalTrials.gov NCT05456880: 'a Single Dose of Autologous CD34+ Base Edited Hematopoietic Stem Cells (BEAM-101)'
 BEAM,BEAM-201,cell therapy,"ClinicalTrials.gov NCT05885464: 'Multiplex Base-Edited, Allogeneic Anti-CD7 CAR-T Cells (BEAM-201)'"
-BEAM,BEAM-301: Single dose of BEAM-301 administered by IV,gene therapy,"Beam Therapeutics FY2025 10-K (sec.gov, CIK 1745999): 'BEAM-301: In Vivo LNP liver-targeting for GSDIa ... a liver-targeting LNP formulation of base editing reagents'"
+BEAM,BEAM-301,gene therapy,"Beam Therapeutics FY2025 10-K (sec.gov, CIK 1745999): 'BEAM-301: In Vivo LNP liver-targeting for GSDIa ... a liver-targeting LNP formulation of base editing reagents'"
 BEAM,BEAM-302,gene therapy,"Beam Therapeutics FY2025 10-K (sec.gov, CIK 1745999): 'BEAM-302: In Vivo LNP liver-targeting for AATD ... a liver-targeting lipid nanoparticle, or LNP, formulation of base editing reagents'"
 BIIB,BENEPALI,biologic,"Drugs@FDA BLA103795, ENBREL (etanercept); Benepali is Biogen's etanercept biosimilar"
 BIIB,FLIXABI,biologic,"Drugs@FDA BLA125544 for the reference infliximab product; FLIXABI is Biogen's infliximab biosimilar, PubMed 30263065"
