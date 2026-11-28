@@ -9,7 +9,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 BMY,Sprycel,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 BMY,Sprycel,,US,base,base_revenue,,493.0,,mm USD,"BMY FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-BMY,Sprycel,,US,base,revenue_growth_pct,,-0.457627,,"annual, near term",the halves already on file from the 8-K earnings exhibits: $160mm in the first half of 2026 against $295mm in the first half of 2025,"the halves, which is the most recent full comparison on file"
+BMY,Sprycel,,US,base,revenue_growth_pct,,-0.435835,,"annual, near term","Bristol Myers Squibb's Exhibit 99.1, 'PRODUCT REVENUES FOR THE THREE MONTHS ENDED SEPTEMBER 30, 2026 AND 2025' and 'PRODUCT REVENUES FOR THE NINE MONTHS ENDED SEPTEMBER 30, 2026 AND 2025' (Unaudited, dollars in millions); the same figures are in the 10-Q (0000014272-26-000024) table 'disaggregation of revenue by product and region' (0000014272-26-000022, filed 2026-10-29), the 'Sprycel' row: $233mm in the nine months of 2026 against $413mm in the nine months of 2025 (third quarter $73.0mm against $119mm)","the nine months, which is the most recent full comparison on file; re-struck 2026-11-27 from -0.4576 on the first halves"
 BMY,Sprycel,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 BMY,Sprycel,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
 BMY,Sprycel,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,

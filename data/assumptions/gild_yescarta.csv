@@ -10,7 +10,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 GILD,Yescarta,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 GILD,Yescarta,,US,base,base_revenue,,1495.0,,mm USD,"Gilead FY2025 10-K (0000882095-26-000006), Note 2 revenue table: ""Yescarta 595 598 303 1,495 662 666 242 1,570"" (U.S., Europe, Rest of World, total; 2025 then 2024)",the anchor
-GILD,Yescarta,,US,base,revenue_growth_pct,,-0.047771,,"annual, near term","the same table a year earlier: 1,495 against 1,570 in 2024, -4.8%; 1,498 in 2023","the first half of 2026 fell further, 679 against 779 (Q2 2026 10-Q, 0000882095-26-000031)"
+GILD,Yescarta,,US,base,revenue_growth_pct,,-0.136646,,"annual, near term","Gilead's 10-Q Note 2 Revenues, 'Disaggregation of Revenues' table, Oncology / Cell Therapy (0000882095-26-000039, filed 2026-10-30), the 'Yescarta' row: $973mm in the nine months of 2026 against $1,127mm in the nine months of 2025 (third quarter $294mm against $349mm)","the nine months, which is the most recent full comparison on file; re-struck 2026-11-27 from -0.0478 on the first halves"
 GILD,Yescarta,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 GILD,Yescarta,,US,base,growth_fade_years,,5,,years,convention: a recent rate describes next year,
 GILD,Yescarta,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,

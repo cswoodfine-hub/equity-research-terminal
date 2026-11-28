@@ -9,7 +9,7 @@
 ticker,brand,indication,region,scenario,key,year,value,text_value,unit,source,note
 PFE,Adcetris,,US,base,therapy_mode,,,marketed,,approved and selling,no patient funnel is rebuilt for a product that files its own sales
 PFE,Adcetris,,US,base,base_revenue,,907.0,,mm USD,"PFE FY2025 reported product revenue, from the 10-K product axis (sec_fsds)",the anchor
-PFE,Adcetris,,US,base,revenue_growth_pct,,-0.182203,,"annual, near term","Pfizer's six-month revenue table in the 8-K exhibit (0000078003-26-000094, filed 2026-08-04), the 'Adcetris' row: $386mm in the first half of 2026 against $472mm in the first half of 2025. The row is accepted on its own arithmetic, the two territories summing to the worldwide figure in both years","the halves, which is the comparison Pfizer makes itself"
+PFE,Adcetris,,US,base,revenue_growth_pct,,-0.101892,,"annual, near term","Pfizer's the exhibit's revenues by product tables: 'PFIZER INC. - REVENUES THIRD-QUARTER 2026 and 2025 - (UNAUDITED)' and 'PFIZER INC. - REVENUES NINE MONTHS 2026 and 2025 - (UNAUDITED)' (pages 19 and 20), the row 'Adcetris (e)' (0000078003-26-000125, filed 2026-11-03), the 'Adcetris' row: $617mm in the nine months of 2026 against $687mm in the nine months of 2025 (third quarter $231mm against $215mm)","the nine months, which is the most recent full comparison on file; re-struck 2026-11-27 from -0.1822 on the first halves"
 PFE,Adcetris,,US,base,terminal_growth_pct,,0.0,,"annual, long run",the engine's terminal value is a zero-growth perpetuity,faded to flat
 PFE,Adcetris,,US,base,growth_fade_years,,5,,years,"convention: a recent rate describes next year, not the decade after it",
 PFE,Adcetris,,US,base,forecast_start_year,,2026,,year,the year after the last reported full year,
