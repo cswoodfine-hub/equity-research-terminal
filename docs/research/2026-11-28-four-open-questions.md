@@ -18,7 +18,7 @@ applied. Fair values are the sum of the parts, mid, in dollars a share.
 | Axsome | 176.11 | 176.11 | nothing: see section 1 |
 | Krystal | 125.29 | 125.29 | Vyjuvek's fade is 5 years in either band |
 | Vertex | 514.05 | 491.87 | Journavx's ceiling |
-| Roche | 29.03 | 29.75 | ten fades from 5 years to 10 (the US line, against a close of 60.64) |
+| Roche | 29.03 | 29.75 | nine fades from 5 years to 10 (the US line, against a close of 60.64) |
 
 Amgen is now below the 454.66 it stood at before the re-strike.
 
@@ -64,7 +64,7 @@ product. Nothing in the convention is broken there.
 **Roche and Journavx, done the same day.**
 
 - Roche: 20 products carried one fade text, written for the 10% to 25% band, whatever
-  the rate. Ten grow at under 10% a year and now fade over the 10 years measured for
+  the rate. Nine grow at under 10% a year and now fade over the 10 years measured for
   that band, not 5 (Alecensa, Erivedge, Evrysdi, Gazyva, Hemlibra, Kadcyla, Ocrevus,
   Pulmozyme, Vabysmo). Three sit in a faster band whose length is also 5 and change
   their text only. Eight have a negative rate, for which no fade is measured: their
