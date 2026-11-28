@@ -766,7 +766,10 @@ def simulate(book_rd: dict, rate: float, lag: int, life: int, erosion_year1: flo
             "history_cohorts": history_cohorts, "named_overlap": overlap,
             "renewal": generation, "credited_share": credited,
             "capped_from": capped_from,
-            "capped_share": (1.0 - sum(revenue.values()) / offered if offered else 0.0),
+            # Floored at nought: where nothing is held back the two sums differ by rounding
+            # alone, and the share came out as -2.2e-16.
+            "capped_share": (max(0.0, 1.0 - sum(revenue.values()) / offered)
+                             if offered else 0.0),
             # R&D the launches go on to fund across the horizon, against the R&D the
             # book funds. Undiscounted, so it describes scale rather than value.
             "replacement": (sum(spend.values()) - book_total) / book_total
