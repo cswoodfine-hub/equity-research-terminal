@@ -938,6 +938,40 @@ def _wanted_from_files(conn, source_dir) -> tuple:
     return wanted, covered, partial
 
 
+ADOPTIONS = db.BACKEND_DIR.parent / "data" / "seed_row_adoptions.csv"
+
+
+def seed_row_adoptions(conn, path=None) -> dict:
+    """{(asset_id, region, key): the value the book holds} from data/seed_row_adoptions.csv.
+
+    reconcile_seeds corrects a row only when the ledger says the seed wrote what the row
+    holds. Some rows were written by an earlier loader with no ledger entry for the value
+    they carry: Lilly's Jardiance rate held 0.0272 while its ledger said the seed wrote
+    0.0966, and 21 more surfaced when the universe's anchors were re-struck on 2026-11-27.
+    Such a row reads as an analyst's and a corrected file never reached it. The register
+    names each one with the exact value it holds; a row that still holds that value is
+    the file's to correct, once, after which the ledger owns it. A row an analyst has
+    since changed no longer holds the value and is left alone."""
+    source = pathlib.Path(path) if path else ADOPTIONS
+    out = {}
+    if not source.exists():
+        return out
+    with source.open(newline="", encoding="utf-8") as handle:
+        for r in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+            ticker, brand = (r.get("ticker") or "").strip().upper(), (r.get("brand") or "").strip()
+            try:
+                held = float(r.get("held_value"))
+            except (TypeError, ValueError):
+                continue
+            for a in conn.execute(
+                    """SELECT a.id FROM assets a JOIN companies c ON c.id = a.owner_company_id
+                        WHERE c.ticker = ? AND (LOWER(TRIM(COALESCE(a.brand_name, ''))) = LOWER(?)
+                               OR LOWER(TRIM(COALESCE(a.generic_name, ''))) = LOWER(?))""",
+                    (ticker, brand, brand)):
+                out[(a["id"], (r.get("region") or "").strip(), (r.get("key") or "").strip())] = held
+    return out
+
+
 def reconcile_seeds(conn, directory=None, *, batch_id=None, dry_run=False) -> dict:
     """Bring rows a seed file wrote into line with the file as it reads now.
 
@@ -979,6 +1013,7 @@ def reconcile_seeds(conn, directory=None, *, batch_id=None, dry_run=False) -> di
         return {"corrected": 0, "retracted": 0, "changes": []}
     wanted, covered, partial = _wanted_from_files(conn, source_dir)
     changes, corrected, retracted = [], 0, 0
+    adoptions = seed_row_adoptions(conn)
     for asset_id in sorted(covered):
         rows = conn.execute(
             "SELECT * FROM assumptions WHERE asset_id = ?", (asset_id,)).fetchall()
@@ -995,7 +1030,13 @@ def reconcile_seeds(conn, directory=None, *, batch_id=None, dry_run=False) -> di
                     or last["op"] not in ("create", "update")
                     or not _same(row["value"], last["new_value"])
                     or not _same(row["text_value"], last["new_text"])):
-                continue                           # the analyst's, or nobody's
+                # Nobody's by the ledger. A row named in data/seed_row_adoptions.csv
+                # that still holds exactly the value the register says it holds is the
+                # file's all the same: it was written before the ledger kept seeds.
+                held = adoptions.get((asset_id, row["region"], row["key"]))
+                if (held is None or row["indication_id"] is not None
+                        or row["scenario"] != "base" or not _same(row["value"], held)):
+                    continue                       # the analyst's, or nobody's
             seed = wanted.get(ident)
             if seed is None:
                 if asset_id in partial:

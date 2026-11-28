@@ -1,0 +1,30 @@
+# Rows the book holds that no ledger entry accounts for, which the seed file may
+# correct once (read by backend/assumptions.seed_row_adoptions, used by reconcile_seeds).
+#
+# held_value is what the book of 2026-11-27 holds; the file's value replaces it only
+# while the row still holds exactly that. Written when the universe's revenue anchors were
+# re-struck on the third quarter of 2026 and these rows did not take the correction.
+ticker,brand,region,key,held_value,reason
+ABBV,Creon,US,revenue_growth_pct,-0.07672,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+AMGN,Enbrel,US,revenue_growth_pct,-0.074573,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+AMGN,Krystexxa,US,revenue_growth_pct,0.085821,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+AMGN,Tepezza,US,revenue_growth_pct,0.165528,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+AUTL,Aucatzyl,US,base_revenue,143.8,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+JNJ,Caplyta,US,base_revenue,1353.0,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+JNJ,Caplyta,US,revenue_growth_pct,0.250629,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+LLY,Jardiance,US,revenue_growth_pct,0.027237,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+MRK,Adempas / Verquvo,US,revenue_growth_pct,0.026201,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+MRK,Dificid,US,revenue_growth_pct,-0.687151,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+MRK,Isentress / Isentress HD,US,revenue_growth_pct,-0.323864,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+MRK,Lynparza,US,revenue_growth_pct,0.035191,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Adcetris,US,revenue_growth_pct,-0.182203,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Enbrel,US,revenue_growth_pct,-0.047619,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,FSME-IMMUN / TicoVac,US,revenue_growth_pct,0.238372,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Genotropin,US,revenue_growth_pct,-0.069652,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Nurtec ODT / Vydura,US,revenue_growth_pct,0.275124,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Prevnar / Prevenar family,US,revenue_growth_pct,-0.005258,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+PFE,Zavicefta,US,revenue_growth_pct,0.170569,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+RARE,Crysvita,US,revenue_growth_pct,0.060291,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+RARE,Dojolvi,US,revenue_growth_pct,0.09375,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+RARE,Evkeeza,US,revenue_growth_pct,0.372881,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
+RARE,Mepsevii,US,revenue_growth_pct,0.0,the row predates the seed ledger for the value it carries; re-struck on Q3 2026 in the seed file
