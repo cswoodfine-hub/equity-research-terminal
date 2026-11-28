@@ -4315,3 +4315,7 @@
 {"found_at": "2026-11-27 06:24:09", "id": 4315, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 266.3500061035156, "ref_key": "JNJ|2026-11-19|983|4119", "settled": 267.1400146484375, "ticker": "JNJ"}
 {"found_at": "2026-11-27 06:24:09", "id": 4316, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1023|4126", "settled": 151.22000122070312, "ticker": "NVS"}
 {"found_at": "2026-11-27 06:24:09", "id": 4317, "kind": "gate_call", "price_date": "2026-11-19", "recorded": 151.5399932861328, "ref_key": "NVS|2026-11-19|1056|4126", "settled": 151.22000122070312, "ticker": "NVS"}
+{"found_at": "2026-11-28 06:24:34", "id": 4318, "kind": "gate_call", "price_date": "2026-11-16", "recorded": 287.55999755859375, "ref_key": "JNJ|2026-11-16|983|4119", "settled": 282.54998779296875, "ticker": "JNJ"}
+{"found_at": "2026-11-28 06:24:34", "id": 4319, "kind": "gate_call", "price_date": "2026-11-18", "recorded": 275.739990234375, "ref_key": "JNJ|2026-11-18|983|4119", "settled": 272.70001220703125, "ticker": "JNJ"}
+{"found_at": "2026-11-28 06:24:34", "id": 4320, "kind": "gate_call", "price_date": "2026-11-23", "recorded": 151.74000549316406, "ref_key": "NVS|2026-11-23|1023|4126", "settled": 151.94000244140625, "ticker": "NVS"}
+{"found_at": "2026-11-28 06:24:34", "id": 4321, "kind": "gate_call", "price_date": "2026-11-23", "recorded": 151.74000549316406, "ref_key": "NVS|2026-11-23|1056|4126", "settled": 151.94000244140625, "ticker": "NVS"}
