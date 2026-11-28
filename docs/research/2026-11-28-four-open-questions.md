@@ -17,6 +17,8 @@ applied. Fair values are the sum of the parts, mid, in dollars a share.
 | Pfizer | 26.56 | 26.57 | Cresemba and Elrexfio fades, which net out |
 | Axsome | 176.11 | 176.11 | nothing: see section 1 |
 | Krystal | 125.29 | 125.29 | Vyjuvek's fade is 5 years in either band |
+| Vertex | 514.05 | 491.87 | Journavx's ceiling |
+| Roche | 29.03 | 29.75 | ten fades from 5 years to 10 (the US line, against a close of 60.64) |
 
 Amgen is now below the 454.66 it stood at before the re-strike.
 
@@ -59,13 +61,26 @@ it already carries the company's own $8bn ceiling, which does not bind: the mode
 at $1,730mm. The $44 a share is what a filed quarter does to a company with one growing
 product. Nothing in the convention is broken there.
 
+**Roche and Journavx, done the same day.**
+
+- Roche: 20 products carried one fade text, written for the 10% to 25% band, whatever
+  the rate. Ten grow at under 10% a year and now fade over the 10 years measured for
+  that band, not 5 (Alecensa, Erivedge, Evrysdi, Gazyva, Hemlibra, Kadcyla, Ocrevus,
+  Pulmozyme, Vabysmo). Three sit in a faster band whose length is also 5 and change
+  their text only. Eight have a negative rate, for which no fade is measured: their
+  rows now say they are a convention, and the length is unchanged.
+- Journavx: ceiling $2,600mm. An analyst report from Visible Alpha, as Managed
+  Healthcare Executive reported it on 2025-03-25, gives "peak global sales of $2.6
+  billion by 2032" for acute pain, and $3.4 billion with the neuropathic indications,
+  which the file's layers add for themselves. It is a consensus reported second hand
+  from before the launch, and it had $105.8mm for 2025 against the $59.6mm Vertex
+  reported. It binds in 2029; the guided rate of +233% reached $3,870mm in 2030
+  without it.
+
 **Left alone, and listed in `data/growth_convention_exceptions.txt`:**
 
-- Roche: 20 products carry one fade text, written for the 10% to 25% band, whatever
-  the rate. Re-reading them moves Roche's value and wants a pass of its own.
-- Journavx: +233% with no ceiling, peaking at $3,870mm. No published peak was looked
-  for.
-- Farxiga, Lynparza, Bridion: negative rates, for which no climb is measured.
+- Farxiga, Lynparza, Bridion: negative rates under a fade text written for a growing
+  product. The length is a convention either way.
 - Tyvaso DPI: a fade text from another band, from before the re-strike.
 
 ## 2. Gilead's Yeztugo, and two double counts that were real
