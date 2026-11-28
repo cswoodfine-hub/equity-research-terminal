@@ -72,7 +72,6 @@ jnj_tremfya.csv    # note 2029, engine 2031
 jnj_xarelto.csv    # note 2034, engine 2025
 krys_vyjuvek.csv    # note 2035, engine 2036
 mrk_belsomra.csv    # note 2033, engine 2029
-mrk_bridion.csv    # note 2028, engine 2026
 mrk_capvaxive.csv    # note 2036, engine 2038
 mrk_delstrigo.csv    # note 2036, engine 2032
 mrk_janumet.csv    # note 2029, engine 2026
