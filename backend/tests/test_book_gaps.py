@@ -156,3 +156,27 @@ def test_the_summary_line_counts_by_company(tmp_path):
     assert "late-stage and unmodelled: LLY 1" in out["line"]
     assert "bought and unvalued: none" in out["line"]
     assert [o["asset"] for o in out["late_stage_unmodelled"]] == ["tersolisib"]
+
+
+def test_an_anchor_reviewed_at_the_latest_quarter_is_left_out_until_a_later_one(tmp_path, monkeypatch):
+    """AbbVie stopped printing Lumigan in its Q3 2026 table: there is no filed figure to
+    re-strike on, the register says so, and the reading stops naming it until the company
+    files another quarter."""
+    path, conn, cid = _book(tmp_path)
+    conn.execute("INSERT INTO financials (company_id, metric, period_type, fiscal_year,"
+                 "  period_end, value, unit) VALUES (?, 'Revenues', 'Q', 2026,"
+                 "  '2026-09-30', 1e9, 'USD')", (cid,))
+    asset = conn.execute("INSERT INTO assets (owner_company_id, brand_name, is_marketed)"
+                         " VALUES (?, 'Lumigan', 1)", (cid,)).lastrowid
+    conn.execute("INSERT INTO assumptions (asset_id, region, scenario, key, value, source)"
+                 " VALUES (?, 'US', 'base', 'revenue_growth_pct', -0.1,"
+                 "  'the first quarter of 2026 against the first quarter of 2025')", (asset,))
+    conn.commit()
+    reviews = tmp_path / "reviews.csv"
+    reviews.write_text("# why\nticker,kind,name,reviewed_quarter,reason\n"
+                       "LLY,seed,Lumigan,2026-09-30,the row is no longer printed\n")
+    monkeypatch.setattr(book_gaps, "REVIEWS", reviews)
+    assert book_gaps.stale_anchors(conn, "LLY") == []
+    conn.execute("UPDATE financials SET period_end = '2026-12-31' WHERE company_id = ?", (cid,))
+    conn.commit()
+    assert [o["name"] for o in book_gaps.stale_anchors(conn, "LLY")] == ["Lumigan"]

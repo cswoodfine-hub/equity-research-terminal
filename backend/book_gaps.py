@@ -223,12 +223,34 @@ def latest_filed_quarter(conn, company_id: int) -> str | None:
     return row[0] if row and row[0] else None
 
 
+REVIEWS = db.BACKEND_DIR.parent / "data" / "stale_anchor_reviews.csv"
+
+
+def anchor_reviews(path=None) -> dict:
+    """{(ticker, kind, name lower-cased): the quarter end the anchor was last read against}
+    from data/stale_anchor_reviews.csv: anchors that cannot be re-struck on that quarter
+    (the row is no longer printed, the line was restated, the figure carries a one-off),
+    each with its reason. A later filed quarter brings the anchor back into the reading."""
+    import csv
+    source = REVIEWS if path is None else path
+    out = {}
+    try:
+        with open(source, newline="", encoding="utf-8") as handle:
+            for r in csv.DictReader(line for line in handle if not line.lstrip().startswith("#")):
+                out[((r.get("ticker") or "").strip().upper(), (r.get("kind") or "").strip(),
+                     (r.get("name") or "").strip().lower())] = (r.get("reviewed_quarter") or "").strip()
+    except FileNotFoundError:
+        pass
+    return out
+
+
 def stale_anchors(conn, ticker=None) -> list[dict]:
     """{ticker, kind, name, cited, latest} for every marketed seed and company line
     whose run-rate anchor cites a quarter earlier than the company's latest filed one.
     An anchor that cites no quarter (a reported full year) is not a run rate and is
     left out."""
     out = []
+    reviewed = anchor_reviews()
     for company in _companies(conn, ticker):
         latest = latest_filed_quarter(conn, company["id"])
         if not latest:
@@ -253,6 +275,8 @@ def stale_anchors(conn, ticker=None) -> list[dict]:
             anchors.append(("line", r["line"], r["text"]))
         for kind, name, text in anchors:
             cited = cited_period(text)
+            if reviewed.get((company["ticker"], kind, name.lower()), "") >= latest[:10]:
+                continue            # read against this quarter and left, with a reason
             if cited and cited < latest[:10]:
                 out.append({"ticker": company["ticker"], "kind": kind, "name": name,
                             "cited": cited, "latest": latest[:10]})
