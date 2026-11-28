@@ -181,3 +181,86 @@ are IPR&D charges and not cash net of cash acquired, which each note says.
 ClinicalTrials.gov API v2, each NCT named in the register rows, read 2026-11-27. EDGAR
 full-text search and the filings named in each ledger row's `source` column; the documents
 quoted are saved beside the work. Bayer's and Roche's media releases at the URLs cited.
+
+## 4. Stale anchors: 158 read, 136 re-struck, 22 left with a reason (2026-11-28)
+
+The third reading, `book_gaps.stale_anchors`, named 158 marketed seeds and company lines
+across 20 companies whose anchor cited the first half of 2026 or earlier while the company
+had filed its third quarter. Each company's Q3 2026 earnings exhibit and 10-Q was fetched
+and the product's row read: third quarter and nine months, 2026 and 2025. Every figure was
+checked against the cells of the row it quotes in the saved document.
+
+Each anchor keeps the convention it was written in and moves one quarter on:
+
+- a rate struck on the halves (Pfizer, Merck, Bristol Myers, BioMarin, most of AbbVie) is
+  struck on the nine months of 2026 against the nine months of 2025;
+- a 2026 implied by the first half and a second-quarter pace (Amgen, Axsome, Krystal) is
+  implied by the nine months and a third-quarter pace, against the FY2025 base;
+- a launch's run-rate base (Vyalev, Aucatzyl, Yeztugo, Caplyta) likewise, with Caplyta's
+  rate re-solved to its unchanged $2,700mm peak by 2031;
+- a line anchored on the latest quarter annualised (Syfovre, Empaveli) takes the third
+  quarter; Dupixent follows Sanofi's nine months in euros (15,011 against 11,468).
+
+Four anchors are sums of rows the filer prints and never adds (Botox Therapeutic and
+Cosmetic; Parsabiv and Lumakras, US and ROW; Biogen's two anti-CD20 rows); each row says
+so and gives the parts.
+
+**22 anchors were read and left**, recorded in `data/stale_anchor_reviews.csv` with the
+quarter they were read against, so the reading drops them until a later quarter is filed:
+
+- AbbVie no longer prints Lumigan, Ozurdex, Combigan, Other Eye Care or Duodopa; they sit
+  inside All other and Other Neuroscience, which are therefore no longer on their FY2025
+  composition either (seven anchors).
+- Pfizer moved sterile injectables and biosimilars into a new Hospital and Biosimilars
+  portfolio and restated 2025, so its four "All other" lines are off their base's
+  classification.
+- Sarepta prints its three PMOs as one group. J&J's two lines are residuals the segment
+  figure alone does not give. Amgen's Other revenues is printed gross of BeOne.
+- Gilead's royalty line carries one-off IP revenue in both years; Biogen's contract
+  manufacturing is held flat by judgement; Ionis's Dawnzera rate is tied to unchanged
+  guidance; Vertex's Other revenues is nil as before; setrusumab is not marketed.
+
+**A second defect surfaced and is fixed.** 23 rows held a value no ledger entry accounts
+for, so `reconcile_seeds` read them as an analyst's and a corrected file never reached the
+book. Lilly's Jardiance rate was the first, reported on 2026-11-27. `data/seed_row_adoptions.csv`
+names each row with the exact value it holds; a row still holding it is the file's to
+correct once, after which the ledger owns it.
+
+| Company | Fair value before | After | Modelled 2026 before ($m) | After | Guidance |
+|---|---|---|---|---|---|
+| AbbVie | 221.08 | 222.72 | | | |
+| Pfizer | 26.46 | 26.24 | 62,952 | 63,478 | 62,000 to 64,000 |
+| Amgen | 454.66 | 505.99 | 39,961 | 40,597 | 38,200 to 39,400 |
+| Merck | 187.38 | 187.77 | 68,483 | 68,328 | 66,300 to 67,300 |
+| Bristol Myers | 105.14 | 102.43 | 50,407 | 50,544 | 49,750 to 50,250 |
+| BioMarin | 20.24 | 20.19 | 3,323 | 3,326 | 3,825 to 3,925 |
+| Biogen | 240.13 | 253.91 | | | |
+| Gilead | 146.14 | 146.03 | | | |
+| Sarepta | 19.22 | 17.90 | 2,550 | 2,614 | 1,200 to 1,400 |
+| J&J | 214.11 | 214.16 | 102,692 | 102,766 | 101,200 |
+| Axsome | 130.95 | 174.85 | | | |
+| Lantheus | 58.84 | 59.80 | | | |
+| Vertex | 507.76 | 508.16 | 13,181 | 13,209 | 13,150 to 13,250 |
+| Ionis | 40.44 | 40.44 | | | |
+| Krystal | 116.84 | 124.71 | | | |
+| Lilly | 511.78 | 521.40 | 92,476 | 94,043 | 91,000 to 92,000 |
+
+Ultragenyx, Regeneron, Autolus, Neurocrine and United Therapeutics return no sum-of-the-parts
+value on this book, before or after.
+
+Three moves a reader should look at before trusting them:
+
+- **Amgen, +$51 a share.** The implied-year convention turns a strong third quarter into a
+  starting rate: Uplizna +129%, Imdelltra +117%, Repatha +33%, each fading over its band.
+  Modelled 2026 is now 3.0% above the top of Amgen's guidance, which is the flag's line.
+- **Axsome, +$44 a share.** Auvelity's rate moves from +37% to +48% on the same convention.
+- **Lilly, +$9.6 a share.** Jardiance's re-struck rate (48%, on years that carry BI
+  milestones at both ends, as its row says) finally reached the book. Modelled 2026 is
+  2.2% above the top of guidance.
+
+Things the filings said that the rates alone do not: Merck's Bridion fell to $144mm in
+the quarter on generic entry while its nine-month rate is only -17%; Gardasil's quarter
+carried favourable purchase timing; BioMarin will no longer market Roctavian; Sarepta's
+Elevidys is down 64% for the nine months. Gilead's Yeztugo sits in the book both as a
+company line (grown to its 2026 run rate and held) and as a seed starting in 2027, which
+reads as a possible double count from 2027 and was left for a decision.
